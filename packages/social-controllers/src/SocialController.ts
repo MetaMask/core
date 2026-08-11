@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { controllerName } from './social-constants';
+import { controllerName } from './social-constants.js';
 import type {
   FetchLeaderboardOptions,
   FollowOptions,
@@ -16,14 +16,16 @@ import type {
   SocialControllerState,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
-import type { SocialControllerMethodActions } from './SocialController-method-action-types';
+} from './social-types.js';
+import type { SocialControllerMethodActions } from './SocialController-method-action-types.js';
 import type {
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFollowAction,
+  SocialServiceOptInToLeaderboardAction,
+  SocialServiceOptOutOfLeaderboardAction,
   SocialServiceUnfollowAction,
-} from './SocialService-method-action-types';
+} from './SocialService-method-action-types.js';
 
 // === MESSENGER ===
 
@@ -32,6 +34,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'followTrader',
   'unfollowTrader',
   'updateFollowing',
+  'optOutOfLeaderboard',
+  'optInToLeaderboard',
 ] as const;
 
 // === ACTION TYPES ===
@@ -60,7 +64,9 @@ type AllowedActions =
   | SocialServiceFetchLeaderboardAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
-  | SocialServiceFetchFollowingAction;
+  | SocialServiceFetchFollowingAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction;
 
 type AllowedEvents = never;
 
@@ -263,5 +269,19 @@ export class SocialController extends BaseController<
     });
 
     return followingResponse;
+  }
+
+  /**
+   * Opts the current user out of the PnL leaderboard.
+   */
+  async optOutOfLeaderboard(): Promise<void> {
+    await this.messenger.call('SocialService:optOutOfLeaderboard');
+  }
+
+  /**
+   * Opts the current user back into the PnL leaderboard.
+   */
+  async optInToLeaderboard(): Promise<void> {
+    await this.messenger.call('SocialService:optInToLeaderboard');
   }
 }

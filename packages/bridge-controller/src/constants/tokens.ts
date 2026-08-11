@@ -1,7 +1,7 @@
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
-import type { AllowedBridgeChainIds } from './bridge';
-import { CHAIN_IDS } from './chains';
+import type { AllowedBridgeChainIds } from './bridge.js';
+import { CHAIN_IDS } from './chains.js';
 
 export type SwapsTokenObject = {
   /**
@@ -59,7 +59,9 @@ const CURRENCY_SYMBOLS = {
   MON: 'MON',
   HYPE: 'HYPE',
   MEGAETH: 'ETH',
+  XLM: 'XLM',
   ARC: 'USDC',
+  ROBINHOOD: 'ETH',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -170,6 +172,14 @@ const TRX_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
+const XLM_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.XLM,
+  name: 'Stellar Lumens',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 7,
+  iconUrl: '',
+} as const;
+
 const MONAD_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.MON,
   name: 'Mon',
@@ -190,10 +200,14 @@ const MEGAETH_SWAPS_TOKEN_OBJECT = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+const ROBINHOOD_SWAPS_TOKEN_OBJECT = {
+  ...ETH_SWAPS_TOKEN_OBJECT,
+} as const;
+
 // Leaving for code consistency but we won't display it in the asset picker
 const ARC_SWAPS_TOKEN_OBJECT = {
-  symbol: 'USDC-native',
-  name: 'USDC-native',
+  symbol: 'USDC',
+  name: 'USDC',
   address: '0x0000000000000000000000000000000000000000',
   decimals: 18,
   iconUrl: '',
@@ -217,10 +231,12 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.MEGAETH]: MEGAETH_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.ARC]: ARC_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.ROBINHOOD]: ROBINHOOD_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
   [TrxScope.Mainnet]: TRX_SWAPS_TOKEN_OBJECT,
+  [XlmScope.Pubnet]: XLM_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export type SupportedSwapsNativeCurrencySymbols =
@@ -245,8 +261,9 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   TESTETH: 'slip44:60',
   SEI: 'slip44:19000118',
   TRX: 'slip44:195',
+  XLM: 'slip44:148',
   MON: 'slip44:268435779',
   HYPE: 'slip44:2457',
   // It won't be displayed - hidden on UI client side
-  'USDC-native': 'erc20:0x0000000000000000000000000000000000000000',
+  USDC: 'erc20:0x0000000000000000000000000000000000000000',
 };

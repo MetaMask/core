@@ -78,6 +78,7 @@ export const CHAIN_IDS = {
   HYPEREVM: '0x3e7',
   MEGAETH: '0x10e6',
   ARC: '0x13b2',
+  ROBINHOOD: '0x1237',
 } as const;
 
 export const NETWORK_TYPES = {
@@ -132,6 +133,7 @@ export const MONAD_DISPLAY_NAME = 'Monad';
 export const HYPEREVM_DISPLAY_NAME = 'HyperEVM';
 export const MEGAETH_DISPLAY_NAME = 'MegaETH';
 export const ARC_DISPLAY_NAME = 'Arc';
+export const ROBINHOOD_DISPLAY_NAME = 'Robinhood Chain';
 
 export const NETWORK_TO_NAME_MAP = {
   [NETWORK_TYPES.GOERLI]: GOERLI_DISPLAY_NAME,
@@ -168,4 +170,5 @@ export const NETWORK_TO_NAME_MAP = {
   [CHAIN_IDS.HYPEREVM]: HYPEREVM_DISPLAY_NAME,
   [CHAIN_IDS.MEGAETH]: MEGAETH_DISPLAY_NAME,
   [CHAIN_IDS.ARC]: ARC_DISPLAY_NAME,
+  [CHAIN_IDS.ROBINHOOD]: ROBINHOOD_DISPLAY_NAME,
 } as const;

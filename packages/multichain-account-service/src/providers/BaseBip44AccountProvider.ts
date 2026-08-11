@@ -11,12 +11,11 @@ import type {
 } from '@metamask/keyring-api/v2';
 import type {
   KeyringMetadata,
-  KeyringSelector,
   KeyringSelectorV2,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 /**
  * Asserts a keyring account is BIP-44 compatible.
@@ -117,6 +116,14 @@ export type Bip44AccountProvider<
     context: { entropySource: EntropySourceId; groupIndex: number },
     accountIds: Account['id'][],
   ): boolean;
+  /**
+   * Ensures the provider is ready before any account operation is attempted:
+   * - EVM providers return immediately.
+   * - Snap providers will wait for the Snap platform and keyring to be available.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  ensureReady(): Promise<void>;
 };
 
 export abstract class BaseBip44AccountProvider<
@@ -190,40 +197,6 @@ export abstract class BaseBip44AccountProvider<
   }
 
   /**
-   * Run an operation against a V1 keyring selected by `selector`.
-   *
-   * Forwards to `KeyringController:withKeyring`. Use this for keyrings that
-   * have not yet migrated to the unified V2 `Keyring` interface (e.g. the
-   * snap keyring).
-   *
-   * @param selector - The selector identifying the keyring.
-   * @param operation - The operation to run with the selected keyring.
-   * @returns The result of the operation.
-   */
-  protected async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelector,
-    operation: ({
-      keyring,
-      metadata,
-    }: {
-      keyring: SelectedKeyring;
-      metadata: KeyringMetadata;
-    }) => Promise<CallbackResult>,
-  ): Promise<CallbackResult> {
-    const result = await this.messenger.call(
-      'KeyringController:withKeyring',
-      selector,
-      ({ keyring, metadata }) =>
-        operation({
-          keyring: keyring as SelectedKeyring,
-          metadata,
-        }),
-    );
-
-    return result as CallbackResult;
-  }
-
-  /**
    * Run an operation against a V2 keyring selected by `selector`.
    *
    * Forwards to `KeyringController:withKeyringV2`. Use this for keyrings
@@ -267,6 +240,10 @@ export abstract class BaseBip44AccountProvider<
     return (
       accountIds.length >= 1 && accountIds.every((id) => this.accounts.has(id))
     );
+  }
+
+  async ensureReady(): Promise<void> {
+    // No-op for non-snap providers.
   }
 
   abstract get capabilities(): KeyringCapabilities;

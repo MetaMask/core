@@ -7,10 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides ([#9747](https://github.com/MetaMask/core/pull/9747))
+
+## [5.0.0]
+
+### Added
+
+- Add optional `featureFlagThresholdGroups` field to `RemoteFeatureFlagControllerState` to map feature flag names to their selected threshold group names ([#9289](https://github.com/MetaMask/core/pull/9289))
+- Add optional `metaMetricsIds` field to threshold feature flag entries for explicit user targeting ([#9340](https://github.com/MetaMask/core/pull/9340))
+  - When a threshold entry includes `metaMetricsIds: string[]`, the entry is selected immediately if the current user's MetaMetrics ID appears in that list, bypassing hash-based rollout. This is intended for QA and Product Manager testing in any environment, including production.
+  - If multiple entries share the same ID, the first matching entry wins.
+  - Explicit-ID matches bypass the threshold cache; hash-based selection continues to use and populate the cache as before.
+  - Entries with malformed `metaMetricsIds` values (e.g. non-array) are silently skipped; the flag continues processing normally.
+  - MetaMetrics IDs are compared case-insensitively after trimming whitespace.
+  - `metaMetricsIds` values are redacted from both `rawRemoteFeatureFlags` and `remoteFeatureFlags` before being persisted to state, so they never appear in state logs or debug snapshots.
+
 ### Changed
 
+- **BREAKING:** Threshold feature flags now return the selected `value` directly instead of a `{ name, value }` wrapper. The selected threshold group name is stored separately in `featureFlagThresholdGroups` on controller state when the selected threshold entry includes `name` ([#9289](https://github.com/MetaMask/core/pull/9289))
+- Merge `localOverrides` into `remoteFeatureFlags` at the controller level so consumers receive effective flag values directly ([#9259](https://github.com/MetaMask/core/pull/9259))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [4.2.2]
 
@@ -226,7 +246,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.2...@metamask/remote-feature-flag-controller@5.0.0
 [4.2.2]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.1...@metamask/remote-feature-flag-controller@4.2.2
 [4.2.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.0...@metamask/remote-feature-flag-controller@4.2.1
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.1.0...@metamask/remote-feature-flag-controller@4.2.0

@@ -1,7 +1,7 @@
 import type { SDK } from '@metamask/profile-sync-controller';
 
-import { backupAndSyncLogger } from '../../logger';
-import type { BackupAndSyncContext } from '../types';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { BackupAndSyncContext } from '../types.js';
 
 export type ProfileId = SDK.UserProfile['profileId'] | undefined;
 

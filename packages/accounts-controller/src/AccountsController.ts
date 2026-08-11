@@ -36,16 +36,16 @@ import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
-import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
-import { projectLogger as log } from './logger';
+import { AccountsControllerMethodActions } from './AccountsController-method-action-types.js';
+import { projectLogger as log } from './logger.js';
 import type {
   MultichainNetworkControllerNetworkDidChangeEvent,
   SnapAccountServiceAccountAssetListUpdatedEvent,
   SnapAccountServiceAccountBalancesUpdatedEvent,
   SnapAccountServiceAccountTransactionsUpdatedEvent,
-} from './types';
-import type { AccountsControllerStrictState } from './typing';
-import type { HdSnapKeyringAccount } from './utils';
+} from './types.js';
+import type { AccountsControllerStrictState } from './typing.js';
+import type { HdSnapKeyringAccount } from './utils.js';
 import {
   constructAccountIdByAddress,
   getEvmDerivationPathForIndex,
@@ -57,7 +57,7 @@ import {
   isSnapKeyringType,
   isSnapKeyringV2Type,
   keyringTypeToName,
-} from './utils';
+} from './utils.js';
 
 const controllerName = 'AccountsController';
 
@@ -102,6 +102,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccounts',
   'updateAccountMetadata',
   'loadBackup',
+  'clearState',
 ] as const;
 
 /**
@@ -264,13 +265,22 @@ const accountsControllerMetadata = {
   },
 };
 
-const defaultState: AccountsControllerState = {
-  internalAccounts: {
-    accounts: {},
-    selectedAccount: '',
-  },
-  accountIdByAddress: {},
-};
+/**
+ * Returns the default state for the AccountsController.
+ *
+ * @deprecated This function is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ * @returns The default AccountsController state.
+ */
+export function getDefaultAccountsControllerState(): AccountsControllerState {
+  return {
+    internalAccounts: {
+      accounts: {},
+      selectedAccount: '',
+    },
+    accountIdByAddress: {},
+  };
+}
 
 /**
  * @deprecated This constant is deprecated and will be removed in a future version.
@@ -342,7 +352,7 @@ export class AccountsController extends BaseController<
       name: controllerName,
       metadata: accountsControllerMetadata,
       state: {
-        ...defaultState,
+        ...getDefaultAccountsControllerState(),
         ...state,
         accountIdByAddress,
       },
@@ -744,6 +754,18 @@ export class AccountsController extends BaseController<
         },
       );
     }
+  }
+
+  /**
+   * Clears the controller state and resets to default values.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   */
+  clearState(): void {
+    this.update(() => {
+      return getDefaultAccountsControllerState();
+    });
   }
 
   /**

@@ -26,9 +26,9 @@ import type {
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type {
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetTransactionsAction,
-  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -43,13 +43,13 @@ import {
   MetaMetricsEventName,
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
-} from './constants';
+} from './constants.js';
 import {
   getSmartTransactionsFeatureFlags,
   getSmartTransactionsFeatureFlagsForChain,
-} from './featureFlags/feature-flags';
-import { validateSmartTransactionsFeatureFlags } from './featureFlags/validators';
-import type { SmartTransactionsControllerMethodActions } from './SmartTransactionsController-method-action-types';
+} from './featureFlags/feature-flags.js';
+import { validateSmartTransactionsFeatureFlags } from './featureFlags/validators.js';
+import type { SmartTransactionsControllerMethodActions } from './SmartTransactionsController-method-action-types.js';
 import type {
   Fees,
   IndividualTxFees,
@@ -62,8 +62,8 @@ import type {
   MetaMetricsProps,
   FeatureFlags,
   ClientId,
-} from './types';
-import { APIType, SmartTransactionStatuses } from './types';
+} from './types.js';
+import { APIType, SmartTransactionStatuses } from './types.js';
 import {
   calculateStatus,
   getAPIRequestURL,
@@ -76,7 +76,7 @@ import {
   getSmartTransactionMetricsSensitiveProperties,
   shouldMarkRegularTransactionsAsFailed,
   markRegularTransactionsAsFailed,
-} from './utils';
+} from './utils.js';
 
 const SECOND = 1000;
 export const DEFAULT_INTERVAL = SECOND * 5;
@@ -192,9 +192,9 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
-  | TransactionControllerGetTransactionsAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerGetTransactionsAction;
 
 export type SmartTransactionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -692,11 +692,11 @@ export class SmartTransactionsController extends StaticIntervalPollingController
         smartTransaction: nextSmartTransaction,
         getRegularTransactions: () =>
           this.messenger.call('TransactionController:getTransactions'),
-        updateTransaction: (transactionMeta: TransactionMeta, note: string) =>
+        failTransaction: (transactionId: string, error: Error) =>
           this.messenger.call(
-            'TransactionController:updateTransaction',
-            transactionMeta,
-            note,
+            'TransactionController:failTransaction',
+            transactionId,
+            error,
           ),
       });
     }

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { RampsController } from './RampsController';
+import type { RampsController } from './RampsController.js';
 
 /**
  * Executes a request with caching, deduplication, and at most one in-flight
@@ -88,12 +88,44 @@ export type RampsControllerSetSelectedProviderAction = {
 };
 
 /**
+ * Switches to the first provider in state that serves the given asset,
+ * when the currently selected provider does not.
+ *
+ * This is the controller-level equivalent of UB2's BuildQuote tier-1
+ * silent-switch effect and MMPay's `useEnsureCompatibleProvider` hook: it
+ * keeps provider-asset compatibility logic in one place rather than
+ * duplicating `providerServesAsset` + find-and-switch across multiple UI
+ * layers.
+ *
+ * The compatibility check prefers the current provider's entry in
+ * `providers.data` over the `providers.selected` copy, which can be stale
+ * once a fresh providers list arrives.
+ *
+ * No-op when:
+ * - `providers.data` is empty (providers not yet loaded)
+ * - the currently selected provider already serves the asset
+ * - no provider in the list serves the asset (no safe fallback)
+ *
+ * @param assetId - CAIP-19 asset id of the deposit asset.
+ * @param options - Optional settings forwarded to `setSelectedProvider`.
+ * @param options.autoSelected - When true, marks the new selection as
+ * system-guessed (soft selection). Defaults to true.
+ * @returns `true` if the selected provider was changed, `false` otherwise.
+ */
+export type RampsControllerSetSelectedProviderForAssetAction = {
+  type: `RampsController:setSelectedProviderForAsset`;
+  handler: RampsController['setSelectedProviderForAsset'];
+};
+
+/**
  * Initializes the controller by fetching the user's region from geolocation.
  * This should be called once at app startup to set up the initial region.
  *
  * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
- * Skips getCountries when countries are already loaded; skips geolocation when
- * userRegion already exists.
+ * Force-refetches the countries catalog on startup (bypassing the in-session
+ * request cache) so region preset amounts stay current. The catalog is not
+ * persisted, so a cold start always re-fetches it regardless. Skips
+ * geolocation when userRegion already exists.
  *
  * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
  * @returns Promise that resolves when initialization is complete.
@@ -152,7 +184,6 @@ export type RampsControllerSetSelectedTokenAction = {
  * @param options - Options for cache behavior and query filters.
  * @param options.provider - Provider ID(s) to filter by.
  * @param options.crypto - Crypto currency ID(s) to filter by.
- * @param options.fiat - Fiat currency ID(s) to filter by.
  * @param options.payments - Payment method ID(s) to filter by.
  * @returns The providers response containing providers array.
  */
@@ -167,7 +198,6 @@ export type RampsControllerGetProvidersAction = {
  *
  * @param region - User's region code (e.g. "fr", "us-ny").
  * @param options - Query parameters for filtering payment methods.
- * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
  * @param options.assetId - CAIP-19 cryptocurrency identifier.
  * @param options.provider - Provider ID path.
  * @returns The payment methods response containing payments array.
@@ -289,9 +319,9 @@ export type RampsControllerGetBuyWidgetDataAction = {
  *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
- * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+ * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
  * @param params.walletAddress - Wallet address for the order.
- * @param params.chainId - Optional chain ID for the order.
+ * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
  */
 export type RampsControllerAddPrecreatedOrderAction = {
   type: `RampsController:addPrecreatedOrder`;
@@ -525,6 +555,21 @@ export type RampsControllerTransakGeneratePaymentWidgetUrlAction = {
 };
 
 /**
+ * Creates a Transak payment widget URL via the ramps API proxy, which
+ * injects the partner API key server-side. Replaces the OTT flow
+ * ({@link transakRequestOtt} + {@link transakGeneratePaymentWidgetUrl}).
+ *
+ * @param quote - The buy quote to pre-fill in the widget.
+ * @param walletAddress - The destination wallet address.
+ * @param extraParams - Optional additional widget parameters (e.g. theming).
+ * @returns The single-use widget URL.
+ */
+export type RampsControllerTransakCreateWidgetUrlAction = {
+  type: `RampsController:transakCreateWidgetUrl`;
+  handler: RampsController['transakCreateWidgetUrl'];
+};
+
+/**
  * Submits the user's purpose of usage form for KYC compliance.
  *
  * @param purpose - Array of purpose strings selected by the user.
@@ -633,6 +678,7 @@ export type RampsControllerMethodActions =
   | RampsControllerGetRequestStateAction
   | RampsControllerSetUserRegionAction
   | RampsControllerSetSelectedProviderAction
+  | RampsControllerSetSelectedProviderForAssetAction
   | RampsControllerInitAction
   | RampsControllerGetCountriesAction
   | RampsControllerGetTokensAction
@@ -666,6 +712,7 @@ export type RampsControllerMethodActions =
   | RampsControllerTransakGetUserLimitsAction
   | RampsControllerTransakRequestOttAction
   | RampsControllerTransakGeneratePaymentWidgetUrlAction
+  | RampsControllerTransakCreateWidgetUrlAction
   | RampsControllerTransakSubmitPurposeOfUsageFormAction
   | RampsControllerTransakPatchUserAction
   | RampsControllerTransakSubmitSsnDetailsAction

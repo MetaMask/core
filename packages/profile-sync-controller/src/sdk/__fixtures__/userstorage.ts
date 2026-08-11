@@ -4,7 +4,7 @@ import {
   MOCK_STORAGE_RESPONSE,
   MOCK_STORAGE_URL,
   MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES,
-} from '../mocks/userstorage';
+} from '../mocks/userstorage.js';
 
 type MockReply = {
   status: nock.StatusCode;

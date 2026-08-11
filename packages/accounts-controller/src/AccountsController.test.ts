@@ -40,16 +40,20 @@ import {
   createMockInternalAccount,
   createMockInternalAccountOptions,
   ETH_EOA_METHODS,
-} from '../tests/mocks';
+} from '../tests/mocks.js';
 import type {
   AccountsControllerMessenger,
   AccountsControllerState,
-} from './AccountsController';
-import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
+} from './AccountsController.js';
+import {
+  AccountsController,
+  EMPTY_ACCOUNT,
+  getDefaultAccountsControllerState,
+} from './AccountsController.js';
 import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
-} from './utils';
+} from './utils.js';
 
 type AllAccountsControllerActions =
   MessengerActions<AccountsControllerMessenger>;
@@ -3390,6 +3394,64 @@ describe('AccountsController', () => {
     it.todo(
       'does not re-fire a accountChanged event if the account is still the same',
     );
+  });
+
+  describe('clearState', () => {
+    it('resets state to the default values', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
+          },
+        },
+      });
+
+      accountsController.clearState();
+
+      expect(accountsController.state).toStrictEqual(
+        getDefaultAccountsControllerState(),
+      );
+    });
+
+    it('is a no-op when state is already empty', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: getDefaultAccountsControllerState(),
+      });
+
+      accountsController.clearState();
+
+      expect(accountsController.state).toStrictEqual(
+        getDefaultAccountsControllerState(),
+      );
+    });
+
+    it('is callable via the messenger', () => {
+      const { accountsController, messenger } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+          },
+        },
+      });
+
+      messenger.call('AccountsController:clearState');
+
+      expect(accountsController.state).toStrictEqual(
+        getDefaultAccountsControllerState(),
+      );
+    });
   });
 
   describe('loadBackup', () => {

@@ -1,17 +1,17 @@
 export type {
   ProcessSendCallsRequest,
   ProcessSendCallsHooks,
-} from './hooks/processSendCalls';
-export { processSendCalls } from './hooks/processSendCalls';
-export { getCallsStatus } from './hooks/getCallsStatus';
+} from './hooks/processSendCalls.js';
+export { processSendCalls } from './hooks/processSendCalls.js';
+export { getCallsStatus } from './hooks/getCallsStatus.js';
 export {
   getCapabilities,
   type GetCapabilitiesHooks,
-} from './hooks/getCapabilities';
-export { walletSendCalls } from './methods/wallet_sendCalls';
-export { walletGetCallsStatus } from './methods/wallet_getCallsStatus';
-export { walletGetCapabilities } from './methods/wallet_getCapabilities';
-export type { EIP5792Messenger } from './types';
+} from './hooks/getCapabilities.js';
+export { walletSendCalls } from './methods/wallet_sendCalls.js';
+export { walletGetCallsStatus } from './methods/wallet_getCallsStatus.js';
+export { walletGetCapabilities } from './methods/wallet_getCapabilities.js';
+export type { EIP5792Messenger } from './types.js';
 
 export type {
   GetCallsStatusHook,
@@ -24,4 +24,4 @@ export type {
   SendCallsPayload as SendCalls,
   SendCallsParams,
   SendCallsResult,
-} from './types';
+} from './types.js';

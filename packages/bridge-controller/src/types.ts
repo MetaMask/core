@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
-import type {
-  CurrencyRateControllerGetStateAction,
-  MultichainAssetsRatesControllerGetStateAction,
-  TokenRatesControllerGetStateAction,
-} from '@metamask/assets-controllers';
+import type { CurrencyRateControllerGetStateAction } from '@metamask/assets-controllers';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -27,30 +23,25 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { BridgeController } from './bridge-controller';
-import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
-import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
+import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types.js';
+import type { BridgeController } from './bridge-controller.js';
+import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
+import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
+import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
 import type {
-  BitcoinTradeDataSchema,
-  BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
-  FeeDataSchema,
-  IntentSchema,
   PlatformConfigSchema,
-  ProtocolSchema,
-  QuoteResponseSchema,
-  QuoteSchema,
-  StepSchema,
-  TokenFeatureSchema,
-  QuoteStreamCompleteSchema,
-  TronTradeDataSchema,
-  TxDataSchema,
-  BatchSellTradesResponseSchema,
-  GaslessPropertiesSchema,
-  SimulatedGasFeeLimitsSchema,
-  TxFeeGasLimitsSchema,
-} from './utils/validators';
+} from './validators/feature-flags.js';
+import type { IntentSchema } from './validators/intent.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
+import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete.js';
+import type { TxFeeGasLimitsSchema } from './validators/quote.js';
+import type { FeeDataSchema } from './validators/quote.js';
+import type { GaslessPropertiesSchema } from './validators/quote.js';
+import type { StepSchema } from './validators/step.js';
+import type { TokenFeatureSchema } from './validators/token-feature.js';
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,
@@ -79,10 +70,16 @@ export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
 
 export type ChainRanking = Infer<typeof ChainRankingSchema>;
 
+/**
+ * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
+ */
 export type L1GasFees = {
-  l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
+  l1GasFeesInHexWei?: Hex; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
+/**
+ * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
+ */
 export type NonEvmFees = {
   nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
@@ -90,88 +87,9 @@ export type NonEvmFees = {
 export type InputPrimaryDenomination = 'token_amount' | 'fiat_value';
 
 /**
- * The types of values for the token amount and its values when converted to the user's selected currency and USD
- */
-export type TokenAmountValues = {
-  /**
-   * The amount of the token
-   *
-   * @example "1.005"
-   */
-  amount: string;
-  /**
-   * The amount of the token in the user's selected currency
-   *
-   * @example "4.55"
-   */
-  valueInCurrency: string | null;
-  /**
-   * The amount of the token in USD
-   *
-   * @example "1.234"
-   */
-  usd: string | null;
-};
-
-/**
  * Asset exchange rate values for a given chain and address
  */
 export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
-
-/**
- * Values derived from the quote response
- */
-export type QuoteMetadata = {
-  /**
-   * If gas is included, this is the value of the src or dest token that was used to pay for the gas.
-   * Show this value to indicate transaction fees for gasless quotes.
-   */
-  includedTxFees?: TokenAmountValues | null;
-  /**
-   * The gas fee for the bridge transaction.
-   * effective is the gas fee that is shown to the user. If this value is not
-   * included in the trade, the calculation falls back to the gasLimit (total)
-   * total is the gas fee that is spent by the user, including refunds.
-   * max is the max gas fee that will be used by the transaction.
-   */
-  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
-  /**
-   * The total network fee required to submit the trade and any approvals. This includes
-   * the relayer fee or other native fees. Should be used for balance checks and tx submission.
-   * Note: This is only accurate for non-gasless transactions. Use {@link QuoteMetadata.includedTxFees} to
-   * get the total network fee for gasless transactions.
-   */
-  totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
-  totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
-  /**
-   * The amount that the user will receive (destTokenAmount)
-   */
-  toTokenAmount: TokenAmountValues;
-  /**
-   * The minimum amount that the user will receive (minDestTokenAmount)
-   */
-  minToTokenAmount: TokenAmountValues;
-  /**
-   * If gas is included: {@link QuoteMetadata.toTokenAmount} - {@link QuoteMetadata.includedTxFees}.
-   * Otherwise: {@link QuoteMetadata.toTokenAmount} - {@link QuoteMetadata.totalNetworkFee}.
-   */
-  adjustedReturn: Omit<TokenAmountValues, 'amount'>;
-  /**
-   * The amount that the user will send, including fees that are paid in the src token
-   * {@link Quote.srcTokenAmount} + {@link Quote.feeData[FeeType.METABRIDGE].amount} + {@link Quote.feeData[FeeType.TX_FEE].amount}
-   */
-  sentAmount: TokenAmountValues;
-  /**
-   * The swap rate is the amount that the user will receive per amount sent. Accounts for fees paid in the src or dest token.
-   * This is calculated as {@link QuoteMetadata.toTokenAmount} / {@link QuoteMetadata.sentAmount}.
-   */
-  swapRate: string;
-  /**
-   * The cost of the trade, which is the difference between the amount sent and the adjusted return.
-   * This is calculated as {@link QuoteMetadata.sentAmount} - {@link QuoteMetadata.adjustedReturn}.
-   */
-  cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
-};
 
 /**
  * Sort order set by the user
@@ -180,12 +98,6 @@ export enum SortOrder {
   COST_ASC = 'cost_ascending',
   ETA_ASC = 'time_descending',
 }
-
-/**
- * This is the interface for the asset object returned by the bridge-api
- * This type is used in the QuoteResponse and in the fetchBridgeTokens response
- */
-export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
 
 /**
  * This is the interface for the token object used in the extension client
@@ -260,16 +172,6 @@ export enum StatusTypes {
   COMPLETE = 'COMPLETE',
 }
 
-export enum FeatureId {
-  UNKNOWN = 'unknown',
-  PERPS = 'perps',
-  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
-  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
-  DAPP_SWAP = 'dapp_swap',
-  BATCH_SELL = 'batch_sell',
-  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
-}
-
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -280,50 +182,14 @@ export type GenericQuoteRequest = QuoteRequest<
   Hex | CaipAccountId | string // accountIds/addresses
 >;
 
-export type Protocol = Infer<typeof ProtocolSchema>;
-
 export type Step = Infer<typeof StepSchema>;
 
 export type RefuelData = Step;
 
 export type FeeData = Infer<typeof FeeDataSchema>;
 
-export type Quote = Infer<typeof QuoteSchema>;
-
-export type TxData = Infer<typeof TxDataSchema>;
-
 export type Intent = Infer<typeof IntentSchema>;
 export type IntentOrderLike = Intent['order'];
-
-export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
-
-export type TronTradeData = Infer<typeof TronTradeDataSchema>;
-/**
- * This is the type for the quote response from the bridge-api
- * TxDataType can be overriden to be a string when the quote is non-evm
- * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
- */
-export type QuoteResponseV1<
-  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
-  ApprovalType = TxData | TronTradeData,
-> = Infer<typeof QuoteResponseSchema> & {
-  trade: TxDataType;
-  approval?: ApprovalType;
-  /**
-   * Appended to the quote response based on the quote request
-   */
-  featureId?: FeatureId;
-  /**
-   * Appended to the quote response based on the quote request resetApproval flag
-   * If defined, the quote's total network fee will include the reset approval's gas limit.
-   */
-  resetApproval?: TxData;
-  /**
-   * Appended to the quote if there are multiple quote requests in a batch. This
-   * indicates which quoteRequest the quote is for
-   */
-  quoteRequestIndex?: number;
-};
 
 export type BatchSellTradesRequest = {
   quotes: QuoteResponseV1[];
@@ -342,16 +208,20 @@ export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
 
 export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
 
+type DeepPartialValue<Type> =
+  NonNullable<Type> extends (infer U)[]
+    ? DeepPartial<U>[]
+    : NonNullable<Type> extends readonly (infer U)[]
+      ? readonly DeepPartial<U>[]
+      : NonNullable<Type> extends object
+        ? DeepPartial<NonNullable<Type>>
+        : Type;
 export type DeepPartial<Type> = Type extends string
   ? Type
   : {
-      [K in keyof Type]?: Type[K] extends (infer U)[]
-        ? DeepPartial<U>[]
-        : Type[K] extends readonly (infer U)[]
-          ? readonly DeepPartial<U>[]
-          : Type[K] extends object
-            ? DeepPartial<Type[K]>
-            : Type[K];
+      [K in keyof Type]?: null extends Type[K]
+        ? DeepPartialValue<Type[K]> | null
+        : DeepPartialValue<Type[K]>;
     };
 
 export enum ChainId {
@@ -366,12 +236,15 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  /** Internal bridge / token-list id for Stellar pubnet (Token API chain: stellar:pubnet). */
+  STELLAR = 20000000000002,
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,
   HYPEREVM = 999,
   MEGAETH = 4326,
   ARC = 5042,
+  ROBINHOOD = 4663,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -388,7 +261,7 @@ export enum RequestStatus {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
-  quotes: (QuoteResponseV1 & L1GasFees & NonEvmFees)[];
+  quotes: QuoteResponse[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
    */
@@ -488,8 +361,6 @@ export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerGetStateAction
   | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction

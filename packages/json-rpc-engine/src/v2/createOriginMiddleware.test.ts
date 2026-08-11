@@ -1,6 +1,6 @@
-import { makeRequest } from '../../tests/utils';
-import { createOriginMiddleware } from './createOriginMiddleware';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import { makeRequest } from '../../tests/utils.js';
+import { createOriginMiddleware } from './createOriginMiddleware.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
 
 describe('createOriginMiddleware', () => {
   it('sets the origin on the context object', async () => {

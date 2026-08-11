@@ -1,4 +1,4 @@
-import type { Platform } from '../env';
+import type { Platform } from '../env.js';
 
 export type ClientMetaMetrics = {
   metametricsId: string;

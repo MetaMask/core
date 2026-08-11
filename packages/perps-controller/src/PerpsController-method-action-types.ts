@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PerpsController } from './PerpsController';
+import type { PerpsController } from './PerpsController.js';
 
 /**
  * Read cached market data for the currently active provider (or aggregated).
@@ -547,6 +547,35 @@ export type PerpsControllerGetWithdrawalRoutesAction = {
 };
 
 /**
+ * Set the transient UTM / discovery attribution context.
+ * Replaces any previously set context. Held in-memory only — not persisted.
+ *
+ * @param context - The attribution context (UTM fields) to store.
+ */
+export type PerpsControllerSetAttributionContextAction = {
+  type: `PerpsController:setAttributionContext`;
+  handler: PerpsController['setAttributionContext'];
+};
+
+/**
+ * Get a copy of the current attribution context.
+ *
+ * @returns A shallow copy of the stored attribution context.
+ */
+export type PerpsControllerGetAttributionContextAction = {
+  type: `PerpsController:getAttributionContext`;
+  handler: PerpsController['getAttributionContext'];
+};
+
+/**
+ * Clear the stored attribution context.
+ */
+export type PerpsControllerClearAttributionContextAction = {
+  type: `PerpsController:clearAttributionContext`;
+  handler: PerpsController['clearAttributionContext'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -933,6 +962,39 @@ export type PerpsControllerSetMaxSlippageAction = {
 };
 
 /**
+ * Get the user's pro-mode layout preferences (network-independent).
+ *
+ * @returns The current pro-mode layout preferences.
+ */
+export type PerpsControllerGetProLayoutPreferencesAction = {
+  type: `PerpsController:getProLayoutPreferences`;
+  handler: PerpsController['getProLayoutPreferences'];
+};
+
+/**
+ * Update the user's pro-mode layout preferences.
+ *
+ * Patch-style setter: only the provided fields are updated, the rest are
+ * preserved. This keeps the signature stable as new layout fields are added.
+ *
+ * @param patch - Partial set of pro-mode layout preferences to update.
+ */
+export type PerpsControllerSetProLayoutPreferencesAction = {
+  type: `PerpsController:setProLayoutPreferences`;
+  handler: PerpsController['setProLayoutPreferences'];
+};
+
+/**
+ * Set the Perps interface mode (lite/pro).
+ *
+ * @param mode - The mode to switch to.
+ */
+export type PerpsControllerSetPerpsModeAction = {
+  type: `PerpsController:setPerpsMode`;
+  handler: PerpsController['setPerpsMode'];
+};
+
+/**
  * Set the selected payment token for the Perps order/deposit flow.
  * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
  * Only required fields (address, chainId) are stored in state; description and symbol are optional.
@@ -976,8 +1038,17 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
- * Toggle watchlist status for a market
- * Watchlist markets are stored per network (testnet/mainnet)
+ * Toggle watchlist status for a market.
+ *
+ * Updates local state immediately (optimistic UI) and then syncs the new
+ * watchlist to AuthenticatedUserStorageService.  If the remote write fails,
+ * the local state is reverted so it stays consistent with AUS.
+ *
+ * When the user is unauthenticated, or the active provider is not yet
+ * supported by the AUS schema, the controller continues operating with
+ * local-persisted state only — no error is surfaced to the caller.
+ *
+ * Watchlist markets are stored per network (testnet/mainnet).
  *
  * @param symbol - The trading pair symbol.
  */
@@ -1005,6 +1076,35 @@ export type PerpsControllerIsWatchlistMarketAction = {
 export type PerpsControllerGetWatchlistMarketsAction = {
   type: `PerpsController:getWatchlistMarkets`;
   handler: PerpsController['getWatchlistMarkets'];
+};
+
+/**
+ * Record that the user viewed a market.
+ *
+ * The symbol is prepended to the per-network recently-viewed list (newest-first).
+ * Any existing entry for the same symbol is removed first so there are no
+ * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+ *
+ * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+ */
+export type PerpsControllerRecordMarketViewedAction = {
+  type: `PerpsController:recordMarketViewed`;
+  handler: PerpsController['recordMarketViewed'];
+};
+
+/**
+ * Get recently viewed markets for the current network.
+ *
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * newest-first, filtered to entries within the last
+ * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
+ * array when no qualifying entries exist.
+ *
+ * @returns Ordered array of market symbols.
+ */
+export type PerpsControllerGetRecentlyViewedMarketsAction = {
+  type: `PerpsController:getRecentlyViewedMarkets`;
+  handler: PerpsController['getRecentlyViewedMarkets'];
 };
 
 /**
@@ -1064,6 +1164,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerValidateClosePositionAction
   | PerpsControllerValidateWithdrawalAction
   | PerpsControllerGetWithdrawalRoutesAction
+  | PerpsControllerSetAttributionContextAction
+  | PerpsControllerGetAttributionContextAction
+  | PerpsControllerClearAttributionContextAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction
@@ -1100,6 +1203,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSaveMarketFilterPreferencesAction
   | PerpsControllerGetMaxSlippageAction
   | PerpsControllerSetMaxSlippageAction
+  | PerpsControllerGetProLayoutPreferencesAction
+  | PerpsControllerSetProLayoutPreferencesAction
+  | PerpsControllerSetPerpsModeAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
@@ -1107,4 +1213,6 @@ export type PerpsControllerMethodActions =
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction
+  | PerpsControllerRecordMarketViewedAction
+  | PerpsControllerGetRecentlyViewedMarketsAction
   | PerpsControllerIsCurrentlyReinitializingAction;

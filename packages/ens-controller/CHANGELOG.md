@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
+## [19.1.6]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [19.1.5]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
 ## [19.1.4]
 
 ### Changed
@@ -409,7 +426,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.6...HEAD
+[19.1.6]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.5...@metamask/ens-controller@19.1.6
+[19.1.5]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.4...@metamask/ens-controller@19.1.5
 [19.1.4]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.3...@metamask/ens-controller@19.1.4
 [19.1.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.2...@metamask/ens-controller@19.1.3
 [19.1.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.1...@metamask/ens-controller@19.1.2

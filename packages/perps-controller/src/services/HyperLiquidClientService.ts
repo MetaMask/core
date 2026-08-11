@@ -8,20 +8,26 @@ import {
 } from '@nktkas/hyperliquid';
 import type { HistoricalOrdersResponse } from '@nktkas/hyperliquid';
 
-import { CandlePeriod, calculateCandleCount } from '../constants/chartConfig';
-import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig';
-import { PERFORMANCE_CONFIG, PERPS_CONSTANTS } from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { WebSocketConnectionState } from '../types';
+import {
+  CandlePeriod,
+  calculateCandleCount,
+} from '../constants/chartConfig.js';
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig.js';
+import {
+  PERFORMANCE_CONFIG,
+  PERPS_CONSTANTS,
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { HyperLiquidNetwork } from '../types/config.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
   PerpsPlatformDependencies,
-} from '../types';
-import type { HyperLiquidNetwork } from '../types/config';
-import type { CandleData } from '../types/perps-types';
-import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
-import { ensureError, isAbortError } from '../utils/errorUtils';
-import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext';
+} from '../types/index.js';
+import type { CandleData } from '../types/perps-types.js';
+import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
+import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext.js';
 
 /**
  * Maximum number of reconnection attempts before giving up.
@@ -57,7 +63,7 @@ export type HyperLiquidWalletParams = {
 
 // WebSocketConnectionState is now imported from controllers/types
 // Re-export for backward compatibility with existing consumers
-export { WebSocketConnectionState } from '../types';
+export { WebSocketConnectionState } from '../types/index.js';
 
 /**
  * Service for managing HyperLiquid SDK clients
@@ -163,7 +169,7 @@ export class HyperLiquidClientService {
       // Close WebSocket transport to release resources and event listeners
       if (this.#wsTransport) {
         try {
-          await this.#wsTransport.close();
+          this.#wsTransport.close();
         } catch {
           // Ignore cleanup errors
         }
@@ -246,10 +252,7 @@ export class HyperLiquidClientService {
     this.#wsTransport = new WebSocketTransport({
       isTestnet: this.#isTestnet,
       ...HYPERLIQUID_TRANSPORT_CONFIG,
-      reconnect: {
-        ...HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
-        WebSocket: globalThis.WebSocket, // Use React Native's global WebSocket
-      },
+      reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
     });
 
     // Listen for WebSocket termination (fired when SDK exhausts all reconnection attempts)
@@ -975,7 +978,7 @@ export class HyperLiquidClientService {
       // Close WebSocket transport only (HTTP is stateless)
       if (this.#wsTransport) {
         try {
-          await this.#wsTransport.close();
+          this.#wsTransport.close();
           this.#deps.debugLogger.log(
             'HyperLiquid: Closed WebSocket transport',
             {
@@ -1197,7 +1200,7 @@ export class HyperLiquidClientService {
       // so createTransports() will create fresh ones
       if (this.#wsTransport) {
         try {
-          await this.#wsTransport.close();
+          this.#wsTransport.close();
         } catch {
           // Ignore errors during close - transport may already be dead
         }

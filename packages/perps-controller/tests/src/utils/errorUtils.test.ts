@@ -1,8 +1,10 @@
 import {
   isAbortError,
   ensureError,
+  isHyperLiquidMultiSigRequiredError,
+  isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
-} from '../../../src/utils/errorUtils';
+} from '../../../src/utils/errorUtils.js';
 
 describe('errorUtils', () => {
   describe('isAbortError', () => {
@@ -97,6 +99,67 @@ describe('errorUtils', () => {
       error.cause = error;
 
       expect(isKeyringLockedError(error)).toBe(false);
+    });
+  });
+
+  describe('isHyperLiquidUserNotFoundError', () => {
+    it('returns true for the Hyperliquid "wallet does not exist" rejection', () => {
+      const error = new Error(
+        'User or API Wallet 0x340ed4af8642491fe02fa28403cad1a53268e510 does not exist.',
+      );
+
+      expect(isHyperLiquidUserNotFoundError(error)).toBe(true);
+    });
+
+    it('returns true for non-Error rejections carrying the same message', () => {
+      expect(
+        isHyperLiquidUserNotFoundError(
+          'user or API wallet 0xabc does not exist',
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for unrelated "does not exist" errors', () => {
+      expect(
+        isHyperLiquidUserNotFoundError(new Error('Asset BTC does not exist')),
+      ).toBe(false);
+    });
+  });
+
+  describe('isHyperLiquidMultiSigRequiredError', () => {
+    it('returns true for both Hyperliquid multi-sig required spellings', () => {
+      // Hyperliquid is not consistent about the hyphen across endpoints, so
+      // both spellings must classify as the same benign condition.
+      expect(
+        isHyperLiquidMultiSigRequiredError(
+          new Error('ApiRequestError: Multi-sig required'),
+        ),
+      ).toBe(true);
+      expect(
+        isHyperLiquidMultiSigRequiredError(
+          new Error('ApiRequestError: Multisig required'),
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true for non-Error rejections carrying the same message', () => {
+      expect(isHyperLiquidMultiSigRequiredError('multi-sig required')).toBe(
+        true,
+      );
+    });
+
+    it('returns false for unrelated Hyperliquid and network errors', () => {
+      expect(
+        isHyperLiquidMultiSigRequiredError(new Error('Network error')),
+      ).toBe(false);
+      expect(
+        isHyperLiquidMultiSigRequiredError(
+          new Error(
+            'User or API Wallet 0x340ed4af8642491fe02fa28403cad1a53268e510 does not exist.',
+          ),
+        ),
+      ).toBe(false);
+      expect(isHyperLiquidMultiSigRequiredError(undefined)).toBe(false);
     });
   });
 });

@@ -7,6 +7,8 @@ updates:
     directory: '/'
     schedule:
       interval: 'daily'
+    cooldown:
+      default-days: 3
     allow:
       - dependency-name: '@metamask/*'
     versioning-strategy: 'increase'
@@ -16,8 +18,15 @@ updates:
     schedule:
       interval: 'daily'
       time: '06:00'
+    cooldown:
+      default-days: 3
     allow:
       - dependency-name: 'MetaMask/*'
       - dependency-name: 'actions/*'
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - 'version-update:semver-minor'
+          - 'version-update:semver-patch'
     target-branch: 'main'
     open-pull-requests-limit: 10

@@ -3,17 +3,20 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
-import { ETH_MAINNET_FIAT_ASSET, FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
-import type { TransactionPayFiatAsset } from './constants';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import {
+  ETH_MAINNET_FIAT_ASSET,
+  FIAT_ASSET_ID_BY_TX_TYPE,
+} from './constants.js';
+import type { TransactionPayFiatAsset } from './constants.js';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
-} from './utils';
+} from './utils.js';
 
 const TX_HASH_MOCK = '0xabc123';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -291,8 +294,9 @@ describe('Fiat Utils', () => {
       } as never);
     });
 
-    it('returns on-chain ERC-20 amount from receipt logs', async () => {
+    it('returns on-chain ERC-20 amount and block number from receipt', async () => {
       PROVIDER_MOCK.request.mockResolvedValue({
+        blockNumber: '0x1a2b3c',
         logs: [
           {
             address: ERC20_ADDRESS_MOCK,
@@ -313,7 +317,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('7000000');
+      expect(result.amountRaw).toBe('7000000');
+      expect(result.fromBlock).toBe('0x1a2b3c');
     });
 
     it('falls back to cryptoAmount when txHash is missing', async () => {
@@ -324,7 +329,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('1500000');
+      expect(result.amountRaw).toBe('1500000');
+      expect(result.fromBlock).toBeUndefined();
       expect(PROVIDER_MOCK.request).not.toHaveBeenCalled();
     });
 
@@ -338,7 +344,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('1500000');
+      expect(result.amountRaw).toBe('1500000');
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('falls back to cryptoAmount when on-chain read throws', async () => {
@@ -351,7 +358,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('1500000');
+      expect(result.amountRaw).toBe('1500000');
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('returns native amount from debug_traceTransaction', async () => {
@@ -368,7 +376,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('2000000000000000000');
+      expect(result.amountRaw).toBe('2000000000000000000');
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('falls back to tx.value for native when trace is unsupported', async () => {
@@ -391,7 +400,7 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('2000000000000000000');
+      expect(result.amountRaw).toBe('2000000000000000000');
     });
 
     it('throws when token info cannot be resolved for fallback', async () => {

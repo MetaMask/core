@@ -1,5 +1,5 @@
-import type { AnalyticsControllerState } from './AnalyticsController';
-import { analyticsControllerSelectors } from './selectors';
+import type { AnalyticsControllerState } from './AnalyticsController.js';
+import { analyticsControllerSelectors } from './selectors.js';
 
 describe('analyticsControllerSelectors', () => {
   const defaultAnalyticsId = '550e8400-e29b-41d4-a716-446655440000';
@@ -59,5 +59,35 @@ describe('analyticsControllerSelectors', () => {
         expect(enabledResult).toBe(optedInResult);
       },
     );
+  });
+
+  describe('selectConsentDecisionMade', () => {
+    it.each([[true], [false]])(
+      'returns %s when consentDecisionMade is %s',
+      (consentDecisionMade) => {
+        const state: AnalyticsControllerState = {
+          optedIn: false,
+          consentDecisionMade,
+          analyticsId: defaultAnalyticsId,
+        };
+
+        const result =
+          analyticsControllerSelectors.selectConsentDecisionMade(state);
+
+        expect(result).toBe(consentDecisionMade);
+      },
+    );
+
+    it('defaults to false when the field is absent', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      const result =
+        analyticsControllerSelectors.selectConsentDecisionMade(state);
+
+      expect(result).toBe(false);
+    });
   });
 });

@@ -6,21 +6,28 @@ import {
   isBitcoinTrade,
   isEvmTxData,
   isNonEvmChainId,
+  isStellarTrade,
   isTronTrade,
+  StellarTradeData,
   Trade,
   TronTradeData,
   TxData,
 } from '@metamask/bridge-controller';
 
-import { submitBatchSellHandler } from './batch-sell-strategy';
-import { submitBatchHandler } from './batch-strategy';
-import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy';
-import { submitIntentHandler } from './intent-strategy';
-import { submitNonEvmHandler } from './non-evm-strategy';
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
+import { submitBatchSellHandler } from './batch-sell-strategy.js';
+import { submitBatchHandler } from './batch-strategy.js';
+import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy.js';
+import { submitIntentHandler } from './intent-strategy.js';
+import { submitNonEvmHandler } from './non-evm-strategy.js';
+import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 const validateParams = <
-  TxDataType extends BitcoinTradeData | TronTradeData | string | TxData,
+  TxDataType extends
+    | BitcoinTradeData
+    | StellarTradeData
+    | TronTradeData
+    | string
+    | TxData,
 >(
   params: SubmitStrategyParams<Trade>,
 ): params is SubmitStrategyParams<TxDataType> => {
@@ -38,6 +45,8 @@ const validateParams = <
       return txs.every((tx) => typeof tx === 'string');
     case ChainId.BTC:
       return txs.every(isBitcoinTrade);
+    case ChainId.STELLAR:
+      return txs.every((tx) => typeof tx === 'string' || isStellarTrade(tx));
     case ChainId.TRON:
       return txs.every(isTronTrade);
     default:

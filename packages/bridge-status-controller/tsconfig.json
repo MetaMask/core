@@ -5,16 +5,39 @@
     "resolveJsonModule": true
   },
   "references": [
-    { "path": "../accounts-controller" },
-    { "path": "../base-controller" },
-    { "path": "../bridge-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../messenger" },
-    { "path": "../network-controller" },
-    { "path": "../polling-controller" },
-    { "path": "../transaction-controller" },
-    { "path": "../profile-sync-controller" },
-    { "path": "../gas-fee-controller" }
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../bridge-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../gas-fee-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    }
   ],
   "include": ["../../types", "./src", "./test"]
 }

@@ -14,6 +14,7 @@ runs:
       with:
         is-high-risk-environment: false
         skip-install: true
+        persist-credentials: false
 
     - name: Get merge base
       id: merge-base
@@ -36,6 +37,7 @@ runs:
 
     - name: Check that root package.json is bumped for release PRs
       shell: bash
+      id: check-root-package
       env:
         MERGE_BASE: ${{ steps.merge-base.outputs.MERGE_BASE }}
       run: |
@@ -53,7 +55,7 @@ runs:
           CURRENT_VERSION=$(echo "$PACKAGE_JSON_AT_BASE" | jq -r .version)
           NEW_VERSION=$(jq -r .version "$package")
 
-          if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+          if [[ "$NEW_VERSION" != "0.0.0" && "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
             ANY_PACKAGE_BUMPED=true
             package_name=$(jq -r ".name" "$package")
             echo "📦 Package \`$package_name\` has a version bump (\`$CURRENT_VERSION\` -> \`$NEW_VERSION\`)"
@@ -69,6 +71,7 @@ runs:
             exit 1
           else
             echo "✅ Root package.json is bumped (\`$CURRENT_ROOT_VERSION\` -> \`$NEW_ROOT_VERSION\`)"
+            echo "root-package-bumped=true" >> "$GITHUB_OUTPUT"
           fi
         else
           echo "✅ No package version bumps detected; skipping root package.json check."
@@ -82,6 +85,15 @@ runs:
         commit-message: ${{ github.event.pull_request.title }}
         before: ${{ steps.merge-base.outputs.MERGE_BASE }}
         skip-checkout: true
+
+    - name: Fail if root package is bumped but not detected as release
+      if: github.event_name == 'pull_request' && steps.is-release.outputs.IS_RELEASE != 'true' && steps.check-root-package.outputs.root-package-bumped == 'true'
+      shell: bash
+      env:
+        COMMIT_STARTS_WITH: ${{ inputs.commit-starts-with }}
+      run: |
+        echo "::error::This pull request is a release, but the release check did not detect it as such. Please ensure that the commit message starts with one of the following prefixes: $COMMIT_STARTS_WITH."
+        exit 1
 
     - name: Get pull request number
       id: pr-number

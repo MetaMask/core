@@ -1,0 +1,991 @@
+<!doctype html>
+<!--
+  Dev-only helper for DeFiPositionsController V2.
+  Open this file in a browser to fetch and inspect the Accounts API
+  v6 multiaccount balances response (same shape group-defi-positions-v6.ts consumes).
+  Not imported, tested, or published.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeFi Balances Visualizer</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #171a21;
+        --panel-2: #1e222b;
+        --border: #2a2f3a;
+        --text: #e6e8ec;
+        --muted: #9aa1ac;
+        --accent: #f6851b;
+        --accent-2: #4a90e2;
+        --green: #3fb950;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.45;
+      }
+      header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+      header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input[type='text'] {
+        flex: 1 1 420px;
+        min-width: 280px;
+        padding: 10px 12px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      input[type='text']:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      button {
+        padding: 10px 16px;
+        background: var(--accent);
+        color: #1a1200;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.08);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      button.secondary {
+        background: var(--panel-2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        font-weight: 500;
+      }
+      main {
+        padding: 20px 24px 80px;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .status {
+        padding: 14px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+      .status.error {
+        background: #3a1d1d;
+        border: 1px solid #6b2b2b;
+        color: #f3b6b6;
+      }
+      .status.loading {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .status.hidden {
+        display: none;
+      }
+
+      .filters {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+        padding: 12px 16px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .filter {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .filter span {
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      select {
+        padding: 8px 10px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 13px;
+        min-width: 190px;
+        cursor: pointer;
+      }
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .summary {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+      .stat {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 130px;
+      }
+      .stat .n {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .stat .l {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      details {
+        border-radius: 8px;
+      }
+      summary {
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary::before {
+        content: '▸';
+        display: inline-block;
+        width: 1em;
+        color: var(--muted);
+        transition: transform 0.12s ease;
+      }
+      details[open] > summary::before {
+        transform: rotate(90deg);
+      }
+
+      .lvl-protocol {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        margin-bottom: 10px;
+        padding: 4px 12px 8px;
+      }
+      .lvl-protocol > summary {
+        font-size: 15px;
+        font-weight: 700;
+        padding: 8px 0;
+        color: var(--accent);
+      }
+      .protocol-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        vertical-align: middle;
+        margin-right: 6px;
+        object-fit: cover;
+      }
+      .lvl-name > summary {
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 0;
+        margin-left: 8px;
+      }
+      .lvl-pool > summary {
+        font-size: 13px;
+        padding: 5px 0;
+        margin-left: 20px;
+        color: var(--muted);
+      }
+      .lvl-pool > summary .addr {
+        font-family: var(--mono);
+        color: var(--accent-2);
+      }
+      .lvl-postype > summary {
+        font-size: 13px;
+        padding: 5px 0;
+        margin-left: 32px;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      .badge.count {
+        background: #23324a;
+        border-color: #2f4a6b;
+        color: #a9cbf5;
+      }
+      .badge.chain {
+        background: #2a2431;
+        border-color: #4a3a5a;
+        color: #d3b8f0;
+      }
+      .badge.value {
+        background: #1e3226;
+        border-color: #2f5a3f;
+        color: #7fdca0;
+        font-family: var(--mono);
+      }
+      .badge.value.negative {
+        background: #3a1d1d;
+        border-color: #6b2b2b;
+        color: #f3b6b6;
+      }
+
+      .entries {
+        margin-left: 44px;
+        margin-top: 4px;
+      }
+      .entry {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        margin-bottom: 6px;
+        background: var(--panel-2);
+        overflow: hidden;
+      }
+      .entry-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: baseline;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .entry-head:hover {
+        background: #242936;
+      }
+      .entry-main {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .entry-name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .entry-main .sym {
+        color: var(--muted);
+        font-weight: 400;
+        font-size: 12px;
+      }
+      .entry-bal {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: #cdd3db;
+      }
+      .entry-price {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--green);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .entry-price.negative {
+        color: #f3b6b6;
+      }
+      .entry-json {
+        display: none;
+        border-top: 1px solid var(--border);
+        padding: 0;
+      }
+      .entry-json.open {
+        display: block;
+      }
+      pre {
+        margin: 0;
+        padding: 12px;
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #c9d1d9;
+        background: #0c0e12;
+        overflow-x: auto;
+      }
+      .raw-wrap {
+        margin-top: 24px;
+      }
+      .raw-wrap pre {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-height: 520px;
+        overflow: auto;
+      }
+      .empty {
+        color: var(--muted);
+        font-style: italic;
+        padding: 20px 0;
+      }
+      a {
+        color: var(--accent-2);
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>DeFi Balances Visualizer</h1>
+      <p>
+        MetaMask multiaccount balances API &middot; DeFi positions across 7 EVM
+        chains
+      </p>
+      <div class="controls">
+        <input
+          id="address"
+          type="text"
+          placeholder="0x… EVM address"
+          value="0x3e8734ec146c981e3ed1f6b582d447dde701d90c"
+          spellcheck="false"
+        />
+        <button id="fetchBtn">Fetch</button>
+        <button id="rawBtn" class="secondary" disabled>Toggle raw JSON</button>
+      </div>
+      <div class="hint">
+        Fetches Mainnet, Linea, Base, Arbitrum, BNB Chain, Optimism &amp;
+        Polygon. Only <code>defi</code> balances are shown; all data is
+        preserved in the raw response.
+      </div>
+    </header>
+
+    <main>
+      <div id="status" class="status hidden"></div>
+      <div id="filters" class="filters" style="display: none">
+        <label class="filter">
+          <span>Chain</span>
+          <select id="chainFilter"></select>
+        </label>
+        <label class="filter">
+          <span>Protocol</span>
+          <select id="protocolFilter"></select>
+        </label>
+      </div>
+      <div id="summary" class="summary" style="display: none"></div>
+      <div id="tree"></div>
+      <div id="rawWrap" class="raw-wrap" style="display: none">
+        <h3>Raw JSON response</h3>
+        <pre id="raw"></pre>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var BASE =
+          'https://accounts.api.cx.metamask.io/v6/multiaccount/balances';
+        var NETWORKS = [
+          'eip155:1',
+          'eip155:59144',
+          'eip155:8453',
+          'eip155:42161',
+          'eip155:56',
+          'eip155:10',
+          'eip155:137',
+        ];
+        var CHAIN_NAMES = {
+          1: 'Mainnet',
+          59144: 'Linea',
+          8453: 'Base',
+          42161: 'Arbitrum',
+          56: 'BNB Chain',
+          10: 'Optimism',
+          137: 'Polygon',
+        };
+
+        var els = {
+          address: document.getElementById('address'),
+          fetchBtn: document.getElementById('fetchBtn'),
+          rawBtn: document.getElementById('rawBtn'),
+          status: document.getElementById('status'),
+          filters: document.getElementById('filters'),
+          chainFilter: document.getElementById('chainFilter'),
+          protocolFilter: document.getElementById('protocolFilter'),
+          summary: document.getElementById('summary'),
+          tree: document.getElementById('tree'),
+          rawWrap: document.getElementById('rawWrap'),
+          raw: document.getElementById('raw'),
+        };
+
+        var lastData = null;
+        var allDefiEntries = [];
+
+        function buildUrl(address) {
+          var p = new URLSearchParams();
+          p.set('accountIds', 'eip155:0:' + address);
+          p.set('networks', NETWORKS.join(','));
+          p.set('includeDeFiBalances', 'true');
+          p.set('forceFetchDeFiPositions', 'true');
+          p.set('includePrices', 'true');
+          p.set('vsCurrency', 'usd');
+          return BASE + '?' + p.toString();
+        }
+
+        function chainFromAccountId(accountId) {
+          // e.g. "eip155:1:0xabc..." -> "1"
+          var parts = (accountId || '').split(':');
+          return parts.length >= 2 ? parts[1] : '';
+        }
+
+        function chainName(id) {
+          return CHAIN_NAMES[id] || 'chain ' + id;
+        }
+
+        function showStatus(kind, msg) {
+          els.status.className = 'status ' + kind;
+          els.status.textContent = msg;
+        }
+        function hideStatus() {
+          els.status.className = 'status hidden';
+        }
+
+        // Collect defi entries, tagging each with its chain, and build the nested group tree.
+        function collectDefi(data) {
+          var entries = [];
+          var accounts = (data && data.accounts) || [];
+          accounts.forEach(function (acc) {
+            var chainId = chainFromAccountId(acc.accountId);
+            (acc.balances || []).forEach(function (b) {
+              if (b.category === 'defi') {
+                entries.push({
+                  raw: b,
+                  chainId: chainId,
+                  accountId: acc.accountId,
+                });
+              }
+            });
+          });
+          return entries;
+        }
+
+        var NO_POOL = '(no pool address)';
+
+        function group(entries) {
+          // protocolId -> productName -> poolAddress -> positionType -> [entries]
+          var tree = {};
+          entries.forEach(function (e) {
+            var m = e.raw.metadata || {};
+            var pid = m.protocolId || '(no protocolId)';
+            var pname = m.productName || '(no productName)';
+            var pool = m.poolAddress || NO_POOL;
+            var ptype = m.positionType || '(no positionType)';
+            tree[pid] = tree[pid] || {};
+            tree[pid][pname] = tree[pid][pname] || {};
+            tree[pid][pname][pool] = tree[pid][pname][pool] || {};
+            tree[pid][pname][pool][ptype] = tree[pid][pname][pool][ptype] || [];
+            tree[pid][pname][pool][ptype].push(e);
+          });
+          return tree;
+        }
+
+        function countLeaves(node) {
+          // node can be nested object of arrays
+          if (Array.isArray(node)) return node.length;
+          var total = 0;
+          for (var k in node)
+            if (Object.prototype.hasOwnProperty.call(node, k)) {
+              total += countLeaves(node[k]);
+            }
+          return total;
+        }
+
+        // Total distinct pools under a protocol node (protoNode -> pname -> pool -> ...).
+        function countPools(protoNode) {
+          var total = 0;
+          for (var pname in protoNode)
+            if (Object.prototype.hasOwnProperty.call(protoNode, pname)) {
+              total += Object.keys(protoNode[pname]).length;
+            }
+          return total;
+        }
+
+        function el(tag, cls, text) {
+          var n = document.createElement(tag);
+          if (cls) n.className = cls;
+          if (text != null) n.textContent = text;
+          return n;
+        }
+
+        function countBadge(n, noun) {
+          noun = noun || 'position';
+          return el(
+            'span',
+            'badge count',
+            n + ' ' + noun + (n === 1 ? '' : 's'),
+          );
+        }
+
+        var LOAN_TYPES = { loan: true, borrow: true, debt: true };
+
+        function isLoan(e) {
+          var t = (
+            (e.raw.metadata && e.raw.metadata.positionType) ||
+            ''
+          ).toLowerCase();
+          return !!LOAN_TYPES[t];
+        }
+
+        function entryValue(e) {
+          var b = e.raw;
+          if (b.price == null || b.price === '') return 0;
+          var v = parseFloat(b.balance) * parseFloat(b.price);
+          return isFinite(v) ? v : 0;
+        }
+
+        // Signed USD value: loans/borrows are liabilities, so they subtract from
+        // whatever aggregate they roll up into instead of adding.
+        function signedValue(e) {
+          var v = entryValue(e);
+          return isLoan(e) ? -v : v;
+        }
+
+        function aggValue(node) {
+          if (Array.isArray(node)) {
+            return node.reduce(function (s, e) {
+              return s + signedValue(e);
+            }, 0);
+          }
+          var total = 0;
+          for (var k in node)
+            if (Object.prototype.hasOwnProperty.call(node, k)) {
+              total += aggValue(node[k]);
+            }
+          return total;
+        }
+
+        // Find the first protocolIconUrl present among the entries under a node
+        // (all entries for a given protocolId should share the same icon).
+        function findIconUrl(node) {
+          var found = null;
+          (function walk(n) {
+            if (found) return;
+            if (Array.isArray(n)) {
+              for (var i = 0; i < n.length && !found; i++) {
+                var url =
+                  n[i].raw.metadata && n[i].raw.metadata.protocolIconUrl;
+                if (url) found = url;
+              }
+            } else {
+              for (var k in n)
+                if (Object.prototype.hasOwnProperty.call(n, k)) {
+                  walk(n[k]);
+                  if (found) return;
+                }
+            }
+          })(node);
+          return found;
+        }
+
+        function collectChains(node) {
+          var set = {};
+          (function walk(n) {
+            if (Array.isArray(n)) {
+              n.forEach(function (e) {
+                set[e.chainId] = true;
+              });
+            } else {
+              for (var k in n)
+                if (Object.prototype.hasOwnProperty.call(n, k)) walk(n[k]);
+            }
+          })(node);
+          return Object.keys(set);
+        }
+
+        function fmtUsd(v) {
+          var sign = v < 0 ? '-' : '';
+          var abs = Math.abs(v);
+          if (abs >= 0.01) {
+            return (
+              sign +
+              '$' +
+              abs.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            );
+          }
+          return sign + '$' + Number(abs.toPrecision(2)).toString();
+        }
+
+        function fmtPrice(p) {
+          if (p == null || p === '') return '';
+          var n = parseFloat(p);
+          if (!isFinite(n)) return '';
+          if (n >= 1)
+            return (
+              '$' +
+              n.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            );
+          if (n >= 0.0001)
+            return '$' + n.toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
+          return '$' + Number(n.toPrecision(3)).toString();
+        }
+
+        function valueBadge(v) {
+          if (v === 0) return null;
+          var cls = 'badge value' + (v < 0 ? ' negative' : '');
+          return el('span', cls, fmtUsd(v));
+        }
+
+        function chainBadgesFor(node) {
+          return collectChains(node)
+            .sort(function (a, b) {
+              return chainName(a).localeCompare(chainName(b));
+            })
+            .map(function (id) {
+              return el('span', 'badge chain', chainName(id));
+            });
+        }
+
+        function shortAddr(a) {
+          if (!a || a === NO_POOL) return a;
+          return a.length > 14 ? a.slice(0, 8) + '…' + a.slice(-6) : a;
+        }
+
+        function renderEntry(e) {
+          var b = e.raw;
+          var wrap = el('div', 'entry');
+
+          var head = el('div', 'entry-head');
+
+          var main = el('div', 'entry-main');
+          main.appendChild(el('span', 'entry-name', b.name || '(unnamed)'));
+          main.appendChild(el('span', 'sym', b.symbol || ''));
+          main.appendChild(el('span', 'entry-bal', b.balance));
+
+          // Show this entry's signed USD value (balance × price, negated for
+          // loans/borrows), i.e. what the aggregate badges above actually sum —
+          // not the raw unit price, which made the entry look inconsistent with
+          // its pool/protocol totals.
+          var val = signedValue(e);
+          var hasPrice = b.price != null && b.price !== '';
+          var priceCell = el(
+            'div',
+            'entry-price',
+            hasPrice ? fmtUsd(val) : 'no price data',
+          );
+          if (val < 0) priceCell.classList.add('negative');
+
+          head.appendChild(main);
+          head.appendChild(priceCell);
+
+          var jsonBox = el('div', 'entry-json');
+          var pre = el('pre', null, JSON.stringify(b, null, 2));
+          jsonBox.appendChild(pre);
+
+          head.addEventListener('click', function () {
+            jsonBox.classList.toggle('open');
+          });
+
+          wrap.appendChild(head);
+          wrap.appendChild(jsonBox);
+          return wrap;
+        }
+
+        function sortedKeys(obj) {
+          return Object.keys(obj).sort(function (a, b) {
+            return a.localeCompare(b, undefined, { sensitivity: 'base' });
+          });
+        }
+
+        function renderTree(tree) {
+          els.tree.innerHTML = '';
+          var pids = sortedKeys(tree);
+          if (!pids.length) {
+            els.tree.appendChild(
+              el('div', 'empty', 'No DeFi positions found for this address.'),
+            );
+            return;
+          }
+
+          pids.forEach(function (pid) {
+            var protoNode = tree[pid];
+            var dProto = el('details', 'lvl-protocol');
+            dProto.open = true;
+            var sProto = el('summary');
+            var iconUrl = findIconUrl(protoNode);
+            if (iconUrl) {
+              var icon = el('img', 'protocol-icon');
+              icon.src = iconUrl;
+              icon.alt = '';
+              icon.addEventListener('error', function () {
+                icon.style.display = 'none';
+              });
+              sProto.appendChild(icon);
+            }
+            sProto.appendChild(document.createTextNode(pid));
+            chainBadgesFor(protoNode).forEach(function (cb) {
+              sProto.appendChild(cb);
+            });
+            sProto.appendChild(countBadge(countPools(protoNode), 'pool'));
+            var protoVal = valueBadge(aggValue(protoNode));
+            if (protoVal) sProto.appendChild(protoVal);
+            dProto.appendChild(sProto);
+
+            sortedKeys(protoNode).forEach(function (pname) {
+              var nameNode = protoNode[pname];
+              var dName = el('details', 'lvl-name');
+              dName.open = true;
+              var sName = el('summary');
+              sName.appendChild(document.createTextNode(pname));
+              sName.appendChild(
+                countBadge(Object.keys(nameNode).length, 'pool'),
+              );
+              dName.appendChild(sName);
+
+              sortedKeys(nameNode).forEach(function (pool) {
+                var poolNode = nameNode[pool];
+                var dPool = el('details', 'lvl-pool');
+                dPool.open = true;
+                var sPool = el('summary');
+                sPool.appendChild(document.createTextNode('Pool: '));
+                var addrSpan = el('span', 'addr', shortAddr(pool));
+                addrSpan.title = pool;
+                sPool.appendChild(addrSpan);
+                var poolVal = valueBadge(aggValue(poolNode));
+                if (poolVal) sPool.appendChild(poolVal);
+                dPool.appendChild(sPool);
+
+                sortedKeys(poolNode).forEach(function (ptype) {
+                  var list = poolNode[ptype];
+                  var dType = el('details', 'lvl-postype');
+                  dType.open = true;
+                  var sType = el('summary');
+                  sType.appendChild(document.createTextNode(ptype));
+                  sType.appendChild(countBadge(list.length, 'entry'));
+                  dType.appendChild(sType);
+
+                  var entriesWrap = el('div', 'entries');
+                  list.forEach(function (e) {
+                    entriesWrap.appendChild(renderEntry(e));
+                  });
+                  dType.appendChild(entriesWrap);
+                  dPool.appendChild(dType);
+                });
+                dName.appendChild(dPool);
+              });
+              dProto.appendChild(dName);
+            });
+            els.tree.appendChild(dProto);
+          });
+        }
+
+        function renderSummary(data, defiEntries, tree) {
+          var totalBalances = 0;
+          (data.accounts || []).forEach(function (a) {
+            totalBalances += (a.balances || []).length;
+          });
+          var protocols = Object.keys(tree).length;
+
+          var chains = {};
+          defiEntries.forEach(function (e) {
+            chains[e.chainId] = true;
+          });
+
+          var stats = [
+            { n: defiEntries.length, l: 'DeFi positions' },
+            { n: protocols, l: 'Protocols' },
+            { n: Object.keys(chains).length, l: 'Chains w/ DeFi' },
+            { n: totalBalances, l: 'Total balances (all)' },
+          ];
+          els.summary.innerHTML = '';
+          stats.forEach(function (s) {
+            var d = el('div', 'stat');
+            d.appendChild(el('div', 'n', String(s.n)));
+            d.appendChild(el('div', 'l', s.l));
+            els.summary.appendChild(d);
+          });
+          els.summary.style.display = 'flex';
+        }
+
+        var ALL = '__all__';
+
+        function populateFilters(entries) {
+          // Chains present in the defi data
+          var chainIds = {};
+          var protocols = {};
+          entries.forEach(function (e) {
+            chainIds[e.chainId] = true;
+            var pid =
+              (e.raw.metadata && e.raw.metadata.protocolId) ||
+              '(no protocolId)';
+            protocols[pid] = true;
+          });
+
+          var chainOpts = Object.keys(chainIds).sort(function (a, b) {
+            return chainName(a).localeCompare(chainName(b));
+          });
+          var protoOpts = Object.keys(protocols).sort(function (a, b) {
+            return a.localeCompare(b, undefined, { sensitivity: 'base' });
+          });
+
+          fillSelect(
+            els.chainFilter,
+            chainOpts,
+            function (id) {
+              return chainName(id);
+            },
+            'All chains',
+          );
+          fillSelect(
+            els.protocolFilter,
+            protoOpts,
+            function (p) {
+              return p;
+            },
+            'All protocols',
+          );
+          els.filters.style.display = 'flex';
+        }
+
+        function fillSelect(sel, values, labelFn, allLabel) {
+          sel.innerHTML = '';
+          var optAll = document.createElement('option');
+          optAll.value = ALL;
+          optAll.textContent = allLabel;
+          sel.appendChild(optAll);
+          values.forEach(function (v) {
+            var o = document.createElement('option');
+            o.value = v;
+            o.textContent = labelFn(v);
+            sel.appendChild(o);
+          });
+          sel.value = ALL;
+        }
+
+        function applyFilters() {
+          var chain = els.chainFilter.value;
+          var proto = els.protocolFilter.value;
+          var filtered = allDefiEntries.filter(function (e) {
+            if (chain !== ALL && e.chainId !== chain) return false;
+            var pid =
+              (e.raw.metadata && e.raw.metadata.protocolId) ||
+              '(no protocolId)';
+            if (proto !== ALL && pid !== proto) return false;
+            return true;
+          });
+          var tree = group(filtered);
+          renderSummary(lastData, filtered, tree);
+          renderTree(tree);
+        }
+
+        function render(data) {
+          lastData = data;
+          allDefiEntries = collectDefi(data);
+          populateFilters(allDefiEntries);
+          applyFilters();
+          els.raw.textContent = JSON.stringify(data, null, 2);
+          els.rawBtn.disabled = false;
+        }
+
+        function isValidAddress(a) {
+          return /^0x[a-fA-F0-9]{40}$/.test(a);
+        }
+
+        function doFetch() {
+          var addr = els.address.value.trim();
+          if (!isValidAddress(addr)) {
+            showStatus(
+              'error',
+              'Please enter a valid EVM address (0x followed by 40 hex characters).',
+            );
+            return;
+          }
+          hideStatus();
+          els.filters.style.display = 'none';
+          els.summary.style.display = 'none';
+          els.tree.innerHTML = '';
+          els.rawWrap.style.display = 'none';
+          els.rawBtn.disabled = true;
+          els.fetchBtn.disabled = true;
+          showStatus('loading', 'Fetching balances for ' + addr + ' …');
+
+          fetch(buildUrl(addr), { headers: { Accept: 'application/json' } })
+            .then(function (res) {
+              if (!res.ok)
+                throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+              return res.json();
+            })
+            .then(function (data) {
+              hideStatus();
+              render(data);
+            })
+            .catch(function (err) {
+              showStatus(
+                'error',
+                'Request failed: ' +
+                  err.message +
+                  '. If this is a CORS error, the API must allow this origin, or open the page from an allowed host.',
+              );
+            })
+            .finally(function () {
+              els.fetchBtn.disabled = false;
+            });
+        }
+
+        els.fetchBtn.addEventListener('click', doFetch);
+        els.address.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') doFetch();
+        });
+        els.chainFilter.addEventListener('change', applyFilters);
+        els.protocolFilter.addEventListener('change', applyFilters);
+        els.rawBtn.addEventListener('click', function () {
+          var vis = els.rawWrap.style.display !== 'none';
+          els.rawWrap.style.display = vis ? 'none' : 'block';
+        });
+      })();
+    </script>
+  </body>
+</html>

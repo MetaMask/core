@@ -10,10 +10,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
 
+permissions:
+  contents: read
+
 jobs:
   check-skip-merge-queue:
     name: Check if pull request can skip merge queue
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       skip-merge-queue: ${{ steps.check-skip-merge-queue.outputs.up-to-date }}
     steps:
@@ -28,15 +34,22 @@ jobs:
       - check-skip-merge-queue
     if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Download actionlint
         id: download-actionlint
         run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
         shell: bash
       - name: Check workflow files
-        run: ${{ steps.download-actionlint.outputs.executable }} -color
+        run: |
+          "$ACTIONLINT" -color
         shell: bash
+        env:
+          ACTIONLINT: ${{ steps.download-actionlint.outputs.executable }}
 
   analyse-code:
     name: Analyse code
@@ -77,6 +90,15 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
+  deploy-platform-api-docs:
+    name: Deploy Platform API Docs
+    needs: lint-build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-platform-api-docs.yml
+
   check-release:
     name: Check release
     needs: check-workflows
@@ -86,9 +108,10 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Check release
         if: github.event_name != 'push'
         uses: ./.github/actions/check-release

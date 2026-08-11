@@ -18,7 +18,7 @@ export type {
   AllowedEvents,
   AccountsControllerEvents,
   AccountsControllerMessenger,
-} from './AccountsController';
+} from './AccountsController.js';
 export type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountsAction,
@@ -33,11 +33,16 @@ export type {
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerUpdateAccountsAction,
   AccountsControllerLoadBackupAction,
-} from './AccountsController-method-action-types';
-export { EMPTY_ACCOUNT, AccountsController } from './AccountsController';
+  AccountsControllerClearStateAction,
+} from './AccountsController-method-action-types.js';
+export {
+  EMPTY_ACCOUNT,
+  AccountsController,
+  getDefaultAccountsControllerState,
+} from './AccountsController.js';
 export {
   keyringTypeToName,
   getUUIDOptionsFromAddressOfNormalAccount,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
-} from './utils';
+} from './utils.js';

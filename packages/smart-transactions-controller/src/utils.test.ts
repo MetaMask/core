@@ -5,7 +5,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import packageJson from '../package.json';
-import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
+import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants.js';
 import {
   SmartTransactionMinedTx,
   APIType,
@@ -13,8 +13,8 @@ import {
   SmartTransactionCancellationReason,
   OriginalTransactionStatus,
   ClientId,
-} from './types';
-import * as utils from './utils';
+} from './types.js';
+import * as utils from './utils.js';
 
 const createSignedTransaction = () => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
@@ -670,32 +670,28 @@ describe('src/utils.js', () => {
       networkClientId: NetworkType.mainnet,
     };
 
-    it('updates transaction with failed status and error message', () => {
-      const updateTransactionMock = jest.fn();
+    it('fails the transaction with a SmartTransactionFailed error', () => {
+      const failTransactionMock = jest.fn();
 
       utils.markRegularTransactionsAsFailed({
         smartTransaction: createSmartTransaction(
           SmartTransactionStatuses.CANCELLED,
         ),
         getRegularTransactions: () => [mockTransaction],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...mockTransaction,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message: 'Smart transaction failed with status: cancelled',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '123',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed with status: cancelled',
+        }),
       );
     });
 
     it('includes originalTransactionStatus in error message when available', () => {
-      const updateTransactionMock = jest.fn();
+      const failTransactionMock = jest.fn();
       const smartTransaction = {
         ...createSmartTransaction(SmartTransactionStatuses.CANCELLED),
         statusMetadata: {
@@ -712,25 +708,21 @@ describe('src/utils.js', () => {
       utils.markRegularTransactionsAsFailed({
         smartTransaction,
         getRegularTransactions: () => [mockTransaction],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...mockTransaction,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message:
-              'Smart transaction failed with status: cancelled, originalTransactionStatus: FAILED_WOULD_REVERT',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '123',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message:
+            'Smart transaction failed with status: cancelled, originalTransactionStatus: FAILED_WOULD_REVERT',
+        }),
       );
     });
 
     it('throws error if original transaction cannot be found', () => {
-      const updateTransactionMock = jest.fn();
+      const failTransactionMock = jest.fn();
       const getRegularTransactionsMock = jest.fn(() => []);
 
       expect(() =>
@@ -739,15 +731,15 @@ describe('src/utils.js', () => {
             SmartTransactionStatuses.CANCELLED,
           ),
           getRegularTransactions: getRegularTransactionsMock,
-          updateTransaction: updateTransactionMock,
+          failTransaction: failTransactionMock,
         }),
       ).toThrow('Cannot find regular transaction to mark it as failed');
 
-      expect(updateTransactionMock).not.toHaveBeenCalled();
+      expect(failTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('does not update transaction if status is already failed', () => {
-      const updateTransactionMock = jest.fn();
+    it('does not fail the transaction if status is already failed', () => {
+      const failTransactionMock = jest.fn();
       const failedTransaction = {
         ...mockTransaction,
         status: TransactionStatus.failed,
@@ -762,14 +754,14 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.CANCELLED,
         ),
         getRegularTransactions: () => [failedTransaction],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).not.toHaveBeenCalled();
+      expect(failTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('marks multiple transactions as failed when txHashes match', () => {
-      const updateTransactionMock = jest.fn();
+    it('fails multiple transactions when txHashes match', () => {
+      const failTransactionMock = jest.fn();
       const transaction1: TransactionMeta = {
         ...mockTransaction,
         id: '456',
@@ -788,31 +780,23 @@ describe('src/utils.js', () => {
       utils.markRegularTransactionsAsFailed({
         smartTransaction,
         getRegularTransactions: () => [transaction1, transaction2],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).toHaveBeenCalledTimes(2);
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...transaction1,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message: 'Smart transaction failed with status: cancelled',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledTimes(2);
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '456',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed with status: cancelled',
+        }),
       );
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...transaction2,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message: 'Smart transaction failed with status: cancelled',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '789',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed with status: cancelled',
+        }),
       );
     });
   });

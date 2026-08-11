@@ -3,33 +3,33 @@ import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
-} from '../../utils/feature-flags';
-import { updateTransaction } from '../../utils/transaction';
+} from '../../utils/feature-flags.js';
+import { updateTransaction } from '../../utils/transaction.js';
 import {
   isDirectMusdMoneyAccountQuote,
   submitDirectMusdAfterFiatCompletion,
-} from './fiat-direct-musd';
-import { submitSimpleRelay } from './fiat-submit-simple';
-import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
-import { fundFiatOrderFromTestSource } from './fiat-test-funding';
-import type { FiatQuote } from './types';
+} from './fiat-direct-musd.js';
+import { submitSimpleRelay } from './fiat-submit-simple.js';
+import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
+import type { FiatQuote } from './types.js';
 import {
   deriveFiatAssetForFiatPayment,
   extractProviderCode,
   resolveSourceAmountRaw,
   validateOrderAsset,
-} from './utils';
+} from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 const POST_RAMP_ERROR_PREFIX = 'Post-Ramp: ';
@@ -126,7 +126,12 @@ export async function submitFiatQuotes(
   });
 
   try {
-    const result = await submitRelayAfterFiatCompletion({ order, request });
+    await waitForKeyringUnlock(messenger, transactionId);
+
+    const result = await submitRelayAfterFiatCompletion({
+      order,
+      request,
+    });
 
     if (result.transactionHash === undefined) {
       throw new Error('Missing transaction hash');
@@ -246,7 +251,10 @@ async function submitRelayAfterFiatCompletion({
   const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
 
   if (isDirectMusd) {
-    return await submitDirectMusdAfterFiatCompletion({ order, request });
+    return await submitDirectMusdAfterFiatCompletion({
+      order,
+      request,
+    });
   }
 
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
@@ -259,7 +267,7 @@ async function submitRelayAfterFiatCompletion({
 
   const baseRequest = fiatQuote.request;
 
-  const sourceAmountRaw = await resolveSourceAmountRaw({
+  const { amountRaw: sourceAmountRaw } = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
@@ -312,4 +320,36 @@ function getWalletAddress({
   }
 
   return address as Hex;
+}
+
+function waitForKeyringUnlock(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): Promise<void> {
+  const { isUnlocked } = messenger.call('KeyringController:getState');
+
+  if (isUnlocked) {
+    return Promise.resolve();
+  }
+
+  log(
+    'KeyringController is locked; waiting for unlock before fiat submit second leg',
+    {
+      transactionId,
+    },
+  );
+
+  return new Promise((resolve) => {
+    const handler = (): void => {
+      messenger.unsubscribe('KeyringController:unlock', handler);
+
+      log('KeyringController unlocked; resuming fiat submit second leg', {
+        transactionId,
+      });
+
+      resolve();
+    };
+
+    messenger.subscribe('KeyringController:unlock', handler);
+  });
 }

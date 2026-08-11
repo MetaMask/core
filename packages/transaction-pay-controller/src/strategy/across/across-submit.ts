@@ -3,7 +3,10 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type {
   BatchTransactionParams,
   TransactionMeta,
@@ -12,28 +15,27 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { accountSupports7702 } from '../../utils/7702';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getGasBuffer } from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
+} from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getGasBuffer } from '../../utils/feature-flags.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
-  isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
+} from '../../utils/transaction.js';
 import {
   getAcrossOrderedTransactions,
   getOriginalTransactionGas,
-} from './transactions';
-import type { AcrossQuote } from './types';
+} from './transactions.js';
+import type { AcrossQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 const ACROSS_STATUS_POLL_INTERVAL = 1000;
@@ -426,7 +428,7 @@ function shouldEstimate7702SubmitBatch(
   quote: TransactionPayQuote<AcrossQuote>,
 ): boolean {
   return (
-    isPredictWithdrawTransaction(parentTransaction) &&
+    hasTransactionType(parentTransaction, [TransactionType.predictWithdraw]) &&
     quote.request.isPostQuote === true &&
     quote.fees.isSourceGasFeeToken === true
   );
@@ -543,7 +545,7 @@ function buildOriginalTransaction(
 function getOriginalTransactionType(
   transaction: TransactionMeta,
 ): TransactionMeta['type'] {
-  if (isPredictWithdrawTransaction(transaction)) {
+  if (hasTransactionType(transaction, [TransactionType.predictWithdraw])) {
     return TransactionType.predictWithdraw;
   }
 
@@ -567,7 +569,7 @@ function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
  * @returns Across-specific transaction type for known flows, or the original type.
  */
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
-  if (isPredictWithdrawTransaction(transaction)) {
+  if (hasTransactionType(transaction, [TransactionType.predictWithdraw])) {
     return TransactionType.predictAcrossWithdraw;
   }
 

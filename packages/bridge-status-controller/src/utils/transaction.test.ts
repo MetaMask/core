@@ -4,10 +4,11 @@ import {
   FeeType,
   formatChainIdToCaip,
   formatChainIdToHex,
+  getNativeAssetForChainId,
 } from '@metamask/bridge-controller';
 import type {
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   TxData,
 } from '@metamask/bridge-controller';
 import {
@@ -17,13 +18,13 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { APPROVAL_DELAY_MS } from '../constants';
+import { APPROVAL_DELAY_MS } from '../constants.js';
 import type {
   BridgeStatusControllerMessenger,
   QuoteAndTxMetadata,
-} from '../types';
-import { getStatusRequestParams } from './bridge-status';
-import * as snaps from './snaps';
+} from '../types.js';
+import { getStatusRequestParams } from './bridge-status.js';
+import * as snaps from './snaps.js';
 import {
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
@@ -34,7 +35,7 @@ import {
   findAllTransactionsInBatch,
   isApprovalTx,
   updateTransactionsInBatch,
-} from './transaction';
+} from './transaction.js';
 
 describe('Bridge Status Controller Transaction Utils', () => {
   describe('waitForTxConfirmation', () => {
@@ -120,7 +121,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getStatusRequestParams', () => {
     it('should extract status request parameters from a quote response', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -166,7 +167,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle quote with refuel flag set to true', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -208,7 +209,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle quote with multiple bridges', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1', 'bridge2'],
@@ -252,7 +253,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getTxMetaFields', () => {
     it('should extract transaction meta fields from a quote response', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -345,7 +346,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should include approvalTxId when provided', () => {
-      const mockQuoteResponse: QuoteResponse & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -521,7 +522,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('handleNonEvmTxResponse', () => {
     it('should handle string response format', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -632,7 +633,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with signature', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -720,7 +721,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle onClientRequest response format with signature', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -807,7 +808,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with txid', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -895,7 +896,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with hash', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -983,7 +984,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle object response format with txHash', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1071,7 +1072,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle new unified interface response with transactionId', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1167,7 +1168,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('should handle empty or invalid response', () => {
-      const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
@@ -1370,10 +1371,10 @@ describe('Bridge Status Controller Transaction Utils', () => {
           steps: [],
           feeData: {},
         },
-        // Required properties for QuoteResponse
+        // Required properties for QuoteResponseV1
         trade: {} as TxData,
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponseV1;
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleApprovalDelay(
@@ -1410,10 +1411,10 @@ describe('Bridge Status Controller Transaction Utils', () => {
           steps: [],
           feeData: {},
         },
-        // Required properties for QuoteResponse
+        // Required properties for QuoteResponseV1
         trade: {} as TxData,
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponseV1;
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleApprovalDelay(
@@ -1450,10 +1451,10 @@ describe('Bridge Status Controller Transaction Utils', () => {
           steps: [],
           feeData: {},
         },
-        // Required properties for QuoteResponse
+        // Required properties for QuoteResponseV1
         trade: {} as TxData,
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponse;
+      } as unknown as QuoteResponseV1;
 
       // Create a promise that will resolve after the delay
       const delayPromise = handleApprovalDelay(
@@ -1515,7 +1516,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('getClientRequest', () => {
     it('should generate a valid client request', () => {
-      const mockQuoteResponse: Omit<QuoteResponse<string>, 'approval'> &
+      const mockQuoteResponse: Omit<QuoteResponseV1<string>, 'approval'> &
         QuoteMetadata = {
         quote: {
           bridgeId: 'bridge1',
@@ -1669,6 +1670,139 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       createClientRequestSpy.mockRestore();
     });
+
+    it('should include Stellar source and destination asset IDs as options when trade is Stellar', () => {
+      const stellarTrade = {
+        xdrBase64: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId = getNativeAssetForChainId(ChainId.STELLAR).assetId;
+      const destAssetId = getNativeAssetForChainId(ChainId.ETH).assetId;
+
+      const result = snaps.getClientRequest(
+        stellarTrade,
+        ChainId.STELLAR,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+        destAssetId,
+      );
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'AAAABg==',
+            scope: formatChainIdToCaip(ChainId.STELLAR),
+            accountId: 'test-account-id',
+            options: {
+              sourceAssetId,
+              destAssetId,
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit destAssetId option for Stellar trades when destination asset ID is not provided', () => {
+      const stellarTrade = {
+        xdr: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId = getNativeAssetForChainId(ChainId.STELLAR).assetId;
+
+      const result = snaps.getClientRequest(
+        stellarTrade,
+        ChainId.STELLAR,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+      );
+
+      expect(result).toMatchObject({
+        request: {
+          params: {
+            options: {
+              sourceAssetId,
+            },
+          },
+        },
+      });
+      expect(
+        (result.request.params as { options: Record<string, unknown> }).options,
+      ).not.toHaveProperty('destAssetId');
+    });
+
+    it('should not include asset ID options for Bitcoin trades even when asset IDs are provided', () => {
+      const bitcoinTrade = {
+        unsignedPsbtBase64: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId = getNativeAssetForChainId(ChainId.BTC).assetId;
+      const destAssetId = getNativeAssetForChainId(ChainId.ETH).assetId;
+
+      const result = snaps.getClientRequest(
+        bitcoinTrade,
+        ChainId.BTC,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+        destAssetId,
+      );
+
+      expect(result.request.params).not.toHaveProperty('options');
+    });
+
+    it('should not include asset ID options for Solana trades even when asset IDs are provided', () => {
+      const solanaTrade = 'ABCD' as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId = getNativeAssetForChainId(ChainId.SOLANA).assetId;
+      const destAssetId = getNativeAssetForChainId(ChainId.ETH).assetId;
+
+      const result = snaps.getClientRequest(
+        solanaTrade,
+        ChainId.SOLANA,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+        destAssetId,
+      );
+
+      expect(result.request.params).not.toHaveProperty('options');
+    });
   });
 
   describe('getAddTransactionBatchParams', () => {
@@ -1688,7 +1822,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
-    ): QuoteResponse<TxData, TxData> & QuoteMetadata =>
+    ): QuoteResponseV1<TxData, TxData> & QuoteMetadata =>
       ({
         quote: {
           bridgeId: 'bridge1',

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ComplianceController } from './ComplianceController';
+import type { ComplianceController } from './ComplianceController.js';
 
 /**
  * Checks compliance status for a single wallet address via the API and

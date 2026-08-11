@@ -13,12 +13,17 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
-import { traceFallback } from './analytics';
-import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
-import { reportError } from './errors';
-import { projectLogger as log } from './logger';
-import type { MultichainAccountGroup } from './MultichainAccountGroup';
-import { MultichainAccountWallet } from './MultichainAccountWallet';
+import { traceFallback } from './analytics/index.js';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf.js';
+import { reportError } from './errors.js';
+import { projectLogger as log } from './logger.js';
+import type { MultichainAccountGroup } from './MultichainAccountGroup.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import {
+  AccountProviderWrapper,
+  isAccountProviderWrapper,
+} from './providers/AccountProviderWrapper.js';
+import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
 import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
@@ -29,22 +34,17 @@ import {
   TRX_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
   TrxAccountProvider,
-} from './providers';
-import {
-  AccountProviderWrapper,
-  isAccountProviderWrapper,
-} from './providers/AccountProviderWrapper';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import { SolAccountProvider } from './providers/SolAccountProvider';
+} from './providers/index.js';
+import { SolAccountProvider } from './providers/SolAccountProvider.js';
 import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProviderConfig,
-} from './providers/SolAccountProvider';
+} from './providers/SolAccountProvider.js';
 import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
-} from './types';
-import { toErrorMessage } from './utils';
+} from './types.js';
+import { toErrorMessage } from './utils.js';
 
 /**
  * Per-account failure detail attached to the aggregated Sentry report

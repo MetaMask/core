@@ -8,8 +8,8 @@ import {
   CHAIN_ID_HYPERCORE,
   HYPERCORE_USDC_DECIMALS,
   USDC_DECIMALS,
-} from '../../constants';
-import type { QuoteRequest } from '../../types';
+} from '../../constants.js';
+import type { QuoteRequest } from '../../types.js';
 
 export const ACROSS_HYPERCORE_USDC_PERPS_ADDRESS =
   '0x2100000000000000000000000000000000000000' as Hex;

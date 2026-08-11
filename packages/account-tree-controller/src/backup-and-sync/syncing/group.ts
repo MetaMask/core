@@ -1,23 +1,23 @@
 import { toMultichainAccountWalletId } from '@metamask/account-api';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncAnalyticsAction } from '../analytics';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { ProfileId } from '../authentication';
-import { UserStorageSyncedWalletGroupSchema } from '../types';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type { BackupAndSyncAnalyticsAction } from '../analytics/index.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type { ProfileId } from '../authentication/index.js';
+import { UserStorageSyncedWalletGroupSchema } from '../types.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
-} from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
-import { toErrorMessage } from '../utils/errors';
-import { compareAndSyncMetadata } from './metadata';
+} from '../user-storage/network-operations.js';
+import { toErrorMessage } from '../utils/errors.js';
+import { getLocalGroupsForEntropyWallet } from '../utils/index.js';
+import { compareAndSyncMetadata } from './metadata.js';
 
 /**
  * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
@@ -71,6 +71,7 @@ export const createMultichainAccountGroupsBatch = async (
         const didGroupAlreadyExist = existingGroupIndices.has(group.groupIndex);
 
         if (!didGroupAlreadyExist) {
+          context.mutationTracker?.setLocalWrite(true);
           context.emitAnalyticsEventFn({
             action: analyticsAction,
             profileId,

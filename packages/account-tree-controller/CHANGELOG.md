@@ -9,10 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
+
+## [7.6.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/multichain-account-service` from `^13.0.0` to `^13.0.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [7.6.0]
+
+### Added
+
+- Add `getAccountFromSelectedAccountGroup` and `setSelectedAccountGroupByAccountId` methods ([#9739](https://github.com/MetaMask/core/pull/9739))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+## [7.5.5]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/multichain-account-service` from `^12.0.0` to `^13.0.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [7.5.4]
+
+### Changed
+
+- The `Multichain Account Syncing - Full` trace is now only emitted when a backup-and-sync run actually mutates local or remote state (rolled-back local changes do not count) ([#9343](https://github.com/MetaMask/core/pull/9343))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.5.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/multichain-account-service` from `^11.0.0` to `^12.0.0` ([#9264](https://github.com/MetaMask/core/pull/9264), [#9429](https://github.com/MetaMask/core/pull/9429))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [7.5.3]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
-- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.3` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/multichain-account-service` from `^10.0.3` to `^11.0.0` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
 ## [7.5.2]
 
@@ -605,7 +652,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...HEAD
+[7.6.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.0...@metamask/account-tree-controller@7.6.1
+[7.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.5...@metamask/account-tree-controller@7.6.0
+[7.5.5]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.4...@metamask/account-tree-controller@7.5.5
+[7.5.4]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.3...@metamask/account-tree-controller@7.5.4
+[7.5.3]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.2...@metamask/account-tree-controller@7.5.3
 [7.5.2]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.1...@metamask/account-tree-controller@7.5.2
 [7.5.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.0...@metamask/account-tree-controller@7.5.1
 [7.5.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.4.0...@metamask/account-tree-controller@7.5.0

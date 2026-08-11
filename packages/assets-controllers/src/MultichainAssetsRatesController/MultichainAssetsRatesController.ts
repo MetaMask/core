@@ -38,13 +38,13 @@ import type {
   CurrencyRateState,
   CurrencyRateStateChange,
   CurrencyRateControllerGetStateAction,
-} from '../CurrencyRateController';
+} from '../CurrencyRateController.js';
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
-} from '../MultichainAssetsController';
-import { MAP_CAIP_CURRENCIES } from './constant';
-import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types';
+} from '../MultichainAssetsController/index.js';
+import { MAP_CAIP_CURRENCIES } from './constant.js';
+import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types.js';
 
 /**
  * The name of the MultichainAssetsRatesController.

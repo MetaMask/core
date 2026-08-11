@@ -7,12 +7,12 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from '../constants';
+import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from '../constants.js';
 import type {
   SmartTransactionsFeatureFlagsConfig,
   SmartTransactionsNetworkConfig,
-} from '../types';
-import { validateSmartTransactionsFeatureFlags } from './validators';
+} from '../types.js';
+import { validateSmartTransactionsFeatureFlags } from './validators.js';
 
 /**
  * Normalizes a chain ID to hex format for EVM chains.

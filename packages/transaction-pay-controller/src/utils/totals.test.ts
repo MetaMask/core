@@ -1,14 +1,14 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { TransactionPayStrategy } from '..';
-import type { TransactionPayControllerMessenger } from '..';
+import { TransactionPayStrategy } from '../index.js';
+import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   QuoteRequest,
   TransactionPayQuote,
   TransactionPayRequiredToken,
-} from '../types';
-import { calculateTransactionGasCost } from './gas';
-import { calculateTotals } from './totals';
+} from '../types.js';
+import { calculateTransactionGasCost } from './gas.js';
+import { calculateTotals } from './totals.js';
 
 jest.mock('./gas');
 
@@ -56,7 +56,7 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
     raw: '777000000000000',
     usd: '8.88',
   },
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
   targetAmount: {
     fiat: '9.99',
     usd: '10.10',
@@ -116,7 +116,7 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
     raw: '1313000000000000',
     usd: '14.14',
   },
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
   targetAmount: {
     fiat: '15.15',
     usd: '16.16',

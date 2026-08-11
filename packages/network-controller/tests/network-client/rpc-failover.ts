@@ -1,10 +1,10 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { ignoreRejection } from '../../../../tests/helpers';
-import { buildRootMessenger } from '../helpers';
-import type { MockRequest, MockResponse, ProviderType } from './helpers';
-import { withMockedCommunications, withNetworkClient } from './helpers';
+import { ignoreRejection } from '../../../../tests/helpers.js';
+import { buildRootMessenger } from '../helpers.js';
+import type { MockRequest, MockResponse, ProviderType } from './helpers.js';
+import { withMockedCommunications, withNetworkClient } from './helpers.js';
 
 /**
  * Tests for RPC failover behavior.
@@ -86,7 +86,7 @@ export function testsForRpcFailoverBehavior({
             const result = await withNetworkClient(
               {
                 providerType,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
                 failoverRpcUrls: ['https://failover.endpoint'],
                 messenger,
                 getRpcServiceOptions: () => ({
@@ -178,7 +178,7 @@ export function testsForRpcFailoverBehavior({
               const result = await withNetworkClient(
                 {
                   providerType,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                   failoverRpcUrls: ['https://failover.endpoint'],
                   messenger,
                   getRpcServiceOptions: (rpcEndpointUrl) => {
@@ -266,7 +266,7 @@ export function testsForRpcFailoverBehavior({
         await withNetworkClient(
           {
             providerType,
-            isRpcFailoverEnabled: false,
+            rpcFailoverMode: 'disabled',
             failoverRpcUrls: ['https://failover.endpoint'],
             messenger,
             getRpcServiceOptions: () => ({

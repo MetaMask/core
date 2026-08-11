@@ -1,7 +1,7 @@
 import type { CaipAssetId, CaipChainId, Hex } from '@metamask/utils';
 
-import { MarketCategory } from '../types';
-import type { MarketType } from '../types';
+import { MarketCategory } from '../types/index.js';
+import type { MarketType } from '../types/index.js';
 import type {
   HyperLiquidNetwork,
   HyperLiquidEndpoints,
@@ -11,7 +11,7 @@ import type {
   HyperLiquidTransportConfig,
   TradingDefaultsConfig,
   FeeRatesConfig,
-} from '../types/perps-types';
+} from '../types/perps-types.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;
@@ -246,6 +246,13 @@ export const HYPERLIQUID_CONFIG = {
   // Exchange name used in predicted funding data
   // HyperLiquid uses 'HlPerp' as their perps exchange identifier
   ExchangeName: 'HlPerp',
+  // Maximum allowed deviation of the market (mid) price from the oracle (reference)
+  // price before HyperLiquid rejects orders. HyperLiquid enforces "Order price cannot
+  // be more than 95% away from the reference price", which makes markets — most often
+  // HIP-3 builder-deployed ones — temporarily untradable when the mid price drifts past
+  // this limit. Expressed as a decimal fraction (0.95 = 95%).
+  // Protocol rule, not a UI warning threshold (see VALIDATION_THRESHOLDS.PriceDeviation).
+  OraclePriceDeviationLimit: 0.95,
 } as const;
 
 /**
@@ -640,24 +647,6 @@ export const HIP3_MARGIN_CONFIG = {
    * Prevents unnecessary transfers for tiny amounts
    */
   RebalanceMinThreshold: 0.1,
-} as const;
-
-/**
- * Configuration for USDH collateral handling on HIP-3 DEXs
- * Per HyperLiquid docs: USDH DEXs pull collateral from spot balance automatically
- *
- * USDH is HyperLiquid's native stablecoin pegged 1:1 to USDC
- */
-export const USDH_CONFIG = {
-  /** Token name for USDH collateral */
-  TokenName: 'USDH',
-
-  /**
-   * Maximum slippage for USDC→USDH spot swap in basis points
-   * USDH is pegged 1:1 to USDC so slippage should be minimal
-   * 10 bps (0.1%) provides small buffer for spread
-   */
-  SwapSlippageBps: 10,
 } as const;
 
 // Progress bar constants

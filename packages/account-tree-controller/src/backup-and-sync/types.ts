@@ -15,15 +15,15 @@ import {
 } from '@metamask/superstruct';
 import type { Infer, Struct } from '@metamask/superstruct';
 
-import type { AccountTreeController } from '../AccountTreeController';
+import type { AccountTreeController } from '../AccountTreeController.js';
 import type {
   AccountGroupMultichainAccountObject,
   AccountTreeGroupPersistedMetadata,
-} from '../group';
-import type { RuleResult } from '../rule';
-import type { AccountTreeControllerMessenger } from '../types';
-import type { AccountTreeWalletPersistedMetadata } from '../wallet';
-import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics';
+} from '../group.js';
+import type { RuleResult } from '../rule.js';
+import type { AccountTreeControllerMessenger } from '../types.js';
+import type { AccountTreeWalletPersistedMetadata } from '../wallet.js';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics/index.js';
 
 /**
  * Schema for an updatable field with value and timestamp.
@@ -77,6 +77,28 @@ export type LegacyUserStorageSyncedAccount = Infer<
   typeof LegacyUserStorageSyncedAccountSchema
 >;
 
+/**
+ * Tracks whether the current full sync run performed a real write, so the
+ * service can gate emission of the full-sync trace.
+ *
+ * Writes are split by durability:
+ * - Remote writes (pushes to user storage) are durable and always count.
+ * - Local writes can be reverted by a per-wallet rollback, so the service
+ *   reads the flag before a wallet and writes it back if that wallet rolls back.
+ */
+export type SyncMutationTracker = {
+  /** Sets (or clears) the durable remote-write flag — a push to user storage. */
+  setRemoteWrite: (value: boolean) => void;
+  /** Gets the local-write flag — a write a per-wallet rollback would revert. */
+  getLocalWrite: () => boolean;
+  /** Sets, clears, or restores the local-write flag. */
+  setLocalWrite: (value: boolean) => void;
+  /** Whether any write (remote or local) is currently recorded. */
+  hasOccurred: () => boolean;
+  /** Clears all recorded writes at the start of a sync run. */
+  reset: () => void;
+};
+
 export type BackupAndSyncContext = {
   messenger: AccountTreeControllerMessenger;
   controller: AccountTreeController;
@@ -84,6 +106,7 @@ export type BackupAndSyncContext = {
   traceFn: TraceCallback;
   groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
   emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
+  mutationTracker?: SyncMutationTracker;
 };
 
 export type LegacyAccountSyncingContext = {

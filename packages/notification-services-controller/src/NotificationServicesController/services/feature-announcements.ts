@@ -1,21 +1,21 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset, EntryCollection } from 'contentful';
 
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import { processFeatureAnnouncement } from '../processors/process-feature-announcement.js';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement.js';
 import type {
   ImageFields,
   TypeFeatureAnnouncement,
-} from '../types/feature-announcement/type-feature-announcement';
+} from '../types/feature-announcement/type-feature-announcement.js';
 import type {
   TypeExternalLinkFields,
   TypePortfolioLinkFields,
   TypeExtensionLinkFields,
   TypeMobileLinkFields,
-} from '../types/feature-announcement/type-links';
-import type { INotification } from '../types/notification/notification';
-import { isVersionInBounds } from '../utils/isVersionInBounds';
+} from '../types/feature-announcement/type-links.js';
+import type { INotification } from '../types/notification/notification.js';
+import { isVersionInBounds } from '../utils/isVersionInBounds.js';
 
 // Feature announcements older than this (by sys.updatedAt) are excluded from the feed.
 const FEATURE_ANNOUNCEMENT_MAX_AGE_MONTHS = 3;

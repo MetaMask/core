@@ -1,3 +1,7 @@
+import type {
+  NotificationPreferences,
+  PerpsWatchlistMarkets,
+} from '@metamask/authenticated-user-storage';
 import {
   BaseController,
   ControllerGetStateAction,
@@ -10,14 +14,18 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CandlePeriod } from './constants/chartConfig';
+import { CandlePeriod } from './constants/chartConfig.js';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from './constants/eventNames';
-import { USDC_SYMBOL } from './constants/hyperLiquidConfig';
-import { PerpsMeasurementName } from './constants/performanceMetrics';
-import type { SortOptionId } from './constants/perpsConfig';
+} from './constants/eventNames.js';
+import { USDC_SYMBOL } from './constants/hyperLiquidConfig.js';
+import { PerpsMeasurementName } from './constants/performanceMetrics.js';
+import type {
+  SortOptionId,
+  ProLayoutPreferences,
+  PerpsMode,
+} from './constants/perpsConfig.js';
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
@@ -25,21 +33,23 @@ import {
   PERPS_DISK_CACHE_USER_DATA,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
-} from './constants/perpsConfig';
-import type { PerpsControllerMethodActions } from './PerpsController-method-action-types';
-import { PERPS_ERROR_CODES } from './perpsErrorCodes';
-import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider';
-import { HyperLiquidProvider } from './providers/HyperLiquidProvider';
-import { AccountService } from './services/AccountService';
-import { DataLakeService } from './services/DataLakeService';
-import { DepositService } from './services/DepositService';
-import { EligibilityService } from './services/EligibilityService';
-import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService';
-import { MarketDataService } from './services/MarketDataService';
-import { RewardsIntegrationService } from './services/RewardsIntegrationService';
-import type { ServiceContext } from './services/ServiceContext';
-import { TerminalMarketService } from './services/TerminalMarketService';
-import { TradingService } from './services/TradingService';
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
+} from './constants/perpsConfig.js';
+import type { PerpsControllerMethodActions } from './PerpsController-method-action-types.js';
+import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
+import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+import { AccountService } from './services/AccountService.js';
+import { DataLakeService } from './services/DataLakeService.js';
+import { DepositService } from './services/DepositService.js';
+import { EligibilityService } from './services/EligibilityService.js';
+import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import { MarketDataService } from './services/MarketDataService.js';
+import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
+import type { ServiceContext } from './services/ServiceContext.js';
+import { TerminalMarketService } from './services/TerminalMarketService.js';
+import { TradingService } from './services/TradingService.js';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
   WebSocketConnectionState,
@@ -49,7 +59,7 @@ import {
   isVersionGatedFeatureFlag,
   MARKET_CATEGORIES,
   // Platform dependencies interface for core migration (bundles all platform-specific deps)
-} from './types';
+} from './types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -107,6 +117,8 @@ import type {
   PerpsPlatformDependencies,
   PerpsLogger,
   PerpsActiveProviderMode,
+  PerpsAnalyticsProperties,
+  PerpsAttributionContext,
   PerpsProviderType,
   PerpsSelectedPaymentToken,
   PerpsRemoteFeatureFlagState,
@@ -114,28 +126,31 @@ import type {
   PerpsAddTransactionOptions,
   MarketTypeFilter,
   MYXCredentials,
-} from './types';
-import type { SortDirection } from './types';
+} from './types/index.js';
+import type { SortDirection } from './types/index.js';
 import type {
   PerpsControllerAllowedActions,
   PerpsControllerAllowedEvents,
-} from './types/messenger';
-import type { CandleData } from './types/perps-types';
+} from './types/messenger.js';
+import type { CandleData } from './types/perps-types.js';
 import {
   LastTransactionResult,
   TransactionStatus,
-} from './types/transactionTypes';
-import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils';
-import { ensureError } from './utils/errorUtils';
-import { parseAssetName } from './utils/hyperLiquidAdapter';
-import { compileMarketPattern, shouldIncludeMarket } from './utils/marketUtils';
-import type { CompiledMarketPattern } from './utils/marketUtils';
+} from './types/transactionTypes.js';
+import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import { ensureError } from './utils/errorUtils.js';
+import { parseAssetName } from './utils/hyperLiquidAdapter.js';
+import {
+  compileMarketPattern,
+  shouldIncludeMarket,
+} from './utils/marketUtils.js';
+import type { CompiledMarketPattern } from './utils/marketUtils.js';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
   persistUserEntriesToDisk,
-} from './utils/perpsDiskPersistence';
-import { wait } from './utils/wait';
+} from './utils/perpsDiskPersistence.js';
+import { wait } from './utils/wait.js';
 
 /** Derived type for logger options from PerpsLogger interface */
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
@@ -151,6 +166,30 @@ export function firstNonEmpty(...vals: (string | undefined)[]): string {
   return (
     vals.find((val) => val !== null && val !== undefined && val !== '') ?? ''
   );
+}
+
+/**
+ * Maps an active provider mode to the corresponding exchange key used in the
+ * AUS {@link PerpsWatchlistMarkets} schema.
+ *
+ * Returns `null` for modes that are not yet represented in the AUS schema
+ * (e.g. `'aggregated'`), which signals callers to skip remote sync and fall
+ * back to local state only.  Add new entries here as additional DEX providers
+ * gain AUS watchlist support.
+ *
+ * @param activeProvider - The current active provider mode from controller state.
+ * @returns The matching `PerpsWatchlistMarkets` key, or `null` if unsupported.
+ */
+export function resolveWatchlistExchangeKey(
+  activeProvider: PerpsActiveProviderMode,
+): keyof PerpsWatchlistMarkets | null {
+  const map: Partial<
+    Record<PerpsActiveProviderMode, keyof PerpsWatchlistMarkets>
+  > = {
+    hyperliquid: 'hyperliquid',
+    myx: 'myx',
+  };
+  return map[activeProvider] ?? null;
 }
 
 /**
@@ -192,7 +231,7 @@ export type SelectedPaymentTokenSnapshot = {
 };
 
 // Re-export error codes from separate file to avoid circular dependencies
-export { PERPS_ERROR_CODES, type PerpsErrorCode } from './perpsErrorCodes';
+export { PERPS_ERROR_CODES, type PerpsErrorCode } from './perpsErrorCodes.js';
 
 /**
  * Initialization state enum for state machine tracking
@@ -203,6 +242,15 @@ export enum InitializationState {
   Initialized = 'initialized',
   Failed = 'failed',
 }
+
+// Re-exported so consumers can keep importing these from the controller entry
+// point; the canonical definitions live in the dependency-free constants module.
+export {
+  PerpsMode,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
+} from './constants/perpsConfig.js';
+export type { ProLayoutPreferences } from './constants/perpsConfig.js';
 
 /**
  * State shape for PerpsController
@@ -314,6 +362,14 @@ export type PerpsControllerState = {
     mainnet: string[]; // Array of watchlist market symbols for mainnet
   };
 
+  // Recently viewed markets tracking (per network, persisted)
+  // Entries are ordered newest-first. TTL filtering and the 10-item cap
+  // are applied on read in getRecentlyViewedMarkets / selectRecentlyViewedMarkets.
+  recentlyViewedMarkets: {
+    testnet: { symbol: string; viewedAt: number }[];
+    mainnet: { symbol: string; viewedAt: number }[];
+  };
+
   // Trade configurations per market (per network)
   tradeConfigurations: {
     testnet: {
@@ -358,6 +414,13 @@ export type PerpsControllerState = {
     optionId: SortOptionId;
     direction: SortDirection;
   };
+
+  // Pro-mode layout preferences (network-independent). Flat object that
+  // persists across markets (unlike the per-market tradeConfigurations).
+  proLayoutPreferences: ProLayoutPreferences;
+
+  // Perps interface mode (lite/pro), network-independent global preference.
+  mode: PerpsMode;
 
   // Error handling
   lastError: string | null;
@@ -438,6 +501,10 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     testnet: [],
     mainnet: [],
   },
+  recentlyViewedMarkets: {
+    testnet: [],
+    mainnet: [],
+  },
   tradeConfigurations: {
     testnet: {},
     mainnet: {},
@@ -446,6 +513,8 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     optionId: MARKET_SORTING_CONFIG.DefaultSortOptionId,
     direction: MARKET_SORTING_CONFIG.DefaultDirection,
   },
+  proLayoutPreferences: { ...DEFAULT_PRO_LAYOUT_PREFERENCES },
+  mode: DEFAULT_PERPS_MODE,
   hip3ConfigVersion: 0,
   selectedPaymentToken: null,
   cachedMarketDataByProvider: {},
@@ -594,6 +663,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  recentlyViewedMarkets: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   tradeConfigurations: {
     includeInStateLogs: true,
     persist: true,
@@ -607,6 +682,18 @@ const metadata: StateMetadata<PerpsControllerState> = {
     usedInUi: true,
   },
   marketFilterPreferences: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  proLayoutPreferences: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  mode: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: false,
@@ -706,6 +793,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'calculateMaintenanceMargin',
   'cancelOrder',
   'cancelOrders',
+  'clearAttributionContext',
   'clearDepositResult',
   'clearPendingTradeConfiguration',
   'clearPendingTransactionRequests',
@@ -722,6 +810,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccountState',
   'getActiveProvider',
   'getActiveProviderOrNull',
+  'getAttributionContext',
   'getAvailableDexs',
   'getBlockExplorerUrl',
   'getCachedMarketDataForActiveProvider',
@@ -741,6 +830,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPendingTradeConfiguration',
   'getPositions',
   'getTradeConfiguration',
+  'getRecentlyViewedMarkets',
   'getWatchlistMarkets',
   'getWebSocketConnectionState',
   'getWithdrawalProgress',
@@ -753,15 +843,20 @@ const MESSENGER_EXPOSED_METHODS = [
   'markTutorialCompleted',
   'placeOrder',
   'reconnect',
+  'recordMarketViewed',
   'refreshEligibility',
   'resetFirstTimeUserState',
   'resetSelectedPaymentToken',
   'getMaxSlippage',
   'setMaxSlippage',
+  'getProLayoutPreferences',
+  'setProLayoutPreferences',
+  'setPerpsMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
   'saveTradeConfiguration',
+  'setAttributionContext',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
   'startEligibilityMonitoring',
@@ -836,6 +931,18 @@ export class PerpsController extends BaseController<
 
   #hip3ConfigSource: 'remote' | 'fallback' = 'fallback';
 
+  // Optional client override for the max market-vs-oracle price deviation before a
+  // market is reported untradable (PriceUpdate.isTradable). Protocol-agnostic: passed
+  // through to each provider, which applies its own default when this is undefined.
+  readonly #priceDeviationLimit?: number;
+
+  /**
+   * Transient UTM / discovery attribution context.
+   * Held in-memory only (never persisted in PerpsControllerState) and merged
+   * into analytics event properties via {@link mergeAttributionContext}.
+   */
+  #attributionContext: PerpsAttributionContext = {};
+
   /**
    * Check if MYX provider is enabled via feature flag
    * Uses same pattern as other feature flags in FeatureFlagConfigurationService
@@ -906,6 +1013,21 @@ export class PerpsController extends BaseController<
   #standaloneProviderHip3Version: number | null = null;
 
   #eligibilityCheckDeferred: boolean;
+
+  /**
+   * Serial promise queue for all AUS watchlist operations (hydration and
+   * individual toggles).  Chaining every operation onto this field ensures
+   * that:
+   *
+   * - A toggle that fires immediately after init() always runs *after* the
+   *   init hydration finishes (Bug 3).
+   * - Concurrent toggles are serialised so the last PUT reflects all changes
+   *   rather than racing with each other (Bug 4).
+   *
+   * Errors from individual operations are swallowed inside the queue so that
+   * a failed operation does not stall subsequent ones.
+   */
+  #ausQueue: Promise<void> = Promise.resolve();
 
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
@@ -982,6 +1104,7 @@ export class PerpsController extends BaseController<
     this.#hip3BlocklistMarkets = [
       ...(clientConfig.fallbackHip3BlocklistMarkets ?? []),
     ];
+    this.#priceDeviationLimit = clientConfig.fallbackPriceDeviationLimit;
 
     // Immediately set the fallback region list since RemoteFeatureFlagController is empty by default and takes a moment to populate.
     this.setBlockedRegionList(
@@ -1301,6 +1424,7 @@ export class PerpsController extends BaseController<
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
+      priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       builderAddressTestnet:
@@ -1671,6 +1795,14 @@ export class PerpsController extends BaseController<
           attempts: attempt,
         });
 
+        // Hydrate watchlist from AUS (non-blocking — transient failures are
+        // caught inside and must not prevent init from completing).
+        // Assigning to #ausQueue ensures subsequent toggleWatchlistMarket
+        // calls wait for hydration before running their own GET-merge-PUT.
+        this.#ausQueue = this.#syncWatchlistFromRemote().catch(() => {
+          // Errors are already logged inside #syncWatchlistFromRemote.
+        });
+
         return; // Exit retry loop on success
       } catch (error) {
         lastError = ensureError(error, 'PerpsController.performInitialization');
@@ -1742,6 +1874,7 @@ export class PerpsController extends BaseController<
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
+      priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       builderAddressTestnet:
@@ -1996,7 +2129,6 @@ export class PerpsController extends BaseController<
       },
       stateManager: {
         update: (updater: (state: PerpsControllerState) => void) =>
-          // @ts-expect-error TS2589 - excessively deep instantiation from BaseController generic
           this.update(updater),
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
@@ -3814,6 +3946,65 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Set the transient UTM / discovery attribution context.
+   * Replaces any previously set context. Held in-memory only — not persisted.
+   *
+   * @param context - The attribution context (UTM fields) to store.
+   */
+  setAttributionContext(context: PerpsAttributionContext): void {
+    this.#attributionContext = { ...context };
+  }
+
+  /**
+   * Get a copy of the current attribution context.
+   *
+   * @returns A shallow copy of the stored attribution context.
+   */
+  getAttributionContext(): PerpsAttributionContext {
+    return { ...this.#attributionContext };
+  }
+
+  /**
+   * Clear the stored attribution context.
+   */
+  clearAttributionContext(): void {
+    this.#attributionContext = {};
+  }
+
+  /**
+   * Merge the stored UTM attribution context into a set of analytics event
+   * properties. Only defined UTM fields are added, mapped
+   * to their canonical PERPS_EVENT_PROPERTY keys. Provided properties take
+   * precedence and are never overwritten.
+   *
+   * @param properties - Base event properties to merge attribution into.
+   * @returns A new properties object including any defined UTM keys.
+   */
+  mergeAttributionContext(
+    properties: PerpsAnalyticsProperties = {},
+  ): PerpsAnalyticsProperties {
+    const utm: PerpsAnalyticsProperties = {};
+    const context = this.#attributionContext;
+    if (context.utmSource !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_SOURCE] = context.utmSource;
+    }
+    if (context.utmMedium !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_MEDIUM] = context.utmMedium;
+    }
+    if (context.utmCampaign !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_CAMPAIGN] = context.utmCampaign;
+    }
+    if (context.utmContent !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_CONTENT] = context.utmContent;
+    }
+    if (context.utmTerm !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_TERM] = context.utmTerm;
+    }
+    // Provided properties win over attribution context.
+    return { ...utm, ...properties };
+  }
+
+  /**
    * Toggle between testnet and mainnet
    *
    * @returns The toggle result with success status and current network mode.
@@ -4963,6 +5154,48 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Get the user's pro-mode layout preferences (network-independent).
+   *
+   * @returns The current pro-mode layout preferences.
+   */
+  getProLayoutPreferences(): ProLayoutPreferences {
+    // Merge over defaults so callers always receive a fully-populated object,
+    // even if the persisted state predates one of the fields.
+    return {
+      ...DEFAULT_PRO_LAYOUT_PREFERENCES,
+      ...this.state.proLayoutPreferences,
+    };
+  }
+
+  /**
+   * Update the user's pro-mode layout preferences.
+   *
+   * Patch-style setter: only the provided fields are updated, the rest are
+   * preserved. This keeps the signature stable as new layout fields are added.
+   *
+   * @param patch - Partial set of pro-mode layout preferences to update.
+   */
+  setProLayoutPreferences(patch: Partial<ProLayoutPreferences>): void {
+    this.update((state) => {
+      state.proLayoutPreferences = {
+        ...state.proLayoutPreferences,
+        ...patch,
+      };
+    });
+  }
+
+  /**
+   * Set the Perps interface mode (lite/pro).
+   *
+   * @param mode - The mode to switch to.
+   */
+  setPerpsMode(mode: PerpsMode): void {
+    this.update((state) => {
+      state.mode = mode;
+    });
+  }
+
+  /**
    * Set the selected payment token for the Perps order/deposit flow.
    * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
    * Only required fields (address, chainId) are stored in state; description and symbol are optional.
@@ -5082,12 +5315,21 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Toggle watchlist status for a market
-   * Watchlist markets are stored per network (testnet/mainnet)
+   * Toggle watchlist status for a market.
+   *
+   * Updates local state immediately (optimistic UI) and then syncs the new
+   * watchlist to AuthenticatedUserStorageService.  If the remote write fails,
+   * the local state is reverted so it stays consistent with AUS.
+   *
+   * When the user is unauthenticated, or the active provider is not yet
+   * supported by the AUS schema, the controller continues operating with
+   * local-persisted state only — no error is surfaced to the caller.
+   *
+   * Watchlist markets are stored per network (testnet/mainnet).
    *
    * @param symbol - The trading pair symbol.
    */
-  toggleWatchlistMarket(symbol: string): void {
+  async toggleWatchlistMarket(symbol: string): Promise<void> {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
     const isWatchlisted = currentWatchlist.includes(symbol);
@@ -5099,17 +5341,54 @@ export class PerpsController extends BaseController<
       action: isWatchlisted ? 'remove' : 'add',
     });
 
+    // Step 1: Optimistic local state update — UI reflects change immediately.
     this.update((state) => {
       if (isWatchlisted) {
-        // Remove from watchlist
         state.watchlistMarkets[currentNetwork] = currentWatchlist.filter(
           (marketSymbol) => marketSymbol !== symbol,
         );
       } else {
-        // Add to watchlist
         state.watchlistMarkets[currentNetwork] = [...currentWatchlist, symbol];
       }
     });
+
+    this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
+      [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
+        PERPS_EVENT_VALUE.INTERACTION_TYPE.FAVORITE_TOGGLED,
+      [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+      [PERPS_EVENT_PROPERTY.ACTION_TYPE]: isWatchlisted
+        ? PERPS_EVENT_VALUE.ACTION_TYPE.UNFAVORITE_MARKET
+        : PERPS_EVENT_VALUE.ACTION_TYPE.FAVORITE_MARKET,
+      [PERPS_EVENT_PROPERTY.FAVORITES_COUNT]:
+        this.state.watchlistMarkets[currentNetwork].length,
+    });
+
+    // Step 2: Persist to AUS; revert local state if the write fails.
+    // Enqueue behind #ausQueue so that:
+    //   - concurrent toggles serialize their GET-merge-PUT sequences, and
+    //   - any in-flight init hydration completes before we issue a write.
+    try {
+      await new Promise<void>((resolve, reject) => {
+        this.#ausQueue = this.#ausQueue
+          .then(() => this.#persistWatchlistToRemote(currentNetwork))
+          .then(resolve, reject)
+          // Swallow the error on the queue chain so later operations can run.
+          .catch(() => undefined);
+      });
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.toggleWatchlistMarket'),
+        this.#getErrorContext('toggleWatchlistMarket', {
+          symbol,
+          network: currentNetwork,
+          action: isWatchlisted ? 'remove' : 'add',
+        }),
+      );
+      // Revert the optimistic update.
+      this.update((state) => {
+        state.watchlistMarkets[currentNetwork] = currentWatchlist;
+      });
+    }
   }
 
   /**
@@ -5131,6 +5410,221 @@ export class PerpsController extends BaseController<
   getWatchlistMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     return this.state.watchlistMarkets[currentNetwork];
+  }
+
+  /**
+   * Record that the user viewed a market.
+   *
+   * The symbol is prepended to the per-network recently-viewed list (newest-first).
+   * Any existing entry for the same symbol is removed first so there are no
+   * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+   *
+   * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+   */
+  recordMarketViewed(symbol: string): void {
+    const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const now = Date.now();
+
+    this.update((state) => {
+      const current = state.recentlyViewedMarkets[currentNetwork].filter(
+        (entry) => entry.symbol !== symbol,
+      );
+      state.recentlyViewedMarkets[currentNetwork] = [
+        { symbol, viewedAt: now },
+        ...current,
+      ].slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
+    });
+  }
+
+  /**
+   * Get recently viewed markets for the current network.
+   *
+   * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+   * newest-first, filtered to entries within the last
+   * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
+   * array when no qualifying entries exist.
+   *
+   * @returns Ordered array of market symbols.
+   */
+  getRecentlyViewedMarkets(): string[] {
+    const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const cutoff = Date.now() - PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs;
+
+    return this.state.recentlyViewedMarkets[currentNetwork]
+      .filter((entry) => entry.viewedAt > cutoff)
+      .map((entry) => entry.symbol)
+      .slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
+  }
+
+  /**
+   * Writes the current local watchlist to AuthenticatedUserStorageService
+   * using a read-merge-write strategy to avoid overwriting other preferences.
+   *
+   * Skips silently when:
+   * - The active provider has no AUS exchange key (e.g. `'aggregated'`).
+   * - The remote preferences blob does not yet exist (returns `null` / 404).
+   *   In that case, `NotificationServicesController.createOnChainTriggers` is
+   *   the canonical owner that creates the initial blob.
+   *
+   * Throws on remote write failure so the caller can decide whether to revert.
+   *
+   * @param network - Which network's list to sync ('testnet' | 'mainnet').
+   */
+  async #persistWatchlistToRemote(
+    network: 'testnet' | 'mainnet',
+  ): Promise<void> {
+    const exchangeKey = resolveWatchlistExchangeKey(this.state.activeProvider);
+    if (!exchangeKey) {
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist sync — provider not mapped',
+        { activeProvider: this.state.activeProvider },
+      );
+      return;
+    }
+
+    const prefs = await this.messenger.call(
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+    );
+
+    if (!prefs) {
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist write — preferences blob not yet initialised',
+        { exchangeKey, network },
+      );
+      return;
+    }
+
+    const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
+      .watchlistMarkets ?? {
+      hyperliquid: { testnet: [], mainnet: [] },
+      myx: { testnet: [], mainnet: [] },
+    };
+
+    const nextWatchlistMarkets: PerpsWatchlistMarkets = {
+      ...existingWatchlist,
+      [exchangeKey]: {
+        ...existingWatchlist[exchangeKey],
+        [network]: this.state.watchlistMarkets[network],
+      },
+    };
+
+    const nextPrefs: NotificationPreferences = {
+      ...prefs,
+      perps: {
+        ...prefs.perps,
+        watchlistMarkets: nextWatchlistMarkets,
+      },
+    };
+
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putNotificationPreferences',
+      nextPrefs,
+    );
+
+    this.#debugLog('PerpsController: Watchlist synced to AUS', {
+      exchangeKey,
+      network,
+      count: this.state.watchlistMarkets[network].length,
+    });
+  }
+
+  /**
+   * Hydrates `state.watchlistMarkets` from AuthenticatedUserStorageService on
+   * controller initialisation.
+   *
+   * AUS is the source of truth; local state is used as an offline cache.
+   * This method also handles the one-time migration from local-only state to
+   * AUS for users who had a watchlist before AUS sync was introduced.
+   *
+   * All remote errors are swallowed so a transient network failure does not
+   * block the rest of `init()`.
+   */
+  async #syncWatchlistFromRemote(): Promise<void> {
+    const exchangeKey = resolveWatchlistExchangeKey(this.state.activeProvider);
+    if (!exchangeKey) {
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist hydration — provider not mapped',
+        { activeProvider: this.state.activeProvider },
+      );
+      return;
+    }
+
+    try {
+      const prefs = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+
+      if (!prefs) {
+        this.#debugLog(
+          'PerpsController: No AUS preferences blob — using local watchlist',
+        );
+        return;
+      }
+
+      const remoteExchangeWatchlist =
+        prefs.perps.watchlistMarkets?.[exchangeKey];
+
+      // AUS is the source of truth: an absent exchange key means this device
+      // has not been migrated yet — push any local favorites up once.
+      // A present key (even with empty arrays) must be honored as-is,
+      // including an intentional remote clear.
+      if (remoteExchangeWatchlist === undefined) {
+        // Blob exists but has no watchlist for this exchange yet.
+        // If local state has any markets, push them up as a one-time migration.
+        const { testnet, mainnet } = this.state.watchlistMarkets;
+        const hasLocalMarkets = testnet.length > 0 || mainnet.length > 0;
+
+        if (hasLocalMarkets) {
+          this.#debugLog('PerpsController: Migrating local watchlist to AUS', {
+            exchangeKey,
+            testnetCount: testnet.length,
+            mainnetCount: mainnet.length,
+          });
+          // Push testnet and mainnet together via a single read-merge-write.
+          // Start from existing remote watchlistMarkets (or empty fallback) so
+          // that other exchanges already stored in AUS are not overwritten.
+          const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
+            .watchlistMarkets ?? {
+            hyperliquid: { testnet: [], mainnet: [] },
+            myx: { testnet: [], mainnet: [] },
+          };
+          const nextWatchlistMarkets: PerpsWatchlistMarkets = {
+            ...existingWatchlist,
+            [exchangeKey]: { testnet, mainnet },
+          };
+          const nextPrefs: NotificationPreferences = {
+            ...prefs,
+            perps: {
+              ...prefs.perps,
+              watchlistMarkets: nextWatchlistMarkets,
+            },
+          };
+          await this.messenger.call(
+            'AuthenticatedUserStorageService:putNotificationPreferences',
+            nextPrefs,
+          );
+          this.#debugLog('PerpsController: Local watchlist migrated to AUS', {
+            exchangeKey,
+          });
+        }
+      } else {
+        // AUS has an entry for this exchange — hydrate local state from it.
+        this.update((state) => {
+          state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
+          state.watchlistMarkets.mainnet = remoteExchangeWatchlist.mainnet;
+        });
+        this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
+          exchangeKey,
+          testnetCount: remoteExchangeWatchlist.testnet.length,
+          mainnetCount: remoteExchangeWatchlist.mainnet.length,
+        });
+      }
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.syncWatchlistFromRemote'),
+        this.#getErrorContext('syncWatchlistFromRemote'),
+      );
+    }
   }
 
   /**

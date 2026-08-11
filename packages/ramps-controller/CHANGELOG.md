@@ -7,8 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
+
+## [20.0.0]
+
 ### Changed
 
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- **BREAKING:** Require a non-empty `chainId` on `addPrecreatedOrder`. Callers must seed the selected token's chain so precreated stubs (and pending flips before API enrichment) always carry a network. Empty or whitespace `chainId` is a no-op, matching empty `orderId` handling. ([#9777](https://github.com/MetaMask/core/pull/9777))
+
+## [19.0.0]
+
+### Added
+
+- Add `setSelectedProviderForAsset(assetId, options?)` method and `RampsController:setSelectedProviderForAsset` messenger action ([#9759](https://github.com/MetaMask/core/pull/9759))
+  - Switches `providers.selected` to the first provider in `providers.data` that serves the given CAIP-19 asset when the currently selected provider does not, using the existing `providerServesAsset` utility.
+  - Returns `true` if a switch was made, `false` otherwise (no-op when providers are not yet loaded, the current provider already serves the asset, or no alternative provider serves the asset).
+- Add `RampsService.getDefaultRedirectCallbackUrl()` and the matching `RampsService:getDefaultRedirectCallbackUrl` messenger action (plus the exported `RampsServiceGetDefaultRedirectCallbackUrlAction` type), which return the widened Headless Buy default redirect ("fake callback") URL for the environment the service was constructed with. The method is synchronous. ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - `baseUrlOverride` deliberately does not apply. It overrides the ramps API host for local development, which in production and staging is not the host that serves `/regions/fake-callback` (`on-ramp-content` versus `on-ramp{-cache}`), and the redirect URL is matched by client UI to detect flow completion. For development the callback already shares the API host family (`on-ramp.dev-api`). Use `RampsEnvironment.Local` for a localhost callback, noting it is pinned to `http://localhost:3000` and does not follow a non-3000 `baseUrlOverride`.
+- Add the exported `getDefaultRedirectCallbackUrl(environment)` helper, the canonical environment-to-callback map that `RampsService` uses: `on-ramp-content` hosts for production and staging, `on-ramp.dev-api` for development (there is no `on-ramp-content.dev-api` deployment), and `localhost:3000` for local. Client code that needs the value synchronously, without the messenger, can call it directly with the same environment the service was given. ([#9752](https://github.com/MetaMask/core/pull/9752))
+
+### Changed
+
+- **BREAKING:** `RampsController` now calls `RampsService:getDefaultRedirectCallbackUrl` on the widened quote path, so hosts must delegate that action to the controller's messenger. It is included in the exported `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` list; hosts that spell out their delegated action list instead of spreading that constant have to add it, or the entire `RampsController:getQuotes` call rejects with a messenger "handler has not been delegated" error (including MM Pay's fiat quote path, which omits `redirectUrl` and relies on widening). ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - The action is only called when the `moneyHeadlessAllProviders` widening is in effect and the caller omitted `redirectUrl`. An explicit `redirectUrl` and the native-only path never reach the service.
+
+### Removed
+
+- **BREAKING:** Remove the `getDefaultRedirectUrl` callback option from `RampsControllerOptions`. The controller asks `RampsService` for the default redirect URL instead, which keeps the environment a single runtime source of truth so the callback host cannot drift from the API host the service is talking to. ([#9752](https://github.com/MetaMask/core/pull/9752))
+  - Mobile should drop the `getDefaultRedirectUrl: () => getRampCallbackBaseUrl()` argument from its `RampsController` init once it upgrades, and reimplement `getRampCallbackBaseUrl()` as `getDefaultRedirectCallbackUrl(getRampsEnvironment())` so the UI callback matcher and the controller default resolve from the same environment source.
+
+### Fixed
+
+- Fix `providerServesAsset` to require the `supportedCryptoCurrencies` map value to be `true`, not just key presence ([#9759](https://github.com/MetaMask/core/pull/9759))
+  - Previously a provider with `{ "eip155:1/erc20:0x...": false }` would be treated as serving the asset.
+
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [18.0.0]
+
+### Removed
+
+- **BREAKING:** Remove `getHeadlessAllProvidersMinimumVersion`; app-version gating for `moneyHeadlessAllProviders` is owned by the LaunchDarkly `versions` wrapper (processed by `RemoteFeatureFlagController`), not a payload `minimumVersion` field. `featureVersion` fail-closed enablement and `providerIds` allowlisting are unchanged. ([#9668](https://github.com/MetaMask/core/pull/9668))
+
+## [17.2.0]
+
+### Added
+
+- Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState)` helper resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload; empty or malformed `providerIds` resolve to `undefined` (no restriction), unknown keys and non-string entries are ignored ([#9524](https://github.com/MetaMask/core/pull/9524))
+- Add the `HEADLESS_ALL_PROVIDERS_FEATURE_VERSION` constant (currently `'1'`) and the `getHeadlessAllProvidersMinimumVersion(remoteFeatureFlagState)` helper; an enabled object payload must carry `featureVersion: '1'` or it resolves to disabled, and `minimumVersion` is exposed for clients to validate against the app version ([#9524](https://github.com/MetaMask/core/pull/9524))
+
+### Changed
+
+- Widen the `moneyHeadlessAllProviders` flag value contract to accept an object payload `{ enabled: true, featureVersion: "1", providerIds?: string[] }` alongside the boolean form ([#9524](https://github.com/MetaMask/core/pull/9524))
+  - `isHeadlessAllProvidersEnabled` now returns `true` for an object payload whose `enabled` is the literal `true` and `featureVersion` is `"1"`; every other previously-false value still resolves to `false`, so boolean-only configurations see no behavior change
+  - When the payload lists provider ids, the widened quote pick drops candidates whose provider is not listed (ids match in prefixed `/providers/x` or bare form, case-insensitively); if nothing survives, `getQuotes` returns an empty `success[]` with `sorted` / `error` / `customActions` preserved
+  - Clients on earlier versions coerce the object payload to `false` (native-only), so serving it cannot enable widening for a client that cannot parse it
+
+## [17.1.0]
+
+### Added
+
+- Add `TransakService.createWidgetUrl` and `RampsController.transakCreateWidgetUrl`, which create the Transak payment widget URL through the ramps API proxy (`POST /providers/{providerId}/widget-url`) so the partner API key never leaves the backend. Requires the host to delegate `AuthenticationController:getBearerToken` to the `TransakService` messenger. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `rampsApiBaseUrlOverride` constructor option to `TransakService` (same semantics as `RampsService`'s `baseUrlOverride`) that overrides the ramps API base URL for local development; it applies to the orders and widget-url proxy requests only. ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add a `referrerDomain` constructor option to `TransakService` that identifies the client to Transak in `widgetParams` (defaults to `metamask.io`). ([#9632](https://github.com/MetaMask/core/pull/9632))
+- Add `TransakEnvironment.Development`, which routes ramps API requests to `https://on-ramp.dev-api.cx.metamask.io` while direct Transak API calls use the staging gateway. ([#9632](https://github.com/MetaMask/core/pull/9632))
+
+### Deprecated
+
+- Deprecate `TransakService.requestOtt` and `TransakService.generatePaymentWidgetUrl` in favor of `createWidgetUrl`; the OTT flow requires the partner API key on the client. ([#9632](https://github.com/MetaMask/core/pull/9632))
+
+## [17.0.0]
+
+### Added
+
+- Add the `MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY` constant (`moneyHeadlessAllProviders`) and the pure `isHeadlessAllProvidersEnabled(remoteFeatureFlagState)` helper (with a `HeadlessFeatureFlagsLookup` type) that own the flag key lookup, `localOverrides`-over-`remoteFeatureFlags` merging, and boolean coercion (only the literal `true` enables), so UI consumers resolve the flag exactly like the controller does ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure provider-availability helpers `providerServesAsset`, `getProvidersServingAsset`, `regionHasProviderForAsset`, and `isFiatDepositAvailable` so headless-buy consumers can share the controller's case-insensitive CAIP-19 asset matching and flag-aware region/availability gating instead of re-deriving it, keeping the two from disagreeing; `regionHasProviderForAsset` and `isFiatDepositAvailable` take an `allProvidersEnabled` boolean ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure quote-classification helpers `isExternalBrowserQuote`, `isCustomActionQuote`, and `isInAppOnlyQuote` so consumers can share the in-app-vs-external browser-mode classification without owning host redirect/deeplink concerns ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure error-normalization helpers `getErrorMessage`, `extractExplicitTypedError`, and `normalizeToTypedError` (with a `TypedError<Code>` type) so consumers can share error-shape extraction while keeping their own error-code taxonomy ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add `@metamask/remote-feature-flag-controller` `^4.2.2` as a runtime dependency ([#9409](https://github.com/MetaMask/core/pull/9409))
+
+### Changed
+
+- **BREAKING:** Replace the `getProviderScope` constructor option and the exported `ProviderScope` type (`'off' | 'in-app' | 'all'`) with a controller-side read of the `moneyHeadlessAllProviders` boolean remote feature flag ([#9409](https://github.com/MetaMask/core/pull/9409))
+  - `RampsController.getQuotes` resolves the flag through the `RemoteFeatureFlagController:getState` messenger action on each auto-selection call, so a remote fetch or a local dev override takes effect at runtime; consumers should delegate that action to the controller's messenger (when it is missing, the flag read fails closed and quoting stays native-only)
+  - When the flag is `true`, the auto-selection path (`autoSelectProvider` / `restrictToKnownOrNativeProviders`) widens to every supporting provider class (native, in-app WebView aggregator, and external-browser / custom-action) and returns the best quote at `success[0]`, enforcing per-provider fiat limits; when the flag is `false`, missing, or any non-boolean value, the path stays native-only
+  - The intermediate `in-app` scope (which excluded external-browser and custom-action quotes from selection) is removed
+- `RampsController` now derives its internal region provider-asset matching from the shared `providerAvailability` helpers, so the exposed helpers stay behaviourally identical to the controller's own selection ([#9409](https://github.com/MetaMask/core/pull/9409))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Provider IDs are no longer normalized by stripping a `/providers/` prefix. `RampsController.getQuotes` now matches provider IDs from the providers list, quotes, custom actions, and sort order as-is, and a precreated stub order's `provider.id` is the canonical provider code passed to the create-order call rather than a `/providers/`-prefixed value. Consumers must supply non-prefixed (canonical) provider IDs ([#9448](https://github.com/MetaMask/core/pull/9448))
+- Update `LICENSE` text ([#9472](https://github.com/MetaMask/core/pull/9472))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+
+### Removed
+
+- **BREAKING:** Remove the `normalizeProviderCode` export ([#9448](https://github.com/MetaMask/core/pull/9448))
+
+## [15.1.0]
+
+### Added
+
+- Add an optional `getProviderScope` callback to `RampsControllerOptions` and export the `ProviderScope` type (`'off' | 'in-app' | 'all'`); when it returns a non-`off` scope, `RampsController.getQuotes` widens its native-only auto-selection (the `autoSelectProvider` / `restrictToKnownOrNativeProviders` path) to every supporting provider and returns the best in-app quote at `success[0]`, excluding external-browser and custom-action quotes and enforcing per-provider fiat limits, while the default stays native-only and explicit-`providers` callers are unaffected ([#9353](https://github.com/MetaMask/core/pull/9353))
+- Add an optional `getDefaultRedirectUrl` callback to `RampsControllerOptions`; on the widened in-app auto-selection path, when the caller omits `redirectUrl`, `RampsController.getQuotes` now supplies this default so aggregator quotes carry the `buyURL`/`buyWidget` widget URL the app needs, while an explicit caller `redirectUrl` always wins and scope `off` never injects a default ([#9353](https://github.com/MetaMask/core/pull/9353))
+
+### Changed
+
+- Refetch the countries catalog on every app startup via `init()` so region preset amounts (e.g. default amounts) stay current ([#9261](https://github.com/MetaMask/core/pull/9261))
+- Re-sync `userRegion` preset amounts from the countries catalog after each `getCountries()` call ([#9261](https://github.com/MetaMask/core/pull/9261))
+- On startup, `init()` now preserves an already-persisted `userRegion` when the refreshed countries catalog is momentarily empty or no longer lists that region, instead of clearing it ([#9261](https://github.com/MetaMask/core/pull/9261))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** `RampsController.getProviders`, `RampsService.getProviders`, `RampsController.getPaymentMethods`, and `RampsService.getPaymentMethods` no longer accept a `fiat` query filter; region local fiat filtering is applied server-side when omitted ([#9245](https://github.com/MetaMask/core/pull/9245))
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [14.3.0]
@@ -394,7 +517,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@19.0.0...@metamask/ramps-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.1...@metamask/ramps-controller@19.0.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...@metamask/ramps-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.2.0...@metamask/ramps-controller@18.0.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.1.0...@metamask/ramps-controller@17.2.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...@metamask/ramps-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...@metamask/ramps-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...@metamask/ramps-controller@16.0.0
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...@metamask/ramps-controller@15.0.0
 [14.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...@metamask/ramps-controller@14.3.0
 [14.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...@metamask/ramps-controller@14.2.0
 [14.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.0...@metamask/ramps-controller@14.1.1

@@ -59,6 +59,10 @@ export const PERPS_CONSTANTS = {
 
   // Historical data fetching constants
   FillsLookbackMs: 90 * 24 * 60 * 60 * 1000, // 3 months in milliseconds - limits REST API fills fetch
+
+  // Recently viewed markets
+  RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
+  RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
 } as const;
 
 /**
@@ -418,6 +422,51 @@ export const MARKET_SORTING_CONFIG = {
  */
 export type SortOptionId =
   (typeof MARKET_SORTING_CONFIG.SortOptions)[number]['id'];
+
+/**
+ * Perps interface mode.
+ *
+ * `Lite` is the simplified default experience; `Pro` exposes the advanced
+ * trading layout (chart, order book, inline order form).
+ */
+export enum PerpsMode {
+  Lite = 'lite',
+  Pro = 'pro',
+}
+
+/**
+ * Pro-mode layout preferences (network-independent).
+ *
+ * Flat object that persists across markets (unlike the per-market
+ * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
+ * reserved for future container-position UI and are kept here now so no
+ * state-shape migration is needed when that UI ships.
+ */
+export type ProLayoutPreferences = {
+  orderBookExpanded: boolean;
+  chartExpanded: boolean;
+  orderBookPosition: 'left' | 'right';
+  orderFormPosition: 'left' | 'right';
+};
+
+/**
+ * Default pro-mode layout preferences.
+ *
+ * Shared by `getDefaultPerpsControllerState()`, the controller getter, and the
+ * selector so callers always receive a fully-populated object even when the
+ * persisted state predates this field.
+ */
+export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
+  orderBookExpanded: false,
+  chartExpanded: false,
+  orderBookPosition: 'left',
+  orderFormPosition: 'right',
+};
+
+/**
+ * Default Perps interface mode.
+ */
+export const DEFAULT_PERPS_MODE: PerpsMode = PerpsMode.Lite;
 
 /**
  * Funding rate display configuration

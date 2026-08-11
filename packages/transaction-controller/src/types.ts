@@ -3,11 +3,11 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-import type { TransactionControllerMessenger } from './TransactionController';
+import type { TransactionControllerMessenger } from './TransactionController.js';
 
 /**
  * Given a record, ensures that each property matches the `Json` type.
@@ -1257,13 +1257,15 @@ export type DappSuggestedGasFees = {
 };
 
 /**
- * Gas values saved by the user for a specific chain.
+ * Gas values saved by the user for a specific chain and account.
  */
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface SavedGasFees {
-  maxBaseFee: string;
-  priorityFee: string;
+  level?: UserFeeLevel | GasFeeEstimateLevel;
+  maxBaseFee?: string;
+  priorityFee?: string;
+  gasPrice?: string;
 }
 
 /**
@@ -1525,8 +1527,8 @@ export type GasFeeFlow = {
 
 /** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
 export type Layer1GasFeeFlowRequest = {
-  /** RPC Provider instance. */
-  provider: Provider;
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
@@ -1828,6 +1830,16 @@ export type TransactionBatchRequest = {
    * reverting the entire batch.
    */
   atomic?: boolean;
+
+  /**
+   * Pre-signed or unsigned EIP-7702 authorizations to include on the batch
+   * type-4 transaction, in addition to any upgrade authorization generated for
+   * `from` when the batch payer is not yet upgraded.
+   *
+   * Used when vaulting/delegation requires upgrading a different account than
+   * `from` (e.g. Money Account deposits paid by an EOA with account override).
+   */
+  authorizationList?: AuthorizationList;
 
   batchId?: Hex;
 
@@ -2174,6 +2186,9 @@ export type MetamaskPayMetadata = {
   /** Source chain transaction hash if no local transaction. */
   sourceHash?: Hex;
 
+  /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
+  strategy?: string;
+
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
 
@@ -2327,6 +2342,15 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/** A nested transaction calldata update in an atomic batch. */
+export type NestedTransactionUpdate = {
+  /** Index of the nested transaction to update. */
+  transactionIndex: number;
+
+  /** New calldata for the nested transaction. */
+  transactionData: Hex;
 };
 
 /**

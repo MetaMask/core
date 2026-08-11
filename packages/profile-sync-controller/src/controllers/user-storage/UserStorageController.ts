@@ -17,7 +17,6 @@ import type {
   TraceContext,
   TraceRequest,
 } from '@metamask/controller-utils';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -30,21 +29,25 @@ import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../../sdk';
-import { Env, UserStorage } from '../../sdk';
-import type { NativeScrypt } from '../../shared/types/encryption';
-import { EventQueue } from '../../shared/utils/event-queue';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
+} from '../../sdk/index.js';
+import { Env, UserStorage } from '../../sdk/index.js';
+import type { NativeScrypt } from '../../shared/types/encryption.js';
+import {
+  getHdKeyringEntropySourceIds,
+  getPrimaryHdKeyringEntropySourceId,
+} from '../../shared/utils/entropy-source.js';
+import { EventQueue } from '../../shared/utils/event-queue.js';
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests.js';
 import type {
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
   AuthenticationControllerIsSignedInAction,
   AuthenticationControllerPerformSignInAction,
-} from '../authentication/AuthenticationController-method-action-types';
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
-import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
-import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
+} from '../authentication/AuthenticationController-method-action-types.js';
+import { BACKUPANDSYNC_FEATURES } from './constants.js';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration.js';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions.js';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types.js';
 
 const controllerName = 'UserStorageController';
 
@@ -533,35 +536,28 @@ export class UserStorageController extends BaseController<
   }
 
   /**
-   * Reads the HD keyring entropy source IDs (metadata IDs) from the
-   * KeyringController, primary first. Returns an empty array when none are
-   * available (e.g. the wallet is locked, where `keyrings` is cleared).
+   * Reads the HD keyring entropy source IDs from KeyringController.
    *
    * @returns The HD keyring metadata IDs, primary first.
    */
   #getHdKeyringEntropySourceIds(): string[] {
     const { keyrings } = this.messenger.call('KeyringController:getState');
-    return (keyrings ?? [])
-      .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
-      .map((keyring) => keyring.metadata.id);
+    return getHdKeyringEntropySourceIds(keyrings);
   }
 
   /**
-   * Resolves the primary SRP's entropy source ID (the first HD keyring's
-   * metadata ID), used to scope the primary's cache entries. The ID is randomly
-   * regenerated whenever the vault is recreated (e.g. on restore), so a new
-   * primary can never inherit a previous vault's cached key.
+   * Resolves the primary SRP's entropy source ID, used to scope the primary's
+   * cache entries. The ID is randomly regenerated whenever the vault is
+   * recreated (e.g. on restore), so a new primary can never inherit a previous
+   * vault's cached key.
    *
    * @returns The primary HD keyring metadata ID.
    * @throws If no HD keyring is available; callers must only resolve the scope
    * while the wallet is unlocked.
    */
   #getPrimaryEntropySourceId(): string {
-    const [primaryEntropySourceId] = this.#getHdKeyringEntropySourceIds();
-    if (!primaryEntropySourceId) {
-      throw new Error('#getPrimaryEntropySourceId - no HD keyring available');
-    }
-    return primaryEntropySourceId;
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getPrimaryHdKeyringEntropySourceId(keyrings);
   }
 
   /**

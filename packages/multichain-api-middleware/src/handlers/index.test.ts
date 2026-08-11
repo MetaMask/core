@@ -1,10 +1,10 @@
 import { createMethodMiddleware } from '@metamask/json-rpc-engine';
 
-import { methodHandlers } from '.';
-import type { WalletCreateSessionHooks } from './wallet-createSession';
-import type { WalletGetSessionHooks } from './wallet-getSession';
-import type { WalletInvokeMethodHooks } from './wallet-invokeMethod';
-import type { WalletRevokeSessionHooks } from './wallet-revokeSession';
+import { methodHandlers } from './index.js';
+import type { WalletCreateSessionHooks } from './wallet-createSession.js';
+import type { WalletGetSessionHooks } from './wallet-getSession.js';
+import type { WalletInvokeMethodHooks } from './wallet-invokeMethod.js';
+import type { WalletRevokeSessionHooks } from './wallet-revokeSession.js';
 
 type Hooks = WalletCreateSessionHooks &
   WalletGetSessionHooks &
@@ -37,6 +37,7 @@ const makeMockHooks = () =>
     isNonEvmScopeSupported: () => false,
     getNonEvmAccountAddresses: () => [],
     sortAccountIdsByLastSelected: () => [],
+    getCapabilities: () => Promise.resolve({}),
     getCaveatForOrigin: (() => ({}) as unknown) as Hooks['getCaveatForOrigin'],
     getSelectedNetworkClientId: () => 'mainnet',
     handleNonEvmRequestForOrigin: () => Promise.resolve(null),

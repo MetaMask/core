@@ -2,10 +2,6 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type {
-  BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerSubmitTxAction,
-} from '@metamask/bridge-status-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
@@ -17,6 +13,7 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
@@ -27,7 +24,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '..';
+import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
@@ -35,8 +32,8 @@ import type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
-} from '../TransactionPayController-method-action-types';
-import type { TransactionPayControllerGetStateAction } from '../types';
+} from '../TransactionPayController-method-action-types.js';
+import type { TransactionPayControllerGetStateAction } from '../types.js';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;
@@ -77,24 +74,14 @@ export function getMessengerMock({
     NetworkControllerFindNetworkClientIdByChainIdAction['handler']
   > = jest.fn();
 
-  const fetchQuotesMock = jest.fn();
-
   const getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
     RemoteFeatureFlagControllerGetStateAction['handler']
   > = jest.fn();
 
   const getGasFeeControllerStateMock = jest.fn();
 
-  const submitTransactionMock: jest.MockedFunction<
-    BridgeStatusControllerSubmitTxAction['handler']
-  > = jest.fn();
-
   const updateTransactionMock: jest.MockedFn<
     TransactionControllerUpdateTransactionAction['handler']
-  > = jest.fn();
-
-  const getBridgeStatusControllerStateMock: jest.MockedFn<
-    BridgeStatusControllerGetStateAction['handler']
   > = jest.fn();
 
   const getTokensControllerStateMock: jest.MockedFn<
@@ -155,6 +142,10 @@ export function getMessengerMock({
     TransactionControllerEstimateGasBatchAction['handler']
   > = jest.fn();
 
+  const simulateTransactionsMock: jest.MockedFn<
+    SentinelApiServiceSimulateTransactionsAction['handler']
+  > = jest.fn();
+
   const getAssetsControllerStateMock = jest.fn();
 
   const getKeyringControllerStateMock: jest.MockedFn<
@@ -206,18 +197,8 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
-      'BridgeController:fetchQuotes',
-      fetchQuotesMock,
-    );
-
-    messenger.registerActionHandler(
       'RemoteFeatureFlagController:getState',
       getRemoteFeatureFlagControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'BridgeStatusController:submitTx',
-      submitTransactionMock,
     );
 
     messenger.registerActionHandler(
@@ -228,11 +209,6 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionController:updateTransaction',
       updateTransactionMock,
-    );
-
-    messenger.registerActionHandler(
-      'BridgeStatusController:getState',
-      getBridgeStatusControllerStateMock,
     );
 
     messenger.registerActionHandler(
@@ -311,6 +287,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'SentinelApiService:simulateTransactions',
+      simulateTransactionsMock,
+    );
+
+    messenger.registerActionHandler(
       'AssetsController:getStateForTransactionPay',
       getAssetsControllerStateMock,
     );
@@ -329,10 +310,8 @@ export function getMessengerMock({
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,
-    fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
-    getBridgeStatusControllerStateMock,
     getControllerStateMock,
     getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
@@ -353,7 +332,7 @@ export function getMessengerMock({
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,
     publish,
-    submitTransactionMock,
+    simulateTransactionsMock,
     updateTransactionMock,
   };
 }

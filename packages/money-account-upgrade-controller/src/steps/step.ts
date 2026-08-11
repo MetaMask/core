@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 
 /**
  * Context supplied to each step when it is run.

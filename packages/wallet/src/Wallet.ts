@@ -8,9 +8,9 @@ import type {
   DefaultInstances,
   DefaultState,
   RootMessenger,
-} from './initialization/defaults';
-import { initialize } from './initialization/initialization';
-import { WalletOptions } from './types';
+} from './initialization/defaults.js';
+import { initialize } from './initialization/initialization.js';
+import { WalletOptions } from './types.js';
 
 export class Wallet {
   // TODO: Expand default types when passing additionalConfigurations.
@@ -121,6 +121,24 @@ export class Wallet {
     name: string,
   ): DefaultInstances[keyof DefaultInstances] | undefined {
     return this.#instances[name as keyof DefaultInstances];
+  }
+
+  /**
+   * Complete additional initialization of instantiated controllers or services after instantiating `Wallet`.
+   *
+   * @returns The results of all initialization calls.
+   */
+  init(): Promise<PromiseSettledResult<unknown>[]> {
+    return Promise.allSettled(
+      Object.values(this.#instances)
+        .filter(
+          (instance): instance is Extract<typeof instance, { init: unknown }> =>
+            // We do actually want to check the prototype here.
+            // eslint-disable-next-line no-restricted-syntax
+            'init' in instance && typeof instance.init === 'function',
+        )
+        .map(async (instance) => instance.init()),
+    );
   }
 
   /**

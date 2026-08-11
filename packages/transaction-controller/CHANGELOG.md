@@ -7,6 +7,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
+
+## [69.5.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+### Fixed
+
+- Strip leading zero digits from `value` in `eth_estimateGas` requests, so gas estimation no longer fails on RPC nodes that reject non-canonical hex quantities such as `0x00` (e.g. Go's `hexutil` parsing) ([#9797](https://github.com/MetaMask/core/pull/9797))
+
+## [69.5.0]
+
+### Added
+
+- Add optional `authorizationList` to `TransactionBatchRequest` so callers can include pre-signed EIP-7702 authorizations (e.g. Money Account upgrades) alongside any upgrade authorization generated for the batch payer (`from`) ([#9765](https://github.com/MetaMask/core/pull/9765))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^8.1.0` to `^8.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Replace underpriced dapp-suggested gas fees with the wallet's suggested estimates ([#9704](https://github.com/MetaMask/core/pull/9704))
+  - If the new `replaceUnderpricedDappGasFees` feature flag is enabled for the chain, dapp-suggested EIP-1559 fees with a `maxFeePerGas` below the current low estimate are replaced with the suggested medium values, as they are unlikely to result in inclusion in a block before fee values change.
+  - The `userFeeLevel` for such transactions is set to `medium` instead of `dappSuggested`, so the values are kept updated while the transaction is unapproved.
+  - The original dapp-suggested values remain available via `dappSuggestedGasFees` on the transaction metadata.
+  - Disabled by default.
+- Ignore underpriced saved (advanced) gas fee preferences in favour of the wallet's suggested estimates ([#9704](https://github.com/MetaMask/core/pull/9704))
+  - If the new `replaceUnderpricedSavedGasFees` feature flag is enabled for the chain, saved custom fees with a `maxBaseFee` below the current low estimate are ignored and the suggested medium values are used instead, as they are unlikely to result in inclusion in a block before fee values change.
+  - Level-based saved preferences track current estimates and are never ignored.
+  - The `userFeeLevel` for such transactions is set to `medium` instead of `custom`, so the values are kept updated while the transaction is unapproved.
+  - Disabled by default.
+
+### Fixed
+
+- Refresh gas fee token quotes independently of balance changes for enforced-simulation transactions, and prevent stale simulation responses from overwriting newer transaction state. ([#9757](https://github.com/MetaMask/core/pull/9757))
+- Retain pre-signed entries in `signAuthorizationList` instead of re-signing them with `txParams.from`, so authorizations signed by a different account survive publish ([#9765](https://github.com/MetaMask/core/pull/9765))
+- Attribute EIP-7702 authorization nonces to their recovered authorities in the nonce tracker, so foreign authorizations (e.g. Money Account upgrades on same-chain pay batches) do not inflate the batch payer's pending nonce ([#9765](https://github.com/MetaMask/core/pull/9765))
+
+## [69.4.0]
+
+### Added
+
+- Export `getEffectiveRecipient` utility that returns the actual recipient of a transaction, decoding it from calldata for ERC-20/ERC-721/ERC-1155 token transfer methods where `txParams.to` is the token contract ([#9699](https://github.com/MetaMask/core/pull/9699))
+- Add optional `strategy` field to `MetamaskPayMetadata` to persist the MetaMask Pay strategy used to fund the transaction ([#9733](https://github.com/MetaMask/core/pull/9733))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/core-backend` from `^8.0.0` to `^8.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [69.3.0]
+
+### Added
+
+- Add `updateTransactionMetadata` for applying coherent transaction metadata updates through the messenger, with an option to skip automatic re-simulation ([#9543](https://github.com/MetaMask/core/pull/9543))
+- Export `updateEIP7702BatchData` for updating nested EIP-7702 batch calldata without mutating the input ([#9543](https://github.com/MetaMask/core/pull/9543))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^7.0.0` to `^8.0.0` ([#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+### Fixed
+
+- Apply saved gas fee preferences to wallet-initiated transfers while continuing to ignore them for swaps and bridge transactions. ([#9682](https://github.com/MetaMask/core/pull/9682))
+
+## [69.2.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.5.0` to `^7.0.0` ([#9593](https://github.com/MetaMask/core/pull/9593))
+
+## [69.2.0]
+
+### Added
+
+- Export `hasTransactionType` helper for checking a transaction's type against the top-level `TransactionMeta` and any nested transactions ([#9570](https://github.com/MetaMask/core/pull/9570))
+
+## [69.1.0]
+
+### Changed
+
+- Query layer 1 gas fee oracles via direct `eth_call` RPC requests instead of an ethers `Contract` backed by `Web3Provider` ([#9505](https://github.com/MetaMask/core/pull/9505))
+  - `Web3Provider` schedules its JSON-RPC dispatch with `setTimeout`, which never fires on React Native iOS when the timer pump is starved, blocking `addTransaction` indefinitely and preventing dapp confirmations from appearing ([MetaMask/metamask-mobile#32863](https://github.com/MetaMask/metamask-mobile/issues/32863))
+
+## [69.0.0]
+
+### Changed
+
+- **BREAKING:** Expand saved gas fee support to allow transaction-scoped lookup, saved gas fee estimate levels, and legacy gas price values. Consumers that provide `getSavedGasFees` must now accept `TransactionMeta` instead of a chain ID. ([#8993](https://github.com/MetaMask/core/pull/8993))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [68.4.0]
+
+### Added
+
+- Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
+
+## [68.3.0]
+
+### Added
+
+- Add `failTransaction` method and corresponding `TransactionController:failTransaction` messenger action ([#9400](https://github.com/MetaMask/core/pull/9400))
+  - Marks a transaction as failed through the standard failure path, emitting the `transactionFailed`, `transactionStatusUpdated`, and `transactionFinished` events so downstream subscribers (e.g. bridge status, metrics) are notified.
+  - Intended for callers that finalize a transaction out-of-band, such as the smart transactions controller when the relay cancels a smart transaction.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Only apply user-saved (advanced) gas fees to dApp transactions ([#9401](https://github.com/MetaMask/core/pull/9401))
+  - Saved advanced gas fees are now ignored for internal transactions (`isInternal`), such as swaps and bridges, whose gas fees are dictated by the aggregator or relay. Previously they were only ignored for swaps, so a user's saved gas fees (e.g. a low max base fee) could underprice a bridge transaction and cause it to fail or get stuck as pending.
+
+## [68.2.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/core-backend` from `^6.4.0` to `^6.5.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/gas-fee-controller` from `^26.2.3` to `^26.2.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [68.2.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+
+### Fixed
+
+- Resimulate the latest transaction data instead of stale data captured when resimulation started, fixing flickering simulation results after a transaction is updated ([#9287](https://github.com/MetaMask/core/pull/9287))
+
+## [68.2.0]
+
+### Added
+
+- Add optional `maxGasLimit` to the `gasEstimateFallback` feature flag config, clamping the fixed or percentage-derived gas estimate fallback to a chain's per-transaction gas cap so it can never exceed the limit the RPC will accept ([#9191](https://github.com/MetaMask/core/pull/9191))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Fixed
+
+- Add explicit error when submitting a batch that requires EIP-7702 but the account or chain does not support it ([#9240](https://github.com/MetaMask/core/pull/9240))
+
 ## [68.1.1]
 
 ### Changed
@@ -2521,7 +2675,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.1...HEAD
+[69.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.0...@metamask/transaction-controller@69.5.1
+[69.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.4.0...@metamask/transaction-controller@69.5.0
+[69.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.3.0...@metamask/transaction-controller@69.4.0
+[69.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.1...@metamask/transaction-controller@69.3.0
+[69.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.0...@metamask/transaction-controller@69.2.1
+[69.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.1.0...@metamask/transaction-controller@69.2.0
+[69.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.0.0...@metamask/transaction-controller@69.1.0
+[69.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.4.0...@metamask/transaction-controller@69.0.0
+[68.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.3.0...@metamask/transaction-controller@68.4.0
+[68.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.2...@metamask/transaction-controller@68.3.0
+[68.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.1...@metamask/transaction-controller@68.2.2
+[68.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.0...@metamask/transaction-controller@68.2.1
+[68.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.1...@metamask/transaction-controller@68.2.0
 [68.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.0...@metamask/transaction-controller@68.1.1
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.1...@metamask/transaction-controller@68.1.0
 [68.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.0...@metamask/transaction-controller@68.0.1

@@ -6,19 +6,28 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
+  FeeMarketGasFeeEstimateForLevel,
   SavedGasFees,
   TransactionParams,
   TransactionMeta,
-  TransactionType,
   GasFeeFlow,
-} from '../types';
-import { GasFeeEstimateType, UserFeeLevel } from '../types';
-import { getGasFeeFlow } from './gas-flow';
-import { rpcRequest } from './provider';
-import { SWAP_TRANSACTION_TYPES } from './swaps';
+} from '../types.js';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  TransactionType,
+  UserFeeLevel,
+} from '../types.js';
+import {
+  getReplaceUnderpricedDappGasFeesEnabled,
+  getReplaceUnderpricedSavedGasFeesEnabled,
+} from './feature-flags.js';
+import { getGasFeeFlow } from './gas-flow.js';
+import { rpcRequest } from './provider.js';
+import { SWAP_TRANSACTION_TYPES } from './swaps.js';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
@@ -26,7 +35,9 @@ export type UpdateGasFeesRequest = {
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
-  getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  getSavedGasFees: (
+    transactionMeta: TransactionMeta,
+  ) => SavedGasFees | undefined;
   messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
@@ -41,9 +52,25 @@ type SuggestedGasFees = {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
   gasPrice?: string;
+
+  /**
+   * Whether the suggested fee was derived from a specific estimate level,
+   * such as `low`/`medium`/`high`. This is `false` for estimate types that
+   * do not support per-level pricing, such as a flat `eth_gasPrice` value,
+   * or when the gas fee flow failed and a raw RPC fallback was used.
+   */
+  isEstimateLevelApplied?: boolean;
+
+  low?: FeeMarketGasFeeEstimateForLevel;
 };
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
+
+const SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES = [
+  ...SWAP_TRANSACTION_TYPES,
+  TransactionType.bridge,
+  TransactionType.bridgeApproval,
+];
 
 /**
  * Update the gas fee properties of the provided transaction meta.
@@ -56,16 +83,33 @@ export async function updateGasFees(
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const isSwap = SWAP_TRANSACTION_TYPES.includes(
-    txMeta.type as TransactionType,
-  );
-  const savedGasFees = isSwap
-    ? undefined
-    : request.getSavedGasFees(txMeta.chainId);
+  const shouldIgnoreSavedGasFees =
+    SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES.includes(
+      txMeta.type as TransactionType,
+    );
 
-  const suggestedGasFees = await getSuggestedGasFees(request);
+  let savedGasFees =
+    shouldIgnoreSavedGasFees || hasInitialGasFeeParams(initialParams)
+      ? undefined
+      : request.getSavedGasFees(txMeta);
+
+  const suggestedGasFees = await getSuggestedGasFees({
+    ...request,
+    savedGasFees,
+  });
 
   log('Suggested gas fees', suggestedGasFees);
+
+  if (
+    shouldIgnoreUnderpricedSavedGasFees(savedGasFees, suggestedGasFees, request)
+  ) {
+    log(
+      'Ignoring saved custom gas fees below low estimate',
+      savedGasFees?.maxBaseFee,
+      suggestedGasFees.low?.maxFeePerGas,
+    );
+    savedGasFees = undefined;
+  }
 
   const getGasFeeRequest: GetGasFeeRequest = {
     ...request,
@@ -128,6 +172,113 @@ export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
 }
 
 /**
+ * Determine whether saved (advanced) gas fee preferences should be ignored in
+ * favour of the suggested gas fees, as the saved custom `maxBaseFee` is below
+ * the current low estimate and hence unlikely to result in timely inclusion in
+ * a block. Level-based saved preferences track current estimates and are never
+ * ignored.
+ *
+ * @param savedGasFees - The saved gas fee preferences.
+ * @param suggestedGasFees - The suggested gas fees.
+ * @param request - The request object.
+ * @returns Whether the saved gas fee preferences should be ignored.
+ */
+function shouldIgnoreUnderpricedSavedGasFees(
+  savedGasFees: SavedGasFees | undefined,
+  suggestedGasFees: SuggestedGasFees,
+  request: UpdateGasFeesRequest,
+): boolean {
+  const { eip1559, messenger, txMeta } = request;
+
+  if (
+    !eip1559 ||
+    !savedGasFees?.maxBaseFee ||
+    !getReplaceUnderpricedSavedGasFeesEnabled(txMeta.chainId, messenger)
+  ) {
+    return false;
+  }
+
+  const lowMaxFeePerGas = suggestedGasFees.low?.maxFeePerGas;
+
+  const hasReplacement =
+    Boolean(suggestedGasFees.maxFeePerGas) &&
+    Boolean(suggestedGasFees.maxPriorityFeePerGas);
+
+  if (!lowMaxFeePerGas || !hasReplacement) {
+    return false;
+  }
+
+  return isFeeBelowLowEstimate(
+    gweiDecimalToWeiHex(savedGasFees.maxBaseFee),
+    lowMaxFeePerGas,
+  );
+}
+
+/**
+ * Determine whether a fee value is below the low estimate.
+ *
+ * @param valueHex - The fee value as a hex string.
+ * @param lowMaxFeePerGasHex - The low estimate `maxFeePerGas` as a hex string.
+ * @returns Whether the fee value is below the low estimate.
+ */
+function isFeeBelowLowEstimate(
+  valueHex: string,
+  lowMaxFeePerGasHex: string,
+): boolean {
+  try {
+    return BigInt(valueHex) < BigInt(lowMaxFeePerGasHex);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Determine whether dapp-suggested gas fees should be ignored in favour of the
+ * suggested gas fees, as the dapp-suggested `maxFeePerGas` is below the current
+ * low estimate and hence unlikely to result in timely inclusion in a block.
+ *
+ * @param request - The request object.
+ * @returns Whether the dapp-suggested gas fees should be ignored.
+ */
+function shouldIgnoreDappGasFees(request: GetGasFeeRequest): boolean {
+  const {
+    eip1559,
+    initialParams,
+    messenger,
+    savedGasFees,
+    suggestedGasFees,
+    txMeta,
+  } = request;
+
+  if (
+    !eip1559 ||
+    savedGasFees ||
+    txMeta.isInternal ||
+    !getReplaceUnderpricedDappGasFeesEnabled(txMeta.chainId, messenger)
+  ) {
+    return false;
+  }
+
+  const dappMaxFeePerGas =
+    initialParams.maxFeePerGas ??
+    (initialParams.gasPrice && !initialParams.maxPriorityFeePerGas
+      ? initialParams.gasPrice
+      : undefined);
+
+  const lowMaxFeePerGas = suggestedGasFees.low?.maxFeePerGas;
+
+  const hasReplacement =
+    Boolean(suggestedGasFees.maxFeePerGas) &&
+    Boolean(suggestedGasFees.maxPriorityFeePerGas);
+
+  if (!dappMaxFeePerGas || !lowMaxFeePerGas || !hasReplacement) {
+    return false;
+  }
+
+  return isFeeBelowLowEstimate(dappMaxFeePerGas, lowMaxFeePerGas);
+}
+
+/**
  * Determine the maxFeePerGas value for the transaction.
  *
  * @param request - The request object.
@@ -140,23 +291,37 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
     return undefined;
   }
 
-  if (savedGasFees) {
+  if (savedGasFees?.maxBaseFee) {
     const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee);
     log('Using maxFeePerGas from savedGasFees', maxFeePerGas);
     return maxFeePerGas;
   }
 
-  if (initialParams.maxFeePerGas) {
+  const ignoreDappGasFees = shouldIgnoreDappGasFees(request);
+
+  if (initialParams.maxFeePerGas && !ignoreDappGasFees) {
     log('Using maxFeePerGas from request', initialParams.maxFeePerGas);
     return initialParams.maxFeePerGas;
   }
 
-  if (initialParams.gasPrice && !initialParams.maxPriorityFeePerGas) {
+  if (
+    initialParams.gasPrice &&
+    !initialParams.maxPriorityFeePerGas &&
+    !ignoreDappGasFees
+  ) {
     log(
       'Setting maxFeePerGas to gasPrice from request',
       initialParams.gasPrice,
     );
     return initialParams.gasPrice;
+  }
+
+  if (ignoreDappGasFees) {
+    log(
+      'Ignoring dapp-suggested maxFeePerGas below low estimate',
+      initialParams.maxFeePerGas ?? initialParams.gasPrice,
+      suggestedGasFees.low?.maxFeePerGas,
+    );
   }
 
   if (suggestedGasFees.maxFeePerGas) {
@@ -192,7 +357,7 @@ function getMaxPriorityFeePerGas(
     return undefined;
   }
 
-  if (savedGasFees) {
+  if (savedGasFees?.priorityFee) {
     const maxPriorityFeePerGas = gweiDecimalToWeiHex(savedGasFees.priorityFee);
     log(
       'Using maxPriorityFeePerGas from savedGasFees.priorityFee',
@@ -201,7 +366,9 @@ function getMaxPriorityFeePerGas(
     return maxPriorityFeePerGas;
   }
 
-  if (initialParams.maxPriorityFeePerGas) {
+  const ignoreDappGasFees = shouldIgnoreDappGasFees(request);
+
+  if (initialParams.maxPriorityFeePerGas && !ignoreDappGasFees) {
     log(
       'Using maxPriorityFeePerGas from request',
       initialParams.maxPriorityFeePerGas,
@@ -209,7 +376,11 @@ function getMaxPriorityFeePerGas(
     return initialParams.maxPriorityFeePerGas;
   }
 
-  if (initialParams.gasPrice && !initialParams.maxFeePerGas) {
+  if (
+    initialParams.gasPrice &&
+    !initialParams.maxFeePerGas &&
+    !ignoreDappGasFees
+  ) {
     log(
       'Setting maxPriorityFeePerGas to gasPrice from request',
       initialParams.gasPrice,
@@ -244,10 +415,16 @@ function getMaxPriorityFeePerGas(
  * @returns The gasPrice value.
  */
 function getGasPrice(request: GetGasFeeRequest): string | undefined {
-  const { eip1559, initialParams, suggestedGasFees } = request;
+  const { eip1559, initialParams, savedGasFees, suggestedGasFees } = request;
 
   if (eip1559) {
     return undefined;
+  }
+
+  if (savedGasFees?.gasPrice) {
+    const gasPrice = gweiDecimalToWeiHex(savedGasFees.gasPrice);
+    log('Using gasPrice from savedGasFees.gasPrice', gasPrice);
+    return gasPrice;
   }
 
   if (initialParams.gasPrice) {
@@ -275,11 +452,33 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
  * @param request - The request object.
  * @returns The user fee level.
  */
-function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
+function getUserFeeLevel(request: GetGasFeeRequest): string | undefined {
   const { initialParams, savedGasFees, suggestedGasFees, txMeta } = request;
 
   if (savedGasFees) {
-    return UserFeeLevel.CUSTOM;
+    const hasCustomOverride =
+      savedGasFees.maxBaseFee !== undefined ||
+      savedGasFees.priorityFee !== undefined ||
+      savedGasFees.gasPrice !== undefined;
+
+    const canUseSavedLevel =
+      !hasCustomOverride &&
+      savedGasFees.level !== undefined &&
+      suggestedGasFees.isEstimateLevelApplied;
+
+    // A custom override on any field, or an estimate type that does not
+    // support per-level pricing (e.g. a flat eth_gasPrice value), means the
+    // fee is no longer purely level-derived, so it must not be tracked as a
+    // live estimate level by the gas fee poller, which would otherwise
+    // overwrite the override or misrepresent the fee as matching the level.
+    return canUseSavedLevel ? savedGasFees.level : UserFeeLevel.CUSTOM;
+  }
+
+  // Underpriced dapp-suggested fees are replaced with the suggested medium
+  // values, so also use the medium fee level to keep the values updated while
+  // the transaction is unapproved.
+  if (shouldIgnoreDappGasFees(request)) {
+    return UserFeeLevel.MEDIUM;
   }
 
   if (
@@ -339,17 +538,33 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta): void {
  * @returns The suggested gas fees.
  */
 async function getSuggestedGasFees(
-  request: UpdateGasFeesRequest,
+  request: UpdateGasFeesRequest & { savedGasFees?: SavedGasFees },
 ): Promise<SuggestedGasFees> {
-  const { eip1559, gasFeeFlows, getGasFeeEstimates, messenger, txMeta } =
-    request;
+  const {
+    eip1559,
+    gasFeeFlows,
+    getGasFeeEstimates,
+    messenger,
+    savedGasFees,
+    txMeta,
+  } = request;
   const { networkClientId } = txMeta;
+
+  const hasCompleteDappFees =
+    eip1559 &&
+    Boolean(txMeta.txParams.maxFeePerGas) &&
+    Boolean(txMeta.txParams.maxPriorityFeePerGas);
+
+  // Estimates are still required for transactions with complete dapp-suggested
+  // fees if they may be replaced due to being underpriced.
+  const isEstimateRequiredForDappFees =
+    hasCompleteDappFees &&
+    !txMeta.isInternal &&
+    getReplaceUnderpricedDappGasFeesEnabled(txMeta.chainId, messenger);
 
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
-    (eip1559 &&
-      txMeta.txParams.maxFeePerGas &&
-      txMeta.txParams.maxPriorityFeePerGas)
+    (hasCompleteDappFees && !isEstimateRequiredForDappFees)
   ) {
     return {};
   }
@@ -370,16 +585,28 @@ async function getSuggestedGasFees(
     });
 
     const gasFeeEstimateType = response.estimates?.type;
+    const savedGasFeeEstimateLevel = getSavedGasFeeEstimateLevel(savedGasFees);
 
     switch (gasFeeEstimateType) {
       case GasFeeEstimateType.FeeMarket:
-        return response.estimates.medium;
+        return {
+          ...(response.estimates[savedGasFeeEstimateLevel] ??
+            response.estimates.medium),
+          isEstimateLevelApplied: true,
+          low: response.estimates.low,
+        };
       case GasFeeEstimateType.Legacy:
         return {
-          gasPrice: response.estimates.medium,
+          gasPrice:
+            response.estimates[savedGasFeeEstimateLevel] ??
+            response.estimates.medium,
+          isEstimateLevelApplied: true,
         };
       case GasFeeEstimateType.GasPrice:
-        return { gasPrice: response.estimates.gasPrice };
+        return {
+          gasPrice: response.estimates.gasPrice,
+          isEstimateLevelApplied: false,
+        };
       default:
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -391,6 +618,13 @@ async function getSuggestedGasFees(
     log('Failed to get suggested gas fees', error);
   }
 
+  // Estimates on this path are only needed to check complete dapp-suggested
+  // fees, so no fallback is required and any failure must not block
+  // transaction creation.
+  if (hasCompleteDappFees) {
+    return {};
+  }
+
   const gasPriceHex = (await rpcRequest({
     messenger,
     networkClientId,
@@ -400,4 +634,26 @@ async function getSuggestedGasFees(
   const gasPrice = gasPriceHex ? add0x(gasPriceHex) : undefined;
 
   return { gasPrice };
+}
+
+function hasInitialGasFeeParams(initialParams: TransactionParams): boolean {
+  return [
+    initialParams.maxFeePerGas,
+    initialParams.maxPriorityFeePerGas,
+    initialParams.gasPrice,
+  ].some(Boolean);
+}
+
+function getSavedGasFeeEstimateLevel(
+  savedGasFees: SavedGasFees | undefined,
+): GasFeeEstimateLevel {
+  return isGasFeeEstimateLevel(savedGasFees?.level)
+    ? savedGasFees.level
+    : GasFeeEstimateLevel.Medium;
+}
+
+function isGasFeeEstimateLevel(level: unknown): level is GasFeeEstimateLevel {
+  return Object.values(GasFeeEstimateLevel).includes(
+    level as GasFeeEstimateLevel,
+  );
 }

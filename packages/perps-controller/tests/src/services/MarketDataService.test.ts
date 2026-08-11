@@ -1,6 +1,6 @@
-import type { CandlePeriod } from '../../../src/constants/chartConfig';
-import { MarketDataService } from '../../../src/services/MarketDataService';
-import type { ServiceContext } from '../../../src/services/ServiceContext';
+import type { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { MarketDataService } from '../../../src/services/MarketDataService.js';
+import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import type {
   PerpsProvider,
   Position,
@@ -16,19 +16,19 @@ import type {
   PerpsMarketData,
   PerpsTerminalMarketService,
   TerminalAssetMetadata,
-} from '../../../src/types';
-import type { CandleData } from '../../../src/types/perps-types';
-import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest';
+} from '../../../src/types/index.js';
+import type { CandleData } from '../../../src/types/perps-types.js';
+import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
 /* eslint-disable */
 import {
   createMockHyperLiquidProvider,
   createMockPosition,
   createMockOrder,
-} from '../../helpers/providerMocks';
+} from '../../helpers/providerMocks.js';
 import {
   createMockServiceContext,
   createMockInfrastructure,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 
@@ -1143,6 +1143,7 @@ describe('MarketDataService', () => {
         'BTC',
         {
           name: 'Bitcoin',
+          description: 'The original cryptocurrency and largest by market cap.',
           keywords: ['crypto', 'layer-1'],
           tags: ['top-10'],
           categories: ['crypto'],
@@ -1348,12 +1349,16 @@ describe('MarketDataService', () => {
         });
 
         expect(result[0]?.name).toBe('Bitcoin');
+        expect(result[0]?.description).toBe(
+          'The original cryptocurrency and largest by market cap.',
+        );
         expect(result[0]?.keywords).toEqual(['crypto', 'layer-1']);
         expect(result[0]?.tags).toEqual(['top-10']);
         expect(result[0]?.categories).toEqual(['crypto']);
         expect(result[0]?.marketType).toBe('crypto');
         expect(result[1]?.name).toBe('Ethereum');
         expect(result[1]?.keywords).toEqual(['defi']);
+        expect(result[1]?.description).toBeUndefined();
       });
 
       it('preserves provider name when terminal metadata omits name', async () => {
@@ -1429,6 +1434,30 @@ describe('MarketDataService', () => {
 
         expect(result[0]?.name).toBe('BTC');
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('merges listedAt from terminal metadata onto market data', async () => {
+        const listedAtMs = 1_700_000_000_000;
+        const metadataWithListedAt = new Map<string, TerminalAssetMetadata>([
+          ['BTC', { name: 'Bitcoin', listedAt: listedAtMs }],
+          ['ETH', { name: 'Ethereum' }],
+        ]);
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: metadataWithListedAt,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result[0]?.listedAt).toBe(listedAtMs);
+        expect(result[1]?.listedAt).toBeUndefined();
       });
     });
   });

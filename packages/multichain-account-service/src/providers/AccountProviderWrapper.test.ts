@@ -2,9 +2,9 @@ import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_WALLET_1_ENTROPY_SOURCE,
-} from '../tests';
-import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { EvmAccountProvider } from './EvmAccountProvider';
+} from '../tests/index.js';
+import { AccountProviderWrapper } from './AccountProviderWrapper.js';
+import { EvmAccountProvider } from './EvmAccountProvider.js';
 
 function setup(): {
   wrapper: AccountProviderWrapper;
@@ -18,6 +18,27 @@ function setup(): {
 }
 
 describe('AccountProviderWrapper', () => {
+  describe('ensureReady', () => {
+    it('delegates to the inner provider when enabled', async () => {
+      const { wrapper, innerProvider } = setup();
+      const ensureReadySpy = jest.spyOn(innerProvider, 'ensureReady');
+
+      await wrapper.ensureReady();
+
+      expect(ensureReadySpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns immediately without calling the inner provider when disabled', async () => {
+      const { wrapper, innerProvider } = setup();
+      wrapper.setEnabled(false);
+      const ensureReadySpy = jest.spyOn(innerProvider, 'ensureReady');
+
+      await wrapper.ensureReady();
+
+      expect(ensureReadySpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('isAligned', () => {
     it('returns true unconditionally when the wrapper is disabled', () => {
       const { wrapper } = setup();

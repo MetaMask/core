@@ -11,13 +11,14 @@ export type {
   ResourceState,
   TransakState,
   NativeProvidersState,
-} from './RampsController';
+} from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
   RampsControllerAbortRequestAction,
   RampsControllerGetRequestStateAction,
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
+  RampsControllerSetSelectedProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,
@@ -60,14 +61,13 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
-} from './RampsController-method-action-types';
+} from './RampsController-method-action-types.js';
 export {
   RampsController,
   getDefaultRampsControllerState,
   getInternalOrderCode,
-  normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-} from './RampsController';
+} from './RampsController.js';
 export type {
   RampsServiceActions,
   RampsServiceEvents,
@@ -103,15 +103,17 @@ export type {
   RampsOrderFiatCurrency,
   RampsOrderPaymentMethod,
   OrderPaymentDetail,
-} from './RampsService';
+} from './RampsService.js';
 export {
   RampsService,
   RampsEnvironment,
   RampsApiService,
   RampsOrderStatus,
   RAMPS_SDK_VERSION,
-} from './RampsService';
+  getDefaultRedirectCallbackUrl,
+} from './RampsService.js';
 export type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
@@ -119,15 +121,15 @@ export type {
   RampsServiceGetBuyWidgetUrlAction,
   RampsServiceGetOrderAction,
   RampsServiceGetOrderFromCallbackAction,
-} from './RampsService-method-action-types';
+} from './RampsService-method-action-types.js';
 export type {
   RequestCache,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
   ResourceType,
-} from './RequestCache';
-export type { RampsErrorCode } from './rampsErrorCodes';
+} from './RequestCache.js';
+export type { RampsErrorCode } from './rampsErrorCodes.js';
 export {
   RequestStatus,
   DEFAULT_REQUEST_CACHE_TTL,
@@ -137,10 +139,38 @@ export {
   createLoadingState,
   createSuccessState,
   createErrorState,
-} from './RequestCache';
-export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
-export type { RequestSelectorResult } from './selectors';
-export { createRequestSelector } from './selectors';
+} from './RequestCache.js';
+export { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+export type { RequestSelectorResult } from './selectors.js';
+export { createRequestSelector } from './selectors.js';
+export type { HeadlessFeatureFlagsLookup } from './featureFlags.js';
+export {
+  HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
+  MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  getHeadlessProviderAllowlist,
+  isHeadlessAllProvidersEnabled,
+} from './featureFlags.js';
+export {
+  providerServesAsset,
+  getProvidersServingAsset,
+  regionHasProviderForAsset,
+  isFiatDepositAvailable,
+} from './providerAvailability.js';
+export {
+  isExternalBrowserQuote,
+  isCustomActionQuote,
+  isInAppOnlyQuote,
+} from './quoteClassification.js';
+export {
+  TERMINAL_ORDER_STATUSES,
+  isTerminalOrderStatus,
+} from './orderStatus.js';
+export type { TypedError } from './errorNormalization.js';
+export {
+  getErrorMessage,
+  extractExplicitTypedError,
+  normalizeToTypedError,
+} from './errorNormalization.js';
 export type {
   TransakServiceActions,
   TransakServiceEvents,
@@ -166,17 +196,17 @@ export type {
   TransakUserLimits,
   TransakIdProofStatus,
   PatchUserRequestBody as TransakPatchUserRequestBody,
-} from './TransakService';
+} from './TransakService.js';
 export {
   TransakApiError,
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,
-} from './TransakService';
+} from './TransakService.js';
 export {
   getTransakApiMessage,
   isTransakPhoneRegisteredError,
-} from './transakApiErrorUtils';
+} from './transakApiErrorUtils.js';
 export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,
@@ -188,4 +218,5 @@ export type {
   TransakServiceGetOrderAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
-} from './TransakService-method-action-types';
+  TransakServiceCreateWidgetUrlAction,
+} from './TransakService-method-action-types.js';

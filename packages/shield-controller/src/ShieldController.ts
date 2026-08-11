@@ -16,14 +16,11 @@ import type {
 } from '@metamask/transaction-controller';
 import { cloneDeep, isEqual } from 'lodash';
 
-import { controllerName } from './constants';
-import { projectLogger, createModuleLogger } from './logger';
-import type { ShieldControllerMethodActions } from './ShieldController-method-action-types';
-import type {
-  CoverageResult,
-  NormalizeSignatureRequestFn,
-  ShieldBackend,
-} from './types';
+import { controllerName } from './constants.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { ShieldApiServiceMethodActions } from './shield-api-service-method-action-types.js';
+import type { ShieldControllerMethodActions } from './ShieldController-method-action-types.js';
+import type { CoverageResult, NormalizeSignatureRequestFn } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
 
@@ -98,6 +95,11 @@ export type ShieldControllerEvents =
   | ShieldControllerStateChangeEvent;
 
 /**
+ * The external actions available to the ShieldController.
+ */
+type AllowedActions = ShieldApiServiceMethodActions;
+
+/**
  * The external events available to the ShieldController.
  */
 type AllowedEvents =
@@ -109,7 +111,7 @@ type AllowedEvents =
  */
 export type ShieldControllerMessenger = Messenger<
   typeof controllerName,
-  ShieldControllerActions,
+  ShieldControllerActions | AllowedActions,
   ShieldControllerEvents | AllowedEvents
 >;
 
@@ -135,7 +137,6 @@ const metadata = {
 export type ShieldControllerOptions = {
   messenger: ShieldControllerMessenger;
   state?: Partial<ShieldControllerState>;
-  backend: ShieldBackend;
   transactionHistoryLimit?: number;
   coverageHistoryLimit?: number;
   /**
@@ -155,8 +156,6 @@ export class ShieldController extends BaseController<
   ShieldControllerState,
   ShieldControllerMessenger
 > {
-  readonly #backend: ShieldBackend;
-
   readonly #coverageHistoryLimit: number;
 
   readonly #transactionHistoryLimit: number;
@@ -179,7 +178,6 @@ export class ShieldController extends BaseController<
     const {
       messenger,
       state,
-      backend,
       transactionHistoryLimit = 100,
       coverageHistoryLimit = 10,
       normalizeSignatureRequest,
@@ -194,7 +192,6 @@ export class ShieldController extends BaseController<
       },
     });
 
-    this.#backend = backend;
     this.#coverageHistoryLimit = coverageHistoryLimit;
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.#transactionControllerStateChangeHandler =
@@ -356,10 +353,13 @@ export class ShieldController extends BaseController<
   async checkCoverage(txMeta: TransactionMeta): Promise<CoverageResult> {
     // Check coverage
     const coverageId = this.#getLatestCoverageId(txMeta.id);
-    const coverageResult = await this.#backend.checkCoverage({
-      txMeta,
-      coverageId,
-    });
+    const coverageResult = await this.messenger.call(
+      'ShieldApiService:checkCoverage',
+      {
+        txMeta,
+        coverageId,
+      },
+    );
 
     // Publish coverage result
     this.messenger.publish(
@@ -391,10 +391,13 @@ export class ShieldController extends BaseController<
     const normalizedSignatureRequest =
       this.#normalizeSignatureRequest?.(clonedSignatureRequest) ??
       clonedSignatureRequest;
-    const coverageResult = await this.#backend.checkSignatureCoverage({
-      signatureRequest: normalizedSignatureRequest,
-      coverageId,
-    });
+    const coverageResult = await this.messenger.call(
+      'ShieldApiService:checkSignatureCoverage',
+      {
+        signatureRequest: normalizedSignatureRequest,
+        coverageId,
+      },
+    );
 
     // Publish coverage result
     this.messenger.publish(
@@ -463,7 +466,7 @@ export class ShieldController extends BaseController<
 
     const { status } = this.#getCoverageShownStatus(signatureRequest.id);
 
-    await this.#backend.logSignature({
+    await this.messenger.call('ShieldApiService:logSignature', {
       signatureRequest,
       signature,
       status,
@@ -483,7 +486,7 @@ export class ShieldController extends BaseController<
 
     const { status } = this.#getCoverageShownStatus(txMeta.id);
 
-    await this.#backend.logTransaction({
+    await this.messenger.call('ShieldApiService:logTransaction', {
       txMeta,
       transactionHash,
       rawTransactionHex,

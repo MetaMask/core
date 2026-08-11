@@ -1,13 +1,19 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type {
+  GeolocationControllerGetGeolocationDataAction,
+  GeolocationData,
+} from '@metamask/geolocation-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 
+import { isValidUUIDv4 } from './analyticsControllerStateValidator.js';
 import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
   getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
-} from '.';
+} from './index.js';
 import type {
   AnalyticsControllerMessenger,
   AnalyticsControllerActions,
@@ -17,20 +23,56 @@ import type {
   AnalyticsTrackingEvent,
   AnalyticsControllerState,
   AnalyticsContext,
-} from '.';
-import { isValidUUIDv4 } from './analyticsControllerStateValidator';
+} from './index.js';
+
+/**
+ * The full set of actions the controller's messenger deals with, including the
+ * geolocation action the controller calls on other messengers.
+ */
+type AnalyticsControllerTestActions =
+  | AnalyticsControllerActions
+  | GeolocationControllerGetGeolocationDataAction;
 
 type SetupControllerOptions = {
   state: AnalyticsControllerState;
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
   isEventQueuePersistenceEnabled?: boolean;
+  isPreConsentQueueEnabled?: boolean;
+  isGeolocationEnabled?: boolean;
+  /**
+   * Geolocation returned by the mocked `GeolocationController` action.
+   * Defaults to unknown geolocation so that events are not enriched.
+   */
+  geolocation?: Partial<GeolocationData>;
+  /**
+   * Handler for the mocked `GeolocationController` action. Takes precedence
+   * over `geolocation`.
+   */
+  geolocationHandler?: () => Promise<GeolocationData>;
+  /**
+   * When true, the `GeolocationController` action is not registered, mimicking
+   * a client that has not wired up geolocation.
+   */
+  omitGeolocationAction?: boolean;
 };
 
 type SetupControllerReturn = {
   controller: AnalyticsController;
   messenger: AnalyticsControllerMessenger;
 };
+
+/**
+ * Builds complete geolocation data from a partial fixture.
+ *
+ * @param data - The known geolocation fields.
+ * @returns The geolocation data with unknown fields set to null.
+ */
+function buildGeolocationData(
+  data: Partial<GeolocationData> = {},
+): GeolocationData {
+  return { country: null, region: null, timezone: null, ...data };
+}
 
 type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
   track: jest.Mock;
@@ -47,6 +89,11 @@ type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
  * @param options.platformAdapter - Optional platform adapter
  * @param options.isAnonymousEventsFeatureEnabled - Optional anonymous events feature flag (default: false)
  * @param options.isEventQueuePersistenceEnabled - Optional event queue persistence flag (default: false)
+ * @param options.isPreConsentQueueEnabled - Optional pre-consent queue flag (default: false)
+ * @param options.isGeolocationEnabled - Optional geolocation enrichment flag (default: true)
+ * @param options.geolocation - Optional geolocation returned by the mocked geolocation action
+ * @param options.geolocationHandler - Optional handler for the mocked geolocation action
+ * @param options.omitGeolocationAction - When true, the geolocation action is not registered
  * @returns The controller and messenger
  */
 async function setupController(
@@ -57,6 +104,11 @@ async function setupController(
     platformAdapter,
     isAnonymousEventsFeatureEnabled = false,
     isEventQueuePersistenceEnabled = false,
+    isPreConsentQueueEnabled = false,
+    isGeolocationEnabled = true,
+    geolocation,
+    geolocationHandler,
+    omitGeolocationAction = false,
   } = options;
 
   const adapter =
@@ -70,13 +122,13 @@ async function setupController(
 
   const rootMessenger = new Messenger<
     MockAnyNamespace,
-    AnalyticsControllerActions,
+    AnalyticsControllerTestActions,
     AnalyticsControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
 
   const analyticsControllerMessenger = new Messenger<
     'AnalyticsController',
-    AnalyticsControllerActions,
+    AnalyticsControllerTestActions,
     AnalyticsControllerEvents,
     typeof rootMessenger
   >({
@@ -84,15 +136,30 @@ async function setupController(
     parent: rootMessenger,
   });
 
+  if (!omitGeolocationAction) {
+    rootMessenger.registerActionHandler(
+      'GeolocationController:getGeolocationData',
+      geolocationHandler ??
+        ((): Promise<GeolocationData> =>
+          Promise.resolve(buildGeolocationData(geolocation))),
+    );
+    rootMessenger.delegate({
+      actions: ['GeolocationController:getGeolocationData'],
+      messenger: analyticsControllerMessenger,
+    });
+  }
+
   const controller = new AnalyticsController({
     messenger: analyticsControllerMessenger,
     platformAdapter: adapter,
     state,
     isAnonymousEventsFeatureEnabled,
     isEventQueuePersistenceEnabled,
+    isPreConsentQueueEnabled,
+    isGeolocationEnabled,
   });
 
-  controller.init();
+  await controller.init();
 
   return {
     controller,
@@ -164,6 +231,7 @@ describe('AnalyticsController', () => {
 
       expect(defaults).toStrictEqual({
         optedIn: false,
+        consentDecisionMade: false,
       });
       expect('analyticsId' in defaults).toBe(false);
     });
@@ -179,6 +247,7 @@ describe('AnalyticsController', () => {
   describe('metadata', () => {
     const metadataFixtureState: AnalyticsControllerState = {
       optedIn: true,
+      consentDecisionMade: true,
       analyticsId: '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d',
     };
 
@@ -196,6 +265,7 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -215,6 +285,7 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -234,6 +305,7 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -286,6 +358,59 @@ describe('AnalyticsController', () => {
       ).toHaveProperty('eventQueue', state.eventQueue);
     });
 
+    it('persists preConsentEventQueue but excludes it from logs, snapshots, and UI', async () => {
+      // Undecided + queue enabled, so init() leaves the queue untouched.
+      const state: AnalyticsControllerState = {
+        ...metadataFixtureState,
+        optedIn: false,
+        consentDecisionMade: false,
+        preConsentEventQueue: {
+          'message-id-1': {
+            type: 'track',
+            eventName: 'test_event',
+            messageId: 'message-id-1',
+            timestamp: '2026-01-01T00:00:00.000Z',
+            properties: {
+              sensitive_prop: 'sensitive value',
+            },
+          },
+        },
+      };
+      const { controller } = await setupController({
+        state,
+        isPreConsentQueueEnabled: true,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toHaveProperty('preConsentEventQueue', state.preConsentEventQueue);
+    });
+
     it('exposes expected state to UI', async () => {
       const { controller } = await setupController({
         state: metadataFixtureState,
@@ -299,6 +424,7 @@ describe('AnalyticsController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -388,13 +514,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -414,7 +540,7 @@ describe('AnalyticsController', () => {
         // isAnonymousEventsFeatureEnabled not provided - should default to false
       });
 
-      controller.init();
+      await controller.init();
 
       // Verify default behavior: single event tracked (not split)
       const event = createTestEvent(
@@ -442,13 +568,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -474,13 +600,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -507,13 +633,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -584,13 +710,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -611,7 +737,7 @@ describe('AnalyticsController', () => {
       const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
       expect(onSetupCompletedSpy).not.toHaveBeenCalled();
 
-      controller.init();
+      await controller.init();
 
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
       expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
@@ -623,13 +749,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -649,28 +775,28 @@ describe('AnalyticsController', () => {
 
       const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
 
-      controller.init();
+      await controller.init();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
       expect(onSetupCompletedSpy).toHaveBeenCalledWith(analyticsId);
 
       // Calling init() again should not throw and should not call onSetupCompleted again
-      expect(() => controller.init()).not.toThrow();
+      await expect(controller.init()).toBeFulfilled();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSetupCompleted synchronously', async () => {
+    it('shares a single in-flight initialization across overlapping init calls', async () => {
       const mockAdapter = createMockAdapter();
-      const analyticsId = '44444444-4444-4444-8444-444444444444';
+      const analyticsId = '33333333-3333-4333-8333-333333333333';
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -685,18 +811,70 @@ describe('AnalyticsController', () => {
           ...getDefaultAnalyticsControllerState(),
           analyticsId,
         },
-        isAnonymousEventsFeatureEnabled: false,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
-      expect(onSetupCompletedSpy).not.toHaveBeenCalled();
+      // Call init() twice before the first resolves.
+      const first = controller.init();
+      const second = controller.init();
 
-      controller.init();
+      // Overlapping callers share the same in-flight promise, so the second
+      // caller cannot observe a premature completion.
+      expect(second).toBe(first);
 
-      // Verify onSetupCompleted was called synchronously
-      expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
-      expect(controller).toBeDefined();
-      expect(controller.state.analyticsId).toBeDefined();
+      await Promise.all([first, second]);
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+    });
+
+    it('completes setup when the geolocation action is not registered', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '44444444-4444-4444-8444-444444444444';
+
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+          optedIn: true,
+        },
+        platformAdapter: mockAdapter,
+        omitGeolocationAction: true,
+      });
+
+      expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        expect.any(Object),
+        undefined,
+      );
+    });
+
+    it('resolves geolocation before calling onSetupCompleted', async () => {
+      const mockAdapter = createMockAdapter();
+      const callOrder: string[] = [];
+
+      mockAdapter.onSetupCompleted.mockImplementation(() => {
+        callOrder.push('onSetupCompleted');
+      });
+
+      await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: '44444444-4444-4444-8444-444444444444',
+          optedIn: true,
+        },
+        platformAdapter: mockAdapter,
+        geolocationHandler: async () => {
+          callOrder.push('getGeolocationData');
+          return buildGeolocationData({ country: 'US' });
+        },
+      });
+
+      expect(callOrder).toStrictEqual([
+        'getGeolocationData',
+        'onSetupCompleted',
+      ]);
     });
 
     it('ignores errors thrown by onSetupCompleted', async () => {
@@ -716,13 +894,13 @@ describe('AnalyticsController', () => {
 
       const rootMessenger = new Messenger<
         MockAnyNamespace,
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents
       >({ namespace: MOCK_ANY_NAMESPACE });
 
       const messenger = new Messenger<
         'AnalyticsController',
-        AnalyticsControllerActions,
+        AnalyticsControllerTestActions,
         AnalyticsControllerEvents,
         typeof rootMessenger
       >({
@@ -740,7 +918,7 @@ describe('AnalyticsController', () => {
         isAnonymousEventsFeatureEnabled: false,
       });
 
-      expect(() => controller.init()).not.toThrow();
+      await expect(controller.init()).toBeFulfilled();
 
       expect(controller).toBeDefined();
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
@@ -1222,6 +1400,483 @@ describe('AnalyticsController', () => {
       controller.trackView('home');
 
       expect(mockAdapter.view).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('geolocation enrichment', () => {
+    const analyticsId = '99999999-9999-4999-8999-999999999999';
+    const enabledState: AnalyticsControllerState = {
+      optedIn: true,
+      consentDecisionMade: true,
+      analyticsId,
+    };
+    const fullGeolocation = {
+      country: 'US',
+      region: 'WA',
+      timezone: 'America/Los_Angeles',
+    };
+    const fullLocationContext = {
+      country_code: 'US',
+      region: 'WA',
+      timezone: 'America/Los_Angeles',
+    };
+
+    it('adds country, region, and timezone to the track event context', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        { location: fullLocationContext },
+      );
+    });
+
+    it('adds location to events without properties', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('adds location to identify events', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.identify({ trait: 'value' });
+
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        { trait: 'value' },
+        { location: fullLocationContext },
+      );
+    });
+
+    it('adds location to view events', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackView('home');
+
+      expect(mockAdapter.view).toHaveBeenCalledWith('home', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('preserves unrelated caller context', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        app: { name: 'MetaMask' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        app: { name: 'MetaMask' },
+        location: fullLocationContext,
+      });
+    });
+
+    it('preserves caller location fields the controller does not resolve', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: { city: 'Seattle' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: { city: 'Seattle', ...fullLocationContext },
+      });
+    });
+
+    it('overrides caller location fields the controller resolves', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: { country_code: 'FR' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('replaces a non-record caller location', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: 'Seattle',
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: fullLocationContext,
+      });
+    });
+
+    it('omits fields the geolocation API could not determine', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: { country: 'FR' },
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: { country_code: 'FR' },
+      });
+    });
+
+    it('leaves the context untouched when the geolocation is unknown', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        app: { name: 'MetaMask' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        app: { name: 'MetaMask' },
+      });
+    });
+
+    it('leaves the context untouched when the geolocation lookup fails', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocationHandler: () =>
+          Promise.reject(new Error('Geolocation fetch failed: 500')),
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        undefined,
+      );
+    });
+
+    it('does not resolve geolocation when geolocation enrichment is disabled', async () => {
+      const geolocationHandler = jest.fn(() =>
+        Promise.resolve(buildGeolocationData(fullGeolocation)),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isGeolocationEnabled: false,
+        geolocationHandler,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      expect(geolocationHandler).not.toHaveBeenCalled();
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        undefined,
+      );
+    });
+
+    it('preserves caller context when geolocation enrichment is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isGeolocationEnabled: false,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'), {
+        location: { city: 'Seattle' },
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
+        location: { city: 'Seattle' },
+      });
+    });
+
+    it('omits location from the anonymous payload when the anonymous events feature is enabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isAnonymousEventsFeatureEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(
+        1,
+        'test_event',
+        { prop: 'value' },
+        { location: fullLocationContext },
+      );
+      expect(mockAdapter.track).toHaveBeenNthCalledWith(
+        2,
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        undefined,
+      );
+    });
+
+    it('adds location to the combined payload when the anonymous events feature is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        { location: fullLocationContext },
+      );
+    });
+
+    it('persists location context through the event queue', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: enabledState,
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+
+      const [queuedEvent] = Object.values(
+        controller.state.eventQueue as Record<string, Json>,
+      ) as { context?: AnalyticsContext }[];
+
+      expect(queuedEvent.context).toStrictEqual({
+        location: fullLocationContext,
+      });
+    });
+
+    it('defers geolocation to opt-in, then enriches replayed pre-consent events and later events', async () => {
+      const geolocationHandler = jest.fn(() =>
+        Promise.resolve(buildGeolocationData(fullGeolocation)),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      // While undecided, the event is queued and geolocation is not requested.
+      controller.trackEvent(createTestEvent('preconsent_event'));
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(geolocationHandler).not.toHaveBeenCalled();
+
+      // optIn resolves geolocation (awaited) before replaying the queue.
+      await controller.optIn();
+      expect(geolocationHandler).toHaveBeenCalledTimes(1);
+
+      // The replayed pre-consent event is enriched with the location resolved
+      // on opt-in.
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'preconsent_event',
+        undefined,
+        { location: fullLocationContext },
+        expect.any(Object),
+      );
+
+      // Events tracked after opt-in are enriched too.
+      controller.trackEvent(createTestEvent('postconsent_event'));
+      expect(mockAdapter.track).toHaveBeenLastCalledWith(
+        'postconsent_event',
+        undefined,
+        { location: fullLocationContext },
+      );
+    });
+
+    it('does not enrich an anonymous pre-consent payload on replay', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isAnonymousEventsFeatureEnabled: true,
+        isGeolocationEnabled: true,
+        geolocation: fullGeolocation,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      await controller.optIn();
+
+      // The identified payload is enriched...
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        { location: fullLocationContext },
+        expect.any(Object),
+      );
+      // ...but the anonymous payload carries no location.
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        undefined,
+        expect.any(Object),
+      );
+    });
+
+    it('does not resolve geolocation at init when the user is not opted in', async () => {
+      const geolocationHandler = jest.fn(() =>
+        Promise.resolve(buildGeolocationData(fullGeolocation)),
+      );
+      const mockAdapter = createMockAdapter();
+      await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: true,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      // init awaits geolocation resolution, so if it were going to request
+      // location it would have by now.
+      expect(geolocationHandler).not.toHaveBeenCalled();
+    });
+
+    it('does not replay pre-consent events if consent is reset while geolocation resolves', async () => {
+      let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
+      const geolocationHandler = jest.fn(
+        () =>
+          new Promise<GeolocationData>((resolve) => {
+            resolveGeolocation = resolve;
+          }),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      controller.trackEvent(createTestEvent('preconsent_event'));
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      // Opt in, but leave geolocation resolving (do not await yet).
+      const optInPromise = controller.optIn();
+      expect(geolocationHandler).toHaveBeenCalledTimes(1);
+
+      // The user resets their consent decision before geolocation resolves.
+      controller.resetConsentDecision();
+
+      // Geolocation resolves and optIn finishes reconciling.
+      resolveGeolocation(buildGeolocationData(fullGeolocation));
+      await optInPromise;
+
+      // The pre-consent event is not delivered — the user is undecided again —
+      // and it remains queued for a later decision.
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(
+        Object.values(controller.state.preConsentEventQueue ?? {}),
+      ).toHaveLength(1);
     });
   });
 
@@ -1857,7 +2512,7 @@ describe('AnalyticsController', () => {
   });
 
   describe('optIn', () => {
-    it('sets optedIn to true', async () => {
+    it('sets optedIn to true and records the consent decision', async () => {
       const { controller } = await setupController({
         state: {
           ...getDefaultAnalyticsControllerState(),
@@ -1865,17 +2520,19 @@ describe('AnalyticsController', () => {
         },
       });
 
-      controller.optIn();
+      await controller.optIn();
 
       expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.consentDecisionMade).toBe(true);
     });
   });
 
   describe('optOut', () => {
-    it('sets optedIn to false', async () => {
+    it('sets optedIn to false and records the consent decision', async () => {
       const { controller } = await setupController({
         state: {
           optedIn: true,
+          consentDecisionMade: true,
           analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
         },
       });
@@ -1883,6 +2540,355 @@ describe('AnalyticsController', () => {
       controller.optOut();
 
       expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.consentDecisionMade).toBe(true);
+    });
+  });
+
+  describe('pre-consent event queue', () => {
+    const ANALYTICS_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+
+    /**
+     * Sets up an undecided controller with the pre-consent queue enabled and
+     * queues a single track event.
+     *
+     * @returns The controller, mock adapter, and the queued event name.
+     */
+    async function setupControllerWithQueuedEvent(): Promise<{
+      controller: AnalyticsController;
+      mockAdapter: MockAnalyticsPlatformAdapter;
+    }> {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('queued_event', { foo: 'bar' }));
+
+      return { controller, mockAdapter };
+    }
+
+    it('queues track events while the user is undecided', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      const entries = Object.values(
+        controller.state.preConsentEventQueue ?? {},
+      );
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        type: 'track',
+        eventName: 'queued_event',
+        properties: { foo: 'bar' },
+      });
+    });
+
+    it('does not queue events when the pre-consent queue is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      controller.trackEvent(createTestEvent('event', { foo: 'bar' }));
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.preConsentEventQueue).toBeUndefined();
+    });
+
+    it('drops a stale persisted queue on init when the queue is disabled', async () => {
+      // A queue persisted while the feature was enabled...
+      const { controller: enabled } = await setupControllerWithQueuedEvent();
+      const persistedQueue = enabled.state.preConsentEventQueue;
+
+      // ...is dropped on init if the feature is later disabled, so it can never
+      // be replayed by a future enabled instance.
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: persistedQueue,
+        },
+        platformAdapter: mockAdapter,
+        // isPreConsentQueueEnabled defaults to false
+      });
+
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+
+      await controller.optIn();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('opting in is a no-op when the queue is enabled but empty', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      await controller.optIn();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.consentDecisionMade).toBe(true);
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('drops events once a decision is made (opted out), without queuing', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('event', { foo: 'bar' }));
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.preConsentEventQueue ?? {}).toStrictEqual({});
+    });
+
+    it('replays queued events on opt-in and clears the queue', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+
+      await controller.optIn();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.consentDecisionMade).toBe(true);
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+    });
+
+    it('moves replayed events into the delivery queue when persistence is enabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('queued_event', { foo: 'bar' }));
+      // Held in the pre-consent queue, not yet in the delivery queue.
+      expect(controller.state.eventQueue ?? {}).toStrictEqual({});
+
+      await controller.optIn();
+
+      // The pre-consent queue is drained and the event is now tracked for
+      // delivery (the mock adapter never acks, so it remains in eventQueue).
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(Object.values(controller.state.eventQueue ?? {})).toHaveLength(1);
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+    });
+
+    it('discards queued events on opt-out without delivering them', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+
+      controller.optOut();
+
+      expect(controller.state.consentDecisionMade).toBe(true);
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(controller.state.eventQueue ?? {}).toStrictEqual({});
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('preserves the pre-consent queue and resets the decision on resetConsentDecision', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+      const queuedEvents = controller.state.preConsentEventQueue;
+
+      controller.resetConsentDecision();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.consentDecisionMade).toBe(false);
+      expect(controller.state.preConsentEventQueue).toStrictEqual(queuedEvents);
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('clears the delivery queue on resetConsentDecision', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      // Opted in: this event lands in the persisted delivery queue.
+      controller.trackEvent(createTestEvent('delivery_event', { foo: 'bar' }));
+      expect(Object.values(controller.state.eventQueue ?? {})).toHaveLength(1);
+
+      controller.resetConsentDecision();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.consentDecisionMade).toBe(false);
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('replays a persisted queue on init when already opted in', async () => {
+      // Build a persisted queue via a first, undecided controller.
+      const { controller: undecided } = await setupControllerWithQueuedEvent();
+      const persistedQueue = undecided.state.preConsentEventQueue;
+
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: persistedQueue,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      // init() runs in setupController and reconciles the leftover queue.
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('clears a persisted queue on init when already opted out', async () => {
+      const { controller: undecided } = await setupControllerWithQueuedEvent();
+      const persistedQueue = undecided.state.preConsentEventQueue;
+
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: persistedQueue,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('queues multiple events and replays them with their context preserved', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('first_event', { a: 1 }), {
+        source: 'onboarding',
+      });
+      controller.trackEvent(createTestEvent('second_event', { b: 2 }));
+
+      expect(
+        Object.values(controller.state.preConsentEventQueue ?? {}),
+      ).toHaveLength(2);
+
+      await controller.optIn();
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'first_event',
+        { a: 1 },
+        { source: 'onboarding' },
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'second_event',
+        { b: 2 },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('skips invalid entries when replaying the queue', async () => {
+      // Start from a valid persisted entry, then add malformed entries that are
+      // not valid queued events.
+      const { controller: undecided } = await setupControllerWithQueuedEvent();
+      const queueWithInvalid: Record<string, Json> = {
+        ...undecided.state.preConsentEventQueue,
+        'not-a-record': 'just a string',
+        'unknown-type': {
+          type: 'mystery',
+          messageId: 'unknown-type',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        },
+      };
+
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: queueWithInvalid,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      await controller.optIn();
+
+      // Only the valid entry is replayed; every malformed entry is dropped.
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
     });
   });
 });

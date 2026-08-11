@@ -1,8 +1,8 @@
 import { createSelector } from 'reselect';
 
-import { filterNetworks } from './config-registry-api-service/filters';
-import type { RegistryNetworkConfig } from './config-registry-api-service/types';
-import type { ConfigRegistryControllerState } from './ConfigRegistryController';
+import { filterNetworks } from './config-registry-api-service/filters.js';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
+import type { ConfigRegistryControllerState } from './ConfigRegistryController.js';
 
 /**
  * Base selector to get all networks from the controller state.

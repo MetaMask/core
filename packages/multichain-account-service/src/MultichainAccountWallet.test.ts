@@ -16,10 +16,10 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { createDeferredPromise } from '@metamask/utils';
 
-import type { WalletState } from './MultichainAccountWallet';
-import { MultichainAccountWallet } from './MultichainAccountWallet';
-import { TimeoutError } from './providers';
-import type { MockAccountProvider, RootMessenger } from './tests';
+import type { WalletState } from './MultichainAccountWallet.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import { TimeoutError } from './providers/index.js';
+import type { MockAccountProvider, RootMessenger } from './tests/index.js';
 import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
@@ -35,8 +35,8 @@ import {
   setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-} from './tests';
-import type { MultichainAccountServiceMessenger } from './types';
+} from './tests/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -210,8 +210,9 @@ describe('MultichainAccountWallet', () => {
       // EVM provider is called during group creation.
       expect(evmProvider.createAccounts).toHaveBeenCalled();
 
-      // The fire-and-forget alignment acquires the lock as a microtask before the test
-      // resumes, so by the time we reach here SOL has already been called with the batch API.
+      // Alignment fires as fire-and-forget, so wait for this.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
       expect(solProvider.createAccounts).toHaveBeenCalledWith({
         type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: wallet.entropySource,
@@ -798,6 +799,62 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.getMultichainAccountGroup(1)).toBeUndefined();
     });
 
+    it('calls ensureReady on non-EVM providers before acquiring the wallet lock in the fire-and-forget alignment path', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      const [, solProvider] = providers;
+      const statusAtEnsureReady: string[] = [];
+
+      solProvider.ensureReady.mockImplementation(async () => {
+        // The wallet lock must NOT be held when ensureReady is called.
+        statusAtEnsureReady.push(wallet.status);
+      });
+
+      await wallet.createMultichainAccountGroups({ from: 0, to: 0 });
+
+      // Wait for the fire-and-forget alignment to complete.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
+      expect(solProvider.ensureReady).toHaveBeenCalledTimes(1);
+      expect(statusAtEnsureReady[0]).toBe('ready');
+    });
+
+    it('skips a provider that fails ensureReady but still aligns the others', async () => {
+      // EVM + two non-EVM providers; SOL fails ensureReady, BTC succeeds.
+      const { wallet, providers } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // SOL — will fail ensureReady
+          [], // BTC — will succeed ensureReady
+        ],
+      });
+
+      const [, solProvider, btcProvider] = providers;
+
+      solProvider.ensureReady.mockRejectedValueOnce(
+        new Error('Snap platform not ready'),
+      );
+
+      // Use a deferred promise as a reliable signal that the BTC alignment ran.
+      const { promise: btcAligned, resolve: resolveBtcAligned } =
+        createDeferredPromise();
+      btcProvider.createAccounts.mockImplementationOnce(async () => {
+        resolveBtcAligned();
+        return [];
+      });
+
+      await wallet.createMultichainAccountGroups({ from: 0, to: 0 });
+
+      // Wait until BTC alignment has actually run.
+      await btcAligned;
+
+      // SOL was excluded (ensureReady failed); BTC proceeded normally.
+      expect(solProvider.createAccounts).not.toHaveBeenCalled();
+      expect(btcProvider.createAccounts).toHaveBeenCalled();
+    });
+
     it('logs an error to console when post-alignment fails unexpectedly', async () => {
       // Group 0 exists for EVM; SOL has no accounts yet (will be aligned).
       const { wallet, providers, messenger } = setup({
@@ -883,12 +940,87 @@ describe('MultichainAccountWallet', () => {
 
       await wallet.alignAccounts();
 
-      // Sol provider is missing group 1; should be called via the batch range API covering all groups.
+      // Sol provider is missing group 1 only; it should be called for that
+      // missing sub-range only, NOT the already-aligned group 0.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
         type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: wallet.entropySource,
-        range: { from: 0, to: 1 },
+        range: { from: 1, to: 1 },
       });
+      expect(providers[1].createAccounts).not.toHaveBeenCalledWith(
+        expect.objectContaining({ range: { from: 0, to: 1 } }),
+      );
+
+      // EVM provider already has both groups aligned, so it must not be asked
+      // to create (or re-trace) any account during alignment.
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('does not re-create accounts for providers that are already aligned across the whole range', async () => {
+      // Both groups have EVM + SOL accounts already; nothing is missing for SOL,
+      // but EVM is missing group 1 to force the wallet out of the aligned state.
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .withUuid()
+        .get();
+
+      const { wallet, providers } = setup({
+        // EVM only has group 0 (missing group 1), SOL has both groups.
+        accounts: [[mockEvmAccount0], [mockSolAccount0, mockSolAccount1]],
+      });
+
+      await wallet.alignAccounts();
+
+      // SOL is aligned for every group in the range, so it must be skipped
+      // entirely (no spans, no work).
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('creates accounts only for the non-contiguous missing sub-ranges', async () => {
+      // EVM present for groups 0, 1, 2, 3. SOL present for groups 0 and 2, so it
+      // is missing the non-contiguous indices 1 and 3.
+      const evmAccounts = [0, 1, 2, 3].map((groupIndex) =>
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(groupIndex)
+          .withUuid()
+          .get(),
+      );
+      const solAccounts = [0, 2].map((groupIndex) =>
+        MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(groupIndex)
+          .withUuid()
+          .get(),
+      );
+
+      const { wallet, providers } = setup({
+        accounts: [evmAccounts, solAccounts],
+      });
+
+      await wallet.alignAccounts();
+
+      // Two separate single-index sub-ranges, one per gap.
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: wallet.entropySource,
+        range: { from: 1, to: 1 },
+      });
+      expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: wallet.entropySource,
+        range: { from: 3, to: 3 },
+      });
+      expect(providers[1].createAccounts).toHaveBeenCalledTimes(2);
     });
 
     it('updates a group when a provider returns accounts during alignment', async () => {

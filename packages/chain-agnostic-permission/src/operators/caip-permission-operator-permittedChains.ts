@@ -2,11 +2,14 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex, CaipChainId, CaipNamespace } from '@metamask/utils';
 import { hexToBigInt, KnownCaipNamespace } from '@metamask/utils';
 
-import { Caip25CaveatType } from '../caip25Permission';
-import type { Caip25CaveatValue } from '../caip25Permission';
-import { getUniqueArrayItems } from '../scope/transform';
-import type { InternalScopesObject, InternalScopeString } from '../scope/types';
-import { isWalletScope, parseScopeString } from '../scope/types';
+import { Caip25CaveatType } from '../caip25Permission.js';
+import type { Caip25CaveatValue } from '../caip25Permission.js';
+import { getUniqueArrayItems } from '../scope/transform.js';
+import type {
+  InternalScopesObject,
+  InternalScopeString,
+} from '../scope/types.js';
+import { isWalletScope, parseScopeString } from '../scope/types.js';
 
 /*
  *

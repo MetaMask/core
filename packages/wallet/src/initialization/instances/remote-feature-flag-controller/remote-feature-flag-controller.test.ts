@@ -1,13 +1,13 @@
 import { Messenger } from '@metamask/messenger';
 import { RemoteFeatureFlagController } from '@metamask/remote-feature-flag-controller';
 
-import { defaultConfigurations } from '../../defaults';
+import { defaultConfigurations } from '../../defaults.js';
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { remoteFeatureFlagController } from './remote-feature-flag-controller';
+} from '../../defaults.js';
+import { remoteFeatureFlagController } from './remote-feature-flag-controller.js';
 
 /**
  * Creates a root messenger for use in tests.
@@ -210,6 +210,24 @@ describe('remoteFeatureFlagController', () => {
     expect(
       clientConfigApiService.fetchRemoteFeatureFlags,
     ).not.toHaveBeenCalled();
+  });
+
+  it('forwards defaultFeatureFlags to the controller', () => {
+    const messenger =
+      remoteFeatureFlagController.getMessenger(getRootMessenger());
+
+    const instance = remoteFeatureFlagController.init({
+      state: undefined,
+      messenger,
+      options: {
+        clientConfigApiService: getClientConfigApiService(),
+        defaultFeatureFlags: { defaultFlag: true },
+      },
+    });
+
+    expect(instance.state.remoteFeatureFlags).toStrictEqual({
+      defaultFlag: true,
+    });
   });
 
   it('exposes its state through the root messenger', () => {

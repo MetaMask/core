@@ -1,7 +1,13 @@
+import { KnownCaipNamespace } from '@metamask/utils';
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
-import { ActionTypes, validateQuoteResponseV1 } from '../src/utils/validators';
+import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
+import type { DeepPartial } from '../src/types.js';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
+import { ActionTypes } from '../src/validators/step.js';
+import type { TxData } from '../src/validators/trade.js';
 
 export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   {
@@ -11,7 +17,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       srcAsset: {
         chainId: 10,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:10/slip44:614',
+        assetId: 'eip155:10/slip44:60',
         symbol: 'ETH',
         name: 'Ethereum',
         decimals: 18,
@@ -36,7 +42,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           asset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -51,15 +57,10 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           action: ActionTypes.SWAP,
           srcChainId: 10,
           destChainId: 10,
-          protocol: {
-            name: 'zerox',
-            displayName: '0x',
-            icon: 'https://media.socket.tech/dexes/0x.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -75,18 +76,11 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '9912500000000000',
-          destAmount: '24456223',
         },
         {
           action: ActionTypes.BRIDGE,
           srcChainId: 10,
           destChainId: 137,
-          protocol: {
-            name: 'across',
-            displayName: 'Across',
-            icon: 'https://miro.medium.com/max/800/1*PN_F5yW4VMBgs_xX-fsyzQ.png',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -107,23 +101,16 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '24456223',
-          destAmount: '24438902',
         },
       ],
       refuel: {
         action: ActionTypes.REFUEL,
         srcChainId: 10,
         destChainId: 137,
-        protocol: {
-          name: 'refuel',
-          displayName: 'Refuel',
-          icon: '',
-        },
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           symbol: 'ETH',
           name: 'Ether',
           decimals: 18,
@@ -131,13 +118,11 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         destAsset: {
           chainId: 137,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:137/slip44:614',
+          assetId: 'eip155:137/slip44:966',
           symbol: 'MATIC',
           name: 'Matic',
           decimals: 18,
         },
-        srcAmount: '1000000000000000',
-        destAmount: '4405865573929566208',
       },
     },
     trade: {
@@ -158,7 +143,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       srcAsset: {
         chainId: 10,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:10/slip44:614',
+        assetId: 'eip155:10/slip44:60',
         symbol: 'ETH',
         name: 'Ethereum',
         decimals: 18,
@@ -183,7 +168,7 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           asset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -198,15 +183,10 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           action: ActionTypes.SWAP,
           srcChainId: 10,
           destChainId: 137,
-          protocol: {
-            name: 'zerox',
-            displayName: '0x',
-            icon: 'https://media.socket.tech/dexes/0x.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -222,18 +202,11 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '9912500000000000',
-          destAmount: '24456223',
         },
         {
           action: ActionTypes.BRIDGE,
           srcChainId: 10,
           destChainId: 137,
-          protocol: {
-            name: 'cctp',
-            displayName: 'Circle CCTP',
-            icon: 'https://movricons.s3.ap-south-1.amazonaws.com/CCTP.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -254,23 +227,16 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '24456223',
-          destAmount: '24256223',
         },
       ],
       refuel: {
         action: ActionTypes.REFUEL,
         srcChainId: 10,
         destChainId: 137,
-        protocol: {
-          name: 'refuel',
-          displayName: 'Refuel',
-          icon: '',
-        },
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           symbol: 'ETH',
           name: 'Ether',
           decimals: 18,
@@ -278,13 +244,11 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         destAsset: {
           chainId: 137,
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:137/slip44:614',
+          assetId: 'eip155:137/slip44:966',
           symbol: 'MATIC',
           name: 'Matic',
           decimals: 18,
         },
-        srcAmount: '1000000000000000',
-        destAmount: '4405865573929566208',
       },
     },
     trade: {
@@ -300,12 +264,20 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   },
 ];
 
-export const getMockBridgeQuotesNativeErc20V2 = (
-  quoteOverrides?: DeepPartial<QuoteResponseV1>,
-): QuoteResponseV1[] => {
+export const getMockBridgeQuotesNativeErc20V1 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1<TxData, TxData>>,
+): QuoteResponseV1<TxData, TxData>[] => {
   return mockBridgeQuotesNativeErc20V1.map((quote) => {
     const mergedQuote = merge({}, quote, quoteOverrides);
     validateQuoteResponseV1(mergedQuote);
-    return mergedQuote;
+    return mergedQuote as QuoteResponseV1<TxData, TxData>;
   });
+};
+
+export const getMockBridgeQuotesNativeErc20V2 = (
+  quoteOverrides?: DeepPartial<QuoteResponseV1<TxData>>,
+): (QuoteResponse & { namespace: KnownCaipNamespace.Eip155 })[] => {
+  return getMockBridgeQuotesNativeErc20V1(quoteOverrides).map(
+    toQuoteResponseV2,
+  ) as (QuoteResponse & { namespace: KnownCaipNamespace.Eip155 })[];
 };

@@ -16,7 +16,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { BridgeHistoryItem } from '../src';
+import { BridgeHistoryItem } from '../src/index.js';
 
 export const mockBatchSellErc20Erc20: QuoteResponse<TxData, TxData>[] = [
   {
@@ -277,7 +277,7 @@ export const getHistoryItem = (
     hasApprovalTx: true,
     isStxEnabled,
     initialDestAssetBalance: undefined,
-    location: MetaMetricsSwapsEventSource.MainView,
+    location: MetaMetricsSwapsEventSource.Unknown,
     originalTransactionId: txMetaId,
     slippagePercentage: 0,
     startTime: 1779922719705,
@@ -301,6 +301,7 @@ export const getHistoryItem = (
     },
     batchSellData,
     quote: quote as Quote,
+    quoteId: undefined,
     ...(quoteIds ? { quoteIds } : {}),
   };
 };

@@ -1,13 +1,13 @@
 import type { Json } from '@metamask/utils';
 
-import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
+import { InMemoryStorageAdapter } from './InMemoryStorageAdapter.js';
 import type {
   StorageAdapter,
   StorageGetResult,
   StorageServiceMessenger,
   StorageServiceOptions,
-} from './types';
-import { SERVICE_NAME } from './types';
+} from './types.js';
+import { SERVICE_NAME } from './types.js';
 
 // === MESSENGER ===
 

@@ -7,21 +7,22 @@
 
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
-import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig';
-import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
+import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
+import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
+  PriceUpdate,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   adaptAccountStateFromSDK,
   parseAssetName,
-} from '../../../src/utils/hyperLiquidAdapter';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+} from '../../../src/utils/hyperLiquidAdapter.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Mock HyperLiquid SDK types
 interface MockSubscription {
@@ -29,55 +30,66 @@ interface MockSubscription {
 }
 
 // Mock adapter
-jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
-  adaptPositionFromSDK: jest.fn((assetPos: any) => ({
-    symbol: 'BTC',
-    size: assetPos.position.szi,
-    entryPrice: '50000',
-    positionValue: '5000',
-    unrealizedPnl: '100',
-    marginUsed: '2500',
-    leverage: { type: 'isolated', value: 2 },
-    liquidationPrice: '40000',
-    maxLeverage: 100,
-    returnOnEquity: '4.0',
-    cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
-    takeProfitCount: 0,
-    stopLossCount: 0,
-  })),
-  adaptOrderFromSDK: jest.fn((order: any) => ({
-    orderId: order.oid.toString(),
-    symbol: order.coin,
-    side: order.side === 'B' ? 'buy' : 'sell',
-    orderType: 'limit',
-    size: order.sz,
-    originalSize: order.sz,
-    price: order.limitPx || order.triggerPx || '0',
-    filledSize: '0',
-    remainingSize: order.sz,
-    status: 'open',
-    timestamp: Date.now(),
-    detailedOrderType: order.orderType || 'Limit',
-    isTrigger: order.isTrigger ?? false,
-    reduceOnly: order.reduceOnly ?? false,
-    triggerPrice: order.triggerPx,
-    ...(typeof order.isPositionTpsl === 'boolean'
-      ? { isPositionTpsl: order.isPositionTpsl }
-      : {}),
-  })),
-  adaptAccountStateFromSDK: jest.fn(() => ({
-    spendableBalance: '1000.00',
-    withdrawableBalance: '1000.00',
-    marginUsed: '500.00',
-    unrealizedPnl: '100.00',
-    returnOnEquity: '20.0',
-    totalBalance: '10100.00',
-  })),
-  parseAssetName: jest.fn((symbol: string) => ({
-    symbol,
-    dex: null,
-  })),
-}));
+jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
+  // The placement type decides whether an order reaches the trigger arrays, so
+  // the stub has to name it exactly as the real adapter does. Omitting it left
+  // every array here empty regardless of the code under test, which the legacy
+  // count fallback then masked.
+  const { adaptTriggerOrderTypeFromSDK } = jest.requireActual(
+    '../../../src/utils/hyperLiquidAdapter',
+  );
+
+  return {
+    adaptPositionFromSDK: jest.fn((assetPos: any) => ({
+      symbol: 'BTC',
+      size: assetPos.position.szi,
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '100',
+      marginUsed: '2500',
+      leverage: { type: 'isolated', value: 2 },
+      liquidationPrice: '40000',
+      maxLeverage: 100,
+      returnOnEquity: '4.0',
+      cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+    })),
+    adaptOrderFromSDK: jest.fn((order: any) => ({
+      orderId: order.oid.toString(),
+      symbol: order.coin,
+      side: order.side === 'B' ? 'buy' : 'sell',
+      orderType: 'limit',
+      size: order.sz,
+      originalSize: order.sz,
+      price: order.limitPx || order.triggerPx || '0',
+      filledSize: '0',
+      remainingSize: order.sz,
+      status: 'open',
+      timestamp: Date.now(),
+      detailedOrderType: order.orderType || 'Limit',
+      isTrigger: order.isTrigger ?? false,
+      reduceOnly: order.reduceOnly ?? false,
+      triggerPrice: order.triggerPx,
+      triggerOrderType: adaptTriggerOrderTypeFromSDK(order.orderType),
+      ...(typeof order.isPositionTpsl === 'boolean'
+        ? { isPositionTpsl: order.isPositionTpsl }
+        : {}),
+    })),
+    adaptAccountStateFromSDK: jest.fn(() => ({
+      spendableBalance: '1000.00',
+      withdrawableBalance: '1000.00',
+      marginUsed: '500.00',
+      unrealizedPnl: '100.00',
+      returnOnEquity: '20.0',
+      totalBalance: '10100.00',
+    })),
+    parseAssetName: jest.fn((symbol: string) => ({
+      symbol,
+      dex: null,
+    })),
+  };
+});
 
 // Mock DevLogger
 jest.mock(
@@ -431,6 +443,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
@@ -1104,15 +1119,35 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await jest.runAllTimersAsync();
 
-      // Should correctly identify TP/SL based on trigger price vs entry price
-      // With the fix, ambiguous 'Trigger' orders are now counted correctly using price-based fallback
+      // An ambiguous 'Trigger' names neither direction nor execution. The
+      // direction is recovered from the trigger price against the entry, so the
+      // order still reaches its array and the count that derives from it — with
+      // the execution mode left unstated rather than guessed. Counts and arrays
+      // are asserted together: a count disagreeing with its own array is a
+      // state no subscriber can render.
       expect(mockCallback).toHaveBeenCalledWith([
         expect.objectContaining({
           symbol: 'BTC',
           takeProfitPrice: '55000', // Above entry price
           stopLossPrice: '45000', // Below entry price
-          takeProfitCount: 1, // Ambiguous orders now counted via price-based fallback
-          stopLossCount: 1, // Ambiguous orders now counted via price-based fallback
+          takeProfitCount: 1,
+          stopLossCount: 1,
+          takeProfitOrders: [
+            expect.objectContaining({
+              orderId: '128',
+              direction: 'take_profit',
+              orderType: undefined,
+              triggerPrice: '55000',
+            }),
+          ],
+          stopLossOrders: [
+            expect.objectContaining({
+              orderId: '129',
+              direction: 'stop',
+              orderType: undefined,
+              triggerPrice: '45000',
+            }),
+          ],
         }),
       ]);
 
@@ -1483,6 +1518,125 @@ describe('HyperLiquidSubscriptionService', () => {
           stopLossCount: 0,
         }),
       ]);
+
+      unsubscribe();
+    });
+
+    it('keeps streamed TP/SL counts consistent with the trigger arrays for standalone partial triggers', async () => {
+      const mockCallback = jest.fn();
+
+      // The suite's adapter mock omits triggerOrderType, which the trigger
+      // arrays are built from; extend it the way the real adapter fills it.
+      const mockAdapter = jest.requireMock(
+        '../../../src/utils/hyperLiquidAdapter',
+      );
+      const baseAdaptOrder =
+        mockAdapter.adaptOrderFromSDK.getMockImplementation();
+      mockAdapter.adaptOrderFromSDK.mockImplementation((order: any) => ({
+        ...baseAdaptOrder(order),
+        triggerOrderType: order.orderType.includes('Limit')
+          ? 'take_profit_limit'
+          : 'take_profit_market',
+      }));
+
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: _params.dex || '',
+              clearinghouseState: {
+                assetPositions: [
+                  {
+                    position: { szi: '1.0', coin: 'BTC' },
+                    coin: 'BTC',
+                  },
+                ],
+                marginSummary: {
+                  accountValue: '10000',
+                  totalMarginUsed: '500',
+                },
+                withdrawable: '9500',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: _params.dex || '',
+              orders: [
+                {
+                  // Whole-position TP
+                  oid: 134,
+                  coin: 'BTC',
+                  side: 'S',
+                  sz: '1.0',
+                  triggerPx: '55000',
+                  orderType: 'Take Profit',
+                  reduceOnly: true,
+                  isPositionTpsl: true,
+                  limitPx: '55000',
+                  origSz: '1.0',
+                  timestamp: Date.now(),
+                  isTrigger: true,
+                  triggerCondition: '',
+                  children: [],
+                  tif: null,
+                  cloid: null,
+                },
+                {
+                  // Standalone partial TP: not position-bound, owned by no
+                  // other order
+                  oid: 135,
+                  coin: 'BTC',
+                  side: 'S',
+                  sz: '0.4',
+                  triggerPx: '58000',
+                  orderType: 'Take Profit Limit',
+                  reduceOnly: true,
+                  isPositionTpsl: false,
+                  limitPx: '58000',
+                  origSz: '0.4',
+                  timestamp: Date.now(),
+                  isTrigger: true,
+                  triggerCondition: '',
+                  children: [],
+                  tif: null,
+                  cloid: null,
+                },
+              ],
+            });
+          }, 5);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = service.subscribeToPositions({
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      const lastCall =
+        mockCallback.mock.calls[mockCallback.mock.calls.length - 1];
+      const btcPosition = lastCall[0].find(
+        (pos: { symbol: string }) => pos.symbol === 'BTC',
+      );
+
+      // Counts must agree with the arrays: both triggers are the position's,
+      // even though only one is position-bound.
+      expect(btcPosition.takeProfitOrders).toHaveLength(2);
+      expect(btcPosition.takeProfitCount).toBe(2);
+      expect(btcPosition.stopLossOrders).toHaveLength(0);
+      expect(btcPosition.stopLossCount).toBe(0);
 
       unsubscribe();
     });
@@ -2466,6 +2620,13 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(result).toBeNull();
     });
 
+    it('reports no DEX coverage for positions before initialization', () => {
+      // A close of a symbol on an uncovered DEX must not read a cache miss as
+      // "position closed"
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getCachedPositionsForDex('xyz')).toBeNull();
+    });
+
     it('returns null for cached orders before initialization', () => {
       const result = service.getCachedOrders();
 
@@ -2557,6 +2718,843 @@ describe('HyperLiquidSubscriptionService', () => {
       // Both should be null before initialization
       expect(result1).toBeNull();
       expect(result2).toBeNull();
+    });
+  });
+
+  describe('activeAssetCtx price preference (per-subscriber projection)', () => {
+    it('focused subscriber (includeMarketData: true) sees activeAssetCtx midPx; list subscriber sees allMids', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const focusedCallback = jest.fn();
+      const listCallback = jest.fn();
+
+      const unsubFocused = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      const unsubList = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+        includeMarketData: false,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // allMids fires first with 50000
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      // activeAssetCtx fires with a fresher 50500
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          midPx: '50500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      const focusedLast =
+        focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0];
+      expect(focusedLast).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', price: '50500' }),
+        ]),
+      );
+
+      const listLast =
+        listCallback.mock.calls[listCallback.mock.calls.length - 1][0];
+      expect(listLast).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', price: '50000' }),
+        ]),
+      );
+
+      unsubFocused();
+      unsubList();
+    });
+
+    it('focused subscriber gets fast price even before allMids baseline arrives', async () => {
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      // allMids never fires in this test
+      mockSubscriptionClient.allMids.mockImplementation(
+        (_paramsOrCallback: any, _maybeCallback?: any) => {
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const focusedCallback = jest.fn();
+      const unsubFocused = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          midPx: '50500',
+        },
+      });
+
+      await jest.runAllTimersAsync();
+
+      const lastCall =
+        focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0];
+      expect(lastCall).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', price: '50500' }),
+        ]),
+      );
+
+      unsubFocused();
+    });
+
+    it('does not emit a price when activeAssetCtx has no midPx/markPx and no allMids baseline exists', async () => {
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      // allMids never fires
+      mockSubscriptionClient.allMids.mockImplementation(
+        (_paramsOrCallback: any, _maybeCallback?: any) => {
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const mockCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+      mockCallback.mockClear();
+
+      // activeAssetCtx fires without a midPx or markPx
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          // no midPx, no markPx
+        },
+      });
+
+      await jest.runAllTimersAsync();
+
+      // The callback should not have been called at all: without midPx/markPx
+      // there is no fast-stream price to project, and no allMids baseline
+      // exists yet, so #notifyAllPriceSubscribers has nothing to send.
+      expect(mockCallback).not.toHaveBeenCalled();
+
+      unsubscribe();
+    });
+
+    it('list subscriber always uses allMids price (never sees activeAssetCtx fast price)', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+
+      // Subscribe with a focused subscriber first so activeAssetCtx is established
+      const unsubFocused = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: jest.fn(),
+        includeMarketData: true,
+      });
+
+      const unsubList = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+        includeMarketData: false,
+      });
+
+      await jest.runAllTimersAsync();
+
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      // Fast stream ticks with a higher price
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          midPx: '50500',
+        },
+      });
+
+      await jest.runAllTimersAsync();
+
+      // List subscriber should still see 50000 (allMids), never 50500
+      const listLast =
+        listCallback.mock.calls[listCallback.mock.calls.length - 1][0];
+      expect(listLast).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', price: '50000' }),
+        ]),
+      );
+
+      unsubFocused();
+      unsubList();
+    });
+
+    it('focused subscriber falls back to allMids when activeAssetCtx price is stale (beyond TTL)', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const mockCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          midPx: '50500',
+        },
+      });
+
+      // Move the system clock past the 10 s TTL so the staleness check in
+      // #getFreshActiveAssetCtxPrice returns undefined. Use setSystemTime
+      // (not advanceTimersByTime) to avoid firing service-internal timers
+      // that could alter subscription state before the second allMids fires.
+      jest.setSystemTime(Date.now() + 11_000);
+
+      mockCallback.mockClear();
+
+      // allMids fires with a NEW price (must differ from the cached '50000' so the
+      // allMids handler's price-deduplication guard doesn't swallow the update).
+      allMidsCallback?.({ mids: { BTC: '51000' } });
+
+      await jest.runAllTimersAsync();
+
+      const lastCall =
+        mockCallback.mock.calls[mockCallback.mock.calls.length - 1][0];
+      expect(lastCall).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            symbol: 'BTC',
+            price: '51000', // allMids wins after TTL – fast-stream '50500' is stale
+          }),
+        ]),
+      );
+
+      unsubscribe();
+    });
+
+    it('list subscriber (includeMarketData: false) never triggers activeAssetCtx subscription', async () => {
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          const callback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          setTimeout(() => {
+            callback({ mids: { BTC: '50000' } });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: jest.fn(),
+        includeMarketData: false,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.activeAssetCtx).not.toHaveBeenCalled();
+
+      unsubscribe();
+    });
+
+    it('projection preserves derived fields (funding, openInterest, markPrice, isTradable, percentChange24h) from the allMids baseline', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const focusedCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // allMids establishes the baseline price
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      // activeAssetCtx fires with a fast price and rich market data
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '48000',
+          funding: '0.0001',
+          openInterest: '2000000',
+          dayNtlVlm: '100000000',
+          oraclePx: '50050',
+          markPx: '50025',
+          midPx: '50500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      const lastUpdate: PriceUpdate =
+        focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0][0];
+
+      // Fast-stream price is projected
+      expect(lastUpdate.price).toBe('50500');
+
+      // Derived fields from the allMids baseline (enriched by activeAssetCtx) are preserved
+      expect(lastUpdate.funding).toBeDefined();
+      expect(lastUpdate.openInterest).toBeDefined();
+      expect(lastUpdate.volume24h).toBeDefined();
+      expect(lastUpdate.markPrice).toBeDefined();
+      expect(lastUpdate.percentChange24h).toBeDefined();
+      // isTradable defaults to true when the price is within oracle deviation limits
+      expect(lastUpdate.isTradable).toBe(true);
+
+      unsubscribe();
+    });
+
+    it('keeps projecting the fast price after an assetCtxs batch update (does not clobber the fast-stream cache)', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      // Pre-populate meta so #createAssetCtxsSubscription maps ctxs -> symbols
+      // from cache and the assetCtxs handler fires for 'BTC'.
+      service.setDexMetaCache('', { universe: [{ name: 'BTC' }] } as any);
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const focusedCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // allMids establishes the baseline, then activeAssetCtx provides the fast price
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          midPx: '50500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      focusedCallback.mockClear();
+
+      // assetCtxs batch update fires for BTC with a DIFFERENT price. Before the
+      // fix this rebuilt the #marketDataCache entry without the fast-stream
+      // fields, so #getFreshActiveAssetCtxPrice returned undefined and the
+      // focused subscriber fell back to the assetCtxs/allMids baseline (50200).
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.01',
+            openInterest: '1000000',
+            dayNtlVlm: '50000000',
+            oraclePx: '50100',
+            midPx: '50200',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      // The focused subscriber must still see the fast-stream price (50500),
+      // not the slower batch baseline (50200).
+      const lastCall =
+        focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0];
+      expect(lastCall).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', price: '50500' }),
+        ]),
+      );
+
+      unsubscribe();
+    });
+
+    it('does not let a slower assetCtxs batch update overwrite a price already covered by fastAssetCtxs', async () => {
+      let fastAssetCtxsCallback: ((data: any) => void) | undefined;
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      service.setDexMetaCache('', { universe: [{ name: 'BTC' }] } as any);
+
+      mockSubscriptionClient.fastAssetCtxs.mockImplementation(
+        (callback: any) => {
+          fastAssetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // fastAssetCtxs establishes the authoritative price for BTC
+      fastAssetCtxsCallback?.({ BTC: { midPx: '52000' } });
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      // A slower assetCtxs batch tick fires for BTC with a different price.
+      // It should not overwrite the fresher fastAssetCtxs price.
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.01',
+            openInterest: '1000000',
+            dayNtlVlm: '50000000',
+            oraclePx: '50100',
+            midPx: '50200',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      expect(listCallback).not.toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '50200' }),
+      ]);
+
+      unsubscribe();
+    });
+
+    it('lets assetCtxs set the price for a coin whose only fastAssetCtxs message had no usable price', async () => {
+      let fastAssetCtxsCallback: ((data: any) => void) | undefined;
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      service.setDexMetaCache('', { universe: [{ name: 'BTC' }] } as any);
+
+      mockSubscriptionClient.fastAssetCtxs.mockImplementation(
+        (callback: any) => {
+          fastAssetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // fastAssetCtxs reports BTC with no usable price (both midPx and markPx
+      // absent). This must not claim fastAssetCtxs ownership of BTC, since
+      // there is no fast price to back it — otherwise assetCtxs, the only
+      // remaining price source for BTC, would be suppressed with nothing to
+      // fall back on.
+      fastAssetCtxsCallback?.({ BTC: {} });
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.01',
+            openInterest: '1000000',
+            dayNtlVlm: '50000000',
+            oraclePx: '50100',
+            midPx: '50200',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      expect(listCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '50200' }),
+      ]);
+
+      unsubscribe();
+    });
+
+    it('lets assetCtxs update the price for a symbol not covered by fastAssetCtxs (e.g. a HIP-3 dex:symbol asset)', async () => {
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      jest.mocked(parseAssetName).mockImplementation((symbol: string) => ({
+        symbol,
+        dex: symbol === 'xyz:STOCK1' ? 'xyz' : null,
+      }));
+
+      service.setDexMetaCache('xyz', {
+        universe: [{ name: 'xyz:STOCK1' }],
+      } as any);
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['xyz:STOCK1'],
+        callback: listCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '9',
+            funding: '0.01',
+            openInterest: '1000',
+            dayNtlVlm: '5000',
+            oraclePx: '10',
+            midPx: '10.5',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      expect(listCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'xyz:STOCK1', price: '10.5' }),
+      ]);
+
+      unsubscribe();
+    });
+  });
+
+  describe('Market tradability (isTradable)', () => {
+    const getLastBtcUpdate = (mockCallback: jest.Mock) => {
+      const { calls } = mockCallback.mock;
+      const lastCall = calls[calls.length - 1][0];
+      return lastCall.find((update: PriceUpdate) => update.symbol === 'BTC');
+    };
+
+    it('marks a market tradable when the mid price is close to the oracle price', async () => {
+      // Default mock: mid (allMids) BTC = 50000, oraclePx = 50100 -> ~0.2% deviation
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(getLastBtcUpdate(mockCallback)).toEqual(
+        expect.objectContaining({ symbol: 'BTC', isTradable: true }),
+      );
+
+      unsubscribe();
+    });
+
+    it('marks a market untradable when the mid price deviates more than 95% from the oracle price', async () => {
+      // mid (allMids) BTC = 50000, oraclePx = 100 -> deviation far beyond the 95% limit
+      mockSubscriptionClient.activeAssetCtx = jest.fn(
+        (params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: params.coin,
+              ctx: {
+                prevDayPx: '49000',
+                funding: '0.01',
+                openInterest: '1000000',
+                dayNtlVlm: '50000000',
+                oraclePx: '100',
+                midPx: '50000',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(getLastBtcUpdate(mockCallback)).toEqual(
+        expect.objectContaining({ symbol: 'BTC', isTradable: false }),
+      );
+
+      unsubscribe();
+    });
+
+    it('honors an injected price deviation limit', async () => {
+      // mid (allMids) BTC = 50000, oraclePx = 40000 -> 25% deviation: tradable under the
+      // default 0.95 limit, but untradable under an injected 0.1 (10%) limit.
+      mockSubscriptionClient.activeAssetCtx = jest.fn(
+        (params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: params.coin,
+              ctx: {
+                prevDayPx: '49000',
+                funding: '0.01',
+                openInterest: '1000000',
+                dayNtlVlm: '50000000',
+                oraclePx: '40000',
+                midPx: '50000',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const customService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true, // hip3Enabled
+        [], // enabledDexs
+        [], // allowlistMarkets
+        [], // blocklistMarkets
+        0.1, // priceDeviationLimit (10%)
+      );
+
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await customService.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(getLastBtcUpdate(mockCallback)).toEqual(
+        expect.objectContaining({ symbol: 'BTC', isTradable: false }),
+      );
+
+      unsubscribe();
+      customService.clearAll();
     });
   });
 });

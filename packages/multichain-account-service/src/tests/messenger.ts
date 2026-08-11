@@ -5,7 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 export type AllMultichainAccountServiceActions =
   MessengerActions<MultichainAccountServiceMessenger>;
@@ -75,6 +75,7 @@ export function getMultichainAccountServiceMessenger(
       'AccountsController:getAccounts',
       'KeyringController:removeAccount',
       'SnapAccountService:ensureReady',
+      'SnapAccountService:getCapabilities',
       ...(extra?.actions ?? []),
     ],
     events: [

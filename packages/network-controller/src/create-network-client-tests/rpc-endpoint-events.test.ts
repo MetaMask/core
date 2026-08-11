@@ -6,13 +6,13 @@ import {
 } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 
-import { buildRootMessenger } from '../../tests/helpers';
+import { buildRootMessenger } from '../../tests/helpers.js';
 import {
   withMockedCommunications,
   withNetworkClient,
-} from '../../tests/network-client/helpers';
-import { DEFAULT_MAX_CONSECUTIVE_FAILURES } from '../rpc-service/rpc-service';
-import { NetworkClientType } from '../types';
+} from '../../tests/network-client/helpers.js';
+import { DEFAULT_MAX_CONSECUTIVE_FAILURES } from '../rpc-service/rpc-service.js';
+import { NetworkClientType } from '../types.js';
 
 describe('createNetworkClient - RPC endpoint events', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {
@@ -75,7 +75,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         providerType: networkClientType,
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({
@@ -192,7 +192,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({
@@ -310,7 +310,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger: rootMessenger,
                         getRpcServiceOptions: () => ({
@@ -393,7 +393,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger: rootMessenger,
                         getRpcServiceOptions: () => ({
@@ -466,7 +466,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({
@@ -579,7 +579,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({
@@ -704,7 +704,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({
@@ -847,7 +847,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({
@@ -1042,7 +1042,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       {
                         providerType: networkClientType,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        isRpcFailoverEnabled: true,
+                        rpcFailoverMode: 'enabled',
                         failoverRpcUrls: [failoverEndpointUrl],
                         messenger,
                         getRpcServiceOptions: () => ({

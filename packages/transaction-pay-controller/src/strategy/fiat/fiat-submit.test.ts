@@ -8,29 +8,32 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../../constants';
+import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   QuoteRequest,
   TransactionPayFiatOptions,
   TransactionPayQuote,
-} from '../../types';
-import { buildCaipAssetType } from '../../utils/token';
+} from '../../types.js';
+import { buildCaipAssetType } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
-import type { TransactionPayFiatAsset } from './constants';
-import { MUSD_MONAD_FIAT_ASSET } from './constants';
-import { submitFiatQuotes } from './fiat-submit';
-import { fundFiatOrderFromTestSource } from './fiat-test-funding';
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
+} from '../../utils/transaction.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import { submitRelayQuotes } from '../relay/relay-submit.js';
+import type { RelayQuote } from '../relay/types.js';
+import type { TransactionPayFiatAsset } from './constants.js';
+import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
+import { submitFiatQuotes } from './fiat-submit.js';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
+import type { FiatQuote } from './types.js';
+import {
+  deriveFiatAssetForFiatPayment,
+  resolveSourceAmountRaw,
+} from './utils.js';
 
 jest.mock('./utils', () => ({
   ...jest.requireActual('./utils'),
@@ -251,6 +254,10 @@ function getRequest({
       };
     }
 
+    if (action === 'KeyringController:getState') {
+      return { isUnlocked: true };
+    }
+
     if (action === 'TransactionPayController:getFiatOptions') {
       if (fiatOptionsError) {
         throw fiatOptionsError;
@@ -338,7 +345,10 @@ describe('submitFiatQuotes', () => {
     );
     waitForTransactionConfirmedMock.mockResolvedValue();
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
-    resolveSourceAmountRawMock.mockResolvedValue('1000000000000000000');
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1000000000000000000',
+      fromBlock: undefined,
+    });
     fundFiatOrderFromTestSourceMock.mockResolvedValue(
       getFiatOrderMock({
         cryptoAmount: '1',
@@ -365,7 +375,10 @@ describe('submitFiatQuotes', () => {
       },
       status: RampsOrderStatus.Completed,
     });
-    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1234500000000000000',
+      fromBlock: undefined,
+    });
     const { callMock, request } = getRequest({ order });
 
     const result = await submitFiatQuotes(request);
@@ -397,6 +410,98 @@ describe('submitFiatQuotes', () => {
         quotes: [RELAY_QUOTE_RESULT_MOCK],
       }),
     );
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('waits for keyring unlock before submitting the post-ramp leg', async () => {
+    let unlockHandler: (() => void) | undefined;
+
+    const order = getFiatOrderMock({
+      cryptoAmount: '1.2345',
+      cryptoCurrency: {
+        assetId: FIAT_ASSET_CAIP_ID_MOCK,
+        chainId: 'eip155:137',
+        symbol: 'POL',
+      },
+      status: RampsOrderStatus.Completed,
+    });
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1234500000000000000',
+      fromBlock: undefined,
+    });
+
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: false };
+      }
+      if (action === 'TransactionPayController:getFiatOptions') {
+        return undefined;
+      }
+      if (action === 'RampsController:getOrder') {
+        return order;
+      }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const subscribeMock = jest.fn((_event: string, handler: () => void) => {
+      unlockHandler = handler;
+    });
+
+    const unsubscribeMock = jest.fn();
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+        subscribe: subscribeMock,
+        unsubscribe: unsubscribeMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
+
+    const submitPromise = submitFiatQuotes(request);
+
+    // Flush microtasks until waitForKeyringUnlock subscribes (order polling
+    // resolves in one tick; submitRelayAfterFiatCompletion starts in the next)
+    for (let i = 0; i < 5; i++) {
+      await Promise.resolve();
+    }
+
+    // Relay must not have been called yet — still waiting for unlock
+    expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+    expect(subscribeMock).toHaveBeenCalledWith(
+      'KeyringController:unlock',
+      expect.any(Function),
+    );
+
+    // Simulate the user unlocking the wallet
+    unlockHandler?.();
+
+    const result = await submitPromise;
+
+    expect(unsubscribeMock).toHaveBeenCalledWith(
+      'KeyringController:unlock',
+      expect.any(Function),
+    );
+    expect(submitRelayQuotesMock).toHaveBeenCalled();
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
 
@@ -446,7 +551,10 @@ describe('submitFiatQuotes', () => {
       ],
     } as unknown as TransactionMeta;
 
-    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1234500000000000000',
+      fromBlock: undefined,
+    });
 
     const { callMock, request } = getRequest({
       transaction: nestedTransaction,
@@ -466,6 +574,9 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
       }
       if (action === 'TransactionPayController:getFiatOptions') {
         return undefined;
@@ -699,6 +810,10 @@ describe('submitFiatQuotes', () => {
         };
       }
 
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
+      }
+
       if (action === 'TransactionPayController:getFiatOptions') {
         return undefined;
       }
@@ -758,6 +873,10 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
       }
 
       if (action === 'TransactionPayController:getFiatOptions') {
@@ -1079,7 +1198,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Direct mUSD fiat: update vault amount',
+          note: 'Money Account vault deposit: update vault amount',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1107,7 +1226,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Add required transaction ID from direct mUSD vault submission',
+          note: 'Add required transaction ID from Money Account vault submission',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1167,6 +1286,10 @@ describe('submitFiatQuotes', () => {
               },
             },
           };
+        }
+
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked: true };
         }
 
         if (action === 'TransactionPayController:getFiatOptions') {
@@ -1230,6 +1353,10 @@ describe('submitFiatQuotes', () => {
           };
         }
 
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked: true };
+        }
+
         if (action === 'TransactionPayController:getFiatOptions') {
           return undefined;
         }
@@ -1262,7 +1389,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Add required transaction ID from direct mUSD vault submission',
+          note: 'Add required transaction ID from Money Account vault submission',
         }),
         expect.any(Function),
       );

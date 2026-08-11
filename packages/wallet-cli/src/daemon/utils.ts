@@ -1,3 +1,4 @@
+import type { JsonRpcError } from '@metamask/utils';
 import { isErrorWithCode as hasErrorCode } from '@metamask/utils';
 import { readFile } from 'node:fs/promises';
 
@@ -10,6 +11,79 @@ import { readFile } from 'node:fs/promises';
  */
 export function isErrorWithCode(error: unknown, code: string): boolean {
   return hasErrorCode(error) && error.code === code;
+}
+
+/**
+ * Turn an error thrown while contacting the daemon socket into a user-facing
+ * message for `Command.error`, so every command reports the same failure the
+ * same way. Distinguishes a stopped daemon (`ENOENT`/`ECONNREFUSED`), a
+ * connection dropped mid-request (`ECONNRESET`), and a permission problem
+ * (`EACCES`/`EPERM`), falling back to the raw error message.
+ *
+ * @param error - The value thrown while contacting the daemon.
+ * @returns A human-readable explanation of the failure.
+ */
+export function makeDaemonConnectionError(error: unknown): string {
+  if (
+    isErrorWithCode(error, 'ENOENT') ||
+    isErrorWithCode(error, 'ECONNREFUSED')
+  ) {
+    return 'Daemon is not running. Start it with `mm daemon start`.';
+  }
+  // A reset drops an already-established connection, so the daemon was running
+  // — most likely it crashed mid-request. Don't tell the user to start it.
+  if (isErrorWithCode(error, 'ECONNRESET')) {
+    return (
+      'Lost the connection to the daemon; it may have crashed while ' +
+      'handling the request. Check `mm daemon status` and the daemon log.'
+    );
+  }
+  if (isErrorWithCode(error, 'EACCES') || isErrorWithCode(error, 'EPERM')) {
+    return (
+      'Cannot connect to the daemon socket: permission denied. ' +
+      'The socket may be owned by another user, or MM_DAEMON_DATA_DIR ' +
+      'may point to a directory you cannot access.'
+    );
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Format the error of a JSON-RPC failure response into a user-facing message
+ * for `Command.error`, so every command reports RPC failures the same way.
+ *
+ * @param error - The `error` field of a JSON-RPC failure response.
+ * @returns The error message annotated with its numeric code.
+ */
+export function formatJsonRpcError(error: JsonRpcError): string {
+  return `${error.message} (code ${String(error.code)})`;
+}
+
+/**
+ * Treat an empty string the same as `undefined` — "no value supplied". Used
+ * to normalise `--password ''` and `MM_WALLET_PASSWORD=''` so they trigger
+ * the interactive prompt rather than sending an empty string to the keyring.
+ *
+ * @param value - The value to normalise.
+ * @returns `undefined` if `value` is `undefined` or `''`; `value` otherwise.
+ */
+export function emptyToUndefined(
+  value: string | undefined,
+): string | undefined {
+  return value === '' ? undefined : value;
+}
+
+/**
+ * Check whether a value is an array of strings. Used to validate untyped RPC
+ * results (e.g. the daemon's `listActions`) before treating them as `string[]`.
+ *
+ * @param value - The value to check.
+ * @returns True if the value is an array whose every element is a string.
+ */
+export function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === 'string')
+  );
 }
 
 /**

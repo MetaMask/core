@@ -6,8 +6,8 @@ import type {
   RootMessenger,
 } from '@metamask/wallet';
 
-import { KeyValueStore } from './KeyValueStore';
-import { loadState, subscribeToChanges } from './persistence';
+import { KeyValueStore } from './KeyValueStore.js';
+import { loadState, subscribeToChanges } from './persistence.js';
 
 type TestMessenger = RootMessenger<DefaultActions, DefaultEvents>;
 

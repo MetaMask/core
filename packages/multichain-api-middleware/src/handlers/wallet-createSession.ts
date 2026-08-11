@@ -6,6 +6,7 @@ import {
   validateAndNormalizeScopes,
   getInternalScopesObject,
   getSessionScopes,
+  getSessionProperties,
   getSupportedScopeObjects,
   isKnownSessionPropertyValue,
   getCaipAccountIdsFromScopesObjects,
@@ -46,14 +47,16 @@ import type {
 } from '@metamask/utils';
 
 import type {
+  GetCapabilitiesHook,
   GetNonEvmSupportedMethodsHook,
   SortAccountIdsByLastSelectedHook,
-} from './types';
+} from './types.js';
 
 const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
 export type WalletCreateSessionHooks = GetNonEvmSupportedMethodsHook &
-  SortAccountIdsByLastSelectedHook & {
+  SortAccountIdsByLastSelectedHook &
+  GetCapabilitiesHook & {
     listAccounts: AccountsController['listAccounts'];
     findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
     requestPermissionsForOrigin: (
@@ -97,6 +100,7 @@ type Result = {
  * @param hooks.isNonEvmScopeSupported - The hook that returns true if a non EVM scope is supported.
  * @param hooks.getNonEvmAccountAddresses - The hook that returns a list of CaipAccountIds that are supported for a CaipChainId.
  * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
+ * @param hooks.getCapabilities - A function that returns the capabilities for a given address.
  * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run.
  * @returns A promise with wallet_createSession handler
  */
@@ -281,8 +285,12 @@ async function handleWalletCreateSession(
       sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
     });
 
-    const { sessionProperties: approvedSessionProperties = {} } =
-      approvedCaip25CaveatValue;
+    const approvedSessionProperties = await getSessionProperties(
+      approvedCaip25CaveatValue,
+      {
+        getCapabilities: hooks.getCapabilities,
+      },
+    );
 
     hooks.trackSessionCreatedEvent?.(approvedCaip25CaveatValue);
 
@@ -314,6 +322,7 @@ export const walletCreateSessionHandler = {
     isNonEvmScopeSupported: true,
     getNonEvmAccountAddresses: true,
     sortAccountIdsByLastSelected: true,
+    getCapabilities: true,
     trackSessionCreatedEvent: true,
   },
 } satisfies WalletCreateSessionHandler;

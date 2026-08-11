@@ -18,7 +18,7 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { walletCreateSessionHandler } from './wallet-createSession';
+import { walletCreateSessionHandler } from './wallet-createSession.js';
 
 jest.mock('@metamask/rpc-errors', () => ({
   ...jest.requireActual('@metamask/rpc-errors'),
@@ -33,6 +33,7 @@ jest.mock('@metamask/chain-agnostic-permission', () => ({
   validateAndNormalizeScopes: jest.fn(),
   bucketScopes: jest.fn(),
   getSessionScopes: jest.fn(),
+  getSessionProperties: jest.fn(),
   getSupportedScopeObjects: jest.fn(),
 }));
 const MockChainAgnosticPermission = jest.mocked(ChainAgnosticPermission);
@@ -107,6 +108,7 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
   }>;
   const getNonEvmAccountAddresses = jest.fn().mockReturnValue([]);
   const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
+  const getCapabilities = jest.fn().mockResolvedValue({});
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
@@ -118,6 +120,7 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
       isNonEvmScopeSupported,
       getNonEvmAccountAddresses,
       sortAccountIdsByLastSelected,
+      getCapabilities,
       trackSessionCreatedEvent,
     });
 
@@ -133,6 +136,7 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
     isNonEvmScopeSupported,
     getNonEvmAccountAddresses,
     sortAccountIdsByLastSelected,
+    getCapabilities,
     handler,
   };
 };
@@ -155,6 +159,7 @@ describe('wallet_createSession', () => {
       unsupportableScopes: {},
     });
     MockChainAgnosticPermission.getSessionScopes.mockReturnValue({});
+    MockChainAgnosticPermission.getSessionProperties.mockResolvedValue({});
     MockChainAgnosticPermission.getSupportedScopeObjects.mockImplementation(
       (scopesObject) => scopesObject,
     );
@@ -877,6 +882,9 @@ describe('wallet_createSession', () => {
         notifications: ['accountsChanged', 'chainChanged'],
         accounts: ['eip155:5:0x1', 'eip155:5:0x2'],
       },
+    });
+    MockChainAgnosticPermission.getSessionProperties.mockResolvedValue({
+      [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
     });
     await handler({
       ...baseRequest,

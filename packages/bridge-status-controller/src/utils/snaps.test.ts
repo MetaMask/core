@@ -1,9 +1,9 @@
+import { ChainId, mergeQuoteMetadata } from '@metamask/bridge-controller';
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
-import { ChainId } from '../../../bridge-controller/src/types';
-import { BridgeStatusControllerMessenger } from '../types';
-import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
+import { BridgeStatusControllerMessenger } from '../types.js';
+import { createClientTransactionRequest, handleNonEvmTx } from './snaps.js';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),
@@ -74,16 +74,20 @@ describe('Snaps Utils', () => {
         const { time, ...result } = await handleNonEvmTx(
           messenger,
           transaction,
-          {
-            quote: {
-              srcChainId: ChainId.SOLANA,
-              srcAsset: { symbol: 'SOL' },
-              destAsset: { symbol: 'MATIC' },
+          mergeQuoteMetadata(
+            {
+              quote: {
+                srcChainId: ChainId.SOLANA,
+                srcAsset: { symbol: 'SOL' },
+                destAsset: { symbol: 'MATIC' },
+              },
             },
-            sentAmount: {
-              amount: '1000000000',
+            {
+              sentAmount: {
+                amount: '1000000000',
+              },
             },
-          } as never,
+          ) as never,
           { id: accountId, metadata: { snap: { id: snapId } } } as never,
         );
 
@@ -157,16 +161,20 @@ describe('Snaps Utils', () => {
       const { time, ...result } = await handleNonEvmTx(
         messenger,
         transaction,
-        {
-          quote: {
-            srcChainId: ChainId.SOLANA,
-            srcAsset: { symbol: 'SOL' },
-            destAsset: { symbol: 'MATIC' },
+        mergeQuoteMetadata(
+          {
+            quote: {
+              srcChainId: ChainId.SOLANA,
+              srcAsset: { symbol: 'SOL' },
+              destAsset: { symbol: 'MATIC' },
+            },
           },
-          sentAmount: {
-            amount: '1000000000',
+          {
+            sentAmount: {
+              amount: '1000000000',
+            },
           },
-        } as never,
+        ) as never,
         { id: accountId, metadata: { snap: { id: snapId } } } as never,
       );
 

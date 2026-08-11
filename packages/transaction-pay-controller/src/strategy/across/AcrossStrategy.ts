@@ -1,4 +1,7 @@
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 
 import type {
   PayStrategy,
@@ -6,16 +9,15 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
-import { getAcrossDestination } from './across-actions';
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
-import { isSupportedAcrossPerpsDepositRequest } from './perps';
-import { isAcrossQuoteRequest } from './requests';
-import type { AcrossQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getAcrossDestination } from './across-actions.js';
+import { getAcrossQuotes } from './across-quotes.js';
+import { submitAcrossQuotes } from './across-submit.js';
+import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
+import { isSupportedAcrossPerpsDepositRequest } from './perps.js';
+import { isAcrossQuoteRequest } from './requests.js';
+import type { AcrossQuote } from './types.js';
 
 export class AcrossStrategy implements PayStrategy<AcrossQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
@@ -65,7 +67,9 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
 
     return actionableRequests.every((singleRequest) => {
       if (singleRequest.isPostQuote) {
-        return isPredictWithdrawTransaction(request.transaction);
+        return hasTransactionType(request.transaction, [
+          TransactionType.predictWithdraw,
+        ]);
       }
 
       try {
@@ -91,7 +95,11 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return true;
     }
 
-    if (!isPredictWithdrawTransaction(request.transaction)) {
+    if (
+      !hasTransactionType(request.transaction, [
+        TransactionType.predictWithdraw,
+      ])
+    ) {
       return false;
     }
 

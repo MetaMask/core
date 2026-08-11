@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SocialService } from './SocialService';
+import type { SocialService } from './SocialService.js';
 
 /**
  * Fetches the leaderboard of top traders.
@@ -97,6 +97,30 @@ export type SocialServiceFetchPositionByIdAction = {
 };
 
 /**
+ * Fetches a page of the trader-activity feed.
+ *
+ * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+ * identified server-side from the JWT sub claim carried in the Authorization
+ * header; the `leaderboard` scope is generic and shared by all users.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.chains - Filter by one or more chains.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchFeedAction = {
+  type: `SocialService:fetchFeed`;
+  handler: SocialService['fetchFeed'];
+};
+
+/**
  * Fetches the list of traders the current user is following.
  *
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -142,6 +166,43 @@ export type SocialServiceUnfollowAction = {
 };
 
 /**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialServiceOptOutOfLeaderboardAction = {
+  type: `SocialService:optOutOfLeaderboard`;
+  handler: SocialService['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialServiceOptInToLeaderboardAction = {
+  type: `SocialService:optInToLeaderboard`;
+  handler: SocialService['optInToLeaderboard'];
+};
+
+/**
+ * Asks the social-api to refresh its cached copy of the current user's
+ * notification preferences.
+ *
+ * Calls `POST ${baseUrl}/notifications/preferences/cache-refresh`. The caller
+ * is identified server-side from the JWT sub claim carried in the
+ * Authorization header, so it can only ever refresh its own entry.
+ *
+ * The client calls this immediately after writing a preference change to
+ * Authenticated User Storage (AUS), which is the source of truth. The social
+ * api re-reads from AUS and repopulates its cache so the change is honoured
+ * near-instantly rather than after the cache TTL lapses. It is a pure
+ * optimisation on top of that bounded TTL: the write has already succeeded by
+ * the time this runs, so callers should treat it as best-effort and must not
+ * roll back the AUS write if it fails.
+ */
+export type SocialServiceRefreshNotificationPreferencesCacheAction = {
+  type: `SocialService:refreshNotificationPreferencesCache`;
+  handler: SocialService['refreshNotificationPreferencesCache'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -151,6 +212,10 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
   | SocialServiceFetchPositionByIdAction
+  | SocialServiceFetchFeedAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
-  | SocialServiceUnfollowAction;
+  | SocialServiceUnfollowAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction
+  | SocialServiceRefreshNotificationPreferencesCacheAction;

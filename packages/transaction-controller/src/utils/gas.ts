@@ -6,13 +6,18 @@ import {
 } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
+import {
+  add0x,
+  createModuleLogger,
+  isStrictHexString,
+  remove0x,
+} from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { simulateTransactions } from '../api/simulation-api';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType } from '../types';
+import { simulateTransactions } from '../api/simulation-api.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionEnvelopeType } from '../types.js';
 import type {
   AuthorizationList,
   BatchTransactionParams,
@@ -23,15 +28,18 @@ import type {
   TransactionBatchSingleRequest,
   TransactionMeta,
   TransactionParams,
-} from '../types';
+} from '../types.js';
 import {
   DELEGATION_PREFIX,
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
-} from './eip7702';
-import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import { getChainId, rpcRequest } from './provider';
-import { decodeRevert } from './revert-reason';
+} from './eip7702.js';
+import {
+  getGasEstimateBuffer,
+  getGasEstimateFallback,
+} from './feature-flags.js';
+import { getChainId, rpcRequest } from './provider.js';
+import { decodeRevert } from './revert-reason.js';
 
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;
@@ -135,16 +143,30 @@ export async function estimateGas({
   );
 
   const blockGasLimitBN = hexToBN(blockGasLimit);
-  const { percentage, fixed } = getGasEstimateFallback(chainId, messenger);
+  const { percentage, fixed, maxGasLimit } = getGasEstimateFallback(
+    chainId,
+    messenger,
+  );
 
-  const fallback = fixed
+  const uncappedFallback = fixed
     ? toHex(fixed)
     : BNToHex(fractionBN(blockGasLimitBN, percentage, 100));
+
+  // Clamp the fallback to the chain's per-transaction gas cap so it can never
+  // exceed the gas limit the RPC will accept. Without this, a percentage of a
+  // high block gas limit can overshoot the cap (e.g. 35% of Polygon's ~140M
+  // block limit is ~49M, but the node caps a tx at ~33.5M and rejects it with
+  // "transaction gas limit too high").
+  const fallback =
+    maxGasLimit !== undefined &&
+    hexToBN(uncappedFallback).gt(hexToBN(toHex(maxGasLimit)))
+      ? toHex(maxGasLimit)
+      : uncappedFallback;
 
   log('Estimation fallback values', fallback);
 
   request.data = data ? add0x(data) : data;
-  request.value = value ?? '0x0';
+  request.value = normalizeValue(value);
 
   request.authorizationList = normalizeAuthorizationList(
     request.authorizationList,
@@ -762,6 +784,26 @@ function normalizeAuthorizationList(
     s: authorization.s ?? DUMMY_AUTHORIZATION_SIGNATURE,
     yParity: authorization.yParity ?? '0x1',
   }));
+}
+
+/**
+ * Normalize the value to a canonical hex quantity with no leading zero digits.
+ * Some RPC nodes (e.g. Go's `hexutil`) reject quantities such as `0x00` or
+ * `0x0de0b6b3a7640000`, failing gas estimation entirely.
+ *
+ * @param value - The transaction value to normalize.
+ * @returns The normalized transaction value.
+ */
+function normalizeValue(value: string | undefined): string {
+  const valueOrDefault = value ?? '0x0';
+
+  if (!isStrictHexString(valueOrDefault)) {
+    return valueOrDefault;
+  }
+
+  const stripped = remove0x(valueOrDefault).replace(/^0+/u, '');
+
+  return stripped.length === 0 ? '0x0' : add0x(stripped);
 }
 
 /**

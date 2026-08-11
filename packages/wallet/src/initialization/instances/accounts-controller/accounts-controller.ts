@@ -8,8 +8,8 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import type { InitializationConfiguration } from '../../types';
+} from '../../defaults.js';
+import type { InitializationConfiguration } from '../../types.js';
 
 export const accountsController: InitializationConfiguration<
   AccountsController,

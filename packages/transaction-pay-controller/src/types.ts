@@ -16,16 +16,11 @@ import type {
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { BridgeControllerFetchQuotesAction } from '@metamask/bridge-controller';
-import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
-import type {
-  BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerSubmitTxAction,
-} from '@metamask/bridge-status-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
+  KeyringControllerUnlockEvent,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -38,6 +33,7 @@ import type {
   RampsControllerGetQuotesAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
@@ -62,15 +58,12 @@ import type {
   CONTROLLER_NAME,
   PaymentOverride,
   TransactionPayStrategy,
-} from './constants';
-import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
+} from './constants.js';
+import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AssetsControllerGetStateForTransactionPayAction
-  | BridgeControllerFetchQuotesAction
-  | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction
   | CurrencyRateControllerGetStateAction
   | GetGasFeeState
   | KeyringControllerGetStateAction
@@ -84,6 +77,7 @@ export type AllowedActions =
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
+  | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
@@ -94,8 +88,8 @@ export type AllowedActions =
 
 export type AllowedEvents =
   | AssetsControllerStateChangeEvent
-  | BridgeStatusControllerStateChangeEvent
   | CurrencyRateStateChange
+  | KeyringControllerUnlockEvent
   | TokenRatesControllerStateChangeEvent
   | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent
@@ -114,6 +108,18 @@ export type TransactionConfig = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /**
+   * Whether the target transaction (or `paymentOverride` batch) is executed
+   * atomically with the Relay quote. Defaults to `true` (embedded in the quote
+   * and executed by the Relay solver). When `false`, Pay does not embed the
+   * target/override calls in the quote; the quote only bridges the required
+   * asset to `recipient`, and the calls are submitted separately after Relay
+   * completion. Used by flows whose second-leg amount is only known after
+   * Relay settles (EXACT_INPUT max flows) or that require the second leg to
+   * originate from a different signer than the Relay solver.
+   */
+  atomic?: boolean;
 
   /**
    * Whether the source of funds is HyperLiquid (HyperCore).
@@ -300,6 +306,12 @@ export type TransactionData = {
    */
   accountOverride?: Hex;
 
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
 
@@ -346,6 +358,9 @@ export type TransactionData = {
 
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
+
+  /** Most relevant structured validation error from the latest quote attempt. */
+  quoteError?: QuoteErrorInfo;
 
   /** Timestamp of when quotes were last updated. */
   quotesLastUpdated?: number;
@@ -444,6 +459,36 @@ export type TransactionPaySourceAmount = {
   targetTokenAddress: Hex;
 };
 
+/**
+ * Machine-readable discriminator for a quote validation failure.
+ *
+ * Used for analytics and tests. Human-readable copy is carried by `message`
+ * and `detail` on {@link QuoteErrorInfo}.
+ */
+export type QuoteErrorReason =
+  | 'balance-unavailable'
+  | 'insufficient-source-balance'
+  | 'insufficient-transfer-balance'
+  | 'no-quotes'
+  | 'simulation-failed';
+
+/**
+ * Structured description of why a quote failed validation.
+ *
+ * `message` and `detail` are formatted (English) copy ready to display; `reason`
+ * is a machine-readable discriminator for analytics and tests.
+ */
+export type QuoteErrorInfo = {
+  /** Short, display-ready summary of the failure. */
+  message: string;
+
+  /** Machine-readable discriminator for the failure. */
+  reason: QuoteErrorReason;
+
+  /** Optional display-ready detail rows (e.g. Required / Current / Missing). */
+  detail?: string[];
+};
+
 /** Source token used to pay for required tokens. */
 export type TransactionPaymentToken = {
   /** Address of the payment token. */
@@ -490,6 +535,12 @@ export type FiatRates = {
 
 /** Request for a quote to retrieve a required token. */
 export type QuoteRequest = {
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Address of the user's account. */
   from: Hex;
 
@@ -544,6 +595,14 @@ export type QuoteRequest = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+
+  /**
+   * One-time HyperLiquid activation fee (USD) reserved from the source amount
+   * for an unactivated HyperCore account. The source amount sent to the
+   * provider is reduced by this amount so HyperLiquid retains enough balance
+   * for the fee, and the amount is surfaced as part of the provider fee.
+   */
+  hyperliquidActivationFeeUsd?: string;
 };
 
 /** Fees associated with a transaction pay quote. */
@@ -783,8 +842,10 @@ export type UpdateFiatPaymentRequest = {
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({
   transaction,
+  isSubsidized,
 }: {
   transaction: TransactionMeta;
+  isSubsidized?: boolean;
 }) => Promise<{
   authorizationList?: AuthorizationList;
   data: Hex;

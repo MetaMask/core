@@ -6,27 +6,32 @@
  */
 
 import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+} from '@metamask/account-tree-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  FeatureFlags,
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
+import { isObject } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../logger';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
-} from '../types';
-import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
+} from '../types.js';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types.js';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-} from './BackendWebSocketService';
-import { WebSocketState } from './BackendWebSocketService';
-import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+} from './BackendWebSocketService.js';
+import { WebSocketState } from './BackendWebSocketService.js';
 
 // =============================================================================
 // Types and Constants
@@ -48,15 +53,41 @@ const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
+const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
+
+// Window (in ms) over which consecutive system notifications are accumulated
+// before a single batched `statusChanged` event is published. Coalescing bursts
+// of chain up/down notifications avoids flooding consumers.
+const STATUS_CHANGE_DEBOUNCE_MS = 1000;
+
+// Maximum random jitter (in ms) added to the debounce window before publishing.
+// Spreading the publish across a random delay prevents many clients reacting to
+// the same system notification from publishing in lockstep (a thundering herd
+// on downstream consumers).
+const STATUS_CHANGE_JITTER_MS = 1000;
+
+// EVM subscriptions are always enabled.
+const ALWAYS_SUPPORTED_CHAIN_PREFIXES = ['eip155'] as const;
+
+// Non-EVM chains are gated behind the
+// per-network snaps-migration remote feature flags: a chain is
+// enabled when its flag payload has `stage >= 1`.
+const CHAIN_PREFIX_FEATURE_FLAGS = {
+  solana: 'networkAssetsSnapsMigrationSolana',
+  tron: 'networkAssetsSnapsMigrationTron',
+  stellar: 'networkAssetsSnapsMigrationStellar',
+} as const;
 
 /**
  * Account subscription options
  */
 export type SubscriptionOptions = {
-  address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
+  /**
+   * Array of addresses to subscribe to, each in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   */
+  addresses: string[];
 };
 
 /**
@@ -73,12 +104,12 @@ export type AccountActivityServiceOptions = {
 // Action and Event Types
 // =============================================================================
 
-// Action types for the messaging system - using generated method actions
-export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
+// Action types for the messaging system
+export type AccountActivityServiceActions = never;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
-  'AccountsController:getSelectedAccount',
+  'AccountTreeController:getAccountsFromSelectedAccountGroup',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
@@ -88,17 +119,20 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
+  'RemoteFeatureFlagController:getState',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
-  'AccountsController:selectedAccountChange',
+  'AccountTreeController:selectedAccountGroupChange',
   'BackendWebSocketService:connectionStateChanged',
+  'RemoteFeatureFlagController:stateChange',
 ] as const;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
-  | BackendWebSocketServiceMethodActions;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | BackendWebSocketServiceMethodActions
+  | RemoteFeatureFlagControllerGetStateAction;
 
 // Event types for the messaging system
 
@@ -135,8 +169,9 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceStatusChangedEvent;
 
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
-  | BackendWebSocketServiceConnectionStateChangedEvent;
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type AccountActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
@@ -197,6 +232,17 @@ export class AccountActivityService {
   // Track chains that are currently up (based on system notifications)
   readonly #chainsUp: Set<string> = new Set();
 
+  // Debouncing for rapid status changes: buffers the latest status per chain
+  // and coalesces bursts of system notifications into fewer downstream
+  // `statusChanged` events.
+  readonly #statusChangeDebouncer: {
+    timer: NodeJS.Timeout | null;
+    pendingChanges: Map<string, 'up' | 'down'>;
+  } = {
+    timer: null,
+    pendingChanges: new Map(),
+  };
+
   // =============================================================================
   // Constructor and Initialization
   // =============================================================================
@@ -230,11 +276,10 @@ export class AccountActivityService {
       MESSENGER_EXPOSED_METHODS,
     );
     this.#messenger.subscribe(
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (account: InternalAccount) =>
-        await this.#handleSelectedAccountChange(account),
+      async () => await this.#handleSelectedAccountChange(),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
@@ -243,6 +288,18 @@ export class AccountActivityService {
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
     );
+    this.#messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async () => await this.#handleFeatureFlagsStateChange(),
+      // Only react to changes in the set of enabled chain prefixes. The
+      // messenger compares selector results with strict equality, so the
+      // selector must return a primitive rather than a fresh object.
+      (state) =>
+        this.#getSupportedChainPrefixes(state.remoteFeatureFlags).join(','),
+    );
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
       callback: (notification: ServerNotificationMessage) =>
@@ -250,36 +307,37 @@ export class AccountActivityService {
     });
   }
 
-  // =============================================================================
-  // Account Subscription Methods
-  // =============================================================================
-
   /**
    * Subscribe to account activity (transactions and balance updates)
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    *
-   * @param subscription - Account subscription configuration with address
+   * @param subscription - The subscription configuration
+   * @param subscription.addresses - Array of addresses to subscribe to, each in CAIP-10 format
+   * or an `addresses` array for batch subscription
    */
-  async subscribe(subscription: SubscriptionOptions): Promise<void> {
+  async #subscribe({ addresses }: SubscriptionOptions): Promise<void> {
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
-      // Create channel name from address
-      const channel = `${this.#options.subscriptionNamespace}.${subscription.address}`;
+      // Derive new subscriptions to be created from the provided addresses,
+      // filtering out any channels that already have an active subscription
+      const channels = addresses
+        .map((address) => `${this.#options.subscriptionNamespace}.${address}`)
+        .filter(
+          (channel) =>
+            !this.#messenger.call(
+              'BackendWebSocketService:channelHasSubscription',
+              channel,
+            ),
+        );
 
-      // Check if already subscribed
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          channel,
-        )
-      ) {
+      if (channels.length === 0) {
         return;
       }
 
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
-        channels: [channel],
+        channels,
         channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
         callback: (notification: ServerNotificationMessage) => {
           this.#handleAccountActivityUpdate(
@@ -292,41 +350,6 @@ export class AccountActivityService {
       await this.#forceReconnection();
     }
   }
-
-  /**
-   * Unsubscribe from account activity for specified address
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
-   *
-   * @param subscription - Account subscription configuration with address to unsubscribe
-   */
-  async unsubscribe(subscription: SubscriptionOptions): Promise<void> {
-    const { address } = subscription;
-    try {
-      // Find channel for the specified address
-      const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptions = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionsByChannel',
-        channel,
-      );
-
-      if (subscriptions.length === 0) {
-        return;
-      }
-
-      // Fast path: Direct unsubscribe using stored unsubscribe function
-      // Unsubscribe from all matching subscriptions
-      for (const subscriptionInfo of subscriptions) {
-        await subscriptionInfo.unsubscribe();
-      }
-    } catch (error) {
-      log('Unsubscription failed, forcing reconnection', { error });
-      await this.#forceReconnection();
-    }
-  }
-
-  // =============================================================================
-  // Private Methods - Event Handlers
-  // =============================================================================
 
   /**
    * Handle account activity updates (transactions + balance changes)
@@ -393,25 +416,20 @@ export class AccountActivityService {
 
   /**
    * Handle selected account change event
-   *
-   * @param newAccount - The newly selected account
    */
-  async #handleSelectedAccountChange(
-    newAccount: InternalAccount | null,
-  ): Promise<void> {
-    if (!newAccount?.address) {
-      return;
-    }
+  async #handleSelectedAccountChange(): Promise<void> {
+    const selectedAccounts = this.#messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    );
 
     try {
-      // Convert new account to CAIP-10 format
-      const newAddress = this.#convertToCaip10Address(newAccount);
-
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
-      // Then, subscribe to the new selected account
-      await this.subscribe({ address: newAddress });
+      // Subscribe to the new selected accounts in CAIP-10 format
+      await this.#subscribe({
+        addresses: this.#convertToCaip10Addresses(selectedAccounts),
+      });
     } catch (error) {
       log('Account change failed', { error });
     }
@@ -425,7 +443,6 @@ export class AccountActivityService {
    */
   #handleSystemNotification(notification: ServerNotificationMessage): void {
     const data = notification.data as SystemNotificationData;
-    const { timestamp } = notification;
 
     // Validate required fields
     if (!data.chainIds || !Array.isArray(data.chainIds) || !data.status) {
@@ -434,7 +451,6 @@ export class AccountActivityService {
       );
     }
 
-    // Track chain status
     if (data.status === 'up') {
       for (const chainId of data.chainIds) {
         this.#chainsUp.add(chainId);
@@ -445,21 +461,65 @@ export class AccountActivityService {
       }
     }
 
-    // Publish status change directly (delta update)
-    this.#messenger.publish(`AccountActivityService:statusChanged`, {
-      chainIds: data.chainIds,
-      status: data.status,
-      timestamp,
-    });
+    for (const chainId of data.chainIds) {
+      this.#statusChangeDebouncer.pendingChanges.set(chainId, data.status);
+    }
 
-    log(
-      `WebSocket status change - Published tracked chains as ${data.status}`,
-      {
-        count: data.chainIds.length,
-        chains: data.chainIds,
-        status: data.status,
-      },
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+    }
+
+    // Debounce window plus a random jitter, so clients reacting to the same
+    // system notification don't publish in lockstep.
+    const delay =
+      STATUS_CHANGE_DEBOUNCE_MS + Math.random() * STATUS_CHANGE_JITTER_MS;
+
+    this.#statusChangeDebouncer.timer = setTimeout(() => {
+      this.#processAccumulatedStatusChanges();
+    }, delay);
+
+    log(`WebSocket status change - Buffered chains as ${data.status}`, {
+      count: data.chainIds.length,
+      chains: data.chainIds,
+      status: data.status,
+    });
+  }
+
+  /**
+   * Publish the buffered status changes as batched `statusChanged` events, one
+   * per status (`up`/`down`), then reset the buffer and timer.
+   */
+  #processAccumulatedStatusChanges(): void {
+    const changes = Array.from(
+      this.#statusChangeDebouncer.pendingChanges.entries(),
     );
+    this.#statusChangeDebouncer.pendingChanges.clear();
+    this.#statusChangeDebouncer.timer = null;
+
+    // Group buffered chains by their latest status. A chain can only appear in
+    // one group because the buffer keeps a single entry per chain.
+    const grouped: Record<'up' | 'down', string[]> = { up: [], down: [] };
+    for (const [chainId, status] of changes) {
+      grouped[status].push(chainId);
+    }
+
+    for (const status of ['up', 'down'] as const) {
+      const chainIds = grouped[status];
+      if (chainIds.length === 0) {
+        continue;
+      }
+
+      this.#messenger.publish(`AccountActivityService:statusChanged`, {
+        chainIds,
+        status,
+      });
+
+      log(`WebSocket status change - Published batched chains as ${status}`, {
+        count: chainIds.length,
+        chains: chainIds,
+        status,
+      });
+    }
   }
 
   /**
@@ -477,19 +537,28 @@ export class AccountActivityService {
       // The system notification will automatically provide the list of chains that are up
       await this.#subscribeToSelectedAccount();
     } else if (state === WebSocketState.DISCONNECTED) {
-      // On disconnect, flush all tracked chains as down
-      const chainsToMarkDown = Array.from(this.#chainsUp);
+      if (this.#statusChangeDebouncer.timer) {
+        clearTimeout(this.#statusChangeDebouncer.timer);
+        this.#statusChangeDebouncer.timer = null;
+      }
 
-      if (chainsToMarkDown.length > 0) {
+      const chainsToMarkDown = new Set(this.#chainsUp);
+      for (const chainId of this.#statusChangeDebouncer.pendingChanges.keys()) {
+        chainsToMarkDown.add(chainId);
+      }
+      this.#statusChangeDebouncer.pendingChanges.clear();
+
+      if (chainsToMarkDown.size > 0) {
+        const chainIds = Array.from(chainsToMarkDown);
         this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds: chainsToMarkDown,
+          chainIds,
           status: 'down',
           timestamp: Date.now(),
         });
 
         log('WebSocket disconnection - Published tracked chains as down', {
-          count: chainsToMarkDown.length,
-          chains: chainsToMarkDown,
+          count: chainIds.length,
+          chains: chainIds,
         });
 
         // Clear the tracking set since all chains are now down
@@ -506,17 +575,13 @@ export class AccountActivityService {
    * Subscribe to the currently selected account only
    */
   async #subscribeToSelectedAccount(): Promise<void> {
-    const selectedAccount = this.#messenger.call(
-      'AccountsController:getSelectedAccount',
+    const selectedAccounts = this.#messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    if (!selectedAccount?.address) {
-      return;
-    }
-
-    // Convert to CAIP-10 format and subscribe
-    const address = this.#convertToCaip10Address(selectedAccount);
-    await this.subscribe({ address });
+    await this.#subscribe({
+      addresses: this.#convertToCaip10Addresses(selectedAccounts),
+    });
   }
 
   /**
@@ -540,26 +605,80 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Convert an InternalAccount address to CAIP-10 format or raw address
+   * Convert a list of InternalAccount addresses to CAIP-10 format, using the first
+   * supported chain prefix matching the account's scopes
    *
-   * @param account - The internal account to convert
-   * @returns The CAIP-10 formatted address or raw address
+   * @param accounts - The internal accounts to convert
+   * @returns The CAIP-10 formatted addresses (e.g. [`eip155:0:address`], meaning
+   * all chains of that namespace), or an empty array if none of the account's
+   * scopes are supported
    */
-  #convertToCaip10Address(account: InternalAccount): string {
-    // Check if account has EVM scopes
-    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
-      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
-      return `eip155:0:${account.address}`;
-    }
+  #convertToCaip10Addresses(accounts: InternalAccount[]): string[] {
+    const supportedChainPrefixes = this.#getSupportedChainPrefixes();
+    return accounts.reduce<string[]>((result, account) => {
+      const accountPrefix = supportedChainPrefixes.find((prefix) =>
+        account.scopes.some((scope) => scope.startsWith(`${prefix}:`)),
+      );
 
-    // Check if account has Solana scopes
-    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
-      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
-      return `solana:0:${account.address}`;
-    }
+      if (!accountPrefix) {
+        // Skip unsupported accounts
+        return result;
+      }
 
-    // For other chains or unknown scopes, return raw address
-    return account.address;
+      result.push(`${accountPrefix}:0:${account.address}`);
+      return result;
+    }, []);
+  }
+
+  /**
+   * Get the chain prefixes currently enabled for subscriptions: EVM is always
+   * enabled, while other chains are gated behind their per-network remote
+   * feature flag (enabled when the flag payload has `stage >= 1`).
+   *
+   * @param remoteFeatureFlags - The remote feature flags state to check for enabled chains.
+   * @returns An array of enabled CAIP-2 namespace prefixes (e.g. `['eip155', 'solana']`)
+   */
+  #getSupportedChainPrefixes(
+    remoteFeatureFlags: FeatureFlags = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags,
+  ): string[] {
+    const prefixes: string[] = [...ALWAYS_SUPPORTED_CHAIN_PREFIXES];
+    for (const [prefix, flagName] of Object.entries(
+      CHAIN_PREFIX_FEATURE_FLAGS,
+    )) {
+      const flagValue = remoteFeatureFlags[flagName];
+      if (
+        isObject(flagValue) &&
+        typeof flagValue.stage === 'number' &&
+        flagValue.stage >= 1
+      ) {
+        prefixes.push(prefix);
+      }
+    }
+    return prefixes;
+  }
+
+  /**
+   * Handle remote feature flag changes: if the set of enabled chain prefixes
+   * changed while connected, resubscribe the selected account so new chains
+   * are picked up and disabled ones are dropped.
+   */
+  async #handleFeatureFlagsStateChange(): Promise<void> {
+    try {
+      const { state } = this.#messenger.call(
+        'BackendWebSocketService:getConnectionInfo',
+      );
+      if (state !== WebSocketState.CONNECTED) {
+        // Not connected: the next connection will subscribe with fresh flags
+        return;
+      }
+
+      await this.#unsubscribeFromAllAccountActivity();
+      await this.#subscribeToSelectedAccount();
+    } catch (error) {
+      log('Feature flag change handling failed', { error });
+    }
   }
 
   /**
@@ -582,6 +701,12 @@ export class AccountActivityService {
    * Optimized for fast cleanup during service destruction or mobile app termination
    */
   destroy(): void {
+    // Cancel any pending batched status-change flush
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
+
     // Clean up system notification callback
     this.#messenger.call(
       'BackendWebSocketService:removeChannelCallback',

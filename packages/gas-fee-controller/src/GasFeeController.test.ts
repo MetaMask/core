@@ -15,29 +15,31 @@ import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {
   NetworkControllerMessenger,
   NetworkState,
+  ProviderProxy,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
-} from '../../network-controller/tests/helpers';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
+} from '../../network-controller/tests/helpers.js';
+import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
-} from './gas-util';
-import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
+} from './gas-util.js';
+import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController.js';
 import type {
   GasFeeMessenger,
   GasFeeState,
   GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
-} from './GasFeeController';
+} from './GasFeeController.js';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -278,6 +280,7 @@ describe('GasFeeController', () => {
    *
    * @param options - The options.
    * @param options.getChainId - Sets getChainId on the GasFeeController.
+   * @param options.getProvider - Sets getProvider on the GasFeeController.
    * @param options.onNetworkDidChange - A function for registering an event handler for the
    * @param options.getIsEIP1559Compatible - Sets getCurrentNetworkEIP1559Compatibility on the
    * GasFeeController.
@@ -292,6 +295,7 @@ describe('GasFeeController', () => {
    * @param options.state - The initial GasFeeController state
    * @param options.initializeNetworkProvider - Whether to instruct the
    * NetworkController to initialize its provider.
+   * @returns The root messenger, so tests can publish network events to it.
    */
   async function setupGasFeeController({
     getIsEIP1559Compatible = jest.fn().mockResolvedValue(true),
@@ -302,6 +306,7 @@ describe('GasFeeController', () => {
     EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
     clientId,
     getChainId,
+    getProvider = jest.fn(),
     onNetworkDidChange,
     networkControllerState = {},
     state,
@@ -309,6 +314,7 @@ describe('GasFeeController', () => {
     initializeNetworkProvider = true,
   }: {
     getChainId?: jest.Mock<Hex>;
+    getProvider?: jest.Mock<ProviderProxy>;
     onNetworkDidChange?: jest.Mock<void>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
@@ -328,7 +334,7 @@ describe('GasFeeController', () => {
     });
     const restrictedMessenger = getGasFeeControllerMessenger(rootMessenger);
     gasFeeController = new GasFeeController({
-      getProvider: jest.fn(),
+      getProvider,
       getChainId,
       onNetworkDidChange,
       messenger: restrictedMessenger,
@@ -340,6 +346,7 @@ describe('GasFeeController', () => {
       clientId,
       interval,
     });
+    return { rootMessenger };
   }
 
   beforeEach(() => {
@@ -365,6 +372,110 @@ describe('GasFeeController', () => {
 
     it('should set the name of the controller to GasFeeController', () => {
       expect(gasFeeController.name).toBe(name);
+    });
+
+    describe('initialization-order independence', () => {
+      /**
+       * Builds a messenger whose NetworkController action handlers throw if
+       * called, so that a test can assert the constructor never reads from the
+       * NetworkController.
+       *
+       * @returns The messenger along with spies for its handlers.
+       */
+      const getMessengerWithThrowingNetworkHandlers = (): {
+        messenger: ReturnType<typeof getGasFeeControllerMessenger>;
+        getState: jest.Mock;
+        getNetworkClientById: jest.Mock;
+      } => {
+        const rootMessenger = getRootMessenger();
+        const getState = jest.fn(() => {
+          throw new Error('NetworkController:getState should not be called');
+        });
+        const getNetworkClientById = jest.fn(() => {
+          throw new Error(
+            'NetworkController:getNetworkClientById should not be called',
+          );
+        });
+        rootMessenger.registerActionHandler(
+          'NetworkController:getState',
+          getState,
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkController:getNetworkClientById',
+          getNetworkClientById,
+        );
+        return {
+          messenger: getGasFeeControllerMessenger(rootMessenger),
+          getState,
+          getNetworkClientById,
+        };
+      };
+
+      it('does not read the chain ID or provider from the network when constructed without getChainId/onNetworkDidChange', () => {
+        const { messenger, getState, getNetworkClientById } =
+          getMessengerWithThrowingNetworkHandlers();
+        const getProvider = jest.fn(() => {
+          throw new Error('getProvider should not be called');
+        });
+
+        let controller: GasFeeController | undefined;
+        expect(() => {
+          controller = new GasFeeController({
+            messenger,
+            getProvider,
+            getCurrentNetworkLegacyGasAPICompatibility: jest
+              .fn()
+              .mockReturnValue(false),
+            getCurrentNetworkEIP1559Compatibility: jest
+              .fn()
+              .mockResolvedValue(true),
+            EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
+          });
+        }).not.toThrow();
+
+        expect(getState).not.toHaveBeenCalled();
+        expect(getNetworkClientById).not.toHaveBeenCalled();
+        expect(getProvider).not.toHaveBeenCalled();
+
+        controller?.destroy();
+      });
+
+      it('does not read the chain ID or provider from the network when constructed with getChainId/onNetworkDidChange', () => {
+        const { messenger, getState, getNetworkClientById } =
+          getMessengerWithThrowingNetworkHandlers();
+        const getProvider = jest.fn(() => {
+          throw new Error('getProvider should not be called');
+        });
+        const getChainId = jest.fn(() => {
+          throw new Error('getChainId should not be called');
+        });
+        const onNetworkDidChange = jest.fn();
+
+        let controller: GasFeeController | undefined;
+        expect(() => {
+          controller = new GasFeeController({
+            messenger,
+            getProvider,
+            getChainId,
+            onNetworkDidChange,
+            getCurrentNetworkLegacyGasAPICompatibility: jest
+              .fn()
+              .mockReturnValue(false),
+            getCurrentNetworkEIP1559Compatibility: jest
+              .fn()
+              .mockResolvedValue(true),
+            EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
+          });
+        }).not.toThrow();
+
+        expect(getState).not.toHaveBeenCalled();
+        expect(getNetworkClientById).not.toHaveBeenCalled();
+        expect(getProvider).not.toHaveBeenCalled();
+        expect(getChainId).not.toHaveBeenCalled();
+        expect(onNetworkDidChange).toHaveBeenCalledTimes(1);
+
+        controller?.destroy();
+      });
     });
   });
 
@@ -1291,6 +1402,112 @@ describe('GasFeeController', () => {
           )}`,
         }),
       );
+    });
+  });
+
+  describe('when the selected network changes', () => {
+    it('updates the chain ID used for the next fetch when notified via the onNetworkDidChange callback', async () => {
+      let networkDidChangeListener:
+        | ((networkControllerState: NetworkState) => Promise<void>)
+        | undefined;
+      const onNetworkDidChange = jest.fn((listener) => {
+        networkDidChangeListener = listener;
+      });
+      await setupGasFeeController({
+        getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
+        EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
+        getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
+        onNetworkDidChange,
+      });
+
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.mainnet,
+          )}`,
+        }),
+      );
+
+      // Simulate the network switching to Sepolia.
+      await networkDidChangeListener?.({
+        selectedNetworkClientId: 'sepolia',
+      } as NetworkState);
+
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.sepolia,
+          )}`,
+        }),
+      );
+    });
+
+    it('updates the chain ID used for the next fetch when notified via NetworkController:networkDidChange', async () => {
+      const { rootMessenger } = await setupGasFeeController({
+        EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
+        initializeNetworkProvider: false,
+      });
+
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.mainnet,
+          )}`,
+        }),
+      );
+
+      // Simulate the network switching to Sepolia.
+      rootMessenger.publish('NetworkController:networkDidChange', {
+        selectedNetworkClientId: 'sepolia',
+      } as NetworkState);
+      await flushPromises();
+
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.sepolia,
+          )}`,
+        }),
+      );
+    });
+
+    it('reads the provider once, caches the eth query, then rebuilds it from the provider after a network change', async () => {
+      const provider1 = { id: 1 } as unknown as ProviderProxy;
+      const provider2 = { id: 2 } as unknown as ProviderProxy;
+      const getProvider = jest
+        .fn<ProviderProxy, []>()
+        .mockReturnValueOnce(provider1)
+        .mockReturnValueOnce(provider2);
+      const { rootMessenger } = await setupGasFeeController({
+        getProvider,
+        EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
+        initializeNetworkProvider: false,
+      });
+
+      // The provider is read lazily on the first fetch, and the resulting eth
+      // query is cached across subsequent fetches.
+      await gasFeeController.fetchGasFeeEstimates();
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(getProvider).toHaveBeenCalledTimes(1);
+      const ethQueryBeforeChange =
+        mockedDetermineGasFeeCalculations.mock.lastCall?.[0].ethQuery;
+
+      // Simulate the network switching to Sepolia.
+      rootMessenger.publish('NetworkController:networkDidChange', {
+        selectedNetworkClientId: 'sepolia',
+      } as NetworkState);
+      await flushPromises();
+
+      // The next fetch rebuilds the eth query from the provider.
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(getProvider).toHaveBeenCalledTimes(2);
+      const ethQueryAfterChange =
+        mockedDetermineGasFeeCalculations.mock.lastCall?.[0].ethQuery;
+      expect(ethQueryAfterChange).not.toBe(ethQueryBeforeChange);
     });
   });
 

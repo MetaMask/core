@@ -14,9 +14,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
     "no-negated-condition": {
       "count": 3
     },
@@ -37,7 +34,7 @@
       "count": 1
     },
     "n/no-sync": {
-      "count": 22
+      "count": 29
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
@@ -160,12 +157,12 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 7
+      "count": 3
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 6
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
@@ -175,7 +172,7 @@
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
@@ -631,6 +628,11 @@
       "count": 3
     }
   },
+  "packages/base-data-service/src/createServicePolicy.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/bridge-controller/src/utils/assets.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -638,14 +640,6 @@
   },
   "packages/bridge-controller/src/utils/balance.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/bridge-controller/src/utils/bridge.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
-    "id-denylist": {
       "count": 1
     }
   },
@@ -671,11 +665,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/metrics/properties.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    }
-  },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -684,11 +673,6 @@
       "count": 2
     },
     "id-length": {
-      "count": 2
-    }
-  },
-  "packages/bridge-controller/src/utils/quote.ts": {
-    "no-restricted-syntax": {
       "count": 2
     }
   },
@@ -710,14 +694,6 @@
   "packages/bridge-controller/src/utils/trade-utils.ts": {
     "no-restricted-globals": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 5
-    }
-  },
-  "packages/bridge-controller/tests/mock-sse.ts": {
-    "id-length": {
-      "count": 2
     }
   },
   "packages/bridge-status-controller/src/utils/snaps.ts": {
@@ -821,7 +797,7 @@
   },
   "packages/config-registry-controller/src/index.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/controller-utils/src/create-service-policy.ts": {
@@ -850,11 +826,6 @@
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/ws/BackendWebSocketService.test.ts": {
     "no-restricted-syntax": {
       "count": 1
     }
@@ -1116,7 +1087,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 16
+      "count": 14
     }
   },
   "packages/gas-fee-controller/src/gas-util.ts": {
@@ -1247,11 +1218,6 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/src/providers/BtcAccountProvider.test.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/providers/BtcAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
@@ -1273,6 +1239,11 @@
     }
   },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
     }
@@ -1670,9 +1641,6 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
     "id-length": {
       "count": 4
     },
@@ -2021,11 +1989,6 @@
       "count": 10
     }
   },
-  "packages/seedless-onboarding-controller/src/errors.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
     "no-restricted-syntax": {
       "count": 5
@@ -2208,27 +2171,22 @@
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/errors.ts": {
     "no-restricted-syntax": {
       "count": 1
-    }
-  },
-  "packages/subscription-controller/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 2
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
@@ -2254,11 +2212,6 @@
   "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NetworkController } from './NetworkController';
+import type { NetworkController } from './NetworkController.js';
 
 /**
  * Returns the EthQuery instance for the currently selected network.
@@ -14,26 +14,6 @@ import type { NetworkController } from './NetworkController';
 export type NetworkControllerGetEthQueryAction = {
   type: `NetworkController:getEthQuery`;
   handler: NetworkController['getEthQuery'];
-};
-
-/**
- * Enables the RPC failover functionality. That is, if any RPC endpoints are
- * configured with failover URLs, then traffic will automatically be diverted
- * to them if those RPC endpoints are unavailable.
- */
-export type NetworkControllerEnableRpcFailoverAction = {
-  type: `NetworkController:enableRpcFailover`;
-  handler: NetworkController['enableRpcFailover'];
-};
-
-/**
- * Disables the RPC failover functionality. That is, even if any RPC endpoints
- * are configured with failover URLs, then traffic will not automatically be
- * diverted to them if those RPC endpoints are unavailable.
- */
-export type NetworkControllerDisableRpcFailoverAction = {
-  type: `NetworkController:disableRpcFailover`;
-  handler: NetworkController['disableRpcFailover'];
 };
 
 /**
@@ -309,8 +289,6 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
  */
 export type NetworkControllerMethodActions =
   | NetworkControllerGetEthQueryAction
-  | NetworkControllerEnableRpcFailoverAction
-  | NetworkControllerDisableRpcFailoverAction
   | NetworkControllerGetProviderAndBlockTrackerAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetSelectedChainIdAction

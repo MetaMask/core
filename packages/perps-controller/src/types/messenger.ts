@@ -6,6 +6,10 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
+import type {
+  AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
+  AuthenticatedUserStorageServicePutNotificationPreferencesAction,
+} from '@metamask/authenticated-user-storage';
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -38,7 +42,9 @@ export type PerpsControllerAllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
-  | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
+  | AuthenticatedUserStorageServicePutNotificationPreferencesAction;
 
 /**
  * Events from other controllers that PerpsController is allowed to subscribe to.

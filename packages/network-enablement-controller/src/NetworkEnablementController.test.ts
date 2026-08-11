@@ -1,27 +1,37 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import {
+  ConfigRegistryControllerGetStateAction,
+  RegistryNetworkConfig,
+} from '@metamask/config-registry-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
-import { RpcEndpointType } from '@metamask/network-controller';
+import {
+  MultichainNetworkControllerGetStateAction,
+  toEvmCaipChainId,
+} from '@metamask/multichain-network-controller';
+import {
+  NetworkControllerGetStateAction,
+  RpcEndpointType,
+} from '@metamask/network-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { POPULAR_NETWORKS } from './constants';
-import { NetworkEnablementController } from './NetworkEnablementController';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { POPULAR_NETWORKS } from './constants.js';
+import { NetworkEnablementController } from './NetworkEnablementController.js';
 import type {
   NetworkEnablementControllerMessenger,
   NativeAssetIdentifiersMap,
-} from './NetworkEnablementController';
-import { Slip44Service } from './services';
+} from './NetworkEnablementController.js';
+import { Slip44Service } from './services/index.js';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {
@@ -71,36 +81,85 @@ function getRootMessenger(): RootMessenger {
   });
 }
 
-type MultichainGetStateReturn = {
-  multichainNetworkConfigurationsByChainId: Record<string, unknown>;
-  selectedMultichainNetworkChainId: string;
-  isEvmSelected: boolean;
-  networksWithTransactionActivity: Record<string, unknown>;
-};
-
-const defaultMultichainGetState = (): MultichainGetStateReturn => ({
-  multichainNetworkConfigurationsByChainId: {
-    [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
-    [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
-    [TrxScope.Mainnet]: { chainId: TrxScope.Mainnet, name: 'Tron' },
-  },
-  selectedMultichainNetworkChainId: 'eip155:1',
-  isEvmSelected: true,
-  networksWithTransactionActivity: {},
-});
+/**
+ * Creates a mock RegistryNetworkConfig object with default values, which can be overridden by the provided `overrides` parameter.
+ *
+ * @param overrides - Optional properties to override in the default config.
+ * @returns A mock RegistryNetworkConfig object.
+ */
+function createMockRegistryNetworkConfig(
+  overrides: Partial<RegistryNetworkConfig> = {},
+): RegistryNetworkConfig {
+  const base: RegistryNetworkConfig = {
+    chainId: 'eip155:1',
+    name: 'Ethereum Mainnet',
+    imageUrl:
+      'https://token.api.cx.metamask.io/assets/networkLogos/ethereum.svg',
+    coingeckoPlatformId: 'ethereum',
+    geckoTerminalPlatformId: 'eth',
+    assets: {
+      listUrl: 'https://tokens.api.cx.metamask.io/v3/chains/eip155:1/assets',
+      native: {
+        assetId: 'eip155:1/slip44:60',
+        imageUrl:
+          'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/1/slip44/60.png',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        coingeckoCoinId: 'ethereum',
+      },
+    },
+    rpcProviders: {
+      default: {
+        url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+        type: 'infura',
+        networkClientId: 'mainnet',
+      },
+      fallbacks: [],
+    },
+    blockExplorerUrls: {
+      default: 'https://etherscan.io',
+      fallbacks: [],
+    },
+    config: {
+      isActive: true,
+      isTestnet: false,
+      isDefault: true,
+      isFeatured: true,
+      isDeprecated: false,
+      isDeletable: false,
+      priority: 0,
+    },
+  };
+  const { config: configOverride, ...rest } = overrides;
+  return {
+    ...base,
+    ...rest,
+    config: configOverride
+      ? { ...base.config, ...configOverride }
+      : base.config,
+  };
+}
 
 const setupController = ({
   config,
-  multichainGetState = defaultMultichainGetState,
 }: {
   config?: Partial<
     ConstructorParameters<typeof NetworkEnablementController>[0]
   >;
-  multichainGetState?: () => MultichainGetStateReturn;
 } = {}): {
   controller: NetworkEnablementController;
   rootMessenger: RootMessenger;
   messenger: NetworkEnablementControllerMessenger;
+  configRegistryControllerGetStateMock: jest.MockedFunction<
+    ConfigRegistryControllerGetStateAction['handler']
+  >;
+  networkControllerGetStateMock: jest.MockedFunction<
+    NetworkControllerGetStateAction['handler']
+  >;
+  multichainNetworkControllerGetStateMock: jest.MockedFunction<
+    MultichainNetworkControllerGetStateAction['handler']
+  >;
 } => {
   const rootMessenger = getRootMessenger();
 
@@ -117,6 +176,7 @@ const setupController = ({
   rootMessenger.delegate({
     messenger: networkEnablementControllerMessenger,
     actions: [
+      'ConfigRegistryController:getState',
       'NetworkController:getState',
       'MultichainNetworkController:getState',
     ],
@@ -128,29 +188,70 @@ const setupController = ({
     ],
   });
 
+  const networkControllerGetStateMock: jest.MockedFunction<
+    NetworkControllerGetStateAction['handler']
+  > = jest.fn().mockImplementation(() => ({
+    networkConfigurationsByChainId: {
+      '0x1': {
+        defaultRpcEndpointIndex: 0,
+        rpcEndpoints: [{}],
+      },
+      '0xe708': {
+        defaultRpcEndpointIndex: 0,
+        rpcEndpoints: [{}],
+      },
+      '0x2105': {
+        defaultRpcEndpointIndex: 0,
+        rpcEndpoints: [{}],
+      },
+    },
+  }));
+
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
-    jest.fn().mockImplementation(() => ({
-      networkConfigurationsByChainId: {
-        '0x1': {
-          defaultRpcEndpointIndex: 0,
-          rpcEndpoints: [{}],
-        },
-        '0xe708': {
-          defaultRpcEndpointIndex: 0,
-          rpcEndpoints: [{}],
-        },
-        '0x2105': {
-          defaultRpcEndpointIndex: 0,
-          rpcEndpoints: [{}],
-        },
-      },
-    })),
+    networkControllerGetStateMock,
   );
+
+  const multichainNetworkControllerGetStateMock: jest.MockedFunction<
+    MultichainNetworkControllerGetStateAction['handler']
+  > = jest.fn().mockImplementation(() => ({
+    multichainNetworkConfigurationsByChainId: {
+      [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
+      [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
+      [TrxScope.Mainnet]: { chainId: TrxScope.Mainnet, name: 'Tron' },
+      [XlmScope.Pubnet]: { chainId: XlmScope.Pubnet, name: 'Stellar' },
+    },
+    selectedMultichainNetworkChainId: 'eip155:1',
+    isEvmSelected: true,
+    networksWithTransactionActivity: {},
+  }));
 
   rootMessenger.registerActionHandler(
     'MultichainNetworkController:getState',
-    jest.fn().mockImplementation(multichainGetState),
+    jest.fn().mockImplementation(multichainNetworkControllerGetStateMock),
+  );
+
+  const configRegistryControllerGetStateMock: jest.MockedFunction<
+    ConfigRegistryControllerGetStateAction['handler']
+  > = jest.fn().mockImplementation(() => ({
+    configs: {
+      networks: {
+        'eip155:9999': {
+          chainId: 'eip155:9999',
+          config: {
+            isDefault: false,
+            isFeatured: true,
+            isActive: true,
+            isTestnet: false,
+          },
+        },
+      },
+    },
+  }));
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    configRegistryControllerGetStateMock,
   );
 
   const controller = new NetworkEnablementController({
@@ -162,6 +263,9 @@ const setupController = ({
     controller,
     rootMessenger,
     messenger: networkEnablementControllerMessenger,
+    configRegistryControllerGetStateMock,
+    multichainNetworkControllerGetStateMock,
+    networkControllerGetStateMock,
   };
 };
 
@@ -211,6 +315,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -268,6 +376,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: {
@@ -332,6 +444,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: expectedNativeAssetIdentifiers,
@@ -476,6 +592,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
         },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Pubnet]: true,
+          [XlmScope.Testnet]: false,
+        },
       },
       nativeAssetIdentifiers: expectedNativeAssetIdentifiersForFallback,
     });
@@ -576,6 +696,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         // init() populates nativeAssetIdentifiers from NetworkController (EVM networks only)
@@ -1132,61 +1256,73 @@ describe('NetworkEnablementController', () => {
 
   describe('enableAllPopularNetworks', () => {
     it('enables all popular networks that exist in controller configurations and Solana mainnet', () => {
-      const { controller, messenger } = setupController();
-
-      // Mock the network configurations
-      jest
-        .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((actionType: string, ..._args: any[]): any => {
-          if (actionType === 'NetworkController:getState') {
-            return {
-              selectedNetworkClientId: 'mainnet',
-              networkConfigurationsByChainId: {
-                '0x1': {
-                  chainId: '0x1',
-                  name: 'Ethereum Mainnet',
-                  nativeCurrency: 'ETH',
-                },
-                '0xe708': {
-                  chainId: '0xe708',
-                  name: 'Linea Mainnet',
-                  nativeCurrency: 'ETH',
-                },
-                '0x2105': {
-                  chainId: '0x2105',
-                  name: 'Base Mainnet',
-                  nativeCurrency: 'ETH',
-                },
-              },
-              networksMetadata: {},
-            };
-          }
-          if (actionType === 'MultichainNetworkController:getState') {
-            return {
-              multichainNetworkConfigurationsByChainId: {
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
-                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-                  name: 'Solana Mainnet',
-                  nativeCurrency: 'SOL',
-                },
-                [BtcScope.Mainnet]: {
-                  chainId: BtcScope.Mainnet,
-                  name: 'Bitcoin Mainnet',
-                },
-                [TrxScope.Mainnet]: {
-                  chainId: TrxScope.Mainnet,
-                  name: 'Tron Mainnet',
-                },
-              },
-              selectedMultichainNetworkChainId:
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-              isEvmSelected: false,
-              networksWithTransactionActivity: {},
-            };
-          }
-          throw new Error(`Unexpected action type: ${actionType}`);
-        });
+      const {
+        controller,
+        networkControllerGetStateMock,
+        multichainNetworkControllerGetStateMock,
+      } = setupController();
+      networkControllerGetStateMock.mockReturnValue({
+        selectedNetworkClientId: 'mainnet',
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+          '0xe708': {
+            chainId: '0xe708',
+            name: 'Linea Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+          '0x2105': {
+            chainId: '0x2105',
+            name: 'Base Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+        },
+        networksMetadata: {},
+      });
+      multichainNetworkControllerGetStateMock.mockReturnValue({
+        multichainNetworkConfigurationsByChainId: {
+          [SolScope.Mainnet]: {
+            chainId: SolScope.Mainnet,
+            name: 'Solana Mainnet',
+            isEvm: false,
+            nativeCurrency:
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+          },
+          [BtcScope.Mainnet]: {
+            chainId: BtcScope.Mainnet,
+            name: 'Bitcoin Mainnet',
+            isEvm: false,
+            nativeCurrency: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+          },
+          [TrxScope.Mainnet]: {
+            chainId: TrxScope.Mainnet,
+            name: 'Tron Mainnet',
+            isEvm: false,
+            nativeCurrency: 'tron:728126428/slip44:195',
+          },
+          [XlmScope.Pubnet]: {
+            chainId: XlmScope.Pubnet,
+            name: 'Stellar Mainnet',
+            isEvm: false,
+            nativeCurrency: 'stellar:pubnet/slip44:148',
+          },
+        },
+        selectedMultichainNetworkChainId: SolScope.Mainnet,
+        isEvmSelected: false,
+        networksWithTransactionActivity: {},
+      });
 
       // Initially disable some networks
       controller.disableNetwork('0xe708'); // Linea
@@ -1219,6 +1355,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1255,57 +1395,55 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
     it('enables all popular networks from constants', () => {
-      const { controller, messenger } = setupController();
+      const {
+        controller,
+        multichainNetworkControllerGetStateMock,
+        networkControllerGetStateMock,
+      } = setupController();
 
-      // Mock all popular networks to be available in configurations
-      jest.spyOn(messenger, 'call').mockImplementation(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (actionType: string, ..._args: any[]): any => {
-          if (actionType === 'NetworkController:getState') {
-            // Create mock configurations for all popular networks
-            const networkConfigurationsByChainId = POPULAR_NETWORKS.reduce(
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (acc: any, chainId: string) => {
-                acc[chainId] = { chainId, name: `Network ${chainId}` };
-                return acc;
-              },
-              {},
-            );
-            return {
-              selectedNetworkClientId: 'mainnet',
-              networkConfigurationsByChainId,
-              networksMetadata: {},
-            };
-          }
-          if (actionType === 'MultichainNetworkController:getState') {
-            return {
-              multichainNetworkConfigurationsByChainId: {
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
-                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-                  name: 'Solana Mainnet',
-                  nativeCurrency: 'SOL',
-                },
-                [BtcScope.Mainnet]: {
-                  chainId: BtcScope.Mainnet,
-                  name: 'Bitcoin Mainnet',
-                },
-              },
-              selectedMultichainNetworkChainId:
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-              isEvmSelected: false,
-              networksWithTransactionActivity: {},
-            };
-          }
-          throw new Error(`Unexpected action type: ${actionType}`);
+      multichainNetworkControllerGetStateMock.mockReturnValue({
+        multichainNetworkConfigurationsByChainId: {
+          [SolScope.Mainnet]: {
+            chainId: SolScope.Mainnet,
+            name: 'Solana Mainnet',
+            isEvm: false,
+            nativeCurrency:
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+          },
+          [BtcScope.Mainnet]: {
+            chainId: BtcScope.Mainnet,
+            name: 'Bitcoin Mainnet',
+            isEvm: false,
+            nativeCurrency: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+          },
         },
-      );
+        selectedMultichainNetworkChainId: SolScope.Mainnet,
+        isEvmSelected: false,
+        networksWithTransactionActivity: {},
+      });
 
+      networkControllerGetStateMock.mockReturnValue({
+        selectedNetworkClientId: 'mainnet',
+        networksMetadata: {},
+        networkConfigurationsByChainId: POPULAR_NETWORKS.reduce(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (acc: any, chainId: string) => {
+            acc[chainId] = { chainId, name: `Network ${chainId}` };
+            return acc;
+          },
+          {},
+        ),
+      });
       // The function should enable all popular networks defined in constants
       expect(() => controller.enableAllPopularNetworks()).not.toThrow();
 
@@ -1337,64 +1475,219 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
     });
 
-    it('disables existing networks and enables only popular networks (exclusive behavior)', async () => {
-      const { controller, rootMessenger, messenger } = setupController();
+    it('enables all popular networks from config registry controller', () => {
+      const {
+        controller,
+        networkControllerGetStateMock,
+        configRegistryControllerGetStateMock,
+      } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {},
+            },
+          },
+        },
+      });
 
-      // Mock the network configurations to include popular networks
-      jest
-        .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((actionType: string, ..._args: any[]): any => {
-          if (actionType === 'NetworkController:getState') {
-            return {
-              selectedNetworkClientId: 'mainnet',
-              networkConfigurationsByChainId: {
-                '0x1': {
-                  chainId: '0x1',
-                  name: 'Ethereum Mainnet',
-                  nativeCurrency: 'ETH',
-                },
-                '0xe708': {
-                  chainId: '0xe708',
-                  name: 'Linea Mainnet',
-                  nativeCurrency: 'ETH',
-                },
-                '0x2105': {
-                  chainId: '0x2105',
-                  name: 'Base Mainnet',
-                  nativeCurrency: 'ETH',
-                },
-                '0x2': { chainId: '0x2', name: 'Test Network' }, // Non-popular network
+      networkControllerGetStateMock.mockReturnValue({
+        selectedNetworkClientId: 'mainnet',
+        networksMetadata: {},
+        networkConfigurationsByChainId: {
+          '0x270f': {
+            chainId: '0x270f',
+            name: 'Some Network',
+            nativeCurrency: 'SNET',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+        },
+      });
+
+      configRegistryControllerGetStateMock.mockReturnValue({
+        configs: {
+          networks: {
+            'eip155:9999': createMockRegistryNetworkConfig({
+              chainId: 'eip155:9999',
+            }),
+          },
+        },
+        version: '1',
+        lastFetched: Date.now(),
+        etag: 'mock-etag',
+      });
+
+      controller.enableAllPopularNetworks();
+
+      expect(controller.isNetworkEnabled('0x270f')).toBe(true);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155]['0x270f'],
+      ).toBe(true);
+    });
+
+    it.each([
+      {
+        isActive: false,
+        isFeatured: true,
+        isTestnet: false,
+      },
+      {
+        isActive: true,
+        isFeatured: false,
+        isTestnet: false,
+        isDefault: true,
+        isDeletable: true,
+        isDeprecated: false,
+        priority: 1,
+      },
+      {
+        isActive: true,
+        isFeatured: true,
+        isTestnet: true,
+        isDefault: true,
+        isDeletable: true,
+        isDeprecated: false,
+        priority: 1,
+      },
+    ])(
+      'disables all networks that are set as not popular in the config registry controller',
+      (config) => {
+        const {
+          controller,
+          networkControllerGetStateMock,
+          configRegistryControllerGetStateMock,
+        } = setupController({
+          config: {
+            state: {
+              enabledNetworkMap: {
+                [KnownCaipNamespace.Eip155]: {},
               },
-              networksMetadata: {},
-            };
-          }
-          if (actionType === 'MultichainNetworkController:getState') {
-            return {
-              multichainNetworkConfigurationsByChainId: {
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
-                  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-                  name: 'Solana Mainnet',
-                  nativeCurrency: 'SOL',
-                },
-                [BtcScope.Mainnet]: {
-                  chainId: BtcScope.Mainnet,
-                  name: 'Bitcoin Mainnet',
-                },
-              },
-              selectedMultichainNetworkChainId:
-                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-              isEvmSelected: false,
-              networksWithTransactionActivity: {},
-            };
-          }
-          throw new Error(`Unexpected action type: ${actionType}`);
+            },
+          },
         });
+
+        networkControllerGetStateMock.mockReturnValue({
+          selectedNetworkClientId: 'mainnet',
+          networksMetadata: {},
+          networkConfigurationsByChainId: {
+            '0x270f': {
+              chainId: '0x270f',
+              name: 'Some Network',
+              nativeCurrency: 'SNET',
+              blockExplorerUrls: [],
+              defaultRpcEndpointIndex: 0,
+              rpcEndpoints: [],
+            },
+          },
+        });
+
+        configRegistryControllerGetStateMock.mockReturnValue({
+          configs: {
+            networks: {
+              'eip155:9999': createMockRegistryNetworkConfig({
+                chainId: 'eip155:9999',
+                config: {
+                  ...config,
+                  isDefault: true,
+                  isDeletable: true,
+                  isDeprecated: false,
+                  priority: 1,
+                },
+              }),
+            },
+          },
+          version: '1',
+          lastFetched: Date.now(),
+          etag: 'mock-etag',
+        });
+
+        controller.enableAllPopularNetworks();
+
+        expect(controller.isNetworkEnabled('0x270f')).toBe(false);
+        expect(
+          controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155][
+            '0x270f'
+          ],
+        ).toBeUndefined();
+      },
+    );
+
+    it('disables existing networks and enables only popular networks (exclusive behavior)', async () => {
+      const {
+        controller,
+        rootMessenger,
+        networkControllerGetStateMock,
+        multichainNetworkControllerGetStateMock,
+      } = setupController();
+      networkControllerGetStateMock.mockReturnValue({
+        selectedNetworkClientId: 'mainnet',
+        networkConfigurationsByChainId: {
+          '0x1': {
+            chainId: '0x1',
+            name: 'Ethereum Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+          '0xe708': {
+            chainId: '0xe708',
+            name: 'Linea Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+          '0x2105': {
+            chainId: '0x2105',
+            name: 'Base Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+          // Non-popular network
+          '0x2': {
+            chainId: '0x2',
+            name: 'Test Network',
+            nativeCurrency: 'TEST',
+            blockExplorerUrls: [],
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [],
+          },
+        },
+        networksMetadata: {},
+      });
+      multichainNetworkControllerGetStateMock.mockReturnValue({
+        multichainNetworkConfigurationsByChainId: {
+          [SolScope.Mainnet]: {
+            chainId: SolScope.Mainnet,
+            name: 'Solana Mainnet',
+            isEvm: false as const,
+            nativeCurrency:
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+          },
+          [BtcScope.Mainnet]: {
+            chainId: BtcScope.Mainnet,
+            name: 'Bitcoin Mainnet',
+            isEvm: false as const,
+            nativeCurrency: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+          },
+        },
+        selectedMultichainNetworkChainId: SolScope.Mainnet,
+        isEvmSelected: false,
+        networksWithTransactionActivity: {},
+      });
 
       // Add a non-popular network
       rootMessenger.publish('NetworkController:networkAdded', {
@@ -1437,44 +1730,32 @@ describe('NetworkEnablementController', () => {
     });
 
     it('enables Bitcoin mainnet when configured in MultichainNetworkController', () => {
-      const { controller, messenger } = setupController();
-
-      // Mock the network configurations to include Bitcoin
-      jest
-        .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((actionType: string, ..._args: unknown[]): any => {
-          const responses = {
-            'NetworkController:getState': {
-              selectedNetworkClientId: 'mainnet',
-              networkConfigurationsByChainId: {},
-              networksMetadata: {},
-            },
-            'MultichainNetworkController:getState': {
-              multichainNetworkConfigurationsByChainId: {
-                [BtcScope.Mainnet]: {
-                  chainId: BtcScope.Mainnet,
-                  name: 'Bitcoin Mainnet',
-                  isEvm: false as const,
-                  nativeCurrency:
-                    'bip122:000000000019d6689c085ae165831e93/slip44:0' as `${string}:${string}/${string}:${string}`,
+      const { controller, multichainNetworkControllerGetStateMock } =
+        setupController({
+          config: {
+            state: {
+              enabledNetworkMap: {
+                [KnownCaipNamespace.Bip122]: {
+                  [BtcScope.Mainnet]: false, // Initially disabled
                 },
               },
-              selectedMultichainNetworkChainId: BtcScope.Mainnet,
-              isEvmSelected: false,
-              networksWithTransactionActivity: {},
             },
-          };
-          return responses[actionType as keyof typeof responses];
+          },
         });
-
-      // Initially disable Bitcoin to test enablement
-      // eslint-disable-next-line dot-notation
-      controller['update']((state) => {
-        state.enabledNetworkMap[KnownCaipNamespace.Bip122][BtcScope.Mainnet] =
-          false;
+      multichainNetworkControllerGetStateMock.mockReturnValue({
+        multichainNetworkConfigurationsByChainId: {
+          [BtcScope.Mainnet]: {
+            chainId: BtcScope.Mainnet,
+            name: 'Bitcoin Mainnet',
+            isEvm: false as const,
+            nativeCurrency:
+              'bip122:000000000019d6689c085ae165831e93/slip44:0' as `${string}:${string}/${string}:${string}`,
+          },
+        },
+        selectedMultichainNetworkChainId: BtcScope.Mainnet,
+        isEvmSelected: false,
+        networksWithTransactionActivity: {},
       });
-
       expect(controller.isNetworkEnabled(BtcScope.Mainnet)).toBe(false);
 
       // enableAllPopularNetworks should re-enable Bitcoin when it exists in config
@@ -1519,6 +1800,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
@@ -1553,6 +1838,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1609,6 +1898,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
@@ -1648,6 +1941,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
@@ -1686,6 +1983,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: {
@@ -1737,6 +2038,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
@@ -1778,6 +2083,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1834,6 +2143,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
@@ -1880,6 +2193,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1930,6 +2247,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Pubnet]: true,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
@@ -1952,6 +2273,82 @@ describe('NetworkEnablementController', () => {
       expect(() => controller.disableNetwork('invalid')).toThrow(
         'Value must be a hexadecimal string.',
       );
+    });
+  });
+
+  describe('restoreEnabledNetworkMap', () => {
+    it('restores the enabled network map to a previously snapshotted state', () => {
+      const { controller } = setupController();
+      const previousEnabledNetworkMap = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      controller.enableNetwork('0xa4b1');
+
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(previousEnabledNetworkMap);
+
+      expect(controller.state.enabledNetworkMap).toStrictEqual(
+        previousEnabledNetworkMap,
+      );
+    });
+
+    it('disables networks missing from the restored snapshot', () => {
+      const { controller } = setupController();
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      controller.restoreEnabledNetworkMap({});
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+    });
+
+    it('undoes the filter switch after networkAdded when adding without setActive', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      controller.disableNetwork('0xe708');
+      controller.disableNetwork('0x2105');
+
+      const snapshot = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x999',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Custom Network',
+        nativeCurrency: 'CUSTOM',
+        rpcEndpoints: [
+          {
+            url: 'https://custom.network/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.isNetworkEnabled('0x999')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(snapshot);
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+      expect(controller.isNetworkEnabled('0x999')).toBe(false);
     });
   });
 
@@ -2166,24 +2563,25 @@ describe('NetworkEnablementController', () => {
       const { controller } = setupController();
       const result = controller.listPopularNetworks();
 
-      // Default setup: 3 EVM (0x1, 0xe708, 0x2105) + 3 multichain (Btc, Sol, Trx)
+      // Default setup: 3 EVM (0x1, 0xe708, 0x2105) + 4 multichain (Btc, Sol, Trx, Stellar)
       expect(result).toContain('eip155:1');
       expect(result).toContain('eip155:59144');
       expect(result).toContain('eip155:8453');
       expect(result).toContain(BtcScope.Mainnet);
       expect(result).toContain(SolScope.Mainnet);
       expect(result).toContain(TrxScope.Mainnet);
-      expect(result).toHaveLength(6);
+      expect(result).toContain(XlmScope.Pubnet);
+      expect(result).toHaveLength(7);
     });
 
     it('excludes multichain mainnets when not in MultichainNetworkController state', () => {
-      const { controller } = setupController({
-        multichainGetState: () => ({
-          multichainNetworkConfigurationsByChainId: {},
-          selectedMultichainNetworkChainId: 'eip155:1',
-          isEvmSelected: true,
-          networksWithTransactionActivity: {},
-        }),
+      const { controller, multichainNetworkControllerGetStateMock } =
+        setupController({});
+      multichainNetworkControllerGetStateMock.mockReturnValue({
+        multichainNetworkConfigurationsByChainId: {},
+        selectedMultichainNetworkChainId: SolScope.Devnet,
+        isEvmSelected: true,
+        networksWithTransactionActivity: {},
       });
       const result = controller.listPopularNetworks();
 
@@ -2193,6 +2591,7 @@ describe('NetworkEnablementController', () => {
       expect(result).not.toContain(BtcScope.Mainnet);
       expect(result).not.toContain(SolScope.Mainnet);
       expect(result).not.toContain(TrxScope.Mainnet);
+      expect(result).not.toContain(XlmScope.Pubnet);
       expect(result).toHaveLength(3);
     });
 
@@ -2240,25 +2639,27 @@ describe('NetworkEnablementController', () => {
   });
 
   describe('listPopularMultichainNetworks', () => {
-    it('returns only Bitcoin, Solana, Tron mainnets that exist in MultichainNetworkController state', () => {
+    it('returns only Bitcoin, Solana, Tron, Stellar mainnets that exist in MultichainNetworkController state', () => {
       const { controller } = setupController();
       const result = controller.listPopularMultichainNetworks();
 
       expect(result).toContain(BtcScope.Mainnet);
       expect(result).toContain(SolScope.Mainnet);
       expect(result).toContain(TrxScope.Mainnet);
-      expect(result).toHaveLength(3);
+      expect(result).toContain(XlmScope.Pubnet);
+      expect(result).toHaveLength(4);
     });
 
     it('returns empty when none of the multichain mainnets are configured', () => {
-      const { controller } = setupController({
-        multichainGetState: () => ({
-          multichainNetworkConfigurationsByChainId: {},
-          selectedMultichainNetworkChainId: 'eip155:1',
-          isEvmSelected: true,
-          networksWithTransactionActivity: {},
-        }),
+      const { controller, multichainNetworkControllerGetStateMock } =
+        setupController();
+      multichainNetworkControllerGetStateMock.mockReturnValue({
+        multichainNetworkConfigurationsByChainId: {},
+        selectedMultichainNetworkChainId: SolScope.Devnet,
+        isEvmSelected: true,
+        networksWithTransactionActivity: {},
       });
+
       const result = controller.listPopularMultichainNetworks();
       expect(result).toStrictEqual([]);
     });

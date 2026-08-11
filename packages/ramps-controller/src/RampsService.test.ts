@@ -6,10 +6,14 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
 import packageJson from '../package.json';
-import type { RampsServiceMessenger } from './RampsService';
-import { RampsService, RampsEnvironment } from './RampsService';
+import type { RampsServiceMessenger } from './RampsService.js';
+import {
+  getDefaultRedirectCallbackUrl,
+  RampsService,
+  RampsEnvironment,
+} from './RampsService.js';
 
 const CONTROLLER_VERSION = packageJson.version;
 
@@ -1477,7 +1481,6 @@ describe('RampsService', () => {
         .query({
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1489,7 +1492,6 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         provider: 'paypal',
         crypto: 'ETH',
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1526,14 +1528,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles single value filter options for fiat and payments', async () => {
+    it('handles single value filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1543,7 +1544,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1553,14 +1553,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles array filter options for fiat and payments', async () => {
+    it('handles array filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: ['USD', 'EUR'],
           payments: ['card', 'bank'],
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1570,7 +1569,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: ['USD', 'EUR'],
         payments: ['card', 'bank'],
       });
       await jest.runAllTimersAsync();
@@ -1702,7 +1700,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1714,7 +1711,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1732,12 +1728,11 @@ describe('RampsService', () => {
       ]);
     });
 
-    it('normalizes region and fiat case', async () => {
+    it('normalizes region case', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1749,7 +1744,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'US-AL',
-        fiat: 'USD',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1765,7 +1759,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1777,7 +1770,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1794,7 +1786,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1806,7 +1797,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1823,7 +1813,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1835,7 +1824,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1852,7 +1840,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1868,7 +1855,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1876,7 +1862,7 @@ describe('RampsService', () => {
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
       );
     });
 
@@ -1885,7 +1871,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1897,7 +1882,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1915,7 +1899,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1927,7 +1910,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -3150,6 +3132,93 @@ describe('RampsService', () => {
 
       await expect(orderPromise).rejects.toThrow("failed with status '500'");
     });
+  });
+
+  describe('getDefaultRedirectCallbackUrl', () => {
+    it.each([
+      [
+        RampsEnvironment.Production,
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      ],
+      [
+        RampsEnvironment.Staging,
+        'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+      ],
+      [
+        RampsEnvironment.Development,
+        'https://on-ramp.dev-api.cx.metamask.io/regions/fake-callback',
+      ],
+      [RampsEnvironment.Local, 'http://localhost:3000/regions/fake-callback'],
+    ])(
+      'returns the callback URL for the %s environment',
+      (environment, url) => {
+        const { service } = getService({ options: { environment } });
+
+        expect(service.getDefaultRedirectCallbackUrl()).toBe(url);
+      },
+    );
+
+    it('defaults to the staging callback URL, matching the default environment', () => {
+      const { service } = getService();
+
+      expect(service.getDefaultRedirectCallbackUrl()).toBe(
+        'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+      );
+    });
+
+    it('ignores baseUrlOverride, which only redirects the ramps API host', () => {
+      const { service } = getService({
+        options: {
+          environment: RampsEnvironment.Production,
+          baseUrlOverride: 'http://custom-url.test',
+        },
+      });
+
+      // The callback is served by the content host, not the API host, and the
+      // client matches this URL to detect flow completion, so a local API
+      // override must not move it.
+      expect(service.getDefaultRedirectCallbackUrl()).toBe(
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      );
+    });
+
+    it('is callable through the messenger', () => {
+      const { rootMessenger } = getService({
+        options: { environment: RampsEnvironment.Production },
+      });
+
+      expect(
+        rootMessenger.call('RampsService:getDefaultRedirectCallbackUrl'),
+      ).toBe(
+        'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+      );
+    });
+  });
+});
+
+describe('getDefaultRedirectCallbackUrl', () => {
+  it.each([
+    [
+      RampsEnvironment.Production,
+      'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+    ],
+    [
+      RampsEnvironment.Staging,
+      'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+    ],
+    [
+      RampsEnvironment.Development,
+      'https://on-ramp.dev-api.cx.metamask.io/regions/fake-callback',
+    ],
+    [RampsEnvironment.Local, 'http://localhost:3000/regions/fake-callback'],
+  ])('derives the callback URL for the %s environment', (environment, url) => {
+    expect(getDefaultRedirectCallbackUrl(environment)).toBe(url);
+  });
+
+  it('throws for an unknown environment', () => {
+    expect(() =>
+      getDefaultRedirectCallbackUrl('unknown' as unknown as RampsEnvironment),
+    ).toThrow('Invalid environment: unknown');
   });
 });
 

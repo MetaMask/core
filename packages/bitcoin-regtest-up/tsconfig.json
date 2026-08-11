@@ -3,6 +3,10 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../local-node-utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

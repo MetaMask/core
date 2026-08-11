@@ -24,8 +24,20 @@ export type MoneyAccountBalanceResponse = {
 };
 
 /**
+ * Canonical balance result from
+ * {@link MoneyAccountBalanceService.fetchBalanceWithFallback}.
+ */
+export type CanonicalMoneyAccountBalanceResponse =
+  MoneyAccountBalanceResponse & {
+    source: 'api' | 'rpc';
+    usedFallback: boolean;
+  };
+
+/**
  * Response from {@link MoneyAccountBalanceService.getVaultApy}.
- * All APY / fee values are decimals (multiply by 100 for percentage).
+ * APY and fee values are decimals (multiply by 100 for percentage).
+ * Veda's APY values are actually APR (labeled incorrectly). They are converted APY using daily compounding
+ * (see {@link convertAprToApy}) before this response is returned.
  *
  * Only `apy` and `timestamp` are guaranteed to be present — all other fields
  * are optional because the Veda API omits them when the vault has no activity.

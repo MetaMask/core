@@ -18,6 +18,9 @@
     },
     {
       "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

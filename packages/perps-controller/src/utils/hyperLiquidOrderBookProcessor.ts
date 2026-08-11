@@ -1,6 +1,6 @@
 import type { BboWsEvent, L2BookResponse } from '@nktkas/hyperliquid';
 
-import type { PriceUpdate } from '../types';
+import type { PriceUpdate } from '../types/index.js';
 
 /**
  * HyperLiquid Order Book Processor

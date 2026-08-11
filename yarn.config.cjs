@@ -41,12 +41,22 @@ const TOOLS = [
   '@metamask/messenger-cli',
   '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
+  '@metamask/platform-api-docs',
 ];
 
 /**
  * These packages deploy documentation sites and use a different build script.
  */
 const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
+
+/**
+ * We don't check that test scripts are defined for these packages.
+ *
+ * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
+ * prebuild fetch to its "test" script, as the native addon isn't built
+ * during `yarn install` (Yarn runs with `enableScripts: false`).
+ */
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -175,37 +185,21 @@ module.exports = defineConfig({
           '../../scripts/since-latest-release.sh',
         );
 
-        // All non-root packages must have the same "test" script.
-        // @metamask/wallet-cli prepends a better-sqlite3 prebuild fetch to its
-        // "test" script because the native addon isn't built during
-        // `yarn install` (Yarn runs with `enableScripts: false`).
-        if (workspace.ident !== '@metamask/wallet-cli') {
-          expectWorkspaceField(
-            workspace,
-            'scripts.test',
-            'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-          );
+        if (!PACKAGES_WITH_CUSTOM_TEST_SCRIPTS.includes(workspace.ident)) {
+          expectTestScripts(workspace);
         }
 
-        // All non-root packages must have the same "test:clean" script.
+        // All non-root packages must have scripts that lint-check tsconfig
+        // project references for this package.
         expectWorkspaceField(
           workspace,
-          'scripts.test:clean',
-          'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+          'scripts.lint:tsconfigs',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts',
         );
-
-        // All non-root packages must have the same "test:verbose" script.
         expectWorkspaceField(
           workspace,
-          'scripts.test:verbose',
-          'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-        );
-
-        // All non-root packages must have the same "test:watch" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test:watch',
-          'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+          'scripts.lint:tsconfigs:fix',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix',
         );
       }
 
@@ -220,6 +214,10 @@ module.exports = defineConfig({
         // `node/no-unpublished-require` ESLint rule will disallow it.)
         expectWorkspaceField(workspace, 'files', []);
       }
+
+      // All packages must have tsx as a dev dependency. (This is required to
+      // run various TypeScript scripts.)
+      expectWorkspaceField(workspace, 'devDependencies["tsx"]');
 
       // If one workspace package lists another workspace package within
       // `dependencies` or `devDependencies`, the version used within the
@@ -639,6 +637,75 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
         `Expected package's "changelog:${variant}" script to be or start with "${expectedStartString}", but it was "${script}".`,
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has scripts for running tests.
+ *
+ * If the workspace has a `test:types` script (i.e. it runs type tests in
+ * addition to Jest tests), it must have scripts that run both Jest and the type
+ * tests, otherwise just Jest.
+ *
+ * It must also provide scripts that allow Jest to be run in silent mode, clean
+ * mode, verbose mode, and watch mode.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectTestScripts(workspace) {
+  expectWorkspaceField(
+    workspace,
+    'scripts.test:watch',
+    'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+  );
+
+  if (workspace.manifest.scripts['test:types'] === undefined) {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    );
+  } else {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'yarn test:unit && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'yarn test:unit:clean && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'yarn test:unit:verbose && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit',
+      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:clean',
+      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:verbose',
+      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    );
   }
 }
 

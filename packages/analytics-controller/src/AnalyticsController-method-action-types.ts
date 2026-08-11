@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AnalyticsController } from './AnalyticsController';
+import type { AnalyticsController } from './AnalyticsController.js';
 
 /**
  * Track an analytics event.
@@ -43,6 +43,15 @@ export type AnalyticsControllerTrackViewAction = {
 
 /**
  * Opt in to analytics.
+ *
+ * Records that a consent decision has been made and replays any events that
+ * were queued while the user was undecided.
+ *
+ * When geolocation enrichment is enabled, geolocation is resolved here (once
+ * the user has consented) and awaited before the queued events are replayed,
+ * so those events are enriched with the resolved location as they are sent.
+ *
+ * @returns A promise that resolves once opt-in processing has completed.
  */
 export type AnalyticsControllerOptInAction = {
   type: `AnalyticsController:optIn`;
@@ -51,10 +60,26 @@ export type AnalyticsControllerOptInAction = {
 
 /**
  * Opt out of analytics.
+ *
+ * Records that a consent decision has been made and discards any persisted
+ * events so nothing captured before the decision is ever delivered.
  */
 export type AnalyticsControllerOptOutAction = {
   type: `AnalyticsController:optOut`;
   handler: AnalyticsController['optOut'];
+};
+
+/**
+ * Reset the consent decision back to undecided.
+ *
+ * Intended for client flows that restart onboarding. Clears the opt-in
+ * preference and discards the delivery queue, but preserves any pre-consent
+ * events so they can still be replayed if the user opts in again. The user is
+ * treated as undecided again.
+ */
+export type AnalyticsControllerResetConsentDecisionAction = {
+  type: `AnalyticsController:resetConsentDecision`;
+  handler: AnalyticsController['resetConsentDecision'];
 };
 
 /**
@@ -65,4 +90,5 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackViewAction
   | AnalyticsControllerOptInAction
-  | AnalyticsControllerOptOutAction;
+  | AnalyticsControllerOptOutAction
+  | AnalyticsControllerResetConsentDecisionAction;

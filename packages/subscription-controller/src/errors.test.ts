@@ -3,7 +3,7 @@ import {
   createSentryError,
   getSubscriptionErrorFromResponse,
   SubscriptionServiceError,
-} from './errors';
+} from './errors.js';
 
 type MockResponseOptions = {
   status?: number;

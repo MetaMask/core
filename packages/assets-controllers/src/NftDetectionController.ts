@@ -29,12 +29,12 @@ import type {
 import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { Source } from './constants';
+import { Source } from './constants.js';
 import type {
   NftController,
   NftControllerState,
   NftMetadata,
-} from './NftController';
+} from './NftController.js';
 
 const controllerName = 'NftDetectionController';
 

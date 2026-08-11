@@ -7,6 +7,188 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
+- Bump `@metamask/bridge-controller` from `^79.0.0` to `^79.0.1` ([#9788](https://github.com/MetaMask/core/pull/9788))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [75.0.0]
+
+### Changed
+
+- **BREAKING**: Change `submitBatchSell` and `submitIntent` quoteResponse parameter from `QuoteResponseV1` to `QuoteResponse` V2 ([#9726](https://github.com/MetaMask/core/pull/9726))
+  - Support both `QuoteResponseV1` and `QuoteResponse` quoteResponses in `submitTx`
+  - Controller logic and utils still require V1, but clients can submit quotes in both formats
+- Bump `@metamask/bridge-controller` from `^78.1.0` to `^79.0.0` ([#9785](https://github.com/MetaMask/core/pull/9785))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [74.6.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/bridge-controller` from `^78.0.2` to `^78.1.0` ([#9740](https://github.com/MetaMask/core/pull/9740), [#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+## [74.6.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.4.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/bridge-controller` from `^78.0.1` to `^78.0.2` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [74.6.0]
+
+### Added
+
+- Populate `srcTxHash` in the `QuoteStatusUpdateError` when a finalization is reported for a transaction that has no tracked quote-status entry, so the error details identify the source transaction alongside `txMetaId` and `srcChainId` ([#9673](https://github.com/MetaMask/core/pull/9673))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^78.0.0` to `^78.0.1` ([#9688](https://github.com/MetaMask/core/pull/9688))
+
+## [74.5.0]
+
+### Changed
+
+- Use `gasFee.total` instead of `gasFee.effective` to calculate gas metrics properties ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Update utils to use `mergeQuoteMetadata` and handle optional QuoteMetadata values. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Bump `@metamask/bridge-controller` from `^77.7.0` to `^78.0.0` ([#9614](https://github.com/MetaMask/core/pull/9614), [#9637](https://github.com/MetaMask/core/pull/9637))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+## [74.4.0]
+
+### Changed
+
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- Add optional `txMetaId`, `srcTxHash`, and `srcChainId` fields to `QuoteStatusUpdateErrorDetails` to provide more context in quote-status update error reports ([#9596](https://github.com/MetaMask/core/pull/9596))
+- Bump `@metamask/bridge-controller` from `^77.5.0` to `^77.7.0` ([#9558](https://github.com/MetaMask/core/pull/9558), [#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
+
+## [74.3.0]
+
+### Added
+
+- Support batch sell (EIP-7702/nested batch) transactions in the quote-status flow, so every quote submitted under a single batch transaction is reported to the backend. All quotes sharing one batch source transaction are reported as `SUBMITTED` under the shared source transaction hash and `txMetaId`, and are finalized together when that transaction confirms or fails. ([#9514](https://github.com/MetaMask/core/pull/9514))
+
+### Changed
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+
+## [74.2.0]
+
+### Added
+
+- Include `transaction_internal_id` in `Unified SwapBridge Completed` events for EVM source transactions. ([#9494](https://github.com/MetaMask/core/pull/9494))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.4.1` to `^77.5.0` ([#9508](https://github.com/MetaMask/core/pull/9508))
+
+### Fixed
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
+## [74.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^69.0.0` ([#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/bridge-controller` from `^77.3.2` to `^77.4.1` ([#9462](https://github.com/MetaMask/core/pull/9462), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [74.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+
+### Fixed
+
+- Remove `gasFeeToken`, `skipInitialGasEstimate`, and `excludeNativeTokenForFee` from batch-strategy `addTransactionBatch` params ([#9431](https://github.com/MetaMask/core/pull/9431))
+
+## [74.1.0]
+
+### Added
+
+- Source transaction status from the `/getQuoteStatus` backend during polling for history items with an associated `quoteId`, falling back to the `/getTxStatus` bridge-api endpoint when no quote-status backend status is available yet or the QuoteStatusManager is disabled. ([#9389](https://github.com/MetaMask/core/pull/9389))
+- Seed missing quote-status entries from persisted transaction history on startup, so quotes submitted before the client closed still get their status reported to the backend. Entries are rebuilt from the history item's `quoteId`, source transaction hash (falling back to the transaction's hash), and `txMetaId`; history items older than the quote-status entry TTL are skipped. ([#9405](https://github.com/MetaMask/core/pull/9405))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.3.1` to `^77.3.2` ([#9372](https://github.com/MetaMask/core/pull/9372))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Remove the redundant quote-status fetch previously issued after a `FINALIZED_SUCCESS`/`FINALIZED_FAILED` quote-status update was accepted. ([#9389](https://github.com/MetaMask/core/pull/9389))
+
+## [74.0.2]
+
+### Fixed
+
+- Only include `sourceAssetId` and `destAssetId` in the snap request options for Stellar trades ([#9366](https://github.com/MetaMask/core/pull/9366))
+  - Previously these options were passed for all non-EVM trades, which broke Bitcoin bridging/swapping because the Bitcoin snap strictly validates the request and rejects unexpected fields.
+
+## [74.0.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.1.0` to `^77.3.1` ([#9318](https://github.com/MetaMask/core/pull/9318), [#9326](https://github.com/MetaMask/core/pull/9326), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.2` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/gas-fee-controller` from `^26.2.3` to `^26.2.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/polling-controller` from `^16.0.7` to `^16.0.8` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [74.0.0]
+
+### Added
+
+- **BREAKING:** Add required `quoteId: string` and `reportedSubmittedTxHash: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
+- **BREAKING:** Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors, defers on network failures, and persists the queue to `quoteUpdateStatusStore` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.0.0` to `^77.1.0` ([#9301](https://github.com/MetaMask/core/pull/9301))
+
+## [73.1.0]
+
+### Added
+
+- Add Stellar support to bridge transaction submission and status tracking: thread `StellarTradeData` through the non-EVM submit strategies and include source and destination asset IDs in the snap client transaction request ([#9170](https://github.com/MetaMask/core/pull/9170))
+
+## [73.0.0]
+
+### Changed
+
+- **BREAKING:** Default `location` fallback for post-submit Unified SwapBridge events now uses `Unknown` instead of `Main View` ([#9243](https://github.com/MetaMask/core/pull/9243))
+- Bump `@metamask/bridge-controller` from `^76.1.0` to `^77.0.0` ([#9256](https://github.com/MetaMask/core/pull/9256))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+
+### Fixed
+
+- Fixed `Submitted` Unified SwapBridge events reporting the wrong `location` metric: when no tx history item exists yet, `#trackUnifiedSwapBridgeEvent` now uses the `location` passed to `submitTx()` (via pre-confirmation event properties) instead of always defaulting to `Main View` ([#9243](https://github.com/MetaMask/core/pull/9243))
+
+## [72.3.0]
+
+### Added
+
+- Allow `quick_buy_explore` feature id to emit `Submitted`, `Completed`, and `Failed` Unified SwapBridge status events ([#9222](https://github.com/MetaMask/core/pull/9222))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/bridge-controller` from `^76.0.0` to `^76.1.0` ([#9242](https://github.com/MetaMask/core/pull/9242))
+
 ## [72.2.0]
 
 ### Added
@@ -1307,7 +1489,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.0.0...HEAD
+[75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.2...@metamask/bridge-status-controller@75.0.0
+[74.6.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.1...@metamask/bridge-status-controller@74.6.2
+[74.6.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.0...@metamask/bridge-status-controller@74.6.1
+[74.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.5.0...@metamask/bridge-status-controller@74.6.0
+[74.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.4.0...@metamask/bridge-status-controller@74.5.0
+[74.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.3.0...@metamask/bridge-status-controller@74.4.0
+[74.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.2.0...@metamask/bridge-status-controller@74.3.0
+[74.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...@metamask/bridge-status-controller@74.2.0
+[74.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.1...@metamask/bridge-status-controller@74.1.2
+[74.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.0...@metamask/bridge-status-controller@74.1.1
+[74.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.2...@metamask/bridge-status-controller@74.1.0
+[74.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.1...@metamask/bridge-status-controller@74.0.2
+[74.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.0...@metamask/bridge-status-controller@74.0.1
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.1.0...@metamask/bridge-status-controller@74.0.0
+[73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.0.0...@metamask/bridge-status-controller@73.1.0
+[73.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.3.0...@metamask/bridge-status-controller@73.0.0
+[72.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.2.0...@metamask/bridge-status-controller@72.3.0
 [72.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.1...@metamask/bridge-status-controller@72.2.0
 [72.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.0...@metamask/bridge-status-controller@72.1.1
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.3...@metamask/bridge-status-controller@72.1.0

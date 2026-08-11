@@ -13,14 +13,14 @@ import {
 import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
-import type { Nft, NftMetadata } from './NftController';
-import { getNativeTokenAddress } from './token-prices-service';
-import type { AbstractTokenPricesService } from './token-prices-service';
-import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
+import type { Nft, NftMetadata } from './NftController.js';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/index.js';
+import type { AbstractTokenPricesService } from './token-prices-service/index.js';
 import type {
   ContractExchangeRates,
   ContractMarketData,
-} from './TokenRatesController';
+} from './TokenRatesController.js';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -164,6 +164,7 @@ export enum SupportedTokenDetectionNetworks {
   MonadMainnet = '0x8f', // decimal: 143
   Hyperevm = '0x3e7', // decimal: 999
   Arc = '0x13b2', // decimal: 5042
+  Robinhood = '0x1237', // decimal: 4663
 }
 
 /**

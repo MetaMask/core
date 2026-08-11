@@ -7,10 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for cache persistence ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - Persistence can be configured by passing a `persistenceConfig` option to the constructor.
+- Add `createServicePolicy` and related symbols, copied from `@metamask/controller-utils` ([#9418](https://github.com/MetaMask/core/pull/9418))
+  - Added functions:
+    `createServicePolicy`
+  - Added constants:
+    - `DEFAULT_CIRCUIT_BREAK_DURATION`
+    - `DEFAULT_DEGRADED_THRESHOLD`
+    - `DEFAULT_MAX_CONSECUTIVE_FAILURES`
+    - `DEFAULT_MAX_RETRIES`
+  - Added types:
+    - `CreateServicePolicyOptions`
+    - `ServicePolicy`
+  - Added re-exports from `cockatiel`:
+    - `BrokenCircuitError`
+    - `CircuitState`
+    - `CockatielEventEmitter`
+    - `CockatielEvent`
+    - `CockatielFailureReason`
+    - `ConstantBackoff`
+    - `ExponentialBackoff`
+    - `handleAll`
+    - `handleWhen`
+- Export types `DataServiceActions` and `DataServiceEvents` ([#9475](https://github.com/MetaMask/core/pull/9475))
+
 ### Changed
 
+- **BREAKING:** Remove `TPageData` type parameter from `invalidateQueries` method ([#9526](https://github.com/MetaMask/core/pull/9526))
+  - This is technically a breaking change, but this was not used in any of our codebases
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Add dependency `cockatiel` (`^3.1.2`) ([#9418](https://github.com/MetaMask/core/pull/9418))
 
 ## [0.1.3]
 

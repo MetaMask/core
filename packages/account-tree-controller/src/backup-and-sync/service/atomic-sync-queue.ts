@@ -1,7 +1,7 @@
 import { createDeferredPromise } from '@metamask/utils';
 
-import { backupAndSyncLogger } from '../../logger';
-import type { AtomicSyncEvent } from '../types';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AtomicSyncEvent } from '../types.js';
 
 /**
  * Manages atomic sync operations in a queue to prevent concurrent execution

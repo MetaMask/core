@@ -9,7 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+## [2.7.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+## [2.7.0]
+
+### Added
+
+- Add `refreshNotificationPreferencesCache` method to `SocialService` (and the `SocialService:refreshNotificationPreferencesCache` messenger action). Calls `POST /notifications/preferences/cache-refresh` so the social api re-reads the JWT-identified user's notification preferences from Authenticated User Storage and repopulates its cache. Intended as a best-effort call right after a preference write to AUS, so the change is honoured near-instantly rather than after the social api's cache TTL lapses ([#9662](https://github.com/MetaMask/core/pull/9662))
+
+## [2.6.0]
+
+### Added
+
+- Add optional `marketCap` to the `Trade` type (and `TradeStruct`) — historical token market cap at trade time from the social API ([#9605](https://github.com/MetaMask/core/pull/9605))
+
+## [2.5.0]
+
+### Added
+
+- Add `fetchFeed` method to `SocialService` (and the `SocialService:fetchFeed` messenger action) for the trader-activity feed. Calls `GET /feed` with an optional `scope` (`following`, default, personalized to the JWT-identified user; or `leaderboard`, the generic shared feed), `chains` (as CAIP-2 chain ids), `limit`, and cursor pagination (`olderThan`/`newerThan`) for infinite scroll ([#9447](https://github.com/MetaMask/core/pull/9447))
+- Add `FeedItem`, `FeedPagination`, `FeedResponse`, and `FetchFeedOptions` types. `FeedItem` extends `Position` with the trade's `actor` (`ProfileSummary`) and creation `timestamp`; `FeedPagination` exposes the `olderCursor`/`newerCursor` cursors ([#9447](https://github.com/MetaMask/core/pull/9447))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Update `LICENSE` text ([#9472](https://github.com/MetaMask/core/pull/9472))
+
+## [2.4.0]
+
+### Added
+
+- Add `optOutOfLeaderboard` and `optInToLeaderboard` methods to `SocialController` and `SocialService`, with corresponding messenger actions (`SocialController:optOutOfLeaderboard`, `SocialController:optInToLeaderboard`, `SocialService:optOutOfLeaderboard`, `SocialService:optInToLeaderboard`). These call `POST /leaderboard/opt-out` and `POST /leaderboard/opt-in` respectively (JWT-authed, `204 No Content` on success) ([#9354](https://github.com/MetaMask/core/pull/9354))
+
+### Changed
+
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [2.3.1]
 
@@ -61,10 +102,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-
 ### Changed
 
 - **BREAKING:** `SocialServiceMessenger` now requires `AuthenticationController:getBearerToken` as an allowed action — all consumers must provide this action via messenger delegation
@@ -103,7 +140,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.1...HEAD
+[2.7.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.0...@metamask/social-controllers@2.7.1
+[2.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.6.0...@metamask/social-controllers@2.7.0
+[2.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.5.0...@metamask/social-controllers@2.6.0
+[2.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.4.0...@metamask/social-controllers@2.5.0
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.1...@metamask/social-controllers@2.4.0
 [2.3.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.0...@metamask/social-controllers@2.3.1
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.1...@metamask/social-controllers@2.3.0
 [2.2.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.0...@metamask/social-controllers@2.2.1

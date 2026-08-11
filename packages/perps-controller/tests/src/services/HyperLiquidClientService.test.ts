@@ -7,11 +7,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CandlePeriod } from '../../../src/constants/chartConfig';
-import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import type { ValidCandleInterval } from '../../../src/services/HyperLiquidClientService';
-import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import type { ValidCandleInterval } from '../../../src/services/HyperLiquidClientService.js';
+import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Mock WebSocket for Jest environment (React Native provides this globally)
 (global as any).WebSocket = jest.fn();
@@ -202,7 +202,6 @@ describe('HyperLiquidClientService', () => {
         timeout: 10_000,
         keepAlive: { interval: 30_000 },
         reconnect: expect.objectContaining({
-          WebSocket: expect.any(Function),
           maxRetries: 5,
           connectionTimeout: 10_000,
         }),
@@ -263,7 +262,8 @@ describe('HyperLiquidClientService', () => {
         timeout: 10_000,
         keepAlive: { interval: 30_000 },
         reconnect: expect.objectContaining({
-          WebSocket: expect.any(Function),
+          maxRetries: 5,
+          connectionTimeout: 10_000,
         }),
       });
 
@@ -420,9 +420,9 @@ describe('HyperLiquidClientService', () => {
     });
 
     it('handles disconnect errors gracefully', async () => {
-      mockWsTransport.close.mockRejectedValueOnce(
-        new Error('Disconnect failed'),
-      );
+      mockWsTransport.close.mockImplementationOnce(() => {
+        throw new Error('Disconnect failed');
+      });
 
       // Should not throw, error is caught and logged
       await expect(service.disconnect()).resolves.not.toThrow();

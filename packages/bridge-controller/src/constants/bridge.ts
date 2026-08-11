@@ -1,12 +1,12 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import type {
   BridgeControllerState,
   FeatureFlagsPlatformConfig,
-} from '../types';
-import { CHAIN_IDS } from './chains';
+} from '../types.js';
+import { CHAIN_IDS } from './chains.js';
 
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,
@@ -23,14 +23,17 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.HYPEREVM,
   CHAIN_IDS.MEGAETH,
   CHAIN_IDS.ARC,
+  CHAIN_IDS.ROBINHOOD,
   SolScope.Mainnet,
   BtcScope.Mainnet,
   TrxScope.Mainnet,
+  XlmScope.Pubnet,
 ] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
 
 export const BRIDGE_DEV_API_BASE_URL = 'https://bridge.dev-api.cx.metamask.io';
+export const BRIDGE_UAT_API_BASE_URL = 'https://bridge.uat-api.cx.metamask.io';
 export const BRIDGE_PROD_API_BASE_URL = 'https://bridge.api.cx.metamask.io';
 
 export enum BridgeClientId {
@@ -57,6 +60,7 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'bip122:000000000019d6689c085ae165831e93', name: 'BTC' },
   { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', name: 'Solana' },
   { chainId: 'tron:728126428', name: 'Tron' },
+  // { chainId: 'stellar:pubnet', name: 'Stellar' }, // Disabled until further notice
   { chainId: 'eip155:8453', name: 'Base' },
   { chainId: 'eip155:42161', name: 'Arbitrum' },
   { chainId: 'eip155:59144', name: 'Linea' },
@@ -67,7 +71,8 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'eip155:1329', name: 'Sei' },
   { chainId: 'eip155:999', name: 'HyperEVM' },
   { chainId: 'eip155:4326', name: 'MegaETH' },
-  { chainId: 'eip155:5042', name: 'Arc' },
+  // { chainId: 'eip155:5042', name: 'Arc' }, // Disabled until further notice
+  { chainId: 'eip155:4663', name: 'Robinhood Chain' },
   { chainId: 'eip155:324', name: 'zkSync' },
 ] as const;
 

@@ -1,8 +1,8 @@
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
-import type { TransactionPayControllerMessenger } from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { projectLogger } from '../../logger.js';
+import type { TransactionPayControllerMessenger } from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import type {
   ServerProviderName,
   ServerQuoteRequest,
@@ -10,7 +10,7 @@ import type {
   ServerStatusResponse,
   ServerSubmitRequest,
   ServerSubmitResponse,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-api');
 

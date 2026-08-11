@@ -1,8 +1,8 @@
 import { rm } from 'node:fs/promises';
 
-import { pingDaemon, sendCommand } from './daemon-client';
-import { stopDaemon } from './stop-daemon';
-import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
+import { pingDaemon, sendCommand } from './daemon-client.js';
+import { stopDaemon } from './stop-daemon.js';
+import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils.js';
 
 jest.mock('node:fs/promises');
 jest.mock('./daemon-client');
@@ -47,6 +47,39 @@ describe('stopDaemon', () => {
     expect(mockRm).toHaveBeenCalledWith('/tmp/test.pid', { force: true });
     // Critically: do NOT signal the recorded PID when the socket is absent
     // (PID may have been recycled to an unrelated process).
+    expect(mockSendSignal).not.toHaveBeenCalled();
+  });
+
+  it('cleans up a stale socket and PID file when connections are refused and the process is dead', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
+    mockIsProcessAlive.mockReturnValue(false);
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+
+    // A crashed daemon leaves a refused socket and PID file behind; the daemon
+    // is gone, so report success and clear both.
+    expect(result).toBe(true);
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.pid', { force: true });
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.sock', { force: true });
+    // The recorded PID is dead, so never signal it — it may have been recycled.
+    expect(mockSendSignal).not.toHaveBeenCalled();
+    expect(mockSendCommand).not.toHaveBeenCalled();
+  });
+
+  it('does not delete the socket or report success when the socket is unreachable for a non-refused reason and the process is dead', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockPingDaemon.mockResolvedValue({
+      status: 'unreachable',
+      reason: 'permission',
+      error: new Error('EACCES'),
+    });
+    mockIsProcessAlive.mockReturnValue(false);
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+
+    expect(result).toBe(false);
+    expect(mockRm).not.toHaveBeenCalled();
     expect(mockSendSignal).not.toHaveBeenCalled();
   });
 
@@ -116,6 +149,7 @@ describe('stopDaemon', () => {
 
     expect(result).toBe(true);
     expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGTERM');
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.sock', { force: true });
   });
 
   it('falls through to SIGTERM when graceful shutdown times out', async () => {
@@ -170,6 +204,7 @@ describe('stopDaemon', () => {
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
     expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGKILL');
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.sock', { force: true });
   });
 
   it('returns false when all strategies fail', async () => {

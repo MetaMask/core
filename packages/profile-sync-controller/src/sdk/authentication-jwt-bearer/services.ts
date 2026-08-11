@@ -1,23 +1,24 @@
-import type { Env, Platform } from '../../shared/env';
-import { getEnvUrls, getOidcClientId } from '../../shared/env';
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { HTTP_STATUS_CODES } from '../constants';
+import type { Env, Platform } from '../../shared/env.js';
+import { getEnvUrls, getOidcClientId } from '../../shared/env.js';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
+import { HTTP_STATUS_CODES } from '../constants.js';
 import {
   NonceRetrievalError,
   PairError,
   SignInError,
   ValidationError,
   RateLimitedError,
-} from '../errors';
-import { validatePairResponse } from '../utils/validate-pair-response';
+} from '../errors.js';
+import { validatePairResponse } from '../utils/validate-pair-response.js';
 import type {
   AccessToken,
   ErrorMessage,
+  LoginIdentifierType,
   ProfileAlias,
   UserProfile,
   UserProfileLineage,
-} from './types';
-import { AuthType } from './types';
+} from './types.js';
+import { AuthType } from './types.js';
 
 /**
  * Parse Retry-After header into milliseconds if possible.
@@ -157,6 +158,9 @@ export const PAIR_PROFILES_URL = (env: Env): string =>
 
 export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
+
+export const CUSTOMER_SERVICE_TOKEN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/customer-service/token`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -413,6 +417,8 @@ type Authentication = {
  * @param authType - authentication type/flow used
  * @param env - server environment
  * @param metametrics - optional metametrics
+ * @param identifierType - login identifier type included in metametrics
+ *   (defaults to `SRP` when metametrics is present)
  * @returns Authentication Token
  */
 export async function authenticate(
@@ -421,6 +427,7 @@ export async function authenticate(
   authType: AuthType,
   env: Env,
   metametrics?: MetaMetricsAuth,
+  identifierType: LoginIdentifierType = 'SRP',
 ): Promise<Authentication> {
   const authenticationUrl = getAuthenticationUrl(authType, env);
 
@@ -442,6 +449,7 @@ export async function authenticate(
                 metametrics_id: await metametrics.getMetaMetricsId(),
                 agent: metametrics.agent,
                 app_version: await metametrics.getAppVersion?.(),
+                identifier_type: identifierType,
               },
             }
           : {}),
@@ -513,6 +521,55 @@ export async function getUserProfileLineage(
     return await throwServiceError(
       error,
       'Failed to get profile lineage',
+      SignInError,
+    );
+  }
+}
+
+/**
+ * Service to get a Customer Service specific access token.
+ *
+ * Exchanges a valid OIDC access token for a short-lived token scoped to the
+ * customer-service audience, which Customer Service tooling consumes to
+ * identify and authenticate the user.
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns The customer-service access token.
+ */
+export async function getCustomerServiceToken(
+  env: Env,
+  accessToken: string,
+): Promise<string> {
+  const customerServiceTokenUrl = new URL(CUSTOMER_SERVICE_TOKEN_URL(env));
+
+  try {
+    const response = await fetch(customerServiceTokenUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      return await throwServiceError(
+        response,
+        'Failed to get customer service token',
+        SignInError,
+      );
+    }
+
+    const tokenResponse = await response.json();
+    if (typeof tokenResponse?.access_token !== 'string') {
+      throw new SignInError(
+        'Failed to get customer service token: missing access_token',
+      );
+    }
+    return tokenResponse.access_token;
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get customer service token',
       SignInError,
     );
   }

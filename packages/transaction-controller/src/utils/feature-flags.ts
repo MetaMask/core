@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { isValidSignature } from './signature.js';
+import { padHexToEvenLength } from './utils.js';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -34,6 +34,14 @@ type GasEstimateFallback = {
    * The percentage multiplier gas estimate fallback for a transaction.
    */
   percentage?: number;
+
+  /**
+   * The maximum gas limit the fallback can resolve to, representing the chain's
+   * per-transaction gas cap. Clamps the `fixed` or `percentage`-derived fallback
+   * so it can never exceed the gas limit the RPC will accept (e.g. ~33.5M on
+   * Polygon, whereas 35% of its ~140M block gas limit would otherwise be ~49M).
+   */
+  maxGasLimit?: number;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -177,6 +185,46 @@ export type TransactionControllerFeatureFlags = {
        * This value is used when no specific threshold is found for a chain ID.
        */
       default?: number;
+    };
+
+    /**
+     * Replacement of underpriced dapp-suggested gas fees.
+     * If enabled, dapp-suggested EIP-1559 fees with a `maxFeePerGas` below the
+     * current low estimate are replaced with the wallet's suggested fees, as
+     * they are unlikely to be included in a block before fee values change.
+     */
+    replaceUnderpricedDappGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
+    };
+
+    /**
+     * Replacement of underpriced saved (advanced) gas fee preferences.
+     * If enabled, saved custom fees with a `maxBaseFee` below the current low
+     * estimate are ignored in favour of the wallet's suggested fees, as they
+     * are unlikely to be included in a block before fee values change.
+     * Level-based saved preferences track current estimates and are never
+     * ignored.
+     */
+    replaceUnderpricedSavedGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
     };
   };
 };
@@ -369,6 +417,7 @@ export function getGasEstimateFallback(
 ): {
   fixed?: number;
   percentage: number;
+  maxGasLimit?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
@@ -384,7 +433,10 @@ export function getGasEstimateFallback(
 
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  return { fixed, percentage };
+  const maxGasLimit =
+    chainFlags?.maxGasLimit ?? gasEstimateFallbackFlags?.default?.maxGasLimit;
+
+  return { fixed, percentage, maxGasLimit };
 }
 
 /**
@@ -450,6 +502,54 @@ export function getTimeoutAttempts(
   return (
     timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
     timeoutAttemptsFlags?.default
+  );
+}
+
+/**
+ * Retrieves whether underpriced dapp-suggested gas fees should be replaced
+ * with the wallet's suggested fees.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the replacement is enabled.
+ */
+export function getReplaceUnderpricedDappGasFeesEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedDappGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedDappGasFees;
+
+  return (
+    replaceUnderpricedDappGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedDappGasFeesFlags?.default ??
+    false
+  );
+}
+
+/**
+ * Retrieves whether underpriced saved (advanced) gas fee preferences should be
+ * ignored in favour of the wallet's suggested fees.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the replacement is enabled.
+ */
+export function getReplaceUnderpricedSavedGasFeesEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedSavedGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedSavedGasFees;
+
+  return (
+    replaceUnderpricedSavedGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedSavedGasFeesFlags?.default ??
+    false
   );
 }
 

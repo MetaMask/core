@@ -3,11 +3,12 @@ import {
   isNonEvmChainId,
   StatusTypes,
 } from '@metamask/bridge-controller';
-import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
+import type { QuoteResponseV1 } from '@metamask/bridge-controller';
 import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { REFRESH_INTERVAL_MS } from '../constants';
+import { REFRESH_INTERVAL_MS } from '../constants.js';
+import { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager.js';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
@@ -16,10 +17,10 @@ import type {
   BridgeHistoryItem,
   StatusRequest,
   BridgeStatusControllerMessenger,
-} from '../types';
-import { isHistoryItemTooOld } from './history';
-import { getNetworkClientByChainId } from './network';
-import { validateBridgeStatusResponse } from './validators';
+} from '../types.js';
+import { isHistoryItemTooOld } from './history.js';
+import { getNetworkClientByChainId } from './network.js';
+import { validateBridgeStatusResponse } from './validators.js';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;
@@ -42,6 +43,24 @@ export const getStatusRequestDto = (
   return {
     ...statusRequestNoQuoteFormatted,
     ...requestId,
+  };
+};
+
+export const fetchBridgeQuoteStatus = async (
+  quoteStatusManager: QuoteStatusManager,
+  quoteId: string,
+): Promise<{ status: StatusResponse; validationFailures: string[] } | null> => {
+  const response = await quoteStatusManager.getStatus(quoteId);
+
+  const status = response?.response?.submittedTx;
+
+  if (!status) {
+    return null;
+  }
+
+  return {
+    status,
+    validationFailures: response.error?.details?.validationFailures ?? [],
   };
 };
 
@@ -86,7 +105,7 @@ export const fetchBridgeTxStatus = async (
 };
 
 export const getStatusRequestWithSrcTxHash = (
-  quote: Quote,
+  quote: QuoteResponseV1['quote'],
   srcTxHash: string,
 ): StatusRequestWithSrcTxHash => {
   const { bridgeId, bridges, srcChainId, destChainId, refuel } = quote;
@@ -186,7 +205,7 @@ export const shouldWaitForFinalBridgeStatus = async (
  * @returns The status request parameters
  */
 export const getStatusRequestParams = (
-  quoteResponse: QuoteResponse,
+  quoteResponse: QuoteResponseV1,
 ): StatusRequest => {
   return {
     bridgeId: quoteResponse.quote.bridgeId,

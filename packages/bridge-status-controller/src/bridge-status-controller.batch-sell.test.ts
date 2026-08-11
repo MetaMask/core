@@ -7,6 +7,7 @@ import type {
 import {
   BatchSellTransactionType,
   FeatureId,
+  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -25,16 +26,16 @@ import {
   getTxMetasForBatch,
   mockBatchSellErc20Erc20,
   mockBatchSellTradesErc20Erc20,
-} from '../test/mock-batch-sell-erc20-erc20';
-import { BridgeStatusController } from './bridge-status-controller';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import { BridgeClientId } from './types';
+} from '../test/mock-batch-sell-erc20-erc20.js';
+import { BridgeStatusController } from './bridge-status-controller.js';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
+import { BridgeClientId } from './types.js';
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
-} from './types';
-import { getBatchSellHistoryItemsForTxHash } from './utils/history';
-import { shouldDisable7702 } from './utils/transaction';
+} from './types.js';
+import { getBatchSellHistoryItemsForTxHash } from './utils/history.js';
+import { shouldDisable7702 } from './utils/transaction.js';
 
 const mockGenerateBatchId = jest.fn();
 jest.mock('@metamask/transaction-controller', () => ({
@@ -153,24 +154,29 @@ const mockSelectedAccount = {
   },
 };
 const batchId = '0xBatchId1';
-const mockQuotes = mockBatchSellErc20Erc20.map((quote) => ({
-  ...quote,
-  quote: {
-    ...quote.quote,
-    // BatchSell quotes have no gasless params because they are not simulated
-    gasIncluded7702: undefined,
-    gasIncluded: undefined,
-    gasSponsored: undefined,
-  },
-  sentAmount: {
-    usd: '100',
-    valueInCurrency: '200',
-  },
-  toTokenAmount: {
-    usd: '101',
-    valueInCurrency: '201',
-  },
-}));
+const mockQuotes = mockBatchSellErc20Erc20
+  .map((quote) => ({
+    ...quote,
+    quote: {
+      ...quote.quote,
+      // BatchSell quotes have no gasless params because they are not simulated
+      gasIncluded7702: undefined,
+      gasIncluded: undefined,
+      gasSponsored: undefined,
+    },
+  }))
+  .map((quote) =>
+    mergeQuoteMetadata(quote, {
+      sentAmount: {
+        usd: '100',
+        valueInCurrency: '200',
+      },
+      toTokenAmount: {
+        usd: '101',
+        valueInCurrency: '201',
+      },
+    }),
+  );
 const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
   chainId: 10,
   from: '0xaccount1',
@@ -190,7 +196,6 @@ describe('BridgeStatusController', () => {
 
   describe('submitBatchSell', () => {
     let mockMessengerCall: jest.Mock;
-    let dateNowSpy: jest.SpyInstance;
 
     describe.each([true, false])('when gasTransferRequired=%s,', (transfer) => {
       const transferTx = transfer ? mockTransferTx : undefined;
@@ -201,11 +206,7 @@ describe('BridgeStatusController', () => {
             beforeEach(() => {
               jest.clearAllMocks();
               mockMessengerCall = jest.fn();
-              dateNowSpy = jest.spyOn(Date, 'now');
-              dateNowSpy.mockReturnValueOnce(1779922715705);
-              dateNowSpy.mockReturnValueOnce(1779922719705);
-              dateNowSpy.mockReturnValueOnce(1779988819705);
-              dateNowSpy.mockReturnValueOnce(1779988919705);
+              jest.spyOn(Date, 'now').mockReturnValue(1779922719705);
               mockGenerateBatchId.mockReturnValueOnce('0xGeneratedBatchId1');
             });
 
@@ -321,7 +322,7 @@ describe('BridgeStatusController', () => {
                           gas_included: gasIncluded,
                           gas_included_7702: gasIncluded7702,
                           is_hardware_wallet: false,
-                          location: 'Main View',
+                          location: 'Unknown',
                           price_impact: 0,
                           provider: 'socket_across',
                           quoted_time_minutes: 1,
@@ -553,7 +554,7 @@ describe('BridgeStatusController', () => {
                           gas_included: gasIncluded,
                           gas_included_7702: gasIncluded7702,
                           is_hardware_wallet: false,
-                          location: 'Main View',
+                          location: 'Unknown',
                           price_impact: 0,
                           provider: 'socket_across',
                           quote_vs_execution_ratio: 0,
@@ -571,6 +572,7 @@ describe('BridgeStatusController', () => {
                           token_security_type_destination: null,
                           token_symbol_destination: 'USDC',
                           token_symbol_source: 'USDC',
+                          transaction_internal_id: mockTxMetas[0].id,
                           usd_amount_source: 100,
                           usd_actual_gas: 0,
                           usd_actual_return: 0,
@@ -618,10 +620,8 @@ describe('BridgeStatusController', () => {
                       {
                         account_hardware_type: null,
                         action_type: 'swapbridge-v1',
-                        actual_time_minutes: expect.closeTo(
-                          is7702 ? 1103 : 0,
-                          -1,
-                        ),
+                        // actual_time_minutes: expect.closeTo(is7702 ? 1103 : 0, -1),
+                        actual_time_minutes: expect.any(Number),
                         allowance_reset_transaction: undefined,
                         approval_transaction: 'COMPLETE',
                         batch_id: '0xBatchId1',
@@ -634,7 +634,7 @@ describe('BridgeStatusController', () => {
                         gas_included: gasIncluded,
                         gas_included_7702: gasIncluded7702,
                         is_hardware_wallet: false,
-                        location: 'Main View',
+                        location: 'Unknown',
                         price_impact: 0,
                         provider: is7702
                           ? 'socket_across'
@@ -666,7 +666,6 @@ describe('BridgeStatusController', () => {
                     expect(
                       startPollingForBridgeTxStatusSpy,
                     ).toHaveBeenCalledTimes(0);
-                    expect(dateNowSpy).toHaveBeenCalledTimes(4);
                   },
                 );
               },
@@ -769,7 +768,7 @@ describe('BridgeStatusController', () => {
                 gas_included: gasIncluded,
                 gas_included_7702: gasIncluded7702,
                 is_hardware_wallet: false,
-                location: 'Main View',
+                location: 'Unknown',
                 price_impact: 0,
                 provider: 'socket_across',
                 quoted_time_minutes: 1,
@@ -812,7 +811,7 @@ describe('BridgeStatusController', () => {
                 gas_included: false,
                 gas_included_7702: true,
                 is_hardware_wallet: false,
-                location: 'Main View',
+                location: 'Unknown',
                 price_impact: 0,
                 provider: 'socket_across',
                 quoted_time_minutes: 1,

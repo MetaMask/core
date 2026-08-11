@@ -13,10 +13,10 @@ import { UserFeeLevel } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 
-import { EMPTY_BYTES } from '../constants';
-import { createModuleLogger, projectLogger } from '../logger';
-import type { UserOperation, UserOperationMetadata } from '../types';
-import type { AddUserOperationRequest } from '../UserOperationController';
+import { EMPTY_BYTES } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { UserOperation, UserOperationMetadata } from '../types.js';
+import type { AddUserOperationRequest } from '../UserOperationController.js';
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
 

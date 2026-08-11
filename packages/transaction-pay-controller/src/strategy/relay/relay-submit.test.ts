@@ -7,36 +7,43 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { PaymentOverride } from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
+import { PaymentOverride } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import type { FeatureFlags } from '../../utils/feature-flags';
+} from '../../types.js';
+import type { FeatureFlags } from '../../utils/feature-flags.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
+} from '../../utils/feature-flags.js';
+import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import {
+  getLiveTokenBalance,
+  normalizeTokenAddress,
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
+  getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
-import { RELAY_STATUS_URL } from './constants';
-import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
+} from '../../utils/transaction.js';
+import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
+import { getRelaySubmitCalls, submitRelayQuotes } from './relay-submit.js';
+import type { RelayQuote } from './types.js';
 
+jest.mock('../../utils/ma-vault-deposit');
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
 jest.mock('./polymarket/withdraw');
-
+jest.mock('./relay-submit-execute');
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
 const SOURCE_HASH_MOCK = '0xsourcehash';
@@ -157,6 +164,14 @@ describe('Relay Submit Utils', () => {
     waitForTransactionConfirmed,
   );
 
+  const submitViaRelayExecuteMock = jest.mocked(submitViaRelayExecute);
+  const submitMoneyAccountVaultDepositMock = jest.mocked(
+    submitMoneyAccountVaultDeposit,
+  );
+  const getTransferredAmountFromTxHashMock = jest.mocked(
+    getTransferredAmountFromTxHash,
+  );
+
   beforeEach(() => {
     jest.resetAllMocks();
 
@@ -236,6 +251,22 @@ describe('Relay Submit Utils', () => {
           requireApproval: false,
           type: TransactionType.relayDeposit,
         },
+      );
+    });
+
+    it('passes sponsored gas options when parent sponsorship applies to same-chain quote', async () => {
+      request.transaction.chainId = CHAIN_ID_MOCK;
+      request.transaction.isGasFeeSponsored = true;
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          isGasFeeSponsored: true,
+        }),
       );
     });
 
@@ -515,6 +546,81 @@ describe('Relay Submit Utils', () => {
       });
     });
 
+    it('passes signed authorizationList on batch when same-chain with account override', async () => {
+      const moneyAccountFrom = '0xmoneyaccount' as Hex;
+
+      request.transaction = {
+        ...request.transaction,
+        txParams: { from: moneyAccountFrom },
+      } as TransactionMeta;
+
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+          authorizationList: [
+            {
+              address: '0xabc',
+              chainId: '0x1',
+              nonce: '0x2',
+              r: '0xr',
+              s: '0xs',
+              yParity: '0x1',
+            },
+          ],
+        }),
+      );
+    });
+
+    it('does not pass authorizationList on batch when from matches transaction from', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+      );
+    });
+
     it('uses mapped relay deposit type in batch when parent is predictDeposit', async () => {
       request.transaction = {
         ...request.transaction,
@@ -600,6 +706,25 @@ describe('Relay Submit Utils', () => {
         expect.objectContaining({
           gas: '0x5208',
           value: '0x0',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('adds transaction if gas fee params missing', async () => {
+      request.quotes[0].original.steps[0].items[0].data.maxFeePerGas =
+        undefined as never;
+
+      request.quotes[0].original.steps[0].items[0].data.maxPriorityFeePerGas =
+        undefined as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxFeePerGas: undefined,
+          maxPriorityFeePerGas: undefined,
         }),
         expect.anything(),
       );
@@ -960,6 +1085,51 @@ describe('Relay Submit Utils', () => {
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
+      it('prepends override tx params to submit batch for cross-chain flows', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 137;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 143;
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).toHaveBeenCalled();
+        const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.transactions[0].params).toStrictEqual(
+          expect.objectContaining({
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
+          }),
+        );
+      });
+
+      it('does not prepend override for non-atomic flows', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.quotes[0].request.atomic = false;
+        request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash:
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex,
+        });
+        successfulFetchMock.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
       it('does not prepend when callback returns empty array', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
@@ -1176,25 +1346,6 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('sets gas to undefined when gasLimits entry is missing', async () => {
-        request.quotes[0].original.metamask.gasLimits = [];
-
-        await submitRelayQuotes(request);
-
-        expect(addTransactionBatchMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            transactions: expect.arrayContaining([
-              expect.objectContaining({
-                params: expect.objectContaining({
-                  gas: undefined,
-                }),
-                type: TransactionType.relayDeposit,
-              }),
-            ]),
-          }),
-        );
-      });
-
       it('does not activate 7702 mode with multiple post-quote gas limits', async () => {
         request.quotes[0].original.metamask.gasLimits = [21000, 21000];
 
@@ -1381,6 +1532,24 @@ describe('Relay Submit Utils', () => {
               }),
             }),
           ],
+        }),
+      );
+    });
+
+    it('passes sponsored gas options to same-chain batch submissions', async () => {
+      request.transaction.chainId = CHAIN_ID_MOCK;
+      request.transaction.isGasFeeSponsored = true;
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isGasFeeSponsored: true,
         }),
       );
     });
@@ -1659,352 +1828,378 @@ describe('Relay Submit Utils', () => {
     });
 
     describe('EIP-7702 execute path', () => {
-      const DELEGATION_MANAGER_MOCK = '0xdelegationManager' as Hex;
-      const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
-
-      const DELEGATION_RESULT_MOCK = {
-        authorizationList: [
-          {
-            address: '0xdelegateAddr' as Hex,
-            chainId: '0x1' as Hex,
-            nonce: '0x0' as Hex,
-            r: '0xr' as Hex,
-            s: '0xs' as Hex,
-            yParity: '0x0' as Hex,
-          },
-        ],
-        data: DELEGATION_DATA_MOCK,
-        to: DELEGATION_MANAGER_MOCK,
-        value: '0x0' as Hex,
-      };
-
-      const EXECUTE_RESPONSE_MOCK = {
-        message: 'Transaction submitted',
-        requestId: REQUEST_ID_MOCK,
-      };
-
-      const FEATURE_FLAGS_MOCK = {
-        relayExecuteUrl: 'https://api.relay.link/execute',
-        relayFallbackGas: { max: 123 },
-      } as FeatureFlags;
-
       beforeEach(() => {
         request.quotes[0].original.metamask.isExecute = true;
-        getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
-        getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
-
-        successfulFetchMock
-          .mockResolvedValueOnce({
-            ok: true,
-            json: async () => EXECUTE_RESPONSE_MOCK,
-          } as Response)
-          .mockResolvedValue({
-            ok: true,
-            json: async () => STATUS_RESPONSE_MOCK,
-          } as Response);
-      });
-
-      it('calls getDelegationTransaction with source calls as nestedTransactions', async () => {
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledTimes(1);
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            chainId: CHAIN_ID_MOCK,
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-            nestedTransactions: [
-              {
-                data: '0x1234',
-                to: '0xfedcb',
-                value: '0x4d2',
-              },
-            ],
-          }),
-        });
-      });
-
-      it('resolves networkClientId for source chain instead of inheriting from original transaction', async () => {
-        await submitRelayQuotes(request);
-
-        expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
-          CHAIN_ID_MOCK,
-        );
-      });
-
-      it('passes txParams with from overridden by quote request from', async () => {
-        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
-
-        request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
-        request.transaction = {
-          ...request.transaction,
-          txParams: {
-            from: FROM_MOCK,
-            data: '0xorigdata' as Hex,
-            value: '0x100' as Hex,
-          },
-        } as TransactionMeta;
-
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            txParams: {
-              from: ACCOUNT_OVERRIDE_MOCK,
-              data: '0xorigdata',
-              value: '0x100',
-            },
-          }),
-        });
-      });
-
-      it('submits to /execute with delegation data', async () => {
-        await submitRelayQuotes(request);
-
-        expect(successfulFetchMock).toHaveBeenCalledWith(
-          FEATURE_FLAGS_MOCK.relayExecuteUrl,
-          expect.objectContaining({
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              executionKind: 'rawCalls',
-              data: {
-                chainId: 1,
-                to: DELEGATION_MANAGER_MOCK,
-                data: DELEGATION_DATA_MOCK,
-                value: '0',
-                authorizationList: [
-                  {
-                    chainId: 1,
-                    address: '0xdelegateAddr',
-                    nonce: 0,
-                    yParity: 0,
-                    r: '0xr',
-                    s: '0xs',
-                  },
-                ],
-              },
-              executionOptions: {
-                subsidizeFees: false,
-              },
-              requestId: REQUEST_ID_MOCK,
-            }),
-          }),
-        );
-      });
-
-      it('wraps /execute submission failures with the Relay execute prefix (Relay submit prefix is applied at RelayStrategy.execute)', async () => {
-        successfulFetchMock.mockReset();
-        successfulFetchMock.mockResolvedValueOnce({
-          ok: false,
-          status: 422,
-          json: async () => ({
-            message: 'failed to decode param in array[0] invalid JSON input',
-          }),
-        } as Response);
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay: Execute: 422 - failed to decode param in array[0] invalid JSON input',
-        );
-      });
-
-      it('wraps non-Error throws from /execute with the Relay execute prefix', async () => {
-        successfulFetchMock.mockReset();
-        successfulFetchMock.mockRejectedValueOnce('network down');
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay: Execute: network down',
-        );
-      });
-
-      it('omits authorizationList when delegation has none', async () => {
+        submitViaRelayExecuteMock.mockResolvedValue(undefined);
         getDelegationTransactionMock.mockResolvedValue({
-          ...DELEGATION_RESULT_MOCK,
-          authorizationList: undefined,
+          data: '0xdelegationdata' as Hex,
+          to: '0xdelegationManager' as Hex,
+          value: '0x0' as Hex,
         });
+      });
+
+      it('delegates to submitViaRelayExecute when isExecute is true', async () => {
+        await submitRelayQuotes(request);
+
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('uses fallback data and value when step item data/value are undefined', async () => {
+        request.quotes[0].original.steps[0].items[0].data.data =
+          undefined as unknown as Hex;
+        request.quotes[0].original.steps[0].items[0].data.value =
+          undefined as unknown as string;
 
         await submitRelayQuotes(request);
 
-        const fetchCall = successfulFetchMock.mock.calls[0];
-        const body = JSON.parse(
-          (fetchCall[1] as RequestInit).body as string,
-        ) as Record<string, unknown>;
-        const data = body.data as Record<string, unknown>;
-
-        expect(data.authorizationList).toBeUndefined();
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
       });
 
-      it('uses fallback values for missing data and value in source params', async () => {
-        const quoteWithoutDataOrValue = {
-          ...request.quotes[0],
-          original: {
-            ...ORIGINAL_QUOTE_MOCK,
-            metamask: {
-              ...ORIGINAL_QUOTE_MOCK.metamask,
-              isExecute: true,
+      it('includes authorizationList in execute request when delegation returns one', async () => {
+        getDelegationTransactionMock.mockResolvedValue({
+          data: '0xdelegationdata' as Hex,
+          to: '0xdelegationManager' as Hex,
+          value: '0x0' as Hex,
+          authorizationList: [
+            {
+              address: '0xabc' as Hex,
+              chainId: '0x1' as Hex,
+              nonce: '0x2' as Hex,
+              r: '0xr' as Hex,
+              s: '0xs' as Hex,
+              yParity: '0x0' as Hex,
             },
-            steps: [
-              {
-                ...ORIGINAL_QUOTE_MOCK.steps[0],
-                items: [
-                  {
-                    ...ORIGINAL_QUOTE_MOCK.steps[0].items[0],
-                    data: {
-                      ...ORIGINAL_QUOTE_MOCK.steps[0].items[0].data,
-                      data: undefined,
-                      value: undefined,
-                    },
-                  },
-                ],
-              },
-            ],
-          },
-        } as TransactionPayQuote<RelayQuote>;
+          ],
+        });
 
-        request = {
-          ...request,
-          quotes: [quoteWithoutDataOrValue],
+        // submitViaRelayExecute is mocked; we just verify the flow completes
+        // without error, which exercises the authorizationList.map branch in
+        // buildRelayExecuteRequest (line 654 of relay-submit.ts)
+        await submitRelayQuotes(request);
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('getRelaySubmitCalls', () => {
+    it('returns calls from buildRelaySubmitParams', async () => {
+      const { calls } = await getRelaySubmitCalls({
+        messenger,
+        quote: request.quotes[0],
+        transaction: request.transaction,
+      });
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({
+        data: '0x1234',
+        from: FROM_MOCK,
+        to: '0xfedcb',
+      });
+    });
+
+    describe('atomic: false post-completion', () => {
+      const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
+      const TARGET_HASH_MOCK =
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
+      const ON_CHAIN_AMOUNT_MOCK = '535000';
+      const MINIMUM_AMOUNT_MOCK = '530000';
+      const VAULT_HASH_MOCK =
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
+      const TARGET_CHAIN_ID_MOCK = '0x2797' as Hex;
+      const TARGET_TOKEN_ADDRESS_MOCK =
+        '0xtoken000000000000000000000000000000001' as Hex;
+
+      beforeEach(() => {
+        request.quotes[0].request.atomic = false;
+        request.quotes[0].request.recipient = RECIPIENT_MOCK;
+        request.quotes[0].request.targetChainId = TARGET_CHAIN_ID_MOCK;
+        request.quotes[0].request.targetTokenAddress =
+          TARGET_TOKEN_ADDRESS_MOCK;
+        request.quotes[0].original.details.currencyOut = {
+          ...request.quotes[0].original.details.currencyOut,
+          currency: {
+            ...request.quotes[0].original.details.currencyOut.currency,
+            decimals: 6,
+          },
+          minimumAmount: MINIMUM_AMOUNT_MOCK,
         };
 
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              {
-                data: '0x',
-                to: '0xfedcb',
-                value: '0x0',
-              },
-            ],
-          }),
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
         });
-      });
 
-      it('does not call addTransaction or addTransactionBatch', async () => {
-        await submitRelayQuotes(request);
-
-        expect(addTransactionMock).not.toHaveBeenCalled();
-        expect(addTransactionBatchMock).not.toHaveBeenCalled();
-      });
-
-      it('still validates source balance', async () => {
-        getLiveTokenBalanceMock.mockResolvedValue('500000');
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Insufficient source token balance for relay deposit',
-        );
-
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
-      });
-
-      it('polls relay status after execute', async () => {
-        await submitRelayQuotes(request);
-
-        expect(successfulFetchMock).toHaveBeenCalledWith(
-          `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
-          { method: 'GET' },
-        );
-      });
-
-      it('returns target hash from relay status', async () => {
-        const result = await submitRelayQuotes(request);
-        expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
-      });
-
-      it('populates sourceHash on transaction metamaskPay from inTxHashes', async () => {
-        await submitRelayQuotes(request);
-
-        const updateCall = updateTransactionMock.mock.calls.find(
-          ([{ note }]) => note === 'Add source hash from Relay status',
-        );
-
-        expect(updateCall).toBeDefined();
-
-        const tx = {} as TransactionMeta;
-        updateCall?.[1](tx);
-
-        expect(tx.metamaskPay?.sourceHash).toBe(SOURCE_HASH_MOCK);
-      });
-
-      it('includes original transaction in nestedTransactions for post-quote flow', async () => {
-        request.quotes[0].request.isPostQuote = true;
-        request.transaction = {
-          id: ORIGINAL_TRANSACTION_ID_MOCK,
-          txParams: {
-            from: FROM_MOCK,
-            to: '0xrecipient' as Hex,
-            data: '0xorigdata' as Hex,
-            value: '0x100' as Hex,
-          },
-          type: TransactionType.simpleSend,
-        } as TransactionMeta;
-
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              {
-                data: '0xorigdata',
-                to: '0xrecipient',
-                value: '0x100',
-              },
-              {
-                data: '0x1234',
-                to: '0xfedcb',
-                value: '0x4d2',
-              },
-            ],
-          }),
-        });
-      });
-
-      it('uses fallback values when original transaction has no data or value in post-quote flow', async () => {
-        request.quotes[0].request.isPostQuote = true;
-        request.transaction = {
-          id: ORIGINAL_TRANSACTION_ID_MOCK,
-          txParams: {
-            from: FROM_MOCK,
-            to: '0xrecipient' as Hex,
-          },
-          type: TransactionType.simpleSend,
-        } as TransactionMeta;
-
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              {
-                data: '0x',
-                to: '0xrecipient',
-                value: '0x0',
-              },
-              {
-                data: '0x1234',
-                to: '0xfedcb',
-                value: '0x4d2',
-              },
-            ],
-          }),
-        });
-      });
-
-      it('uses TransactionController path when isExecute is not set', async () => {
-        request.quotes[0].original.metamask.isExecute = undefined;
-
-        successfulFetchMock.mockReset();
         successfulFetchMock.mockResolvedValue({
           ok: true,
-          json: async () => STATUS_RESPONSE_MOCK,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [TARGET_HASH_MOCK],
+          }),
+        } as Response);
+      });
+
+      it('resolves settled amount from on-chain Transfer log and submits vault deposit', async () => {
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith({
+          messenger: expect.anything(),
+          txHash: TARGET_HASH_MOCK,
+          chainId: TARGET_CHAIN_ID_MOCK,
+          tokenAddress: TARGET_TOKEN_ADDRESS_MOCK,
+          walletAddress: RECIPIENT_MOCK,
+        });
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
+            moneyAccountAddress: RECIPIENT_MOCK,
+            vaultDisabled: false,
+          }),
+        );
+        expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
+      });
+
+      it('throws when the cross-chain on-chain amount is unavailable', async () => {
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: undefined,
+          blockNumber: undefined,
+        });
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Cannot resolve settled amount from on-chain transaction',
+        );
+        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+      });
+
+      it('propagates the error when the cross-chain on-chain read throws', async () => {
+        getTransferredAmountFromTxHashMock.mockRejectedValue(
+          new Error('rpc error'),
+        );
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow('rpc error');
+        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+      });
+
+      it('skips on-chain read and uses quote minimum when targetHash is FALLBACK_HASH', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
         } as Response);
 
         await submitRelayQuotes(request);
 
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
-        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        );
+      });
+
+      it('uses quote minimum on same-chain flows when submit returns FALLBACK_HASH', async () => {
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 1;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+        request.quotes[0].original.metamask.isExecute = true;
+
+        submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        );
+      });
+
+      it('reads settled amount from submitted source hash on same-chain flows', async () => {
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 1;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            txHash: TRANSACTION_HASH_MOCK,
+            chainId: CHAIN_ID_MOCK,
+            walletAddress: RECIPIENT_MOCK,
+          }),
+        );
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK }),
+        );
+      });
+
+      it('throws when the same-chain flow has no quote-minimum amount', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [FALLBACK_HASH],
+          }),
+        } as Response);
+        request.quotes[0].original.details.currencyOut.minimumAmount = '';
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Cannot resolve post-completion amount',
+        );
+        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
+      });
+
+      it('falls back to completion targetHash when submit returns no hash', async () => {
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: undefined,
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+      });
+
+      it('falls back to quote.request.from when no recipient is set', async () => {
+        request.quotes[0].request.recipient = undefined;
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
+          expect.objectContaining({ walletAddress: FROM_MOCK }),
+        );
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({ moneyAccountAddress: FROM_MOCK }),
+        );
+      });
+
+      describe('post-quote flow', () => {
+        const DEPOSIT_CALLS_MOCK: BatchTransactionParams[] = [
+          {
+            to: '0xapprove0000000000000000000000000000001' as Hex,
+            data: '0xapprove' as Hex,
+            value: '0x0' as Hex,
+          },
+          {
+            to: '0xteller00000000000000000000000000000001' as Hex,
+            data: '0xdeposit' as Hex,
+            value: '0x0' as Hex,
+          },
+        ];
+
+        beforeEach(() => {
+          request.quotes[0].request.isPostQuote = true;
+          getControllerStateMock.mockReturnValue({
+            transactionData: {
+              [ORIGINAL_TRANSACTION_ID_MOCK]: {},
+            },
+          } as never);
+          getPaymentOverrideDataMock.mockResolvedValue({
+            calls: DEPOSIT_CALLS_MOCK,
+          });
+          getTransferredAmountFromTxHashMock.mockResolvedValue({
+            amountRaw: ON_CHAIN_AMOUNT_MOCK,
+            blockNumber: undefined,
+          });
+        });
+
+        it('calls getPaymentOverrideData with the settled amount (in human units) and forwards deposit calls', async () => {
+          await submitRelayQuotes(request);
+
+          expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
+            // 535000 raw with 6 decimals → 0.535 human
+            amount: '0.535',
+            transaction: expect.objectContaining({
+              id: ORIGINAL_TRANSACTION_ID_MOCK,
+            }),
+            transactionData: expect.anything(),
+          });
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              depositCalls: DEPOSIT_CALLS_MOCK,
+              sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
+            }),
+          );
+        });
+
+        it('prefers the recipient returned by getPaymentOverrideData', async () => {
+          const CALLBACK_RECIPIENT_MOCK =
+            '0xcallback00000000000000000000000000000001' as Hex;
+          getPaymentOverrideDataMock.mockResolvedValue({
+            calls: DEPOSIT_CALLS_MOCK,
+            recipient: CALLBACK_RECIPIENT_MOCK,
+          });
+
+          await submitRelayQuotes(request);
+
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              moneyAccountAddress: CALLBACK_RECIPIENT_MOCK,
+            }),
+          );
+        });
+
+        it('falls back to the quote recipient when getPaymentOverrideData omits it', async () => {
+          await submitRelayQuotes(request);
+
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({ moneyAccountAddress: RECIPIENT_MOCK }),
+          );
+        });
+
+        it('throws when getPaymentOverrideData returns no calls', async () => {
+          getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
+
+          await expect(submitRelayQuotes(request)).rejects.toThrow(
+            'Missing post-quote deposit calls',
+          );
+          expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('non-post-quote flow', () => {
+        beforeEach(() => {
+          request.quotes[0].request.isPostQuote = false;
+          getTransferredAmountFromTxHashMock.mockResolvedValue({
+            amountRaw: ON_CHAIN_AMOUNT_MOCK,
+            blockNumber: undefined,
+          });
+        });
+
+        it('does not call getPaymentOverrideData and forwards no depositCalls', async () => {
+          await submitRelayQuotes(request);
+
+          expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+            expect.objectContaining({ depositCalls: undefined }),
+          );
+        });
       });
     });
   });

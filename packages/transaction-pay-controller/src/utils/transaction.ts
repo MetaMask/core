@@ -1,9 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import {
-  TransactionStatus,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -11,16 +8,15 @@ import { BigNumber } from 'bignumber.js';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
   UpdateTransactionDataCallback,
-} from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
-import { rpcRequest } from './provider';
-import { parseRequiredTokens } from './required-tokens';
-import { getNativeToken } from './token';
+} from '../types.js';
+import { rpcRequest } from './provider.js';
+import { parseRequiredTokens } from './required-tokens.js';
+import { getNativeToken } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'transaction');
 
@@ -79,7 +75,10 @@ export function subscribeTransactionChanges(
 
         return (
           previousTransaction &&
-          previousTransaction?.txParams.data !== tx.txParams.data
+          (previousTransaction?.txParams.data !== tx.txParams.data ||
+            previousTransaction?.txParams.to !== tx.txParams.to ||
+            JSON.stringify(previousTransaction?.requiredAssets) !==
+              JSON.stringify(tx.requiredAssets))
         );
       });
 
@@ -115,6 +114,14 @@ export function subscribeTransactionChanges(
  * Subscribe to asset state changes and re-parse required tokens for
  * in-flight transactions whose tokens have not yet resolved.
  *
+ * Subscribes to all known asset event sources unconditionally, rather than
+ * choosing a single source based on the unify-state feature flag. The flag
+ * value can change between when this controller is constructed and when it
+ * is read elsewhere (e.g. remote feature flags loading after startup), so
+ * relying on it here to pick a single source risks missing the events that
+ * actually fire. The handler is idempotent, so subscribing to extra sources
+ * that never fire is harmless.
+ *
  * @param messenger - Controller messenger.
  * @param getControllerState - Callback returning the current controller state.
  * @param updateTransactionData - Callback to update transaction data.
@@ -146,14 +153,10 @@ export function subscribeAssetChanges(
       }
     };
 
-  if (getAssetsUnifyStateFeature(messenger)) {
-    messenger.subscribe(
-      'AssetsController:stateChange',
-      buildHandler('AssetsController'),
-    );
-    return;
-  }
-
+  messenger.subscribe(
+    'AssetsController:stateChange',
+    buildHandler('AssetsController'),
+  );
   messenger.subscribe(
     'TokensController:stateChange',
     buildHandler('TokensController'),
@@ -307,27 +310,6 @@ export function collectTransactionIds(
 }
 
 /**
- * Check whether a transaction is a Predict withdrawal.
- *
- * Returns `true` when the transaction's own type is `predictWithdraw`, or
- * when any of its nested transactions has that type.
- *
- * @param transaction - Transaction metadata.
- * @returns `true` when the transaction is a Predict withdrawal.
- */
-export function isPredictWithdrawTransaction(
-  transaction: TransactionMeta,
-): boolean {
-  return (
-    transaction.type === TransactionType.predictWithdraw ||
-    (transaction.nestedTransactions?.some(
-      (nt) => nt.type === TransactionType.predictWithdraw,
-    ) ??
-      false)
-  );
-}
-
-/**
  * Handle a transaction change by updating its associated data.
  *
  * @param transaction - Transaction metadata.
@@ -367,12 +349,26 @@ const erc20Interface = new Interface(abiERC20);
 const ERC20_TRANSFER_EVENT_TOPIC = erc20Interface.getEventTopic('Transfer');
 
 /**
+ * Result from {@link getTransferredAmountFromTxHash}.
+ */
+export type TransferredAmountResult = {
+  /** Raw (atomic) transferred amount as a decimal string, or `undefined`. */
+  amountRaw: string | undefined;
+  /**
+   * Block number of the on-chain transaction as a 0x-prefixed hex string.
+   * Populated only for ERC-20 tokens (sourced from the receipt); `undefined`
+   * for native token transactions.
+   */
+  blockNumber: Hex | undefined;
+};
+
+/**
  * Reads the transferred token amount from a completed on-chain transaction.
  *
  * For native tokens the amount is resolved via `debug_traceTransaction`
  * (internal-call aware), falling back to the top-level `tx.value`.
  * For ERC-20 tokens the amount is decoded from `Transfer` event logs
- * in the transaction receipt.
+ * in the transaction receipt, and the receipt `blockNumber` is also returned.
  *
  * @param options - The options.
  * @param options.messenger - Controller messenger for network access.
@@ -380,8 +376,7 @@ const ERC20_TRANSFER_EVENT_TOPIC = erc20Interface.getEventTopic('Transfer');
  * @param options.chainId - Chain ID where the transaction was executed.
  * @param options.tokenAddress - Address of the transferred token.
  * @param options.walletAddress - Recipient wallet address to filter transfers to.
- * @returns The raw (atomic) transferred amount as a decimal string,
- * or `undefined` if the amount cannot be determined.
+ * @returns The raw transferred amount and, for ERC-20, the receipt block number.
  */
 export async function getTransferredAmountFromTxHash({
   messenger,
@@ -395,17 +390,19 @@ export async function getTransferredAmountFromTxHash({
   chainId: Hex;
   tokenAddress: Hex;
   walletAddress: Hex;
-}): Promise<string | undefined> {
+}): Promise<TransferredAmountResult> {
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    return await getNativeTransferAmount(
+    const amountRaw = await getNativeTransferAmount(
       messenger,
       chainId,
       txHash,
       walletAddress,
     );
+
+    return { amountRaw, blockNumber: undefined };
   }
 
   return await getErc20TransferAmount(
@@ -473,14 +470,16 @@ async function getNativeTransferAmount(
 
 /**
  * Resolves the ERC-20 token amount received by a wallet from a transaction
- * by decoding `Transfer` event logs from the transaction receipt.
+ * by decoding `Transfer` event logs from the transaction receipt. Also
+ * returns the receipt `blockNumber` so callers can reuse it without a
+ * second network request.
  *
  * @param messenger - Controller messenger.
  * @param chainId - Chain ID where the transaction was executed.
  * @param txHash - Transaction hash.
  * @param tokenAddress - ERC-20 token contract address.
  * @param walletAddress - Recipient wallet address.
- * @returns Raw amount as a decimal string, or `undefined`.
+ * @returns Raw amount (or `undefined`) and the receipt block number (or `undefined`).
  */
 async function getErc20TransferAmount(
   messenger: TransactionPayControllerMessenger,
@@ -488,8 +487,9 @@ async function getErc20TransferAmount(
   txHash: string,
   tokenAddress: Hex,
   walletAddress: Hex,
-): Promise<string | undefined> {
+): Promise<TransferredAmountResult> {
   const receipt = await rpcRequest<{
+    blockNumber: Hex;
     logs: { address: string; topics: string[]; data: string }[];
   } | null>({
     messenger,
@@ -499,9 +499,10 @@ async function getErc20TransferAmount(
   });
 
   if (!receipt) {
-    return undefined;
+    return { amountRaw: undefined, blockNumber: undefined };
   }
 
+  const { blockNumber } = receipt;
   let total = new BigNumber(0);
 
   for (const txLog of receipt.logs) {
@@ -527,7 +528,7 @@ async function getErc20TransferAmount(
     }
   }
 
-  return positiveOrUndefined(total.toFixed(0));
+  return { amountRaw: positiveOrUndefined(total.toFixed(0)), blockNumber };
 }
 
 type CallTrace = {

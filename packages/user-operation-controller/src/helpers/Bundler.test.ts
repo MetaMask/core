@@ -1,5 +1,5 @@
-import type { UserOperation } from '../types';
-import { Bundler } from './Bundler';
+import type { UserOperation } from '../types.js';
+import { Bundler } from './Bundler.js';
 
 const URL_MOCK = 'http://test.com';
 const ENTRYPOINT_MOCK = '0x123';

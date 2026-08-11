@@ -10,18 +10,26 @@ import type {
   BboWsEvent,
   L2BookResponse,
   AssetCtxsWsEvent,
+  FastAssetCtxsWsEvent,
   FrontendOpenOrdersResponse,
   ClearinghouseStateWsEvent,
   OpenOrdersWsEvent,
   SpotStateWsEvent,
 } from '@nktkas/hyperliquid';
 
+import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig.js';
 import {
   TP_SL_CONFIG,
   PERPS_CONSTANTS,
   ABSTRACTION_MODE_REFRESH_THROTTLE_MS,
-} from '../constants/perpsConfig';
-import { WebSocketConnectionState } from '../types';
+} from '../constants/perpsConfig.js';
+import type {
+  SpotClearinghouseStateResponse,
+  HyperLiquidAbstractionMode,
+  UserAbstractionResponse,
+} from '../types/hyperliquid-types.js';
+import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   PriceUpdate,
   Position,
@@ -39,29 +47,42 @@ import type {
   OrderBookLevel,
   PerpsPlatformDependencies,
   PerpsLogger,
-} from '../types';
-import type {
-  SpotClearinghouseStateResponse,
-  HyperLiquidAbstractionMode,
-  UserAbstractionResponse,
-} from '../types/hyperliquid-types';
-import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types';
+  PositionTriggerOrder,
+} from '../types/index.js';
 import {
   addSpotBalanceToAccountState,
   calculateWeightedReturnOnEquity,
-} from '../utils/accountUtils';
-import type { AddSpotBalanceOptions } from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
+} from '../utils/accountUtils.js';
+import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptPositionFromSDK,
   adaptOrderFromSDK,
   adaptAccountStateFromSDK,
   parseAssetName,
-} from '../utils/hyperLiquidAdapter';
-import { processBboData } from '../utils/hyperLiquidOrderBookProcessor';
-import { calculateOpenInterestUSD } from '../utils/marketDataTransform';
-import type { HyperLiquidClientService } from './HyperLiquidClientService';
-import type { HyperLiquidWalletService } from './HyperLiquidWalletService';
+} from '../utils/hyperLiquidAdapter.js';
+import { processBboData } from '../utils/hyperLiquidOrderBookProcessor.js';
+import {
+  calculateOpenInterestUSD,
+  isMarketTradable,
+} from '../utils/marketDataTransform.js';
+import {
+  buildPositionTriggerOrderFromOrder,
+  hashTriggerOrders,
+} from '../utils/orderTypes.js';
+import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
+import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+
+/**
+ * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
+ */
+type PositionTriggerOrderMap = Map<
+  string,
+  {
+    takeProfitOrders: PositionTriggerOrder[];
+    stopLossOrders: PositionTriggerOrder[];
+  }
+>;
 
 /**
  * Service for managing HyperLiquid WebSocket subscriptions
@@ -81,6 +102,9 @@ export class HyperLiquidSubscriptionService {
   #allowlistMarkets: string[]; // Market filtering (allowlist)
 
   #blocklistMarkets: string[]; // Market filtering (blocklist)
+
+  // Max market-vs-oracle price deviation before a market is reported untradable
+  readonly #priceDeviationLimit: number;
 
   #discoveredDexNames: string[] = []; // DEX order for mapping webData3 perpDexStates indices
 
@@ -129,6 +153,26 @@ export class HyperLiquidSubscriptionService {
   #globalAllMidsSubscription?: ISubscription;
 
   #globalAllMidsPromise?: Promise<void>; // Track in-progress subscription
+
+  // fastAssetCtxs (TAT-3387): single global feed (no per-DEX param) that owns
+  // the latency-sensitive mark/mid price path at HyperLiquid's fast (~5s)
+  // cadence, now that the public assetCtxs feed has been slowed down.
+  #globalFastAssetCtxsSubscription?: ISubscription;
+
+  #globalFastAssetCtxsPromise?: Promise<void>; // Track in-progress subscription
+
+  // Coins with a usable price (midPx/markPx) from any fastAssetCtxs event
+  // (snapshot or diff). Once a coin appears here, the per-DEX assetCtxs
+  // handler stops writing its price into #cachedPriceData, since
+  // fastAssetCtxs is the fresher/authoritative source for that coin going
+  // forward. A coin is only added once fastAssetCtxs has actually supplied a
+  // usable price for it (not merely appeared in a message with a null/absent
+  // price), so ownership is never claimed without a fast price backing it —
+  // otherwise assetCtxs, the coin's only remaining price source, would be
+  // suppressed with nothing to fall back on. Cleared on clearAll() and when
+  // the fastAssetCtxs subscription is re-established after a reconnect, so
+  // assetCtxs can serve prices again until a fresh snapshot arrives.
+  readonly #fastAssetCtxsCoins = new Set<string>();
 
   readonly #globalActiveAssetSubscriptions = new Map<string, ISubscription>();
 
@@ -303,8 +347,22 @@ export class HyperLiquidSubscriptionService {
       volume24h?: number;
       oraclePrice?: number;
       lastUpdated: number;
+      // Fast-stream price from activeAssetCtx (midPx preferred, markPx fallback).
+      // Populated only for symbols with includeMarketData: true subscriptions.
+      // #notifyAllPriceSubscribers projects this onto the allMids baseline for
+      // focused (includeMarketData: true) subscribers only; list subscribers
+      // always receive the raw allMids price.
+      activeAssetCtxPrice?: number;
+      // Timestamp of the last activeAssetCtx price update.
+      // Used by #notifyAllPriceSubscribers and #projectPriceUpdate for staleness checks.
+      priceLastUpdated?: number;
     }
   >();
+
+  // Stale threshold for the fast-stream price preference. If the last
+  // activeAssetCtx price update is older than this, the allMids baseline is
+  // used for focused subscribers.
+  static readonly #activeAssetCtxPriceTtlMs = 10_000;
 
   // Flag to suppress error logging during intentional disconnect
   // Set in clearAll() and never reset (service instance is discarded after disconnect)
@@ -326,6 +384,7 @@ export class HyperLiquidSubscriptionService {
     enabledDexs?: string[],
     allowlistMarkets?: string[],
     blocklistMarkets?: string[],
+    priceDeviationLimit?: number,
   ) {
     this.#clientService = clientService;
     this.#walletService = walletService;
@@ -335,6 +394,8 @@ export class HyperLiquidSubscriptionService {
     this.#discoveredDexNames = enabledDexs ?? [];
     this.#allowlistMarkets = allowlistMarkets ?? [];
     this.#blocklistMarkets = blocklistMarkets ?? [];
+    this.#priceDeviationLimit =
+      priceDeviationLimit ?? HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
   }
 
   /**
@@ -757,7 +818,12 @@ export class HyperLiquidSubscriptionService {
             pos.takeProfitPrice ?? ''
           }:${pos.stopLossPrice ?? ''}:${pos.takeProfitCount}:${pos.stopLossCount}:${
             pos.unrealizedPnl
-          }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed || ''}`,
+          }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed || ''}:${
+            // Trigger arrays are part of the emitted shape, so a standalone or
+            // partial trigger appearing/disappearing has to change the hash —
+            // otherwise subscribers never receive the updated arrays.
+            hashTriggerOrders(pos.takeProfitOrders)
+          }:${hashTriggerOrders(pos.stopLossOrders)}`,
       )
       .join('|');
   }
@@ -804,6 +870,7 @@ export class HyperLiquidSubscriptionService {
       string,
       { takeProfitCount?: number; stopLossCount?: number }
     >;
+    triggerOrderMap: PositionTriggerOrderMap;
     processedOrders: Order[];
   } {
     const tpslMap = new Map<
@@ -816,12 +883,59 @@ export class HyperLiquidSubscriptionService {
       { takeProfitCount?: number; stopLossCount?: number }
     >();
 
+    // Complete per-symbol trigger order view, including quantity-scoped (partial)
+    // TP/SL orders that the scalar tpslMap prices cannot represent.
+    const triggerOrderMap: PositionTriggerOrderMap = new Map();
+
+    const addTriggerOrder = (
+      symbol: string,
+      triggerOrder: PositionTriggerOrder | undefined,
+    ): void => {
+      if (!triggerOrder) {
+        return;
+      }
+
+      const existing = triggerOrderMap.get(symbol) ?? {
+        takeProfitOrders: [],
+        stopLossOrders: [],
+      };
+
+      if (triggerOrder.direction === 'take_profit') {
+        existing.takeProfitOrders.push(triggerOrder);
+      } else {
+        existing.stopLossOrders.push(triggerOrder);
+      }
+
+      triggerOrderMap.set(symbol, existing);
+    };
+
     // If cached processed orders provided, extract TP/SL from them directly
     if (cachedProcessedOrders) {
+      // Hoisted out of the per-order loop: this runs on every order-update tick.
+      const positionsBySymbol = new Map(
+        positions.map((position) => [position.symbol, position]),
+      );
+
       cachedProcessedOrders.forEach((order) => {
         // Use triggerPrice for TP/SL (trigger condition price), falling back to price
         // This ensures consistency with raw SDK order processing which uses triggerPx
         const tpslPrice = order.triggerPrice ?? order.price;
+
+        // Collected before the position-bound filter below: partial TP/SL orders
+        // are standalone (not position-bound) and still belong to this view.
+        // A trigger that is another order's child does not — same rule as the
+        // REST path in HyperLiquidProvider.getPositions.
+        if (order.isTrigger && order.reduceOnly && !order.parentOrderId) {
+          addTriggerOrder(
+            order.symbol,
+            buildPositionTriggerOrderFromOrder({
+              order,
+              positionSize: positionsBySymbol.get(order.symbol)?.size ?? '0',
+              entryPrice: positionsBySymbol.get(order.symbol)?.entryPrice,
+            }),
+          );
+        }
+
         if (order.isTrigger && tpslPrice) {
           // When UsePositionBoundTpsl is enabled, only position-bound TP/SL orders
           // should be shown on positions — skip normalTpsl children of limit orders
@@ -890,11 +1004,27 @@ export class HyperLiquidSubscriptionService {
         }
       });
 
-      return { tpslMap, tpslCountMap, processedOrders: cachedProcessedOrders };
+      return {
+        tpslMap,
+        tpslCountMap,
+        triggerOrderMap,
+        processedOrders: cachedProcessedOrders,
+      };
     }
 
     // Process raw SDK orders
     const processedOrders: Order[] = [];
+
+    // TP/SL children of a pending parent order are listed both nested under the
+    // parent and as top-level entries. Map each child back to its parent so the
+    // converted order carries the link and the position trigger view can exclude
+    // them: they protect that order, not a position.
+    const parentIdByChildId = new Map<number, number>();
+    orders.forEach((order) => {
+      order.children?.forEach((child) => {
+        parentIdByChildId.set(child.oid, order.oid);
+      });
+    });
 
     orders.forEach((order) => {
       let position: Position | undefined;
@@ -985,10 +1115,30 @@ export class HyperLiquidSubscriptionService {
         order,
         position ?? positionForCoin,
       );
+      const parentOrderId = parentIdByChildId.get(order.oid);
+      if (parentOrderId !== undefined) {
+        convertedOrder.parentOrderId = parentOrderId.toString();
+      }
+
       processedOrders.push(convertedOrder);
+
+      if (
+        convertedOrder.isTrigger &&
+        convertedOrder.reduceOnly &&
+        !convertedOrder.parentOrderId
+      ) {
+        addTriggerOrder(
+          convertedOrder.symbol,
+          buildPositionTriggerOrderFromOrder({
+            order: convertedOrder,
+            positionSize: (position ?? positionForCoin)?.size ?? '0',
+            entryPrice: (position ?? positionForCoin)?.entryPrice,
+          }),
+        );
+      }
     });
 
-    return { tpslMap, tpslCountMap, processedOrders };
+    return { tpslMap, tpslCountMap, triggerOrderMap, processedOrders };
   }
 
   /**
@@ -998,6 +1148,7 @@ export class HyperLiquidSubscriptionService {
    * @param positions - Base positions without TP/SL
    * @param tpslMap - Map of coin -> TP/SL prices
    * @param tpslCountMap - Map of coin -> TP/SL counts
+   * @param triggerOrderMap - Map of coin -> attached trigger orders (including partial TP/SL)
    * @returns Positions enhanced with TP/SL data
    */
   #mergeTPSLIntoPositions(
@@ -1007,16 +1158,34 @@ export class HyperLiquidSubscriptionService {
       string,
       { takeProfitCount?: number; stopLossCount?: number }
     >,
+    triggerOrderMap?: PositionTriggerOrderMap,
   ): Position[] {
     return positions.map((position) => {
       const tpsl = tpslMap.get(position.symbol) ?? {};
       const tpslCount = tpslCountMap.get(position.symbol) ?? {};
+      const triggerOrders = triggerOrderMap?.get(position.symbol);
+      const takeProfitOrders = triggerOrders?.takeProfitOrders ?? [];
+      const stopLossOrders = triggerOrders?.stopLossOrders ?? [];
+
       return {
         ...position,
         takeProfitPrice: tpsl.takeProfitPrice ?? undefined,
         stopLossPrice: tpsl.stopLossPrice ?? undefined,
-        takeProfitCount: tpslCount.takeProfitCount ?? 0,
-        stopLossCount: tpslCount.stopLossCount ?? 0,
+        // Counts come from the same arrays as the REST path, so both transports
+        // report one definition. Orders whose placement type the exchange did
+        // not name (HyperLiquid's ambiguous 'Trigger') are absent from both,
+        // where the legacy count included them.
+        // Keyed on the map, not on this symbol's entry: a symbol with no
+        // entry has no triggers, and falling back to the legacy count there
+        // would report a count beside an empty array.
+        takeProfitCount: triggerOrderMap
+          ? takeProfitOrders.length
+          : (tpslCount.takeProfitCount ?? 0),
+        stopLossCount: triggerOrderMap
+          ? stopLossOrders.length
+          : (tpslCount.stopLossCount ?? 0),
+        takeProfitOrders,
+        stopLossOrders,
       };
     });
   }
@@ -1120,6 +1289,18 @@ export class HyperLiquidSubscriptionService {
         this.#getAbstractionModeForUser(this.#cachedSpotStateUserAddress),
       ),
     };
+  }
+
+  /**
+   * Return the cached HL abstraction mode for the given user address.
+   *
+   * @param userAddress - The EVM address to look up.
+   * @returns Cached abstraction mode, or null when unresolved.
+   */
+  public getCachedAbstractionMode(
+    userAddress: string,
+  ): HyperLiquidAbstractionMode | null {
+    return this.#getAbstractionModeForUser(userAddress);
   }
 
   /**
@@ -1535,6 +1716,7 @@ export class HyperLiquidSubscriptionService {
 
     // Ensure global subscriptions are established
     this.#ensureGlobalAllMidsSubscription();
+    this.#ensureGlobalFastAssetCtxsSubscription();
 
     // Extract unique DEXs from requested symbols
     const dexsNeeded = new Set<string | null>();
@@ -1599,11 +1781,23 @@ export class HyperLiquidSubscriptionService {
       }
     });
 
-    // Send cached data immediately if available
+    // Send cached data immediately if available, projecting the fast-stream
+    // price for focused subscribers and falling back to the allMids baseline
+    // for list subscribers.
     symbols.forEach((symbol) => {
       const cachedPrice = this.#cachedPriceData?.get(symbol);
       if (cachedPrice) {
-        callback([cachedPrice]);
+        const projected = includeMarketData
+          ? this.#projectPriceUpdate(symbol, cachedPrice)
+          : cachedPrice;
+        callback([projected]);
+      } else if (includeMarketData) {
+        // No allMids baseline yet; if a fresh fast-stream price is cached,
+        // send it immediately so focused screens are not blank on first render.
+        const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
+        if (fastPrice !== undefined) {
+          callback([this.#createPriceUpdate(symbol, fastPrice)]);
+        }
       }
     });
 
@@ -1951,18 +2145,22 @@ export class HyperLiquidSubscriptionService {
 
             // Re-extract TP/SL from cached orders for the new positions
             // This ensures TP/SL data persists across clearinghouseState updates
-            let positionsWithTPSL = positions;
+            // Default the trigger arrays so "no triggers" and "not streamed yet"
+            // look the same to consumers as they do on the REST path.
+            let positionsWithTPSL: Position[] = positions.map((position) => ({
+              ...position,
+              takeProfitOrders: position.takeProfitOrders ?? [],
+              stopLossOrders: position.stopLossOrders ?? [],
+            }));
             if (cachedOrders.length > 0) {
-              const { tpslMap, tpslCountMap } = this.#extractTPSLFromOrders(
-                [],
-                positions,
-                cachedOrders,
-              );
+              const { tpslMap, tpslCountMap, triggerOrderMap } =
+                this.#extractTPSLFromOrders([], positions, cachedOrders);
 
               positionsWithTPSL = this.#mergeTPSLIntoPositions(
                 positions,
                 tpslMap,
                 tpslCountMap,
+                triggerOrderMap,
               );
             }
 
@@ -2087,6 +2285,7 @@ export class HyperLiquidSubscriptionService {
             const {
               tpslMap,
               tpslCountMap,
+              triggerOrderMap,
               processedOrders: orders,
             } = this.#extractTPSLFromOrders(data.orders, cachedPositions);
 
@@ -2099,6 +2298,7 @@ export class HyperLiquidSubscriptionService {
                 cachedPositions,
                 tpslMap,
                 tpslCountMap,
+                triggerOrderMap,
               );
               this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
             }
@@ -2710,6 +2910,30 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Get the cached positions for one DEX, or null when that DEX has published
+   * none this session.
+   *
+   * A DEX only enters this map once its `clearinghouseState` subscription has
+   * published, so `null` means the absence of a symbol proves nothing about
+   * whether a position exists there.
+   *
+   * Prefer this over `getCachedPositions()` when a decision depends on whether a
+   * specific symbol is absent. The aggregate is only rebuilt once *every*
+   * expected DEX has published (`#aggregateAndNotifySubscribers`), so after a
+   * reconnect — which resets `#initializedDexs` without clearing these caches —
+   * the aggregate can sit frozen at its pre-reconnect contents while this map
+   * keeps receiving per-DEX updates. Deciding "covered" from this map and then
+   * reading the symbol from the aggregate would mix a fresh answer with stale
+   * data.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @returns That DEX's cached positions, or null if it has not published.
+   */
+  public getCachedPositionsForDex(dexName: string): Position[] | null {
+    return this.#dexPositionsCache.get(dexName) ?? null;
+  }
+
+  /**
    * Get cached positions from WebSocket subscription
    *
    * @returns Cached positions array, or null if not initialized
@@ -2847,7 +3071,7 @@ export class HyperLiquidSubscriptionService {
 
     const priceUpdate = {
       symbol,
-      price, // This is the mid price from allMids
+      price,
       timestamp: Date.now(),
       percentChange24h,
       // Add mark price from activeAssetCtx
@@ -2865,13 +3089,90 @@ export class HyperLiquidSubscriptionService {
         ? marketData?.openInterest
         : undefined,
       volume24h: hasMarketDataSubscribers ? marketData?.volume24h : undefined,
+      // Flag markets that are currently untradable because the mid price has drifted
+      // too far from the oracle price (HyperLiquid rejects such orders). Lets clients
+      // warn the user before they attempt an order that would fail. Defaults to tradable
+      // when the oracle price isn't yet cached.
+      isTradable: isMarketTradable({
+        midPrice: currentPrice,
+        oraclePrice: marketData?.oraclePrice,
+        deviationLimit: this.#priceDeviationLimit,
+      }),
     };
 
     return priceUpdate;
   }
 
   /**
+   * Returns the fresh `activeAssetCtx` price string for a symbol, or
+   * `undefined` when no price is cached or the cached price is older than
+   * `#activeAssetCtxPriceTtlMs` (10 s).
+   *
+   * Single source of truth for the staleness check used by
+   * `#projectPriceUpdate`, `#notifyAllPriceSubscribers`, and the immediate
+   * emit in `subscribeToPrices`.
+   *
+   * @param symbol - The asset symbol to look up (e.g. `'BTC'`).
+   * @returns The price as a string when fresh, or `undefined` when absent/stale.
+   */
+  #getFreshActiveAssetCtxPrice(symbol: string): string | undefined {
+    const marketData = this.#marketDataCache.get(symbol);
+    if (
+      marketData?.activeAssetCtxPrice === undefined ||
+      marketData.priceLastUpdated === undefined
+    ) {
+      return undefined;
+    }
+    if (
+      Date.now() - marketData.priceLastUpdated >
+      HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs
+    ) {
+      return undefined;
+    }
+    return marketData.activeAssetCtxPrice.toString();
+  }
+
+  /**
+   * Project a base PriceUpdate (allMids baseline) onto the per-symbol fast-stream
+   * price for focused (`includeMarketData: true`) subscribers.
+   *
+   * Returns `base` unchanged when no fresh `activeAssetCtxPrice` is available
+   * (absent or older than the 10 s TTL). Otherwise returns a shallow clone of
+   * `base` with `price` and `timestamp` overridden by the fast-stream value.
+   * All other fields (funding, openInterest, isTradable, etc.) are inherited
+   * from the allMids baseline so cumulative metrics stay consistent.
+   *
+   * @param symbol - The asset symbol whose fast-stream price to look up.
+   * @param base - The allMids baseline `PriceUpdate` to project onto.
+   * @returns A `PriceUpdate` with the fast-stream price when fresh, or `base` unchanged.
+   */
+  #projectPriceUpdate(symbol: string, base: PriceUpdate): PriceUpdate {
+    const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
+    if (fastPrice === undefined) {
+      return base;
+    }
+    return {
+      ...base,
+      price: fastPrice,
+      timestamp: Date.now(),
+    };
+  }
+
+  /**
    * Ensure global allMids subscription is active (singleton pattern)
+   *
+   * NOTE ON PUSH CADENCE: Hyperliquid throttles the main-DEX allMids stream to
+   * push every ~5 seconds. This cadence is acceptable for list/overview screens
+   * that show many symbols simultaneously, but would make a focused single-symbol
+   * view (trade detail, order ticket) feel noticeably stale.
+   *
+   * Mitigation: when a subscription is created with `includeMarketData: true`,
+   * #ensureActiveAssetSubscription establishes a per-symbol activeAssetCtx
+   * WebSocket that ticks at a faster cadence. #notifyAllPriceSubscribers
+   * projects the fast-stream price (with a 10 s staleness gate via
+   * #activeAssetCtxPriceTtlMs) for focused (includeMarketData: true) callbacks
+   * only; list/overview callbacks always receive the raw allMids baseline so
+   * the two subscriber types are guaranteed separate price sources.
    */
   #ensureGlobalAllMidsSubscription(): void {
     // Check both the subscription AND the promise to prevent race conditions
@@ -2916,8 +3217,9 @@ export class HyperLiquidSubscriptionService {
           }
         }
 
-        // Track if any subscribed symbol was updated
-        let hasUpdates = false;
+        // Track which subscribed symbols actually changed price, so
+        // notification can be scoped to just those symbols
+        const changedSymbols = new Set<string>();
 
         // Only process symbols that are actually subscribed to
         for (const symbol in data.mids) {
@@ -2937,13 +3239,13 @@ export class HyperLiquidSubscriptionService {
           // Price changed or new symbol - update cache
           const priceUpdate = this.#createPriceUpdate(symbol, price);
           this.#cachedPriceData.set(symbol, priceUpdate);
-          hasUpdates = true;
+          changedSymbols.add(symbol);
         }
 
-        // Only notify subscribers if we actually have updates
+        // Only notify subscribers of symbols whose price actually changed
         // This prevents unnecessary React re-renders when prices haven't changed
-        if (hasUpdates) {
-          this.#notifyAllPriceSubscribers();
+        if (changedSymbols.size > 0) {
+          this.#notifyAllPriceSubscribers(changedSymbols);
         }
       })
       .then((sub) => {
@@ -2968,6 +3270,156 @@ export class HyperLiquidSubscriptionService {
             'HyperLiquidSubscriptionService.ensureGlobalAllMidsSubscription',
           ),
           this.#getErrorContext('ensureGlobalAllMidsSubscription'),
+        );
+      });
+  }
+
+  /**
+   * Ensure global fastAssetCtxs subscription is active (singleton pattern)
+   *
+   * TAT-3387: Hyperliquid slowed the public assetCtxs feed cadence and
+   * introduced fastAssetCtxs to preserve a fast (~5 s) cadence specifically
+   * for mark/mid price diffs. This subscription owns the #cachedPriceData
+   * price path going forward; assetCtxs continues to populate
+   * #marketDataCache (funding/OI/volume/oracle price) unchanged, and remains
+   * the price source for any symbol fastAssetCtxs does not cover.
+   *
+   * The SDK exposes fastAssetCtxs as a single global feed with no `dex`
+   * parameter (unlike assetCtxs, which is per-DEX). The first message after
+   * subscribing is a full snapshot keyed by coin; later messages contain
+   * diffs for only the coins that changed. Every coin with a usable price is
+   * cached in #cachedPriceData regardless of whether it currently has a
+   * subscriber, so a later subscriber gets an immediate baseline instead of
+   * waiting for the next snapshot/diff that happens to include the coin.
+   * Notification via #notifyAllPriceSubscribers is still scoped to coins
+   * with an active subscriber, matching the allMids handler's filtering.
+   */
+  #ensureGlobalFastAssetCtxsSubscription(): void {
+    // Check both the subscription AND the promise to prevent race conditions
+    if (
+      this.#globalFastAssetCtxsSubscription ??
+      this.#globalFastAssetCtxsPromise
+    ) {
+      return;
+    }
+
+    const subscriptionClient = this.#clientService.getSubscriptionClient();
+    if (!subscriptionClient) {
+      return;
+    }
+
+    const handleFastAssetCtxsUpdate = (data: FastAssetCtxsWsEvent): void => {
+      this.#cachedPriceData ??= new Map<string, PriceUpdate>();
+
+      // Track which subscribed symbols actually changed price, so
+      // notification can be scoped to just those symbols
+      const changedSymbols = new Set<string>();
+
+      for (const coin in data) {
+        if (!hasProperty(data, coin)) {
+          continue;
+        }
+
+        const ctx = data[coin];
+        const priceRaw = ctx.midPx ?? ctx.markPx;
+        if (priceRaw === undefined || priceRaw === null) {
+          // No usable price for this coin in this message — don't claim
+          // ownership. Otherwise a coin with no usable price here would be
+          // marked as fastAssetCtxs-owned while never having a fast price
+          // cached, suppressing assetCtxs (its only remaining price source)
+          // for that coin indefinitely.
+          continue;
+        }
+
+        // Mark this coin as covered by fastAssetCtxs now that a usable
+        // price backs that ownership (regardless of whether there's
+        // currently a subscriber), so the slower per-DEX assetCtxs handler
+        // knows to defer to this feed for the coin's price.
+        this.#fastAssetCtxsCoins.add(coin);
+
+        const price = priceRaw.toString();
+        const cachedPrice = this.#cachedPriceData.get(coin);
+
+        // Skip if price hasn't changed
+        if (cachedPrice?.price === price) {
+          continue;
+        }
+
+        const priceUpdate = this.#createPriceUpdate(coin, price);
+        // Cache every valid price, even for coins nobody is subscribed to
+        // yet (snapshot messages include every asset on the exchange), so
+        // a later subscriber gets an immediate baseline via the
+        // subscribe-time cached-price replay instead of an assetCtxs feed
+        // that's been suppressed with no fastAssetCtxs price to fall back
+        // on.
+        this.#cachedPriceData.set(coin, priceUpdate);
+
+        // Scope notification to coins with an active subscriber; snapshot
+        // messages cover the full exchange and most coins have none.
+        if (this.#priceSubscribers.get(coin)?.size) {
+          changedSymbols.add(coin);
+        }
+      }
+
+      // Only notify subscribers of symbols whose price actually changed
+      if (changedSymbols.size > 0) {
+        this.#notifyAllPriceSubscribers(changedSymbols);
+      }
+    };
+
+    const subscribeWithRetry = async (): Promise<ISubscription> => {
+      const maxAttempts = 3;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          return await subscriptionClient.fastAssetCtxs(
+            handleFastAssetCtxsUpdate,
+          );
+        } catch (error) {
+          const ensuredError = ensureError(
+            error,
+            'HyperLiquidSubscriptionService.ensureGlobalFastAssetCtxsSubscription',
+          );
+          const isLastAttempt = attempt === maxAttempts;
+          if (isLastAttempt || !this.#isTransientSdkError(ensuredError)) {
+            throw ensuredError;
+          }
+
+          const retryDelayMs = attempt * 500;
+          this.#deps.debugLogger.log(
+            'Transient fastAssetCtxs subscription failure during reconnect, retrying',
+            {
+              attempt,
+              retryDelayMs,
+              error: ensuredError.message,
+            },
+          );
+          await new Promise((_resolve) => setTimeout(_resolve, retryDelayMs));
+        }
+      }
+
+      throw new Error('Failed to establish fastAssetCtxs subscription');
+    };
+
+    // Store the promise immediately to prevent duplicate calls
+    this.#globalFastAssetCtxsPromise = subscribeWithRetry()
+      .then((sub) => {
+        this.#globalFastAssetCtxsSubscription = sub;
+        this.#deps.debugLogger.log(
+          'HyperLiquid: Global fastAssetCtxs subscription established',
+        );
+        return undefined;
+      })
+      .catch((error) => {
+        // Clear the promise on error so it can be retried
+        this.#globalFastAssetCtxsPromise = undefined;
+
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.ensureGlobalFastAssetCtxsSubscription',
+          ),
+          this.#getErrorContext('ensureGlobalFastAssetCtxsSubscription'),
         );
       });
   }
@@ -3020,6 +3472,7 @@ export class HyperLiquidSubscriptionService {
 
             // Cache market data for consolidation with price updates
             const ctxPrice = ctx.midPx ?? ctx.markPx;
+            const now = Date.now();
             const openInterestUSD =
               isPerpsContext(data) && ctxPrice
                 ? calculateOpenInterestUSD(data.ctx.openInterest, ctxPrice)
@@ -3042,23 +3495,39 @@ export class HyperLiquidSubscriptionService {
               oraclePrice: isPerpsContext(data)
                 ? parseFloat(data.ctx.oraclePx.toString())
                 : undefined,
-              lastUpdated: Date.now(),
+              lastUpdated: now,
+              // Store fast-stream price for per-subscriber projection in
+              // #notifyAllPriceSubscribers. Used only for focused subscribers.
+              activeAssetCtxPrice: ctxPrice
+                ? parseFloat(ctxPrice.toString())
+                : undefined,
+              priceLastUpdated: ctxPrice ? now : undefined,
             };
 
             this.#marketDataCache.set(symbol, marketData);
 
-            // Update cached price data with new 24h change if we have current price
-            const currentCachedPrice = this.#cachedPriceData?.get(symbol);
-            if (currentCachedPrice) {
-              const updatedPrice = this.#createPriceUpdate(
+            // Rebuild the allMids baseline so derived fields (isTradable,
+            // funding, openInterest, volume24h, markPrice, percentChange24h)
+            // pick up the new activeAssetCtx data. Only rebuild when a baseline
+            // already exists to preserve the startup zero-price guard: we never
+            // want to synthesize a baseline from a '0' / absent allMids price.
+            const priceCache = this.#cachedPriceData;
+            const existingBaseline = priceCache?.get(symbol);
+            if (priceCache && existingBaseline) {
+              priceCache.set(
                 symbol,
-                currentCachedPrice.price,
+                this.#createPriceUpdate(symbol, existingBaseline.price),
               );
-
-              this.#cachedPriceData ??= new Map<string, PriceUpdate>();
-              this.#cachedPriceData.set(symbol, updatedPrice);
-              this.#notifyAllPriceSubscribers();
             }
+
+            // Notify subscribers of this symbol only. #notifyAllPriceSubscribers
+            // projects the fast-stream price (now stored in #marketDataCache) for
+            // focused (includeMarketData: true) subscribers, while list subscribers
+            // continue to receive only the allMids baseline from #cachedPriceData.
+            // Scoping to this symbol avoids redundant reference-equal allMids
+            // updates to list subscribers watching other symbols, since their
+            // allMids baseline hasn't changed on this tick.
+            this.#notifyAllPriceSubscribers(new Set([symbol]));
           }
         },
       )
@@ -3340,6 +3809,15 @@ export class HyperLiquidSubscriptionService {
               ctx.openInterest,
               ctxPrice,
             );
+            // Preserve the fast-stream price fields set by the per-symbol
+            // activeAssetCtx handler. assetCtxs is a per-DEX batch that does not
+            // carry the fast-stream price concept, so rebuilding the entry from
+            // scratch would clobber activeAssetCtxPrice/priceLastUpdated and make
+            // #getFreshActiveAssetCtxPrice return stale, dropping focused
+            // subscribers back to the slower allMids baseline. priceLastUpdated
+            // is carried forward (not reset) so the staleness gate keeps
+            // reflecting the last activeAssetCtx tick.
+            const existingMarketData = this.#marketDataCache.get(asset.name);
             const marketData = {
               prevDayPx: ctx.prevDayPx
                 ? parseFloat(ctx.prevDayPx.toString())
@@ -3353,16 +3831,37 @@ export class HyperLiquidSubscriptionService {
                 : undefined,
               oraclePrice: parseFloat(ctx.oraclePx.toString()),
               lastUpdated: Date.now(),
+              activeAssetCtxPrice: existingMarketData?.activeAssetCtxPrice,
+              priceLastUpdated: existingMarketData?.priceLastUpdated,
             };
 
             this.#marketDataCache.set(asset.name, marketData);
 
-            // HIP-3: Extract price from assetCtx and update cached prices
+            // HIP-3: Extract price from assetCtx and update cached prices.
+            // For HIP-3 DEXs, meta() returns asset.name already containing the
+            // DEX prefix (e.g., "xyz:XYZ100"), so use it directly.
+            const symbol = asset.name;
             const price = ctx.midPx?.toString() ?? ctx.markPx?.toString();
-            if (price) {
-              // For HIP-3 DEXs, meta() returns asset.name already containing the DEX prefix
-              // (e.g., "xyz:XYZ100"), so use it directly
-              const symbol = asset.name;
+            if (this.#fastAssetCtxsCoins.has(symbol)) {
+              // fastAssetCtxs (TAT-3387) owns the price string for this coin
+              // with fresher, ~5s-cadence data, so don't overwrite it with
+              // this batch's price. Still rebuild the baseline (keeping the
+              // existing price) so derived fields just refreshed above in
+              // #marketDataCache (funding, openInterest, volume24h,
+              // oraclePrice, percentChange24h/isTradable via markPrice) reach
+              // list subscribers instead of going stale until the next
+              // fastAssetCtxs/allMids price change. Only rebuild an existing
+              // baseline to preserve the startup zero-price guard: we never
+              // want to synthesize a baseline from a '0' / absent allMids
+              // price.
+              const existingBaseline = this.#cachedPriceData?.get(symbol);
+              if (this.#cachedPriceData && existingBaseline) {
+                this.#cachedPriceData.set(
+                  symbol,
+                  this.#createPriceUpdate(symbol, existingBaseline.price),
+                );
+              }
+            } else if (price) {
               const priceUpdate = this.#createPriceUpdate(symbol, price);
               this.#cachedPriceData ??= new Map<string, PriceUpdate>();
               this.#cachedPriceData.set(symbol, priceUpdate);
@@ -3628,6 +4127,7 @@ export class HyperLiquidSubscriptionService {
       levels = 10,
       nSigFigs = 5,
       mantissa,
+      fast,
       callback,
       onError,
     } = params;
@@ -3654,14 +4154,17 @@ export class HyperLiquidSubscriptionService {
     let cancelled = false;
 
     subscriptionClient
-      .l2Book({ coin: symbol, nSigFigs, mantissa }, (data: L2BookResponse) => {
-        if (cancelled || data?.coin !== symbol || !data?.levels) {
-          return;
-        }
+      .l2Book(
+        { coin: symbol, nSigFigs, mantissa, fast },
+        (data: L2BookResponse) => {
+          if (cancelled || data?.coin !== symbol || !data?.levels) {
+            return;
+          }
 
-        const orderBookData = this.#processOrderBookData(data, levels);
-        callback(orderBookData);
-      })
+          const orderBookData = this.#processOrderBookData(data, levels);
+          callback(orderBookData);
+        },
+      )
       .then(async (sub) => {
         if (cancelled) {
           try {
@@ -3793,36 +4296,68 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Notify all price subscribers with their requested symbols from cache
-   * Optimized to batch updates per subscriber
+   * Notify all price subscribers with per-subscriber price projection.
+   *
+   * Price source selection per (symbol, callback):
+   * - **Focused** (`includeMarketData: true`) callbacks are identified by their
+   *   presence in `#marketDataSubscribers[symbol]`. When a fresh
+   *   `activeAssetCtxPrice` is cached (within the 10 s TTL), those callbacks
+   *   receive a clone of the allMids baseline with `price` and `timestamp`
+   *   overridden by the fast-stream value. If no fresh fast price exists they
+   *   fall back to the allMids baseline.
+   * - **List** (`includeMarketData: false`) callbacks always receive the raw
+   *   allMids baseline. They are skipped entirely until at least one allMids
+   *   tick has been cached for the symbol.
+   * - When no allMids baseline exists yet but a fresh `activeAssetCtxPrice` is
+   *   available, focused callbacks still receive an update so detail screens
+   *   stay responsive on first render.
+   *
+   * @param changedSymbols - When provided, only subscribers for symbols in
+   * this set are notified. This avoids redundant reference-equal updates to
+   * list subscribers whose symbols were untouched by the triggering event
+   * (e.g. a per-symbol `activeAssetCtx` tick for a different symbol). When
+   * omitted, all symbols with subscribers are notified (fan-out-all), which
+   * is the correct behavior for callers whose event isn't scoped to specific
+   * symbols (e.g. subscription-established replays, per-DEX `assetCtxs`).
    */
-  #notifyAllPriceSubscribers(): void {
-    // If no price data exists yet, don't notify
-    if (!this.#cachedPriceData) {
-      return;
-    }
-
-    const priceData = this.#cachedPriceData;
-
-    // Group updates by subscriber to batch notifications
+  #notifyAllPriceSubscribers(changedSymbols?: Set<string>): void {
     const subscriberUpdates = new Map<
       (prices: PriceUpdate[]) => void,
       PriceUpdate[]
     >();
 
     this.#priceSubscribers.forEach((subscriberSet, symbol) => {
-      const priceUpdate = priceData.get(symbol);
-      if (priceUpdate) {
-        subscriberSet.forEach((callback) => {
-          if (!subscriberUpdates.has(callback)) {
-            subscriberUpdates.set(callback, []);
-          }
-          const updates = subscriberUpdates.get(callback);
-          if (updates) {
-            updates.push(priceUpdate);
-          }
-        });
+      if (changedSymbols && !changedSymbols.has(symbol)) {
+        return;
       }
+
+      const allMidsBase = this.#cachedPriceData?.get(symbol);
+      const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
+      const now = Date.now();
+
+      subscriberSet.forEach((callback) => {
+        const isFocused =
+          this.#marketDataSubscribers.get(symbol)?.has(callback) ?? false;
+
+        let priceUpdate: PriceUpdate | undefined;
+
+        if (isFocused && fastPrice !== undefined) {
+          // Use allMids baseline as the structural base when available;
+          // fall back to a freshly computed PriceUpdate if allMids hasn't
+          // arrived yet so focused screens stay responsive on first render.
+          const base =
+            allMidsBase ?? this.#createPriceUpdate(symbol, fastPrice);
+          priceUpdate = { ...base, price: fastPrice, timestamp: now };
+        } else if (allMidsBase !== undefined) {
+          priceUpdate = allMidsBase;
+        }
+
+        if (priceUpdate !== undefined) {
+          const updates = subscriberUpdates.get(callback) ?? [];
+          updates.push(priceUpdate);
+          subscriberUpdates.set(callback, updates);
+        }
+      });
     });
 
     // Send batched updates to each subscriber
@@ -3862,6 +4397,14 @@ export class HyperLiquidSubscriptionService {
 
       // Re-establish the subscription
       this.#ensureGlobalAllMidsSubscription();
+
+      // Re-establish the fastAssetCtxs subscription alongside allMids (TAT-3387).
+      // Clear fastAssetCtxsCoins so assetCtxs can serve prices in the gap
+      // until the fresh post-reconnect snapshot re-establishes coverage.
+      this.#globalFastAssetCtxsSubscription = undefined;
+      this.#globalFastAssetCtxsPromise = undefined;
+      this.#fastAssetCtxsCoins.clear();
+      this.#ensureGlobalFastAssetCtxsSubscription();
     }
 
     // Re-establish order fill subscriptions if there are fill subscribers
@@ -4135,6 +4678,20 @@ export class HyperLiquidSubscriptionService {
     }
     this.#globalAllMidsSubscription = undefined;
     this.#globalAllMidsPromise = undefined;
+
+    if (this.#globalFastAssetCtxsSubscription) {
+      this.#globalFastAssetCtxsSubscription
+        .unsubscribe()
+        .catch((error: Error) => {
+          this.#logErrorUnlessClearing(
+            ensureError(error, 'HyperLiquidSubscriptionService.clearAll'),
+            this.#getErrorContext('clearAll.globalFastAssetCtxs'),
+          );
+        });
+    }
+    this.#globalFastAssetCtxsSubscription = undefined;
+    this.#globalFastAssetCtxsPromise = undefined;
+    this.#fastAssetCtxsCoins.clear();
 
     this.#globalActiveAssetSubscriptions.forEach((sub, symbol) => {
       sub.unsubscribe().catch((error: Error) => {

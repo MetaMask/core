@@ -2,15 +2,16 @@
 import { isTronChainId } from '@metamask/bridge-controller';
 import type {
   BitcoinTradeData,
+  StellarTradeData,
   TronTradeData,
   TxData,
 } from '@metamask/bridge-controller';
 
-import { handleNonEvmTx } from '../utils/snaps';
-import { getApprovalTraceParams } from '../utils/trace';
-import { handleApprovalDelay } from '../utils/transaction';
-import { SubmitStep } from './types';
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
+import { handleNonEvmTx } from '../utils/snaps.js';
+import { getApprovalTraceParams } from '../utils/trace.js';
+import { handleApprovalDelay } from '../utils/transaction.js';
+import { SubmitStep } from './types.js';
+import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 /**
  * Submits the approval transaction for a non-EVM transaction if present
@@ -20,7 +21,7 @@ import type { SubmitStrategyParams, SubmitStepResult } from './types';
  */
 const handleTronApproval = async (
   args: SubmitStrategyParams<
-    TronTradeData | BitcoinTradeData | string | TxData
+    TronTradeData | BitcoinTradeData | StellarTradeData | string | TxData
   >,
 ) => {
   const {
@@ -65,7 +66,7 @@ const handleTronApproval = async (
  */
 export async function* submitNonEvmHandler(
   args: SubmitStrategyParams<
-    BitcoinTradeData | TronTradeData | string | TxData
+    BitcoinTradeData | StellarTradeData | TronTradeData | string | TxData
   >,
 ): AsyncGenerator<SubmitStepResult, void, void> {
   const {
