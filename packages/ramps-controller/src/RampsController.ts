@@ -25,6 +25,7 @@ import {
   syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
   updateOrderInRemoteStorage,
 } from './order-syncing/index.js';
+import type { SyncRampsOrder } from './order-syncing/types.js';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
@@ -396,7 +397,7 @@ export type RampsControllerState = {
    * The controller is the authority for V2 orders — it polls, updates,
    * and persists them.
    */
-  orders: RampsOrder[];
+  orders: SyncRampsOrder[];
   /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
@@ -934,8 +935,12 @@ export class RampsController extends BaseController<
   #isOrderSyncingInProgress = false;
 
   /**
-   * Orders deleted locally while a full sync held the semaphore. Drained at sync
-   * end so remote tombstones are still written.
+   * Whether the full sync is applying its own local state changes.
+   */
+  #isApplyingOrderSyncChanges = false;
+
+  /**
+   * Orders deleted locally while a full sync held the semaphore.
    */
   readonly #pendingRemoteDeletes: Map<string, RampsOrder> = new Map();
 
@@ -967,16 +972,40 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Returns and clears orders deleted while a full sync was in progress.
+   * Distinguishes full sync's own state changes from external mutations.
+   *
+   * @param value - Whether sync changes are being applied.
+   * @internal
+   */
+  setIsApplyingOrderSyncChanges(value: boolean): void {
+    this.#isApplyingOrderSyncChanges = value;
+  }
+
+  /**
+   * Returns orders deleted while a full sync was in progress.
    * Used by the order-syncing module.
    *
    * @returns Pending deletes for remote tombstone upload.
    * @internal
    */
-  drainPendingRemoteDeletes(): RampsOrder[] {
-    const pending = [...this.#pendingRemoteDeletes.values()];
-    this.#pendingRemoteDeletes.clear();
-    return pending;
+  getPendingRemoteDeletes(): RampsOrder[] {
+    return [...this.#pendingRemoteDeletes.values()];
+  }
+
+  /**
+   * Clears deletes whose tombstones were successfully persisted. A delete
+   * replaced while a write was in flight remains pending.
+   *
+   * @param orders - Deletes included in a successful remote write.
+   * @internal
+   */
+  acknowledgePendingRemoteDeletes(orders: RampsOrder[]): void {
+    for (const order of orders) {
+      const key = getInternalOrderCode(order);
+      if (key && this.#pendingRemoteDeletes.get(key) === order) {
+        this.#pendingRemoteDeletes.delete(key);
+      }
+    }
   }
 
   /**
@@ -2510,7 +2539,7 @@ export class RampsController extends BaseController<
     // over stale remote copies when an incremental push was skipped/failed.
     // During full sync, preserve remote `lu` / `createdAt` (never invent "now"
     // for missing `lu`, or stale remotes win later LWW comparisons).
-    const healedOrder = {
+    const healedOrder: SyncRampsOrder = {
       ...order,
       providerOrderId: internalOrderCode,
       lastUpdatedAt: this.#isOrderSyncingInProgress
@@ -2518,28 +2547,29 @@ export class RampsController extends BaseController<
         : Date.now(),
     };
 
-    // A mid-sync add cancels a pending delete for the same key.
-    this.#pendingRemoteDeletes.delete(internalOrderCode);
+    if (!this.#isApplyingOrderSyncChanges) {
+      this.#pendingRemoteDeletes.delete(internalOrderCode);
+    }
 
     this.update((state) => {
       const idx = state.orders.findIndex(
         (existing) => getInternalOrderCode(existing) === internalOrderCode,
       );
       if (idx === -1) {
-        state.orders.push(healedOrder as Draft<RampsOrder>);
+        state.orders.push(healedOrder);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
           ...healedOrder,
-        } as Draft<RampsOrder>;
+        };
       }
     });
 
-    if (this.#isOrderSyncingInProgress) {
+    if (this.#isOrderSyncingInProgress && !this.#isApplyingOrderSyncChanges) {
       // Incremental push is suppressed during full sync; queue another full
       // sync pass so mutations during the upload await are not dropped.
       this.#orderSyncQueued = true;
-    } else {
+    } else if (!this.#isOrderSyncingInProgress) {
       updateOrderInRemoteStorage(
         healedOrder,
         {
@@ -2593,12 +2623,14 @@ export class RampsController extends BaseController<
     if (orderToRemove) {
       const deleteKey = getInternalOrderCode(orderToRemove);
       if (this.#isOrderSyncingInProgress) {
-        // Incremental remote deletes are gated off during full sync; queue a
-        // tombstone write and another full sync pass so deletes during the
-        // upload await are not dropped.
-        this.#orderSyncQueued = true;
-        if (deleteKey) {
-          this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+        if (!this.#isApplyingOrderSyncChanges) {
+          // Incremental remote deletes are gated off during full sync; queue a
+          // tombstone write and another full sync pass so deletes during the
+          // upload await are not dropped.
+          this.#orderSyncQueued = true;
+          if (deleteKey) {
+            this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+          }
         }
       } else {
         deleteOrderInRemoteStorage(

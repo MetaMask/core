@@ -45,16 +45,20 @@ export type SyncRampsOrder = RampsOrder & {
  * Minimal controller surface required by order syncing.
  */
 export type OrderSyncingController = {
-  state: { orders: RampsOrder[] };
+  state: { orders: SyncRampsOrder[] };
   readonly isOrderSyncingInProgress: boolean;
   setIsOrderSyncingInProgress: (value: boolean) => void;
+  setIsApplyingOrderSyncChanges: (value: boolean) => void;
   addOrder: (order: RampsOrder) => void;
   removeOrder: (providerOrderId: string) => void;
   /**
-   * Returns and clears orders deleted locally while a full sync held the
-   * semaphore, so remote tombstones can still be written at sync end.
+   * Returns orders deleted locally while a full sync held the semaphore.
    */
-  drainPendingRemoteDeletes: () => RampsOrder[];
+  getPendingRemoteDeletes: () => RampsOrder[];
+  /**
+   * Clears pending deletes after their remote tombstones are persisted.
+   */
+  acknowledgePendingRemoteDeletes: (orders: RampsOrder[]) => void;
 };
 
 /**

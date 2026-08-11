@@ -58,6 +58,7 @@ describe('order-syncing/controller-integration', () => {
     performSetStorage: jest.Mock;
     performGetStorage: jest.Mock;
     performGetStorageAllFeatureEntries: jest.Mock;
+    acknowledgePendingRemoteDeletes: jest.Mock;
   } => {
     const removeOrder = jest.fn();
     const setIsOrderSyncingInProgress = jest.fn();
@@ -67,6 +68,7 @@ describe('order-syncing/controller-integration', () => {
     const performGetStorageAllFeatureEntries = jest
       .fn()
       .mockResolvedValue(remoteEntries);
+    const acknowledgePendingRemoteDeletes = jest.fn();
 
     const controller = {
       state: { orders: localOrders },
@@ -74,7 +76,9 @@ describe('order-syncing/controller-integration', () => {
       setIsOrderSyncingInProgress,
       addOrder: jest.fn(),
       removeOrder,
-      drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+      getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+      acknowledgePendingRemoteDeletes,
+      setIsApplyingOrderSyncChanges: jest.fn(),
     };
 
     const addOrder = jest.fn((order: RampsOrder) => {
@@ -132,6 +136,7 @@ describe('order-syncing/controller-integration', () => {
       performSetStorage,
       performGetStorage,
       performGetStorageAllFeatureEntries,
+      acknowledgePendingRemoteDeletes,
     };
   };
 
@@ -326,9 +331,11 @@ describe('order-syncing/controller-integration', () => {
             controller.state.orders = [updatedLocalOrder];
           }
         }),
+        setIsApplyingOrderSyncChanges: jest.fn(),
         addOrder: jest.fn(),
         removeOrder: jest.fn(),
-        drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+        getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+        acknowledgePendingRemoteDeletes: jest.fn(),
       };
 
       const messengerCall = jest
@@ -605,13 +612,17 @@ describe('order-syncing/controller-integration', () => {
         id: '/providers/transak/orders/deleted-mid-sync',
       });
 
-      const { options, performBatchSetStorage } = arrangeMocks({
+      const {
+        options,
+        performBatchSetStorage,
+        acknowledgePendingRemoteDeletes,
+      } = arrangeMocks({
         localOrders: [localOrder],
         remoteEntries: [],
       });
 
       const controller = options.getRampsControllerInstance();
-      (controller.drainPendingRemoteDeletes as jest.Mock).mockReturnValue([
+      (controller.getPendingRemoteDeletes as jest.Mock).mockReturnValue([
         deletedDuringSync,
       ]);
 
@@ -632,6 +643,74 @@ describe('order-syncing/controller-integration', () => {
       ) as { dt?: number; o: { paymentDetails?: unknown } };
       expect(tombstoneEntry.dt).toBe(1_700_000_000_500);
       expect(tombstoneEntry.o.paymentDetails).toBeUndefined();
+      expect(acknowledgePendingRemoteDeletes).toHaveBeenCalledWith([
+        deletedDuringSync,
+      ]);
+    });
+
+    it('keeps pending deletes authoritative over active remote orders', async () => {
+      const deletedDuringSync = createMockOrder({
+        providerOrderId: 'deleted-mid-sync',
+        id: '/providers/transak/orders/deleted-mid-sync',
+      });
+      const remoteEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry({
+          ...deletedDuringSync,
+          lastUpdatedAt: 1,
+        }),
+      );
+      const {
+        options,
+        addOrder,
+        performBatchSetStorage,
+        acknowledgePendingRemoteDeletes,
+      } = arrangeMocks({
+        localOrders: [],
+        remoteEntries: [remoteEntry],
+      });
+      const controller = options.getRampsControllerInstance();
+      (controller.getPendingRemoteDeletes as jest.Mock).mockReturnValue([
+        deletedDuringSync,
+      ]);
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(addOrder).not.toHaveBeenCalled();
+      expect(performBatchSetStorage).toHaveBeenCalledWith(
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        expect.arrayContaining([
+          expect.arrayContaining(['deleted-mid-sync', expect.any(String)]),
+        ]),
+      );
+      expect(acknowledgePendingRemoteDeletes).toHaveBeenCalledWith([
+        deletedDuringSync,
+      ]);
+    });
+
+    it('retains pending deletes when tombstone upload fails', async () => {
+      const deletedDuringSync = createMockOrder({
+        providerOrderId: 'deleted-mid-sync',
+        id: '/providers/transak/orders/deleted-mid-sync',
+      });
+      const {
+        options,
+        performBatchSetStorage,
+        acknowledgePendingRemoteDeletes,
+      } = arrangeMocks({
+        localOrders: [],
+        remoteEntries: [],
+      });
+      const controller = options.getRampsControllerInstance();
+      (controller.getPendingRemoteDeletes as jest.Mock).mockReturnValue([
+        deletedDuringSync,
+      ]);
+      performBatchSetStorage.mockRejectedValue(new Error('batch failed'));
+
+      await expect(syncOrdersWithUserStorage({}, options)).rejects.toThrow(
+        'batch failed',
+      );
+
+      expect(acknowledgePendingRemoteDeletes).not.toHaveBeenCalled();
     });
 
     it('reports sync failures via onOrderSyncErroneousSituation', async () => {
@@ -730,9 +809,11 @@ describe('order-syncing/controller-integration', () => {
             controller.state.orders = [localOrder, orderAddedDuringSync];
           }
         }),
+        setIsApplyingOrderSyncChanges: jest.fn(),
         addOrder,
         removeOrder,
-        drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+        getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+        acknowledgePendingRemoteDeletes: jest.fn(),
       };
 
       const messengerCall = jest

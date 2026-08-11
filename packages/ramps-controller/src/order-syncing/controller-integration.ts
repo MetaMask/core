@@ -189,6 +189,12 @@ export async function syncOrdersWithUserStorage(
     const performSync = async (): Promise<void> => {
       const getLocalOrders = (): RampsOrder[] =>
         controller.state.orders.filter(isSyncableOrder);
+      const pendingDeleteKeysBeforeApply = new Set(
+        controller
+          .getPendingRemoteDeletes()
+          .map((order) => createOrderStorageKey(order))
+          .filter((key) => key.length > 0),
+      );
 
       const {
         remoteOrdersMap,
@@ -197,14 +203,22 @@ export async function syncOrdersWithUserStorage(
         ordersToUpdateRemotely,
       } = computeMergePlan(getLocalOrders(), validRemoteOrders);
 
-      for (const order of ordersToDeleteLocally) {
-        controller.removeOrder(createOrderStorageKey(order));
-      }
-
-      for (const order of ordersToAddOrUpdateLocally) {
-        if (!order.deletedAt) {
-          controller.addOrder(stripDeletedAt(order));
+      controller.setIsApplyingOrderSyncChanges(true);
+      try {
+        for (const order of ordersToDeleteLocally) {
+          controller.removeOrder(createOrderStorageKey(order));
         }
+
+        for (const order of ordersToAddOrUpdateLocally) {
+          if (
+            !order.deletedAt &&
+            !pendingDeleteKeysBeforeApply.has(createOrderStorageKey(order))
+          ) {
+            controller.addOrder(stripDeletedAt(order));
+          }
+        }
+      } finally {
+        controller.setIsApplyingOrderSyncChanges(false);
       }
 
       const ordersToUpload = reconcileOrdersForRemoteUpload(
@@ -217,7 +231,7 @@ export async function syncOrdersWithUserStorage(
         getLocalOrders().map((order) => createOrderStorageKey(order)),
       );
       const pendingDeletes = controller
-        .drainPendingRemoteDeletes()
+        .getPendingRemoteDeletes()
         .filter((order) => {
           const key = createOrderStorageKey(order);
           return key.length > 0 && !localKeys.has(key);
@@ -246,6 +260,7 @@ export async function syncOrdersWithUserStorage(
 
       if (syncedUploads.length > 0) {
         await saveOrdersToUserStorage(syncedUploads, options, config);
+        controller.acknowledgePendingRemoteDeletes(pendingDeletes);
       }
     };
 
