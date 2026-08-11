@@ -126,6 +126,17 @@ describe('RampsController order syncing', () => {
     expect(controller.isOrderSyncingInProgress).toBe(false);
   });
 
+  it('ignores acknowledgements for deletes that are not pending', () => {
+    const { controller } = setupControllerWithOrderSyncingMocks();
+
+    controller.acknowledgePendingRemoteDeletes([
+      { id: '', providerOrderId: '' } as never,
+      createMockOrder(),
+    ]);
+
+    expect(controller.getPendingRemoteDeletes()).toStrictEqual([]);
+  });
+
   it('delegates syncOrdersWithUserStorage to the order-syncing module', async () => {
     const { controller, performGetStorageAllFeatureEntries } =
       setupControllerWithOrderSyncingMocks();
@@ -135,6 +146,30 @@ describe('RampsController order syncing', () => {
     await controller.syncOrdersWithUserStorage();
 
     expect(performGetStorageAllFeatureEntries).toHaveBeenCalled();
+  });
+
+  it('does not queue another sync when applying remote orders', async () => {
+    const { controller, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+    const remoteOrder = createMockOrder({
+      providerOrderId: 'remote-only',
+      id: '/providers/transak/orders/remote-only',
+    });
+
+    performGetStorageAllFeatureEntries.mockResolvedValue([
+      JSON.stringify({
+        v: '1',
+        o: remoteOrder,
+        lu: remoteOrder.createdAt,
+      }),
+    ]);
+
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(1);
+    expect(controller.state.orders).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'remote-only' }),
+    ]);
   });
 
   it('stamps lastUpdatedAt on local addOrder edits', () => {

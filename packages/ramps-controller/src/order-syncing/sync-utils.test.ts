@@ -29,9 +29,11 @@ describe('order-syncing/sync-utils', () => {
           isOrderSyncingInProgress,
           state: { orders: [] },
           setIsOrderSyncingInProgress: jest.fn(),
+          setIsApplyingOrderSyncChanges: jest.fn(),
           addOrder: jest.fn(),
           removeOrder: jest.fn(),
-          drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+          getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+          acknowledgePendingRemoteDeletes: jest.fn(),
         }),
       };
 
@@ -71,9 +73,11 @@ describe('order-syncing/sync-utils', () => {
           isOrderSyncingInProgress: false,
           state: { orders: [] },
           setIsOrderSyncingInProgress: jest.fn(),
+          setIsApplyingOrderSyncChanges: jest.fn(),
           addOrder: jest.fn(),
           removeOrder: jest.fn(),
-          drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+          getPendingRemoteDeletes: jest.fn().mockReturnValue([]),
+          acknowledgePendingRemoteDeletes: jest.fn(),
         }),
       };
 
