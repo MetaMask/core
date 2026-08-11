@@ -99,6 +99,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {},
         localOverrides: {},
         rawRemoteFeatureFlags: {},
+        processedRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -110,6 +111,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {},
         localOverrides: {},
         rawRemoteFeatureFlags: {},
+        processedRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -119,6 +121,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: MOCK_FLAGS_TWO,
         cacheTimestamp: 123456789,
         rawRemoteFeatureFlags: {},
+        processedRemoteFeatureFlags: MOCK_FLAGS_TWO,
         localOverrides: {},
       };
 
@@ -521,6 +524,51 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
         thresholdObjectFlag: 'enabled',
       });
+    });
+
+    it('preserves the threshold array when no group covers the threshold', async () => {
+      const unreachableGroups = [
+        { name: 'groupA', scope: { type: 'threshold', value: 0 }, value: 'a' },
+      ];
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { unreachableFlag: unreachableGroups },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.unreachableFlag).toStrictEqual(
+        unreachableGroups,
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
+    });
+
+    it('selects an unnamed threshold group without recording a group name', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          unnamedGroupFlag: [
+            { scope: { type: 'threshold', value: 1 }, value: 'selected' },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.unnamedGroupFlag).toBe(
+        'selected',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
     it('preserves non-threshold feature flags unchanged', async () => {
@@ -1413,6 +1461,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {},
         localOverrides: {},
         rawRemoteFeatureFlags: {},
+        processedRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
@@ -1490,13 +1539,12 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     describe('removeFlagOverride', () => {
-      it('removes a specific override', () => {
+      it('removes a specific override, revealing the remote value beneath it', () => {
         const { controller, messenger } = createController({
           state: {
-            remoteFeatureFlags: {
+            processedRemoteFeatureFlags: {
               remoteFlag: 'remoteValue',
-              flag1: 'value1',
-              flag2: 'value2',
+              flag1: 'remoteValue1',
             },
             localOverrides: {
               flag1: 'value1',
@@ -1515,6 +1563,7 @@ describe('RemoteFeatureFlagController', () => {
         });
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
+          flag1: 'remoteValue1',
           flag2: 'value2',
         });
       });
@@ -1549,10 +1598,8 @@ describe('RemoteFeatureFlagController', () => {
       it('removes all overrides', () => {
         const { controller, messenger } = createController({
           state: {
-            remoteFeatureFlags: {
+            processedRemoteFeatureFlags: {
               remoteFlag: 'remoteValue',
-              flag1: 'value1',
-              flag2: 'value2',
             },
             localOverrides: {
               flag1: 'value1',
@@ -1770,6 +1817,169 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual({
         defaultOnly: 'fromDefaults',
         remoteFlag: 'fromServer',
+      });
+    });
+  });
+
+  describe('processedRemoteFeatureFlags', () => {
+    it('keeps a remote flag whose value matches an override when the override is removed', () => {
+      const { controller, messenger } = createController({
+        state: {
+          remoteFeatureFlags: { sharedFlag: 'sameValue' },
+          processedRemoteFeatureFlags: { sharedFlag: 'sameValue' },
+          localOverrides: { sharedFlag: 'sameValue' },
+        },
+        defaultFeatureFlags: { sharedFlag: 'defaultValue' },
+      });
+
+      messenger.call(
+        'RemoteFeatureFlagController:removeFlagOverride',
+        'sharedFlag',
+      );
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'sameValue',
+      });
+    });
+
+    it('applies precedence of override over processed remote over default on init', () => {
+      const { controller } = createController({
+        state: {
+          processedRemoteFeatureFlags: {
+            sharedFlag: 'remoteValue',
+            remoteOnly: true,
+          },
+          localOverrides: { sharedFlag: 'overrideValue' },
+        },
+        defaultFeatureFlags: {
+          sharedFlag: 'defaultValue',
+          defaultOnly: 'fromDefaults',
+        },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'overrideValue',
+        remoteOnly: true,
+        defaultOnly: 'fromDefaults',
+      });
+    });
+
+    it('seeds the processed layer from persisted remoteFeatureFlags when absent', () => {
+      const { controller, messenger } = createController({
+        state: {
+          remoteFeatureFlags: {
+            remoteFlag: 'remoteValue',
+            overrideFlag: 'overrideValue',
+          },
+          localOverrides: { overrideFlag: 'overrideValue' },
+        },
+      });
+
+      expect(controller.state.processedRemoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'remoteValue',
+        overrideFlag: 'overrideValue',
+      });
+
+      messenger.call(
+        'RemoteFeatureFlagController:removeFlagOverride',
+        'overrideFlag',
+      );
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'remoteValue',
+        overrideFlag: 'overrideValue',
+      });
+    });
+
+    it('excludes defaults and overrides from the processed layer after a fetch', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { remoteFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        defaultFeatureFlags: { defaultOnly: 'fromDefaults' },
+      });
+
+      messenger.call(
+        'RemoteFeatureFlagController:setFlagOverride',
+        'overrideFlag',
+        'overrideValue',
+      );
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.processedRemoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'fromServer',
+      });
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        remoteFlag: 'fromServer',
+        overrideFlag: 'overrideValue',
+      });
+    });
+
+    it('does not include metaMetricsIds values in the processed layer', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          targetedFlag: [
+            {
+              name: 'qa',
+              scope: { type: 'threshold', value: 0 },
+              value: true,
+              metaMetricsIds: [MOCK_METRICS_ID],
+            },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.processedRemoteFeatureFlags).toStrictEqual({
+        targetedFlag: [
+          { name: 'qa', scope: { type: 'threshold', value: 0 }, value: true },
+        ],
+      });
+    });
+
+    it('preserves remote values and overrides across a restart', async () => {
+      const defaultFeatureFlags = { sharedFlag: 'defaultValue' };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { sharedFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        defaultFeatureFlags,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      messenger.call(
+        'RemoteFeatureFlagController:setFlagOverride',
+        'sharedFlag',
+        'fromServer',
+      );
+
+      const { controller: restartedController, messenger: restartedMessenger } =
+        createController({
+          state: controller.state,
+          defaultFeatureFlags,
+        });
+
+      restartedMessenger.call(
+        'RemoteFeatureFlagController:removeFlagOverride',
+        'sharedFlag',
+      );
+
+      expect(restartedController.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'fromServer',
       });
     });
   });
@@ -2227,6 +2437,7 @@ describe('RemoteFeatureFlagController', () => {
         {
           "cacheTimestamp": 0,
           "localOverrides": {},
+          "processedRemoteFeatureFlags": {},
           "rawRemoteFeatureFlags": {},
           "remoteFeatureFlags": {},
         }
@@ -2246,6 +2457,7 @@ describe('RemoteFeatureFlagController', () => {
         {
           "cacheTimestamp": 0,
           "localOverrides": {},
+          "processedRemoteFeatureFlags": {},
           "rawRemoteFeatureFlags": {},
           "remoteFeatureFlags": {},
         }
@@ -2265,6 +2477,7 @@ describe('RemoteFeatureFlagController', () => {
         {
           "cacheTimestamp": 0,
           "localOverrides": {},
+          "processedRemoteFeatureFlags": {},
           "rawRemoteFeatureFlags": {},
           "remoteFeatureFlags": {},
         }

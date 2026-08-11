@@ -31,6 +31,7 @@ export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
   localOverrides?: FeatureFlags;
   rawRemoteFeatureFlags?: FeatureFlags;
+  processedRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
   thresholdCache?: Record<string, number>;
   featureFlagThresholdGroups?: Record<string, string>;
@@ -50,6 +51,12 @@ const remoteFeatureFlagControllerMetadata = {
     usedInUi: true,
   },
   rawRemoteFeatureFlags: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
+  processedRemoteFeatureFlags: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -121,6 +128,7 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     remoteFeatureFlags: {},
     localOverrides: {},
     rawRemoteFeatureFlags: {},
+    processedRemoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -192,6 +200,33 @@ function redactMetaMetricsIds(flags: FeatureFlags): FeatureFlags {
 }
 
 /**
+ * Merges the feature flag layers into the effective flags that consumers read,
+ * with precedence: defaults < processed remote < local overrides.
+ *
+ * @param options - The feature flag layers to merge.
+ * @param options.defaultFeatureFlags - Client-side default feature flags.
+ * @param options.processedRemoteFeatureFlags - Remote feature flags after
+ * version and threshold processing, without defaults or overrides applied.
+ * @param options.localOverrides - Local overrides.
+ * @returns The effective feature flags.
+ */
+function getEffectiveFeatureFlags({
+  defaultFeatureFlags,
+  processedRemoteFeatureFlags,
+  localOverrides,
+}: {
+  defaultFeatureFlags: FeatureFlags;
+  processedRemoteFeatureFlags?: FeatureFlags;
+  localOverrides?: FeatureFlags;
+}): FeatureFlags {
+  return {
+    ...defaultFeatureFlags,
+    ...processedRemoteFeatureFlags,
+    ...localOverrides,
+  };
+}
+
+/**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
  * and manage these flags. The controller ensures that feature flags are refreshed based on
@@ -215,8 +250,6 @@ export class RemoteFeatureFlagController extends BaseController<
   readonly #clientVersion: SemVerVersion;
 
   readonly #defaultFeatureFlags: FeatureFlags;
-
-  #processedRemoteFeatureFlags: FeatureFlags = {};
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -268,18 +301,11 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
-    const localOverrides = initialState.localOverrides ?? {};
-
-    // Rebuild the processed remote layer from last session's effective flags by
-    // stripping local overrides.
-    const processedRemoteFeatureFlags = {
-      ...initialState.remoteFeatureFlags,
-    };
-    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
-      if (processedRemoteFeatureFlags[flagName] === overrideValue) {
-        delete processedRemoteFeatureFlags[flagName];
-      }
-    }
+    // State persisted before `processedRemoteFeatureFlags` existed only carries
+    // last session's effective flags; they stand in for the remote layer until
+    // the next fetch replaces it.
+    const processedRemoteFeatureFlags =
+      state?.processedRemoteFeatureFlags ?? initialState.remoteFeatureFlags;
 
     super({
       name: controllerName,
@@ -287,11 +313,12 @@ export class RemoteFeatureFlagController extends BaseController<
       messenger,
       state: {
         ...initialState,
-        remoteFeatureFlags: {
-          ...defaultFeatureFlags,
-          ...processedRemoteFeatureFlags,
-          ...localOverrides,
-        },
+        processedRemoteFeatureFlags,
+        remoteFeatureFlags: getEffectiveFeatureFlags({
+          defaultFeatureFlags,
+          processedRemoteFeatureFlags,
+          localOverrides: initialState.localOverrides,
+        }),
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
@@ -299,7 +326,6 @@ export class RemoteFeatureFlagController extends BaseController<
     });
 
     this.#defaultFeatureFlags = defaultFeatureFlags;
-    this.#processedRemoteFeatureFlags = processedRemoteFeatureFlags;
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
@@ -316,19 +342,25 @@ export class RemoteFeatureFlagController extends BaseController<
    * Computes effective feature flags with precedence:
    * defaults < processed remote < local overrides.
    *
-   * @param processedRemote - The processed remote feature flags.
-   * @param localOverrides - Local overrides. Defaults to current state overrides.
+   * @param options - The layers to merge. Each defaults to current state.
+   * @param options.processedRemoteFeatureFlags - The processed remote feature
+   * flags. Defaults to current state.
+   * @param options.localOverrides - Local overrides. Defaults to current state
+   * overrides.
    * @returns The effective feature flags.
    */
-  #getEffectiveFeatureFlags(
-    processedRemote: FeatureFlags,
-    localOverrides: FeatureFlags = this.state.localOverrides ?? {},
-  ): FeatureFlags {
-    return {
-      ...this.#defaultFeatureFlags,
-      ...processedRemote,
-      ...localOverrides,
-    };
+  #getEffectiveFeatureFlags({
+    processedRemoteFeatureFlags = this.state.processedRemoteFeatureFlags,
+    localOverrides = this.state.localOverrides,
+  }: {
+    processedRemoteFeatureFlags?: FeatureFlags;
+    localOverrides?: FeatureFlags;
+  }): FeatureFlags {
+    return getEffectiveFeatureFlags({
+      defaultFeatureFlags: this.#defaultFeatureFlags,
+      processedRemoteFeatureFlags,
+      localOverrides,
+    });
   }
 
   /**
@@ -406,20 +438,19 @@ export class RemoteFeatureFlagController extends BaseController<
     }
 
     // Strip metaMetricsIds from processed flags so they never appear in
-    // remoteFeatureFlags state or #processedRemoteFeatureFlags.  Arrays that
+    // remoteFeatureFlags or processedRemoteFeatureFlags state.  Arrays that
     // were preserved as-is (e.g. when metaMetricsId is missing) would
     // otherwise leak explicit-targeting IDs into diagnostics.
     const redactedProcessedFlags = redactMetaMetricsIds(processedFlags);
 
     // Single state update with all changes batched together
-    this.#processedRemoteFeatureFlags = redactedProcessedFlags;
-
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          redactedProcessedFlags,
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          processedRemoteFeatureFlags: redactedProcessedFlags,
+        }),
+        processedRemoteFeatureFlags: redactedProcessedFlags,
         rawRemoteFeatureFlags: redactMetaMetricsIds(remoteFeatureFlags),
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
@@ -571,10 +602,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          this.#processedRemoteFeatureFlags,
-          localOverrides,
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({ localOverrides }),
       };
     });
   }
@@ -592,10 +620,9 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: newLocalOverrides,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          this.#processedRemoteFeatureFlags,
-          newLocalOverrides,
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          localOverrides: newLocalOverrides,
+        }),
       };
     });
   }
@@ -608,10 +635,9 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: {},
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          this.#processedRemoteFeatureFlags,
-          {},
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          localOverrides: {},
+        }),
       };
     });
   }
