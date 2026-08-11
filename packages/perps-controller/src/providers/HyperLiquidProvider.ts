@@ -435,6 +435,15 @@ type ChaseSession = {
   reduceOnly: boolean;
   /** Exchange ID of the order resting right now, or null once it is gone. */
   orderId: string | null;
+  /**
+   * Settles when an in-flight replacement has finished resting (or failed).
+   * Null while no placement is in flight.
+   *
+   * `orderId` is null for the whole of that round trip, which is
+   * indistinguishable from "nothing rests" unless a canceller can tell the two
+   * apart — so a cancel joins this before deciding what to cancel.
+   */
+  pendingReplacement: Promise<void> | null;
   /** Price the resting order sits at. */
   restingPrice: string;
   intervalMs: number;
@@ -4385,6 +4394,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       szDecimals,
       reduceOnly: params.reduceOnly ?? false,
       orderId,
+      pendingReplacement: null,
       restingPrice: touchPrice,
       intervalMs,
       deadline:
@@ -4625,13 +4635,32 @@ export class HyperLiquidProvider implements PerpsProvider {
         // `#restChaseOrder` throws, the session must not be left pointing at an
         // order ID that no longer exists.
         session.orderId = null;
-        session.orderId = await this.#restChaseOrder({
-          assetId: session.assetId,
-          isBuy: session.isBuy,
-          price: touchPrice,
-          size: session.size,
-          reduceOnly: session.reduceOnly,
+
+        // Published *before* the placement starts, not from the promise it
+        // returns: the window opens the moment `#restChaseOrder` is entered, so
+        // deriving the marker from its return value would leave the synchronous
+        // prefix of that call unguarded. A cancel arriving anywhere inside the
+        // round trip now waits for the replacement to land instead of reading
+        // the null `orderId` as "nothing rests", reporting success, and dropping
+        // the handle while this call is still putting an order on the book.
+        let settleReplacement: (() => void) | undefined;
+        session.pendingReplacement = new Promise<void>((resolve) => {
+          settleReplacement = resolve;
         });
+
+        try {
+          session.orderId = await this.#restChaseOrder({
+            assetId: session.assetId,
+            isBuy: session.isBuy,
+            price: touchPrice,
+            size: session.size,
+            reduceOnly: session.reduceOnly,
+          });
+        } finally {
+          // Cleared before the waiters wake, so they see the settled session.
+          session.pendingReplacement = null;
+          settleReplacement?.();
+        }
         session.restingPrice = touchPrice;
         session.repricings += 1;
 
@@ -4641,6 +4670,21 @@ export class HyperLiquidProvider implements PerpsProvider {
           restingPrice: touchPrice,
           repricings: session.repricings,
         });
+
+        // A cancel that arrived during the round trip is now waiting on this
+        // session; it cancels the order just recorded above. A `disconnect`
+        // deregisters the session instead, and deliberately leaves resting
+        // orders alone — logged with its ID so it stays traceable.
+        if (!this.#chaseSessions.has(sessionId)) {
+          this.#deps.debugLogger.log('Chase replacement outlived its session', {
+            sessionId,
+            orderId: session.orderId,
+          });
+          return;
+        }
+        if (!session.active) {
+          return;
+        }
       } else {
         // The cancel was refused, which for a resting order means it is no
         // longer there: it filled, or something else cancelled it. Either way
@@ -4854,9 +4898,16 @@ export class HyperLiquidProvider implements PerpsProvider {
     // otherwise re-place the very order being cancelled.
     this.#stopChaseSession(params.orderId);
 
-    // The loop already established the order is gone — it filled, or something
-    // else cancelled it — so there is nothing left to cancel and the session
-    // ends cleanly.
+    // A replacement already in flight cannot be called off, so the cancel waits
+    // for it and then cancels whatever it rested. Deciding without waiting would
+    // read the session's null `orderId` as "nothing rests" and report a clean
+    // cancellation over an order that was about to appear on the book.
+    if (session.pendingReplacement) {
+      await session.pendingReplacement;
+    }
+
+    // Nothing rests: the order filled, something else cancelled it, or a
+    // replacement failed to go up. Either way the session ends cleanly.
     if (session.orderId === null) {
       this.#chaseSessions.delete(params.orderId);
       return { success: true, orderId: params.orderId };

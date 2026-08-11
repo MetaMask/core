@@ -6,6 +6,7 @@ import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiqui
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
+  CancelOrderResult,
   PerpsPlatformDependencies,
   OrderParams,
 } from '../../../src/types/index.js';
@@ -1474,6 +1475,96 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // Only the original placement. Without the guard the tick would rest a
       // replacement the caller has no handle for and no idea exists.
       expect(order).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Chase cancel racing the replacement placement', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('cancels the replacement when the cancel lands during its round trip', async () => {
+      let sessionId = '';
+      let callerCancel: Promise<CancelOrderResult> | undefined;
+      let orderCalls = 0;
+
+      const order = jest.fn().mockImplementation(async () => {
+        orderCalls += 1;
+        // Call 2 is the tick's replacement. Firing the caller's cancel from
+        // inside its round trip is the window this closes: `session.orderId` is
+        // null for the whole call, which without the fix reads as "nothing
+        // rests" and lets the cancel report success and drop the handle while
+        // this order is still on its way to the book.
+        if (orderCalls === 2) {
+          callerCancel = provider.cancelOrder({
+            orderId: sessionId,
+            symbol: 'ETH',
+            orderType: 'chase',
+          });
+          await Promise.resolve();
+        }
+        return {
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [{ resting: { oid: orderCalls === 1 ? 55 : 66 } }],
+            },
+          },
+        };
+      });
+
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      sessionId = placed.orderId as string;
+
+      await jest.advanceTimersByTimeAsync(1000);
+      const result = await callerCancel;
+
+      // The replacement must not be left live on the exchange with the caller
+      // told the chase was cancelled: the cancel waits for it and cancels it.
+      expect(result?.success).toBe(true);
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 66 }],
+      });
+
+      // And the handle is gone, so nothing of this chase is left unreachable.
+      const second = await provider.cancelOrder({
+        orderId: sessionId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(second.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      );
     });
   });
 
