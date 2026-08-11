@@ -321,7 +321,7 @@ const formatValidationErrorMessages = (error: StructError): string =>
  * @param value - Value to validate.
  * @throws If `value` is not a valid v1 payload, including unsupported wallet types.
  */
-export function assertValidAccountTreePayload(
+export function assertAccountTreePayload(
   value: unknown,
 ): asserts value is AccountTreePayload {
   try {

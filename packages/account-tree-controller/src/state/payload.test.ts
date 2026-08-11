@@ -1,6 +1,6 @@
 import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-  assertValidAccountTreePayload,
+  assertAccountTreePayload,
   parsePayloadGroupId,
   toWalletPayloadId,
 } from './payload.js';
@@ -44,10 +44,10 @@ describe('toWalletPayloadId', () => {
   });
 });
 
-describe('assertValidAccountTreePayload', () => {
+describe('assertAccountTreePayload', () => {
   it('does not throw for a valid payload', () => {
     expect(() =>
-      assertValidAccountTreePayload({
+      assertAccountTreePayload({
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [],
       }),
@@ -56,7 +56,7 @@ describe('assertValidAccountTreePayload', () => {
 
   it('throws with "Invalid AccountTreePayload:" prefix for an invalid payload', () => {
     expect(() =>
-      assertValidAccountTreePayload({
+      assertAccountTreePayload({
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: 'not-an-array',
       }),
@@ -64,14 +64,14 @@ describe('assertValidAccountTreePayload', () => {
   });
 
   it('throws when the version field is missing', () => {
-    expect(() => assertValidAccountTreePayload({ wallets: [] })).toThrow(
+    expect(() => assertAccountTreePayload({ wallets: [] })).toThrow(
       'Invalid AccountTreePayload:',
     );
   });
 
   it('throws when a group ID does not match the expected format', () => {
     expect(() =>
-      assertValidAccountTreePayload({
+      assertAccountTreePayload({
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {

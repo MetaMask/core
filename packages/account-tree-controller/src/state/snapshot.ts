@@ -11,7 +11,7 @@ import type {
 } from './payload.js';
 import {
   AccountWalletPayloadType,
-  assertValidAccountTreePayload,
+  assertAccountTreePayload,
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
 } from './payload.js';
 import { deepFreeze } from './utils.js';
@@ -227,7 +227,7 @@ export class AccountTreeSnapshot {
    */
   static async deserialize(raw: unknown): Promise<AccountTreeSnapshot> {
     // TODO: Use migration framework here.
-    assertValidAccountTreePayload(raw);
+    assertAccountTreePayload(raw);
     return new AccountTreeSnapshot(raw.wallets);
   }
 }
