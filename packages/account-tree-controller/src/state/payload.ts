@@ -276,15 +276,23 @@ const AccountTreeWalletEntryStruct = union([
   AccountWalletPrivateKeyPayloadStruct,
 ]);
 
+/** Current version of the {@link AccountTreePayload} format. */
+export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = 1;
+
 /**
  * Superstruct schema for a fully versioned {@link AccountTreePayload}.
  *
- * Validates the `version` integer alongside v1 wallet entries (`'mnemonic'` and
- * `'private-key'` only). Secret fields (`value`, `privateKey`) use the Superstruct
- * `sensitive()` wrapper so validation failures redact secrets from error output.
+ * Pins `version` to exactly {@link ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION} so
+ * payloads from newer clients (v2+) are rejected rather than silently
+ * mis-handled as v1. Once a migration framework is wired up in
+ * {@link AccountTreeSnapshot.deserialize}, older versions will be up-migrated
+ * before this struct is checked, and newer versions will require a new struct.
+ *
+ * Secret fields (`value`, `privateKey`) use the Superstruct `sensitive()`
+ * wrapper so validation failures redact secrets from error output.
  */
 export const AccountTreePayloadStruct = object({
-  version: integer(),
+  version: literal(ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION),
   wallets: array(AccountTreeWalletEntryStruct),
 });
 
@@ -325,6 +333,8 @@ export function assertAccountTreePayload(
   value: unknown,
 ): asserts value is AccountTreePayload {
   try {
+    // AccountTreePayloadStruct pins version to ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+    // so unknown future versions are rejected here rather than silently mis-handled.
     assert(value, AccountTreePayloadStruct);
   } catch (error) {
     if (error instanceof StructError) {
@@ -336,6 +346,3 @@ export function assertAccountTreePayload(
     throw error;
   }
 }
-
-/** Current version of the {@link AccountTreePayload} format. */
-export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = 1;

@@ -70,6 +70,15 @@ describe('assertAccountTreePayload', () => {
     );
   });
 
+  it('throws when the version is not the current version', () => {
+    expect(() =>
+      assertAccountTreePayload({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1,
+        wallets: [],
+      }),
+    ).toThrow('Invalid AccountTreePayload:');
+  });
+
   it('throws when a group ID does not match the expected format', () => {
     expect(() =>
       assertAccountTreePayload({
