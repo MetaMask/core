@@ -158,6 +158,7 @@ export type {
   TradeConfiguration,
   OrderType,
   TriggerOrderType,
+  StrategyOrderType,
   OrderExecution,
   TriggerDirection,
   TpslLinkage,
@@ -441,6 +442,7 @@ export {
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
+  HYPERLIQUID_TWAP_LIMITS,
   CLOSE_POSITION_CONFIG,
   MARGIN_ADJUSTMENT_CONFIG,
   DATA_LAKE_API_CONFIG,
@@ -482,12 +484,17 @@ export {
 } from './utils/index.js';
 export {
   TRIGGER_ORDER_TYPES,
+  STRATEGY_ORDER_TYPES,
+  SCALE_ORDER_COUNT,
   isTriggerOrderType,
+  isStrategyOrderType,
   isLimitExecutionOrderType,
   getTriggerExecution,
   getTriggerDirection,
   buildTriggerOrderType,
   buildPositionTriggerOrderFromOrder,
+  computeScalePriceLadder,
+  splitScaleSizes,
 } from './utils/index.js';
 export {
   adaptTriggerOrderTypeFromSDK,

@@ -29,6 +29,7 @@ import {
   USDC_SYMBOL,
 } from '../constants/hyperLiquidConfig.js';
 import {
+  CHASE_ORDER_CONFIG,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
@@ -125,7 +126,7 @@ import type {
   PerpsReadOptions,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
-import type { OrderType } from '../types/perps-types.js';
+import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
 import type {
   ExtendedAssetMeta,
   ExtendedPerpDex,
@@ -165,6 +166,8 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../utils/hyperLiquidValidation.js';
+import type { StrategyOrderValidationParams } from '../utils/hyperLiquidValidation.js';
+import { generatePerpsId } from '../utils/idUtils.js';
 import { transformMarketData } from '../utils/marketDataTransform.js';
 import {
   compileMarketPattern,
@@ -175,13 +178,16 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
+  computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
+  splitScaleSizes,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
+  isStrategyOrderType,
   isTriggerOrderType,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
@@ -201,6 +207,28 @@ import {
  */
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
+
+/**
+ * Narrow order params down to their strategy fields.
+ *
+ * Both validation entry points forward exactly this group, so a field added to
+ * `StrategyOrderValidationParams` reaches both of them or neither.
+ *
+ * @param params - Order parameters.
+ * @returns The strategy fields, as validation takes them.
+ */
+const pickStrategyParams = (
+  params: OrderParams,
+): StrategyOrderValidationParams => ({
+  twapDuration: params.twapDuration,
+  twapRandomize: params.twapRandomize,
+  scaleMinPrice: params.scaleMinPrice,
+  scaleMaxPrice: params.scaleMaxPrice,
+  scaleNumOrders: params.scaleNumOrders,
+  chaseIntervalMs: params.chaseIntervalMs,
+  chaseMaxDurationMs: params.chaseMaxDurationMs,
+  chaseMaxRepricings: params.chaseMaxRepricings,
+});
 
 // Helper method parameter interfaces (module-level for class-dependent methods only)
 type GetAssetInfoParams = {
@@ -287,6 +315,57 @@ type HandleOrderErrorParams = {
 type GetOrFetchPriceParams = {
   symbol: string;
   dexName: string | null;
+};
+
+/**
+ * What every strategy placement needs before it can talk to the exchange.
+ *
+ * The single-order path derives the same values inline; strategy placements
+ * share them through `#prepareStrategyPlacement` so the three of them cannot
+ * drift apart on validation, readiness, or leverage.
+ */
+type StrategyPlacementContext = {
+  assetId: number;
+  szDecimals: number;
+  finalPositionSize: number;
+  formattedSize: string;
+};
+
+/**
+ * A scale ladder's children, held so the group can be cancelled as one.
+ *
+ * Session-scoped on purpose: the IDs also come back to the caller as
+ * `OrderResult.childOrderIds`, so a consumer that outlives this provider
+ * instance can still cancel them through the ordinary batch cancel.
+ */
+type ScaleOrderGroup = {
+  assetId: number;
+  orderIds: string[];
+};
+
+/**
+ * A running chase: the order currently resting, and the loop re-pricing it.
+ */
+type ChaseSession = {
+  symbol: string;
+  assetId: number;
+  isBuy: boolean;
+  size: string;
+  szDecimals: number;
+  reduceOnly: boolean;
+  /** Exchange ID of the order resting right now, or null once it is gone. */
+  orderId: string | null;
+  /** Price the resting order sits at. */
+  restingPrice: string;
+  intervalMs: number;
+  /** Absolute deadline, as a `Date.now()` stamp. */
+  deadline: number;
+  maxRepricings: number;
+  repricings: number;
+  /** Cleared when the session stops; null while no tick is pending. */
+  timer: ReturnType<typeof setTimeout> | null;
+  /** False once the chase has stopped re-pricing, whatever the reason. */
+  active: boolean;
 };
 
 /**
@@ -515,6 +594,15 @@ export class HyperLiquidProvider implements PerpsProvider {
     'multi-sig required': PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
     'invalid nonce': PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
   };
+
+  // Scale ladders placed by this provider instance, keyed by group handle, so
+  // one cancel can reach every rung. Cleared on disconnect; the rung IDs are
+  // also returned to the caller as `OrderResult.childOrderIds`.
+  readonly #scaleOrderGroups = new Map<string, ScaleOrderGroup>();
+
+  // Chase sessions running on this provider instance, keyed by session handle.
+  // Each owns a pending timer, so disconnect has to stop them.
+  readonly #chaseSessions = new Map<string, ChaseSession>();
 
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
@@ -3627,9 +3715,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
         timeInForce: params.timeInForce,
+        ...pickStrategyParams(params),
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
+      }
+
+      // Strategy placements expand into an execution schedule rather than a
+      // single order, so they leave the shared path here — before the order
+      // array, the HIP-3 transfer, and the atomic single-order submit, none of
+      // which describe what a TWAP, a ladder, or a chase does.
+      if (isStrategyOrderType(params.orderType)) {
+        return await this.#placeStrategyOrder(params, params.orderType);
       }
 
       // Extract DEX name for API calls (main DEX = null)
@@ -3821,7 +3918,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       // close, so the retry would either be rejected as "Reduce only order would
       // increase position" or resubmit an identical order. Surfacing the
       // minimum-value error names the real problem instead.
-      if (isMinimumOrderError && retryCount === 0 && !params.reduceOnly) {
+      //
+      // Strategy placements are excluded for the same reason in a different
+      // shape: the minimum applies to each TWAP slice and each ladder rung, not
+      // to the total, so growing the total by 1.5% does not clear it.
+      if (
+        isMinimumOrderError &&
+        retryCount === 0 &&
+        !params.reduceOnly &&
+        !isStrategyOrderType(params.orderType)
+      ) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -3873,6 +3979,780 @@ export class HyperLiquidProvider implements PerpsProvider {
         isBuy: params.isBuy,
       });
     }
+  }
+
+  /**
+   * Dispatch a strategy placement to the handler that owns it.
+   *
+   * @param params - Order parameters, already validated.
+   * @param orderType - The strategy type, narrowed by the caller.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeStrategyOrder(
+    params: OrderParams,
+    orderType: StrategyOrderType,
+  ): Promise<OrderResult> {
+    const context = await this.#prepareStrategyPlacement(params);
+
+    if (orderType === 'twap') {
+      return await this.#placeTwapOrder(params, context);
+    }
+    if (orderType === 'scale') {
+      return await this.#placeScaleOrder(params, context);
+    }
+    return await this.#placeChaseOrder(params, context);
+  }
+
+  /**
+   * Run the shared preamble every strategy placement needs.
+   *
+   * Mirrors the single-order path's own preamble — validate against a live
+   * price, complete the signing setup, resolve the asset ID, apply leverage —
+   * so a strategy order is held to the same rules as an ordinary one.
+   *
+   * @param params - Order parameters.
+   * @returns The asset and sizing context the strategy handlers submit with.
+   */
+  async #prepareStrategyPlacement(
+    params: OrderParams,
+  ): Promise<StrategyPlacementContext> {
+    const { dex: dexName } = parseAssetName(params.symbol);
+
+    // A HIP-3 order is preceded by a margin transfer onto the builder DEX and
+    // followed by a rebalance, both of which are wired into the single-order
+    // submit path and its rollback. Rather than half-support that here, a
+    // strategy placement on a HIP-3 market is refused outright.
+    if (dexName !== null) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
+    }
+
+    const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
+      symbol: params.symbol,
+      dexName,
+    });
+
+    const effectivePrice =
+      params.currentPrice && params.currentPrice > 0
+        ? params.currentPrice
+        : currentPrice;
+
+    await this.#validateOrderBeforePlacement({
+      ...params,
+      currentPrice: effectivePrice,
+    });
+
+    // Kept after validation so an invalid strategy order never triggers the
+    // signature prompts in trading setup — same ordering as `placeOrder`.
+    await this.#ensureReadyForTrading();
+
+    const normalizedMaxSlippageBps =
+      params.maxSlippageBps ??
+      (typeof params.slippage === 'number'
+        ? Math.round(params.slippage * BASIS_POINTS_DIVISOR)
+        : undefined);
+
+    const { finalPositionSize } = calculateFinalPositionSize({
+      usdAmount: params.usdAmount,
+      size: params.size,
+      currentPrice: effectivePrice,
+      priceAtCalculation: params.priceAtCalculation,
+      maxSlippageBps: normalizedMaxSlippageBps,
+      szDecimals: assetInfo.szDecimals,
+      leverage: params.leverage,
+      reduceOnly: params.reduceOnly,
+    });
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: params.symbol,
+      dexName,
+      meta,
+    });
+
+    await this.#prepareAssetForTrading({
+      symbol: params.symbol,
+      assetId,
+      leverage: params.leverage,
+    });
+
+    return {
+      assetId,
+      szDecimals: assetInfo.szDecimals,
+      finalPositionSize,
+      formattedSize: formatHyperLiquidSize({
+        size: finalPositionSize,
+        szDecimals: assetInfo.szDecimals,
+      }),
+    };
+  }
+
+  /**
+   * Submit a TWAP through HyperLiquid's dedicated TWAP action.
+   *
+   * A TWAP is not an order on the book, so it does not go through the `order`
+   * action, carries no builder fee, and comes back identified by a `twapId`
+   * rather than an `oid`. That ID is the handle `cancelOrder` needs.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeTwapOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+  ): Promise<OrderResult> {
+    const { assetId, formattedSize } = context;
+    const exchangeClient = this.#clientService.getExchangeClient();
+
+    this.#deps.debugLogger.log('Submitting TWAP order', {
+      symbol: params.symbol,
+      assetId,
+      size: formattedSize,
+      durationMinutes: params.twapDuration,
+      randomize: params.twapRandomize ?? false,
+    });
+
+    const result = await exchangeClient.twapOrder({
+      twap: {
+        a: assetId,
+        b: params.isBuy,
+        s: formattedSize,
+        r: params.reduceOnly ?? false,
+        // Validation has already established this is a whole number of minutes
+        // inside the venue's bounds.
+        m: params.twapDuration as number,
+        t: params.twapRandomize ?? false,
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`TWAP order failed: ${JSON.stringify(result)}`);
+    }
+
+    const status = result.response?.data?.status;
+    if (!isStatusObject(status) || !hasProperty(status, 'running')) {
+      const rawError =
+        (status as { error?: string } | undefined)?.error ??
+        'TWAP order rejected';
+      throw new Error(rawError);
+    }
+
+    const running = status.running as { twapId: number };
+
+    return {
+      success: true,
+      orderId: running.twapId.toString(),
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Fan a scale placement out into one batch of resting limit orders.
+   *
+   * The whole ladder goes in a single `order` action so it either rests
+   * together or fails together; placing the rungs one at a time would leave a
+   * half-built ladder behind on any mid-flight failure.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeScaleOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+  ): Promise<OrderResult> {
+    const { assetId, szDecimals, finalPositionSize, formattedSize } = context;
+    const count = params.scaleNumOrders as number;
+
+    const ladder = computeScalePriceLadder({
+      minPrice: parseFloat(params.scaleMinPrice as string),
+      maxPrice: parseFloat(params.scaleMaxPrice as string),
+      count,
+    });
+    const sizes = splitScaleSizes({
+      totalSize: finalPositionSize,
+      count,
+      szDecimals,
+    });
+
+    const orders: SDKOrderParams[] = ladder.map((price, index) => ({
+      a: assetId,
+      b: params.isBuy,
+      p: formatHyperLiquidPrice({ price, szDecimals }),
+      s: sizes[index],
+      r: params.reduceOnly ?? false,
+      t: { limit: { tif: 'Gtc' as const } },
+    }));
+
+    this.#deps.debugLogger.log('Submitting scale ladder', {
+      symbol: params.symbol,
+      assetId,
+      count,
+      prices: orders.map((order) => order.p),
+      sizes,
+    });
+
+    const exchangeClient = this.#clientService.getExchangeClient();
+    const result = await exchangeClient.order({
+      orders,
+      grouping: 'na',
+      builder: {
+        b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
+        f: this.#getDiscountedBuilderFee(),
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`Scale order failed: ${JSON.stringify(result)}`);
+    }
+
+    const statuses = result.response?.data?.statuses ?? [];
+    const childOrderIds = statuses
+      .map((status) => this.#readOrderIdFromStatus(status))
+      .filter((orderId): orderId is string => orderId !== undefined);
+
+    // A ladder that came back with no IDs at all rested nothing; reporting it
+    // as a success would hand the caller a handle that cancels nothing.
+    if (childOrderIds.length === 0) {
+      throw new Error(
+        `Scale order rejected: ${JSON.stringify(result.response?.data)}`,
+      );
+    }
+
+    const groupId = generatePerpsId('scale');
+    this.#scaleOrderGroups.set(groupId, { assetId, orderIds: childOrderIds });
+
+    return {
+      success: true,
+      orderId: groupId,
+      childOrderIds,
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Start an emulated chase: rest at the near touch, then follow it.
+   *
+   * HyperLiquid has no chase action, so the strategy is run here. The first
+   * order is placed synchronously — a caller that gets a success back has a
+   * real order resting — and the re-pricing loop then runs in the background
+   * until it fills, the window closes, or the session is cancelled.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeChaseOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+  ): Promise<OrderResult> {
+    const { assetId, szDecimals, formattedSize } = context;
+
+    const touchPrice = await this.#getChaseTouchPrice({
+      symbol: params.symbol,
+      isBuy: params.isBuy,
+      szDecimals,
+    });
+
+    const orderId = await this.#restChaseOrder({
+      assetId,
+      isBuy: params.isBuy,
+      price: touchPrice,
+      size: formattedSize,
+      reduceOnly: params.reduceOnly ?? false,
+    });
+
+    const intervalMs =
+      params.chaseIntervalMs ?? CHASE_ORDER_CONFIG.DefaultIntervalMs;
+    const sessionId = generatePerpsId('chase');
+    const session: ChaseSession = {
+      symbol: params.symbol,
+      assetId,
+      isBuy: params.isBuy,
+      size: formattedSize,
+      szDecimals,
+      reduceOnly: params.reduceOnly ?? false,
+      orderId,
+      restingPrice: touchPrice,
+      intervalMs,
+      deadline:
+        Date.now() +
+        (params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs),
+      maxRepricings:
+        params.chaseMaxRepricings ?? CHASE_ORDER_CONFIG.DefaultMaxRepricings,
+      repricings: 0,
+      timer: null,
+      active: true,
+    };
+    this.#chaseSessions.set(sessionId, session);
+    this.#scheduleChaseTick(sessionId);
+
+    this.#deps.debugLogger.log('Chase session started', {
+      sessionId,
+      symbol: params.symbol,
+      orderId,
+      restingPrice: touchPrice,
+      intervalMs,
+    });
+
+    return {
+      success: true,
+      orderId: sessionId,
+      childOrderIds: [orderId],
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Read the price a chase must rest at: the best bid for a buy, the best ask
+   * for a sell.
+   *
+   * The touch, not the mid: a post-only order priced at the mid would either
+   * cross or be rejected, and a chase that never rests at the front of the
+   * queue is not chasing anything.
+   *
+   * @param params - The lookup parameters.
+   * @param params.symbol - Market to read.
+   * @param params.isBuy - Which side the chase rests on.
+   * @param params.szDecimals - Asset size precision, for price formatting.
+   * @returns The formatted touch price.
+   */
+  async #getChaseTouchPrice(params: {
+    symbol: string;
+    isBuy: boolean;
+    szDecimals: number;
+  }): Promise<string> {
+    const { symbol, isBuy, szDecimals } = params;
+
+    const book = await this.#clientService.getInfoClient().l2Book({
+      coin: symbol,
+    });
+
+    // `levels` is [bids, asks], each best-first.
+    const side = book?.levels?.[isBuy ? 0 : 1];
+    const touch = side?.[0]?.px;
+    const touchPrice = parseFloat(touch ?? '');
+    if (!Number.isFinite(touchPrice) || touchPrice <= 0) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    return formatHyperLiquidPrice({ price: touchPrice, szDecimals });
+  }
+
+  /**
+   * Rest one post-only order for a chase and return its exchange ID.
+   *
+   * @param params - The placement parameters.
+   * @param params.assetId - Resolved asset ID.
+   * @param params.isBuy - Order side.
+   * @param params.price - Formatted limit price.
+   * @param params.size - Formatted size.
+   * @param params.reduceOnly - Whether the order may only reduce a position.
+   * @returns The resting order's exchange ID.
+   */
+  async #restChaseOrder(params: {
+    assetId: number;
+    isBuy: boolean;
+    price: string;
+    size: string;
+    reduceOnly: boolean;
+  }): Promise<string> {
+    const exchangeClient = this.#clientService.getExchangeClient();
+
+    const result = await exchangeClient.order({
+      orders: [
+        {
+          a: params.assetId,
+          b: params.isBuy,
+          p: params.price,
+          s: params.size,
+          r: params.reduceOnly,
+          // Post-only: a chase adds liquidity at the touch. Crossing would end
+          // the chase on its first tick at a worse price than resting does.
+          t: { limit: { tif: 'Alo' as const } },
+        },
+      ],
+      grouping: 'na',
+      builder: {
+        b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
+        f: this.#getDiscountedBuilderFee(),
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`Chase order failed: ${JSON.stringify(result)}`);
+    }
+
+    const orderId = this.#readOrderIdFromStatus(
+      result.response?.data?.statuses?.[0],
+    );
+    if (!orderId) {
+      throw new Error(
+        `Chase order rejected: ${JSON.stringify(result.response?.data)}`,
+      );
+    }
+
+    return orderId;
+  }
+
+  /**
+   * Schedule the next tick of a chase session.
+   *
+   * @param sessionId - Session to advance.
+   */
+  #scheduleChaseTick(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      // A rejected tick must not stop the session from being cancellable, and
+      // must not surface as an unhandled rejection either.
+      this.#runChaseTick(sessionId).catch((error: unknown) => {
+        this.#deps.debugLogger.log('Chase tick failed', {
+          sessionId,
+          error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
+        });
+      });
+    }, session.intervalMs);
+
+    // Node keeps the process alive for a pending timer; a background chase is
+    // not a reason to hold an exiting process open. React Native's timers have
+    // no `unref`, hence the guard.
+    timer.unref?.();
+    session.timer = timer;
+  }
+
+  /**
+   * Advance one chase session: re-price if the touch has moved, stop if the
+   * window has closed.
+   *
+   * @param sessionId - Session to advance.
+   */
+  async #runChaseTick(sessionId: string): Promise<void> {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    if (Date.now() >= session.deadline) {
+      // The window closed. The last order stays resting as an ordinary limit
+      // order and the session stays registered, so cancelling by its handle
+      // still reaches that order.
+      session.active = false;
+      this.#deps.debugLogger.log('Chase session window closed', { sessionId });
+      return;
+    }
+
+    const touchPrice = await this.#getChaseTouchPrice({
+      symbol: session.symbol,
+      isBuy: session.isBuy,
+      szDecimals: session.szDecimals,
+    });
+
+    // The book read is a round trip, and a cancel arriving during it stops the
+    // session. Without this re-check the tick would cancel and re-place the very
+    // order the caller just asked to be rid of.
+    if (!session.active) {
+      return;
+    }
+
+    if (touchPrice !== session.restingPrice && session.orderId) {
+      const cancelled = await this.#cancelChaseChild(session);
+      if (cancelled) {
+        session.orderId = await this.#restChaseOrder({
+          assetId: session.assetId,
+          isBuy: session.isBuy,
+          price: touchPrice,
+          size: session.size,
+          reduceOnly: session.reduceOnly,
+        });
+        session.restingPrice = touchPrice;
+        session.repricings += 1;
+
+        this.#deps.debugLogger.log('Chase re-priced', {
+          sessionId,
+          orderId: session.orderId,
+          restingPrice: touchPrice,
+          repricings: session.repricings,
+        });
+      } else {
+        // The cancel was refused, which for a resting order means it is no
+        // longer there: it filled, or something else cancelled it. Either way
+        // there is nothing left to chase.
+        session.orderId = null;
+        session.active = false;
+        this.#deps.debugLogger.log('Chase order no longer resting', {
+          sessionId,
+        });
+        return;
+      }
+    }
+
+    if (session.repricings >= session.maxRepricings) {
+      session.active = false;
+      this.#deps.debugLogger.log('Chase repricing cap reached', { sessionId });
+      return;
+    }
+
+    this.#scheduleChaseTick(sessionId);
+  }
+
+  /**
+   * Cancel the order a chase session currently has resting.
+   *
+   * @param session - The session whose child to cancel.
+   * @returns True when the exchange confirmed the cancel.
+   */
+  async #cancelChaseChild(session: ChaseSession): Promise<boolean> {
+    if (!session.orderId) {
+      return false;
+    }
+
+    const exchangeClient = this.#clientService.getExchangeClient();
+    const result = await exchangeClient.cancel({
+      cancels: [{ a: session.assetId, o: parseInt(session.orderId, 10) }],
+    });
+
+    return result.response?.data?.statuses?.[0] === 'success';
+  }
+
+  /**
+   * Stop a chase session's re-pricing loop.
+   *
+   * @param sessionId - Session to stop.
+   */
+  #stopChaseSession(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session) {
+      return;
+    }
+
+    session.active = false;
+    if (session.timer) {
+      clearTimeout(session.timer);
+      session.timer = null;
+    }
+  }
+
+  /**
+   * Cancel a strategy placement by its handle.
+   *
+   * @param params - Cancellation parameters.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelStrategyOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    try {
+      this.#deps.debugLogger.log('Canceling strategy order:', params);
+
+      if (params.orderType === 'twap') {
+        return await this.#cancelTwapOrder(params);
+      }
+      if (params.orderType === 'scale') {
+        return await this.#cancelScaleOrder(params);
+      }
+      return await this.#cancelChaseOrder(params);
+    } catch (error) {
+      const mappedError = this.#mapError(error);
+      this.#deps.logger.error(
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrder', mappedError, {
+          orderId: params.orderId,
+          coin: params.symbol,
+          orderType: params.orderType,
+        }),
+      );
+      return createErrorResult(mappedError, {
+        success: false,
+        orderId: params.orderId,
+      });
+    }
+  }
+
+  /**
+   * Cancel a running TWAP through the venue's TWAP cancel action.
+   *
+   * A TWAP never rested on the book, so the ordinary `cancel` action has no
+   * order ID to match and would reject it.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the TWAP ID.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelTwapOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    await this.#ensureReady();
+
+    const coinValidation = validateCoinExists(
+      params.symbol,
+      this.#symbolToAssetId,
+    );
+    if (!coinValidation.isValid) {
+      throw new Error(coinValidation.error);
+    }
+
+    await this.#ensureReadyForTrading();
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: params.symbol,
+      dexName: parseAssetName(params.symbol).dex,
+    });
+
+    const result = await this.#clientService.getExchangeClient().twapCancel({
+      a: assetId,
+      t: parseInt(params.orderId, 10),
+    });
+
+    const status = result.response?.data?.status;
+    if (status === 'success') {
+      return { success: true, orderId: params.orderId };
+    }
+
+    const rawError =
+      (status as { error?: string } | undefined)?.error ??
+      'TWAP cancellation failed';
+    return createErrorResult(this.#mapError(new Error(rawError)), {
+      success: false,
+      orderId: params.orderId,
+    });
+  }
+
+  /**
+   * Cancel every child of a scale ladder in one batch.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the group handle.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelScaleOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const group = this.#scaleOrderGroups.get(params.orderId);
+    if (!group) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    await this.#ensureReadyForTrading();
+
+    const result = await this.#clientService.getExchangeClient().cancel({
+      cancels: group.orderIds.map((orderId) => ({
+        a: group.assetId,
+        o: parseInt(orderId, 10),
+      })),
+    });
+
+    const statuses = result.response?.data?.statuses ?? [];
+    const remaining = group.orderIds.filter(
+      (_unused, index) => statuses[index] !== 'success',
+    );
+
+    if (remaining.length === 0) {
+      this.#scaleOrderGroups.delete(params.orderId);
+      return { success: true, orderId: params.orderId };
+    }
+
+    // A rung the exchange refused to cancel may still be resting. Keeping the
+    // handle registered against what is left means the caller can retry the
+    // same cancel rather than being told the ladder is gone when it is not.
+    this.#scaleOrderGroups.set(params.orderId, {
+      assetId: group.assetId,
+      orderIds: remaining,
+    });
+    this.#deps.debugLogger.log('Scale group cancel left children resting', {
+      groupId: params.orderId,
+      remaining: remaining.length,
+      total: group.orderIds.length,
+    });
+
+    return createErrorResult(
+      new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+      { success: false, orderId: params.orderId },
+    );
+  }
+
+  /**
+   * Stop a chase session and cancel whatever it still has resting.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the session handle.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelChaseOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const session = this.#chaseSessions.get(params.orderId);
+    if (!session) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    // Stopped first: a tick that fired between here and the cancel below would
+    // otherwise re-place the very order being cancelled.
+    this.#stopChaseSession(params.orderId);
+
+    // The loop already established the order is gone — it filled, or something
+    // else cancelled it — so there is nothing left to cancel and the session
+    // ends cleanly.
+    if (session.orderId === null) {
+      this.#chaseSessions.delete(params.orderId);
+      return { success: true, orderId: params.orderId };
+    }
+
+    await this.#ensureReadyForTrading();
+    if (!(await this.#cancelChaseChild(session))) {
+      // The order may still be resting. The session stays registered — stopped,
+      // but still cancellable — so the caller can retry with the same handle.
+      this.#deps.debugLogger.log('Chase cancel left its order resting', {
+        sessionId: params.orderId,
+        orderId: session.orderId,
+      });
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+        { success: false, orderId: params.orderId },
+      );
+    }
+
+    this.#chaseSessions.delete(params.orderId);
+    return { success: true, orderId: params.orderId };
+  }
+
+  /**
+   * Read an order ID out of one `order` action status entry.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The order ID, or undefined when the entry rested nothing.
+   */
+  #readOrderIdFromStatus(status: unknown): string | undefined {
+    if (!isStatusObject(status)) {
+      return undefined;
+    }
+
+    // `hasProperty` types the property as `unknown`, so each branch is cast to
+    // the only shape the exchange puts there.
+    const restingOrder = hasProperty(status, 'resting')
+      ? (status.resting as { oid?: number })
+      : undefined;
+    const filledOrder = hasProperty(status, 'filled')
+      ? (status.filled as { oid?: number })
+      : undefined;
+
+    return (
+      restingOrder?.oid?.toString() ?? filledOrder?.oid?.toString() ?? undefined
+    );
+  }
+
+  /**
+   * The builder fee this account pays, after any rewards discount.
+   *
+   * @returns The fee in tenths of a basis point.
+   */
+  #getDiscountedBuilderFee(): number {
+    if (this.#userFeeDiscountBips === undefined) {
+      return BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
+    }
+    return Math.floor(
+      BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
+        (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
+    );
   }
 
   /**
@@ -4187,6 +5067,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // A strategy handle is not an exchange order ID, so it cannot go through
+    // the single-order cancel below. Callers that omit `orderType` — every
+    // existing one — keep the behaviour they have today.
+    if (params.orderType && isStrategyOrderType(params.orderType)) {
+      return await this.#cancelStrategyOrder(params);
+    }
+
     try {
       this.#deps.debugLogger.log('Canceling order:', params);
 
@@ -7470,6 +8357,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
         timeInForce: params.timeInForce,
+        ...pickStrategyParams(params),
       });
       if (!basicValidation.isValid) {
         return basicValidation;
@@ -8863,6 +9751,16 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Clear subscriptions through subscription service
       this.#subscriptionService.clearAll();
+
+      // Stop every chase loop: each holds a pending timer, and re-pricing after
+      // a disconnect would sign orders against a client that is being torn down.
+      // Orders already resting are deliberately left alone — disconnecting is
+      // not a request to cancel the user's positions or orders.
+      for (const sessionId of this.#chaseSessions.keys()) {
+        this.#stopChaseSession(sessionId);
+      }
+      this.#chaseSessions.clear();
+      this.#scaleOrderGroups.clear();
 
       // Clear fee cache
       this.clearFeeCache();

@@ -2,6 +2,7 @@ import type { Order, PositionTriggerOrder } from '../types/index.js';
 import type {
   OrderExecution,
   OrderType,
+  StrategyOrderType,
   TriggerDirection,
   TriggerOrderType,
 } from '../types/perps-types.js';
@@ -16,6 +17,26 @@ export const TRIGGER_ORDER_TYPES = [
   'take_profit_market',
   'take_profit_limit',
 ] as const satisfies readonly TriggerOrderType[];
+
+/**
+ * All strategy placement types, in a stable order suitable for iteration
+ * (validation tables, e2e matrices).
+ */
+export const STRATEGY_ORDER_TYPES = [
+  'twap',
+  'scale',
+  'chase',
+] as const satisfies readonly StrategyOrderType[];
+
+/**
+ * Bounds on how many limit orders a scale placement may fan out into.
+ *
+ * A ladder needs at least two rungs to span a range at all; the upper bound
+ * keeps a single placement from consuming a venue's per-account open-order
+ * budget. Protocol-agnostic: a provider whose venue is stricter narrows this
+ * further in its own validation.
+ */
+export const SCALE_ORDER_COUNT = { min: 2, max: 20 } as const;
 
 /**
  * Order types whose price field (`OrderParams.price`) is a real limit price the
@@ -37,6 +58,19 @@ export function isTriggerOrderType(
   orderType: OrderType,
 ): orderType is TriggerOrderType {
   return (TRIGGER_ORDER_TYPES as readonly OrderType[]).includes(orderType);
+}
+
+/**
+ * Check whether an order type is a strategy placement (TWAP / scale / chase).
+ *
+ * @param orderType - Order type to check.
+ * @returns True when the placement expands into an execution schedule rather
+ * than a single order.
+ */
+export function isStrategyOrderType(
+  orderType: OrderType,
+): orderType is StrategyOrderType {
+  return (STRATEGY_ORDER_TYPES as readonly OrderType[]).includes(orderType);
 }
 
 /**

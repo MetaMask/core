@@ -17,6 +17,7 @@ import {
   getTriggerDirection,
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  SCALE_ORDER_COUNT,
   toSDKTimeInForce,
 } from './orderTypes.js';
 
@@ -305,6 +306,97 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
   }
 
   return units / multiplier;
+}
+
+/**
+ * Compute the price ladder a scale placement fans out over.
+ *
+ * The ladder is inclusive of both ends — the first rung sits exactly on
+ * `minPrice`, the last exactly on `maxPrice` — so the range the caller asked
+ * for is the range that actually reaches the exchange.
+ *
+ * @param params - Ladder parameters.
+ * @param params.minPrice - Lowest price in the ladder.
+ * @param params.maxPrice - Highest price in the ladder; must exceed `minPrice`.
+ * @param params.count - Number of rungs.
+ * @returns The rung prices, ascending.
+ */
+export function computeScalePriceLadder(params: {
+  minPrice: number;
+  maxPrice: number;
+  count: number;
+}): number[] {
+  const { minPrice, maxPrice, count } = params;
+
+  if (
+    !Number.isInteger(count) ||
+    count < SCALE_ORDER_COUNT.min ||
+    count > SCALE_ORDER_COUNT.max
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+  }
+  if (
+    !Number.isFinite(minPrice) ||
+    !Number.isFinite(maxPrice) ||
+    minPrice <= 0 ||
+    maxPrice <= minPrice
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+
+  const step = (maxPrice - minPrice) / (count - 1);
+  // The top rung is assigned rather than accumulated: `minPrice + step * n`
+  // drifts, and a ladder that stops short of the caller's maxPrice would quietly
+  // narrow the range they asked for.
+  return Array.from({ length: count }, (_unused, index) =>
+    index === count - 1 ? maxPrice : minPrice + step * index,
+  );
+}
+
+/**
+ * Split a scale placement's total size across its ladder rungs.
+ *
+ * The split is done in whole units of the asset's size grid rather than in
+ * decimal sizes: dividing and re-flooring in floating point loses a sub-unit of
+ * dust on every rung, and a ladder that submits less than the size that was
+ * validated is not the order the caller placed. Whatever does not divide evenly
+ * goes onto the first rung, so the slices sum to exactly `totalSize`.
+ *
+ * The total is expected to sit on the grid already — `calculateFinalPositionSize`
+ * floors it there — so rounding onto the grid here only absorbs representation
+ * error. A total too small to give every rung a whole unit is rejected: placing
+ * fewer orders than asked for would silently change the strategy.
+ *
+ * @param params - Split parameters.
+ * @param params.totalSize - Total size to distribute.
+ * @param params.count - Number of rungs.
+ * @param params.szDecimals - The asset's size decimal precision.
+ * @returns One size string per rung, in ladder order.
+ */
+export function splitScaleSizes(params: {
+  totalSize: number;
+  count: number;
+  szDecimals: number;
+}): string[] {
+  const { totalSize, count, szDecimals } = params;
+
+  const multiplier = Math.pow(10, szDecimals);
+  const totalUnits = Math.round(totalSize * multiplier);
+
+  if (!Number.isSafeInteger(totalUnits) || totalUnits < count) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+  }
+
+  const sliceUnits = Math.floor(totalUnits / count);
+  const remainderUnits = totalUnits - sliceUnits * count;
+
+  return Array.from({ length: count }, (_unused, index) =>
+    formatHyperLiquidSize({
+      size:
+        (index === 0 ? sliceUnits + remainderUnits : sliceUnits) / multiplier,
+      szDecimals,
+    }),
+  );
 }
 
 /**

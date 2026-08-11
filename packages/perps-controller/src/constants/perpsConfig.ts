@@ -114,6 +114,27 @@ export const ORDER_SLIPPAGE_CONFIG = {
 } as const;
 
 /**
+ * Defaults and bounds for the emulated `chase` placement.
+ *
+ * No supported venue exposes a native chase action, so the strategy is run
+ * client-side: a post-only order rests at the near touch and is cancelled and
+ * re-placed as the touch moves. Both the poll floor and the repricing cap exist
+ * to keep a chase from turning into a cancel/replace loop against a venue's
+ * rate limits. Protocol-agnostic — a provider that gains a native chase ignores
+ * these entirely.
+ */
+export const CHASE_ORDER_CONFIG = {
+  /** How often the touch is re-read when the caller does not say. */
+  DefaultIntervalMs: 3000,
+  /** Floor on the poll interval, whatever the caller asks for. */
+  MinIntervalMs: 1000,
+  /** How long a chase runs before it stops re-pricing and rests. */
+  DefaultMaxDurationMs: 60_000,
+  /** How many cancel/replace cycles a single chase may perform. */
+  DefaultMaxRepricings: 20,
+} as const;
+
+/**
  * Bounds and step for the user-configurable max slippage preference (basis points).
  * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
  */
@@ -256,6 +277,20 @@ export const TP_SL_CONFIG = {
  * HyperLiquid order limits based on leverage
  * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications
  */
+/**
+ * HyperLiquid's own bounds on a TWAP window, in whole minutes.
+ *
+ * The venue validates the TWAP duration as a safe integer in `[5, 1440]` before
+ * the request is signed, so a duration outside this range is rejected locally
+ * rather than turned into an opaque SDK error. Carries the venue prefix, like
+ * `HYPERLIQUID_ORDER_LIMITS`, because these are protocol constants rather than
+ * controller policy.
+ */
+export const HYPERLIQUID_TWAP_LIMITS = {
+  MinDurationMinutes: 5,
+  MaxDurationMinutes: 1440,
+} as const;
+
 export const HYPERLIQUID_ORDER_LIMITS = {
   // Market orders
   MarketOrderLimits: {

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types
+  - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
+  - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id.
+  - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally randomizing slice timing with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to 5–1440 minutes.
+  - `scale` fans out `OrderParams.scaleNumOrders` limit orders on an inclusive price ladder between `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, submitted as a single batch so the ladder rests together or fails together. Sizes are split in whole units of the asset's size grid, so the rungs sum to exactly the submitted size.
+  - `chase` rests a post-only order at the near touch and re-prices it as the touch moves, bounded by `OrderParams.chaseIntervalMs`, `OrderParams.chaseMaxDurationMs`, and `OrderParams.chaseMaxRepricings` (see `CHASE_ORDER_CONFIG` for the defaults). No supported venue exposes a native chase action, so it is emulated client-side; the re-pricing loop is stopped by `cancelOrder` and by `disconnect`.
+  - The params model stays provider-agnostic: no protocol vocabulary appears in `OrderParams`, so a second provider can map the same fields onto its own execution primitives.
+- Add `CancelOrderParams.orderType`, which selects the cancellation path for a strategy handle: the venue's TWAP cancel action for `twap`, a batch cancel of every child for `scale`, and stopping the session plus cancelling its live order for `chase`
+  - Omitting it — what every existing caller does — cancels a single resting order exactly as before.
+  - A cancel that leaves part of a strategy resting returns `ORDER_STRATEGY_CANCEL_INCOMPLETE` and keeps the handle valid, so the caller can retry with it.
+- Add `OrderResult.childOrderIds`, the exchange ids a strategy placement expanded into (scale ladder children, the chase session's live order), so a consumer that has lost the session-scoped handle can still cancel them through the existing batch cancel
+- Add `OrderParams.twapDuration`, `OrderParams.twapRandomize`, `OrderParams.scaleMinPrice`, `OrderParams.scaleMaxPrice`, `OrderParams.scaleNumOrders`, `OrderParams.chaseIntervalMs`, `OrderParams.chaseMaxDurationMs`, and `OrderParams.chaseMaxRepricings`
+  - Each field is required by the placement that owns it and rejected on every other one, so a stray field can never be silently dropped. A strategy placement also rejects `price`, `triggerPrice`, `timeInForce`, and attached TP/SL, all of which the strategy decides for itself.
+  - Invalid parameters are rejected with a typed `PERPS_ERROR_CODES` value before any network call: `ORDER_TWAP_DURATION_REQUIRED`, `ORDER_TWAP_DURATION_INVALID`, `ORDER_SCALE_RANGE_REQUIRED`, `ORDER_SCALE_RANGE_INVALID`, `ORDER_SCALE_COUNT_INVALID`, `ORDER_SCALE_SIZE_TOO_SMALL`, `ORDER_CHASE_INTERVAL_INVALID`, `ORDER_CHASE_DURATION_INVALID`, `ORDER_STRATEGY_PARAMS_NOT_SUPPORTED`, and `ORDER_STRATEGY_FIELD_UNSUPPORTED`.
+- Add the `StrategyOrderType` type, plus `STRATEGY_ORDER_TYPES`, `isStrategyOrderType`, `SCALE_ORDER_COUNT`, `computeScalePriceLadder`, `splitScaleSizes`, `CHASE_ORDER_CONFIG`, and `HYPERLIQUID_TWAP_LIMITS`
+
+### Changed
+
+- `TriggerOrderType` is now spelled out as `'stop_market' | 'stop_limit' | 'take_profit_market' | 'take_profit_limit'` instead of being derived as `Exclude<OrderType, 'market' | 'limit'>`
+  - The resolved type is unchanged for existing consumers. Deriving it meant that any order type added to `OrderType` that was neither `market` nor `limit` was pulled into the trigger union automatically and started demanding a trigger price it had no concept of.
+
 ## [11.0.0]
 
 ### Added

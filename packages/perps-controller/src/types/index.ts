@@ -250,6 +250,19 @@ export type OrderParams = {
   // Required for those order types and rejected for market/limit orders.
   triggerPrice?: string; // Price at which the resting order activates
 
+  // Strategy placement (twap, scale, chase). Each group below is required for
+  // its own order type and rejected on every other one, so a stray field can
+  // never be silently dropped. Strategy orders carry no `price`, `triggerPrice`,
+  // `timeInForce` or attached TP/SL — the strategy owns its own execution.
+  twapDuration?: number; // TWAP window in whole minutes; each provider enforces its own venue's bounds
+  twapRandomize?: boolean; // Randomize the timing of the TWAP slices (default false)
+  scaleMinPrice?: string; // Lowest limit price in the scale ladder
+  scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
+  scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
+  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 3000, min 1000)
+  chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
+  chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
+
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
   stopLossPrice?: string; // Stop loss price
@@ -292,6 +305,12 @@ export type OrderResult = {
   // real submitted size rather than the caller's pre-normalization params.size.
   submittedSize?: string;
   averagePrice?: string; // Average execution price
+  // Exchange IDs of the individual orders a strategy placement expanded into
+  // (scale ladder children, the chase session's live order). `orderId` carries
+  // the strategy handle instead, so these are what a caller needs to cancel the
+  // children directly — e.g. after a restart, when the session-scoped handle is
+  // gone. Absent for every non-strategy placement.
+  childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
 
@@ -659,8 +678,17 @@ export type SwitchProviderResult = {
 };
 
 export type CancelOrderParams = {
-  orderId: string; // Order ID to cancel
+  orderId: string; // Order ID to cancel, or the strategy handle when orderType is a strategy type
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
+  /**
+   * Placement type of what is being cancelled. Only the strategy types
+   * (`twap`, `scale`, `chase`) change anything: each is cancelled through its
+   * own path — the venue's TWAP cancel endpoint, a batch cancel of the ladder's
+   * children, or stopping the chase session and cancelling its live order.
+   * Omit it (or pass an ordinary order type) to cancel a single resting order,
+   * which is what every existing caller does.
+   */
+  orderType?: OrderType;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
