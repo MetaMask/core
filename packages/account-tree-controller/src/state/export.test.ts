@@ -353,6 +353,70 @@ describe('exportState', () => {
       );
     });
 
+    it('exports groups sorted by groupIndex regardless of insertion order', async () => {
+      const group0Id = toAccountGroupId(MOCK_HD_WALLET_ID, '0');
+      const group1Id = toAccountGroupId(MOCK_HD_WALLET_ID, '1');
+      const group2Id = toAccountGroupId(MOCK_HD_WALLET_ID, '2');
+
+      // Insert groups in reverse order so Object.values() returns them as [2, 1, 0].
+      const walletsWithReversedGroups: AccountTreeControllerState['accountTree']['wallets'] =
+        {
+          [MOCK_HD_WALLET_ID]: {
+            id: MOCK_HD_WALLET_ID,
+            type: AccountWalletType.Entropy,
+            status: 'ready',
+            groups: {
+              [group2Id]: {
+                id: group2Id,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-3'],
+                metadata: {
+                  name: 'Account 3',
+                  entropy: { groupIndex: 2 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+              [group1Id]: {
+                id: group1Id,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-2'],
+                metadata: {
+                  name: 'Account 2',
+                  entropy: { groupIndex: 1 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+              [group0Id]: {
+                id: group0Id,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-1'],
+                metadata: {
+                  name: 'Account 1',
+                  entropy: { groupIndex: 0 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+            },
+            metadata: { name: 'Wallet 1', entropy: { id: 'mock-entropy-id' } },
+          },
+        };
+
+      const { context, mocks } = setup({ wallets: walletsWithReversedGroups });
+      mocks.KeyringController.withKeyringV2Unsafe =
+        makeHdKeyringHandler('stable-entropy-id');
+
+      const snapshot = await exportState(context);
+      const groups = snapshot.serialize().wallets[0]?.groups;
+
+      expect(groups?.map((g) => g.groupIndex)).toStrictEqual([0, 1, 2]);
+    });
+
     it('skips snap and hardware wallets', async () => {
       const snapWalletId = toAccountWalletId(
         AccountWalletType.Snap,

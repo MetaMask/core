@@ -138,6 +138,9 @@ async function exportMnemonicWalletObject(
     wallet.groups.push(group);
   }
 
+  // Sort the groups by their `groupIndex` to ensure a stable order in the exported payload.
+  wallet.groups.sort((group, otherGroup) => group.groupIndex - otherGroup.groupIndex);
+
   // This should never happen, but we check just in case.
   if (includeSecrets) {
     if (mnemonic === undefined) {
