@@ -10,6 +10,7 @@ import {
   literal,
   object,
   exactOptional,
+  refine,
   sensitive,
   string,
   StructError,
@@ -256,12 +257,31 @@ const AccountWalletPrivateKeyGroupEntryStruct = object({
   metadata: AccountWalletGroupPayloadMetadataStruct,
 });
 
+// The `groups` array in a mnemonic wallet payload must have contiguous group indices starting at 0.
+const AccountWalletMnemonicGroupsStruct = refine(
+  array(AccountWalletMnemonicGroupEntryStruct),
+  'contiguous-group-indices',
+  (groups) => {
+    let prev: AccountWalletMnemonicGroupEntry | undefined;
+    for (const curr of groups) {
+      if (prev === undefined && curr.groupIndex !== 0) {
+        return `group indices must start at 0; got ${curr.groupIndex}`;
+      }
+      if (prev !== undefined && curr.groupIndex !== prev.groupIndex + 1) {
+        return `group indices must be contiguous and sorted; found gap between index ${prev.groupIndex} and ${curr.groupIndex}`;
+      }
+      prev = curr;
+    }
+    return true;
+  },
+);
+
 const AccountWalletMnemonicPayloadStruct = object({
   id: AccountWalletPayloadIdStruct,
   type: literal(AccountWalletPayloadType.Mnemonic),
   value: exactOptional(sensitive(string())),
   metadata: AccountWalletPayloadMetadataStruct,
-  groups: array(AccountWalletMnemonicGroupEntryStruct),
+  groups: AccountWalletMnemonicGroupsStruct,
 });
 
 const AccountWalletPrivateKeyPayloadStruct = object({

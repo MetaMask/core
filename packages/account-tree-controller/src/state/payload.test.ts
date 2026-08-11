@@ -3,6 +3,7 @@ import {
   AccountWalletPayloadType,
   assertAccountTreePayload,
   parsePayloadGroupId,
+  toGroupPayloadId,
   toWalletPayloadId,
 } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
@@ -75,6 +76,57 @@ describe('assertAccountTreePayload', () => {
       assertAccountTreePayload({
         version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1,
         wallets: [],
+      }),
+    ).toThrow('Invalid AccountTreePayload:');
+  });
+
+  it('throws when mnemonic wallet groups do not start at index 0', () => {
+    const walletId = toWalletPayloadId('entropy-source-1');
+    expect(() =>
+      assertAccountTreePayload({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [
+          {
+            id: walletId,
+            type: AccountWalletPayloadType.Mnemonic,
+            metadata: { name: 'Wallet' },
+            groups: [
+              {
+                id: toGroupPayloadId(walletId, 1),
+                groupIndex: 1,
+                metadata: { name: 'Account 1', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow('Invalid AccountTreePayload:');
+  });
+
+  it('throws when mnemonic wallet groups are non-contiguous', () => {
+    expect(() =>
+      assertAccountTreePayload({
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [
+          {
+            id: toWalletPayloadId('entropy-source-1'),
+            type: AccountWalletPayloadType.Mnemonic,
+            metadata: { name: 'Wallet' },
+            groups: [
+              {
+                id: toGroupPayloadId(toWalletPayloadId('entropy-source-1'), 0),
+                groupIndex: 0,
+                metadata: { name: 'Account 0', pinned: false, hidden: false },
+              },
+              // Group 1 is intentionally missing — non-contiguous.
+              {
+                id: toGroupPayloadId(toWalletPayloadId('entropy-source-1'), 2),
+                groupIndex: 2,
+                metadata: { name: 'Account 2', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
       }),
     ).toThrow('Invalid AccountTreePayload:');
   });
