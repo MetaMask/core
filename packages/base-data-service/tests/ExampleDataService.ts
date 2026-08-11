@@ -45,11 +45,10 @@ export type GetActivityResponse = {
   };
 };
 
-export type PageParam =
-  | {
-      before: string;
-    }
-  | { after: string };
+export type PageParam = {
+  before?: string;
+  after?: string;
+};
 
 const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
 
@@ -60,6 +59,10 @@ export class ExampleDataService extends BaseDataService<
   readonly #accountsBaseUrl = 'https://accounts.api.cx.metamask.io';
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
+
+  // Records the page params that `getActivityWithoutCallbacks`'s query function
+  // is invoked with, so tests can assert what actually reached it.
+  readonly pageParamsSeen: (PageParam | null | undefined)[] = [];
 
   constructor(
     messenger: ExampleMessenger,
@@ -147,6 +150,66 @@ export class ExampleDataService extends BaseDataService<
         getNextPageParam: ({ pageInfo }) =>
           pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
         staleTime: inMilliseconds(5, Duration.Minute),
+      },
+      page,
+    );
+  }
+
+  /**
+   * Fetch activity without providing page-param callbacks, driving pagination
+   * purely by the explicit page param passed to the base method (the way a
+   * consumer that paginates by cursor does). Uses a zero `staleTime` so
+   * refetches can be exercised, and records every page param the query function
+   * receives in `pageParamsSeen`.
+   *
+   * @param address - The account address.
+   * @param options - Optional page param and initial page param.
+   * @param options.page - The page to fetch.
+   * @param options.initialPageParam - The initial page param to configure.
+   * @returns A page of activity.
+   */
+  async getActivityWithoutCallbacks(
+    address: string,
+    {
+      page,
+      initialPageParam,
+    }: { page?: PageParam; initialPageParam?: PageParam | null } = {},
+  ): Promise<GetActivityResponse> {
+    return this.fetchInfiniteQuery<
+      GetActivityResponse,
+      unknown,
+      GetActivityResponse,
+      [string, string],
+      PageParam | null
+    >(
+      {
+        queryKey: [`${this.name}:getActivityWithoutCallbacks`, address],
+        queryFn: async ({ pageParam }) => {
+          this.pageParamsSeen.push(pageParam);
+
+          const caipAddress = `eip155:0:${address.toLowerCase()}`;
+          const url = new URL(
+            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
+          );
+
+          if (pageParam?.after) {
+            url.searchParams.set('after', pageParam.after);
+          } else if (pageParam?.before) {
+            url.searchParams.set('before', pageParam.before);
+          }
+
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(
+              `Query failed with status code: ${response.status}.`,
+            );
+          }
+
+          return response.json();
+        },
+        initialPageParam,
+        staleTime: 0,
       },
       page,
     );
