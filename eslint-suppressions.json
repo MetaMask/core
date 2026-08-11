@@ -14,9 +14,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
     "no-negated-condition": {
       "count": 3
     },
@@ -175,7 +172,7 @@
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
@@ -800,7 +797,7 @@
   },
   "packages/config-registry-controller/src/index.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/controller-utils/src/create-service-policy.ts": {
@@ -1644,9 +1641,6 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    },
     "id-length": {
       "count": 4
     },
@@ -2187,17 +2181,12 @@
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/errors.ts": {
     "no-restricted-syntax": {
       "count": 1
-    }
-  },
-  "packages/subscription-controller/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 2
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {

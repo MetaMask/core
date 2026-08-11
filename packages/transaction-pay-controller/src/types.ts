@@ -110,6 +110,18 @@ export type TransactionConfig = {
   accountOverride?: Hex;
 
   /**
+   * Whether the target transaction (or `paymentOverride` batch) is executed
+   * atomically with the Relay quote. Defaults to `true` (embedded in the quote
+   * and executed by the Relay solver). When `false`, Pay does not embed the
+   * target/override calls in the quote; the quote only bridges the required
+   * asset to `recipient`, and the calls are submitted separately after Relay
+   * completion. Used by flows whose second-leg amount is only known after
+   * Relay settles (EXACT_INPUT max flows) or that require the second leg to
+   * originate from a different signer than the Relay solver.
+   */
+  atomic?: boolean;
+
+  /**
    * Whether the source of funds is HyperLiquid (HyperCore).
    * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
    * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
@@ -203,6 +215,37 @@ export type GetAmountDataCallback = (
   request: GetAmountDataRequest,
 ) => Promise<GetAmountDataResponse>;
 
+/** Request passed to {@link ResolveSourceAmountCallback}. */
+export type ResolveSourceAmountRequest = {
+  /** Whether the user selected the maximum amount. */
+  isMaxAmount: boolean;
+
+  /** Optional payment source override for the transaction. */
+  paymentOverride?: PaymentOverride;
+};
+
+/** Response returned by {@link ResolveSourceAmountCallback}. */
+export type ResolveSourceAmountResponse = {
+  /**
+   * Exact source token amount in atomic (raw) units. Used verbatim as the
+   * quote's source amount, bypassing the default fiat-derived calculation.
+   */
+  sourceAmountRaw: string;
+};
+
+/**
+ * Optional callback that lets the client supply an exact atomic source amount
+ * for a required token, bypassing the default fiat-derived source calculation.
+ *
+ * Returns `undefined` to fall back to the default calculation. Must be
+ * synchronous: it is consumed during synchronous source-amount computation, so
+ * the client should read from already-available (cached) state rather than
+ * performing async lookups.
+ */
+export type ResolveSourceAmountCallback = (
+  request: ResolveSourceAmountRequest,
+) => ResolveSourceAmountResponse | undefined;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -266,6 +309,12 @@ export type TransactionPayControllerOptions = {
   /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
   polymarket?: PolymarketCallbacks;
 
+  /**
+   * Optional callback to supply an exact atomic source amount for a required
+   * token, bypassing the default fiat-derived source calculation.
+   */
+  resolveSourceAmount?: ResolveSourceAmountCallback;
+
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
 };
@@ -293,6 +342,12 @@ export type TransactionData = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
 
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
@@ -517,6 +572,12 @@ export type FiatRates = {
 
 /** Request for a quote to retrieve a required token. */
 export type QuoteRequest = {
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Address of the user's account. */
   from: Hex;
 

@@ -25,7 +25,6 @@ import {
   getTokenAmountFromTransfer,
   getTokenMetadataFromKnownToken,
   parseValueTransfers,
-  withFallbackTokenAssetId,
 } from './helpers/transactions.js';
 
 /**
@@ -75,7 +74,7 @@ export function mapApiTransaction({
       data: {
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
         from,
       },
     };
@@ -113,52 +112,18 @@ export function mapApiTransaction({
       data: {
         from,
         token,
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }
 
   // Note: Categorize NFT in the backend
-  if (sentNftTransfer || receivedNftTransfer) {
-    const isNftExchange = transactionCategory === 'NFT_EXCHANGE';
+  const isNftExchange = transactionCategory === 'NFT_EXCHANGE';
 
-    if (receivedNftTransfer) {
-      if (receivedNftTransfer.from === nativeTokenAddress) {
-        return {
-          type: 'nftMint',
-          ...common,
-          data: {
-            from: receivedNftTransfer.from,
-            to: receivedNftTransfer.to,
-            token: getToken(receivedNftTransfer, 'in'),
-          },
-        };
-      }
-
-      const purchasePaymentTransfer = getNftPaymentTransfer({
-        side: 'buy',
-        sentTransfer,
-        sentNativeTransfer,
-        nftCounterparty: receivedNftTransfer.from,
-        transactionTo: transaction.to,
-        subjectAddress,
-      });
-
-      if (isNftExchange || purchasePaymentTransfer) {
-        return {
-          type: 'nftBuy',
-          ...common,
-          data: {
-            from: receivedNftTransfer.from,
-            to: receivedNftTransfer.to,
-            token: getToken(receivedNftTransfer, 'in'),
-            paymentToken: getToken(purchasePaymentTransfer, 'out'),
-          },
-        };
-      }
-
+  if (receivedNftTransfer) {
+    if (receivedNftTransfer.from === nativeTokenAddress) {
       return {
-        type: 'receive',
+        type: 'nftMint',
         ...common,
         data: {
           from: receivedNftTransfer.from,
@@ -168,38 +133,70 @@ export function mapApiTransaction({
       };
     }
 
-    if (sentNftTransfer) {
-      const saleProceedsTransfer = getNftPaymentTransfer({
-        side: 'sell',
-        receivedTransfer,
-        nftCounterparty: sentNftTransfer.to,
-        transactionFrom: from,
-        subjectAddress,
-      });
+    const purchasePaymentTransfer = getNftPaymentTransfer({
+      side: 'buy',
+      sentTransfer,
+      sentNativeTransfer,
+      nftCounterparty: receivedNftTransfer.from,
+      transactionTo: transaction.to,
+      subjectAddress,
+    });
 
-      if (isNftExchange || saleProceedsTransfer) {
-        return {
-          type: 'nftSell',
-          ...common,
-          data: {
-            from: sentNftTransfer.from,
-            to: sentNftTransfer.to,
-            token: getToken(sentNftTransfer, 'out'),
-            paymentToken: getToken(saleProceedsTransfer, 'in'),
-          },
-        };
-      }
-
+    if (isNftExchange || purchasePaymentTransfer) {
       return {
-        type: 'send',
+        type: 'nftBuy',
+        ...common,
+        data: {
+          from: receivedNftTransfer.from,
+          to: receivedNftTransfer.to,
+          token: getToken(receivedNftTransfer, 'in'),
+          paymentToken: getToken(purchasePaymentTransfer, 'out'),
+        },
+      };
+    }
+
+    return {
+      type: 'receive',
+      ...common,
+      data: {
+        from: receivedNftTransfer.from,
+        to: receivedNftTransfer.to,
+        token: getToken(receivedNftTransfer, 'in'),
+      },
+    };
+  }
+
+  if (sentNftTransfer) {
+    const saleProceedsTransfer = getNftPaymentTransfer({
+      side: 'sell',
+      receivedTransfer,
+      nftCounterparty: sentNftTransfer.to,
+      transactionFrom: from,
+      subjectAddress,
+    });
+
+    if (isNftExchange || saleProceedsTransfer) {
+      return {
+        type: 'nftSell',
         ...common,
         data: {
           from: sentNftTransfer.from,
           to: sentNftTransfer.to,
           token: getToken(sentNftTransfer, 'out'),
+          paymentToken: getToken(saleProceedsTransfer, 'in'),
         },
       };
     }
+
+    return {
+      type: 'send',
+      ...common,
+      data: {
+        from: sentNftTransfer.from,
+        to: sentNftTransfer.to,
+        token: getToken(sentNftTransfer, 'out'),
+      },
+    };
   }
 
   const hasNativeTransferWithoutMethod =
@@ -218,16 +215,35 @@ export function mapApiTransaction({
         !equalsIgnoreCase(from, subjectAddress));
 
     const transfer = isReceive ? receivedTransfer : sentTransfer;
-    const direction = isReceive ? 'in' : 'out';
-    const nativeAsset = getNativeAsset(chainId);
-    const nativeToken =
-      transactionCategory === 'STANDARD' && nativeAsset
-        ? ({
-            ...nativeAsset,
+    const direction: TokenAmount['direction'] = isReceive ? 'in' : 'out';
+    let token = getToken(transfer, direction);
+
+    if (!token) {
+      // Zero-value sends can omit valueTransfers
+      if (transactionCategory === 'STANDARD') {
+        const nativeAsset = getNativeAsset(chainId);
+        if (nativeAsset) {
+          token = {
+            symbol: nativeAsset.symbol,
+            decimals: nativeAsset.decimals,
+            assetId: nativeAsset.assetId,
             amount: transaction.value,
             direction,
-          } as TokenAmount)
-        : undefined;
+            assetType: 'native',
+          };
+        }
+      }
+    } else if (
+      !token.assetId &&
+      transfer?.transferType !== 'normal' &&
+      transfer?.transferType !== 'internal'
+    ) {
+      // ERC-20 transfer missing contractAddress — fall back to tx.to.
+      const assetId = formatAddressToAssetId(transaction.to, chainId);
+      if (assetId) {
+        token = { ...token, assetId };
+      }
+    }
 
     return {
       type: isReceive ? 'receive' : 'send',
@@ -235,14 +251,8 @@ export function mapApiTransaction({
       data: {
         from: transfer?.from ?? from,
         to: transfer?.to ?? transaction.to,
-        token:
-          withFallbackTokenAssetId(
-            getToken(transfer, direction),
-            transaction.to,
-            transfer?.transferType,
-            chainId,
-          ) ?? nativeToken,
-        fees: getFees(transaction, chainId),
+        token,
+        fees: getFees(transaction),
       },
     };
   }
@@ -279,7 +289,7 @@ export function mapApiTransaction({
       data: {
         from,
         sourceToken: getToken(sentTransfer, 'out'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }
@@ -295,7 +305,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }
@@ -309,7 +319,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }
@@ -334,7 +344,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }
@@ -347,7 +357,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }
@@ -366,7 +376,7 @@ export function mapApiTransaction({
         from,
         sourceToken: getToken(sentTransfer, 'out'),
         destinationToken: getToken(receivedTransfer, 'in'),
-        fees: getFees(transaction, chainId),
+        fees: getFees(transaction),
       },
     };
   }

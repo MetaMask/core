@@ -13,6 +13,7 @@ import { validatePairResponse } from '../utils/validate-pair-response.js';
 import type {
   AccessToken,
   ErrorMessage,
+  LoginIdentifierType,
   ProfileAlias,
   UserProfile,
   UserProfileLineage,
@@ -416,6 +417,8 @@ type Authentication = {
  * @param authType - authentication type/flow used
  * @param env - server environment
  * @param metametrics - optional metametrics
+ * @param identifierType - login identifier type included in metametrics
+ *   (defaults to `SRP` when metametrics is present)
  * @returns Authentication Token
  */
 export async function authenticate(
@@ -424,6 +427,7 @@ export async function authenticate(
   authType: AuthType,
   env: Env,
   metametrics?: MetaMetricsAuth,
+  identifierType: LoginIdentifierType = 'SRP',
 ): Promise<Authentication> {
   const authenticationUrl = getAuthenticationUrl(authType, env);
 
@@ -445,6 +449,7 @@ export async function authenticate(
                 metametrics_id: await metametrics.getMetaMetricsId(),
                 agent: metametrics.agent,
                 app_version: await metametrics.getAppVersion?.(),
+                identifier_type: identifierType,
               },
             }
           : {}),

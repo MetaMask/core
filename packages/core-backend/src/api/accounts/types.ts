@@ -66,19 +66,15 @@ export type V6VsCurrency = string;
 /**
  * Possible `positionType` values on DeFi rows in the v6 balances response.
  * Categorizes the protocol module where the position is held.
+ * Link here: https://developers.zerion.io/api-reference/wallets/get-wallet-fungible-positions#parameter-filter-position-types
  */
 export const V6_DEFI_POSITION_TYPES = [
   'deposit',
-  'lending',
-  'yield',
-  'liquidity_pool',
-  'staked',
-  'leveraged_farming',
-  'nft_staked',
-  'farming',
+  'loan',
   'locked',
-  'vesting',
-  'rewards',
+  'staked',
+  'reward',
+  'wallet',
   'investment',
 ] as const;
 

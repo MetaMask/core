@@ -34,6 +34,7 @@ import type {
   SubscriptionRequest,
 } from './AbstractDataSource.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
+import { isStakingContractAssetId } from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -612,6 +613,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
       // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
       const normalizedAssetId = normalizeAssetId(item.assetId as Caip19AssetId);
 
+      // Staked balances are owned by StakedBalanceDataSource. Accounts API may
+      // return the vault share token as a normal ERC-20 (often 0 or stale),
+      // which would overwrite or wipe the on-chain staked amount on merge.
+      if (isStakingContractAssetId(normalizedAssetId)) {
+        continue;
+      }
+
       // Store balance as returned by API
       assetsBalance[accountId][normalizedAssetId] = {
         amount: item.balance,
@@ -677,6 +685,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
         const normalizedAssetId = normalizeAssetId(
           item.assetId as Caip19AssetId,
         );
+
+        // Staked balances are owned by StakedBalanceDataSource. Accounts API may
+        // return the vault share token as a normal ERC-20 (often 0 or stale),
+        // which would overwrite or wipe the on-chain staked amount on merge.
+        if (isStakingContractAssetId(normalizedAssetId)) {
+          continue;
+        }
 
         // Store balance as returned by API
         assetsBalance[accountId][normalizedAssetId] = {
@@ -793,8 +808,32 @@ export class AccountsApiDataSource extends AbstractDataSource<
     if (isUpdate) {
       const existing = this.activeSubscriptions.get(subscriptionId);
       if (existing) {
+        const previousChains = existing.chains;
         existing.chains = chainsToSubscribe;
         existing.request = request;
+
+        // Chains handed off from another data source (e.g. the websocket
+        // source releasing a chain that went down) would otherwise stay
+        // stale until the next poll tick — fetch them immediately.
+        const addedChains = chainsToSubscribe.filter(
+          (chainId) => !previousChains.includes(chainId),
+        );
+        if (addedChains.length > 0) {
+          try {
+            const fetchResponse = await this.fetch({
+              ...request,
+              chainIds: addedChains,
+              forceUpdate: true,
+            });
+            await existing.onAssetsUpdate(fetchResponse);
+          } catch (error) {
+            log('Initial fetch for added chains failed', {
+              subscriptionId,
+              addedChains,
+              error,
+            });
+          }
+        }
         return;
       }
     }

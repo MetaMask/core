@@ -88,6 +88,36 @@ export type RampsControllerSetSelectedProviderAction = {
 };
 
 /**
+ * Switches to the first provider in state that serves the given asset,
+ * when the currently selected provider does not.
+ *
+ * This is the controller-level equivalent of UB2's BuildQuote tier-1
+ * silent-switch effect and MMPay's `useEnsureCompatibleProvider` hook: it
+ * keeps provider-asset compatibility logic in one place rather than
+ * duplicating `providerServesAsset` + find-and-switch across multiple UI
+ * layers.
+ *
+ * The compatibility check prefers the current provider's entry in
+ * `providers.data` over the `providers.selected` copy, which can be stale
+ * once a fresh providers list arrives.
+ *
+ * No-op when:
+ * - `providers.data` is empty (providers not yet loaded)
+ * - the currently selected provider already serves the asset
+ * - no provider in the list serves the asset (no safe fallback)
+ *
+ * @param assetId - CAIP-19 asset id of the deposit asset.
+ * @param options - Optional settings forwarded to `setSelectedProvider`.
+ * @param options.autoSelected - When true, marks the new selection as
+ * system-guessed (soft selection). Defaults to true.
+ * @returns `true` if the selected provider was changed, `false` otherwise.
+ */
+export type RampsControllerSetSelectedProviderForAssetAction = {
+  type: `RampsController:setSelectedProviderForAsset`;
+  handler: RampsController['setSelectedProviderForAsset'];
+};
+
+/**
  * Initializes the controller by fetching the user's region from geolocation.
  * This should be called once at app startup to set up the initial region.
  *
@@ -305,7 +335,7 @@ export type RampsControllerGetBuyWidgetDataAction = {
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
  * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
  * @param params.walletAddress - Wallet address for the order.
- * @param params.chainId - Optional chain ID for the order.
+ * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
  */
 export type RampsControllerAddPrecreatedOrderAction = {
   type: `RampsController:addPrecreatedOrder`;
@@ -662,6 +692,7 @@ export type RampsControllerMethodActions =
   | RampsControllerGetRequestStateAction
   | RampsControllerSetUserRegionAction
   | RampsControllerSetSelectedProviderAction
+  | RampsControllerSetSelectedProviderForAssetAction
   | RampsControllerInitAction
   | RampsControllerGetCountriesAction
   | RampsControllerGetTokensAction

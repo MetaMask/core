@@ -39,6 +39,7 @@ import type { SnapControllerState } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TruncatedSnap } from '@metamask/snaps-utils';
 
+import { SafeError } from './errors.js';
 import type {
   SnapAccountServiceMessenger,
   SnapAccountServiceOptions,
@@ -89,10 +90,13 @@ type Mocks = {
 /**
  * Constructs the root messenger for the service under test.
  *
+ * @param captureException - Optional method to capture exceptions in Sentry.
  * @returns The root messenger.
  */
-function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+function getRootMessenger(
+  captureException?: (error: Error) => void,
+): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE, captureException });
 }
 
 /**
@@ -400,23 +404,26 @@ function mockWithKeyringV2Unsafe(
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
  * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
  * @param args.config - Optional service config.
+ * @param args.captureException - Optional method to capture exceptions in Sentry.
  * @returns The new service, root messenger, service messenger, and mocks.
  */
 async function setup({
   snapIsReady = true,
   runnableSnaps = [],
   config,
+  captureException,
 }: {
   snapIsReady?: boolean;
   runnableSnaps?: TruncatedSnap[];
   config?: SnapAccountServiceOptions['config'];
+  captureException?: (error: Error) => void;
 } = {}): Promise<{
   service: SnapAccountService;
   rootMessenger: RootMessenger;
   messenger: SnapAccountServiceMessenger;
   mocks: Mocks;
 }> {
-  const rootMessenger = getRootMessenger();
+  const rootMessenger = getRootMessenger(captureException);
   const messenger = getMessenger(rootMessenger);
 
   const mocks: Mocks = {
@@ -614,6 +621,116 @@ describe('SnapAccountService', () => {
       expect(removeKeyring).toHaveBeenCalledWith(legacyKeyringId);
     });
 
+    it('wraps unknown addNewKeyring failures as SafeError', async () => {
+      const legacyKeyringId = 'legacy-id';
+      const legacyKeyring = {
+        type: SNAP_KEYRING_TYPE,
+        listAccounts: jest.fn().mockReturnValue([
+          {
+            id: 'a1',
+            address: '0x1',
+            metadata: { snap: { id: MOCK_SNAP_ID } },
+          },
+        ]),
+      };
+      const { service, mocks } = await setup();
+      const addNewKeyring = jest
+        .fn()
+        .mockRejectedValue(new Error('superstruct: address 0x1 invalid'));
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({
+            keyrings: [
+              { keyring: legacyKeyring, metadata: { id: legacyKeyringId } },
+            ],
+            addNewKeyring,
+            removeKeyring: jest.fn(),
+          }),
+      );
+
+      await expect(service.ensureMigrated()).rejects.toThrow(SafeError);
+    });
+
+    it('re-throws KeyringControllerError from addNewKeyring as-is', async () => {
+      const legacyKeyringId = 'legacy-id';
+      const legacyKeyring = {
+        type: SNAP_KEYRING_TYPE,
+        listAccounts: jest.fn().mockReturnValue([
+          {
+            id: 'a1',
+            address: '0x1',
+            metadata: { snap: { id: MOCK_SNAP_ID } },
+          },
+        ]),
+      };
+      const { service, mocks } = await setup();
+      const error = new KeyringControllerError(
+        KeyringControllerErrorMessage.DuplicatedAccount,
+      );
+      const addNewKeyring = jest.fn().mockRejectedValue(error);
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({
+            keyrings: [
+              { keyring: legacyKeyring, metadata: { id: legacyKeyringId } },
+            ],
+            addNewKeyring,
+            removeKeyring: jest.fn(),
+          }),
+      );
+
+      await expect(service.ensureMigrated()).rejects.toThrow(error);
+    });
+
+    it('wraps unknown removeKeyring failures as SafeError', async () => {
+      const legacyKeyringId = 'legacy-id';
+      const legacyKeyring = {
+        type: SNAP_KEYRING_TYPE,
+        listAccounts: jest.fn().mockReturnValue([]),
+      };
+      const { service, mocks } = await setup();
+      const removeKeyring = jest
+        .fn()
+        .mockRejectedValue(new Error('unexpected internal error'));
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({
+            keyrings: [
+              { keyring: legacyKeyring, metadata: { id: legacyKeyringId } },
+            ],
+            addNewKeyring: jest.fn(),
+            removeKeyring,
+          }),
+      );
+
+      await expect(service.ensureMigrated()).rejects.toThrow(SafeError);
+    });
+
+    it('re-throws KeyringControllerError from removeKeyring as-is', async () => {
+      const legacyKeyringId = 'legacy-id';
+      const legacyKeyring = {
+        type: SNAP_KEYRING_TYPE,
+        listAccounts: jest.fn().mockReturnValue([]),
+      };
+      const { service, mocks } = await setup();
+      const error = new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringNotFound,
+      );
+      const removeKeyring = jest.fn().mockRejectedValue(error);
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({
+            keyrings: [
+              { keyring: legacyKeyring, metadata: { id: legacyKeyringId } },
+            ],
+            addNewKeyring: jest.fn(),
+            removeKeyring,
+          }),
+      );
+
+      await expect(service.ensureMigrated()).rejects.toThrow(error);
+    });
+
     it('does not re-run after a successful migration', async () => {
       const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockResolvedValue(undefined);
@@ -626,12 +743,11 @@ describe('SnapAccountService', () => {
 
     it('retries on a subsequent call after a failed migration', async () => {
       const { service, mocks } = await setup();
-      const error = new Error('migration boom');
       mocks.KeyringController.withController
-        .mockRejectedValueOnce(error)
+        .mockRejectedValueOnce(new Error('migration boom'))
         .mockResolvedValueOnce(undefined);
 
-      await expect(service.ensureMigrated()).rejects.toThrow(error);
+      await expect(service.ensureMigrated()).rejects.toThrow(SafeError);
       expect(await service.ensureMigrated()).toBeUndefined();
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
@@ -639,17 +755,20 @@ describe('SnapAccountService', () => {
 
     it('shares the rejection across concurrent callers but allows a later retry', async () => {
       const { service, mocks } = await setup();
-      const error = new Error('migration boom');
       mocks.KeyringController.withController
-        .mockRejectedValueOnce(error)
+        .mockRejectedValueOnce(new Error('migration boom'))
         .mockResolvedValueOnce(undefined);
 
       const [first, second] = await Promise.allSettled([
         service.ensureMigrated(),
         service.ensureMigrated(),
       ]);
-      expect(first).toStrictEqual({ status: 'rejected', reason: error });
-      expect(second).toStrictEqual({ status: 'rejected', reason: error });
+      expect(first.status).toBe('rejected');
+      expect(second.status).toBe('rejected');
+      expect((first as PromiseRejectedResult).reason).toBeInstanceOf(SafeError);
+      expect((second as PromiseRejectedResult).reason).toBeInstanceOf(
+        SafeError,
+      );
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
 
       expect(await service.ensureMigrated()).toBeUndefined();
@@ -1390,9 +1509,24 @@ describe('SnapAccountService', () => {
       expect(service).toBeDefined();
     });
 
-    it('logs an error when migration fails', async () => {
-      const { service, rootMessenger, mocks } = await setup();
-      const error = new Error('migration boom');
+    it.each([
+      {
+        name: 'SafeError',
+        error: new SafeError(
+          'Adding v2 Snap keyring for "npm:test-snap": Validation failed at "accounts.id.type" (expected: enums)',
+        ),
+      },
+      {
+        name: 'KeyringControllerError',
+        error: new KeyringControllerError(
+          KeyringControllerErrorMessage.DuplicatedAccount,
+        ),
+      },
+    ])('passes a $name through to Sentry as-is', async ({ error }) => {
+      const captureException = jest.fn();
+      const { service, rootMessenger, mocks } = await setup({
+        captureException,
+      });
       mocks.KeyringController.withController.mockRejectedValueOnce(error);
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
@@ -1402,8 +1536,48 @@ describe('SnapAccountService', () => {
       await flushMicrotasks();
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Migration failed after unlock:',
+        'Migration failed after unlock',
         error,
+      );
+      expect(captureException).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Migration failed after unlock',
+          cause: error,
+        }),
+      );
+      expect(service).toBeDefined();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('replaces an unknown error with a generic SafeError before reporting to Sentry', async () => {
+      const captureException = jest.fn();
+      const { service, rootMessenger, mocks } = await setup({
+        captureException,
+      });
+      // An error from snap keyring internals or superstruct could contain
+      // account addresses in its message — withSafeError replaces it with a safe one.
+      mocks.KeyringController.withController.mockRejectedValueOnce(
+        new Error('internal error with address 0x1234'),
+      );
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      const safeError = expect.objectContaining({
+        message: 'Snap keyring v2 migration: An unexpected error occurred',
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Migration failed after unlock',
+        safeError,
+      );
+      expect(captureException).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Migration failed after unlock',
+          cause: safeError,
+        }),
       );
       expect(service).toBeDefined();
       consoleErrorSpy.mockRestore();
@@ -1423,8 +1597,9 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
-      const error = new Error('migration boom');
-      mocks.KeyringController.withController.mockRejectedValueOnce(error);
+      mocks.KeyringController.withController.mockRejectedValueOnce(
+        new Error('migration boom'),
+      );
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
@@ -1437,8 +1612,8 @@ describe('SnapAccountService', () => {
         mocks.KeyringController.withKeyringV2Unsafe,
       ).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Migration failed after unlock:',
-        error,
+        'Migration failed after unlock',
+        expect.any(Error),
       );
       expect(service).toBeDefined();
       consoleErrorSpy.mockRestore();

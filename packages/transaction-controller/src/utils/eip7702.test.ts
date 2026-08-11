@@ -22,9 +22,12 @@ import {
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
+  getAuthorizationAuthority,
   getDelegationAddress,
   isAccountUpgradedToEIP7702,
+  recoverAuthorizationAuthority,
   signAuthorizationList,
+  updateEIP7702BatchData,
 } from './eip7702.js';
 import {
   getEIP7702ContractAddresses,
@@ -280,6 +283,96 @@ describe('EIP-7702 Utils', () => {
         '0x1122334455667788990011223344556677889900112233445566778899001122',
       );
       expect(result?.[0]?.yParity).toBe('0x1');
+    });
+
+    it('retains pre-signed authorizations without re-signing', async () => {
+      const preSignedAuthorization = {
+        address: AUTHORIZATION_LIST_MOCK[0].address,
+        chainId: AUTHORIZATION_LIST_MOCK[0].chainId,
+        nonce: AUTHORIZATION_LIST_MOCK[0].nonce,
+        r: '0xpreSignedR' as Hex,
+        s: '0xpreSignedS' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      const result = await signAuthorizationList({
+        authorizationList: [
+          preSignedAuthorization,
+          { address: AUTHORIZATION_LIST_MOCK[0].address },
+        ],
+        messenger: controllerMessenger,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      expect(signAuthorizationMock).toHaveBeenCalledTimes(1);
+      expect(result).toStrictEqual([
+        preSignedAuthorization,
+        {
+          address: AUTHORIZATION_LIST_MOCK[0].address,
+          chainId: TRANSACTION_META_MOCK.chainId,
+          nonce: '0x125',
+          r: '0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292',
+          s: '0xda533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf',
+          yParity: '0x1',
+        },
+      ]);
+    });
+  });
+
+  describe('recoverAuthorizationAuthority', () => {
+    it('recovers the signer of a valid EIP-7702 authorization', () => {
+      const authorization = {
+        address: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        chainId: '0x1' as Hex,
+        nonce: '0x6' as Hex,
+        r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488' as Hex,
+        s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      expect(recoverAuthorizationAuthority(authorization)).toBe(
+        '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+      );
+    });
+
+    it('returns undefined for an invalid signature', () => {
+      const authorization = {
+        address: '0xcccccccccccccccccccccccccccccccccccccccc' as Hex,
+        chainId: '0x1' as Hex,
+        nonce: '0x6' as Hex,
+        r: '0x0' as Hex,
+        s: '0x0' as Hex,
+        yParity: '0x0' as Hex,
+      };
+
+      expect(recoverAuthorizationAuthority(authorization)).toBeUndefined();
+    });
+  });
+
+  describe('getAuthorizationAuthority', () => {
+    it('returns the transaction sender for unsigned authorizations', () => {
+      expect(
+        getAuthorizationAuthority(
+          { address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+          '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        ),
+      ).toBe('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+    });
+
+    it('recovers the signer for signed authorizations', () => {
+      expect(
+        getAuthorizationAuthority(
+          {
+            address: '0xcccccccccccccccccccccccccccccccccccccccc',
+            chainId: '0x1',
+            nonce: '0x6',
+            r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488',
+            s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427',
+            yParity: '0x0',
+          },
+          '0xother',
+        ),
+      ).toBe('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266');
     });
   });
 
@@ -606,6 +699,75 @@ describe('EIP-7702 Utils', () => {
         delegationAddress: undefined,
         isSupported: false,
       });
+    });
+  });
+
+  describe('updateEIP7702BatchData', () => {
+    it('returns updated nested transactions and regenerated batch data without mutating the input', () => {
+      const nestedTransactions = [
+        {
+          data: '0xaaaa' as Hex,
+          to: ADDRESS_2_MOCK as Hex,
+          value: '0x5678' as Hex,
+        },
+        {
+          data: '0xbbbb' as Hex,
+          to: ADDRESS_3_MOCK as Hex,
+          value: '0xdef0' as Hex,
+        },
+      ];
+
+      const result = updateEIP7702BatchData({
+        from: ADDRESS_MOCK,
+        transactions: nestedTransactions,
+        updates: [
+          { transactionIndex: 0, transactionData: '0x1234' },
+          { transactionIndex: 1, transactionData: '0x9abc' },
+        ],
+      });
+
+      expect(result).toStrictEqual({
+        nestedTransactions: [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        transactionData: DATA_MOCK,
+      });
+      expect(nestedTransactions.map(({ data }) => data)).toStrictEqual([
+        '0xaaaa',
+        '0xbbbb',
+      ]);
+    });
+
+    it('throws if an update index is duplicated', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [
+            { transactionIndex: 0, transactionData: '0x1234' },
+            { transactionIndex: 0, transactionData: '0x5678' },
+          ],
+        }),
+      ).toThrow('Duplicate nested transaction index - 0');
+    });
+
+    it('throws if an update index does not exist', () => {
+      expect(() =>
+        updateEIP7702BatchData({
+          from: ADDRESS_MOCK,
+          transactions: [{ data: '0xaaaa' }],
+          updates: [{ transactionIndex: 1, transactionData: '0x1234' }],
+        }),
+      ).toThrow('Nested transaction not found with index - 1');
     });
   });
 

@@ -8,6 +8,7 @@ import { BigNumber } from 'bignumber.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  PaymentOverride,
   PERPS_DEPOSIT_TYPES,
 } from '../constants.js';
 import type {
@@ -20,6 +21,7 @@ import type {
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
+  ResolveSourceAmountCallback,
 } from '../types.js';
 import { getTokenFiatRate, isSameToken } from './token.js';
 import { getTransaction } from './transaction.js';
@@ -32,17 +34,20 @@ const log = createModuleLogger(projectLogger, 'source-amounts');
  * @param transactionId - ID of the transaction to update.
  * @param transactionData - Existing transaction data.
  * @param messenger - Controller messenger.
+ * @param resolveSourceAmount - Optional callback supplying an exact atomic source amount.
  */
 export function updateSourceAmounts(
   transactionId: string,
   transactionData: TransactionData | undefined,
   messenger: TransactionPayControllerMessenger,
+  resolveSourceAmount?: ResolveSourceAmountCallback,
 ): void {
   if (!transactionData) {
     return;
   }
 
-  const { isMaxAmount, isPostQuote, paymentToken, tokens } = transactionData;
+  const { isMaxAmount, isPostQuote, paymentOverride, paymentToken, tokens } =
+    transactionData;
 
   if (!tokens.length || !paymentToken) {
     return;
@@ -75,6 +80,8 @@ export function updateSourceAmounts(
         transactionId,
         isMaxAmount ?? false,
         isQuoteRequired,
+        paymentOverride,
+        resolveSourceAmount,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -148,6 +155,8 @@ function calculatePostQuoteSourceAmounts(
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
+ * @param paymentOverride - Optional payment source override for the transaction.
+ * @param resolveSourceAmount - Optional callback supplying an exact atomic source amount.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -157,6 +166,8 @@ function calculateSourceAmount(
   transactionId: string,
   isMaxAmount: boolean,
   isQuoteRequired?: boolean,
+  paymentOverride?: PaymentOverride,
+  resolveSourceAmount?: ResolveSourceAmountCallback,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -193,6 +204,34 @@ function calculateSourceAmount(
     return undefined;
   }
 
+  if (token.amountRaw === '0') {
+    log('Skipping token as zero amount', { tokenAddress: token.address });
+    return undefined;
+  }
+
+  const resolvedSourceAmount = resolveSourceAmount?.({
+    isMaxAmount,
+    paymentOverride,
+  });
+
+  if (resolvedSourceAmount) {
+    const { sourceAmountRaw } = resolvedSourceAmount;
+    const sourceAmountHuman = new BigNumber(sourceAmountRaw)
+      .shiftedBy(-paymentToken.decimals)
+      .toString(10);
+
+    log('Resolved source amount from callback', {
+      tokenAddress: token.address,
+      sourceAmountRaw,
+    });
+
+    return {
+      sourceAmountHuman,
+      sourceAmountRaw,
+      targetTokenAddress: token.address,
+    };
+  }
+
   const sourceAmountHumanValue = new BigNumber(token.amountUsd).div(
     paymentTokenFiatRate.usdRate,
   );
@@ -203,12 +242,12 @@ function calculateSourceAmount(
     .shiftedBy(paymentToken.decimals)
     .toFixed(0);
 
-  if (token.amountRaw === '0') {
-    log('Skipping token as zero amount', { tokenAddress: token.address });
-    return undefined;
-  }
-
-  if (isMaxAmount) {
+  // Money account Max must not use the pay token's on-chain balance. That
+  // balance is only un-vaulted mUSD, while the typed required amount already
+  // reflects the full withdrawable total (mUSD + vmUSD). Using the typed
+  // fiat-derived source keeps isMaxAmount=true (EXACT_INPUT) correct for
+  // deposits funded from the money account (e.g. Send to Perps).
+  if (isMaxAmount && paymentOverride !== PaymentOverride.MoneyAccount) {
     return {
       sourceAmountHuman: paymentToken.balanceHuman,
       sourceAmountRaw: paymentToken.balanceRaw,

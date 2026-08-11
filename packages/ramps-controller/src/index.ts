@@ -18,6 +18,7 @@ export type {
   RampsControllerGetRequestStateAction,
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
+  RampsControllerSetSelectedProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,
@@ -110,8 +111,10 @@ export {
   RampsApiService,
   RampsOrderStatus,
   RAMPS_SDK_VERSION,
+  getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
 export type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
@@ -159,6 +162,10 @@ export {
   isCustomActionQuote,
   isInAppOnlyQuote,
 } from './quoteClassification.js';
+export {
+  TERMINAL_ORDER_STATUSES,
+  isTerminalOrderStatus,
+} from './orderStatus.js';
 export type { TypedError } from './errorNormalization.js';
 export {
   getErrorMessage,
