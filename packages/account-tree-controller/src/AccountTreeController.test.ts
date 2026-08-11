@@ -341,6 +341,7 @@ function setup({
     KeyringController: {
       keyrings: KeyringObject[];
       getState: jest.Mock;
+      withController: jest.Mock;
     };
     AccountsController: {
       accounts: InternalAccount[];
@@ -364,6 +365,7 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      withController: jest.fn(),
     },
     AccountsController: {
       accounts,
@@ -464,6 +466,21 @@ function setup({
     messenger.registerActionHandler(
       'KeyringController:getState',
       mocks.KeyringController.getState,
+    );
+
+    // Default: call the callback with no existing keyrings so private-key
+    // imports are a no-op unless the test overrides this handler.
+    mocks.KeyringController.withController.mockImplementation(
+      async (
+        callback: (ctx: {
+          keyrings: { keyring: { type: string }; keyringV2: unknown }[];
+          addNewKeyring: jest.Mock;
+        }) => Promise<unknown>,
+      ) => callback({ keyrings: [], addNewKeyring: jest.fn() }),
+    );
+    messenger.registerActionHandler(
+      'KeyringController:withController',
+      mocks.KeyringController.withController,
     );
   }
 
