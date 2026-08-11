@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Populate QuotesReceived event's `usd_amount_source` property
+- Populate QuotesReceived event's `usd_amount_source` property ([#9828](https://github.com/MetaMask/core/pull/9828))
 
 ## [79.0.1]
 
