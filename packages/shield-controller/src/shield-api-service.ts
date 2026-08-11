@@ -1,8 +1,17 @@
+import { BaseDataService } from '@metamask/base-data-service';
+import type {
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import {
   ConstantBackoff,
   DEFAULT_MAX_RETRIES,
   HttpError,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   EthMethod,
   SignatureRequestType,
@@ -11,9 +20,11 @@ import type { SignatureRequest } from '@metamask/signature-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { AuthorizationList } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
+import type { QueryClientConfig } from '@tanstack/query-core';
 
-import { SignTypedDataVersion } from './constants.js';
+import { Env, getShieldApiBaseUrl, SignTypedDataVersion } from './constants.js';
 import { PollingWithCockatielPolicy } from './polling-with-policy.js';
+import type { ShieldApiServiceMethodActions } from './shield-api-service-method-action-types.js';
 import type {
   CheckCoverageRequest,
   CheckSignatureCoverageRequest,
@@ -21,7 +32,6 @@ import type {
   CoverageStatus,
   LogSignatureRequest,
   LogTransactionRequest,
-  ShieldBackend,
 } from './types.js';
 
 export type InitCoverageCheckRequest = {
@@ -64,9 +74,87 @@ export type GetCoverageResultResponse = {
   };
 };
 
-export class ShieldRemoteBackend implements ShieldBackend {
-  readonly #getAccessToken: () => Promise<string>;
+/**
+ * The name of the {@link ShieldApiService}, used to namespace the service's
+ * actions and events.
+ */
+export const serviceName = 'ShieldApiService';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'checkCoverage',
+  'checkSignatureCoverage',
+  'logSignature',
+  'logTransaction',
+] as const;
+
+const DEFAULT_POLICY_OPTIONS: CreateServicePolicyOptions = {
+  maxRetries: 0,
+};
+
+/**
+ * Invalidates cached queries for {@link ShieldApiService}.
+ */
+export type ShieldApiServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
+ * Actions that {@link ShieldApiService} exposes to other consumers.
+ */
+export type ShieldApiServiceActions =
+  | ShieldApiServiceMethodActions
+  | ShieldApiServiceInvalidateQueriesAction;
+
+/**
+ * Actions from other messengers that {@link ShieldApiService} calls.
+ */
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+
+/**
+ * Published when {@link ShieldApiService}'s cache is updated.
+ */
+export type ShieldApiServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/**
+ * Published when a key within {@link ShieldApiService}'s cache is updated.
+ */
+export type ShieldApiServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Events that {@link ShieldApiService} exposes to other consumers.
+ */
+export type ShieldApiServiceEvents =
+  | ShieldApiServiceCacheUpdatedEvent
+  | ShieldApiServiceGranularCacheUpdatedEvent;
+
+/**
+ * Events from other messengers that {@link ShieldApiService} subscribes to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger which is restricted to actions and events accessed by
+ * {@link ShieldApiService}.
+ */
+export type ShieldApiServiceMessenger = Messenger<
+  typeof serviceName,
+  ShieldApiServiceActions | AllowedActions,
+  ShieldApiServiceEvents | AllowedEvents
+>;
+
+/**
+ * This service is responsible for communicating with the Shield API.
+ *
+ * All requests are authenticated via JWT Bearer tokens obtained from the
+ * `AuthenticationController:getBearerToken` messenger action.
+ */
+export class ShieldApiService extends BaseDataService<
+  typeof serviceName,
+  ShieldApiServiceMessenger
+> {
   readonly #baseUrl: string;
 
   readonly #fetch: typeof globalThis.fetch;
@@ -75,23 +163,50 @@ export class ShieldRemoteBackend implements ShieldBackend {
 
   readonly #captureException?: (error: Error) => void;
 
+  /**
+   * Constructs a new ShieldApiService.
+   *
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this service.
+   * @param args.env - The environment used to resolve the Shield API URL.
+   * @param args.fetch - The fetch implementation. Defaults to `globalThis.fetch`.
+   * @param args.captureException - Optional error reporter.
+   * @param args.getCoverageResultTimeout - Timeout for coverage result polling.
+   * @param args.getCoverageResultPollInterval - Poll interval for coverage results.
+   * @param args.queryClientConfig - Configuration for the underlying TanStack
+   * Query client.
+   * @param args.policyOptions - Options to pass to `createServicePolicy`.
+   */
   constructor({
-    getAccessToken,
-    getCoverageResultTimeout = 5000, // milliseconds
-    getCoverageResultPollInterval = 1000, // milliseconds
-    baseUrl,
-    fetch: fetchFn,
+    messenger,
+    env,
+    fetch: fetchFn = globalThis.fetch,
     captureException: captureExceptionFn,
+    getCoverageResultTimeout = 5000,
+    getCoverageResultPollInterval = 1000,
+    queryClientConfig = {},
+    policyOptions = {},
   }: {
-    getAccessToken: () => Promise<string>;
+    messenger: ShieldApiServiceMessenger;
+    env: Env;
+    /**
+     * The `fetch` function to use for requests. Defaults to the global `fetch`.
+     */
+    fetch?: typeof globalThis.fetch;
+    captureException?: (error: Error) => void;
     getCoverageResultTimeout?: number;
     getCoverageResultPollInterval?: number;
-    baseUrl: string;
-    fetch: typeof globalThis.fetch;
-    captureException?: (error: Error) => void;
+    queryClientConfig?: QueryClientConfig;
+    policyOptions?: CreateServicePolicyOptions;
   }) {
-    this.#getAccessToken = getAccessToken;
-    this.#baseUrl = baseUrl;
+    super({
+      name: serviceName,
+      messenger,
+      queryClientConfig,
+      policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
+    });
+
+    this.#baseUrl = getShieldApiBaseUrl(env);
     this.#fetch = fetchFn;
 
     const { backoff, maxRetries } = computePollingIntervalAndRetryCount(
@@ -111,8 +226,19 @@ export class ShieldRemoteBackend implements ShieldBackend {
         // ignore error thrown when calling captureException
       }
     };
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
+  /**
+   * Checks the coverage of a transaction.
+   *
+   * @param req - The coverage check request.
+   * @returns The coverage result.
+   */
   async checkCoverage(req: CheckCoverageRequest): Promise<CoverageResult> {
     let { coverageId } = req;
     if (!coverageId) {
@@ -120,6 +246,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ({ coverageId } = await this.#initCoverageCheck(
         'v1/transaction/coverage/init',
         reqBody,
+        req.txMeta.id,
       ));
     }
 
@@ -138,6 +265,12 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
   }
 
+  /**
+   * Checks the coverage of a signature request.
+   *
+   * @param req - The signature coverage check request.
+   * @returns The coverage result.
+   */
   async checkSignatureCoverage(
     req: CheckSignatureCoverageRequest,
   ): Promise<CoverageResult> {
@@ -147,6 +280,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       ({ coverageId } = await this.#initCoverageCheck(
         'v1/signature/coverage/init',
         reqBody,
+        req.signatureRequest.id,
       ));
     }
 
@@ -165,6 +299,11 @@ export class ShieldRemoteBackend implements ShieldBackend {
     };
   }
 
+  /**
+   * Logs a signed signature request.
+   *
+   * @param req - The log signature request.
+   */
   async logSignature(req: LogSignatureRequest): Promise<void> {
     try {
       const initBody = makeInitSignatureCoverageCheckBody(req.signatureRequest);
@@ -174,36 +313,54 @@ export class ShieldRemoteBackend implements ShieldBackend {
         ...initBody,
       };
 
-      // cancel the pending get coverage result request
       this.#pollingPolicy.abortPendingRequest(req.signatureRequest.id);
 
-      const res = await this.#fetch(
-        `${this.#baseUrl}/v1/signature/coverage/log`,
-        {
-          method: 'POST',
-          headers: await this.#createHeaders(),
-          body: JSON.stringify(body),
+      const headers = await this.#authHeaders();
+
+      await this.fetchQuery({
+        queryKey: [
+          `${this.name}:logSignature`,
+          req.signatureRequest.id,
+          req.status,
+        ],
+        staleTime: 0,
+        cacheTime: 0,
+        queryFn: async () => {
+          const res = await this.#fetch(
+            `${this.#baseUrl}/v1/signature/coverage/log`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(body),
+            },
+          );
+          if (res.status !== 200) {
+            throw new HttpError(
+              res.status,
+              `Failed to log signature: ${res.status}`,
+            );
+          }
+          return null;
         },
-      );
-      if (res.status !== 200) {
-        throw new Error(`Failed to log signature: ${res.status}`);
-      }
+      });
     } catch (error) {
       const sentryError = createSentryError(
         'Failed to log signature',
         error as Error,
       );
       this.#captureException?.(sentryError);
-
-      // rethrow the original error
       throw error;
     }
   }
 
+  /**
+   * Logs a submitted transaction.
+   *
+   * @param req - The log transaction request.
+   */
   async logTransaction(req: LogTransactionRequest): Promise<void> {
     try {
       const initBody = makeInitCoverageCheckBody(req.txMeta);
-
       const body = {
         transactionHash: req.transactionHash,
         rawTransactionHex: req.rawTransactionHex,
@@ -211,28 +368,43 @@ export class ShieldRemoteBackend implements ShieldBackend {
         ...initBody,
       };
 
-      // cancel the pending get coverage result request
       this.#pollingPolicy.abortPendingRequest(req.txMeta.id);
 
-      const res = await this.#fetch(
-        `${this.#baseUrl}/v1/transaction/coverage/log`,
-        {
-          method: 'POST',
-          headers: await this.#createHeaders(),
-          body: JSON.stringify(body),
+      const headers = await this.#authHeaders();
+
+      await this.fetchQuery({
+        queryKey: [
+          `${this.name}:logTransaction`,
+          req.txMeta.id,
+          req.transactionHash,
+          req.status,
+        ],
+        staleTime: 0,
+        cacheTime: 0,
+        queryFn: async () => {
+          const res = await this.#fetch(
+            `${this.#baseUrl}/v1/transaction/coverage/log`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(body),
+            },
+          );
+          if (res.status !== 200) {
+            throw new HttpError(
+              res.status,
+              `Failed to log transaction: ${res.status}`,
+            );
+          }
+          return null;
         },
-      );
-      if (res.status !== 200) {
-        throw new Error(`Failed to log transaction: ${res.status}`);
-      }
+      });
     } catch (error) {
       const sentryError = createSentryError(
         'Failed to log transaction',
         error as Error,
       );
       this.#captureException?.(sentryError);
-
-      // rethrow the original error
       throw error;
     }
   }
@@ -240,25 +412,36 @@ export class ShieldRemoteBackend implements ShieldBackend {
   async #initCoverageCheck(
     path: string,
     reqBody: unknown,
+    requestId: string,
   ): Promise<InitCoverageCheckResponse> {
     try {
-      const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
-        method: 'POST',
-        headers: await this.#createHeaders(),
-        body: JSON.stringify(reqBody),
+      const headers = await this.#authHeaders();
+
+      return await this.fetchQuery({
+        queryKey: [`${this.name}:initCoverageCheck`, path, requestId],
+        staleTime: 0,
+        cacheTime: 0,
+        queryFn: async () => {
+          const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(reqBody),
+          });
+          if (res.status !== 200) {
+            throw new HttpError(
+              res.status,
+              `Failed to init coverage check: ${res.status}`,
+            );
+          }
+          return (await res.json()) as InitCoverageCheckResponse;
+        },
       });
-      if (res.status !== 200) {
-        throw new Error(`Failed to init coverage check: ${res.status}`);
-      }
-      return (await res.json()) as InitCoverageCheckResponse;
     } catch (error) {
       const sentryError = createSentryError(
         'Failed to init coverage check',
         error as Error,
       );
       this.#captureException?.(sentryError);
-
-      // rethrow the original error
       throw error;
     }
   }
@@ -272,9 +455,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       coverageId,
     };
 
-    const headers = await this.#createHeaders();
-
-    // Start measuring total end-to-end latency including retries and delays
+    const headers = await this.#authHeaders();
     const startTime = Date.now();
 
     const getCoverageResultFn = async (
@@ -288,14 +469,15 @@ export class ShieldRemoteBackend implements ShieldBackend {
       });
 
       if (res.status === 200) {
-        // Return the result without latency here - we'll add total latency after polling completes
         return (await res.json()) as Omit<GetCoverageResultResponse, 'metrics'>;
       }
 
-      // parse the error message from the response body
       let errorMessage = 'Timeout waiting for coverage result';
       try {
-        const errorJson = await res.json();
+        const errorJson = (await res.json()) as {
+          message?: string;
+          status?: string;
+        };
         errorMessage = `Failed to get coverage result: ${errorJson.message ?? errorJson.status}`;
       } catch {
         errorMessage = `Failed to get coverage result: ${res.status}`;
@@ -308,9 +490,7 @@ export class ShieldRemoteBackend implements ShieldBackend {
       getCoverageResultFn,
     );
 
-    // Calculate total end-to-end latency including all retries and delays
-    const now = Date.now();
-    const totalLatency = now - startTime;
+    const totalLatency = Date.now() - startTime;
 
     return {
       ...result,
@@ -318,11 +498,13 @@ export class ShieldRemoteBackend implements ShieldBackend {
     } as GetCoverageResultResponse;
   }
 
-  async #createHeaders(): Promise<Record<string, string>> {
-    const accessToken = await this.#getAccessToken();
+  async #authHeaders(): Promise<Record<string, string>> {
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
     return {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${token}`,
     };
   }
 }
@@ -361,9 +543,6 @@ export function makeInitCoverageCheckBody(
 function makeInitSignatureCoverageCheckBody(
   signatureRequest: SignatureRequest,
 ): InitSignatureCoverageCheckRequest {
-  // TODO: confirm that do we still need to validate the signature data?
-  // signature controller already validates the signature data before adding it to the state.
-  // @link https://github.com/MetaMask/core/blob/main/packages/signature-controller/src/SignatureController.ts#L408
   const method = parseSignatureRequestMethod(signatureRequest);
 
   return {

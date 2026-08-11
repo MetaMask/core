@@ -9,8 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [29.0.0]
+
+### Changed
+
 - **BREAKING:** Tag `/srp/login` with SRP slot and social provider metadata ([#9741](https://github.com/MetaMask/core/pull/9741), [#9776](https://github.com/MetaMask/core/pull/9776))
   - Append `primary` | `secondary` to `raw_message` (`metamask:<nonce>:<pubkey>:<tag>`; `primary` for the first HD entropy source). Leave `raw_message` untagged when `getLoginTag` is not provided. Include `metametrics.identifier_type` (`SRP` | `GOOGLE` | `APPLE` | `TELEGRAM`; social vault primary maps from `SeedlessOnboardingController.state.authConnection`).
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
 
 ## [28.3.0]
 
@@ -902,7 +910,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0
 [28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...@metamask/profile-sync-controller@28.2.0
 [28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1

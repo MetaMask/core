@@ -55,15 +55,15 @@
   "dependencies": {
     "@metamask/messenger": "^2.0.0",
     "@metamask/preferences-controller": "^23.1.0",
-    "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^69.4.0",
+    "@metamask/superstruct": "^3.4.1",
+    "@metamask/transaction-controller": "^69.5.1",
     "@metamask/utils": "^11.11.0",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-controller": "^27.1.1",
     "@metamask/rpc-errors": "^7.0.2",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",

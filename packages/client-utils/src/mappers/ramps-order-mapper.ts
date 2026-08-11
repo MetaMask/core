@@ -143,10 +143,16 @@ function isPlausibleRampTxHash(txHash: string): boolean {
  *
  * @param order - The ramps order to map.
  * @returns The normalized activity item, or `null` if the order's status
- * should not be surfaced in the activity list.
+ * should not be surfaced in the activity list, or if no CAIP chain id can be
+ * resolved from the order.
  */
 export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
   if (HIDDEN_STATUSES.has(order.status) || order.excludeFromPurchases) {
+    return null;
+  }
+
+  const chainId = resolveRampsOrderChainId(order);
+  if (!chainId) {
     return null;
   }
 
@@ -183,8 +189,6 @@ export function mapRampsOrder(order: RampsOrderLike): ActivityItem | null {
       symbol: order.fiatCurrency?.symbol,
     },
   ];
-
-  const chainId = resolveRampsOrderChainId(order);
 
   return {
     type: isBuy ? 'rampBuy' : 'rampSell',

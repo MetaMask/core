@@ -86,6 +86,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/kyc-controller`](packages/kyc-controller)
 - [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
@@ -192,6 +193,7 @@ linkStyle default opacity:0.5
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
+  kyc_controller(["@metamask/kyc-controller"]);
   local_node_utils(["@metamask/local-node-utils"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
@@ -305,6 +307,7 @@ linkStyle default opacity:0.5
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
+  assets_controllers --> remote_feature_flag_controller;
   assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
   authenticated_user_storage --> base_data_service;
@@ -345,6 +348,7 @@ linkStyle default opacity:0.5
   chomp_api_service --> controller_utils;
   chomp_api_service --> messenger;
   claims_controller --> base_controller;
+  claims_controller --> base_data_service;
   claims_controller --> controller_utils;
   claims_controller --> keyring_controller;
   claims_controller --> messenger;
@@ -580,8 +584,10 @@ linkStyle default opacity:0.5
   sentinel_api_service --> controller_utils;
   sentinel_api_service --> messenger;
   shield_controller --> base_controller;
+  shield_controller --> base_data_service;
   shield_controller --> controller_utils;
   shield_controller --> messenger;
+  shield_controller --> profile_sync_controller;
   shield_controller --> signature_controller;
   shield_controller --> transaction_controller;
   signature_controller --> accounts_controller;
@@ -613,6 +619,7 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
+  subscription_controller --> base_data_service;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
@@ -656,6 +663,7 @@ linkStyle default opacity:0.5
   wallet --> address_book_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
+  wallet --> claims_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
@@ -665,7 +673,9 @@ linkStyle default opacity:0.5
   wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
+  wallet --> shield_controller;
   wallet --> storage_service;
+  wallet --> subscription_controller;
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
