@@ -24,7 +24,7 @@ import type {
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
-  RemoteFeatureFlagControllerStateChangeEvent,
+  RemoteFeatureFlagControllerStateChangedEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
 
@@ -50,7 +50,7 @@ export type PerpsControllerAllowedActions =
  * Events from other controllers that PerpsController is allowed to subscribe to.
  */
 export type PerpsControllerAllowedEvents =
-  | RemoteFeatureFlagControllerStateChangeEvent
+  | RemoteFeatureFlagControllerStateChangedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent;
 

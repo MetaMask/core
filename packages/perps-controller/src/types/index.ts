@@ -651,6 +651,10 @@ export type PerpsMarketData = {
    * Indicates this market snapshot came from the last known good cache after live fetch failure.
    */
   isStale?: boolean;
+  /** Identifies an atomic Terminal summary whose price/change use mark semantics. */
+  dataSource?: 'terminal-global-snapshot-mark';
+  /** Source-bounded expiry for an atomic Terminal summary. */
+  sourceExpiresAt?: number;
   /**
    * Searchable keywords from Terminal API metadata (e.g., ['defi', 'layer-1'])
    */
@@ -663,6 +667,8 @@ export type PerpsMarketData = {
    * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
    */
   categories?: string[];
+  /** Timestamped hourly price points supplied by the atomic Terminal snapshot. */
+  trend?: [timestampMs: number, price: string][];
   /**
    * Epoch ms when this market was listed on the Terminal backend.
    * Sourced from the Terminal API `listedAt` field.
@@ -991,6 +997,23 @@ export type GetAccountStateParams = {
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
 };
 
+export type GetUserDataSnapshotParams = {
+  userAddress: string;
+  identity: {
+    provider: 'hyperliquid';
+    network: 'mainnet' | 'testnet';
+    hip3ConfigVersion: number;
+    dexes: string[];
+  };
+};
+
+export type PerpsUserDataSnapshot = {
+  positions: Position[];
+  orders: Order[];
+  accountState: AccountState;
+  identity: GetUserDataSnapshotParams['identity'] & { address: string };
+};
+
 export type GetOrderFillsParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
   user?: Hex; // Optional: user address (defaults to selected account)
@@ -1063,7 +1086,7 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
-  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
+  useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
 };
 
 /**
@@ -1078,7 +1101,7 @@ export type GetMarketDataWithPricesParams = {
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
-  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
+  useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
 };
 
 export type SubscribePricesParams = {
@@ -1307,6 +1330,9 @@ export type PerpsProvider = {
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
+  getUserDataSnapshot?(
+    params: GetUserDataSnapshotParams,
+  ): Promise<PerpsUserDataSnapshot>;
   getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]>;
   getMarketDataWithPrices(): Promise<PerpsMarketData[]>;
   withdraw(params: WithdrawParams): Promise<WithdrawResult>; // API operation - stays in provider
@@ -1896,6 +1922,22 @@ export type PerpsTerminalMarketService = {
   }>;
   clearCache(): void;
   logError(error: unknown, method: string): void;
+  fetchGlobalSnapshot?(
+    request: PerpsGlobalSnapshotRequest,
+  ): Promise<PerpsGlobalSnapshotResult>;
+};
+
+/** Exact identity a client expects from an atomic global Perps snapshot. */
+export type PerpsGlobalSnapshotRequest = {
+  provider: 'hyperliquid';
+  network: 'mainnet' | 'testnet';
+  enabledDexes: string[];
+};
+
+/** Validated snapshot data and its source-bounded expiry. */
+export type PerpsGlobalSnapshotResult = {
+  markets: PerpsMarketData[];
+  expiresAt: number;
 };
 
 /**
@@ -1949,13 +1991,15 @@ export type PerpsPlatformDependencies = {
   };
 
   // === Terminal API (market metadata source) ===
-  /**
-   * Full endpoint URL for the MetaMask Terminal API perpetuals endpoint.
-   * Each client build (dev/uat/prd) injects the correct environment URL
-   * (e.g. `https://terminal.api.cx.metamask.io/v1/perpetuals`).
-   * Never hardcoded in controller code — always provided by the platform.
-   * Optional: only required when Terminal API features (useTerminalApi) are enabled.
-   */
+  terminalApi?: {
+    /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
+    marketDataUrl?: string;
+
+    /** Full endpoint URL for the schema-v2 atomic global Perps snapshot. */
+    globalSnapshotUrl?: string;
+  };
+
+  /** @deprecated Use `terminalApi.marketDataUrl`. */
   terminalApiUrl?: string;
 
   /**

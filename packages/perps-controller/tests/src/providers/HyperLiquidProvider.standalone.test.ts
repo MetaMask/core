@@ -767,6 +767,156 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    describe('getUserDataSnapshot', () => {
+      it('reuses one clearinghouse response for positions and account state', async () => {
+        const clearinghouseState = {
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        };
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue(
+          clearinghouseState,
+        );
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 7,
+            dexes: ['main'],
+          },
+        });
+
+        expect(mockStandaloneInfoClient.perpDexs).not.toHaveBeenCalled();
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockStandaloneInfoClient.frontendOpenOrders,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockStandaloneInfoClient.spotClearinghouseState,
+        ).toHaveBeenCalledTimes(1);
+        expect(mockStandaloneInfoClient.userAbstraction).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(result.positions).toHaveLength(1);
+        expect(result.orders).toEqual([]);
+        expect(result.accountState.totalBalance).toBe('25000');
+        expect(result.identity).toEqual({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          address: mockUserAddress,
+          hip3ConfigVersion: 7,
+          dexes: ['main'],
+        });
+      });
+
+      it('logs privacy-safe timing for each atomic snapshot stage', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        const timingCalls = (
+          mockPlatformDependencies.debugLogger.log as jest.Mock
+        ).mock.calls.filter(([marker]) => marker === '[PerpsUserSnapshot]');
+        const stages = timingCalls.map(([, detail]) => detail.stage);
+        expect(stages).toHaveLength(5);
+        expect(stages).toEqual(
+          expect.arrayContaining([
+            'clearinghouse_state',
+            'frontend_open_orders',
+            'spot_clearinghouse_state',
+            'user_abstraction',
+            'complete',
+          ]),
+        );
+        expect(JSON.stringify(timingCalls)).not.toContain(mockUserAddress);
+      });
+
+      it('accepts canonical DEX identity when a DEX sorts before main', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main', 'flx'],
+          },
+        });
+
+        expect(result.identity.dexes).toEqual(['main', 'flx']);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(2);
+      });
+
+      it('rejects the entire bundle when one required request fails', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
+          new Error('orders unavailable'),
+        );
+
+        const request = provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        await expect(request).rejects.toThrow('orders unavailable');
+      });
+    });
+
     describe('getPositions with standalone mode', () => {
       it('returns positions via standalone client when standalone mode enabled', async () => {
         // Arrange

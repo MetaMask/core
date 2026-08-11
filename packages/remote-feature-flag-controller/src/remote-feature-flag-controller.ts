@@ -2,7 +2,10 @@ import {
   BaseController,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
-import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type {
+  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
+} from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
@@ -102,8 +105,15 @@ export type RemoteFeatureFlagControllerStateChangeEvent =
     RemoteFeatureFlagControllerState
   >;
 
+export type RemoteFeatureFlagControllerStateChangedEvent =
+  ControllerStateChangedEvent<
+    typeof controllerName,
+    RemoteFeatureFlagControllerState
+  >;
+
 export type RemoteFeatureFlagControllerEvents =
-  RemoteFeatureFlagControllerStateChangeEvent;
+  | RemoteFeatureFlagControllerStateChangeEvent
+  | RemoteFeatureFlagControllerStateChangedEvent;
 
 export type RemoteFeatureFlagControllerMessenger = Messenger<
   typeof controllerName,

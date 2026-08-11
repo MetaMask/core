@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export the modern `RemoteFeatureFlagController:stateChanged` event alongside the deprecated `stateChange` event so consumers can migrate without subscribing to a deprecated event ([#9815](https://github.com/MetaMask/core/pull/9815)).
 - Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides ([#9747](https://github.com/MetaMask/core/pull/9747))
 
 ## [5.0.0]

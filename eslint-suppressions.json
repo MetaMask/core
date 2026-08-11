@@ -1517,16 +1517,6 @@
       "count": 1
     }
   },
-  "packages/perps-controller/src/PerpsController.ts": {
-    "no-restricted-syntax": {
-      "count": 3
-    }
-  },
-  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 2
@@ -1534,11 +1524,6 @@
   },
   "packages/perps-controller/src/utils/perpsConnectionAttemptContext.ts": {
     "require-atomic-updates": {
-      "count": 1
-    }
-  },
-  "packages/perps-controller/tests/defer-eligibility.test.ts": {
-    "no-restricted-syntax": {
       "count": 1
     }
   },

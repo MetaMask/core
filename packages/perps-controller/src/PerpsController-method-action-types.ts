@@ -37,6 +37,14 @@ export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
 };
 
 /**
+ * Fetch, validate, and cache a complete user-data snapshot.
+ */
+export type PerpsControllerGetUserDataSnapshotAction = {
+  type: `PerpsController:getUserDataSnapshot`;
+  handler: PerpsController['getUserDataSnapshot'];
+};
+
+/**
  * Initialize the PerpsController providers
  * Must be called before using any other methods
  * Prevents double initialization with promise caching
@@ -1123,6 +1131,7 @@ export type PerpsControllerIsCurrentlyReinitializingAction = {
 export type PerpsControllerMethodActions =
   | PerpsControllerGetCachedMarketDataForActiveProviderAction
   | PerpsControllerGetCachedUserDataForActiveProviderAction
+  | PerpsControllerGetUserDataSnapshotAction
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction

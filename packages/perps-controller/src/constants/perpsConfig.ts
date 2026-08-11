@@ -387,7 +387,7 @@ export const DATA_LAKE_API_CONFIG = {
 /**
  * Terminal API configuration.
  * The full endpoint URL is injected at runtime via
- * `PerpsPlatformDependencies.terminalApiUrl` from each client build
+ * `PerpsPlatformDependencies.terminalApi.marketDataUrl` from each client build
  * (dev/uat/prd); only cache settings live here.
  */
 export const TERMINAL_API_CONFIG = {
