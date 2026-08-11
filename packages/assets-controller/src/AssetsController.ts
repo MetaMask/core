@@ -3874,9 +3874,25 @@ export class AssetsController extends BaseController<
           sourceId === 'AccountsApiDataSource' ||
           sourceId === 'AccountActivityDataSource';
 
+        // Websocket updates can carry brand-new spam airdrops: enrich them
+        // with Token API occurrences and drop below-floor tokens BEFORE
+        // detection, so spam is never detected, enriched, priced or persisted.
+        const shouldFilterOccurrences =
+          sourceId === 'AccountActivityDataSource' &&
+          this.#isBasicFunctionality();
+
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets
             ? [this.#customAssetGraduationMiddleware]
+            : []),
+          ...(shouldFilterOccurrences
+            ? [
+                {
+                  getName: () => 'OccurrenceFloorFilter',
+                  assetsMiddleware:
+                    this.#tokenDataSource.occurrenceFilterMiddleware,
+                },
+              ]
             : []),
           this.#detectionMiddleware,
         ];
