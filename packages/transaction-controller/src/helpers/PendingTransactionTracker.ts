@@ -17,6 +17,7 @@ import {
   getTimeoutAttempts,
 } from '../utils/feature-flags.js';
 import { getChainId, rpcRequest } from '../utils/provider.js';
+import { getLayer1FeeFromReceipt } from '../utils/receipt-fees.js';
 import { extractRevert, OnChainFailureError } from '../utils/revert-reason.js';
 import { TransactionPoller } from './TransactionPoller.js';
 
@@ -384,6 +385,13 @@ export class PendingTransactionTracker {
       };
       updatedTxMeta.txReceipt = receipt;
       updatedTxMeta.verifiedOnBlockchain = true;
+
+      // Prefer inclusion-time receipt values (L1 data fee + operator fee) over
+      // the pre-confirm estimate so Activity Details match what was paid.
+      const layer1GasFee = getLayer1FeeFromReceipt(receipt);
+      if (layer1GasFee !== undefined) {
+        updatedTxMeta.layer1GasFee = layer1GasFee;
+      }
     }
 
     updatedTxMeta.status = TransactionStatus.confirmed;

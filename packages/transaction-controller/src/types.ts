@@ -1150,9 +1150,26 @@ export type TransactionReceipt = {
   gasUsed?: string;
 
   /**
-   * Total used gas in hex.
+   * Layer 1 data fee in hex wei (native token units on Mantle).
    */
   l1Fee?: string;
+
+  /**
+   * Operator fee constant from OP Stack / Mantle Arsia receipts, in hex wei.
+   */
+  operatorFeeConstant?: string;
+
+  /**
+   * Operator fee scalar from OP Stack / Mantle Arsia receipts, in hex.
+   * Used as: `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`.
+   */
+  operatorFeeScalar?: string;
+
+  /**
+   * ETH/MNT token ratio from Mantle receipts. Informational only —
+   * receipt `l1Fee` is already denominated in the native token.
+   */
+  tokenRatio?: string;
 
   /**
    * All the logs emitted by this transaction.
