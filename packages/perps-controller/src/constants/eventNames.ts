@@ -231,8 +231,12 @@ export const PERPS_EVENT_PROPERTY = {
   SEARCH_QUERY: 'search_query',
   RESULTS_COUNT: 'results_count',
   RESULT_RANK: 'result_rank',
+  // Search intent (`discovery` / `intent` / `browse`) — not Lite/Pro UI mode
   MODE: 'mode',
   CURRENT_TOKEN: 'current_token',
+
+  // Lite/Pro interface mode (`'lite' | 'pro'`)
+  PERPS_MODE: 'perps_mode',
 
   // Sort / filter properties
   SORT_FIELD: 'sort_field',
