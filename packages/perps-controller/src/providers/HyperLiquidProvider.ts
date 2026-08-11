@@ -490,11 +490,18 @@ type ChaseSession = {
   symbol: string;
   assetId: number;
   isBuy: boolean;
-  size: string;
   szDecimals: number;
   reduceOnly: boolean;
   /** Exchange ID of the order resting right now, or null once it is gone. */
   orderId: string | null;
+  /**
+   * Size the order resting right now was placed for.
+   *
+   * Shrinks as the chase re-prices: a child that partially filled before it was
+   * cancelled leaves less to chase, and re-placing the original size would
+   * execute more than the caller asked for.
+   */
+  size: string;
   /**
    * Settles when an in-flight replacement has finished resting (or failed).
    * Null while no placement is in flight.
@@ -4216,10 +4223,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       reduceOnly: params.reduceOnly,
     });
 
-    // The ladder is built and checked here, before anything is signed: it needs
-    // `szDecimals`, which only arrives with the asset info above, and its
-    // rejections are caller mistakes that must not cost a leverage change or a
-    // signing prompt first.
+    const formattedSize = formatHyperLiquidSize({
+      size: finalPositionSize,
+      szDecimals: assetInfo.szDecimals,
+    });
+
+    // Everything below is checked here, before anything is signed: it needs
+    // `szDecimals`, which only arrives with the asset info above, and these are
+    // caller mistakes that must not cost a leverage change or a signing prompt
+    // first.
     const ladder =
       params.orderType === 'scale'
         ? this.#buildScaleLadder({
@@ -4228,6 +4240,29 @@ export class HyperLiquidProvider implements PerpsProvider {
             finalPositionSize,
           })
         : undefined;
+
+    // `validateOrder` applied the venue minimum to the notional the caller
+    // asked for; this applies it to the size actually being submitted. The two
+    // differ whenever sizing floors onto the grid rather than rounding up to
+    // meet the requested USD — which is exactly what a reduce-only order does,
+    // since the venue rejects a close larger than the position. A boundary
+    // amount can therefore clear the check the caller sees and still arrive
+    // under the minimum the venue charges against what it receives.
+    if (params.orderType === 'twap' || params.orderType === 'chase') {
+      const submittedNotional = parseFloat(formattedSize) * effectivePrice;
+      const minimumNotional =
+        params.orderType === 'twap'
+          ? HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
+          : this.#getMinimumOrderSize();
+
+      if (submittedNotional < minimumNotional) {
+        throw new Error(
+          params.orderType === 'twap'
+            ? PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL
+            : PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        );
+      }
+    }
 
     // Kept after validation so an invalid strategy order never triggers the
     // signature prompts in trading setup — same ordering as `placeOrder`.
@@ -4249,12 +4284,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       assetId,
       szDecimals: assetInfo.szDecimals,
       finalPositionSize,
-      formattedSize: formatHyperLiquidSize({
-        size: finalPositionSize,
-        szDecimals: assetInfo.szDecimals,
-      }),
+      formattedSize,
       ladder,
     };
+  }
+
+  /**
+   * The venue's minimum value for a single order, in USD.
+   *
+   * @returns The minimum for the network this provider is pointed at.
+   */
+  #getMinimumOrderSize(): number {
+    return this.#clientService.isTestnetMode()
+      ? TRADING_DEFAULTS.amount.testnet
+      : TRADING_DEFAULTS.amount.mainnet;
   }
 
   /**
@@ -4304,9 +4347,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       szDecimals,
     });
 
-    const minimumOrderSize = this.#clientService.isTestnetMode()
-      ? TRADING_DEFAULTS.amount.testnet
-      : TRADING_DEFAULTS.amount.mainnet;
+    const minimumOrderSize = this.#getMinimumOrderSize();
     const cheapestRungNotional = Math.min(
       ...sizes.map(
         (size, index) => parseFloat(size) * parseFloat(prices[index]),
@@ -4763,6 +4804,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (touchPrice !== session.restingPrice && session.orderId) {
+      // Measured before the cancel: once the order is off the book there is
+      // nothing left to read, and the replacement must not re-place size that
+      // has already been filled.
+      const restingSize = await this.#readRestingChaseSize(session);
+      if (restingSize === null) {
+        // Gone entirely — it filled between ticks.
+        session.orderId = null;
+        session.active = false;
+        this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
+        return;
+      }
+
       const outcome = await this.#cancelChaseChild(session);
 
       // The cancel is a second round trip, and this is the window where a
@@ -4817,10 +4870,11 @@ export class HyperLiquidProvider implements PerpsProvider {
             assetId: session.assetId,
             isBuy: session.isBuy,
             price: touchPrice,
-            size: session.size,
+            size: restingSize,
             reduceOnly: session.reduceOnly,
             builderFee: session.builderFee,
           });
+          session.size = restingSize;
         } finally {
           // Cleared before the waiters wake, so they see the settled session.
           session.pendingReplacement = null;
@@ -4833,6 +4887,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           sessionId,
           orderId: session.orderId,
           restingPrice: touchPrice,
+          size: session.size,
           repricings: session.repricings,
         });
 
@@ -4860,6 +4915,30 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     this.#scheduleChaseTick(sessionId);
+  }
+
+  /**
+   * Read how much of a chase's resting order is still on the book.
+   *
+   * A chase re-prices by cancelling and re-placing, and the order it cancels
+   * may have partially filled first. Re-placing the session's original size
+   * would then execute more than the caller asked for, so the replacement is
+   * sized from what the venue still shows resting.
+   *
+   * There is an unavoidable residue: a fill landing between this read and the
+   * cancel is not reflected. That window is one round trip, against the whole
+   * order size before this existed.
+   *
+   * @param session - The session whose resting order to measure.
+   * @returns The size still resting, or null when the order is gone entirely.
+   */
+  async #readRestingChaseSize(session: ChaseSession): Promise<string | null> {
+    const openOrders = await this.#fetchOpenOrders({ dexName: null });
+    const resting = openOrders.find(
+      (order) => order.oid.toString() === session.orderId,
+    );
+
+    return resting ? String(resting.sz) : null;
   }
 
   /**

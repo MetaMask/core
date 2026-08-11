@@ -10,6 +10,7 @@ import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
 import type {
   CandleData,
   OrderType,
+  StrategyOrderType,
   TpslLinkage,
   TriggerDirection,
   TriggerOrderType,
@@ -440,8 +441,14 @@ export type ClosePositionParams = {
    * Close order type (default: market). Only `market` and `limit` are meaningful
    * here: `ClosePositionParams` carries no trigger price, so a trigger-based
    * close is not expressible and would be rejected during placement.
+   *
+   * Strategy placements are excluded at the type level rather than left to a
+   * runtime rejection, because this type cannot carry any of the fields they
+   * require and `closePosition` has no path that executes them. Derived with
+   * `Exclude` on purpose: it shrinks as `StrategyOrderType` grows, so a strategy
+   * added later is refused here automatically.
    */
-  orderType?: OrderType;
+  orderType?: Exclude<OrderType, StrategyOrderType>;
   price?: string; // Limit price (required for limit close)
   currentPrice?: number; // Current market price for validation
 

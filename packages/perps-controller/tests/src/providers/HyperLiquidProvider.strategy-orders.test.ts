@@ -543,6 +543,27 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ...overrides.exchange,
     });
     const infoClient = createMockInfoClient({
+      // A chase measures what is still resting before it re-prices, so the
+      // account has to show the orders these tests place. Full size by default;
+      // the partial-fill test overrides it.
+      frontendOpenOrders: jest.fn().mockResolvedValue(
+        [55, 66].map((oid) => ({
+          coin: 'ETH',
+          side: 'B',
+          limitPx: '2999',
+          sz: '1',
+          origSz: '1',
+          oid,
+          timestamp: 1_700_000_000_000,
+          isTrigger: false,
+          triggerCondition: 'N/A',
+          triggerPx: '0',
+          children: [],
+          isPositionTpsl: false,
+          reduceOnly: false,
+          orderType: 'Limit',
+        })),
+      ),
       l2Book: jest.fn().mockResolvedValue({
         coin: 'ETH',
         levels: [
@@ -2273,6 +2294,145 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].builder.f).toBe(quotedFee);
+    });
+  });
+
+  describe('Chase re-prices only what is still resting', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    /**
+     * Build an l2Book mock whose touch moves after the first read.
+     *
+     * @returns The mock.
+     */
+    const bookThatMoves = (): jest.Mock =>
+      jest
+        .fn()
+        .mockResolvedValueOnce({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2999', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        })
+        .mockResolvedValue({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2998', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        });
+
+    it('replaces a partly filled order at its remaining size', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: bookThatMoves(),
+          // 0.6 of the 1 ETH filled before the chase came back round.
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              side: 'B',
+              limitPx: '2999',
+              sz: '0.4',
+              origSz: '1',
+              oid: 55,
+              timestamp: 1_700_000_000_000,
+              isTrigger: false,
+              triggerCondition: 'N/A',
+              triggerPx: '0',
+              children: [],
+              isPositionTpsl: false,
+              reduceOnly: false,
+              orderType: 'Limit',
+            },
+          ]),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      expect(order.mock.calls[0][0].orders[0].s).toBe('1');
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      // The replacement must cover only what was left. Re-placing the original
+      // size would buy 1.6 ETH in total against a 1 ETH request.
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0].orders[0].s).toBe('0.4');
+    });
+
+    it('ends the session when the order filled entirely between ticks', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: bookThatMoves(),
+          // The order is no longer on the book at all.
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      // Nothing was cancelled and nothing was re-placed: the chase is done.
+      expect(order).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Strategy notional is checked against the submitted size', () => {
+    it('rejects a TWAP whose size-grid rounding drops it under the venue minimum', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      // A reduce-only order may never round up — the venue rejects a close
+      // larger than the position — so its size is floored onto the grid. $100.10
+      // of ETH at 3000 floors to 0.0333, which is $99.90: under the venue's $100
+      // TWAP minimum, even though the requested notional cleared it. Only a
+      // check against the size actually being submitted catches this.
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        size: '0.0334',
+        usdAmount: '100.10',
+        reduceOnly: true,
+        orderType: 'twap',
+        twapDuration: 30,
+      } as OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
+      );
+      expect(exchangeClient.twapOrder).not.toHaveBeenCalled();
     });
   });
 });
