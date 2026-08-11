@@ -16,6 +16,7 @@ import type {
 } from '../types.js';
 import type { ImportContext } from './import.js';
 import { importState } from './import.js';
+import { ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
 // Valid 20-byte hex addresses for use with getUUIDFromAddressOfNormalAccount.
@@ -38,6 +39,7 @@ const TEST_MNEMONIC =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const MNEMONIC_PAYLOAD = {
+  version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
   wallets: [
     {
       id: MOCK_PAYLOAD_WALLET_ID,
@@ -303,6 +305,7 @@ describe('importState', () => {
       const { context, mocks } = setup({ wallets: pkOnlyWallets });
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:entropy-only',
@@ -327,6 +330,7 @@ describe('importState', () => {
       );
 
       const payloadWithoutMnemonic = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:unknown-entropy',
@@ -355,6 +359,7 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
+          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:no-match-entropy',
@@ -401,6 +406,7 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
+          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:no-match',
@@ -430,6 +436,7 @@ describe('importState', () => {
       );
 
       const payloadWithMnemonic = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:unknown-entropy',
@@ -491,6 +498,7 @@ describe('importState', () => {
       );
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: MOCK_PAYLOAD_WALLET_ID,
@@ -571,6 +579,7 @@ describe('importState', () => {
       );
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: MOCK_PAYLOAD_WALLET_ID,
@@ -644,6 +653,7 @@ describe('importState', () => {
       const { context, mocks } = setup({ wallets: pkWallets });
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -720,6 +730,7 @@ describe('importState', () => {
       });
 
       await importSnapshot(context, {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -797,6 +808,7 @@ describe('importState', () => {
       });
 
       await importSnapshot(context, {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -875,6 +887,7 @@ describe('importState', () => {
       });
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -918,6 +931,7 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
+          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:private-key',
@@ -944,6 +958,7 @@ describe('importState', () => {
 
       await expect(
         importSnapshot(context, {
+          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
           wallets: [
             {
               id: 'wallet:private-key',
@@ -966,6 +981,7 @@ describe('importState', () => {
       const { context, mocks } = setup();
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -1002,6 +1018,7 @@ describe('importState', () => {
       });
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -1033,6 +1050,7 @@ describe('importState', () => {
       const { context, mocks } = setup();
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',
@@ -1065,6 +1083,7 @@ describe('importState', () => {
       });
 
       const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
         wallets: [
           {
             id: 'wallet:private-key',

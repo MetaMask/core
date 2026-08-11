@@ -1,7 +1,5 @@
 import { KeyringAccountTypeStruct } from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
-import type { MigrationChain } from '@metamask/keyring-sdk';
-import { createMigrations, JsonObjectStruct } from '@metamask/keyring-sdk';
 import {
   array,
   assert,
@@ -9,22 +7,15 @@ import {
   define,
   enums,
   integer,
-  is,
   literal,
   object,
-  omit,
   exactOptional,
   sensitive,
   string,
   StructError,
   union,
 } from '@metamask/superstruct';
-import type {
-  Infer,
-  ObjectSchema,
-  ObjectType,
-  Struct,
-} from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
@@ -277,21 +268,6 @@ export type AccountTreePayloadStructType = Infer<
 >;
 
 /**
- * Returns a copy of `struct` without the `version` field.
- *
- * Migration step `inputSchema` receives state data after the SDK has stripped
- * `version`, so step schemas must not include that field.
- *
- * @param struct - An object struct that includes a `version` field.
- * @returns The same struct shape minus `version`.
- */
-function unversioned<S extends ObjectSchema & { version: unknown }>(
-  struct: Struct<ObjectType<S>, S>,
-) {
-  return omit(struct, ['version']);
-}
-
-/**
  * Formats Superstruct validation failures into a single error message string.
  *
  * @param error - The StructError thrown during payload validation.
@@ -335,49 +311,5 @@ export function assertValidAccountTreePayload(
   }
 }
 
-/**
- * Migration chain for {@link AccountTreePayload}.
- *
- * Each `.add()` call appends a step; `migrations.version` equals the number of
- * steps and serves as the canonical current version written by
- * {@link AccountTreeSnapshot.serialize}.
- *
- * **v1** — validates and returns the v1 payload structure `{ wallets: [...] }`.
- */
-export const migrations: MigrationChain<AccountTreePayload> =
-  createMigrations().add({
-    inputSchema: unversioned(AccountTreePayloadStruct),
-    migrate: (data) => data,
-  });
-
-/** Current version of the {@link AccountTreePayload} format, derived from the migration chain. */
-export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = migrations.version;
-
-/**
- * Validates a raw value as an `AccountTreePayload` and runs any necessary version migrations.
- *
- * This is the low-level entry point used by {@link AccountTreeSnapshot.deserialize}.
- * Callers receiving untrusted wire data should prefer `deserialize`, which returns
- * an immutable {@link AccountTreeSnapshot} ready for filtering and import.
- *
- * @param raw - Unknown value to validate.
- * @returns A fully migrated `AccountTreePayload`.
- * @throws If `raw` is not a valid payload, its version is unsupported, or any wallet type is unrecognized.
- */
-export async function migrate(raw: unknown): Promise<AccountTreePayload> {
-  if (!is(raw, JsonObjectStruct)) {
-    throw new Error('Invalid AccountTreePayload: expected a plain JSON object');
-  }
-  try {
-    const { state } = await migrations.apply(raw);
-    assertValidAccountTreePayload(state);
-    return state;
-  } catch (error) {
-    if (error instanceof StructError) {
-      throw new Error(
-        `Invalid AccountTreePayload: ${formatValidationErrorMessages(error)}`,
-      );
-    }
-    throw error;
-  }
-}
+/** Current version of the {@link AccountTreePayload} format. */
+export const ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION = 1;

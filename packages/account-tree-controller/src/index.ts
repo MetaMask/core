@@ -68,8 +68,6 @@ export type {
 export {
   AccountTreePayloadStruct,
   assertValidAccountTreePayload,
-  migrate,
-  migrations,
 } from './state/payload.js';
 
 export { AccountTreeSnapshot } from './state/snapshot.js';

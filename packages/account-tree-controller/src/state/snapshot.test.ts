@@ -339,7 +339,10 @@ describe('AccountTreeSnapshot', () => {
 
   describe('deserialize', () => {
     it('deserializes a valid v1 payload into a snapshot', async () => {
-      const raw = { wallets: [MOCK_MNEMONIC_WALLET] };
+      const raw = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [MOCK_MNEMONIC_WALLET],
+      };
       const snapshot = await AccountTreeSnapshot.deserialize(raw);
       expect(snapshot.serialize().wallets).toHaveLength(1);
       expect(snapshot.serialize().wallets[0]?.id).toBe(
@@ -348,7 +351,10 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('returns a snapshot with no idMap (toLocalId returns undefined)', async () => {
-      const raw = { wallets: [MOCK_MNEMONIC_WALLET] };
+      const raw = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [MOCK_MNEMONIC_WALLET],
+      };
       const snapshot = await AccountTreeSnapshot.deserialize(raw);
       expect(snapshot.toLocalId('wallet:entropy-source-1')).toBeUndefined();
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBeUndefined();
@@ -357,17 +363,6 @@ describe('AccountTreeSnapshot', () => {
     it('throws for an invalid payload (missing wallets field)', async () => {
       await expect(AccountTreeSnapshot.deserialize({})).rejects.toThrow(
         'Invalid AccountTreePayload',
-      );
-    });
-
-    it('throws for a future version', async () => {
-      await expect(
-        AccountTreeSnapshot.deserialize({
-          version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1,
-          wallets: [],
-        }),
-      ).rejects.toThrow(
-        `State version ${ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION + 1} is newer than the latest migration version`,
       );
     });
 

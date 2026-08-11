@@ -9,7 +9,10 @@ import type {
   AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
 } from './payload.js';
-import { migrations, migrate } from './payload.js';
+import {
+  assertValidAccountTreePayload,
+  ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+} from './payload.js';
 
 /**
  * Recursively freezes a value and its nested properties.
@@ -218,7 +221,10 @@ export class AccountTreeSnapshot {
    * @returns The versioned flat payload.
    */
   serialize(): AccountTreePayload {
-    return { version: migrations.version, wallets: this.#entries };
+    return {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: this.#entries,
+    };
   }
 
   /**
@@ -238,7 +244,8 @@ export class AccountTreeSnapshot {
    * @throws If `raw` is not a valid payload or its version is unsupported.
    */
   static async deserialize(raw: unknown): Promise<AccountTreeSnapshot> {
-    const payload = await migrate(raw);
-    return new AccountTreeSnapshot(payload.wallets);
+    // TODO: Use migration framework here.
+    assertValidAccountTreePayload(raw);
+    return new AccountTreeSnapshot(raw.wallets);
   }
 }
