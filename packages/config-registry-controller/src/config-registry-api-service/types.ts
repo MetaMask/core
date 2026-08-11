@@ -55,7 +55,8 @@ const ChainConfigSchema = type({
 
 const NetworkContractsSchema = type({
   multicall3: optional(StrictHexStruct),
-  swapRouters: optional(array(StrictHexStruct)),
+  swapRouter: optional(StrictHexStruct),
+  weth: optional(StrictHexStruct),
 });
 
 /**
