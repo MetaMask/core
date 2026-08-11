@@ -406,6 +406,7 @@ describe('Wallet', () => {
         remoteFeatureFlags: {},
         localOverrides: {},
         rawRemoteFeatureFlags: {},
+        processedRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });
