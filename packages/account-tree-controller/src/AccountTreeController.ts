@@ -165,13 +165,6 @@ export class AccountTreeController extends BaseController<
 
   readonly #backupAndSyncConfig: AccountTreeControllerInternalBackupAndSyncConfig;
 
-  /**
-   * Callbacks to migrate hidden and pinned account information from the account order controller
-   */
-  readonly #accountOrderCallbacks:
-    | AccountTreeControllerConfig['accountOrderCallbacks']
-    | undefined;
-
   #initialized: boolean;
 
   /**
@@ -232,9 +225,6 @@ export class AccountTreeController extends BaseController<
         );
       },
     };
-
-    // Used when migrating initial hidden/pinned state for groups (if available).
-    this.#accountOrderCallbacks = config?.accountOrderCallbacks;
 
     // Initialize the backup and sync service
     this.#backupAndSyncService = new BackupAndSyncService(
@@ -677,9 +667,7 @@ export class AccountTreeController extends BaseController<
 
   /**
    * Applies group metadata updates (name, pinned, hidden flags) by checking
-   * the persistent state first, and then fallbacks to default values (based
-   * on the wallet's
-   * type).
+   * the persistent state first, and then falling back to default values.
    *
    * @param state Controller state to update for persistence.
    * @param walletId The wallet ID containing the group.
@@ -748,37 +736,21 @@ export class AccountTreeController extends BaseController<
     if (persistedGroupMetadata?.pinned?.value !== undefined) {
       group.metadata.pinned = persistedGroupMetadata.pinned.value;
     } else {
-      let isPinned = false;
-
-      if (this.#accountOrderCallbacks?.isPinnedAccount) {
-        isPinned = group.accounts.some((account) =>
-          this.#accountOrderCallbacks?.isPinnedAccount?.(account),
-        );
-      }
       state.accountGroupsMetadata[groupId].pinned = {
-        value: isPinned,
+        value: false,
         lastUpdatedAt: 0,
       };
-      // If any accounts was previously pinned, then we consider the group to be pinned as well.
-      group.metadata.pinned = isPinned;
+      group.metadata.pinned = false;
     }
 
     if (persistedGroupMetadata?.hidden?.value !== undefined) {
       group.metadata.hidden = persistedGroupMetadata.hidden.value;
     } else {
-      let isHidden = false;
-
-      if (this.#accountOrderCallbacks?.isHiddenAccount) {
-        isHidden = group.accounts.some((account) =>
-          this.#accountOrderCallbacks?.isHiddenAccount?.(account),
-        );
-      }
       state.accountGroupsMetadata[groupId].hidden = {
-        value: isHidden,
+        value: false,
         lastUpdatedAt: 0,
       };
-      // If any accounts was previously hidden, then we consider the group to be hidden as well.
-      group.metadata.hidden = isHidden;
+      group.metadata.hidden = false;
     }
 
     // Apply persisted lastSelected (plain number, not synced).

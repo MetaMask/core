@@ -1,6 +1,5 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
-  AccountId,
   AccountsControllerAccountsAddedEvent,
   AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetAccountAction,
@@ -178,10 +177,6 @@ export type AccountTreeControllerConfig = {
   trace?: TraceCallback;
   backupAndSync?: {
     onBackupAndSyncEvent?: (event: BackupAndSyncAnalyticsEventPayload) => void;
-  };
-  accountOrderCallbacks?: {
-    isHiddenAccount?: (accountId: AccountId) => boolean;
-    isPinnedAccount?: (accountId: AccountId) => boolean;
   };
 };
 

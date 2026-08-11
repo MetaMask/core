@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
 
+### Removed
+
+- **BREAKING:** Remove `AccountTreeControllerConfig.accountOrderCallbacks` and stop migrating pinned/hidden state from account-order callbacks
+
 ## [7.6.1]
 
 ### Changed
