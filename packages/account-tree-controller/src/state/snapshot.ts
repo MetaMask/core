@@ -75,6 +75,12 @@ export class AccountTreeSnapshot {
    * Removes the wallet if no groups remain after filtering — this prevents a
    * mnemonic wallet with zero selected groups from still transferring its secret.
    *
+   * **Mnemonic wallets:** group indices must remain contiguous starting at 0
+   * after filtering, because the payload schema enforces this invariant.
+   * Predicates that produce gaps (e.g. keeping only index 1, or 0 and 2) will
+   * cause {@link AccountTreeSnapshot.deserialize} to reject the payload on the
+   * receiving end.
+   *
    * @param walletId - Stable payload wallet ID to filter groups within.
    * @param predicate - Function called with each deeply read-only group entry.
    * @returns A filtered snapshot.
@@ -122,6 +128,9 @@ export class AccountTreeSnapshot {
    *
    * The parent wallet is provided as context to the predicate. Removes any
    * wallet with no remaining groups after filtering.
+   *
+   * **Mnemonic wallets:** see {@link filterGroups} for the contiguous-index
+   * constraint that applies here as well.
    *
    * @param predicate - Function called with each group and its parent wallet.
    * @returns A filtered snapshot.
