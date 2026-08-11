@@ -134,7 +134,7 @@ function findLocalWalletPrivateKey(
  * @param group - The payload group entry to check.
  * @returns Whether the group's account is already tracked locally.
  */
-function hasLocalPrivateKeyGroup(
+function hasLocalGroupPrivateKey(
   localWallet: AccountWalletKeyringObject | undefined,
   group: AccountWalletPrivateKeyGroupEntry,
 ): boolean {
@@ -316,7 +316,7 @@ async function importPrivateKeyWallet(
     supportedGroups.push(group);
 
     if (
-      !hasLocalPrivateKeyGroup(localWallet, group) &&
+      !hasLocalGroupPrivateKey(localWallet, group) &&
       group.value !== undefined
     ) {
       missingGroups.push(group);
