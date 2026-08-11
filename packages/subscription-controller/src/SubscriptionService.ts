@@ -569,7 +569,7 @@ export class SubscriptionService extends BaseDataService<
           requestParams as Json,
         ],
         staleTime: 0,
-        cacheTime: 0,
+        gcTime: 0,
         queryFn: async () => {
           const response = await this.#fetch(url.toString(), {
             method,
