@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1187.0.0 ([#9823](https://github.com/MetaMask/core/pull/9823))
-- Release 1182.0.0 ([#9798](https://github.com/MetaMask/core/pull/9798))
-
-## [11.0.0]
-
 ### Added
 
 - **BREAKING:** Add trigger placement order types to `OrderType`: `stop_market`, `stop_limit`, `take_profit_market`, and `take_profit_limit`, placeable through `placeOrder` alongside the existing `market` and `limit` types ([#9674](https://github.com/MetaMask/core/pull/9674))
@@ -648,8 +641,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...HEAD
-[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@10.0.0...@metamask/perps-controller@11.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@10.0.0...HEAD
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.3.0...@metamask/perps-controller@10.0.0
 [9.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...@metamask/perps-controller@9.3.0
 [9.2.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.0...@metamask/perps-controller@9.2.1
