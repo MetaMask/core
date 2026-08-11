@@ -240,7 +240,10 @@ const pickStrategyParams = (
  *
  * - a `scale` ladder sends `scaleNumOrders` independent limit orders, so every
  *   rung has to clear the per-order minimum on its own — a $50 ladder over 20
- *   rungs is twenty $2.50 orders, every one of them rejected;
+ *   rungs is twenty $2.50 orders, every one of them rejected. The rungs rest
+ *   across the ladder rather than at spot, so it is the rung at `scaleMinPrice`
+ *   that decides whether the venue takes the ladder: a buy ladder sitting below
+ *   the market is worth less per rung than its spot-priced notional suggests;
  * - a `twap` is a single instruction the venue slices itself, so it is bounded
  *   by the venue's own documented minimum for a TWAP rather than by the
  *   per-order minimum;
@@ -253,6 +256,8 @@ const pickStrategyParams = (
  * @param params - Notional parameters.
  * @param params.orderType - The order placement type.
  * @param params.orderValueUSD - Total notional of the placement, in USD.
+ * @param params.totalSize - Total size of the placement, in base units.
+ * @param params.scaleMinPrice - Lowest rung price, for a scale placement.
  * @param params.scaleNumOrders - Number of rungs, for a scale placement.
  * @param params.minimumOrderSize - The venue's per-order minimum, in USD.
  * @returns Validation result with isValid flag and optional error message.
@@ -260,10 +265,19 @@ const pickStrategyParams = (
 const validateStrategyNotional = (params: {
   orderType?: OrderType;
   orderValueUSD: number;
+  totalSize: number;
+  scaleMinPrice?: string;
   scaleNumOrders?: number;
   minimumOrderSize: number;
 }): { isValid: boolean; error?: string } => {
-  const { orderType, orderValueUSD, scaleNumOrders, minimumOrderSize } = params;
+  const {
+    orderType,
+    orderValueUSD,
+    totalSize,
+    scaleMinPrice,
+    scaleNumOrders,
+    minimumOrderSize,
+  } = params;
 
   if (orderType === 'twap') {
     return orderValueUSD < HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
@@ -275,7 +289,17 @@ const validateStrategyNotional = (params: {
   }
 
   if (orderType === 'scale' && scaleNumOrders) {
-    return orderValueUSD / scaleNumOrders < minimumOrderSize
+    // Every rung carries the same slice bar rounding, so the cheapest rung is
+    // the one priced at `scaleMinPrice`. Falls back to the spot-priced average
+    // only when the ladder's lower bound is not usable, which validation has
+    // already rejected by the time a placement reaches the exchange.
+    const lowestRungPrice = parseFloat(scaleMinPrice ?? '');
+    const smallestRungNotional =
+      Number.isFinite(lowestRungPrice) && lowestRungPrice > 0 && totalSize > 0
+        ? (totalSize / scaleNumOrders) * lowestRungPrice
+        : orderValueUSD / scaleNumOrders;
+
+    return smallestRungNotional < minimumOrderSize
       ? {
           isValid: false,
           error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
@@ -4502,6 +4526,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           sessionId,
           error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
         });
+        this.#recoverFailedChaseTick(sessionId);
       });
     }, session.intervalMs);
 
@@ -4510,6 +4535,41 @@ export class HyperLiquidProvider implements PerpsProvider {
     // no `unref`, hence the guard.
     timer.unref?.();
     session.timer = timer;
+  }
+
+  /**
+   * Decide what a session does after one of its ticks threw.
+   *
+   * Two outcomes, told apart by whether the session still owns a resting order:
+   *
+   * - It does — the failure was a book read or a refused cancel, and the order
+   *   is untouched. The chase keeps going; the deadline check at the top of the
+   *   next tick ends it if the window has since closed. Letting a transient
+   *   error end the chase would strand a live order under a session that still
+   *   claimed to be re-pricing it.
+   * - It does not — the tick cancelled the order and then failed to rest its
+   *   replacement, so nothing is on the book. There is nothing left to chase and
+   *   nothing left to cancel, so the session ends here. Leaving it `active` would
+   *   report a live chase with no timer, and every later cancel would try to
+   *   cancel the dead order and keep the handle forever.
+   *
+   * @param sessionId - Session whose tick failed.
+   */
+  #recoverFailedChaseTick(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    if (session.orderId === null) {
+      session.active = false;
+      this.#deps.debugLogger.log('Chase ended with nothing resting', {
+        sessionId,
+      });
+      return;
+    }
+
+    this.#scheduleChaseTick(sessionId);
   }
 
   /**
@@ -4560,6 +4620,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       if (cancelled) {
+        // The old order is off the book, so the session owns nothing until the
+        // replacement rests. Recorded before the attempt, not after: if
+        // `#restChaseOrder` throws, the session must not be left pointing at an
+        // order ID that no longer exists.
+        session.orderId = null;
         session.orderId = await this.#restChaseOrder({
           assetId: session.assetId,
           isBuy: session.isBuy,
@@ -8559,6 +8624,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         const strategyMinimum = validateStrategyNotional({
           orderType: params.orderType,
           orderValueUSD,
+          // Derived from the same notional the minimum above was checked
+          // against, so the two cannot disagree when `usdAmount` and `size`
+          // were computed against different prices.
+          totalSize: params.currentPrice
+            ? orderValueUSD / params.currentPrice
+            : parseFloat(params.size || '0'),
+          scaleMinPrice: params.scaleMinPrice,
           scaleNumOrders: params.scaleNumOrders,
           minimumOrderSize,
         });

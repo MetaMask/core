@@ -1634,4 +1634,153 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({ isValid: true });
     });
   });
+
+  describe('Chase tick failures', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const rested = (oid: number): Record<string, unknown> => ({
+      status: 'ok',
+      response: { data: { statuses: [{ resting: { oid } }] } },
+    });
+
+    const bookAt = (bid: string): Record<string, unknown> => ({
+      coin: 'ETH',
+      levels: [[{ px: bid, sz: '10', n: 1 }], [{ px: '3001', sz: '10', n: 1 }]],
+    });
+
+    it('keeps chasing when a book read fails, leaving the order resting', async () => {
+      const order = jest.fn().mockResolvedValue(rested(55));
+      const l2Book = jest
+        .fn()
+        .mockResolvedValueOnce(bookAt('2999'))
+        .mockRejectedValueOnce(new Error('network blip'))
+        .mockResolvedValue(bookAt('2998'));
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      // Tick 1 throws on the book read; tick 2 must still happen and re-price.
+      await jest.advanceTimersByTimeAsync(2000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 55 }],
+      });
+
+      // The session survived the transient failure, so its handle still works.
+      const cancelled = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(cancelled.success).toBe(true);
+    });
+
+    it('ends the session cleanly when the replacement fails to rest', async () => {
+      // The old order is cancelled and the re-place throws: nothing is on the
+      // book, so the session must not keep claiming to hold a resting order.
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(rested(55))
+        .mockRejectedValue(new Error('insufficient margin'));
+      const l2Book = jest
+        .fn()
+        .mockResolvedValueOnce(bookAt('2999'))
+        .mockResolvedValue(bookAt('2998'));
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      // Two attempts: the original placement and the failed replacement. No
+      // further ticks ran, so the session stopped rather than looping.
+      expect(order).toHaveBeenCalledTimes(2);
+
+      // Cancelling reports success and releases the handle, because there is
+      // genuinely nothing left resting — it does not report an incomplete
+      // cancel forever against the dead order id.
+      const first = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(first).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+
+      // The handle is released, so a second cancel finds nothing.
+      const second = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(second.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      );
+    });
+  });
+
+  describe('Scale notional is bounded by the cheapest rung', () => {
+    it('rejects a ladder resting below spot whose rungs fall short', async () => {
+      useStrategyClients();
+
+      // $220 over 20 rungs is $11 a rung at spot (3000) — above the $10
+      // minimum — but the rungs rest at 1000..1200, where the cheapest is
+      // worth about $3.67. The venue would reject it.
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        size: '0.0733',
+        usdAmount: '220',
+        orderType: 'scale',
+        scaleMinPrice: '1000',
+        scaleMaxPrice: '1200',
+        scaleNumOrders: 20,
+      } as OrderParams);
+
+      expect(result).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+      });
+    });
+
+    it('accepts a ladder whose cheapest rung clears the minimum', async () => {
+      useStrategyClients();
+
+      // Same ladder, sized so the rung at 1000 is worth $10.
+      const result = await provider.validateOrder({
+        ...baseOrder,
+        size: '0.2',
+        usdAmount: '600',
+        orderType: 'scale',
+        scaleMinPrice: '1000',
+        scaleMaxPrice: '1200',
+        scaleNumOrders: 20,
+      } as OrderParams);
+
+      expect(result).toStrictEqual({ isValid: true });
+    });
+  });
 });
