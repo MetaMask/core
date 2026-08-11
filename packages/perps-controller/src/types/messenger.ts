@@ -1,4 +1,3 @@
-import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
@@ -11,6 +10,7 @@ import type {
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
 } from '@metamask/authenticated-user-storage';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type {
   KeyringControllerGetStateAction,
