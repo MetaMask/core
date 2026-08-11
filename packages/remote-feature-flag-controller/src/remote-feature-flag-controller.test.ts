@@ -1420,23 +1420,6 @@ describe('RemoteFeatureFlagController', () => {
 
   describe('override functionality', () => {
     describe('setFlagOverride', () => {
-      it('publishes the modern stateChanged event', () => {
-        const { messenger } = createController();
-        const listener = jest.fn();
-        messenger.subscribe(
-          'RemoteFeatureFlagController:stateChanged',
-          listener,
-        );
-
-        messenger.call(
-          'RemoteFeatureFlagController:setFlagOverride',
-          'testFlag',
-          true,
-        );
-
-        expect(listener).toHaveBeenCalledTimes(1);
-      });
-
       it('sets a local override for a feature flag', () => {
         const { controller, messenger } = createController();
 

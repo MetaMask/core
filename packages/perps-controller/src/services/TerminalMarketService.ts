@@ -38,8 +38,6 @@ const GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES = 1_048_576;
 const GLOBAL_SNAPSHOT_PERCENT_TOLERANCE = 0.01;
 const GLOBAL_SNAPSHOT_OPEN_INTEREST_RELATIVE_TOLERANCE = 0.0001;
 const MINIMUM_EPOCH_MILLISECONDS = Date.UTC(2000, 0, 1);
-const MINIMUM_TREND_INTERVAL_MS = 30 * 60 * 1000;
-const MAXIMUM_TREND_INTERVAL_MS = 2 * 60 * 60 * 1000;
 const DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const DEX_PATTERN = /^(?:main|[a-z0-9][a-z0-9-]*)$/u;
@@ -605,20 +603,13 @@ export class TerminalMarketService {
         throw invalid(field);
       }
     }
-    if (market.trend.length < 2) {
-      throw invalid('trend');
-    }
     let previousTrendTimestamp = -1;
     for (const [timestamp, price] of market.trend) {
-      const interval = timestamp - previousTrendTimestamp;
       if (
         !this.#isNonNegativeSafeInteger(timestamp) ||
         timestamp < MINIMUM_EPOCH_MILLISECONDS ||
         timestamp > generatedAt ||
         timestamp <= previousTrendTimestamp ||
-        (previousTrendTimestamp >= 0 &&
-          (interval < MINIMUM_TREND_INTERVAL_MS ||
-            interval > MAXIMUM_TREND_INTERVAL_MS)) ||
         !NON_NEGATIVE_DECIMAL_PATTERN.test(price) ||
         !Number.isFinite(Number(price)) ||
         Number(price) <= 0
@@ -626,9 +617,6 @@ export class TerminalMarketService {
         throw invalid('trend');
       }
       previousTrendTimestamp = timestamp;
-    }
-    if (generatedAt - previousTrendTimestamp > MAXIMUM_TREND_INTERVAL_MS) {
-      throw invalid('trend');
     }
   }
 

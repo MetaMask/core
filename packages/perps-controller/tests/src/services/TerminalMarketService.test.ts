@@ -664,35 +664,6 @@ describe('TerminalMarketService', () => {
           markets: [createSnapshotMarket({ listedAt: 1_700_000_000 })],
         }),
       ],
-      [
-        'empty trend',
-        createGlobalSnapshot({
-          markets: [createSnapshotMarket({ trend: [] })],
-        }),
-      ],
-      [
-        'single-point trend',
-        createGlobalSnapshot({
-          markets: [
-            createSnapshotMarket({
-              trend: [[SNAPSHOT_NOW - 1_000, '50000']],
-            }),
-          ],
-        }),
-      ],
-      [
-        'irregular trend cadence',
-        createGlobalSnapshot({
-          markets: [
-            createSnapshotMarket({
-              trend: [
-                [SNAPSHOT_NOW - 10_800_000, '49000'],
-                [SNAPSHOT_NOW - 1_000, '50000'],
-              ],
-            }),
-          ],
-        }),
-      ],
     ])('rejects %s', async (_name, snapshot) => {
       jest
         .spyOn(globalThis, 'fetch')
@@ -705,6 +676,34 @@ describe('TerminalMarketService', () => {
           enabledDexes: ['main'],
         }),
       ).rejects.toThrow('Terminal global snapshot');
+    });
+
+    it.each([
+      ['empty', []],
+      ['single-point', [[SNAPSHOT_NOW - 1_000, '50000']]],
+      [
+        'irregular or stale',
+        [
+          [SNAPSHOT_NOW - 10_800_000, '49000'],
+          [SNAPSHOT_NOW - 1_000, '50000'],
+        ],
+      ],
+    ])('accepts %s optional trend data', async (_name, trend) => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [createSnapshotMarket({ trend })],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+
+      expect(result).toMatchObject({ markets: [{ trend }] });
     });
 
     it('rejects a response larger than the snapshot payload limit', async () => {
@@ -795,17 +794,6 @@ describe('TerminalMarketService', () => {
         [createSnapshotMarket({ openInterestBase: '-1' })],
       ],
       ['empty non-null name', [createSnapshotMarket({ name: '' })]],
-      [
-        'trend older than its maximum cadence',
-        [
-          createSnapshotMarket({
-            trend: [
-              [SNAPSHOT_NOW - 4 * 60 * 60 * 1000, '100'],
-              [SNAPSHOT_NOW - 3 * 60 * 60 * 1000, '101'],
-            ],
-          }),
-        ],
-      ],
       ['delisted-only data', [createSnapshotMarket({ isDelisted: true })]],
       [
         'enabled DEX with only delisted data',

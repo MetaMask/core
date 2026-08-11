@@ -4064,10 +4064,8 @@ export class PerpsController extends BaseController<
     }
 
     const userAddress = evmAccount.address;
-    const activeProvider = this.state.activeProvider;
-    const activeProviderInstance = this.activeProviderInstance;
-    const isTestnet = this.state.isTestnet;
-    const hip3ConfigVersion = this.state.hip3ConfigVersion;
+    const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
+    const { activeProviderInstance } = this;
     const hyperliquidDexes = this.#getStaticSnapshotDexes();
     const isCurrent = (): boolean => {
       let currentAddress: string | undefined;

@@ -37,7 +37,11 @@ export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
 };
 
 /**
- * Fetch, validate, and cache a complete user-data snapshot.
+ * Fetch, validate, and atomically cache a complete user-data snapshot.
+ * This remains callable after mount so consumers can seed their live channel
+ * from one coherent positions/orders/account result.
+ *
+ * @returns The accepted user-data snapshot.
  */
 export type PerpsControllerGetUserDataSnapshotAction = {
   type: `PerpsController:getUserDataSnapshot`;

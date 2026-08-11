@@ -1,3 +1,4 @@
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
@@ -24,9 +25,14 @@ import type {
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
-  RemoteFeatureFlagControllerStateChangedEvent,
+  RemoteFeatureFlagControllerState,
 } from '@metamask/remote-feature-flag-controller';
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
+
+type RemoteFeatureFlagControllerStateChangedEvent = ControllerStateChangedEvent<
+  'RemoteFeatureFlagController',
+  RemoteFeatureFlagControllerState
+>;
 
 /**
  * Actions from other controllers that PerpsController is allowed to call.

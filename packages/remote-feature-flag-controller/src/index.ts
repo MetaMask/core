@@ -6,7 +6,6 @@ export type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerEvents,
   RemoteFeatureFlagControllerStateChangeEvent,
-  RemoteFeatureFlagControllerStateChangedEvent,
 } from './remote-feature-flag-controller.js';
 export type {
   RemoteFeatureFlagControllerClearAllFlagOverridesAction,

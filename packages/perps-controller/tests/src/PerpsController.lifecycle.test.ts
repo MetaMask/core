@@ -579,7 +579,7 @@ describe('PerpsController', () => {
       expect(controller.state.isTestnet).toBe(false); // Default to mainnet
     });
 
-    it('reads current RemoteFeatureFlagController state during construction', () => {
+    it('reads current RemoteFeatureFlagController state during initialization', async () => {
       // Given: A messenger that returns remote feature flags state
       const testMockCall = jest.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
@@ -595,12 +595,13 @@ describe('PerpsController', () => {
       });
       const testMessenger = createMockMessenger({ call: testMockCall });
 
-      // When: Controller is constructed
+      // When: Controller is constructed and initialized
       const testController = new TestablePerpsController({
         messenger: testMessenger,
         state: getDefaultPerpsControllerState(),
         infrastructure: createMockInfrastructure(),
       });
+      await testController.init();
 
       // Then: Should have called to get RemoteFeatureFlagController state via messenger
       expect(testController).toBeDefined();
@@ -609,7 +610,7 @@ describe('PerpsController', () => {
       );
     });
 
-    it('applies remote blocked regions when available during construction', () => {
+    it('applies remote blocked regions when available during initialization', async () => {
       // Given: Messenger that returns remote feature flags with blocked regions
       const testMockCall = jest.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
@@ -624,7 +625,7 @@ describe('PerpsController', () => {
         return undefined;
       });
 
-      // When: Controller is constructed
+      // When: Controller is constructed and initialized
       const testController = new TestablePerpsController({
         messenger: createMockMessenger({ call: testMockCall }),
         state: getDefaultPerpsControllerState(),
@@ -633,6 +634,7 @@ describe('PerpsController', () => {
           fallbackBlockedRegions: ['FALLBACK-REGION'],
         },
       });
+      await testController.init();
 
       // Then: Should have used remote regions (not fallback)
       // Verify by checking the internal blockedRegionList
@@ -668,7 +670,7 @@ describe('PerpsController', () => {
       expect(blockedRegionList.list).toEqual(['FALLBACK-US', 'FALLBACK-CA']);
     });
 
-    it('never downgrade from remote to fallback regions', () => {
+    it('never downgrade from remote to fallback regions', async () => {
       // Given: Messenger that returns remote feature flags with blocked regions
       const testMockCall = jest.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
@@ -683,7 +685,7 @@ describe('PerpsController', () => {
         return undefined;
       });
 
-      // When: Controller is constructed with both remote and fallback
+      // When: Controller is constructed and initialized with both remote and fallback
       const testController = new TestablePerpsController({
         messenger: createMockMessenger({ call: testMockCall }),
         state: getDefaultPerpsControllerState(),
@@ -692,6 +694,7 @@ describe('PerpsController', () => {
           fallbackBlockedRegions: ['FALLBACK-US'],
         },
       });
+      await testController.init();
 
       // Then: Should use remote (set after fallback)
       let blockedRegionList = testController.testGetBlockedRegionList();
@@ -707,7 +710,7 @@ describe('PerpsController', () => {
       expect(blockedRegionList.list).toEqual(['REMOTE-US']);
     });
 
-    it('continues initialization when RemoteFeatureFlagController state call throws error', () => {
+    it('continues initialization when RemoteFeatureFlagController state call throws error', async () => {
       const testInfrastructure = createMockInfrastructure();
       const testMockCall = jest.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
@@ -724,6 +727,7 @@ describe('PerpsController', () => {
           fallbackBlockedRegions: ['FALLBACK-US', 'FALLBACK-CA'],
         },
       });
+      await testController.init();
 
       expect(testController).toBeDefined();
       const blockedRegionList = testController.testGetBlockedRegionList();
@@ -738,7 +742,7 @@ describe('PerpsController', () => {
           context: expect.objectContaining({
             name: 'PerpsController',
             data: expect.objectContaining({
-              method: 'constructor',
+              method: 'init',
               operation: 'readRemoteFeatureFlags',
             }),
           }),
