@@ -420,11 +420,13 @@ async function saveOrdersToUserStorage(
  *
  * @param order - The order that was updated locally.
  * @param options - Parameters used for syncing operations.
+ * @param config - Optional sync callbacks for error reporting.
  * @returns Resolves when the remote update completes or no-ops.
  */
 export async function updateOrderInRemoteStorage(
   order: RampsOrder,
   options: OrderSyncingOptions,
+  config: SyncOrdersWithUserStorageConfig = {},
 ): Promise<void> {
   const { trace } = options;
 
@@ -438,7 +440,7 @@ export async function updateOrderInRemoteStorage(
       lastUpdatedAt: Date.now(),
     };
 
-    await saveOrdersToUserStorage([updatedEntry], options);
+    await saveOrdersToUserStorage([updatedEntry], options, config);
   };
 
   if (trace) {
@@ -462,11 +464,13 @@ export async function updateOrderInRemoteStorage(
  *
  * @param order - The order that was deleted locally (needs id / providerOrderId).
  * @param options - Parameters used for syncing operations.
+ * @param config - Optional sync callbacks for error reporting.
  * @returns Resolves when the remote soft-delete completes or no-ops.
  */
 export async function deleteOrderInRemoteStorage(
   order: RampsOrder,
   options: OrderSyncingOptions,
+  config: SyncOrdersWithUserStorageConfig = {},
 ): Promise<void> {
   const { trace } = options;
 
@@ -482,7 +486,7 @@ export async function deleteOrderInRemoteStorage(
       lastUpdatedAt: now,
     };
 
-    await saveOrdersToUserStorage([deletedOrder], options);
+    await saveOrdersToUserStorage([deletedOrder], options, config);
   };
 
   return trace

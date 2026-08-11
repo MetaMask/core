@@ -47,7 +47,12 @@ type RootMessenger = Messenger<
   MessengerEvents<RampsControllerMessenger>
 >;
 
-function setupControllerWithOrderSyncingMocks(): {
+function setupControllerWithOrderSyncingMocks(args?: {
+  onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+}): {
   controller: RampsController;
   performBatchSetStorage: jest.Mock;
   performGetStorageAllFeatureEntries: jest.Mock;
@@ -94,7 +99,10 @@ function setupControllerWithOrderSyncingMocks(): {
     ],
   });
 
-  const controller = new RampsController({ messenger });
+  const controller = new RampsController({
+    messenger,
+    onOrderSyncErroneousSituation: args?.onOrderSyncErroneousSituation,
+  });
 
   return {
     controller,
@@ -147,9 +155,10 @@ describe('RampsController order syncing', () => {
     );
   });
 
-  it('logs incremental addOrder remote sync failures without throwing', async () => {
+  it('reports incremental addOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
+    const onOrderSyncErroneousSituation = jest.fn();
     const { controller, performBatchSetStorage } =
-      setupControllerWithOrderSyncingMocks();
+      setupControllerWithOrderSyncingMocks({ onOrderSyncErroneousSituation });
     const consoleErrorSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
@@ -166,11 +175,16 @@ describe('RampsController order syncing', () => {
       'Error updating ramps order in remote storage:',
       expect.any(Error),
     );
+    expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
+      'Error updating ramps order in remote storage',
+      expect.objectContaining({ error: expect.any(Error) }),
+    );
   });
 
-  it('logs incremental removeOrder remote sync failures without throwing', async () => {
+  it('reports incremental removeOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
+    const onOrderSyncErroneousSituation = jest.fn();
     const { controller, performBatchSetStorage } =
-      setupControllerWithOrderSyncingMocks();
+      setupControllerWithOrderSyncingMocks({ onOrderSyncErroneousSituation });
     const consoleErrorSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
@@ -188,6 +202,10 @@ describe('RampsController order syncing', () => {
       'Error deleting ramps order from remote storage:',
       expect.any(Error),
     );
+    expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
+      'Error deleting ramps order from remote storage',
+      expect.objectContaining({ error: expect.any(Error) }),
+    );
   });
 
   it('skips incremental remote writes while full sync is in progress', async () => {
@@ -202,6 +220,59 @@ describe('RampsController order syncing', () => {
     });
 
     expect(performBatchSetStorage).not.toHaveBeenCalled();
+  });
+
+  it('re-runs sync when local orders change during remote upload', async () => {
+    const {
+      controller,
+      performBatchSetStorage,
+      performGetStorageAllFeatureEntries,
+    } = setupControllerWithOrderSyncingMocks();
+
+    controller.addOrder(
+      createMockOrder({
+        providerOrderId: 'seed-order',
+        id: '/providers/transak/orders/seed-order',
+      }),
+    );
+    performBatchSetStorage.mockClear();
+    performGetStorageAllFeatureEntries.mockResolvedValue([]);
+
+    let releaseFirstUpload: (() => void) | undefined;
+    const firstUploadGate = new Promise<void>((resolve) => {
+      releaseFirstUpload = resolve;
+    });
+    let uploadCount = 0;
+
+    performBatchSetStorage.mockImplementation(async () => {
+      uploadCount += 1;
+      if (uploadCount === 1) {
+        controller.addOrder(
+          createMockOrder({
+            providerOrderId: 'during-upload',
+            id: '/providers/transak/orders/during-upload',
+          }),
+        );
+        await firstUploadGate;
+      }
+    });
+
+    const syncPromise = controller.syncOrdersWithUserStorage();
+
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    expect(uploadCount).toBe(1);
+    releaseFirstUpload?.();
+    await syncPromise;
+
+    expect(uploadCount).toBeGreaterThanOrEqual(2);
+    expect(performBatchSetStorage).toHaveBeenCalledWith(
+      'rampsOrders',
+      expect.arrayContaining([
+        expect.arrayContaining(['during-upload', expect.any(String)]),
+      ]),
+    );
   });
 
   it('queues mid-sync deletes and drains them after sync', async () => {
