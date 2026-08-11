@@ -1,4 +1,5 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
+import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import {
@@ -186,7 +187,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(4);
+    expect(results).toHaveLength(5);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -437,6 +438,17 @@ describe('Wallet', () => {
         messenger.call('RemoteFeatureFlagController:getState')
           .remoteFeatureFlags,
       ).toStrictEqual({ testFlag: true });
+    });
+  });
+
+  describe('ClaimsController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('ClaimsController:getState')).toStrictEqual(
+        getDefaultClaimsControllerState(),
+      );
     });
   });
 });

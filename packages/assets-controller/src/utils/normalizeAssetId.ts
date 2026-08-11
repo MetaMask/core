@@ -37,6 +37,23 @@ export const normalizeAssetId: ((assetId: Caip19AssetId) => Caip19AssetId) &
 });
 
 /**
+ * Normalize a CAIP-19 asset ID, returning the original on failure. Some
+ * malformed IDs (e.g. an asset reference that fails address checksumming)
+ * make {@link normalizeAssetId} throw; callers processing untrusted input
+ * use this so one bad ID cannot abort a whole batch.
+ *
+ * @param assetId - The CAIP-19 asset ID to normalize.
+ * @returns The normalized ID, or the original on failure.
+ */
+export function safeNormalizeAssetId(assetId: Caip19AssetId): Caip19AssetId {
+  try {
+    return normalizeAssetId(assetId);
+  } catch {
+    return assetId;
+  }
+}
+
+/**
  * Clears the {@link normalizeAssetId} memoize cache. Exported for unit tests.
  */
 export function clearNormalizeAssetIdCacheForTesting(): void {
