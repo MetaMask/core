@@ -39,15 +39,15 @@ import type {
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
 import {
-  PENDING_ORDER_STATUSES,
-  TERMINAL_ORDER_STATUSES,
-} from './orderStatus.js';
-import {
   deleteOrderInRemoteStorage,
   syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
   updateOrderInRemoteStorage,
 } from './order-syncing/index.js';
 import type { SyncRampsOrder } from './order-syncing/types.js';
+import {
+  PENDING_ORDER_STATUSES,
+  TERMINAL_ORDER_STATUSES,
+} from './orderStatus.js';
 import { buildOwnershipMessage } from './ownership-message.js';
 import {
   mergePaymentMethodsById,
@@ -1114,7 +1114,6 @@ export class RampsController extends BaseController<
    */
   readonly #requestCacheMaxSize: number;
 
-  /**
   readonly #onOrderSyncErroneousSituation?: (
     errorMessage: string,
     sentryContext?: Record<string, unknown>,
@@ -3011,12 +3010,15 @@ export class RampsController extends BaseController<
     const incomingLastUpdatedAt = order.lastUpdatedAt;
     // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
     // over stale remote copies when an incremental push was skipped/failed.
-    // During full sync, preserve remote `lu` / `createdAt` (never invent "now"
-    // for missing `lu`, or stale remotes win later LWW comparisons).
+    // This includes external edits mid-sync (e.g. polling via `getOrder`),
+    // which the queued follow-up sync must not lose under LWW.
+    // Only when sync applies its own imported orders do we preserve the remote
+    // `lu` / `createdAt` (never invent "now" for missing `lu`, or stale remotes
+    // win later LWW comparisons).
     const healedOrder: SyncRampsOrder = {
       ...order,
       providerOrderId: internalOrderCode,
-      lastUpdatedAt: this.#isOrderSyncingInProgress
+      lastUpdatedAt: this.#isApplyingOrderSyncChanges
         ? (incomingLastUpdatedAt ?? order.createdAt ?? 0)
         : Date.now(),
     };
