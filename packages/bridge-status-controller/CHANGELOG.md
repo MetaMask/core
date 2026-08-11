@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Include `usd_amount_source` value in QuotesReceived MixPanel event properties ([#9828](https://github.com/MetaMask/core/pull/9828))
 - Include quote's `slippage` value in post-submission MixPanel event properties ([#9786](https://github.com/MetaMask/core/pull/9786))
 
 ## [75.0.0]
