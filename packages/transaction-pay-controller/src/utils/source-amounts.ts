@@ -210,8 +210,6 @@ function calculateSourceAmount(
   }
 
   const resolvedSourceAmount = resolveSourceAmount?.({
-    token,
-    paymentToken,
     isMaxAmount,
     paymentOverride,
   });

@@ -220,14 +220,8 @@ export type ResolveSourceAmountRequest = {
   /** Whether the user selected the maximum amount. */
   isMaxAmount: boolean;
 
-  /** Selected payment (source) token. */
-  paymentToken: TransactionPaymentToken;
-
   /** Optional payment source override for the transaction. */
   paymentOverride?: PaymentOverride;
-
-  /** Required (target) token to be covered. */
-  token: TransactionPayRequiredToken;
 };
 
 /** Response returned by {@link ResolveSourceAmountCallback}. */

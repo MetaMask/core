@@ -325,8 +325,6 @@ describe('Source Amounts Utils', () => {
       );
 
       expect(resolveSourceAmount).toHaveBeenCalledWith({
-        token: transactionData.tokens[0],
-        paymentToken: PAYMENT_TOKEN_MOCK,
         isMaxAmount: true,
         paymentOverride: PaymentOverride.MoneyAccount,
       });
