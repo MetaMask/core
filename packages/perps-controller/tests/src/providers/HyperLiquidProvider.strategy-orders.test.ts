@@ -10,6 +10,7 @@ import type {
   PerpsPlatformDependencies,
   OrderParams,
 } from '../../../src/types/index.js';
+import type { OrderType } from '../../../src/types/perps-types.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -1873,5 +1874,230 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result).toStrictEqual({ isValid: true });
     });
+  });
+
+  describe('A cancel refused because the order already left the book', () => {
+    // HyperLiquid answers a cancel it cannot match with this message. It is a
+    // rejection of the request but a confirmation of what the caller wanted.
+    const alreadyGone = {
+      status: 'ok',
+      response: {
+        data: {
+          statuses: [
+            { error: 'Order was never placed, already canceled, or filled.' },
+          ],
+        },
+      },
+    };
+
+    it('completes a chase cancel whose child had already filled', async () => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+          cancel: jest.fn().mockResolvedValue(alreadyGone),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      // Nothing of the chase rests, so the cancel succeeded and the handle is
+      // released rather than pinned open on a filled order forever.
+      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+
+      const second = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(second.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      );
+    });
+
+    it('completes a scale cancel when one rung had already filled', async () => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { resting: { oid: 11 } },
+                  { resting: { oid: 22 } },
+                  { resting: { oid: 33 } },
+                ],
+              },
+            },
+          }),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  'success',
+                  {
+                    error:
+                      'Order was never placed, already canceled, or filled.',
+                  },
+                  'success',
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } as OrderParams);
+
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+
+      const second = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+      expect(second.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      );
+    });
+
+    it('still reports a genuinely refused cancel as incomplete', async () => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      // The order is still on the book, so the handle must survive for a retry.
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+      );
+    });
+  });
+
+  describe('Chase reprice when the exchange refuses the cancel', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('leaves the old order alone and retries on the next tick', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      const cancel = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: ['success'] } },
+        });
+
+      useStrategyClients({
+        exchange: { order, cancel },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      // Tick 1's cancel is refused, so no replacement may be placed — doing so
+      // would double the position while the old order still rests.
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(order).toHaveBeenCalledTimes(1);
+
+      // Tick 2 retries and succeeds, so the chase resumes rather than ending.
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(order).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('editOrder rejects strategy placements', () => {
+    it.each(['twap', 'scale', 'chase'] as OrderType[])(
+      'refuses to modify an order into a %s',
+      async (orderType) => {
+        const { exchangeClient } = useStrategyClients();
+
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: { ...baseOrder, orderType } as OrderParams,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
+        });
+        expect(exchangeClient.modify).not.toHaveBeenCalled();
+      },
+    );
   });
 });

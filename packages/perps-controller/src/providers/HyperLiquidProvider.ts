@@ -210,6 +210,53 @@ const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
 
 /**
+ * Exchange messages that mean a cancel was refused because the order is not on
+ * the book any more.
+ *
+ * HyperLiquid answers a cancel it cannot match with "Order was never placed,
+ * already canceled, or filled." That is a rejection of the request but a
+ * confirmation of what the caller wanted — nothing of that order is resting.
+ * Every other rejection (multi-sig, a stale nonce, a rate limit) leaves the
+ * order exactly where it was, which is a materially different outcome.
+ */
+const ALREADY_GONE_CANCEL_MARKERS = [
+  'never placed',
+  'already canceled',
+  'already cancelled',
+  'order not found',
+];
+
+/**
+ * What happened to one order a cancel was asked to remove.
+ *
+ * `cancelled` and `gone` both mean nothing of it is resting, which is all a
+ * caller asked for; only `refused` leaves an order behind.
+ */
+type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
+
+/**
+ * Classify one entry of a cancel response.
+ *
+ * @param status - A single status from the exchange's cancel response.
+ * @returns Whether the order was cancelled, was already gone, or still rests.
+ */
+const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
+  if (status === 'success') {
+    return 'cancelled';
+  }
+
+  const message = (
+    isStatusObject(status) && typeof status.error === 'string'
+      ? status.error
+      : ''
+  ).toLowerCase();
+
+  return ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker))
+    ? 'gone'
+    : 'refused';
+};
+
+/**
  * Narrow order params down to their strategy fields.
  *
  * Both validation entry points forward exactly this group, so a field added to
@@ -4617,7 +4664,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (touchPrice !== session.restingPrice && session.orderId) {
-      const cancelled = await this.#cancelChaseChild(session);
+      const outcome = await this.#cancelChaseChild(session);
 
       // The cancel is a second round trip, and this is the window where a
       // caller's `cancelOrder` does the most damage: it would cancel the order
@@ -4629,7 +4676,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      if (cancelled) {
+      if (outcome === 'refused') {
+        // The exchange kept the order, so it is still resting at the old price.
+        // Placing the replacement anyway would double the position. Leave it
+        // alone and try again on the next tick, which is why this falls through
+        // to the reschedule below rather than ending the session.
+        this.#deps.debugLogger.log('Chase reprice cancel refused', {
+          sessionId,
+          orderId: session.orderId,
+        });
+      } else if (outcome === 'gone') {
+        // The order left the book between ticks: it filled, or something else
+        // cancelled it. There is nothing left to chase.
+        session.orderId = null;
+        session.active = false;
+        this.#deps.debugLogger.log('Chase order no longer resting', {
+          sessionId,
+        });
+        return;
+      } else {
         // The old order is off the book, so the session owns nothing until the
         // replacement rests. Recorded before the attempt, not after: if
         // `#restChaseOrder` throws, the session must not be left pointing at an
@@ -4685,16 +4750,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (!session.active) {
           return;
         }
-      } else {
-        // The cancel was refused, which for a resting order means it is no
-        // longer there: it filled, or something else cancelled it. Either way
-        // there is nothing left to chase.
-        session.orderId = null;
-        session.active = false;
-        this.#deps.debugLogger.log('Chase order no longer resting', {
-          sessionId,
-        });
-        return;
       }
     }
 
@@ -4711,11 +4766,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Cancel the order a chase session currently has resting.
    *
    * @param session - The session whose child to cancel.
-   * @returns True when the exchange confirmed the cancel.
+   * @returns Whether the order was cancelled, was already gone, or still rests.
    */
-  async #cancelChaseChild(session: ChaseSession): Promise<boolean> {
+  async #cancelChaseChild(session: ChaseSession): Promise<CancelChildOutcome> {
     if (!session.orderId) {
-      return false;
+      return 'gone';
     }
 
     const exchangeClient = this.#clientService.getExchangeClient();
@@ -4723,7 +4778,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       cancels: [{ a: session.assetId, o: parseInt(session.orderId, 10) }],
     });
 
-    return result.response?.data?.statuses?.[0] === 'success';
+    return classifyCancelStatus(result.response?.data?.statuses?.[0]);
   }
 
   /**
@@ -4852,8 +4907,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const statuses = result.response?.data?.statuses ?? [];
+    // A rung that filled or was cancelled individually comes back as a
+    // rejection, but nothing of it is resting — counting it as still live would
+    // pin the handle open for a ladder that is entirely off the book.
     const remaining = group.orderIds.filter(
-      (_unused, index) => statuses[index] !== 'success',
+      (_unused, index) => classifyCancelStatus(statuses[index]) === 'refused',
     );
 
     if (remaining.length === 0) {
@@ -4914,9 +4972,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     await this.#ensureReadyForTrading();
-    if (!(await this.#cancelChaseChild(session))) {
-      // The order may still be resting. The session stays registered — stopped,
-      // but still cancellable — so the caller can retry with the same handle.
+    // Only a refusal leaves an order behind. A child that had already filled or
+    // been cancelled is reported as a rejection too, but nothing of it is
+    // resting — treating that as a failure would pin the handle open forever on
+    // a chase that is entirely finished.
+    if ((await this.#cancelChaseChild(session)) === 'refused') {
+      // The order is still resting. The session stays registered — stopped, but
+      // still cancellable — so the caller can retry with the same handle.
       this.#deps.debugLogger.log('Chase cancel left its order resting', {
         sessionId: params.orderId,
         orderId: session.orderId,
@@ -5077,6 +5139,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         return {
           success: false,
           error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
+      // A strategy placement is not a single resting order, so there is nothing
+      // for `modify` to rewrite: it would submit the edit as an ordinary
+      // FrontendMarket modification and quietly drop the TWAP schedule, the
+      // ladder, or the chase loop the caller asked for. Cancel by the strategy
+      // handle and place again.
+      if (isStrategyOrderType(params.newOrder.orderType)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
         };
       }
 
