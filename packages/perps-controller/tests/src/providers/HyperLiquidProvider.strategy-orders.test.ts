@@ -2973,6 +2973,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
     /**
      * Tear the provider down from inside the mid-flight order submission.
      *
+     * The teardown models what `HyperLiquidClientService.disconnect` does:
+     * it drops the service's client reference synchronously, so every later
+     * `getExchangeClient` throws, while the instance already handed out keeps
+     * working. Anything the provider wants to do about its in-flight order has
+     * to be done through the client it is already holding.
+     *
      * @param cancel - The cancel the retraction attempt will get back.
      * @returns The placement result and the exchange client that served it.
      */
@@ -2983,6 +2989,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const order = jest.fn().mockImplementation(async () => {
         // The order is on its way to the venue when the provider is torn down.
         disconnected = provider.disconnect();
+        mockClientService.getExchangeClient.mockImplementation(() => {
+          throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
+        });
         await Promise.resolve();
         return {
           status: 'ok',
@@ -3016,8 +3025,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // are not invalidated, and no handle names it. Leaving it resting would
       // make that report false at the venue — and the exchange id is only good
       // while this provider still points at the account that placed it, which a
-      // disconnect is the usual prelude to changing. So it is taken back while
-      // that account is still current, and the failure is true on both sides.
+      // disconnect is the usual prelude to changing. So it is taken back and the
+      // failure is true on both sides.
+      //
+      // The teardown has already made `getExchangeClient` throw, so the cancel
+      // can only have gone through the instance captured before the submission.
+      // A provider that looked a client up at retraction time would never have
+      // sent this request at all.
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 55 }],
       });
@@ -3039,14 +3053,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
           data: { statuses: [{ error: 'Order could not be found' }] },
         },
       });
-      const { placed } = await placeChaseTornDownMidFlight(cancel);
+      const { placed, exchangeClient } =
+        await placeChaseTornDownMidFlight(cancel);
 
       expect(placed.success).toBe(false);
       expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
       expect(placed.childOrderIds).toStrictEqual(['55']);
 
       // Reachable through the ordinary single-order cancel, which is the only
-      // route that can name it once no session holds it.
+      // route that can name it once no session holds it. That cancel runs on a
+      // provider that has since reconnected, so the service serves a client
+      // again — the id is only worth anything while that client still signs as
+      // the account the order was placed under.
+      mockClientService.getExchangeClient.mockReturnValue(
+        exchangeClient as never,
+      );
       const cancelled = await provider.cancelOrder({
         orderId: (placed.childOrderIds as string[])[0],
         symbol: 'ETH',

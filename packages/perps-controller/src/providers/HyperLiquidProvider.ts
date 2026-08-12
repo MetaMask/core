@@ -4632,6 +4632,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Read once, while the caller's discount context is still set.
     const builderFee = this.#getDiscountedBuilderFee();
 
+    // Held onto rather than looked up again after the submission returns.
+    // `disconnect` drops the service's client reference synchronously, so a
+    // retraction that asked for a client after the fact would be refused one
+    // and leave the order resting under the account that placed it. This
+    // instance signed the order and can still cancel it as that account.
+    const placingClient = this.#clientService.getExchangeClient();
+
     const orderId = await this.#restChaseOrder({
       assetId,
       isBuy: params.isBuy,
@@ -4639,6 +4646,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       size: formattedSize,
       reduceOnly: params.reduceOnly ?? false,
       builderFee,
+      exchangeClient: placingClient,
     });
 
     const intervalMs =
@@ -4673,16 +4681,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     // would have invalidated, and the exchange id is only usable for as long as
     // the provider stays pointed at the account that placed it — a disconnect
     // is usually followed by an account or network switch, after which handing
-    // the id back is no remedy at all. So it is cancelled here, in the last
-    // moment the placing account is still the current one, and the failure is
-    // then true of the venue as well as of this provider.
+    // the id back is no remedy at all. So it is cancelled here, through the
+    // client that signed it — the account switch cannot reach that instance —
+    // and the failure is then true of the venue as well as of this provider.
+    // Best-effort still: the transport underneath that client may already be
+    // closing, so a cancel that does not land falls back to reporting the id.
     if (generation !== this.#chaseGeneration) {
       this.#deps.debugLogger.log('Chase placement outlived its provider', {
         orderId,
         restingPrice: quotePrice,
       });
 
-      const outcome = await this.#retractOrphanedChaseOrder(session);
+      const outcome = await this.#retractOrphanedChaseOrder(
+        session,
+        placingClient,
+      );
       return createErrorResult(
         new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
         {
@@ -4781,6 +4794,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.reduceOnly - Whether the order may only reduce a position.
    * @param params.builderFee - Builder fee, in tenths of a basis point, captured
    * when the session started so replacements keep the rate they were quoted at.
+   * @param params.exchangeClient - Client to submit through. Passed in rather
+   * than looked up here so a first placement can keep the instance it signed
+   * with, which is the only one that can take the order back once `disconnect`
+   * has dropped the service's reference.
    * @returns The resting order's exchange ID.
    */
   async #restChaseOrder(params: {
@@ -4790,10 +4807,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     size: string;
     reduceOnly: boolean;
     builderFee: number;
+    exchangeClient: ExchangeClient;
   }): Promise<string> {
-    const exchangeClient = this.#clientService.getExchangeClient();
-
-    const result = await exchangeClient.order({
+    const result = await params.exchangeClient.order({
       orders: [
         {
           a: params.assetId,
@@ -5030,6 +5046,9 @@ export class HyperLiquidProvider implements PerpsProvider {
             size: remaining,
             reduceOnly: session.reduceOnly,
             builderFee: session.builderFee,
+            // A running session is on a live provider, so the current client is
+            // the right one; only the first placement has a teardown to survive.
+            exchangeClient: this.#clientService.getExchangeClient(),
           });
           session.size = remaining;
         } finally {
@@ -5201,14 +5220,23 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Cancel the order a chase session currently has resting.
    *
    * @param session - The session whose child to cancel.
+   * @param placingClient - Client to cancel through. Omitted by every cancel on
+   * a live provider, which wants the current one; an abandoned placement passes
+   * the client it signed with, the only one still able to reach its order.
    * @returns Whether the order was cancelled, was already gone, or still rests.
    */
-  async #cancelChaseChild(session: ChaseSession): Promise<CancelChildOutcome> {
+  async #cancelChaseChild(
+    session: ChaseSession,
+    placingClient?: ExchangeClient,
+  ): Promise<CancelChildOutcome> {
     if (!session.orderId) {
       return 'gone';
     }
 
-    const exchangeClient = this.#clientService.getExchangeClient();
+    // Looked up only once there is something to cancel, so a session with
+    // nothing resting still answers on a provider whose client is already gone.
+    const exchangeClient =
+      placingClient ?? this.#clientService.getExchangeClient();
     const result = await exchangeClient.cancel({
       cancels: [{ a: session.assetId, o: parseInt(session.orderId, 10) }],
     });
@@ -5225,13 +5253,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    * decides whether an exchange id is worth handing back with it.
    *
    * @param session - The unregistered session holding the resting order.
+   * @param placingClient - The client the order was signed with. The service's
+   * own reference is already cleared by the time this runs, so asking it for a
+   * client here would fail before a cancel was ever sent.
    * @returns Whether the order was cancelled, was already gone, or still rests.
    */
   async #retractOrphanedChaseOrder(
     session: ChaseSession,
+    placingClient: ExchangeClient,
   ): Promise<CancelChildOutcome> {
     try {
-      const outcome = await this.#cancelChaseChild(session);
+      const outcome = await this.#cancelChaseChild(session, placingClient);
       this.#deps.debugLogger.log('Retracted abandoned chase order', {
         orderId: session.orderId,
         outcome,
