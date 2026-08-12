@@ -1,5 +1,8 @@
+import { assert } from '@metamask/superstruct';
+
 import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+  AccountTreePayloadStruct,
   AccountWalletPayloadType,
   assertAccountTreePayload,
   parsePayloadGroupId,
@@ -7,6 +10,8 @@ import {
   toWalletPayloadId,
 } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
+
+const MOCK_BAD_SECRET = 8675309;
 
 describe('parsePayloadGroupId', () => {
   it('parses a mnemonic group ID (wallet-id/groupIndex)', () => {
@@ -129,6 +134,73 @@ describe('assertAccountTreePayload', () => {
         ],
       }),
     ).toThrow('Invalid AccountTreePayload:');
+  });
+
+  describe('mnemonic value field redaction', () => {
+    const walletId = toWalletPayloadId('entropy-source-1');
+    const payload = {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: [
+        {
+          id: walletId,
+          type: AccountWalletPayloadType.Mnemonic,
+          value: MOCK_BAD_SECRET,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(walletId, 0),
+              groupIndex: 0,
+              metadata: { name: 'Account 0', pinned: false, hidden: false },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('does not leak the value via assertAccountTreePayload', () => {
+      expect(() => assertAccountTreePayload(payload)).toThrow(
+        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
+      );
+    });
+
+    it('does not leak the value via superstruct assert', () => {
+      expect(() => assert(payload, AccountTreePayloadStruct)).toThrow(
+        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
+      );
+    });
+  });
+
+  describe('private key field redaction', () => {
+    const walletId = toWalletPayloadId('private-key');
+    const payload = {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: [
+        {
+          id: walletId,
+          type: AccountWalletPayloadType.PrivateKey,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(walletId, '0xdeadbeef'),
+              value: { privateKey: MOCK_BAD_SECRET, encoding: 'hex' },
+              metadata: { name: 'Account', pinned: false, hidden: false },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('does not leak the value via assertAccountTreePayload', () => {
+      expect(() => assertAccountTreePayload(payload)).toThrow(
+        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
+      );
+    });
+
+    it('does not leak the value via superstruct assert', () => {
+      expect(() => assert(payload, AccountTreePayloadStruct)).toThrow(
+        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
+      );
+    });
   });
 
   it('throws when a group ID does not match the expected format', () => {
