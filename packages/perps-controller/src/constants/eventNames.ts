@@ -260,6 +260,10 @@ export const PERPS_EVENT_VALUE = {
     STOP_LIMIT: 'stop_limit',
     TAKE_PROFIT_MARKET: 'take_profit_market',
     TAKE_PROFIT_LIMIT: 'take_profit_limit',
+    // Strategy placements, likewise emitted verbatim.
+    TWAP: 'twap',
+    SCALE: 'scale',
+    CHASE: 'chase',
   },
   ORDER_TYPE_CAPITALIZED: {
     MARKET: 'market',

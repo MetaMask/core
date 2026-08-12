@@ -20,6 +20,7 @@ import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
 import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { TxData } from '../../validators/trade.js';
+import { assetIdsMatch } from '../assets.js';
 import { isEvmQuoteResponse, isNativeAddress } from '../bridge.js';
 import { calcNormalizedTokenAmount } from '../number-formatters.js';
 import { includeIfTruthy } from './include-if-truthy.js';
@@ -77,8 +78,7 @@ export const calcSentAmount = (
           .filter(
             (fee) =>
               fee?.amount &&
-              fee.asset?.assetId?.toLowerCase() ===
-                srcAsset.assetId?.toLowerCase(),
+              assetIdsMatch(fee.asset?.assetId, srcAsset.assetId),
           )
           .reduce(
             (acc, { amount }) => acc.plus(amount),
@@ -272,10 +272,12 @@ export const calcIncludedTxFees = (
     return undefined;
   }
   // Use exchange rate of the token that is being used to pay for the transaction
-  const { exchangeRate, usdExchangeRate } =
-    txFee?.asset.assetId === srcAsset.assetId
-      ? srcTokenExchangeRate
-      : destTokenExchangeRate;
+  const { exchangeRate, usdExchangeRate } = assetIdsMatch(
+    txFee?.asset?.assetId,
+    srcAsset.assetId,
+  )
+    ? srcTokenExchangeRate
+    : destTokenExchangeRate;
   const normalizedTxFeeAmount = calcNormalizedTokenAmount(
     txFee?.amount,
     txFee?.asset.decimals,
@@ -300,7 +302,7 @@ export const calcAdjustedReturn = (
   }: QuoteResponseV1['quote'],
 ) => {
   // If gas is included and is taken from the dest token, don't subtract network fee from return
-  if (txFee?.asset?.assetId?.toLowerCase() === destAssetId.toLowerCase()) {
+  if (assetIdsMatch(txFee?.asset?.assetId, destAssetId)) {
     return {
       valueInCurrency: toTokenAmount.valueInCurrency,
       usd: toTokenAmount.usd,

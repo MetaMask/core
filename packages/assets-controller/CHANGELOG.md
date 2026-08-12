@@ -9,15 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+## [13.1.2]
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
 - Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
-- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/network-enablement-controller` from `^6.0.2` to `^6.0.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/assets-controllers` from `^111.0.0` to `^111.1.0` ([#9793](https://github.com/MetaMask/core/pull/9793))
 
 ### Fixed
 
+- Apply occurrence-floor spam filtering to tokens received through account-activity (websocket) updates: new tokens are enriched with Token API occurrence counts before detection and dropped when below the per-chain suggested floor, and stub metadata of filtered-out assets is stripped from the pipeline response so spam tokens never persist to state ([#9803](https://github.com/MetaMask/core/pull/9803))
+- Checksum the lower-case ERC-20 asset IDs delivered by `AccountActivityDataSource` before they enter the assets pipeline, so middleware comparisons against state (which keys assets by checksummed ID) no longer treat an existing holding as a brand-new asset — previously such balance updates could be re-detected, or dropped entirely by spam filtering, and never reach state ([#9803](https://github.com/MetaMask/core/pull/9803))
 - Preserve pooled-staking balances across Accounts API chain-slice updates (e.g. network switch / `replaceCoveredChainBalances`): exclude staking contract asset IDs from `AccountsApiDataSource` v5/v6 balance processing, and keep prior staked amounts when a merge replace omits them so Accounts API cannot reset staked ETH to missing/0 ([#9753](https://github.com/MetaMask/core/pull/9753))
 
 ## [13.1.1]
@@ -886,7 +894,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.2...HEAD
+[13.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.1...@metamask/assets-controller@13.1.2
 [13.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.0...@metamask/assets-controller@13.1.1
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...@metamask/assets-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@12.0.0...@metamask/assets-controller@13.0.0

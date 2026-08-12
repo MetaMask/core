@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "39.0.7",
+  "version": "39.1.0",
   "description": "Manages internal accounts",
   "keywords": [
     "Ethereum",

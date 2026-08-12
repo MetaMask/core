@@ -168,6 +168,19 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Returns immediately when disabled. Delegates to the wrapped provider otherwise,
+   * waiting for the underlying platform (e.g. snap runtime) to be ready.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  override async ensureReady(): Promise<void> {
+    if (!this.isEnabled) {
+      return;
+    }
+    await this.provider.ensureReady();
+  }
+
+  /**
    * Forwards to the wrapped provider unconditionally, because deletion must run even
    * when the wrapper is disabled, so that wallet-removal flows can clean up
    * snap-backed accounts that were created while the provider was previously

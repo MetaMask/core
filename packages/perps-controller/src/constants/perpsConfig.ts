@@ -114,6 +114,36 @@ export const ORDER_SLIPPAGE_CONFIG = {
 } as const;
 
 /**
+ * Defaults and bounds for the emulated `chase` placement.
+ *
+ * No supported venue exposes a chase as an API action — HyperLiquid documents it
+ * as running client-side — so the strategy is run here: a post-only order rests
+ * one tick inside the spread and is cancelled and re-placed as the touch moves.
+ * The poll floor and the repricing cap exist to keep a chase from turning into a
+ * cancel/replace loop against a venue's rate limits. Protocol-agnostic — a
+ * provider that gains a native chase ignores these entirely.
+ */
+export const CHASE_ORDER_CONFIG = {
+  /** How often the touch is re-read when the caller does not say. */
+  DefaultIntervalMs: 3000,
+  /** Floor on the poll interval, whatever the caller asks for. */
+  MinIntervalMs: 1000,
+  /** How long a chase runs before it stops re-pricing and rests. */
+  DefaultMaxDurationMs: 60_000,
+  /** How many cancel/replace cycles a single chase may perform. */
+  DefaultMaxRepricings: 20,
+  /**
+   * How many chases may run at once.
+   *
+   * HyperLiquid documents a cap of five simultaneously active chase orders. It
+   * is a venue rule rather than controller policy, but it is spelled here
+   * alongside the rest of the chase configuration because an emulated chase is
+   * the only thing that can enforce it.
+   */
+  MaxActiveSessions: 5,
+} as const;
+
+/**
  * Bounds and step for the user-configurable max slippage preference (basis points).
  * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
  */
@@ -250,6 +280,28 @@ export const PERFORMANCE_CONFIG = {
 
 export const TP_SL_CONFIG = {
   UsePositionBoundTpsl: true,
+} as const;
+
+/**
+ * Bounds applied to a HyperLiquid TWAP placement.
+ *
+ * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe
+ * integer in `[5, 1440]` before signing, although the venue currently documents
+ * a maximum of seven days (`10080` minutes). The controller exposes the SDK's
+ * narrower cap until that dependency supports the venue limit, avoiding an
+ * opaque SDK error. `MinNotionalUsd` is the venue's documented minimum *total*
+ * order size for a TWAP, which it enforces instead of the per-order minimum —
+ * its suborders are its own business.
+ *
+ * Carries the venue prefix, like `HYPERLIQUID_ORDER_LIMITS`, because these are
+ * venue/SDK constraints rather than controller policy.
+ *
+ * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-types
+ */
+export const HYPERLIQUID_TWAP_LIMITS = {
+  MinDurationMinutes: 5,
+  MaxDurationMinutes: 1440,
+  MinNotionalUsd: 100,
 } as const;
 
 /**
@@ -435,18 +487,43 @@ export enum PerpsMode {
 }
 
 /**
+ * Side filter for the Pro Positions/Orders panel (long/short/all).
+ *
+ * Shared across markets via `proLayoutPreferences.positionsSideFilter`.
+ */
+export type ProPositionsSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Positions list.
+ */
+export type ProPositionsSortField =
+  | 'positionValue'
+  | 'unrealizedPnl'
+  | 'fundingRate';
+
+/**
+ * Sort direction for the Pro Positions list.
+ */
+export type ProPositionsSortDirection = 'asc' | 'desc';
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
  * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
- * reserved for future container-position UI and are kept here now so no
- * state-shape migration is needed when that UI ships.
+ * reserved for future container-position UI. `positionsSideFilter` /
+ * `positionsSortField` / `positionsSortDirection` back the Positions/Orders
+ * panel sort and side filter so they survive market navigation and app
+ * restarts.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
   chartExpanded: boolean;
   orderBookPosition: 'left' | 'right';
   orderFormPosition: 'left' | 'right';
+  positionsSideFilter: ProPositionsSideFilter;
+  positionsSortField: ProPositionsSortField;
+  positionsSortDirection: ProPositionsSortDirection;
 };
 
 /**
@@ -461,6 +538,9 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   chartExpanded: false,
   orderBookPosition: 'left',
   orderFormPosition: 'right',
+  positionsSideFilter: 'all',
+  positionsSortField: 'positionValue',
+  positionsSortDirection: 'desc',
 };
 
 /**

@@ -31,6 +31,7 @@ export type MockAccountProvider = {
   isAccountCompatible: jest.Mock;
   isAligned: jest.Mock;
   getName: jest.Mock;
+  ensureReady: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
   setEnabled: jest.Mock;
@@ -65,6 +66,7 @@ export function makeMockAccountProvider(
     isAccountCompatible: jest.fn(),
     isAligned: jest.fn().mockReturnValue(false),
     getName: jest.fn(),
+    ensureReady: jest.fn().mockResolvedValue(undefined),
     isDisabled: jest.fn(),
     setEnabled: jest.fn(),
     isEnabled: true,

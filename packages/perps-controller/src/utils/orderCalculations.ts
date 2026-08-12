@@ -2,13 +2,14 @@ import type { Hex } from '@metamask/utils';
 
 import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig.js';
 import {
+  DECIMAL_PRECISION_CONFIG,
   MAX_ORDER_MARGIN_BUFFER,
   ORDER_SLIPPAGE_CONFIG,
 } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import type { PerpsDebugLogger } from '../types/index.js';
-import type { OrderType } from '../types/perps-types.js';
+import type { OrdinaryOrderType, OrderType } from '../types/perps-types.js';
 import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
@@ -17,6 +18,7 @@ import {
   getTriggerDirection,
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  SCALE_ORDER_COUNT,
   toSDKTimeInForce,
 } from './orderTypes.js';
 
@@ -78,7 +80,11 @@ export type CalculateFinalPositionSizeResult = {
 };
 
 export type CalculateOrderPriceAndSizeParams = {
-  orderType: OrderType;
+  // Strategy placements are excluded: each derives its own prices and sizes and
+  // never reaches this helper. Left in, `chase` would fall through as a
+  // limit-priced order it carries no price for, and `twap`/`scale` would be
+  // serialized as ordinary FrontendMarket orders.
+  orderType: OrdinaryOrderType;
   isBuy: boolean;
   finalPositionSize: number;
   currentPrice: number;
@@ -108,7 +114,8 @@ export type BuildOrdersArrayParams = {
   formattedPrice: string;
   formattedSize: string;
   reduceOnly: boolean;
-  orderType: OrderType;
+  // Strategy placements never reach here; see `CalculateOrderPriceAndSizeParams`.
+  orderType: OrdinaryOrderType;
   timeInForce?: 'GTC' | 'IOC' | 'ALO';
   clientOrderId?: string;
   // Trigger price for stop_*/take_profit_* placements (required for those types)
@@ -305,6 +312,181 @@ export function floorToSizeDecimals(size: number, szDecimals: number): number {
   }
 
   return units / multiplier;
+}
+
+/**
+ * The smallest price increment the venue will represent at a given price.
+ *
+ * HyperLiquid bounds a perp price two ways at once — a decimal-place cap that
+ * depends on the asset's size precision, and a significant-figure cap — so the
+ * tick widens as the price grows. Whichever bound is coarser at this price is
+ * the tick.
+ *
+ * @param params - Tick parameters.
+ * @param params.price - Price to measure the increment at.
+ * @param params.szDecimals - The asset's size decimal precision.
+ * @returns The tick size at that price.
+ */
+export function getPriceTick(params: {
+  price: number;
+  szDecimals: number;
+}): number {
+  const { price, szDecimals } = params;
+
+  const byDecimals = Math.pow(
+    10,
+    -(DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - szDecimals),
+  );
+  const bySignificantFigures = Math.pow(
+    10,
+    Math.floor(Math.log10(Math.abs(price))) -
+      (DECIMAL_PRECISION_CONFIG.MaxSignificantFigures - 1),
+  );
+
+  return Math.max(byDecimals, bySignificantFigures);
+}
+
+/**
+ * Price a chase order against the book it is chasing.
+ *
+ * The venue's own definition: a chase rests one tick *inside* the spread —
+ * above the best bid for a buy, below the best ask for a sell — except when the
+ * spread is already a single tick, where there is no room to improve and the
+ * order joins the touch instead.
+ *
+ * Rests inside rather than at the touch because a chase is post-only: sitting
+ * one tick ahead of the rest of the queue is the whole point, and joining the
+ * touch would leave it behind every order already resting there.
+ *
+ * @param params - Quote parameters.
+ * @param params.bestBid - Best bid, excluding the chase's own resting order.
+ * @param params.bestAsk - Best ask, excluding the chase's own resting order.
+ * @param params.isBuy - Which side the chase rests on.
+ * @param params.szDecimals - The asset's size decimal precision.
+ * @returns The formatted price the chase should rest at.
+ */
+export function computeChaseQuotePrice(params: {
+  bestBid: number;
+  bestAsk: number;
+  isBuy: boolean;
+  szDecimals: number;
+}): string {
+  const { bestBid, bestAsk, isBuy, szDecimals } = params;
+
+  const reference = isBuy ? bestBid : bestAsk;
+  const tick = getPriceTick({ price: reference, szDecimals });
+  const improved = isBuy ? bestBid + tick : bestAsk - tick;
+
+  // A single-tick spread leaves nowhere to improve to: the improved price would
+  // cross, which a post-only order cannot do. Join the touch instead.
+  const crosses = isBuy ? improved >= bestAsk : improved <= bestBid;
+
+  return formatHyperLiquidPrice({
+    price: crosses ? reference : improved,
+    szDecimals,
+  });
+}
+
+/**
+ * Compute the price ladder a scale placement fans out over.
+ *
+ * The ladder is inclusive of both ends — the first rung sits exactly on
+ * `minPrice`, the last exactly on `maxPrice` — so the range the caller asked
+ * for is the range that actually reaches the exchange.
+ *
+ * @param params - Ladder parameters.
+ * @param params.minPrice - Lowest price in the ladder.
+ * @param params.maxPrice - Highest price in the ladder; must exceed `minPrice`.
+ * @param params.count - Number of rungs.
+ * @returns The rung prices, ascending.
+ */
+export function computeScalePriceLadder(params: {
+  minPrice: number;
+  maxPrice: number;
+  count: number;
+}): number[] {
+  const { minPrice, maxPrice, count } = params;
+
+  if (
+    !Number.isInteger(count) ||
+    count < SCALE_ORDER_COUNT.min ||
+    count > SCALE_ORDER_COUNT.max
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+  }
+  if (
+    !Number.isFinite(minPrice) ||
+    !Number.isFinite(maxPrice) ||
+    minPrice <= 0 ||
+    maxPrice <= minPrice
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+
+  const step = (maxPrice - minPrice) / (count - 1);
+  // The top rung is assigned rather than accumulated: `minPrice + step * n`
+  // drifts, and a ladder that stops short of the caller's maxPrice would quietly
+  // narrow the range they asked for.
+  return Array.from({ length: count }, (_unused, index) =>
+    index === count - 1 ? maxPrice : minPrice + step * index,
+  );
+}
+
+/**
+ * Split a scale placement's total size across its ladder rungs.
+ *
+ * The split is done in whole units of the asset's size grid rather than in
+ * decimal sizes: dividing and re-flooring in floating point loses a sub-unit of
+ * dust on every rung, and a ladder that submits less than the size that was
+ * validated is not the order the caller placed. Whatever does not divide evenly
+ * goes onto the first rung, so the slices sum to exactly `totalSize`.
+ *
+ * The total is expected to sit on the grid already — `calculateFinalPositionSize`
+ * floors it there — so rounding onto the grid here only absorbs representation
+ * error. A total too small to give every rung a whole unit is rejected: placing
+ * fewer orders than asked for would silently change the strategy.
+ *
+ * @param params - Split parameters.
+ * @param params.totalSize - Total size to distribute.
+ * @param params.count - Number of rungs.
+ * @param params.szDecimals - The asset's size decimal precision.
+ * @returns One size string per rung, in ladder order.
+ */
+export function splitScaleSizes(params: {
+  totalSize: number;
+  count: number;
+  szDecimals: number;
+}): string[] {
+  const { totalSize, count, szDecimals } = params;
+
+  // Checked here as well as in `computeScalePriceLadder`: this is exported on
+  // its own, and a count of zero would otherwise return an empty split while a
+  // fractional one would return slices that do not sum to the total.
+  if (
+    !Number.isInteger(count) ||
+    count < SCALE_ORDER_COUNT.min ||
+    count > SCALE_ORDER_COUNT.max
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+  }
+
+  const multiplier = Math.pow(10, szDecimals);
+  const totalUnits = Math.round(totalSize * multiplier);
+
+  if (!Number.isSafeInteger(totalUnits) || totalUnits < count) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+  }
+
+  const sliceUnits = Math.floor(totalUnits / count);
+  const remainderUnits = totalUnits - sliceUnits * count;
+
+  return Array.from({ length: count }, (_unused, index) =>
+    formatHyperLiquidSize({
+      size:
+        (index === 0 ? sliceUnits + remainderUnits : sliceUnits) / multiplier,
+      szDecimals,
+    }),
+  );
 }
 
 /**
