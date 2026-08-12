@@ -2970,7 +2970,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Chase placement racing a disconnect', () => {
-    it('reports the resting order when teardown lands mid-flight', async () => {
+    /**
+     * Tear the provider down from inside the mid-flight order submission.
+     *
+     * @param cancel - The cancel the retraction attempt will get back.
+     * @returns The placement result and the exchange client that served it.
+     */
+    const placeChaseTornDownMidFlight = async (
+      cancel: jest.Mock,
+    ): Promise<{ placed: OrderResult; exchangeClient: MockClient }> => {
       let disconnected: Promise<unknown> | undefined;
       const order = jest.fn().mockImplementation(async () => {
         // The order is on its way to the venue when the provider is torn down.
@@ -2981,7 +2989,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
           response: { data: { statuses: [{ resting: { oid: 55 } }] } },
         };
       });
-      useStrategyClients({ exchange: { order } });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order, cancel },
+      });
 
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -2990,22 +3000,107 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
       await disconnected;
 
-      // No strategy is running, so this is not a successful chase. The order
-      // that rested is reported in childOrderIds — disconnect leaves resting
-      // orders alone — and is reachable through the ordinary single-order
-      // cancel, which is the only route that can name it.
+      return { placed, exchangeClient };
+    };
+
+    it('retracts the order it could not put a strategy behind', async () => {
+      const cancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+      const { placed, exchangeClient } =
+        await placeChaseTornDownMidFlight(cancel);
+
+      // The placement is reported as a failure, so nothing downstream treats it
+      // as an order that exists: the caches a successful placement invalidates
+      // are not invalidated, and no handle names it. Leaving it resting would
+      // make that report false at the venue — and the exchange id is only good
+      // while this provider still points at the account that placed it, which a
+      // disconnect is the usual prelude to changing. So it is taken back while
+      // that account is still current, and the failure is true on both sides.
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 55 }],
+      });
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(placed.orderId).toBeUndefined();
+      // Nothing rests, so there is no id worth handing back: naming one would
+      // send the caller to cancel an order that is already gone.
+      expect(placed.childOrderIds).toBeUndefined();
+    });
+
+    it('reports the resting order when it cannot be retracted', async () => {
+      // The venue refuses the cancel and the order stays on the book. This is
+      // the only case where the caller is left holding a live order, so it is
+      // the only one that gets an id to reach it with.
+      const cancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          data: { statuses: [{ error: 'Order could not be found' }] },
+        },
+      });
+      const { placed } = await placeChaseTornDownMidFlight(cancel);
+
       expect(placed.success).toBe(false);
       expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
       expect(placed.childOrderIds).toStrictEqual(['55']);
-      expect(placed.orderId).toBeUndefined();
 
-      // The reported child is cancellable through the ordinary path, so the
-      // caller is not left holding a live order with no way to reach it.
+      // Reachable through the ordinary single-order cancel, which is the only
+      // route that can name it once no session holds it.
       const cancelled = await provider.cancelOrder({
         orderId: (placed.childOrderIds as string[])[0],
         symbol: 'ETH',
       });
-      expect(cancelled).toStrictEqual({ success: true, orderId: '55' });
+      expect(cancelled.orderId).toBe('55');
+    });
+
+    it('reports the resting order when the retraction itself fails', async () => {
+      // A provider mid-teardown can fail the cancel outright rather than have
+      // it refused. Best-effort by construction: the placement still resolves
+      // as an abandoned chase rather than throwing the cancel's error.
+      const cancel = jest.fn().mockRejectedValue(new Error('client torn down'));
+      const { placed } = await placeChaseTornDownMidFlight(cancel);
+
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(placed.childOrderIds).toStrictEqual(['55']);
+    });
+
+    it('places nothing when the teardown lands during the book read', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const { exchangeClient } = useStrategyClients({
+        info: {
+          // The book read is a round trip after the preamble's own checks, so
+          // a disconnect can land inside it.
+          l2Book: jest.fn().mockImplementation(async () => {
+            disconnected = provider.disconnect();
+            await Promise.resolve();
+            return {
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            };
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      await disconnected;
+
+      // Nothing is signed: the check between the book read and the submission
+      // means no window between two awaits on this path ends in a fresh order
+      // for a provider that has already stopped.
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(placed.childOrderIds).toBeUndefined();
     });
   });
 

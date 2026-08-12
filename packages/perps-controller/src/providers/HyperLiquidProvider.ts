@@ -4604,9 +4604,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // The preamble is several round trips long. A disconnect during it has
     // already torn down everything this session would run on, so the chase
     // stops here rather than reading the book and putting a fresh order on it
-    // for a provider that no longer exists. The check after the placement
-    // below covers the narrower window this cannot: a disconnect arriving
-    // while that order is in flight.
+    // for a provider that no longer exists.
     if (generation !== this.#chaseGeneration) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
@@ -4619,6 +4617,16 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (quotePrice === 'gone') {
       // No own order to be gone on a first placement; narrows the union.
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    // The book read is a round trip of its own, so the check above does not
+    // cover it. Re-checked here, immediately before the only statement that
+    // signs anything: every await on this path is now followed by a refusal
+    // before the next one, leaving one window that cannot be closed from here
+    // — a disconnect arriving while the submission itself is in flight, which
+    // the check after it handles.
+    if (generation !== this.#chaseGeneration) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
 
     // Read once, while the caller's discount context is still set.
@@ -4657,29 +4665,33 @@ export class HyperLiquidProvider implements PerpsProvider {
       timer: null,
       active: true,
     };
-    // A disconnect during the two round trips above tore down everything this
-    // session would run on. Registering now would put a background timer on a
-    // provider that has already stopped, so the session is abandoned instead.
-    // The order stays resting, which is what disconnect does with every other
-    // resting order — logged with its ID so it remains traceable.
+    // A disconnect landed while the submission was in flight — the one window
+    // the checks above cannot close. The order rested, but no strategy is
+    // running behind it and no handle names it, so this placement is reported
+    // as a failure. That makes the resting order an orphan: the caller is told
+    // the chase failed, nothing refreshes the caches a successful placement
+    // would have invalidated, and the exchange id is only usable for as long as
+    // the provider stays pointed at the account that placed it — a disconnect
+    // is usually followed by an account or network switch, after which handing
+    // the id back is no remedy at all. So it is cancelled here, in the last
+    // moment the placing account is still the current one, and the failure is
+    // then true of the venue as well as of this provider.
     if (generation !== this.#chaseGeneration) {
       this.#deps.debugLogger.log('Chase placement outlived its provider', {
         orderId,
         restingPrice: quotePrice,
       });
 
-      // The disconnect landed while this order was in flight, which is the one
-      // window the check above cannot close. The order rested, but no strategy
-      // is running behind it and no handle names it — reporting success would
-      // hand the caller a chase they cannot cancel by the route a chase is
-      // cancelled through. It is reported as a failure carrying the exchange id
-      // in `childOrderIds`, which is cancellable through the ordinary
-      // single-order path.
+      const outcome = await this.#retractOrphanedChaseOrder(session);
       return createErrorResult(
         new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
         {
           success: false,
-          childOrderIds: [orderId],
+          // Reported only when the retraction did not take. Naming an order
+          // that is no longer on the book would send the caller to cancel
+          // something already gone; naming one that still rests is the only
+          // route left to it.
+          ...(outcome === 'refused' ? { childOrderIds: [orderId] } : {}),
           submittedSize: formattedSize,
         },
       );
@@ -5202,6 +5214,37 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     return classifyCancelStatus(result.response?.data?.statuses?.[0]);
+  }
+
+  /**
+   * Take back the order of a chase that was abandoned before it registered.
+   *
+   * Best-effort by construction: the provider is already being torn down, so a
+   * cancel that fails outright is reported rather than retried or thrown. The
+   * caller reports the placement as a failure either way — the outcome only
+   * decides whether an exchange id is worth handing back with it.
+   *
+   * @param session - The unregistered session holding the resting order.
+   * @returns Whether the order was cancelled, was already gone, or still rests.
+   */
+  async #retractOrphanedChaseOrder(
+    session: ChaseSession,
+  ): Promise<CancelChildOutcome> {
+    try {
+      const outcome = await this.#cancelChaseChild(session);
+      this.#deps.debugLogger.log('Retracted abandoned chase order', {
+        orderId: session.orderId,
+        outcome,
+      });
+      return outcome;
+    } catch (error) {
+      this.#deps.debugLogger.log('Could not retract abandoned chase order', {
+        orderId: session.orderId,
+        error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
+          .message,
+      });
+      return 'refused';
+    }
   }
 
   /**
