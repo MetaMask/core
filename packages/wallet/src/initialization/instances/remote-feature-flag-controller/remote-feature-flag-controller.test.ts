@@ -55,7 +55,6 @@ describe('remoteFeatureFlagController', () => {
       remoteFeatureFlags: {},
       localOverrides: {},
       rawRemoteFeatureFlags: {},
-      processedRemoteFeatureFlags: {},
       cacheTimestamp: 0,
     });
   });
@@ -247,7 +246,6 @@ describe('remoteFeatureFlagController', () => {
       remoteFeatureFlags: {},
       localOverrides: {},
       rawRemoteFeatureFlags: {},
-      processedRemoteFeatureFlags: {},
       cacheTimestamp: 0,
     });
   });

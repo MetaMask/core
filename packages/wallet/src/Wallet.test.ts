@@ -187,7 +187,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(5);
+    expect(results).toHaveLength(6);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -406,7 +406,6 @@ describe('Wallet', () => {
         remoteFeatureFlags: {},
         localOverrides: {},
         rawRemoteFeatureFlags: {},
-        processedRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
     });

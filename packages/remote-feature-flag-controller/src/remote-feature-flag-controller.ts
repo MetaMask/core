@@ -31,7 +31,6 @@ export type RemoteFeatureFlagControllerState = {
   remoteFeatureFlags: FeatureFlags;
   localOverrides?: FeatureFlags;
   rawRemoteFeatureFlags?: FeatureFlags;
-  processedRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
   thresholdCache?: Record<string, number>;
   featureFlagThresholdGroups?: Record<string, string>;
@@ -51,12 +50,6 @@ const remoteFeatureFlagControllerMetadata = {
     usedInUi: true,
   },
   rawRemoteFeatureFlags: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: true,
-    usedInUi: false,
-  },
-  processedRemoteFeatureFlags: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -128,7 +121,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     remoteFeatureFlags: {},
     localOverrides: {},
     rawRemoteFeatureFlags: {},
-    processedRemoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -251,6 +243,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #defaultFeatureFlags: FeatureFlags;
 
+  #processedRemoteFeatureFlags: FeatureFlags;
+
   /**
    * Constructs a new RemoteFeatureFlagController instance.
    *
@@ -301,11 +295,11 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
-    // State persisted before `processedRemoteFeatureFlags` existed only carries
-    // last session's effective flags; they stand in for the remote layer until
-    // the next fetch replaces it.
-    const processedRemoteFeatureFlags =
-      state?.processedRemoteFeatureFlags ?? initialState.remoteFeatureFlags;
+    // Last session's effective flags stand in for the remote layer until
+    // `init` re-derives it from the persisted raw flags, or a fetch replaces
+    // it. Overrides are layered on top rather than subtracted out, so a remote
+    // flag that happens to share an override's value is not lost.
+    const processedRemoteFeatureFlags = initialState.remoteFeatureFlags;
 
     super({
       name: controllerName,
@@ -313,7 +307,6 @@ export class RemoteFeatureFlagController extends BaseController<
       messenger,
       state: {
         ...initialState,
-        processedRemoteFeatureFlags,
         remoteFeatureFlags: getEffectiveFeatureFlags({
           defaultFeatureFlags,
           processedRemoteFeatureFlags,
@@ -326,6 +319,7 @@ export class RemoteFeatureFlagController extends BaseController<
     });
 
     this.#defaultFeatureFlags = defaultFeatureFlags;
+    this.#processedRemoteFeatureFlags = processedRemoteFeatureFlags;
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
@@ -342,15 +336,15 @@ export class RemoteFeatureFlagController extends BaseController<
    * Computes effective feature flags with precedence:
    * defaults < processed remote < local overrides.
    *
-   * @param options - The layers to merge. Each defaults to current state.
+   * @param options - The layers to merge. Each defaults to the current layer.
    * @param options.processedRemoteFeatureFlags - The processed remote feature
-   * flags. Defaults to current state.
+   * flags. Defaults to the currently resolved remote layer.
    * @param options.localOverrides - Local overrides. Defaults to current state
    * overrides.
    * @returns The effective feature flags.
    */
   #getEffectiveFeatureFlags({
-    processedRemoteFeatureFlags = this.state.processedRemoteFeatureFlags,
+    processedRemoteFeatureFlags = this.#processedRemoteFeatureFlags,
     localOverrides = this.state.localOverrides,
   }: {
     processedRemoteFeatureFlags?: FeatureFlags;
@@ -403,19 +397,63 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
-   * Updates the controller's state with new feature flags and resets the cache timestamp.
+   * Re-derives feature flags from the raw flags already in state, without
+   * making a network request. Threshold selection needs to await a hash and so
+   * cannot run in the constructor; clients should call this once after
+   * construction. Calling it more than once is safe.
    *
-   * @param remoteFeatureFlags - The new feature flags to cache.
+   * Does nothing when there are no persisted raw flags, so that a fresh
+   * install or state persisted before raw flags were stored keeps the flags
+   * carried over from the previous session.
    */
-  async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
+  async init(): Promise<void> {
+    const { rawRemoteFeatureFlags } = this.state;
+
+    if (
+      !rawRemoteFeatureFlags ||
+      Object.keys(rawRemoteFeatureFlags).length === 0
+    ) {
+      return;
+    }
+
+    const resolved = await this.#resolveFeatureFlags(rawRemoteFeatureFlags);
+
+    this.#processedRemoteFeatureFlags = resolved.processedFlags;
+
+    this.update(() => {
+      return {
+        ...this.state,
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          processedRemoteFeatureFlags: resolved.processedFlags,
+        }),
+        thresholdCache: resolved.thresholdCache,
+        featureFlagThresholdGroups: resolved.featureFlagThresholdGroups,
+      };
+    });
+  }
+
+  /**
+   * Resolves raw feature flags into the values that apply to this client and
+   * user, selecting version and threshold entries and folding new thresholds
+   * into the cached ones.
+   *
+   * @param rawRemoteFeatureFlags - The unprocessed feature flags.
+   * @returns The processed flags, the updated threshold cache, and the
+   * selected threshold group names.
+   */
+  async #resolveFeatureFlags(rawRemoteFeatureFlags: FeatureFlags): Promise<{
+    processedFlags: FeatureFlags;
+    thresholdCache: Record<string, number>;
+    featureFlagThresholdGroups: Record<string, string>;
+  }> {
     const {
       processedFlags,
       thresholdCacheUpdates,
       featureFlagThresholdGroupUpdates,
-    } = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    } = await this.#processRemoteFeatureFlags(rawRemoteFeatureFlags);
 
     const metaMetricsId = this.#getMetaMetricsId();
-    const currentFlagNames = Object.keys(remoteFeatureFlags);
+    const currentFlagNames = Object.keys(rawRemoteFeatureFlags);
 
     // Build updated threshold cache
     const updatedThresholdCache = { ...(this.state.thresholdCache ?? {}) };
@@ -437,24 +475,38 @@ export class RemoteFeatureFlagController extends BaseController<
       }
     }
 
-    // Strip metaMetricsIds from processed flags so they never appear in
-    // remoteFeatureFlags or processedRemoteFeatureFlags state.  Arrays that
-    // were preserved as-is (e.g. when metaMetricsId is missing) would
-    // otherwise leak explicit-targeting IDs into diagnostics.
-    const redactedProcessedFlags = redactMetaMetricsIds(processedFlags);
+    return {
+      // Strip metaMetricsIds from processed flags so they never appear in
+      // remoteFeatureFlags, which is exposed to the UI and included in state
+      // logs. Arrays that were preserved as-is (e.g. when metaMetricsId is
+      // missing) would otherwise leak explicit-targeting IDs into diagnostics.
+      processedFlags: redactMetaMetricsIds(processedFlags),
+      thresholdCache: updatedThresholdCache,
+      featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
+    };
+  }
+
+  /**
+   * Updates the controller's state with new feature flags and resets the cache timestamp.
+   *
+   * @param remoteFeatureFlags - The new feature flags to cache.
+   */
+  async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
+    const resolved = await this.#resolveFeatureFlags(remoteFeatureFlags);
+
+    this.#processedRemoteFeatureFlags = resolved.processedFlags;
 
     // Single state update with all changes batched together
     this.update(() => {
       return {
         ...this.state,
         remoteFeatureFlags: this.#getEffectiveFeatureFlags({
-          processedRemoteFeatureFlags: redactedProcessedFlags,
+          processedRemoteFeatureFlags: resolved.processedFlags,
         }),
-        processedRemoteFeatureFlags: redactedProcessedFlags,
-        rawRemoteFeatureFlags: redactMetaMetricsIds(remoteFeatureFlags),
+        rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
-        thresholdCache: updatedThresholdCache,
-        featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
+        thresholdCache: resolved.thresholdCache,
+        featureFlagThresholdGroups: resolved.featureFlagThresholdGroups,
       };
     });
   }
