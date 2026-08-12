@@ -487,18 +487,43 @@ export enum PerpsMode {
 }
 
 /**
+ * Side filter for the Pro Positions/Orders panel (long/short/all).
+ *
+ * Shared across markets via `proLayoutPreferences.positionsSideFilter`.
+ */
+export type ProPositionsSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Positions list.
+ */
+export type ProPositionsSortField =
+  | 'positionValue'
+  | 'unrealizedPnl'
+  | 'fundingRate';
+
+/**
+ * Sort direction for the Pro Positions list.
+ */
+export type ProPositionsSortDirection = 'asc' | 'desc';
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
  * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
- * reserved for future container-position UI and are kept here now so no
- * state-shape migration is needed when that UI ships.
+ * reserved for future container-position UI. `positionsSideFilter` /
+ * `positionsSortField` / `positionsSortDirection` back the Positions/Orders
+ * panel sort and side filter so they survive market navigation and app
+ * restarts.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
   chartExpanded: boolean;
   orderBookPosition: 'left' | 'right';
   orderFormPosition: 'left' | 'right';
+  positionsSideFilter: ProPositionsSideFilter;
+  positionsSortField: ProPositionsSortField;
+  positionsSortDirection: ProPositionsSortDirection;
 };
 
 /**
@@ -513,6 +538,9 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   chartExpanded: false,
   orderBookPosition: 'left',
   orderFormPosition: 'right',
+  positionsSideFilter: 'all',
+  positionsSortField: 'positionValue',
+  positionsSortDirection: 'desc',
 };
 
 /**

@@ -44,6 +44,9 @@ export type {
   PerpsControllerActions,
   PerpsControllerEvents,
   ProLayoutPreferences,
+  ProPositionsSideFilter,
+  ProPositionsSortDirection,
+  ProPositionsSortField,
 } from './PerpsController.js';
 export type {
   PerpsControllerCalculateFeesAction,
