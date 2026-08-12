@@ -70,6 +70,7 @@ export const RegistryNetworkConfigSchema = type({
   blockExplorerUrls: BlockExplorerUrlsSchema,
   config: ChainConfigSchema,
   contracts: optional(NetworkContractsSchema),
+  supportsEtherscanApi: optional(boolean()),
 });
 
 /**
