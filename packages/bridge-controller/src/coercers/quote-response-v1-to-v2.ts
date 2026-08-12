@@ -1,6 +1,7 @@
 import { create, coerce, Infer, is, intersection } from '@metamask/superstruct';
 import { parseCaipAssetType } from '@metamask/utils';
 
+import { assetIdsMatch } from '../utils/assets.js';
 import { formatAddressToAssetId } from '../utils/caip-formatters.js';
 import { sumAmounts } from '../utils/number-formatters.js';
 import {
@@ -17,7 +18,6 @@ import {
 import type { QuoteResponse } from '../validators/quote-response.js';
 import { QuoteSchemaV2, FeeType, QuoteSchema } from '../validators/quote.js';
 import { StepSchemaV2, StepSchema } from '../validators/step.js';
-import { assetIdsMatch } from '../utils/assets.js';
 
 const BridgeAssetV2FromV1 = coerce(
   BridgeAssetV2Schema,
