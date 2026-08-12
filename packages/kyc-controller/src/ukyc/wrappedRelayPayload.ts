@@ -1,5 +1,5 @@
-import type { UkycClientMaterial } from './deriveClientMaterial.js';
 import { toBase64Url } from '../encoding.js';
+import type { UkycClientMaterial } from './deriveClientMaterial.js';
 import type { UkycStorageAccessToken } from './storageAccessToken.js';
 
 /**

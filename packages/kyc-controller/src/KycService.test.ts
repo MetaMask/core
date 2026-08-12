@@ -497,9 +497,9 @@ describe('KycService', () => {
         });
       const { service } = getService();
 
-      await expect(
-        service.createIronCustomer({ email: 'a@b.co' }),
-      ).resolves.toMatchObject({
+      expect(
+        await service.createIronCustomer({ email: 'a@b.co' }),
+      ).toMatchObject({
         id: 'iron-1',
         email: 'a@b.co',
         status: 'SigningsRequired',
@@ -581,13 +581,13 @@ describe('KycService', () => {
         .reply(204);
       const { service } = getService();
 
-      await expect(
-        service.submitConsents({
+      expect(
+        await service.submitConsents({
           ironDisclaimerIds: ['d1'],
           sumsubTncSigned: true,
           idosTncSigned: true,
         }),
-      ).resolves.toBeUndefined();
+      ).toBeUndefined();
     });
 
     it('throws an HttpError on a non-ok response', async () => {

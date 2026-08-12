@@ -14,6 +14,7 @@ import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
@@ -28,7 +29,6 @@ import type {
   KycVendor,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { toBase64Url } from './encoding.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
 import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
@@ -806,6 +806,8 @@ export class KycController extends BaseController<
    * launch SumSub — skipping MoonPay Check/Auth frames.
    *
    * @param consents - T&C2 boolean flags.
+   * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
+   * @param consents.idosTncSigned - Whether idOS T&C were accepted.
    */
   async #startIronSession(consents: {
     sumsubTncSigned: boolean;
@@ -848,12 +850,9 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      if (
-        sumsubResult &&
-        'error' in sumsubResult &&
-        typeof sumsubResult.error === 'string'
-      ) {
-        throw new Error(sumsubResult.error);
+      const sumsubError = sumsubResult?.error;
+      if (typeof sumsubError === 'string') {
+        throw new Error(sumsubError);
       }
       // After SumSub, refresh user-keyed status for the Money toast and start
       // polling while still pending. Soft-fail: toast refresh must not rewind
@@ -1616,6 +1615,9 @@ export class KycController extends BaseController<
    * value actually changes.
    *
    * @param payload - The status payload to apply.
+   * @param payload.status - User-keyed KYC status from `GET /kyc/status`.
+   * @param payload.sumsubSessionId - Optional SumSub session id from status.
+   * @param payload.errorCode - Optional error code from status.
    */
   #applyUserStatus(payload: {
     status: KycUserStatus;
