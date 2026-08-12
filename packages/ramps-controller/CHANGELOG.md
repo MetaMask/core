@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add NeoBankService Pix / autoramp quote client methods and messenger actions, targeting the neobank-proxy `/neobank` prefix on the Ramp API host: `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, and `getCustomerByExternalId`. Pix/quote helpers return parsed proxy JSON; `createAutoramp` maps autoramp-shaped responses via `mapNeoBankAutorampToRemoteSnapshot` (same as `getAutoramp`). Optional `Idempotency-Key` is supported on mutating calls.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
+
+### Changed
+
+- Point `NeoBankService.getAutoramp` at `GET /neobank/autoramps/{id}` (neobank-proxy global `/neobank` prefix) instead of `/api/v2/autoramps/{id}`, so Core matches the proxy that ships.
 
 ## [20.0.0]
 

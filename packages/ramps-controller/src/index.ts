@@ -211,8 +211,19 @@ export type {
   NeoBankServiceEvents,
   NeoBankServiceMessenger,
   NeoBankAutorampResponse,
+  NeoBankRequestOptions,
+  NeoBankQueryParams,
 } from './NeoBankService.js';
-export type { NeoBankServiceGetAutorampAction } from './NeoBankService-method-action-types.js';
+export type {
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceRegisterPixAddressAction,
+  NeoBankServiceGetAutorampQuoteAction,
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampQuoteForAutorampAction,
+  NeoBankServiceAttachAutorampQuoteAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceMethodActions,
+} from './NeoBankService-method-action-types.js';
 export {
   NeoBankService,
   serviceName as neoBankServiceName,
