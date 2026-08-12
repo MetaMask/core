@@ -1763,6 +1763,11 @@ describe('KycController', () => {
           type: 'alreadyRegistered',
           registration,
         });
+        expect(handlers.getMoonpayCustomerId).toHaveBeenCalledTimes(1);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-fallback',
+          address: '0xabc',
+        });
         expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
       });
     });
@@ -1790,6 +1795,10 @@ describe('KycController', () => {
           ).toMatchObject({ type: 'registered' });
 
           expect(handlers.getMoonpayCustomerId).not.toHaveBeenCalled();
+          expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+            customerId: 'frame-customer',
+            address: '0xabc',
+          });
           expect(handlers.signPersonalMessage).toHaveBeenCalledWith({
             data: expect.stringContaining('as customer frame-customer.'),
             from: '0xabc',
@@ -1799,20 +1808,26 @@ describe('KycController', () => {
               address: '0xabc',
               customerId: 'frame-customer',
               signature: '0xsig',
+              idempotencyKey: expect.any(String),
             }),
           );
         },
       );
     });
 
-    it('falls back to resolving the customer id from the proxy', async () => {
+    it('falls back to resolving the customer id from the proxy before list', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.registerMoneyAccountWallet({ address: '0xabc' });
 
         expect(handlers.getMoonpayCustomerId).toHaveBeenCalledTimes(1);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-fallback',
+          address: '0xabc',
+        });
         expect(handlers.registerSelfHostedWallet).toHaveBeenCalledWith(
           expect.objectContaining({
             customerId: 'iron-customer-fallback',
+            idempotencyKey: expect.any(String),
           }),
         );
       });

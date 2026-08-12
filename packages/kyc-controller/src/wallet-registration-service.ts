@@ -75,11 +75,21 @@ export class WalletRegistrationError extends Error {
 
 export type WalletRegistrationServiceOptions = {
   fetch: FetchLike;
+  /**
+   * Base URL of the Money Movement neobank-proxy host
+   * (e.g. `https://on-ramp.dev-api.cx.metamask.io`). Paths are under `/neobank`.
+   */
   baseUrl: string;
   getAuthToken: () => Promise<string>;
+  /**
+   * MetaMask profile / partner external id used as MoonPay `external_id`
+   * (typically `AuthenticationController:getSessionProfile().canonicalProfileId`).
+   */
+  getExternalId: () => Promise<string>;
 };
 
 export type GetRegistrationStatusRequest = {
+  customerId: string;
   address: string;
   blockchain: Blockchain;
 };
@@ -90,6 +100,11 @@ export type RegisterSelfHostedWalletRequest = {
   blockchain: Blockchain;
   message: string;
   signature: string;
+  /**
+   * Stable key reused across retries of the same ownership proof. Generated
+   * when omitted.
+   */
+  idempotencyKey?: string;
 };
 
 /** Successful registration outcome. */
@@ -97,9 +112,6 @@ export type RegistrationOutcome = {
   type: 'registered';
   registration: SelfHostedRegistration;
 };
-
-const SELF_HOSTED_PATH = '/vendors/moonpay/self-hosted-wallets';
-const MOONPAY_CUSTOMER_PATH = '/vendors/moonpay/customer';
 
 /**
  * Normalizes a Monad EVM address for case-insensitive comparison.
@@ -137,7 +149,53 @@ function mapStatusToKind(status: number): WalletRegistrationErrorKind {
 }
 
 /**
- * Data service that talks to the MetaMask backend proxy for MoonPay Iron
+ * Builds a client-side Idempotency-Key for MoonPay POSTs. Prefer a stable
+ * caller-supplied key across retries of the same proof.
+ *
+ * @returns A random UUID when available, otherwise a timestamped fallback.
+ */
+export function createIdempotencyKey(): string {
+  const cryptoObj = globalThis.crypto as
+    | { randomUUID?: () => string }
+    | undefined;
+  if (typeof cryptoObj?.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
+  }
+  return `wallet-reg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+/**
+ * Extracts a human-readable error body from a transparent neobank-proxy
+ * response. Upstream may return a plain string or a JSON value; both are
+ * mirrored 1:1 (no `{ code: 'iron_error' }` envelope).
+ *
+ * @param raw - Raw response text.
+ * @returns Normalized body string for {@link WalletRegistrationError}.
+ */
+export function extractErrorBody(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return raw;
+  }
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (typeof parsed === 'string') {
+      return parsed;
+    }
+    if (parsed && typeof parsed === 'object') {
+      const { message } = parsed as { message?: unknown };
+      if (typeof message === 'string') {
+        return message;
+      }
+    }
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
+ * Data service that talks to the Money Movement neobank-proxy for MoonPay Iron
  * self-hosted wallet registration. It never calls Iron directly, so the Iron
  * API key never ships in the client.
  */
@@ -148,23 +206,36 @@ export class WalletRegistrationService {
 
   readonly #getAuthToken: () => Promise<string>;
 
+  readonly #getExternalId: () => Promise<string>;
+
   constructor(options: WalletRegistrationServiceOptions) {
     this.#fetch = options.fetch;
     this.#baseUrl = options.baseUrl.replace(/\/$/u, '');
     this.#getAuthToken = options.getAuthToken;
+    this.#getExternalId = options.getExternalId;
   }
 
   /**
-   * Resolves Iron's internal customer id from the authenticated MetaMask
-   * profile. Used when the current KYC flow has not already received
-   * `customer.id` from MoonPay's hosted frame.
+   * Resolves Iron's internal customer id via
+   * `GET /neobank/customers/{external_id}/external`, using the MetaMask
+   * profile/canonical id as `external_id`. Used when the current KYC flow has
+   * not already received `customer.id` from MoonPay's hosted frame.
    *
    * @returns Iron's internal customer id.
    */
   async getMoonpayCustomerId(): Promise<string> {
-    const token = await this.#getAuthToken();
+    const [token, externalId] = await Promise.all([
+      this.#getAuthToken(),
+      this.#getExternalId(),
+    ]);
+    if (!externalId) {
+      throw new WalletRegistrationError('malformedResponse', {
+        message: 'MetaMask external id (canonical profile id) is empty',
+      });
+    }
+
     const response = await this.#fetch(
-      `${this.#baseUrl}${MOONPAY_CUSTOMER_PATH}`,
+      `${this.#baseUrl}/neobank/customers/${encodeURIComponent(externalId)}/external`,
       {
         method: 'GET',
         headers: {
@@ -187,32 +258,38 @@ export class WalletRegistrationService {
       });
     }
 
-    const { customerId } = payload as { customerId?: unknown };
-    if (typeof customerId !== 'string' || customerId.length === 0) {
+    const { id } = payload as { id?: unknown };
+    if (typeof id !== 'string' || id.length === 0) {
       throw new WalletRegistrationError('malformedResponse', {
-        message: 'MoonPay customer body missing customerId',
+        message: 'MoonPay customer body missing id',
       });
     }
-    return customerId;
+    return id;
   }
 
   /**
-   * Reconciles a wallet against the customer's registered self-hosted addresses.
-   * A failed or malformed lookup is reported as `lookupUnavailable` and never
-   * downgraded to `absent`.
+   * Reconciles a wallet against the customer's registered self-hosted addresses
+   * via `GET /neobank/addresses/crypto/{customer_id}?filter=SelfHosted`.
+   * Upstream returns all self-hosted chains; Monad filtering stays client-side
+   * for the POC. A failed or malformed lookup is reported as
+   * `lookupUnavailable` and never downgraded to `absent`.
    *
-   * @param request - Monad address to reconcile.
+   * @param request - Customer id and Monad address to reconcile.
    * @returns The active / disabled / absent status for the address.
    */
   async getRegistrationStatus(
     request: GetRegistrationStatusRequest,
   ): Promise<RegistrationStatus> {
-    const { address, blockchain } = request;
+    const { customerId, address, blockchain } = request;
 
     let response: HttpResponse;
     try {
       const token = await this.#getAuthToken();
-      response = await this.#fetch(`${this.#baseUrl}${SELF_HOSTED_PATH}`, {
+      const url = new URL(
+        `${this.#baseUrl}/neobank/addresses/crypto/${encodeURIComponent(customerId)}`,
+      );
+      url.searchParams.set('filter', 'SelfHosted');
+      response = await this.#fetch(url.toString(), {
         method: 'GET',
         headers: {
           accept: 'application/json',
@@ -230,7 +307,7 @@ export class WalletRegistrationService {
       const body = await response.text();
       throw new WalletRegistrationError('lookupUnavailable', {
         httpStatus: response.status,
-        body,
+        body: extractErrorBody(body),
       });
     }
 
@@ -272,11 +349,12 @@ export class WalletRegistrationService {
   }
 
   /**
-   * Registers a self-hosted wallet through the MetaMask proxy. The proxy
-   * resolves the customer, derives the idempotency key, and attaches the API
-   * version, so the client never manages those. Every non-2xx response is
-   * mapped to a typed error; `409` is deliberately surfaced as an ambiguous
-   * `conflict` that the caller must reconcile with a follow-up status lookup.
+   * Registers a self-hosted wallet through neobank-proxy
+   * `POST /neobank/addresses/crypto/selfhosted`. The client supplies
+   * `customer_id` and an `Idempotency-Key` (generated when omitted). Every
+   * non-2xx response is mapped to a typed error; `409` is deliberately
+   * surfaced as an ambiguous `conflict` that the caller must reconcile with a
+   * follow-up status lookup.
    *
    * @param request - Customer id, address, blockchain, message, and signature.
    * @returns The registered outcome on success.
@@ -284,24 +362,29 @@ export class WalletRegistrationService {
   async registerSelfHostedWallet(
     request: RegisterSelfHostedWalletRequest,
   ): Promise<RegistrationOutcome> {
+    const idempotencyKey = request.idempotencyKey ?? createIdempotencyKey();
     let response: HttpResponse;
     try {
       const token = await this.#getAuthToken();
-      response = await this.#fetch(`${this.#baseUrl}${SELF_HOSTED_PATH}`, {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'content-type': 'application/json',
-          authorization: `Bearer ${token}`,
+      response = await this.#fetch(
+        `${this.#baseUrl}/neobank/addresses/crypto/selfhosted`,
+        {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+            authorization: `Bearer ${token}`,
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify({
+            customer_id: request.customerId,
+            address: request.address,
+            blockchain: request.blockchain,
+            message: request.message,
+            signature: request.signature,
+          }),
         },
-        body: JSON.stringify({
-          customer_id: request.customerId,
-          address: request.address,
-          blockchain: request.blockchain,
-          message: request.message,
-          signature: request.signature,
-        }),
-      });
+      );
     } catch (error) {
       throw new WalletRegistrationError('transient', {
         message: 'self-hosted registration request failed',
@@ -342,21 +425,23 @@ export class WalletRegistrationService {
   }
 
   async #toHttpError(response: HttpResponse): Promise<WalletRegistrationError> {
-    let envelope: { message?: string };
+    let raw = '';
     try {
-      envelope = (await response.json()) as { message?: string };
+      raw = await response.text();
     } catch {
       return new WalletRegistrationError('malformedResponse', {
         httpStatus: response.status,
-        message: 'error body was not valid JSON',
+        message: 'error body could not be read',
       });
     }
 
     const { status } = response;
     const kind = mapStatusToKind(status);
+    const body = extractErrorBody(raw);
     return new WalletRegistrationError(kind, {
       httpStatus: status,
-      body: envelope.message,
+      body,
+      message: body || undefined,
     });
   }
 

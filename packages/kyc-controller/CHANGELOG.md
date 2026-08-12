@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of the `@metamask/kyc-controller` package for managing KYC / identity verification state across MetaMask clients ([#9781](https://github.com/MetaMask/core/pull/9781))
-- `KycController:registerMoneyAccountWallet`, an address-only action that resolves the MoonPay customer, signs a Monad Money Account ownership message, and registers the wallet through the MetaMask proxy ([#9847](https://github.com/MetaMask/core/pull/9847))
-- Internal wallet registration service and state machine support for `409` disambiguation, transient-failure reconciliation, UTC date rollover, and typed failures ([#9847](https://github.com/MetaMask/core/pull/9847))
+- `KycController:registerMoneyAccountWallet`, an address-only action that resolves the MoonPay customer, signs a Monad Money Account ownership message, and registers the wallet through the MetaMask neobank-proxy ([#9850](https://github.com/MetaMask/core/pull/9850), [#9847](https://github.com/MetaMask/core/pull/9847))
+- Internal wallet registration service and state machine support for `409` disambiguation, transient-failure reconciliation, UTC date rollover, and typed failures ([#9850](https://github.com/MetaMask/core/pull/9850), [#9847](https://github.com/MetaMask/core/pull/9847))
+  - Targets transparent neobank routes (`GET /neobank/customers/{external_id}/external`, `GET /neobank/addresses/crypto/{customer_id}`, `POST /neobank/addresses/crypto/selfhosted`), client-side Monad filtering, `Idempotency-Key`, and upstream error bodies mirrored 1:1.
+  - Optional `neobankBaseUrl` on `KycService` so KYC and wallet registration can use different hosts.
 - Add `KycController` and `KycService` for managing KYC / identity verification state across MetaMask clients ([#9615](https://github.com/MetaMask/core/pull/9615))
   - `KycController` (`BaseController`) owns the flow state machine, the Check/Auth frame message protocol, X25519 credential decryption, and SumSub orchestration via an injected `KycSumSubLauncher` adapter.
   - `KycService` extends `BaseDataService` and performs the Universal KYC (UKYC) HTTP calls via an injected `fetch`, sourcing the auth bearer token and geolocation through the messenger.

@@ -18,8 +18,8 @@ export type KycServiceGetGeoCountryAction = {
 };
 
 /**
- * Resolves Iron's internal customer id from the authenticated MetaMask
- * profile.
+ * Resolves Iron's internal customer id via neobank-proxy customer lookup,
+ * using the MetaMask canonical profile id as the partner `external_id`.
  *
  * @returns Iron's internal customer id.
  */
@@ -29,9 +29,11 @@ export type KycServiceGetMoonpayCustomerIdAction = {
 };
 
 /**
- * Checks whether a Monad Money Account address is already registered.
+ * Checks whether a Monad Money Account address is already registered for the
+ * given Iron customer.
  *
- * @param params - The address to check.
+ * @param params - Customer id and address to check.
+ * @param params.customerId - Iron / MoonPay customer UUID.
  * @param params.address - Money Account address.
  * @returns Active, disabled, or absent registration status.
  */

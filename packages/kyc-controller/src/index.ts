@@ -46,6 +46,7 @@ export type {
   KycServiceInvalidateQueriesAction,
   KycServiceMessenger,
   KycServiceOptions,
+  GetWalletRegistrationStatusParams,
   RegisterSelfHostedWalletParams,
   UkycSessionResponse,
   WrappedEncryptionKey,
