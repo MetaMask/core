@@ -10,6 +10,7 @@ import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
 import type {
   CandleData,
   OrderType,
+  StrategyOrderType,
   TpslLinkage,
   TriggerDirection,
   TriggerOrderType,
@@ -250,6 +251,19 @@ export type OrderParams = {
   // Required for those order types and rejected for market/limit orders.
   triggerPrice?: string; // Price at which the resting order activates
 
+  // Strategy placement (twap, scale, chase). Each group below is required for
+  // its own order type and rejected on every other one, so a stray field can
+  // never be silently dropped. Strategy orders carry no `price`, `triggerPrice`,
+  // `timeInForce` or attached TP/SL — the strategy owns its own execution.
+  twapDuration?: number; // TWAP window in whole minutes; each provider enforces its own venue's bounds
+  twapRandomize?: boolean; // Randomize the timing of the TWAP slices (default false)
+  scaleMinPrice?: string; // Lowest limit price in the scale ladder
+  scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
+  scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
+  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 3000, min 1000)
+  chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
+  chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
+
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
   stopLossPrice?: string; // Stop loss price
@@ -283,7 +297,16 @@ export type OrderParams = {
 
 export type OrderResult = {
   success?: boolean;
-  orderId?: string; // Order ID from exchange
+  /**
+   * What names the placement afterwards.
+   *
+   * For an ordinary placement this is the exchange's order ID. For a *strategy*
+   * placement it is a handle instead — a venue TWAP id, or a client-generated
+   * scale-group or chase-session id — which is what `CancelOrderParams` takes
+   * together with the matching `orderType`. The individual exchange ids a
+   * strategy expanded into are in `childOrderIds`.
+   */
+  orderId?: string;
   error?: string;
   filledSize?: string; // Amount filled
   // Final normalized size actually submitted to the exchange (post precision
@@ -292,6 +315,19 @@ export type OrderResult = {
   // real submitted size rather than the caller's pre-normalization params.size.
   submittedSize?: string;
   averagePrice?: string; // Average execution price
+  // Exchange IDs of the individual orders a strategy placement expanded into.
+  // `orderId` carries the strategy handle instead, so these are what a caller
+  // needs to cancel the children directly.
+  //
+  // For a `scale` ladder they stay valid: the rungs are placed once and are not
+  // replaced, so they remain cancellable even after the session-scoped handle is
+  // gone. For a `chase` this is only the order resting at placement time — the
+  // strategy cancels and re-places as the touch moves, and each replacement has
+  // a new ID that is held in the session rather than reported here, so the value
+  // goes stale on the first re-price. Cancel a live chase by its handle.
+  //
+  // Absent for every non-strategy placement.
+  childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
 
@@ -414,8 +450,14 @@ export type ClosePositionParams = {
    * Close order type (default: market). Only `market` and `limit` are meaningful
    * here: `ClosePositionParams` carries no trigger price, so a trigger-based
    * close is not expressible and would be rejected during placement.
+   *
+   * Strategy placements are excluded at the type level rather than left to a
+   * runtime rejection, because this type cannot carry any of the fields they
+   * require and `closePosition` has no path that executes them. Derived with
+   * `Exclude` on purpose: it shrinks as `StrategyOrderType` grows, so a strategy
+   * added later is refused here automatically.
    */
-  orderType?: OrderType;
+  orderType?: Exclude<OrderType, StrategyOrderType>;
   price?: string; // Limit price (required for limit close)
   currentPrice?: number; // Current market price for validation
 
@@ -659,8 +701,17 @@ export type SwitchProviderResult = {
 };
 
 export type CancelOrderParams = {
-  orderId: string; // Order ID to cancel
+  orderId: string; // Order ID to cancel, or the strategy handle when orderType is a strategy type
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
+  /**
+   * Placement type of what is being cancelled. Only the strategy types
+   * (`twap`, `scale`, `chase`) change anything: each is cancelled through its
+   * own path — the venue's TWAP cancel endpoint, a batch cancel of the ladder's
+   * children, or stopping the chase session and cancelling its live order.
+   * Omit it (or pass an ordinary order type) to cancel a single resting order,
+   * which is what every existing caller does.
+   */
+  orderType?: OrderType;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
@@ -668,7 +719,12 @@ export type CancelOrderParams = {
 
 export type CancelOrderResult = {
   success: boolean;
-  orderId?: string; // Cancelled order ID
+  /**
+   * What was cancelled, named the same way it was placed: an exchange order ID
+   * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
+   * chase session — when `CancelOrderParams.orderType` named one.
+   */
+  orderId?: string;
   error?: string;
   providerId?: PerpsProviderType; // Multi-provider: source provider identifier
 };

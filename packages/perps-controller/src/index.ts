@@ -44,6 +44,9 @@ export type {
   PerpsControllerActions,
   PerpsControllerEvents,
   ProLayoutPreferences,
+  ProPositionsSideFilter,
+  ProPositionsSortDirection,
+  ProPositionsSortField,
 } from './PerpsController.js';
 export type {
   PerpsControllerCalculateFeesAction,
@@ -158,6 +161,8 @@ export type {
   TradeConfiguration,
   OrderType,
   TriggerOrderType,
+  StrategyOrderType,
+  OrdinaryOrderType,
   OrderExecution,
   TriggerDirection,
   TpslLinkage,
@@ -437,10 +442,12 @@ export {
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
+  CHASE_ORDER_CONFIG,
   MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
+  HYPERLIQUID_TWAP_LIMITS,
   CLOSE_POSITION_CONFIG,
   MARGIN_ADJUSTMENT_CONFIG,
   DATA_LAKE_API_CONFIG,
@@ -482,12 +489,19 @@ export {
 } from './utils/index.js';
 export {
   TRIGGER_ORDER_TYPES,
+  STRATEGY_ORDER_TYPES,
+  SCALE_ORDER_COUNT,
   isTriggerOrderType,
+  isStrategyOrderType,
   isLimitExecutionOrderType,
   getTriggerExecution,
   getTriggerDirection,
   buildTriggerOrderType,
   buildPositionTriggerOrderFromOrder,
+  computeScalePriceLadder,
+  computeChaseQuotePrice,
+  getPriceTick,
+  splitScaleSizes,
 } from './utils/index.js';
 export {
   adaptTriggerOrderTypeFromSDK,
