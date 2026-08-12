@@ -1365,7 +1365,15 @@ describe('Quotes Utils', () => {
         expect(transactionDataMock.quotes).toStrictEqual([]);
       });
 
-      it('keeps executable quotes when the quote pipeline throws', async () => {
+      it('keeps executable quotes and stays silent when a refresh throws', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [QUOTE_MOCK],
+            },
+          },
+        });
         getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
         calculateTotalsMock.mockImplementationOnce(() => {
           throw new Error('calculateTotals failed');
@@ -1382,6 +1390,48 @@ describe('Quotes Utils', () => {
         );
 
         expect(transactionDataMock.quotes).toStrictEqual([QUOTE_MOCK]);
+        expect(transactionDataMock.quoteError).toBeUndefined();
+        expect(transactionDataMock.quotesLastUpdated).toStrictEqual(
+          expect.any(Number),
+        );
+      });
+
+      it('stays silent when a direct route fails', async () => {
+        const noOpQuote = {
+          strategy: TransactionPayStrategy.None,
+        } as TransactionPayQuote<Json>;
+
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [noOpQuote],
+              sourceAmounts: [],
+            },
+          },
+        });
+        getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
+        calculateTotalsMock.mockImplementationOnce(() => {
+          throw new Error('calculateTotals failed');
+        });
+
+        await expect(run()).rejects.toThrow('calculateTotals failed');
+
+        // Seed the draft with the no-op quote of the direct route.
+        const transactionDataMock: Record<string, unknown> = {
+          quotes: [noOpQuote],
+        };
+        updateTransactionDataMock.mock.calls.forEach((call) =>
+          call[1](transactionDataMock),
+        );
+
+        // Direct routes need no quotes: the no-op marker stays and no error
+        // is surfaced.
+        expect(transactionDataMock.quotes).toStrictEqual([noOpQuote]);
+        expect(transactionDataMock.quoteError).toBeUndefined();
+        expect(transactionDataMock.quotesLastUpdated).toStrictEqual(
+          expect.any(Number),
+        );
       });
 
       it('does not persist quote error when pay state was removed', async () => {

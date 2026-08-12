@@ -202,33 +202,12 @@ export async function updateQuotes(
       return false;
     }
 
-    // Persist the failure so clients can surface it, and stamp the update
-    // time so the refresh loop retries on the normal interval instead of
-    // every tick.
-    updateExistingTransactionData(
+    persistQuoteLoadFailure({
+      error: error as Error,
       messenger,
       transactionId,
       updateTransactionData,
-      (data) => {
-        data.quoteError = {
-          message: (error as Error).message,
-          reason: 'no-quotes',
-        };
-        data.quotesLastUpdated = Date.now();
-
-        // Stale no-op quotes from a previous direct route would block the
-        // retry loop, so drop them. Executable quotes stay usable until a
-        // refresh replaces them.
-        if (
-          data.quotes?.length &&
-          data.quotes.every(
-            (quote) => quote.strategy === TransactionPayStrategy.None,
-          )
-        ) {
-          data.quotes = [];
-        }
-      },
-    );
+    });
 
     throw error;
   } finally {
@@ -332,18 +311,91 @@ function syncTransaction({
 export function isQuoteRetryPending(
   transactionData: TransactionData,
 ): boolean {
-  const { fiatPayment, paymentToken, quoteError, quotes, sourceAmounts } =
-    transactionData;
-
-  if (quotes?.length) {
+  if (transactionData.quotes?.length) {
     return false;
   }
 
+  return Boolean(transactionData.quoteError) || needsQuotes(transactionData);
+}
+
+/**
+ * Determine whether a transaction needs quotes: a payment token with pending
+ * conversions, or a selected fiat payment method. Direct routes need none —
+ * their no-op quote is generated locally.
+ *
+ * @param transactionData - Transaction data to check.
+ * @returns True when the transaction needs quotes.
+ */
+function needsQuotes(
+  transactionData: TransactionData | Draft<TransactionData>,
+): boolean {
+  const { fiatPayment, paymentToken, sourceAmounts } = transactionData;
+
   return (
-    Boolean(quoteError) ||
     (Boolean(paymentToken) && (sourceAmounts?.length ?? 0) > 0) ||
     Boolean(fiatPayment?.selectedPaymentMethodId)
   );
+}
+
+/**
+ * Persist a failed quote load so the refresh loop can retry it.
+ *
+ * Always stamps `quotesLastUpdated` so the next attempt waits a full refresh
+ * interval. Surfaces `quoteError` only when quotes are needed and none are
+ * usable: existing executable quotes stay usable until a refresh replaces
+ * them, and direct routes stay silent because they need no quotes. Stale
+ * no-op quotes from a previous direct route are dropped so the retry loop
+ * picks the transaction up.
+ *
+ * @param request - Request object.
+ * @param request.error - Error thrown by the quote load.
+ * @param request.messenger - Messenger instance.
+ * @param request.transactionId - ID of the failed transaction.
+ * @param request.updateTransactionData - Callback to update transaction data.
+ */
+function persistQuoteLoadFailure({
+  error,
+  messenger,
+  transactionId,
+  updateTransactionData,
+}: {
+  error: Error;
+  messenger: TransactionPayControllerMessenger;
+  transactionId: string;
+  updateTransactionData: UpdateTransactionDataCallback;
+}): void {
+  const currentData = messenger.call('TransactionPayController:getState')
+    .transactionData[transactionId];
+
+  // Skip late writes so cleanup-removed entries are not recreated.
+  if (!currentData) {
+    return;
+  }
+
+  const hasExecutableQuotes = Boolean(
+    currentData.quotes?.some(
+      (quote) => quote.strategy !== TransactionPayStrategy.None,
+    ),
+  );
+
+  const shouldSurfaceError = !hasExecutableQuotes && needsQuotes(currentData);
+
+  updateTransactionData(transactionId, (data) => {
+    data.quotesLastUpdated = Date.now();
+
+    if (!shouldSurfaceError) {
+      return;
+    }
+
+    data.quoteError = {
+      message: error.message,
+      reason: 'no-quotes',
+    };
+
+    if (data.quotes?.length) {
+      data.quotes = [];
+    }
+  });
 }
 
 /**
