@@ -3,6 +3,7 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { flushPromises } from '../../../tests/helpers.js';
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
@@ -259,6 +260,20 @@ describe('TransactionPayController', () => {
       });
 
       expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when quote update fails', async () => {
+      const controller = createController();
+
+      updateQuotesMock.mockRejectedValueOnce(new Error('Quote update failed'));
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      await flushPromises();
+
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 

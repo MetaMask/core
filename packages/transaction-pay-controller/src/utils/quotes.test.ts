@@ -15,7 +15,7 @@ import type {
   TransactionPayRequiredToken,
 } from '../types.js';
 import type { UpdateQuotesRequest } from './quotes.js';
-import { refreshQuotes, updateQuotes } from './quotes.js';
+import { isQuoteRetryPending, refreshQuotes, updateQuotes } from './quotes.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -1316,6 +1316,31 @@ describe('Quotes Utils', () => {
         await expect(run()).rejects.toThrow(pipelineError);
       });
 
+      it('persists quote error and refresh timestamp when the quote pipeline throws', async () => {
+        getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
+        calculateTotalsMock.mockImplementationOnce(() => {
+          throw new Error('calculateTotals failed');
+        });
+
+        await expect(run()).rejects.toThrow('calculateTotals failed');
+
+        const transactionDataMock: Record<string, unknown> = {};
+        updateTransactionDataMock.mock.calls.forEach((call) =>
+          call[1](transactionDataMock),
+        );
+
+        expect(transactionDataMock).toMatchObject({
+          isLoading: false,
+          quoteError: {
+            message: 'calculateTotals failed',
+            reason: 'no-quotes',
+          },
+        });
+        expect(transactionDataMock.quotesLastUpdated).toStrictEqual(
+          expect.any(Number),
+        );
+      });
+
       it('catches abort errors thrown by strategy and returns false', async () => {
         const strategyError = new Error('The operation was aborted');
         const gate = deferred<TransactionPayQuote<Json>[]>();
@@ -1525,6 +1550,229 @@ describe('Quotes Utils', () => {
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('retries a transaction that needs quotes but has none', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.Across,
+          }),
+        ],
+      });
+    });
+
+    it('retries a transaction with a selected fiat payment method and no quotes', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            fiatPayment: { selectedPaymentMethodId: 'method-1' },
+            quotes: [],
+            quotesLastUpdated: 1,
+            tokens: [],
+          } as unknown as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.Across,
+          }),
+        ],
+      });
+    });
+
+    it('does not retry a transaction with no quotes when none are needed', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            quotes: [],
+          } as unknown as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('does not retry a transaction with no quotes before the refresh interval', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [],
+            quotesLastUpdated: Date.now(),
+          } as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('does not log a refresh when the update is superseded', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      // updateQuotes returns false when the transaction is not unapproved.
+      getTransactionMock.mockReturnValueOnce({
+        ...TRANSACTION_META_MOCK,
+        status: TransactionStatus.submitted,
+      } as TransactionMeta);
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('continues refreshing other transactions when one update fails', async () => {
+      const secondTransactionId = '234-567';
+
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+          [secondTransactionId]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      // First transaction fails inside updateQuotes.
+      getTransactionMock.mockReturnValueOnce(undefined);
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.Across,
+          }),
+        ],
+      });
+    });
+  });
+
+  describe('isQuoteRetryPending', () => {
+    it('returns false when quotes exist', () => {
+      expect(
+        isQuoteRetryPending({
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          quotes: [QUOTE_MOCK],
+        } as TransactionData),
+      ).toBe(false);
+    });
+
+    it('returns true when payment token has pending conversions and no quotes', () => {
+      expect(
+        isQuoteRetryPending({
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          quotes: [],
+        } as TransactionData),
+      ).toBe(true);
+    });
+
+    it('returns true when fiat payment method is selected and no quotes', () => {
+      expect(
+        isQuoteRetryPending({
+          fiatPayment: { selectedPaymentMethodId: 'method-1' },
+          quotes: [],
+        } as unknown as TransactionData),
+      ).toBe(true);
+    });
+
+    it('returns false when payment token has no pending conversions', () => {
+      expect(
+        isQuoteRetryPending({
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          quotes: undefined,
+          sourceAmounts: [],
+        } as TransactionData),
+      ).toBe(false);
+    });
+
+    it('returns false when payment token set but source amounts missing', () => {
+      expect(
+        isQuoteRetryPending({
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          quotes: undefined,
+          sourceAmounts: undefined,
+        } as TransactionData),
+      ).toBe(false);
+    });
+
+    it('returns false when no payment token or fiat payment method', () => {
+      expect(isQuoteRetryPending({} as TransactionData)).toBe(false);
     });
   });
 

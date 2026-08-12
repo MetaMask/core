@@ -200,6 +200,18 @@ export async function updateQuotes(
       log('Quote request aborted', { transactionId, reason: signal.reason });
       return false;
     }
+
+    // Persist the failure so clients can surface it, and stamp the update
+    // time so the refresh loop retries on the normal interval instead of
+    // every tick.
+    updateTransactionData(transactionId, (data) => {
+      data.quoteError = {
+        message: (error as Error).message,
+        reason: 'no-quotes',
+      };
+      data.quotesLastUpdated = Date.now();
+    });
+
     throw error;
   } finally {
     if (!signal.aborted) {
@@ -292,7 +304,35 @@ function syncTransaction({
 }
 
 /**
+ * Determine whether a transaction is waiting on a quote retry: it needs
+ * quotes — a payment token with pending conversions, or a selected fiat
+ * payment method — but has none, meaning the last quote load failed or
+ * returned nothing.
+ *
+ * @param transactionData - Transaction data to check.
+ * @returns True when the transaction needs quotes but has none.
+ */
+export function isQuoteRetryPending(
+  transactionData: TransactionData,
+): boolean {
+  const { fiatPayment, paymentToken, quotes, sourceAmounts } = transactionData;
+
+  if (quotes?.length) {
+    return false;
+  }
+
+  return (
+    (Boolean(paymentToken) && (sourceAmounts?.length ?? 0) > 0) ||
+    Boolean(fiatPayment?.selectedPaymentMethodId)
+  );
+}
+
+/**
  * Refresh quotes for all transactions if expired.
+ *
+ * Also retries transactions that need quotes but have none — a failed or
+ * empty quote load — so a transient failure does not permanently strand a
+ * transaction without quotes.
  *
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
@@ -310,26 +350,33 @@ export async function refreshQuotes(
     const transactionData = state.transactionData[transactionId];
     const { isLoading, quotes, quotesLastUpdated } = transactionData;
 
-    if (isLoading || !quotes?.length) {
+    if (isLoading) {
+      continue;
+    }
+
+    const firstQuote = quotes?.[0];
+
+    if (!firstQuote && !isQuoteRetryPending(transactionData)) {
       continue;
     }
 
     // No-op quotes mark direct routes and have nothing to refresh. They are
     // regenerated whenever the transaction data changes.
     if (
-      quotes.every((quote) => quote.strategy === TransactionPayStrategy.None)
+      firstQuote &&
+      quotes?.every((quote) => quote.strategy === TransactionPayStrategy.None)
     ) {
       continue;
     }
 
-    const strategyName = quotes[0].strategy;
-    const strategy = getStrategyByName(strategyName);
+    const strategyName = firstQuote?.strategy;
 
-    const refreshInterval =
-      (await strategy.getRefreshInterval?.({
-        chainId: quotes[0].request.sourceChainId,
-        messenger,
-      })) ?? DEFAULT_REFRESH_INTERVAL;
+    const refreshInterval = firstQuote
+      ? ((await getStrategyByName(firstQuote.strategy).getRefreshInterval?.({
+          chainId: firstQuote.request.sourceChainId,
+          messenger,
+        })) ?? DEFAULT_REFRESH_INTERVAL)
+      : DEFAULT_REFRESH_INTERVAL;
 
     const isExpired = Date.now() - (quotesLastUpdated ?? 0) > refreshInterval;
 
@@ -337,16 +384,22 @@ export async function refreshQuotes(
       continue;
     }
 
-    const isUpdated = await updateQuotes({
-      getStrategies,
-      messenger,
-      transactionData,
-      transactionId,
-      updateTransactionData,
-    });
+    try {
+      const isUpdated = await updateQuotes({
+        getStrategies,
+        messenger,
+        transactionData,
+        transactionId,
+        updateTransactionData,
+      });
 
-    if (isUpdated) {
-      log('Refreshed quotes', { transactionId, strategy: strategyName });
+      if (isUpdated) {
+        log('Refreshed quotes', { transactionId, strategy: strategyName });
+      }
+    } catch (error) {
+      // The failure is persisted by updateQuotes; keep refreshing the
+      // remaining transactions.
+      log('Failed to refresh quotes', { transactionId, error });
     }
   }
 }

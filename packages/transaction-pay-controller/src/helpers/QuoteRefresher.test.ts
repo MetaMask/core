@@ -9,7 +9,7 @@ import type {
   TransactionData,
   TransactionPayControllerMessenger,
 } from '../types.js';
-import { refreshQuotes } from '../utils/quotes.js';
+import { isQuoteRetryPending, refreshQuotes } from '../utils/quotes.js';
 import { QuoteRefresher } from './QuoteRefresher.js';
 
 jest.mock('../utils/quotes');
@@ -18,6 +18,7 @@ jest.useFakeTimers();
 
 describe('QuoteRefresher', () => {
   const refreshQuotesMock = jest.mocked(refreshQuotes);
+  const isQuoteRetryPendingMock = jest.mocked(isQuoteRetryPending);
   let messenger: TransactionPayControllerMessenger;
   let publish: ReturnType<typeof getMessengerMock>['publish'];
 
@@ -48,6 +49,7 @@ describe('QuoteRefresher', () => {
     ({ messenger, publish } = getMessengerMock());
 
     refreshQuotesMock.mockResolvedValue(undefined);
+    isQuoteRetryPendingMock.mockReturnValue(false);
   });
 
   it('polls if quotes detected in state', async () => {
@@ -78,6 +80,23 @@ describe('QuoteRefresher', () => {
     await flushPromises();
 
     expect(refreshQuotesMock).not.toHaveBeenCalled();
+  });
+
+  it('polls if a transaction needs quotes but has none', async () => {
+    new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      messenger,
+      updateTransactionData: jest.fn(),
+    });
+
+    isQuoteRetryPendingMock.mockReturnValue(true);
+
+    publishStateChange({ hasQuotes: false });
+
+    jest.runAllTimers();
+    await flushPromises();
+
+    expect(refreshQuotesMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not poll if only no-op quotes in state', async () => {

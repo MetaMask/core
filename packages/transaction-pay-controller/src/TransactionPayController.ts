@@ -1,8 +1,8 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { createModuleLogger } from '@metamask/utils';
 import type { Draft } from 'immer';
-import { noop } from 'lodash';
 
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
@@ -12,6 +12,7 @@ import {
   TransactionPayStrategy,
 } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { projectLogger } from './logger.js';
 import type {
   GetAmountDataCallback,
   GetDelegationTransactionCallback,
@@ -35,6 +36,8 @@ import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction.js';
+
+const log = createModuleLogger(projectLogger, 'controller');
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',
@@ -396,7 +399,11 @@ export class TransactionPayController extends BaseController<
         transactionData: this.state.transactionData[transactionId],
         transactionId,
         updateTransactionData: this.#updateTransactionData.bind(this),
-      }).catch(noop);
+      }).catch((error) => {
+        // The failure is persisted as quoteError by updateQuotes and retried
+        // by the refresh loop.
+        log('Failed to update quotes', { transactionId, error });
+      });
     }
   }
 

@@ -9,7 +9,7 @@ import type {
 } from '../index.js';
 import { projectLogger } from '../logger.js';
 import type { UpdateTransactionDataCallback } from '../types.js';
-import { refreshQuotes } from '../utils/quotes.js';
+import { isQuoteRetryPending, refreshQuotes } from '../utils/quotes.js';
 
 const CHECK_INTERVAL = 1000; // 1 Second
 
@@ -107,15 +107,20 @@ export class QuoteRefresher {
 
   #onStateChange(state: TransactionPayControllerState): void {
     // No-op quotes never refresh, so they don't need the refresh loop.
-    const hasQuotes = Object.values(state.transactionData).some((transaction) =>
-      transaction.quotes?.some(
-        (quote) => quote.strategy !== TransactionPayStrategy.None,
-      ),
+    // Transactions that need quotes but have none had a failed or empty
+    // quote load and need the loop to retry them.
+    const needsRefreshLoop = Object.values(state.transactionData).some(
+      (transaction) =>
+        Boolean(
+          transaction.quotes?.some(
+            (quote) => quote.strategy !== TransactionPayStrategy.None,
+          ),
+        ) || isQuoteRetryPending(transaction),
     );
 
-    if (hasQuotes && !this.#isRunning) {
+    if (needsRefreshLoop && !this.#isRunning) {
       this.#start();
-    } else if (!hasQuotes && this.#isRunning) {
+    } else if (!needsRefreshLoop && this.#isRunning) {
       this.#stop();
     }
   }
