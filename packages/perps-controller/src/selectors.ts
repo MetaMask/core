@@ -4,8 +4,8 @@ import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
   SortOptionId,
-  DEFAULT_PRO_LAYOUT_PREFERENCES,
   DEFAULT_PERPS_MODE,
+  mergeProLayoutPreferences,
 } from './constants/perpsConfig.js';
 import type {
   PerpsMode,
@@ -249,10 +249,8 @@ export const selectMarketFilterPreferences = (
  */
 export const selectProLayoutPreferences = (
   state: PerpsControllerState,
-): ProLayoutPreferences => ({
-  ...DEFAULT_PRO_LAYOUT_PREFERENCES,
-  ...state?.proLayoutPreferences,
-});
+): ProLayoutPreferences =>
+  mergeProLayoutPreferences(state?.proLayoutPreferences);
 
 /**
  * Select the current Perps interface mode (lite/pro).

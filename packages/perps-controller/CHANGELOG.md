@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `positionsSideFilter` and `positionsSortConfig` to `ProLayoutPreferences` (defaults `'all'` and `{ field: 'positionValue', direction: 'desc' }`) so Pro Positions/Orders panel sort and side-filter preferences persist across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProPositionsSideFilter`, `ProPositionsSortField`, `ProPositionsSortConfig`, `ProLayoutPreferencesPatch`, and `mergeProLayoutPreferences` (deep-merges nested `positionsSortConfig` over defaults for predated persisted state)
 - **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
   - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
   - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id. Its documentation says so; the individual exchange ids are in `childOrderIds`.
