@@ -46,18 +46,16 @@ const MOCK_PRIVATE_KEY_WALLET: AccountWalletPrivateKeyPayload = {
   ],
 };
 
-function buildIdMap(): IdMap {
-  const map = new IdMap();
-  map.add('entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID);
-  map.add('entropy:wallet-1/0', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0));
-  map.add('entropy:wallet-1/1', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1));
-  map.add('keyring:simple', MOCK_PRIVATE_KEY_PAYLOAD_ID);
-  map.add(
+const MOCK_ID_MAP = new IdMap([
+  ['entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID],
+  ['entropy:wallet-1/0', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)],
+  ['entropy:wallet-1/1', toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1)],
+  ['keyring:simple', MOCK_PRIVATE_KEY_PAYLOAD_ID],
+  [
     'keyring:simple/0xdeadbeef',
     toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
-  );
-  return map;
-}
+  ],
+]);
 
 describe('AccountTreeSnapshot', () => {
   describe('immutability', () => {
@@ -100,10 +98,9 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('preserves the original idMap through wallet filtering', () => {
-      const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-        map,
+        MOCK_ID_MAP,
       );
 
       const filtered = snapshot.filterWallets(
@@ -127,8 +124,7 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('handles wallet entries whose IDs are not in the idMap', () => {
-      const map = new IdMap();
-      map.add('entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID);
+      const map = new IdMap([['entropy:wallet-1', MOCK_MNEMONIC_PAYLOAD_ID]]);
 
       const snapshot = new AccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
@@ -182,10 +178,9 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('filters private-key wallet groups and preserves the idMap', () => {
-      const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-        map,
+        MOCK_ID_MAP,
       );
 
       const filtered = snapshot.filterGroups(
@@ -202,10 +197,9 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('preserves the idMap when filtering mnemonic wallet groups', () => {
-      const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-        map,
+        MOCK_ID_MAP,
       );
 
       const filtered = snapshot.filterGroups(
@@ -264,10 +258,9 @@ describe('AccountTreeSnapshot', () => {
     });
 
     it('preserves the idMap when filtering all groups', () => {
-      const map = buildIdMap();
       const snapshot = new AccountTreeSnapshot(
         [MOCK_MNEMONIC_WALLET, MOCK_PRIVATE_KEY_WALLET],
-        map,
+        MOCK_ID_MAP,
       );
 
       const filtered = snapshot.filterAllGroups(
@@ -285,16 +278,20 @@ describe('AccountTreeSnapshot', () => {
 
   describe('toLocalId', () => {
     it('returns the local ID for a known payload wallet ID', () => {
-      const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = new AccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET],
+        MOCK_ID_MAP,
+      );
       expect(snapshot.toLocalId(MOCK_MNEMONIC_PAYLOAD_ID)).toBe(
         'entropy:wallet-1',
       );
     });
 
     it('returns the local ID for a known payload group ID', () => {
-      const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = new AccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET],
+        MOCK_ID_MAP,
+      );
       expect(
         snapshot.toLocalId(toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0)),
       ).toBe('entropy:wallet-1/0');
@@ -316,16 +313,20 @@ describe('AccountTreeSnapshot', () => {
 
   describe('toPayloadId', () => {
     it('returns the payload ID for a known local wallet ID', () => {
-      const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = new AccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET],
+        MOCK_ID_MAP,
+      );
       expect(snapshot.toPayloadId('entropy:wallet-1')).toBe(
         MOCK_MNEMONIC_PAYLOAD_ID,
       );
     });
 
     it('returns the payload ID for a known local group ID', () => {
-      const map = buildIdMap();
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET], map);
+      const snapshot = new AccountTreeSnapshot(
+        [MOCK_MNEMONIC_WALLET],
+        MOCK_ID_MAP,
+      );
       expect(snapshot.toPayloadId('entropy:wallet-1/0')).toBe(
         toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 0),
       );
