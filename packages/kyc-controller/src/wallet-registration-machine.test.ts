@@ -13,7 +13,7 @@ const run = (
 ): WalletRegistrationState =>
   events.reduce((state, event) => transition(state, event), initial);
 
-describe('wallet registration machine: prerequisites and lookup', () => {
+describe('wallet registration machine: lookup', () => {
   it('starts idle', () => {
     expect(createInitialState().status).toBe('idle');
   });
@@ -40,26 +40,6 @@ describe('wallet registration machine: prerequisites and lookup', () => {
   it('a failed lookup enters lookupUnavailable and never assumes absent', () => {
     const state = run([{ type: 'START' }, { type: 'LOOKUP_FAILED' }]);
     expect(state.status).toBe('lookupUnavailable');
-  });
-
-  it('missing customer, money account, upgrade, and unsupported account block', () => {
-    expect(
-      run([{ type: 'START' }, { type: 'PREREQ_MISSING_CUSTOMER' }]).status,
-    ).toBe('missingCustomer');
-    expect(
-      run([{ type: 'START' }, { type: 'PREREQ_MISSING_MONEY_ACCOUNT' }]).status,
-    ).toBe('missingMoneyAccount');
-    expect(
-      run([{ type: 'START' }, { type: 'PREREQ_UPGRADE_INCOMPLETE' }]).status,
-    ).toBe('upgradeIncomplete');
-    expect(
-      run([{ type: 'START' }, { type: 'PREREQ_UNSUPPORTED_ACCOUNT' }]).status,
-    ).toBe('unsupportedAccount');
-  });
-
-  it('a blocked blockchain enters blockchainBlocked', () => {
-    const state = run([{ type: 'START' }, { type: 'BLOCKCHAIN_BLOCKED' }]);
-    expect(state.status).toBe('blockchainBlocked');
   });
 });
 
@@ -117,7 +97,6 @@ describe('wallet registration machine: submitting outcomes', () => {
     expect(
       transition(atSubmitting(), {
         type: 'SUBMIT_CONFLICT',
-        conflictType: 'address-exists',
       }).status,
     ).toBe('disambiguate409');
   });
@@ -166,55 +145,42 @@ describe('wallet registration machine: submitting outcomes', () => {
 });
 
 describe('wallet registration machine: 409 disambiguation', () => {
-  const atDisambiguate = (
-    conflictType: 'address-exists' | 'idempotency',
-  ): WalletRegistrationState =>
+  const atDisambiguate = (): WalletRegistrationState =>
     run([
       { type: 'START' },
       { type: 'LOOKUP_ABSENT' },
       { type: 'SIGN_OK' },
-      { type: 'SUBMIT_CONFLICT', conflictType },
+      { type: 'SUBMIT_CONFLICT' },
     ]);
 
   it('an active list match after 409 completes as alreadyRegistered', () => {
-    expect(
-      transition(atDisambiguate('address-exists'), { type: 'LOOKUP_ACTIVE' })
-        .status,
-    ).toBe('alreadyRegistered');
+    expect(transition(atDisambiguate(), { type: 'LOOKUP_ACTIVE' }).status).toBe(
+      'alreadyRegistered',
+    );
   });
 
   it('a disabled list match after 409 enters registeredDisabled', () => {
     expect(
-      transition(atDisambiguate('address-exists'), { type: 'LOOKUP_DISABLED' })
-        .status,
+      transition(atDisambiguate(), { type: 'LOOKUP_DISABLED' }).status,
     ).toBe('registeredDisabled');
   });
 
-  it('address-exists 409 plus GET miss is terminal foreignAddressConflict', () => {
-    expect(
-      transition(atDisambiguate('address-exists'), { type: 'LOOKUP_ABSENT' })
-        .status,
-    ).toBe('foreignAddressConflict');
-  });
-
-  it('idempotency 409 plus GET miss is retryable with a new key', () => {
-    expect(
-      transition(atDisambiguate('idempotency'), { type: 'LOOKUP_ABSENT' })
-        .status,
-    ).toBe('failedRetryable');
+  it('a 409 plus GET miss is retryable', () => {
+    expect(transition(atDisambiguate(), { type: 'LOOKUP_ABSENT' }).status).toBe(
+      'failedRetryable',
+    );
   });
 
   it('a failed GET during disambiguation is lookupUnavailable', () => {
-    expect(
-      transition(atDisambiguate('address-exists'), { type: 'LOOKUP_FAILED' })
-        .status,
-    ).toBe('lookupUnavailable');
+    expect(transition(atDisambiguate(), { type: 'LOOKUP_FAILED' }).status).toBe(
+      'lookupUnavailable',
+    );
   });
 
   it('cancellation during disambiguation does not become a failure', () => {
-    expect(
-      transition(atDisambiguate('address-exists'), { type: 'CANCEL' }).status,
-    ).toBe('cancelled');
+    expect(transition(atDisambiguate(), { type: 'CANCEL' }).status).toBe(
+      'cancelled',
+    );
   });
 });
 
@@ -306,15 +272,6 @@ describe('wallet registration machine: retry, resume, and concurrency', () => {
     expect(state.status).toBe('preparing');
   });
 
-  it('retry from a blocked prerequisite re-checks via preparing', () => {
-    const state = run([
-      { type: 'START' },
-      { type: 'PREREQ_MISSING_MONEY_ACCOUNT' },
-      { type: 'RETRY' },
-    ]);
-    expect(state.status).toBe('preparing');
-  });
-
   it('a second START while in-flight is ignored (one operation)', () => {
     const inFlight = run([{ type: 'START' }, { type: 'LOOKUP_ABSENT' }]);
     expect(inFlight.status).toBe('signing');
@@ -336,14 +293,5 @@ describe('wallet registration machine: retry, resume, and concurrency', () => {
       { type: 'SUBMIT_OK' },
     ]);
     expect(transition(registered, { type: 'RETRY' }).status).toBe('registered');
-  });
-
-  it('unsupportedAccount is terminal and does not retry', () => {
-    const state = run([
-      { type: 'START' },
-      { type: 'PREREQ_UNSUPPORTED_ACCOUNT' },
-      { type: 'RETRY' },
-    ]);
-    expect(state.status).toBe('unsupportedAccount');
   });
 });

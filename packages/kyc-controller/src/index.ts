@@ -2,11 +2,7 @@ export type { BuildOwnershipMessageRequest } from './ownership-message.js';
 export { buildOwnershipMessage } from './ownership-message.js';
 export type {
   Blockchain,
-  FailureSource,
-  FetchLike,
   GetRegistrationStatusRequest,
-  HttpResponse,
-  ProofType,
   RegisterSelfHostedWalletRequest,
   RegistrationOutcome,
   RegistrationStatus,
@@ -19,7 +15,6 @@ export {
   WalletRegistrationService,
 } from './wallet-registration-service.js';
 export type {
-  ConflictType,
   WalletRegistrationContext,
   WalletRegistrationEvent,
   WalletRegistrationState,

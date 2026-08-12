@@ -2,7 +2,6 @@ import {
   WalletRegistrationError,
   WalletRegistrationService,
 } from './wallet-registration-service.js';
-import type { FetchLike, HttpResponse } from './wallet-registration-service.js';
 
 const BASE_URL = 'https://proxy.metamask.test';
 const AUTH_TOKEN = 'session-jwt-abc';
@@ -12,6 +11,23 @@ type FetchInit = {
   headers: Record<string, string>;
   body?: string;
 };
+
+type HttpResponse = {
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+};
+
+type FetchLike = (
+  url: string,
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    signal?: unknown;
+  },
+) => Promise<HttpResponse>;
 
 const jsonResponse = (status: number, body: unknown): HttpResponse => ({
   ok: status >= 200 && status < 300,
@@ -68,7 +84,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
     const service = buildService(fetchMock);
 
     await service.getRegistrationStatus({
-      customerId: 'cust-1',
       address: EVM_ADDRESS,
       blockchain: 'Monad',
     });
@@ -88,7 +103,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
     const service = buildService(fetchMock);
 
     const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
       address: '0xabc0000000000000000000000000000000000001',
       blockchain: 'Monad',
     });
@@ -107,7 +121,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
     const service = buildService(fetchMock);
 
     const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
       address: EVM_ADDRESS,
       blockchain: 'Monad',
     });
@@ -123,70 +136,11 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
     const service = buildService(fetchMock);
 
     const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
       address: EVM_ADDRESS,
       blockchain: 'Monad',
     });
 
     expect(status.type).toBe('absent');
-  });
-
-  it('distinguishes signed from self-attested registrations', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [verifiedAddress({ proof_signature: '' })]),
-    );
-    const service = buildService(fetchMock);
-
-    const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
-      address: EVM_ADDRESS,
-      blockchain: 'Monad',
-    });
-
-    expect(status).toMatchObject({
-      type: 'active',
-      registration: { proofType: 'self_attested' },
-    });
-  });
-
-  it('matches non-EVM (Solana) addresses case-sensitively', async () => {
-    const solAddress = 'GEhVdAGrGFvbAyj9ieZQt43mRAZZu4hRQ5MaKGgvpJMq';
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, [
-          verifiedAddress({ wallet_address: solAddress, blockchain: 'Solana' }),
-        ]),
-    );
-    const service = buildService(fetchMock);
-
-    const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
-      address: solAddress,
-      blockchain: 'Solana',
-    });
-
-    expect(status.type).toBe('active');
-  });
-
-  it('treats a missing proof signature as self-attested', async () => {
-    const entry = verifiedAddress();
-    delete entry.proof_signature;
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> => jsonResponse(200, [entry]),
-    );
-    const service = buildService(fetchMock);
-
-    const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
-      address: EVM_ADDRESS,
-      blockchain: 'Monad',
-    });
-
-    expect(status).toMatchObject({
-      type: 'active',
-      registration: { proofType: 'self_attested' },
-    });
   });
 
   it('skips entries whose wallet_address is not a string', async () => {
@@ -200,7 +154,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
     const service = buildService(fetchMock);
 
     const status = await service.getRegistrationStatus({
-      customerId: 'cust-1',
       address: EVM_ADDRESS,
       blockchain: 'Monad',
     });
@@ -216,7 +169,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
 
     await expect(
       service.getRegistrationStatus({
-        customerId: 'cust-1',
         address: EVM_ADDRESS,
         blockchain: 'Monad',
       }),
@@ -231,7 +183,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
 
     await expect(
       service.getRegistrationStatus({
-        customerId: 'cust-1',
         address: EVM_ADDRESS,
         blockchain: 'Monad',
       }),
@@ -246,7 +197,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
 
     await expect(
       service.getRegistrationStatus({
-        customerId: 'cust-1',
         address: EVM_ADDRESS,
         blockchain: 'Monad',
       }),
@@ -261,7 +211,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
 
     await expect(
       service.getRegistrationStatus({
-        customerId: 'cust-1',
         address: EVM_ADDRESS,
         blockchain: 'Monad',
       }),
@@ -276,7 +225,6 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
 
     await expect(
       service.getRegistrationStatus({
-        customerId: 'cust-1',
         address: EVM_ADDRESS,
         blockchain: 'Monad',
       }),
@@ -304,13 +252,9 @@ const selfHostedResponse = (
   ...overrides,
 });
 
-const errorEnvelope = (
-  status: number,
-  source: 'proxy' | 'iron',
-  message: string,
-): HttpResponse =>
+const errorEnvelope = (status: number, message: string): HttpResponse =>
   jsonResponse(status, {
-    code: source === 'iron' ? 'iron_error' : 'unauthenticated',
+    code: 'iron_error',
     message,
   });
 
@@ -366,7 +310,6 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
       async (): Promise<HttpResponse> =>
         errorEnvelope(
           409,
-          'iron',
           'A crypto address with this wallet address already exists',
         ),
     );
@@ -377,15 +320,13 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
     ).rejects.toMatchObject({
       kind: 'conflict',
       httpStatus: 409,
-      source: 'iron',
       body: 'A crypto address with this wallet address already exists',
     });
   });
 
   it('maps 5xx to a transient error', async () => {
     const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(500, 'iron', 'internal error'),
+      async (): Promise<HttpResponse> => errorEnvelope(500, 'internal error'),
     );
     const service = buildService(fetchMock);
 
@@ -416,22 +357,9 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
     ).rejects.toMatchObject({ kind: 'transient' });
   });
 
-  it('marks a signature-less success body as self-attested', async () => {
-    const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        jsonResponse(200, selfHostedResponse({ signature: '' })),
-    );
-    const service = buildService(fetchMock);
-
-    const outcome = await service.registerSelfHostedWallet(registerRequest);
-
-    expect(outcome.registration.proofType).toBe('self_attested');
-  });
-
   it('maps 400 to a validation error', async () => {
     const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(400, 'iron', 'bad message'),
+      async (): Promise<HttpResponse> => errorEnvelope(400, 'bad message'),
     );
     const service = buildService(fetchMock);
 
@@ -442,8 +370,7 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
 
   it('maps an unmapped 4xx (422) to a validation error', async () => {
     const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(422, 'iron', 'unprocessable'),
+      async (): Promise<HttpResponse> => errorEnvelope(422, 'unprocessable'),
     );
     const service = buildService(fetchMock);
 
@@ -452,39 +379,22 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
     ).rejects.toMatchObject({ kind: 'validation', httpStatus: 422 });
   });
 
-  it('distinguishes a proxy 401 from an Iron 401', async () => {
-    const proxyFetch = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(401, 'proxy', 'session expired'),
-    );
-    const ironFetch = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(401, 'iron', 'invalid api key'),
+  it('maps 401 to unauthorized', async () => {
+    const fetchMock = jest.fn(
+      async (): Promise<HttpResponse> => errorEnvelope(401, 'session expired'),
     );
 
-    const proxyErr = await buildService(proxyFetch)
-      .registerSelfHostedWallet(registerRequest)
-      .catch((error: unknown): WalletRegistrationError => {
-        return error as WalletRegistrationError;
-      });
-    const ironErr = await buildService(ironFetch)
-      .registerSelfHostedWallet(registerRequest)
-      .catch((error: unknown): WalletRegistrationError => {
-        return error as WalletRegistrationError;
-      });
-
-    expect(proxyErr).toMatchObject({ kind: 'unauthorized', source: 'proxy' });
-    expect(ironErr).toMatchObject({ kind: 'unauthorized', source: 'iron' });
+    await expect(
+      buildService(fetchMock).registerSelfHostedWallet(registerRequest),
+    ).rejects.toMatchObject({ kind: 'unauthorized' });
   });
 
   it('maps 403 to forbidden and 404 to notFound', async () => {
     const forbiddenFetch = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(403, 'iron', 'suspended'),
+      async (): Promise<HttpResponse> => errorEnvelope(403, 'suspended'),
     );
     const notFoundFetch = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(404, 'iron', 'not found'),
+      async (): Promise<HttpResponse> => errorEnvelope(404, 'not found'),
     );
 
     const forbidden = await buildService(forbiddenFetch)
@@ -502,7 +412,7 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
     expect(notFound).toMatchObject({ kind: 'notFound' });
   });
 
-  it('defaults the failure source to proxy when the body has no code', async () => {
+  it('maps an error envelope without a code', async () => {
     const fetchMock = jest.fn(
       async (): Promise<HttpResponse> =>
         jsonResponse(403, { message: 'forbidden' }),
@@ -511,13 +421,12 @@ describe('WalletRegistrationService.registerSelfHostedWallet', () => {
 
     await expect(
       service.registerSelfHostedWallet(registerRequest),
-    ).rejects.toMatchObject({ kind: 'forbidden', source: 'proxy' });
+    ).rejects.toMatchObject({ kind: 'forbidden' });
   });
 
   it('maps 429 to a rateLimited error', async () => {
     const fetchMock = jest.fn(
-      async (): Promise<HttpResponse> =>
-        errorEnvelope(429, 'proxy', 'slow down'),
+      async (): Promise<HttpResponse> => errorEnvelope(429, 'slow down'),
     );
     const service = buildService(fetchMock);
 

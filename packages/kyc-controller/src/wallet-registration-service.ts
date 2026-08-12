@@ -1,37 +1,12 @@
-/**
- * Blockchain identifiers accepted by Iron's self-hosted registration endpoint
- * (`Blockchain` enum in the `2026-08-01` OpenAPI contract). `Monad` is included
- * because it is present in the runtime sandbox enum.
- */
-export type Blockchain =
-  | 'Solana'
-  | 'Ethereum'
-  | 'Polygon'
-  | 'Arbitrum'
-  | 'Base'
-  | 'Stellar'
-  | 'Citrea'
-  | 'Plasma'
-  | 'Avalanche'
-  | 'Moca'
-  | 'Monad'
-  | 'Tempo'
-  | 'Tron'
-  | 'Bsc';
-
-/**
- * Whether ownership was proven with a real wallet signature or self-attested.
- * Both count as verified for this product, but the distinction is preserved.
- */
-export type ProofType = 'signed' | 'self_attested';
+/** The only blockchain supported by the Money Account POC. */
+export type Blockchain = 'Monad';
 
 /** Normalized view of a single registered self-hosted address. */
 export type SelfHostedRegistration = {
   id: string;
   address: string;
-  blockchain?: Blockchain;
+  blockchain: Blockchain;
   disabled: boolean;
-  proofType: ProofType;
   isSelf: boolean;
 };
 
@@ -56,11 +31,8 @@ export type WalletRegistrationErrorKind =
   | 'lookupUnavailable'
   | 'malformedResponse';
 
-/** Whether a failure originated in the MetaMask proxy or upstream Iron. */
-export type FailureSource = 'proxy' | 'iron';
-
 /** Minimal HTTP response shape, so the service is environment-agnostic. */
-export type HttpResponse = {
+type HttpResponse = {
   ok: boolean;
   status: number;
   json: () => Promise<unknown>;
@@ -68,7 +40,7 @@ export type HttpResponse = {
 };
 
 /** Minimal `fetch`-like function the service depends on. */
-export type FetchLike = (
+type FetchLike = (
   url: string,
   init?: {
     method?: string;
@@ -84,8 +56,6 @@ export class WalletRegistrationError extends Error {
 
   readonly httpStatus?: number;
 
-  readonly source?: FailureSource;
-
   readonly body?: string;
 
   constructor(
@@ -93,7 +63,6 @@ export class WalletRegistrationError extends Error {
     options: {
       message?: string;
       httpStatus?: number;
-      source?: FailureSource;
       body?: string;
     },
   ) {
@@ -101,7 +70,6 @@ export class WalletRegistrationError extends Error {
     this.name = 'WalletRegistrationError';
     this.kind = kind;
     this.httpStatus = options.httpStatus;
-    this.source = options.source;
     this.body = options.body;
   }
 }
@@ -113,7 +81,6 @@ export type WalletRegistrationServiceOptions = {
 };
 
 export type GetRegistrationStatusRequest = {
-  customerId: string;
   address: string;
   blockchain: Blockchain;
 };
@@ -135,15 +102,13 @@ export type RegistrationOutcome = {
 const SELF_HOSTED_PATH = '/vendors/moonpay/self-hosted-wallets';
 
 /**
- * Normalizes an address for comparison. EVM (`0x…`) addresses are compared
- * case-insensitively; every other family (Solana, Stellar, Tron) is
- * case-sensitive and left untouched.
+ * Normalizes a Monad EVM address for case-insensitive comparison.
  *
  * @param address - Raw address string.
  * @returns The comparison key for the address.
  */
 function normalizeAddress(address: string): string {
-  return address.startsWith('0x') ? address.toLowerCase() : address;
+  return address.toLowerCase();
 }
 
 /**
@@ -194,7 +159,7 @@ export class WalletRegistrationService {
    * A failed or malformed lookup is reported as `lookupUnavailable` and never
    * downgraded to `absent`.
    *
-   * @param request - Customer id, address, and blockchain to reconcile.
+   * @param request - Monad address to reconcile.
    * @returns The active / disabled / absent status for the address.
    */
   async getRegistrationStatus(
@@ -215,7 +180,6 @@ export class WalletRegistrationService {
     } catch (error) {
       throw new WalletRegistrationError('lookupUnavailable', {
         message: 'self-hosted address lookup failed',
-        source: 'proxy',
         body: error instanceof Error ? error.message : undefined,
       });
     }
@@ -299,7 +263,6 @@ export class WalletRegistrationService {
     } catch (error) {
       throw new WalletRegistrationError('transient', {
         message: 'self-hosted registration request failed',
-        source: 'proxy',
         body: error instanceof Error ? error.message : undefined,
       });
     }
@@ -324,8 +287,6 @@ export class WalletRegistrationService {
       });
     }
 
-    const { signature } = record;
-    const hasSignature = typeof signature === 'string' && signature.length > 0;
     return {
       type: 'registered',
       registration: {
@@ -333,19 +294,15 @@ export class WalletRegistrationService {
         address: record.address,
         blockchain: request.blockchain,
         disabled: Boolean(record.disabled),
-        proofType: hasSignature ? 'signed' : 'self_attested',
         isSelf: true,
       },
     };
   }
 
   async #toHttpError(response: HttpResponse): Promise<WalletRegistrationError> {
-    let envelope: { code?: string; message?: string };
+    let envelope: { message?: string };
     try {
-      envelope = (await response.json()) as {
-        code?: string;
-        message?: string;
-      };
+      envelope = (await response.json()) as { message?: string };
     } catch {
       return new WalletRegistrationError('malformedResponse', {
         httpStatus: response.status,
@@ -355,27 +312,18 @@ export class WalletRegistrationService {
 
     const { status } = response;
     const kind = mapStatusToKind(status);
-    const source: FailureSource =
-      typeof envelope.code === 'string' && envelope.code.startsWith('iron')
-        ? 'iron'
-        : 'proxy';
     return new WalletRegistrationError(kind, {
       httpStatus: status,
-      source,
       body: envelope.message,
     });
   }
 
   #toRegistration(record: Record<string, unknown>): SelfHostedRegistration {
-    const signature = record.proof_signature;
-    const hasSignature = typeof signature === 'string' && signature.length > 0;
-
     return {
       id: String(record.id),
       address: String(record.wallet_address),
-      blockchain: record.blockchain as Blockchain | undefined,
+      blockchain: 'Monad',
       disabled: Boolean(record.disabled),
-      proofType: hasSignature ? 'signed' : 'self_attested',
       isSelf: Boolean(record.is_self),
     };
   }

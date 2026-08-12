@@ -9,9 +9,6 @@
  * machine itself stays deterministic and trivially testable.
  */
 
-/** Reason an ambiguous `409` was returned, captured for later reconciliation. */
-export type ConflictType = 'address-exists' | 'idempotency';
-
 /** Every state in the signing step. */
 export type WalletRegistrationStatus =
   | 'idle'
@@ -25,15 +22,9 @@ export type WalletRegistrationStatus =
   | 'registered'
   | 'alreadyRegistered'
   | 'registeredDisabled'
-  | 'foreignAddressConflict'
   | 'failedRetryable'
   | 'failedTerminal'
-  | 'cancelled'
-  | 'blockchainBlocked'
-  | 'missingCustomer'
-  | 'missingMoneyAccount'
-  | 'upgradeIncomplete'
-  | 'unsupportedAccount';
+  | 'cancelled';
 
 /** Machine context carried across transitions. */
 export type WalletRegistrationContext = {
@@ -41,8 +32,6 @@ export type WalletRegistrationContext = {
   attempts: number;
   /** Maximum number of sign attempts before a retryable failure is surfaced. */
   maxAttempts: number;
-  /** Conflict classification captured on a `409`, read during disambiguation. */
-  conflictType?: ConflictType;
 };
 
 export type WalletRegistrationState = {
@@ -53,11 +42,6 @@ export type WalletRegistrationState = {
 /** Events the interpreter dispatches into the machine. */
 export type WalletRegistrationEvent =
   | { type: 'START' }
-  | { type: 'PREREQ_MISSING_CUSTOMER' }
-  | { type: 'PREREQ_MISSING_MONEY_ACCOUNT' }
-  | { type: 'PREREQ_UPGRADE_INCOMPLETE' }
-  | { type: 'PREREQ_UNSUPPORTED_ACCOUNT' }
-  | { type: 'BLOCKCHAIN_BLOCKED' }
   | { type: 'WALLET_LOCKED' }
   | { type: 'WALLET_UNLOCKED' }
   | { type: 'LOOKUP_ACTIVE' }
@@ -68,7 +52,7 @@ export type WalletRegistrationEvent =
   | { type: 'SIGN_REJECTED' }
   | { type: 'SIGN_FAILED'; retryable: boolean }
   | { type: 'SUBMIT_OK' }
-  | { type: 'SUBMIT_CONFLICT'; conflictType: ConflictType }
+  | { type: 'SUBMIT_CONFLICT' }
   | { type: 'SUBMIT_TRANSIENT' }
   | { type: 'SUBMIT_VALIDATION'; utcRollover: boolean }
   | { type: 'SUBMIT_TERMINAL' }
@@ -117,7 +101,7 @@ function keep(status: WalletRegistrationStatus): Handler {
 function reset(status: WalletRegistrationStatus): Handler {
   return (state) => ({
     status,
-    context: { ...state.context, attempts: 0, conflictType: undefined },
+    context: { ...state.context, attempts: 0 },
   });
 }
 
@@ -148,17 +132,6 @@ const signFailed: Handler = (state, event) => {
     : keep('failedTerminal')(state, event);
 };
 
-const submitConflict: Handler = (state, event) => {
-  const { conflictType } = event as Extract<
-    WalletRegistrationEvent,
-    { type: 'SUBMIT_CONFLICT' }
-  >;
-  return {
-    status: 'disambiguate409',
-    context: { ...state.context, conflictType },
-  };
-};
-
 const submitValidation: Handler = (state, event) => {
   const { utcRollover } = event as Extract<
     WalletRegistrationEvent,
@@ -168,11 +141,6 @@ const submitValidation: Handler = (state, event) => {
     ? toSigning(state, event)
     : keep('failedTerminal')(state, event);
 };
-
-const disambiguateAbsent: Handler = (state, event) =>
-  state.context.conflictType === 'address-exists'
-    ? keep('foreignAddressConflict')(state, event)
-    : keep('failedRetryable')(state, event);
 
 const checkThenRetryAbsent: Handler = (state, event) =>
   state.context.attempts < state.context.maxAttempts
@@ -186,12 +154,6 @@ const TABLE: Partial<
     START: toPreparing,
   },
   preparing: {
-    PREREQ_MISSING_CUSTOMER: keep('missingCustomer'),
-    PREREQ_MISSING_MONEY_ACCOUNT: keep('missingMoneyAccount'),
-    PREREQ_UPGRADE_INCOMPLETE: keep('upgradeIncomplete'),
-    PREREQ_UNSUPPORTED_ACCOUNT: keep('unsupportedAccount'),
-    BLOCKCHAIN_BLOCKED: keep('blockchainBlocked'),
-    WALLET_LOCKED: keep('awaitingUnlock'),
     LOOKUP_ACTIVE: toAlreadyRegistered,
     LOOKUP_DISABLED: toRegisteredDisabled,
     LOOKUP_ABSENT: toSigning,
@@ -209,7 +171,7 @@ const TABLE: Partial<
   },
   submitting: {
     SUBMIT_OK: keep('registered'),
-    SUBMIT_CONFLICT: submitConflict,
+    SUBMIT_CONFLICT: keep('disambiguate409'),
     SUBMIT_TRANSIENT: keep('checkThenRetry'),
     SUBMIT_VALIDATION: submitValidation,
     SUBMIT_TERMINAL: keep('failedTerminal'),
@@ -219,7 +181,7 @@ const TABLE: Partial<
   disambiguate409: {
     LOOKUP_ACTIVE: toAlreadyRegistered,
     LOOKUP_DISABLED: toRegisteredDisabled,
-    LOOKUP_ABSENT: disambiguateAbsent,
+    LOOKUP_ABSENT: keep('failedRetryable'),
     LOOKUP_FAILED: toLookupUnavailable,
     CANCEL: toCancelled,
   },
@@ -237,15 +199,6 @@ const TABLE: Partial<
     RETRY: toPreparing,
   },
   cancelled: {
-    RETRY: toPreparing,
-  },
-  missingCustomer: {
-    RETRY: toPreparing,
-  },
-  missingMoneyAccount: {
-    RETRY: toPreparing,
-  },
-  upgradeIncomplete: {
     RETRY: toPreparing,
   },
 };
