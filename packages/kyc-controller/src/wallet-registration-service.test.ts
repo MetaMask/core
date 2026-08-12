@@ -76,6 +76,54 @@ const verifiedAddress = (
 
 const EVM_ADDRESS = '0xAbC0000000000000000000000000000000000001';
 
+describe('WalletRegistrationService.getMoonpayCustomerId', () => {
+  it('returns the Iron customer id from the authenticated proxy lookup', async () => {
+    const fetchMock = jest.fn(
+      async (): Promise<HttpResponse> =>
+        jsonResponse(200, { customerId: 'iron-customer-1' }),
+    );
+
+    expect(await buildService(fetchMock).getMoonpayCustomerId()).toBe(
+      'iron-customer-1',
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${BASE_URL}/vendors/moonpay/customer`,
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          authorization: `Bearer ${AUTH_TOKEN}`,
+        }),
+      }),
+    );
+  });
+
+  it('maps a failed customer lookup to a typed HTTP error', async () => {
+    const fetchMock = jest.fn(
+      async (): Promise<HttpResponse> =>
+        jsonResponse(404, { code: 'iron_error', message: 'not found' }),
+    );
+
+    await expect(
+      buildService(fetchMock).getMoonpayCustomerId(),
+    ).rejects.toMatchObject({ kind: 'notFound', httpStatus: 404 });
+  });
+
+  it('rejects malformed customer lookup responses', async () => {
+    await expect(
+      buildService(
+        jest.fn(async (): Promise<HttpResponse> => invalidJsonResponse(200)),
+      ).getMoonpayCustomerId(),
+    ).rejects.toMatchObject({ kind: 'malformedResponse' });
+
+    await expect(
+      buildService(
+        jest.fn(async (): Promise<HttpResponse> => jsonResponse(200, {})),
+      ).getMoonpayCustomerId(),
+    ).rejects.toMatchObject({ kind: 'malformedResponse' });
+  });
+});
+
 describe('WalletRegistrationService.getRegistrationStatus', () => {
   it('calls the MetaMask proxy list endpoint (not Iron) with the session token', async () => {
     const fetchMock = jest.fn(

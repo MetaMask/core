@@ -59,6 +59,61 @@ describe('KycService', () => {
     });
   });
 
+  describe('Money Account wallet registration', () => {
+    it('resolves the Iron customer id', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/moonpay/customer')
+        .matchHeader('authorization', 'Bearer test-bearer')
+        .reply(200, { customerId: 'iron-customer-1' });
+
+      const { service } = getService();
+
+      expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
+    });
+
+    it('checks Monad wallet registration status', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/moonpay/self-hosted-wallets')
+        .reply(200, []);
+
+      const { service } = getService();
+
+      expect(
+        await service.getWalletRegistrationStatus({ address: '0xabc' }),
+      ).toStrictEqual({ type: 'absent' });
+    });
+
+    it('submits a signed Monad wallet ownership proof', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/moonpay/self-hosted-wallets', {
+          customer_id: 'iron-customer-1',
+          address: '0xabc',
+          blockchain: 'Monad',
+          message: 'ownership message',
+          signature: '0xsig',
+        })
+        .reply(200, {
+          id: 'wallet-1',
+          address: '0xabc',
+          disabled: false,
+        });
+
+      const { service } = getService();
+
+      expect(
+        await service.registerSelfHostedWallet({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+          message: 'ownership message',
+          signature: '0xsig',
+        }),
+      ).toMatchObject({
+        type: 'registered',
+        registration: { id: 'wallet-1', blockchain: 'Monad' },
+      });
+    });
+  });
+
   describe('fetchDisclaimers', () => {
     it('returns the disclaimers for a country', async () => {
       const disclaimers = [

@@ -18,6 +18,40 @@ export type KycServiceGetGeoCountryAction = {
 };
 
 /**
+ * Resolves Iron's internal customer id from the authenticated MetaMask
+ * profile.
+ *
+ * @returns Iron's internal customer id.
+ */
+export type KycServiceGetMoonpayCustomerIdAction = {
+  type: `KycService:getMoonpayCustomerId`;
+  handler: KycService['getMoonpayCustomerId'];
+};
+
+/**
+ * Checks whether a Monad Money Account address is already registered.
+ *
+ * @param params - The address to check.
+ * @param params.address - Money Account address.
+ * @returns Active, disabled, or absent registration status.
+ */
+export type KycServiceGetWalletRegistrationStatusAction = {
+  type: `KycService:getWalletRegistrationStatus`;
+  handler: KycService['getWalletRegistrationStatus'];
+};
+
+/**
+ * Submits a signed Monad Money Account ownership proof.
+ *
+ * @param params - Signed ownership proof.
+ * @returns Registered wallet record.
+ */
+export type KycServiceRegisterSelfHostedWalletAction = {
+  type: `KycService:registerSelfHostedWallet`;
+  handler: KycService['registerSelfHostedWallet'];
+};
+
+/**
  * Fetches the disclaimers the customer must accept before a session is
  * created.
  *
@@ -130,6 +164,9 @@ export type KycServiceGetSessionStatusAction = {
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
+  | KycServiceGetMoonpayCustomerIdAction
+  | KycServiceGetWalletRegistrationStatusAction
+  | KycServiceRegisterSelfHostedWalletAction
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction

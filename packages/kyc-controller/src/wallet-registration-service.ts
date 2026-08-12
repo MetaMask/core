@@ -46,7 +46,6 @@ type FetchLike = (
     method?: string;
     headers?: Record<string, string>;
     body?: string;
-    signal?: unknown;
   },
 ) => Promise<HttpResponse>;
 
@@ -100,6 +99,7 @@ export type RegistrationOutcome = {
 };
 
 const SELF_HOSTED_PATH = '/vendors/moonpay/self-hosted-wallets';
+const MOONPAY_CUSTOMER_PATH = '/vendors/moonpay/customer';
 
 /**
  * Normalizes a Monad EVM address for case-insensitive comparison.
@@ -152,6 +152,48 @@ export class WalletRegistrationService {
     this.#fetch = options.fetch;
     this.#baseUrl = options.baseUrl.replace(/\/$/u, '');
     this.#getAuthToken = options.getAuthToken;
+  }
+
+  /**
+   * Resolves Iron's internal customer id from the authenticated MetaMask
+   * profile. Used when the current KYC flow has not already received
+   * `customer.id` from MoonPay's hosted frame.
+   *
+   * @returns Iron's internal customer id.
+   */
+  async getMoonpayCustomerId(): Promise<string> {
+    const token = await this.#getAuthToken();
+    const response = await this.#fetch(
+      `${this.#baseUrl}${MOONPAY_CUSTOMER_PATH}`,
+      {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw await this.#toHttpError(response);
+    }
+
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new WalletRegistrationError('malformedResponse', {
+        message: 'MoonPay customer body was not valid JSON',
+      });
+    }
+
+    const { customerId } = payload as { customerId?: unknown };
+    if (typeof customerId !== 'string' || customerId.length === 0) {
+      throw new WalletRegistrationError('malformedResponse', {
+        message: 'MoonPay customer body missing customerId',
+      });
+    }
+    return customerId;
   }
 
   /**
