@@ -79,12 +79,12 @@ describe('RampsController', () => {
     'Execution prevented because the circuit breaker is open';
 
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
-    it('includes every RampsService, TransakService, and NeoBankService action that RampsController calls', async () => {
+    it('includes every RampsService, TransakService, NeoBankService, and TransactionPayController action that RampsController calls', async () => {
       expect.hasAssertions();
       const controllerPath = path.join(__dirname, 'RampsController.ts');
       const source = await fs.promises.readFile(controllerPath, 'utf-8');
       const callPattern =
-        /messenger\.call\s*\(\s*['"]((RampsService|TransakService|NeoBankService):[^'"]+)['"]/gu;
+        /messenger\.call\s*\(\s*['"]((RampsService|TransakService|NeoBankService|TransactionPayController):[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
       let match: RegExpExecArray | null;
       while ((match = callPattern.exec(source)) !== null) {
@@ -9127,6 +9127,342 @@ describe('RampsController', () => {
         controller.markAutorampAsNotified('ar-1');
         expect(controller.state.autoramps[0]?.notifiedForStatus).toBe(
           AutorampStatus.Approved,
+        );
+      });
+    });
+  });
+
+  describe('sendPix', () => {
+    const MONEY_ACCOUNT =
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as const;
+    const DEPOSIT =
+      '0x1111111111111111111111111111111111111111' as const;
+    const BATCH_ID = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as const;
+
+    const baseRequest = {
+      amountOut: '100.00',
+      destinationCurrencyCode: 'BRL',
+      moneyAccountAddress: MONEY_ACCOUNT,
+      customerId: 'cust-1',
+      clientRequestId: 'client-req-1',
+      pix: {
+        keyType: 'CPF' as const,
+        key: '12345678901',
+        taxId: '12345678901',
+        recipient: {
+          type: 'Individual' as const,
+          givenName: 'Ada',
+          familyName: 'Lovelace',
+        },
+      },
+    };
+
+    const futureQuote = () => ({
+      id: 'q-1',
+      signature: 'sig',
+      valid_until: new Date(Date.now() + 120_000).toISOString(),
+      amount_in: {
+        amount: '12.345678',
+        currency_code: 'mUSD',
+        chain: 'monad',
+        decimals: 6,
+      },
+      amount_out: { amount: '100.00' },
+      source_currency_code: 'mUSD',
+      source_currency_chain: 'monad',
+    });
+
+    const enablePixFlags = (rootMessenger: RootMessenger): void => {
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({
+          remoteFeatureFlags: {
+            moneyAccount: {
+              moneyAccountPixSendEnabled: true,
+              moneyAccountWithdrawEnabled: true,
+            },
+          },
+          cacheTimestamp: 0,
+        }),
+      );
+    };
+
+    const registerSendPixHandlers = (
+      rootMessenger: RootMessenger,
+      overrides: {
+        registerPixAddress?: jest.Mock;
+        getAutorampQuote?: jest.Mock;
+        createAutoramp?: jest.Mock;
+        submitWithdraw?: jest.Mock;
+      } = {},
+    ) => {
+      enablePixFlags(rootMessenger);
+      const registerPixAddress =
+        overrides.registerPixAddress ??
+        jest.fn().mockResolvedValue({
+          id: 'pix-1',
+          status: 'Registered',
+        });
+      const getAutorampQuote =
+        overrides.getAutorampQuote ??
+        jest.fn().mockResolvedValue(futureQuote());
+      const createAutoramp =
+        overrides.createAutoramp ??
+        jest.fn().mockResolvedValue({
+          id: 'ar-pix-1',
+          customerId: 'cust-1',
+          walletAddress: DEPOSIT,
+          status: 'Authorized',
+        });
+      const submitWithdraw =
+        overrides.submitWithdraw ??
+        jest.fn().mockResolvedValue({ batchId: BATCH_ID });
+
+      rootMessenger.registerActionHandler(
+        'NeoBankService:registerPixAddress',
+        registerPixAddress,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getAutorampQuote',
+        getAutorampQuote,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:createAutoramp',
+        createAutoramp,
+      );
+      rootMessenger.registerActionHandler(
+        'TransactionPayController:submitMoneyAccountVaultWithdraw',
+        submitWithdraw,
+      );
+
+      return {
+        registerPixAddress,
+        getAutorampQuote,
+        createAutoramp,
+        submitWithdraw,
+      };
+    };
+
+    it('exposes sendPix on the messenger', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        registerSendPixHandlers(rootMessenger);
+        const result = await messenger.call(
+          'RampsController:sendPix',
+          baseRequest,
+        );
+        expect(result.batchId).toBe(BATCH_ID);
+      });
+    });
+
+    it('fails closed on disabled Pix or withdraw flags before NeoBank calls', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const registerPixAddress = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RemoteFeatureFlagController:getState',
+          () => ({
+            remoteFeatureFlags: {
+              moneyAccount: {
+                moneyAccountPixSendEnabled: false,
+                moneyAccountWithdrawEnabled: true,
+              },
+            },
+            cacheTimestamp: 0,
+          }),
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:registerPixAddress',
+          registerPixAddress,
+        );
+
+        await expect(controller.sendPix(baseRequest)).rejects.toThrow(
+          /disabled/u,
+        );
+        expect(registerPixAddress).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects invalid input without calling NeoBank', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerSendPixHandlers(rootMessenger);
+        await expect(
+          controller.sendPix({ ...baseRequest, amountOut: '0' }),
+        ).rejects.toThrow(/amountOut/u);
+        expect(handlers.registerPixAddress).not.toHaveBeenCalled();
+      });
+    });
+
+    it('registers Pix, quotes, creates autoramp, withdraws, and returns result', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerSendPixHandlers(rootMessenger);
+        const result = await controller.sendPix(baseRequest);
+
+        expect(handlers.registerPixAddress).toHaveBeenCalledWith(
+          expect.objectContaining({
+            customer_id: 'cust-1',
+            recipient: expect.objectContaining({
+              tax_id: '12345678901',
+              account: { type: 'CPF', key: '12345678901' },
+            }),
+          }),
+          { idempotencyKey: 'client-req-1:pix' },
+        );
+        expect(handlers.getAutorampQuote).toHaveBeenCalledWith(
+          expect.objectContaining({
+            amount_out: '100.00',
+            recipient_account_id: 'pix-1',
+            destination_currency_code: 'BRL',
+            source_currency_code: 'mUSD',
+            source_currency_chain: 'monad',
+            is_third_party: false,
+          }),
+        );
+        expect(handlers.createAutoramp).toHaveBeenCalledWith(
+          {
+            signed_quote: 'sig',
+            customer_id: 'cust-1',
+          },
+          { idempotencyKey: 'client-req-1:autoramp' },
+        );
+        expect(handlers.submitWithdraw).toHaveBeenCalledWith({
+          amountInRaw: '12345678',
+          moneyAccountAddress: MONEY_ACCOUNT,
+          recipient: DEPOSIT,
+          requestId: 'client-req-1',
+        });
+        const withdrawArg = handlers.submitWithdraw.mock.calls[0]?.[0] as Record<
+          string,
+          unknown
+        >;
+        expect(withdrawArg).not.toHaveProperty('pix');
+        expect(withdrawArg).not.toHaveProperty('destinationCurrencyCode');
+        expect(withdrawArg).not.toHaveProperty('quoteId');
+
+        expect(result).toMatchObject({
+          pixAddressId: 'pix-1',
+          pixAddressStatus: 'Registered',
+          autorampId: 'ar-pix-1',
+          ironDepositAddress: DEPOSIT,
+          amountInRaw: '12345678',
+          batchId: BATCH_ID,
+          withdrawRequestId: 'client-req-1',
+          destinationCurrencyCode: 'BRL',
+        });
+        expect(controller.state.autoramps).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: 'ar-pix-1',
+              walletAddress: DEPOSIT,
+            }),
+          ]),
+        );
+      });
+    });
+
+    it('calls NeoBank then withdraw in order', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const order: string[] = [];
+        registerSendPixHandlers(rootMessenger, {
+          registerPixAddress: jest.fn().mockImplementation(async () => {
+            order.push('register');
+            return { id: 'pix-1', status: 'Registered' };
+          }),
+          getAutorampQuote: jest.fn().mockImplementation(async () => {
+            order.push('quote');
+            return futureQuote();
+          }),
+          createAutoramp: jest.fn().mockImplementation(async () => {
+            order.push('create');
+            return {
+              id: 'ar-pix-1',
+              customerId: 'cust-1',
+              walletAddress: DEPOSIT,
+              status: 'Authorized',
+            };
+          }),
+          submitWithdraw: jest.fn().mockImplementation(async () => {
+            order.push('withdraw');
+            return { batchId: BATCH_ID };
+          }),
+        });
+
+        await controller.sendPix(baseRequest);
+        expect(order).toStrictEqual([
+          'register',
+          'quote',
+          'create',
+          'withdraw',
+        ]);
+      });
+    });
+
+    it('throws on RegistrationFailed without quoting', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerSendPixHandlers(rootMessenger, {
+          registerPixAddress: jest.fn().mockResolvedValue({
+            id: 'pix-bad',
+            status: 'RegistrationFailed',
+          }),
+        });
+        await expect(controller.sendPix(baseRequest)).rejects.toThrow(
+          /registration failed/u,
+        );
+        expect(handlers.getAutorampQuote).not.toHaveBeenCalled();
+        expect(handlers.submitWithdraw).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when deposit Hex is missing before withdraw', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerSendPixHandlers(rootMessenger, {
+          createAutoramp: jest.fn().mockResolvedValue({
+            id: 'ar-pix-1',
+            customerId: 'cust-1',
+            walletAddress: undefined,
+            status: 'Authorized',
+          }),
+        });
+        await expect(controller.sendPix(baseRequest)).rejects.toThrow(
+          /deposit Hex/u,
+        );
+        expect(handlers.submitWithdraw).not.toHaveBeenCalled();
+      });
+    });
+
+    it('surfaces withdraw failures after autoramp is persisted', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerSendPixHandlers(rootMessenger, {
+          submitWithdraw: jest
+            .fn()
+            .mockRejectedValue(new Error('User rejected')),
+        });
+        await expect(controller.sendPix(baseRequest)).rejects.toThrow(
+          /User rejected/u,
+        );
+        expect(controller.state.autoramps[0]?.id).toBe('ar-pix-1');
+      });
+    });
+
+    it('dedupes parallel sendPix with the same clientRequestId', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let resolveWithdraw!: (value: { batchId: string }) => void;
+        const withdrawGate = new Promise<{ batchId: string }>((resolve) => {
+          resolveWithdraw = resolve;
+        });
+        const handlers = registerSendPixHandlers(rootMessenger, {
+          submitWithdraw: jest.fn().mockReturnValue(withdrawGate),
+        });
+
+        const first = controller.sendPix(baseRequest);
+        const second = controller.sendPix(baseRequest);
+        resolveWithdraw({ batchId: BATCH_ID });
+        const [a, b] = await Promise.all([first, second]);
+
+        expect(a).toStrictEqual(b);
+        expect(handlers.registerPixAddress).toHaveBeenCalledTimes(1);
+        expect(handlers.createAutoramp).toHaveBeenCalledTimes(1);
+        expect(handlers.submitWithdraw).toHaveBeenCalledTimes(1);
+        expect(handlers.submitWithdraw).toHaveBeenCalledWith(
+          expect.objectContaining({ requestId: 'client-req-1' }),
         );
       });
     });

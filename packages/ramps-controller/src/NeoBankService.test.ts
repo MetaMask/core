@@ -108,6 +108,79 @@ describe('NeoBankService', () => {
         depositRailsSummary: { ready: false },
       });
     });
+
+    it('populates walletAddress from deposit_rails Crypto address when wallet_address is absent', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-offramp',
+          customer_id: 'cust-1',
+          status: 'Approved',
+          deposit_rails: [
+            {
+              type: 'Crypto',
+              chain: 'monad',
+              address: '0x1111111111111111111111111111111111111111',
+            },
+          ],
+        }),
+      ).toMatchObject({
+        walletAddress: '0x1111111111111111111111111111111111111111',
+        depositRailsSummary: { ready: true },
+      });
+    });
+
+    it('prefers top-level wallet_address over deposit_rails Crypto address', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Approved',
+          wallet_address: '0x2222222222222222222222222222222222222222',
+          deposit_rails: [
+            {
+              type: 'Crypto',
+              address: '0x3333333333333333333333333333333333333333',
+            },
+          ],
+        }),
+      ).toMatchObject({
+        walletAddress: '0x2222222222222222222222222222222222222222',
+      });
+    });
+
+    it('leaves walletAddress undefined when no usable Crypto Hex is present', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Pending',
+          deposit_rails: [{ type: 'Iban', account_number: 'DE00' }],
+        }),
+      ).toMatchObject({
+        walletAddress: undefined,
+      });
+    });
+
+    it('skips non-object deposit_rails entries when extracting Crypto Hex', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Approved',
+          deposit_rails: [
+            null,
+            'skip',
+            ['array'],
+            {
+              type: 'Crypto',
+              address: '0x4444444444444444444444444444444444444444',
+            },
+          ],
+        }),
+      ).toMatchObject({
+        walletAddress: '0x4444444444444444444444444444444444444444',
+      });
+    });
   });
 
   describe('getAutoramp', () => {

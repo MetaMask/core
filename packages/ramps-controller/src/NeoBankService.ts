@@ -127,7 +127,43 @@ function getBaseUrl(environment: RampsEnvironment): string {
 }
 
 /**
+ * Extracts the first usable Crypto deposit Hex from Iron `deposit_rails`.
+ * Used by {@link mapNeoBankAutorampToRemoteSnapshot} so offramp create responses
+ * that only populate rails (not top-level `wallet_address`) still yield a
+ * counterparty address for vault withdraw / `addAutoramp`.
+ *
+ * @param depositRails - Raw `deposit_rails` array from the proxy response.
+ * @returns First Crypto rail `address` that looks like a Hex, or undefined.
+ */
+export function extractIronCryptoDepositAddress(
+  depositRails: unknown,
+): string | undefined {
+  if (!Array.isArray(depositRails)) {
+    return undefined;
+  }
+  for (const rail of depositRails) {
+    if (!rail || typeof rail !== 'object' || Array.isArray(rail)) {
+      continue;
+    }
+    const typed = rail as { type?: unknown; address?: unknown };
+    if (
+      typed.type === 'Crypto' &&
+      typeof typed.address === 'string' &&
+      /^0x[a-fA-F0-9]{40}$/u.test(typed.address)
+    ) {
+      return typed.address;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Maps a Ramp API / MoonPay-shaped autoramp response into the local remote snapshot.
+ *
+ * `walletAddress` is the crypto counterparty for the ramp direction: onramp
+ * destination wallet, or offramp Iron crypto deposit address. Prefer
+ * top-level `wallet_address` / `recipient_account.address`; fall back to the
+ * first usable `deposit_rails` Crypto Hex so crypto→Pix creates are usable.
  *
  * @param response - Proxy response body.
  * @returns Snapshot consumed by {@link applyAutorampRemoteStatus}.
@@ -148,7 +184,9 @@ export function mapNeoBankAutorampToRemoteSnapshot(
     id: response.id,
     customerId: response.customer_id,
     walletAddress:
-      response.wallet_address ?? response.recipient_account?.address,
+      response.wallet_address ??
+      response.recipient_account?.address ??
+      extractIronCryptoDepositAddress(depositRails),
     status: response.status,
     depositRailsSummary,
   };

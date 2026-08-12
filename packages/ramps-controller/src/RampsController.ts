@@ -30,10 +30,18 @@ import {
   updateAutorampInRemoteStorage,
 } from './autoramp-syncing/index.js';
 import type { SyncAutorampsWithUserStorageConfig } from './autoramp-syncing/index.js';
-import type { NeoBankServiceGetAutorampAction } from './NeoBankService-method-action-types.js';
+import type {
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampQuoteAction,
+  NeoBankServiceRegisterPixAddressAction,
+} from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
+import type { Hex } from '@metamask/utils';
+import type { SendPixRequest, SendPixResult } from './sendPix.js';
+import { executeSendPix, isSendPixEnabled, validateSendPixRequest } from './sendPix.js';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
@@ -154,6 +162,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   | RampsServiceActions['type']
   | TransakServiceActions['type']
   | NeoBankServiceActions['type']
+  | TransactionPayControllerSubmitMoneyAccountVaultWithdrawAction['type']
 )[] = [
   'RampsService:getDefaultRedirectCallbackUrl',
   'RampsService:getGeolocation',
@@ -191,6 +200,10 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:registerPixAddress',
+  'NeoBankService:getAutorampQuote',
+  'NeoBankService:createAutoramp',
+  'TransactionPayController:submitMoneyAccountVaultWithdraw',
 ];
 
 /**
@@ -685,10 +698,28 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceRegisterPixAddressAction
+  | NeoBankServiceGetAutorampQuoteAction
+  | NeoBankServiceCreateAutorampAction
+  | TransactionPayControllerSubmitMoneyAccountVaultWithdrawAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
   | AuthenticationController.AuthenticationControllerIsSignedInAction;
+
+/**
+ * Structural action type for vault withdraw. Avoids a hard package dependency on
+ * `@metamask/transaction-pay-controller`; runtime still requires #9849 wiring.
+ */
+export type TransactionPayControllerSubmitMoneyAccountVaultWithdrawAction = {
+  type: 'TransactionPayController:submitMoneyAccountVaultWithdraw';
+  handler: (request: {
+    amountInRaw: string;
+    moneyAccountAddress: Hex;
+    recipient: Hex;
+    requestId: string;
+  }) => Promise<{ batchId: Hex }>;
+};
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -917,6 +948,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'sendPix',
 ] as const;
 
 /**
@@ -942,6 +974,12 @@ export class RampsController extends BaseController<
    * Key is the cache key, value is the pending request with abort controller.
    */
   readonly #pendingRequests: Map<string, PendingRequest> = new Map();
+
+  /**
+   * In-flight `sendPix` promises keyed by `clientRequestId`.
+   * Parallel Continues with the same seed share one register→withdraw flow.
+   */
+  readonly #sendPixInFlight: Map<string, Promise<SendPixResult>> = new Map();
 
   /**
    * Count of in-flight requests per resource type.
@@ -2628,6 +2666,76 @@ export class RampsController extends BaseController<
     }
 
     return upserted;
+  }
+
+  /**
+   * Orchestrates a Pix offramp send: register Pix destination, exact-out quote,
+   * create autoramp, persist local autoramp state, then vault withdraw.
+   *
+   * Calling `TransactionPayController:submitMoneyAccountVaultWithdraw` triggers
+   * the existing confirmation sheet as a side effect (`requireApproval: true`).
+   * This promise resolves with ids **after** approval (or throws on reject).
+   * It does not return a handle for Mobile to open the sheet afterward; Mobile
+   * must keep the messenger call alive across confirmation UI.
+   *
+   * @param request - Pix destination, exact-out amount, Money Account, and
+   * stable `clientRequestId` for NeoBank + withdraw + in-flight dedupe.
+   * @returns Result after withdraw approval, including `batchId`.
+   */
+  async sendPix(request: SendPixRequest): Promise<SendPixResult> {
+    // Validate + dual-flag gate before claiming an in-flight slot so bad
+    // inputs do not block a later retry with the same clientRequestId.
+    validateSendPixRequest(request);
+    let flagState;
+    try {
+      flagState = this.messenger.call('RemoteFeatureFlagController:getState');
+    } catch {
+      flagState = undefined;
+    }
+    if (!isSendPixEnabled(flagState)) {
+      throw new Error(
+        'Money Account Pix send is disabled (Pix send or withdraw flag off)',
+      );
+    }
+
+    const clientRequestId = request.clientRequestId.trim();
+    const existing = this.#sendPixInFlight.get(clientRequestId);
+    if (existing) {
+      return await existing;
+    }
+
+    const run = executeSendPix(request, {
+      getFeatureFlagState: () => {
+        try {
+          return this.messenger.call('RemoteFeatureFlagController:getState');
+        } catch {
+          return undefined;
+        }
+      },
+      registerPixAddress: (body, options) =>
+        this.messenger.call(
+          'NeoBankService:registerPixAddress',
+          body,
+          options,
+        ),
+      getAutorampQuote: (query) =>
+        this.messenger.call('NeoBankService:getAutorampQuote', query),
+      createAutoramp: (body, options) =>
+        this.messenger.call('NeoBankService:createAutoramp', body, options),
+      addAutoramp: (input) => this.addAutoramp(input),
+      submitMoneyAccountVaultWithdraw: (withdrawRequest) =>
+        this.messenger.call(
+          'TransactionPayController:submitMoneyAccountVaultWithdraw',
+          withdrawRequest,
+        ),
+    });
+
+    this.#sendPixInFlight.set(clientRequestId, run);
+    try {
+      return await run;
+    } finally {
+      this.#sendPixInFlight.delete(clientRequestId);
+    }
   }
 
   /**

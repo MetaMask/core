@@ -70,6 +70,8 @@ export function getMessengerMock({
     TransactionControllerAddTransactionBatchAction['handler']
   > = jest.fn();
 
+  const getMoneyAccountBalanceMock = jest.fn();
+
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
     NetworkControllerFindNetworkClientIdByChainIdAction['handler']
   > = jest.fn();
@@ -189,6 +191,11 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionController:addTransactionBatch',
       addTransactionBatchMock,
+    );
+
+    messenger.registerActionHandler(
+      'MoneyAccountBalanceService:getMoneyAccountBalance',
+      getMoneyAccountBalanceMock,
     );
 
     messenger.registerActionHandler(
@@ -320,6 +327,7 @@ export function getMessengerMock({
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
+    getMoneyAccountBalanceMock,
     getNetworkClientByIdMock,
     getNetworkConfigurationByChainIdMock,
     getRemoteFeatureFlagControllerStateMock,
