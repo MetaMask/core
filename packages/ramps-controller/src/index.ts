@@ -228,6 +228,7 @@ export {
   NeoBankService,
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
+  extractIronCryptoDepositAddress,
 } from './NeoBankService.js';
 export type { TypedError } from './errorNormalization.js';
 export {

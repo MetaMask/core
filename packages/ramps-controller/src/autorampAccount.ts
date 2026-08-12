@@ -36,7 +36,10 @@ export type AutorampAccount = {
   id: string;
   /** MoonPay customer id. */
   customerId: string;
-  /** Destination wallet address associated with this autoramp. */
+  /**
+   * Crypto counterparty for the ramp direction: onramp destination wallet, or
+   * offramp Iron crypto deposit address (often from `deposit_rails`).
+   */
   walletAddress: string;
   /** Latest status from MoonPay (source of truth after refresh). */
   status: AutorampStatus;
