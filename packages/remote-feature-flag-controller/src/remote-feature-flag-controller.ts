@@ -384,7 +384,9 @@ export class RemoteFeatureFlagController extends BaseController<
       return;
     }
 
-    const resolved = await this.#resolveFeatureFlags(rawRemoteFeatureFlags);
+    const resolved = await this.#processRemoteFeatureFlags(
+      rawRemoteFeatureFlags,
+    );
 
     this.#processedRemoteFeatureFlags = resolved.processedFlags;
 
@@ -401,62 +403,12 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
-   * Resolves raw feature flags into the values that apply to this client and
-   * user, selecting version and threshold entries and folding new thresholds
-   * into the cached ones.
-   *
-   * @param rawRemoteFeatureFlags - The unprocessed feature flags.
-   * @returns The processed flags, the updated threshold cache, and the
-   * selected threshold group names.
-   */
-  async #resolveFeatureFlags(rawRemoteFeatureFlags: FeatureFlags): Promise<{
-    processedFlags: FeatureFlags;
-    thresholdCache: Record<string, number>;
-    featureFlagThresholdGroups: Record<string, string>;
-  }> {
-    const {
-      processedFlags,
-      thresholdCacheUpdates,
-      featureFlagThresholdGroupUpdates,
-    } = await this.#processRemoteFeatureFlags(rawRemoteFeatureFlags);
-
-    const metaMetricsId = this.#getMetaMetricsId();
-    const currentFlagNames = Object.keys(rawRemoteFeatureFlags);
-
-    // Build updated threshold cache
-    const updatedThresholdCache = { ...(this.state.thresholdCache ?? {}) };
-
-    // Apply new thresholds
-    for (const [cacheKey, threshold] of Object.entries(thresholdCacheUpdates)) {
-      updatedThresholdCache[cacheKey] = threshold;
-    }
-
-    // Clean up stale entries
-    for (const cacheKey of Object.keys(updatedThresholdCache)) {
-      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
-      const cachedFlagName = cachedFlagNameParts.join(':');
-      if (
-        cachedMetaMetricsId === metaMetricsId &&
-        !currentFlagNames.includes(cachedFlagName)
-      ) {
-        delete updatedThresholdCache[cacheKey];
-      }
-    }
-
-    return {
-      processedFlags,
-      thresholdCache: updatedThresholdCache,
-      featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
-    };
-  }
-
-  /**
    * Updates the controller's state with new feature flags and resets the cache timestamp.
    *
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
-    const resolved = await this.#resolveFeatureFlags(remoteFeatureFlags);
+    const resolved = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
 
     this.#processedRemoteFeatureFlags = resolved.processedFlags;
 
@@ -489,15 +441,24 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
+  /**
+   * Resolves raw feature flags into the values that apply to this client and
+   * user, selecting version and threshold entries and reconciling the
+   * threshold cache against the flags the server currently serves.
+   *
+   * @param remoteFeatureFlags - The unprocessed feature flags.
+   * @returns The processed flags, the updated threshold cache, and the
+   * selected threshold group names.
+   */
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
     processedFlags: FeatureFlags;
-    thresholdCacheUpdates: Record<string, number>;
-    featureFlagThresholdGroupUpdates: Record<string, string>;
+    thresholdCache: Record<string, number>;
+    featureFlagThresholdGroups: Record<string, string>;
   }> {
     const processedFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
     const thresholdCacheUpdates: Record<string, number> = {};
-    const featureFlagThresholdGroupUpdates: Record<string, string> = {};
+    const featureFlagThresholdGroups: Record<string, string> = {};
 
     for (const [
       remoteFeatureFlagName,
@@ -539,7 +500,7 @@ export class RemoteFeatureFlagController extends BaseController<
         if (explicitMatch) {
           processedValue = explicitMatch.value;
           if (explicitMatch.name) {
-            featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+            featureFlagThresholdGroups[remoteFeatureFlagName] =
               explicitMatch.name;
           }
         } else {
@@ -571,7 +532,7 @@ export class RemoteFeatureFlagController extends BaseController<
           if (selectedGroup) {
             processedValue = selectedGroup.value;
             if (selectedGroup.name) {
-              featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+              featureFlagThresholdGroups[remoteFeatureFlagName] =
                 selectedGroup.name;
             }
           }
@@ -581,10 +542,28 @@ export class RemoteFeatureFlagController extends BaseController<
       processedFlags[remoteFeatureFlagName] = processedValue;
     }
 
+    const thresholdCache = {
+      ...this.state.thresholdCache,
+      ...thresholdCacheUpdates,
+    };
+
+    // Drop cached thresholds for flags this user is no longer served.
+    const currentFlagNames = Object.keys(remoteFeatureFlags);
+    for (const cacheKey of Object.keys(thresholdCache)) {
+      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
+      const cachedFlagName = cachedFlagNameParts.join(':');
+      if (
+        cachedMetaMetricsId === metaMetricsId &&
+        !currentFlagNames.includes(cachedFlagName)
+      ) {
+        delete thresholdCache[cacheKey];
+      }
+    }
+
     return {
       processedFlags,
-      thresholdCacheUpdates,
-      featureFlagThresholdGroupUpdates,
+      thresholdCache,
+      featureFlagThresholdGroups,
     };
   }
 
