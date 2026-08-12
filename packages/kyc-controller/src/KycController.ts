@@ -804,6 +804,8 @@ export class KycController extends BaseController<
    * launch SumSub — skipping MoonPay Check/Auth frames.
    *
    * @param consents - T&C2 boolean flags.
+   * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
+   * @param consents.idosTncSigned - Whether idOS T&C were accepted.
    */
   async #startIronSession(consents: {
     sumsubTncSigned: boolean;
@@ -846,12 +848,9 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      if (
-        sumsubResult &&
-        'error' in sumsubResult &&
-        typeof sumsubResult.error === 'string'
-      ) {
-        throw new Error(sumsubResult.error);
+      const sumsubError = sumsubResult?.error;
+      if (typeof sumsubError === 'string') {
+        throw new Error(sumsubError);
       }
       // After SumSub, refresh user-keyed status for the Money toast and start
       // polling while still pending. Soft-fail: toast refresh must not rewind
@@ -1594,6 +1593,9 @@ export class KycController extends BaseController<
    * value actually changes.
    *
    * @param payload - The status payload to apply.
+   * @param payload.status - User-keyed KYC status from `GET /kyc/status`.
+   * @param payload.sumsubSessionId - Optional SumSub session id from status.
+   * @param payload.errorCode - Optional error code from status.
    */
   #applyUserStatus(payload: {
     status: KycUserStatus;

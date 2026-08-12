@@ -101,9 +101,9 @@ describe('UKYC mintUkycTestToken', () => {
     // 32 bytes hex-encoded.
     expect(result.localUserSecret).toMatch(/^[0-9a-f]{64}$/u);
     expect(result.token.payload.operations).toStrictEqual(['read']);
-    expect(result.authorizationHeader.startsWith(
-      `${UKYC_CAPABILITY_AUTH_SCHEME} `,
-    )).toBe(true);
+    expect(
+      result.authorizationHeader.startsWith(`${UKYC_CAPABILITY_AUTH_SCHEME} `),
+    ).toBe(true);
   });
 
   it('binds session_id for a Relay-presented token', () => {
