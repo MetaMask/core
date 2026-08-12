@@ -289,49 +289,48 @@ export class TerminalMarketService {
       TERMINAL_API_CONFIG.FetchTimeoutMs,
     );
 
-    let response: Response;
     try {
-      response = await fetch(url, {
+      const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
       });
+
+      if (!response.ok) {
+        throw new Error(
+          `Terminal global snapshot returned ${String(response.status)}: ${response.statusText}`,
+        );
+      }
+
+      const declaredLength = response.headers?.get('content-length');
+      if (
+        declaredLength !== null &&
+        declaredLength !== undefined &&
+        /^\d+$/u.test(declaredLength) &&
+        Number(declaredLength) > GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES
+      ) {
+        throw new Error('Terminal global snapshot payload exceeds 1 MiB');
+      }
+      // React Native fetch does not consistently expose a streaming reader.
+      // Reject declared oversize bodies before allocation, then enforce the same
+      // byte cap after text() for servers that omit Content-Length.
+      const text = await response.text();
+      if (stringToBytes(text).byteLength > GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES) {
+        throw new Error('Terminal global snapshot payload exceeds 1 MiB');
+      }
+      let body: unknown;
+      try {
+        body = JSON.parse(text) as unknown;
+      } catch {
+        throw new Error('Terminal global snapshot returned invalid JSON');
+      }
+      if (!is(body, GlobalSnapshotStruct)) {
+        throw new Error('Terminal global snapshot failed schema validation');
+      }
+      return this.#validateAndMapGlobalSnapshot(body, identity, Date.now());
     } finally {
       clearTimeout(timeoutId);
     }
-
-    if (!response.ok) {
-      throw new Error(
-        `Terminal global snapshot returned ${String(response.status)}: ${response.statusText}`,
-      );
-    }
-
-    const declaredLength = response.headers?.get('content-length');
-    if (
-      declaredLength !== null &&
-      declaredLength !== undefined &&
-      /^\d+$/u.test(declaredLength) &&
-      Number(declaredLength) > GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES
-    ) {
-      throw new Error('Terminal global snapshot payload exceeds 1 MiB');
-    }
-    // React Native fetch does not consistently expose a streaming reader.
-    // Reject declared oversize bodies before allocation, then enforce the same
-    // byte cap after text() for servers that omit Content-Length.
-    const text = await response.text();
-    if (stringToBytes(text).byteLength > GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES) {
-      throw new Error('Terminal global snapshot payload exceeds 1 MiB');
-    }
-    let body: unknown;
-    try {
-      body = JSON.parse(text) as unknown;
-    } catch {
-      throw new Error('Terminal global snapshot returned invalid JSON');
-    }
-    if (!is(body, GlobalSnapshotStruct)) {
-      throw new Error('Terminal global snapshot failed schema validation');
-    }
-    return this.#validateAndMapGlobalSnapshot(body, identity, Date.now());
   }
 
   async #validateAndMapGlobalSnapshot(

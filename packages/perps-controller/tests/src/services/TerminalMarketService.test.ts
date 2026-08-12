@@ -745,6 +745,43 @@ describe('TerminalMarketService', () => {
       expect(text).not.toHaveBeenCalled();
     });
 
+    it('aborts when the response body stalls', async () => {
+      jest.useFakeTimers();
+      jest.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+        const signal = init?.signal as AbortSignal;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => null } as unknown as Headers,
+          text: () =>
+            new Promise((_resolve, reject) => {
+              signal.addEventListener('abort', () => {
+                reject(
+                  signal.reason instanceof Error
+                    ? signal.reason
+                    : new Error(String(signal.reason)),
+                );
+              });
+            }),
+        } as Response);
+      });
+
+      const pending = service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      await Promise.resolve();
+
+      jest.advanceTimersByTime(TERMINAL_API_CONFIG.FetchTimeoutMs);
+
+      await expect(pending).rejects.toThrow(
+        'Terminal global snapshot timed out',
+      );
+      jest.useRealTimers();
+    });
+
     it.each([
       ['version', { schemaVersion: 1 }],
       ['provider', { provider: 'other' }],
