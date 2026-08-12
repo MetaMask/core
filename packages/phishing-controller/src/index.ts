@@ -37,6 +37,11 @@ export {
   getPhishingDetectionScanUrlParam,
   isPhishingDetectionPathBasedHostname,
 } from './utils.js';
+export { extractSignatureAddresses } from './signature-address-extraction.js';
+export type {
+  ExtractedSignatureAddresses,
+  ExtractSignatureAddressesOptions,
+} from './signature-address-extraction.js';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,
