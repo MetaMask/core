@@ -283,16 +283,18 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
- * HyperLiquid's own bounds on a TWAP placement.
+ * Bounds applied to a HyperLiquid TWAP placement.
  *
- * The venue validates the TWAP duration as a safe integer in `[5, 1440]` before
- * the request is signed, so a duration outside this range is rejected locally
- * rather than turned into an opaque SDK error. `MinNotionalUsd` is the venue's
- * documented minimum *total* order size for a TWAP, which is what it enforces
- * instead of the per-order minimum — its suborders are its own business.
+ * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe
+ * integer in `[5, 1440]` before signing, although the venue currently documents
+ * a maximum of seven days (`10080` minutes). The controller exposes the SDK's
+ * narrower cap until that dependency supports the venue limit, avoiding an
+ * opaque SDK error. `MinNotionalUsd` is the venue's documented minimum *total*
+ * order size for a TWAP, which it enforces instead of the per-order minimum —
+ * its suborders are its own business.
  *
  * Carries the venue prefix, like `HYPERLIQUID_ORDER_LIMITS`, because these are
- * protocol constants rather than controller policy.
+ * venue/SDK constraints rather than controller policy.
  *
  * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-types
  */

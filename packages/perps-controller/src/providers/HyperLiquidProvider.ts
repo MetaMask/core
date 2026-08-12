@@ -4972,7 +4972,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       // this tick would rest a replacement the caller has no idea exists.
       // Stopping here leaves nothing on the book.
       if (!session.active) {
-        session.orderId = null;
+        // A refused cancel leaves the child resting. Preserve its ID so the
+        // caller that stopped this session can report an incomplete cancel and
+        // retry it instead of orphaning the order.
+        if (outcome !== 'refused') {
+          session.orderId = null;
+        }
         return;
       }
 

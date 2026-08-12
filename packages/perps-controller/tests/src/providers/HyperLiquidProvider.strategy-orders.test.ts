@@ -1508,6 +1508,101 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // replacement the caller has no handle for and no idea exists.
       expect(order).toHaveBeenCalledTimes(1);
     });
+
+    it('keeps the live child reachable when the tick cancel is refused', async () => {
+      let sessionId = '';
+      let callerCancel: Promise<CancelOrderResult> | undefined;
+      let releasePublicCancel: (() => void) | undefined;
+      let cancelCalls = 0;
+      const cancel = jest.fn().mockImplementation(async () => {
+        cancelCalls += 1;
+        if (cancelCalls === 1) {
+          mockWalletService.getUserAddressWithDefault.mockReturnValueOnce(
+            new Promise((resolve) => {
+              releasePublicCancel = () =>
+                resolve('0x1234567890123456789012345678901234567890');
+            }),
+          );
+          callerCancel = provider.cancelOrder({
+            orderId: sessionId,
+            symbol: 'ETH',
+            orderType: 'chase',
+          });
+          await Promise.resolve();
+          return {
+            status: 'ok',
+            response: {
+              data: { statuses: [{ error: 'multi-sig required' }] },
+            },
+          };
+        }
+
+        return cancelCalls === 2
+          ? {
+              status: 'ok',
+              response: {
+                data: { statuses: [{ error: 'multi-sig required' }] },
+              },
+            }
+          : {
+              status: 'ok',
+              response: { data: { statuses: ['success'] } },
+            };
+      });
+
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+          cancel,
+        },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      sessionId = placed.orderId as string;
+
+      await jest.advanceTimersByTimeAsync(1000);
+      releasePublicCancel?.();
+
+      const first = await callerCancel;
+      expect(first.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+      );
+
+      const retry = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(retry.success).toBe(true);
+      expect(cancel).toHaveBeenLastCalledWith({
+        cancels: [{ a: 1, o: 55 }],
+      });
+    });
   });
 
   describe('Chase cancel racing the replacement placement', () => {
