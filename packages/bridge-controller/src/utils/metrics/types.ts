@@ -231,6 +231,7 @@ type RequiredEventContextFromClientBase = {
       can_submit: QuoteFetchData['can_submit'];
       usd_balance_source?: number;
       has_sufficient_gas_for_quote?: boolean | null;
+      usd_amount_source: number;
     };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,

@@ -694,12 +694,15 @@ describe('PerpsController', () => {
   });
 
   describe('pro layout preferences', () => {
-    it('defaults to collapsed order book, collapsed chart, and reserved positions', () => {
+    it('defaults to collapsed order book, collapsed chart, reserved positions, and positions sort/filter defaults', () => {
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: false,
         chartExpanded: false,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
       });
     });
 
@@ -711,6 +714,9 @@ describe('PerpsController', () => {
         chartExpanded: false,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
       });
     });
 
@@ -718,12 +724,40 @@ describe('PerpsController', () => {
       controller.setProLayoutPreferences({ orderBookExpanded: true });
       controller.setProLayoutPreferences({ orderBookPosition: 'right' });
       controller.setProLayoutPreferences({ orderFormPosition: 'left' });
+      controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
+      controller.setProLayoutPreferences({
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+      });
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
         chartExpanded: false,
         orderBookPosition: 'right',
         orderFormPosition: 'left',
+        positionsSideFilter: 'long',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+      });
+    });
+
+    it('updates sort field without clobbering sort direction', () => {
+      controller.setProLayoutPreferences({
+        positionsSortField: 'fundingRate',
+        positionsSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        positionsSortField: 'unrealizedPnl',
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
       });
     });
 
@@ -746,6 +780,9 @@ describe('PerpsController', () => {
         chartExpanded: false,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
       });
     });
   });
