@@ -502,21 +502,19 @@ export type ProPositionsSortField =
   | 'fundingRate';
 
 /**
- * Sort configuration for the Pro Positions list.
+ * Sort direction for the Pro Positions list.
  */
-export type ProPositionsSortConfig = {
-  field: ProPositionsSortField;
-  direction: 'asc' | 'desc';
-};
+export type ProPositionsSortDirection = 'asc' | 'desc';
 
 /**
  * Pro-mode layout preferences (network-independent).
  *
- * Persists across markets (unlike the per-market `tradeConfigurations`).
- * `chartExpanded` and the `*Position` fields are reserved for future
- * container-position UI. `positionsSideFilter` / `positionsSortConfig` back
- * the Positions/Orders panel sort and side filter so they survive market
- * navigation and app restarts.
+ * Flat object that persists across markets (unlike the per-market
+ * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
+ * reserved for future container-position UI. `positionsSideFilter` /
+ * `positionsSortField` / `positionsSortDirection` back the Positions/Orders
+ * panel sort and side filter so they survive market navigation and app
+ * restarts.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
@@ -524,7 +522,8 @@ export type ProLayoutPreferences = {
   orderBookPosition: 'left' | 'right';
   orderFormPosition: 'left' | 'right';
   positionsSideFilter: ProPositionsSideFilter;
-  positionsSortConfig: ProPositionsSortConfig;
+  positionsSortField: ProPositionsSortField;
+  positionsSortDirection: ProPositionsSortDirection;
 };
 
 /**
@@ -540,43 +539,9 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   orderBookPosition: 'left',
   orderFormPosition: 'right',
   positionsSideFilter: 'all',
-  positionsSortConfig: {
-    field: 'positionValue',
-    direction: 'desc',
-  },
+  positionsSortField: 'positionValue',
+  positionsSortDirection: 'desc',
 };
-
-/**
- * Patch shape for `setProLayoutPreferences`.
- *
- * Top-level fields are optional; nested `positionsSortConfig` may also be
- * partially specified so a caller can update only `field` or only `direction`.
- */
-export type ProLayoutPreferencesPatch = Partial<
-  Omit<ProLayoutPreferences, 'positionsSortConfig'>
-> & {
-  positionsSortConfig?: Partial<ProPositionsSortConfig>;
-};
-
-/**
- * Merge a partial/persisted pro-layout preference blob over defaults.
- *
- * Nested `positionsSortConfig` is deep-merged so a persisted object that
- * predates one of its fields still yields a fully-populated config.
- *
- * @param prefs - Partial preferences from persisted state or a setter patch.
- * @returns A fully-populated `ProLayoutPreferences` object.
- */
-export const mergeProLayoutPreferences = (
-  prefs?: ProLayoutPreferencesPatch | null,
-): ProLayoutPreferences => ({
-  ...DEFAULT_PRO_LAYOUT_PREFERENCES,
-  ...prefs,
-  positionsSortConfig: {
-    ...DEFAULT_PRO_LAYOUT_PREFERENCES.positionsSortConfig,
-    ...prefs?.positionsSortConfig,
-  },
-});
 
 /**
  * Default Perps interface mode.

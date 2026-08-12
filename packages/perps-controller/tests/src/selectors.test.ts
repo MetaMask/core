@@ -637,10 +637,8 @@ describe('PerpsController selectors', () => {
       orderBookPosition: 'left',
       orderFormPosition: 'right',
       positionsSideFilter: 'all',
-      positionsSortConfig: {
-        field: 'positionValue',
-        direction: 'desc',
-      },
+      positionsSortField: 'positionValue',
+      positionsSortDirection: 'desc',
     };
 
     it('returns the pro-mode layout preferences', () => {
@@ -650,10 +648,8 @@ describe('PerpsController selectors', () => {
         orderBookPosition: 'right' as const,
         orderFormPosition: 'left' as const,
         positionsSideFilter: 'long' as const,
-        positionsSortConfig: {
-          field: 'unrealizedPnl' as const,
-          direction: 'asc' as const,
-        },
+        positionsSortField: 'unrealizedPnl' as const,
+        positionsSortDirection: 'asc' as const,
       };
       const state = {
         proLayoutPreferences,
@@ -672,24 +668,6 @@ describe('PerpsController selectors', () => {
       expect(selectProLayoutPreferences(state)).toStrictEqual({
         ...defaults,
         orderBookExpanded: true,
-      });
-    });
-
-    it('deep-merges nested positionsSortConfig defaults', () => {
-      const state = {
-        proLayoutPreferences: {
-          positionsSideFilter: 'short',
-          positionsSortConfig: { field: 'fundingRate' },
-        },
-      } as unknown as PerpsControllerState;
-
-      expect(selectProLayoutPreferences(state)).toStrictEqual({
-        ...defaults,
-        positionsSideFilter: 'short',
-        positionsSortConfig: {
-          field: 'fundingRate',
-          direction: 'desc',
-        },
       });
     });
 

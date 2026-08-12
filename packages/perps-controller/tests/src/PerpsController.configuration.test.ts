@@ -701,10 +701,8 @@ describe('PerpsController', () => {
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
-        positionsSortConfig: {
-          field: 'positionValue',
-          direction: 'desc',
-        },
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
       });
     });
 
@@ -717,10 +715,8 @@ describe('PerpsController', () => {
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
-        positionsSortConfig: {
-          field: 'positionValue',
-          direction: 'desc',
-        },
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
       });
     });
 
@@ -730,7 +726,8 @@ describe('PerpsController', () => {
       controller.setProLayoutPreferences({ orderFormPosition: 'left' });
       controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
       controller.setProLayoutPreferences({
-        positionsSortConfig: { field: 'unrealizedPnl', direction: 'asc' },
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
       });
 
       expect(controller.getProLayoutPreferences()).toEqual({
@@ -739,24 +736,28 @@ describe('PerpsController', () => {
         orderBookPosition: 'right',
         orderFormPosition: 'left',
         positionsSideFilter: 'long',
-        positionsSortConfig: {
-          field: 'unrealizedPnl',
-          direction: 'asc',
-        },
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
       });
     });
 
-    it('deep-merges positionsSortConfig so a partial sort patch preserves the other field', () => {
+    it('updates sort field without clobbering sort direction', () => {
       controller.setProLayoutPreferences({
-        positionsSortConfig: { field: 'fundingRate', direction: 'asc' },
+        positionsSortField: 'fundingRate',
+        positionsSortDirection: 'asc',
       });
       controller.setProLayoutPreferences({
-        positionsSortConfig: { field: 'unrealizedPnl' },
+        positionsSortField: 'unrealizedPnl',
       });
 
-      expect(controller.getProLayoutPreferences().positionsSortConfig).toEqual({
-        field: 'unrealizedPnl',
-        direction: 'asc',
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
       });
     });
 
@@ -780,37 +781,8 @@ describe('PerpsController', () => {
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
-        positionsSortConfig: {
-          field: 'positionValue',
-          direction: 'desc',
-        },
-      });
-    });
-
-    it('fills in nested positionsSortConfig defaults when only field is persisted', () => {
-      controller.testUpdate((state) => {
-        state.proLayoutPreferences = {
-          orderBookExpanded: false,
-          chartExpanded: false,
-          orderBookPosition: 'left',
-          orderFormPosition: 'right',
-          positionsSideFilter: 'short',
-          positionsSortConfig: {
-            field: 'fundingRate',
-          },
-        } as PerpsControllerState['proLayoutPreferences'];
-      });
-
-      expect(controller.getProLayoutPreferences()).toEqual({
-        orderBookExpanded: false,
-        chartExpanded: false,
-        orderBookPosition: 'left',
-        orderFormPosition: 'right',
-        positionsSideFilter: 'short',
-        positionsSortConfig: {
-          field: 'fundingRate',
-          direction: 'desc',
-        },
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
       });
     });
   });

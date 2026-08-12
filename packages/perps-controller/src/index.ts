@@ -35,7 +35,6 @@ export {
   PerpsMode,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
-  mergeProLayoutPreferences,
 } from './PerpsController.js';
 export type {
   PerpsControllerState,
@@ -45,9 +44,8 @@ export type {
   PerpsControllerActions,
   PerpsControllerEvents,
   ProLayoutPreferences,
-  ProLayoutPreferencesPatch,
   ProPositionsSideFilter,
-  ProPositionsSortConfig,
+  ProPositionsSortDirection,
   ProPositionsSortField,
 } from './PerpsController.js';
 export type {

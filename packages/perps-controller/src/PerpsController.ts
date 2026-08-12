@@ -24,7 +24,6 @@ import { PerpsMeasurementName } from './constants/performanceMetrics.js';
 import type {
   SortOptionId,
   ProLayoutPreferences,
-  ProLayoutPreferencesPatch,
   PerpsMode,
 } from './constants/perpsConfig.js';
 import {
@@ -36,7 +35,6 @@ import {
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
-  mergeProLayoutPreferences,
 } from './constants/perpsConfig.js';
 import type { PerpsControllerMethodActions } from './PerpsController-method-action-types.js';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
@@ -251,13 +249,11 @@ export {
   PerpsMode,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
-  mergeProLayoutPreferences,
 } from './constants/perpsConfig.js';
 export type {
   ProLayoutPreferences,
-  ProLayoutPreferencesPatch,
   ProPositionsSideFilter,
-  ProPositionsSortConfig,
+  ProPositionsSortDirection,
   ProPositionsSortField,
 } from './constants/perpsConfig.js';
 
@@ -5150,33 +5146,26 @@ export class PerpsController extends BaseController<
   getProLayoutPreferences(): ProLayoutPreferences {
     // Merge over defaults so callers always receive a fully-populated object,
     // even if the persisted state predates one of the fields.
-    return mergeProLayoutPreferences(this.state.proLayoutPreferences);
+    return {
+      ...DEFAULT_PRO_LAYOUT_PREFERENCES,
+      ...this.state.proLayoutPreferences,
+    };
   }
 
   /**
    * Update the user's pro-mode layout preferences.
    *
    * Patch-style setter: only the provided fields are updated, the rest are
-   * preserved. Nested `positionsSortConfig` is deep-merged so callers can
-   * patch a single sort field without clobbering direction (or vice versa).
-   * This keeps the signature stable as new layout fields are added.
+   * preserved. This keeps the signature stable as new layout fields are added.
    *
    * @param patch - Partial set of pro-mode layout preferences to update.
    */
-  setProLayoutPreferences(patch: ProLayoutPreferencesPatch): void {
+  setProLayoutPreferences(patch: Partial<ProLayoutPreferences>): void {
     this.update((state) => {
-      state.proLayoutPreferences = mergeProLayoutPreferences({
+      state.proLayoutPreferences = {
         ...state.proLayoutPreferences,
         ...patch,
-        ...(patch.positionsSortConfig
-          ? {
-              positionsSortConfig: {
-                ...state.proLayoutPreferences.positionsSortConfig,
-                ...patch.positionsSortConfig,
-              },
-            }
-          : {}),
-      });
+      };
     });
   }
 

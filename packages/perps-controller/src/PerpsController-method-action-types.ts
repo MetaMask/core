@@ -975,9 +975,7 @@ export type PerpsControllerGetProLayoutPreferencesAction = {
  * Update the user's pro-mode layout preferences.
  *
  * Patch-style setter: only the provided fields are updated, the rest are
- * preserved. Nested `positionsSortConfig` is deep-merged so callers can
- * patch a single sort field without clobbering direction (or vice versa).
- * This keeps the signature stable as new layout fields are added.
+ * preserved. This keeps the signature stable as new layout fields are added.
  *
  * @param patch - Partial set of pro-mode layout preferences to update.
  */
