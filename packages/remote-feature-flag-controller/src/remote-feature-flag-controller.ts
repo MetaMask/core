@@ -160,33 +160,6 @@ function findExplicitIdMatch(
 }
 
 /**
- * Merges the feature flag layers into the effective flags that consumers read,
- * with precedence: defaults < processed remote < local overrides.
- *
- * @param options - The feature flag layers to merge.
- * @param options.defaultFeatureFlags - Client-side default feature flags.
- * @param options.processedRemoteFeatureFlags - Remote feature flags after
- * version and threshold processing, without defaults or overrides applied.
- * @param options.localOverrides - Local overrides.
- * @returns The effective feature flags.
- */
-function getEffectiveFeatureFlags({
-  defaultFeatureFlags,
-  processedRemoteFeatureFlags,
-  localOverrides,
-}: {
-  defaultFeatureFlags: FeatureFlags;
-  processedRemoteFeatureFlags?: FeatureFlags;
-  localOverrides?: FeatureFlags;
-}): FeatureFlags {
-  return {
-    ...defaultFeatureFlags,
-    ...processedRemoteFeatureFlags,
-    ...localOverrides,
-  };
-}
-
-/**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
  * and manage these flags. The controller ensures that feature flags are refreshed based on
@@ -275,11 +248,11 @@ export class RemoteFeatureFlagController extends BaseController<
       messenger,
       state: {
         ...initialState,
-        remoteFeatureFlags: getEffectiveFeatureFlags({
-          defaultFeatureFlags,
-          processedRemoteFeatureFlags,
-          localOverrides: initialState.localOverrides,
-        }),
+        remoteFeatureFlags: {
+          ...defaultFeatureFlags,
+          ...processedRemoteFeatureFlags,
+          ...initialState.localOverrides,
+        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
@@ -318,11 +291,11 @@ export class RemoteFeatureFlagController extends BaseController<
     processedRemoteFeatureFlags?: FeatureFlags;
     localOverrides?: FeatureFlags;
   }): FeatureFlags {
-    return getEffectiveFeatureFlags({
-      defaultFeatureFlags: this.#defaultFeatureFlags,
-      processedRemoteFeatureFlags,
-      localOverrides,
-    });
+    return {
+      ...this.#defaultFeatureFlags,
+      ...processedRemoteFeatureFlags,
+      ...localOverrides,
+    };
   }
 
   /**
