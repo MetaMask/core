@@ -5,6 +5,7 @@ import type {
 import {
   BaseController,
   ControllerGetStateAction,
+  ControllerStateChangedEvent,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
@@ -786,10 +787,9 @@ const metadata: StateMetadata<PerpsControllerState> = {
 /**
  * PerpsController events
  */
-export type PerpsControllerEvents = ControllerStateChangeEvent<
-  'PerpsController',
-  PerpsControllerState
->;
+export type PerpsControllerEvents =
+  | ControllerStateChangeEvent<'PerpsController', PerpsControllerState>
+  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>;
 
 /**
  * The action which can be used to retrieve the state of the
