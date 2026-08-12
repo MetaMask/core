@@ -365,10 +365,8 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
-   * Re-derives feature flags from the raw flags already in state, without
-   * making a network request. Threshold selection needs to await a hash and so
-   * cannot run in the constructor; clients should call this once after
-   * construction. Calling it more than once is safe.
+   * Re-derives feature flags from the raw flags already in state. Threshold selection needs to await a hash and so
+   * cannot run in the constructor
    *
    * Does nothing when there are no persisted raw flags, so that a fresh
    * install or state persisted before raw flags were stored keeps the flags
