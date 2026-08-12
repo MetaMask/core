@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Retry transient Foundry archive download failures with exponential backoff and equal jitter, preventing short-lived network, rate-limit, and server errors from immediately aborting installation ([#9854](https://github.com/MetaMask/core/pull/9854))
+
 ## [1.0.1]
 
 ### Fixed
