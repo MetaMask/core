@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add migrationPhase to submit handlers, which determines how quote metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
+
 ## [75.1.0]
 
 ### Changed
 
-- Add migrationPhase to submit handlers, which determines how quote metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
 - Bump `@metamask/bridge-controller` from `^79.0.0` to `^79.2.0` ([#9788](https://github.com/MetaMask/core/pull/9788), [#9827](https://github.com/MetaMask/core/pull/9827), [#9845](https://github.com/MetaMask/core/pull/9845))
 - Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))

@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [79.2.0]
-
-### Added
-
-- Export `assetIdsMatch` util to compare assetIds. EVM assetIds are case insensitive ([#9831](https://github.com/MetaMask/core/pull/9831))
-
 ### Changed
 
 - **BREAKING:** Add `migrationPhase` to selector params, which determines how metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
@@ -21,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Phase 1.5 includes V2 quote metadata but falls back to legacy metadata
   - Phase 2 omits legacy metadata from the quotes and enables removal of deprecated metadata utils
   - Remove V1 support from mergeQuoteMetadata and add migrationPhase parameter
+
+## [79.2.0]
+
+### Added
+
+- Export `assetIdsMatch` util to compare assetIds. EVM assetIds are case insensitive ([#9831](https://github.com/MetaMask/core/pull/9831))
 
 ### Fixed
 
