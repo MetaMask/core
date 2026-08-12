@@ -271,6 +271,8 @@ export type {
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
   PerpsTerminalMarketService,
+  PerpsGlobalSnapshotRequest,
+  PerpsGlobalSnapshotResult,
   TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,

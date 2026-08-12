@@ -98,7 +98,7 @@ function getControllerMessenger(
       'AuthenticationController:getBearerToken',
     ],
     events: [
-      'RemoteFeatureFlagController:stateChanged',
+      'RemoteFeatureFlagController:stateChange',
       'AccountTreeController:selectedAccountGroupChange',
     ],
     messenger,
@@ -162,7 +162,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
       });
 
       rootMessenger.publish(
-        'RemoteFeatureFlagController:stateChanged',
+        'RemoteFeatureFlagController:stateChange',
         { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
         [],
       );
@@ -236,7 +236,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
       expect(callCountAfterStart).toBe(callCountAfterConstruction + 1);
 
       rootMessenger.publish(
-        'RemoteFeatureFlagController:stateChanged',
+        'RemoteFeatureFlagController:stateChange',
         { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
         [],
       );
@@ -260,7 +260,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
       controller.stopEligibilityMonitoring();
 
       rootMessenger.publish(
-        'RemoteFeatureFlagController:stateChanged',
+        'RemoteFeatureFlagController:stateChange',
         { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
         [],
       );
@@ -313,7 +313,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
   });
 
   describe('when deferEligibilityCheck is false (default)', () => {
-    it('defers eligibility processing until init', async () => {
+    it('triggers eligibility processing during construction', () => {
       const refreshSpy = jest.spyOn(
         PerpsController.prototype as unknown as {
           refreshEligibilityOnFeatureFlagChange: (...args: unknown[]) => void;
@@ -321,11 +321,8 @@ describe('PerpsController - deferEligibilityCheck', () => {
         'refreshEligibilityOnFeatureFlagChange',
       );
 
-      const { controller } = buildController({ deferEligibilityCheck: false });
+      buildController({ deferEligibilityCheck: false });
 
-      expect(refreshSpy).not.toHaveBeenCalled();
-
-      await controller.init();
       expect(refreshSpy).toHaveBeenCalled();
       refreshSpy.mockRestore();
     });

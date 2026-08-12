@@ -5,7 +5,6 @@ import type {
 import {
   BaseController,
   ControllerGetStateAction,
-  ControllerStateChangedEvent,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
@@ -787,9 +786,10 @@ const metadata: StateMetadata<PerpsControllerState> = {
 /**
  * PerpsController events
  */
-export type PerpsControllerEvents =
-  | ControllerStateChangeEvent<'PerpsController', PerpsControllerState>
-  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>;
+export type PerpsControllerEvents = ControllerStateChangeEvent<
+  'PerpsController',
+  PerpsControllerState
+>;
 
 /**
  * The action which can be used to retrieve the state of the
@@ -1190,11 +1190,36 @@ export class PerpsController extends BaseController<
       'fallback',
     );
 
+    /**
+     * Immediately read current state to catch any flags already loaded
+     * This is necessary to avoid race conditions where the RemoteFeatureFlagController fetches flags
+     * before the PerpsController initializes its RemoteFeatureFlagController subscription.
+     *
+     * We still subscribe in case the RemoteFeatureFlagController is not yet populated and updates later.
+     */
+    try {
+      const currentRemoteFeatureFlagState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+
+      this.refreshEligibilityOnFeatureFlagChange(currentRemoteFeatureFlagState);
+    } catch (error) {
+      // If we can't read the remote feature flags at construction time, we'll rely on:
+      // 1. The fallback blocked regions already set above
+      // 2. The subscription to catch updates when RemoteFeatureFlagController is ready
+      this.#logError(
+        ensureError(error, 'PerpsController.constructor'),
+        this.#getErrorContext('constructor', {
+          operation: 'readRemoteFeatureFlags',
+        }),
+      );
+    }
+
     // Subscribe for the full controller lifetime — intentionally not stored;
     // geo-blocking and HIP-3 flag propagation must remain active across
     // disconnect → reconnect cycles and must never be torn down.
     this.messenger.subscribe(
-      'RemoteFeatureFlagController:stateChanged',
+      'RemoteFeatureFlagController:stateChange',
       this.refreshEligibilityOnFeatureFlagChange.bind(this),
     );
 
@@ -2008,27 +2033,6 @@ export class PerpsController extends BaseController<
         this,
         MESSENGER_EXPOSED_METHODS,
       );
-
-      // Read the current state after all controllers have been constructed so
-      // flags loaded before this controller's subscription are not missed.
-      try {
-        const currentRemoteFeatureFlagState = this.messenger.call(
-          'RemoteFeatureFlagController:getState',
-        );
-        this.refreshEligibilityOnFeatureFlagChange(
-          currentRemoteFeatureFlagState,
-        );
-      } catch (error) {
-        // Keep the configured fallback; the lifetime subscription can still
-        // apply a later RemoteFeatureFlagController update.
-        this.#logError(
-          ensureError(error, 'PerpsController.init'),
-          this.#getErrorContext('init', {
-            operation: 'readRemoteFeatureFlags',
-          }),
-        );
-      }
-
       this.#handlersRegistered = true;
     }
 

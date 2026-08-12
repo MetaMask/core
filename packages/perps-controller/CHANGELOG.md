@@ -58,7 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TriggerOrderType` is now spelled out as `'stop_market' | 'stop_limit' | 'take_profit_market' | 'take_profit_limit'` instead of being derived as `Exclude<OrderType, 'market' | 'limit'>` ([#9832](https://github.com/MetaMask/core/pull/9832))
   - The resolved type is unchanged for existing consumers. Deriving it meant that any order type added to `OrderType` that was neither `market` nor `limit` was pulled into the trigger union automatically and started demanding a trigger price it had no concept of.
 - Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking ([#9815](https://github.com/MetaMask/core/pull/9815)).
-- **BREAKING:** Subscribe to `RemoteFeatureFlagController:stateChanged` and read initial remote flags from `init()` instead of the constructor. Consumers must delegate the modern event before initializing `PerpsController` ([#9815](https://github.com/MetaMask/core/pull/9815)).
 - Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh ([#9815](https://github.com/MetaMask/core/pull/9815)).
 
 ## [11.0.0]

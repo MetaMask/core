@@ -10,7 +10,6 @@ import type {
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
 } from '@metamask/authenticated-user-storage';
-import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -25,14 +24,9 @@ import type {
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
-  RemoteFeatureFlagControllerState,
+  RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
-
-type RemoteFeatureFlagControllerStateChangedEvent = ControllerStateChangedEvent<
-  'RemoteFeatureFlagController',
-  RemoteFeatureFlagControllerState
->;
 
 /**
  * Actions from other controllers that PerpsController is allowed to call.
@@ -56,7 +50,7 @@ export type PerpsControllerAllowedActions =
  * Events from other controllers that PerpsController is allowed to subscribe to.
  */
 export type PerpsControllerAllowedEvents =
-  | RemoteFeatureFlagControllerStateChangedEvent
+  | RemoteFeatureFlagControllerStateChangeEvent
   | AccountsControllerSelectedAccountChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
