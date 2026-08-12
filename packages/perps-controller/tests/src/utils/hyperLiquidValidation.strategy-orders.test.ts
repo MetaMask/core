@@ -328,6 +328,9 @@ describe('hyperLiquidValidation - strategy order types', () => {
       ['an attached stop loss', { stopLossPrice: '1500' }],
       ['a partial take profit size', { takeProfitSize: '0.5' }],
       ['a partial stop loss size', { stopLossSize: '0.5' }],
+      // A strategy is many orders over time, or none on the book at all; one
+      // client id cannot name any of them, so it is refused rather than dropped.
+      ['a client order id', { clientOrderId: '0xabc' }],
     ])('rejects %s on a strategy placement', (_label, field) => {
       expect(
         validateOrderParams({

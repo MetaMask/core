@@ -2389,8 +2389,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       // Once the cancel has landed no further fills can reach the order, so the
       // remainder it reports is final. Reading first would leave a window in
-      // which a fill lands and is then re-placed on top.
-      expect(callOrder).toStrictEqual(['cancel', 'orderStatus']);
+      // which a fill lands and is then re-placed on top. A liveness read may
+      // precede the cancel — what matters is that a read follows it.
+      expect(callOrder.slice(callOrder.indexOf('cancel'))).toStrictEqual([
+        'cancel',
+        'orderStatus',
+      ]);
     });
 
     it('replaces a partly filled order at its remaining size', async () => {
@@ -2450,7 +2454,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order.mock.calls[1][0].orders[0].s).toBe('0.4');
     });
 
-    it('ends the session when the order filled entirely between ticks', async () => {
+    it('ends the session without cancelling when the order already filled', async () => {
       const order = jest.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
@@ -2459,7 +2463,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           l2Book: bookThatMoves(),
-          // The cancel landed on an order that had already filled in full.
+          // The order had already filled in full.
           orderStatus: jest.fn().mockResolvedValue({
             status: 'order',
             order: {
@@ -2485,7 +2489,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       });
 
-      await provider.placeOrder({
+      const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
@@ -2493,9 +2497,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await jest.advanceTimersByTimeAsync(5000);
 
-      // Nothing was re-placed and the loop stopped: the chase is done.
+      // The order's level is gone from the book, so the tick verifies it rather
+      // than assuming, finds it filled, and ends the session — releasing its
+      // slot against the concurrency cap without spending a cancel on an order
+      // that no longer exists.
       expect(order).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
     });
   });
 
@@ -2975,6 +2989,44 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(orderStatus).toHaveBeenCalled();
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].orders[0].p).toBe('2999.2');
+    });
+  });
+
+  describe('Chase placement racing a disconnect', () => {
+    it('abandons a session whose provider was torn down mid-placement', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const order = jest.fn().mockImplementation(async () => {
+        // The order is on its way to the venue when the provider is torn down.
+        disconnected = provider.disconnect();
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        };
+      });
+      useStrategyClients({ exchange: { order } });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      await disconnected;
+
+      // The order rested, so it is reported — disconnect deliberately leaves
+      // resting orders alone. But no session was registered, so nothing is
+      // scheduled against a provider that has already stopped.
+      expect(placed.success).toBe(true);
+      expect(placed.childOrderIds).toStrictEqual(['55']);
+
+      const cancelled = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(cancelled.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      );
     });
   });
 });

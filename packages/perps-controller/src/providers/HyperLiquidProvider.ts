@@ -821,6 +821,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   // passing the check.
   #chasePlacementsInFlight = 0;
 
+  // Bumped by every teardown that clears the chase registry. A placement
+  // captures it before its round trips and refuses to register afterwards if it
+  // has moved: a session registered after a disconnect would schedule a
+  // background timer against a provider that has already been torn down.
+  #chaseGeneration = 0;
+
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
 
@@ -3932,6 +3938,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
         timeInForce: params.timeInForce,
+        clientOrderId: params.clientOrderId,
         ...pickStrategyParams(params),
       });
       if (!validation.isValid) {
@@ -4636,12 +4643,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     context: StrategyPlacementContext,
   ): Promise<OrderResult> {
     const { assetId, szDecimals, formattedSize } = context;
+    const generation = this.#chaseGeneration;
 
     const quotePrice = await this.#getChaseQuotePrice({
       symbol: params.symbol,
       isBuy: params.isBuy,
       szDecimals,
     });
+    if (quotePrice === 'gone') {
+      // No own order to be gone on a first placement; narrows the union.
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
 
     // Read once, while the caller's discount context is still set.
     const builderFee = this.#getDiscountedBuilderFee();
@@ -4679,6 +4691,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       timer: null,
       active: true,
     };
+    // A disconnect during the two round trips above tore down everything this
+    // session would run on. Registering now would put a background timer on a
+    // provider that has already stopped, so the session is abandoned instead.
+    // The order stays resting, which is what disconnect does with every other
+    // resting order — logged with its ID so it remains traceable.
+    if (generation !== this.#chaseGeneration) {
+      this.#deps.debugLogger.log('Chase placement outlived its provider', {
+        orderId,
+        restingPrice: quotePrice,
+      });
+      return {
+        success: true,
+        orderId,
+        childOrderIds: [orderId],
+        submittedSize: formattedSize,
+      };
+    }
+
     this.#chaseSessions.set(sessionId, session);
     this.#scheduleChaseTick(sessionId);
 
@@ -4714,7 +4744,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.own.orderId - Exchange ID of that order.
    * @param params.own.price - Price that order rests at.
    * @param params.own.size - Size it was last placed for.
-   * @returns The formatted price the chase should rest at.
+   * @returns The formatted price the chase should rest at, or `'gone'` when the
+   * order it was chasing is no longer live.
    */
   async #getChaseQuotePrice(params: {
     symbol: string;
@@ -4722,7 +4753,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     szDecimals: number;
     /** The chase's own resting order, excluded from the book it reads. */
     own?: { orderId: string; price: string; size: string };
-  }): Promise<string> {
+  }): Promise<string | 'gone'> {
     const { symbol, isBuy, szDecimals, own } = params;
 
     const book = await this.#clientService.getInfoClient().l2Book({
@@ -4732,6 +4763,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // `levels` is [bids, asks], each best-first.
     const ownSide = book?.levels?.[isBuy ? 0 : 1];
     const netting = await this.#resolveOwnRestingSize({ own, ownSide });
+    if (netting === 'gone') {
+      return 'gone';
+    }
 
     const bestBid = readBestExternalPrice(book?.levels?.[0], netting);
     const bestAsk = readBestExternalPrice(book?.levels?.[1], netting);
@@ -4901,6 +4935,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         : undefined,
     });
 
+    if (quotePrice === 'gone') {
+      // The order left the book without the loop seeing it — it filled. Ending
+      // here releases its slot against the venue's concurrency cap instead of
+      // holding one until the window closes.
+      session.orderId = null;
+      session.active = false;
+      this.#deps.debugLogger.log('Chase order filled between ticks', {
+        sessionId,
+      });
+      return;
+    }
+
     // The book read is a round trip, and a cancel arriving during it stops the
     // session. Without this re-check the tick would cancel and re-place the very
     // order the caller just asked to be rid of.
@@ -4950,8 +4996,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // No further fills can reach a cancelled order, so what it did not fill
         // is now fixed. Sampling before the cancel would have left a window in
         // which a fill lands and is then re-placed.
-        const remaining =
-          await this.#readCancelledChaseRemainder(cancelledOrderId);
+        const remaining = await this.#readOrderRemainder(cancelledOrderId);
 
         // Another round trip, another window for a cancel to land. By now the
         // old order is already off the book, so a cancel that arrived during it
@@ -5055,29 +5100,35 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.own.price - Price it rests at.
    * @param params.own.size - Size it was last placed for.
    * @param params.ownSide - The side of the book that order rests on.
-   * @returns The order's price and live resting size, or undefined when there
-   * is nothing to net out.
+   * @returns The order's price and live resting size; `'gone'` when the venue
+   * says it is no longer live; undefined when there is nothing to net out.
    */
   async #resolveOwnRestingSize(params: {
     own?: { orderId: string; price: string; size: string };
     ownSide?: { px: string; sz: string }[];
-  }): Promise<{ price: string; size: string } | undefined> {
+  }): Promise<{ price: string; size: string } | 'gone' | undefined> {
     const { own, ownSide } = params;
     if (!own) {
       return undefined;
     }
 
     const level = ownSide?.find((entry) => entry.px === own.price);
-    if (!level || parseFloat(level.sz) > parseFloat(own.size)) {
-      // Either the order is not showing on this level at all, or the level
-      // holds more than it possibly could — external size is present regardless
-      // and the recorded size cannot change the answer.
+
+    // A chase rests at or inside the touch, so its price should be showing. A
+    // level that is not there at all is evidence the order has left the book —
+    // most likely filled — and that has to be confirmed rather than assumed
+    // away: if the external touch happens to compute to the same quote, no
+    // re-price is attempted and a dead order would hold its session, and its
+    // slot against the venue's concurrency cap, until the window closed.
+    if (level && parseFloat(level.sz) > parseFloat(own.size)) {
+      // The level holds more than the order possibly could, so external size is
+      // present regardless and the recorded size cannot change the answer.
       return own;
     }
 
     try {
-      const live = await this.#readCancelledChaseRemainder(own.orderId);
-      return live === null ? undefined : { price: own.price, size: live };
+      const live = await this.#readOrderRemainder(own.orderId);
+      return live === null ? 'gone' : { price: own.price, size: live };
     } catch (error) {
       // A failed lookup must not stop the chase. Falling back to the recorded
       // size can only over-subtract, which quotes one level deeper rather than
@@ -5106,7 +5157,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param orderId - Exchange ID of the order that was just cancelled.
    * @returns The unfilled size, or null when nothing is left to chase.
    */
-  async #readCancelledChaseRemainder(orderId: string): Promise<string | null> {
+  async #readOrderRemainder(orderId: string): Promise<string | null> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const status = await this.#clientService.getInfoClient().orderStatus({
       user: userAddress,
@@ -9006,6 +9057,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
         timeInForce: params.timeInForce,
+        clientOrderId: params.clientOrderId,
         ...pickStrategyParams(params),
       });
       if (!basicValidation.isValid) {
@@ -10436,6 +10488,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       this.#chaseSessions.clear();
       this.#scaleOrderGroups.clear();
+      // Placements still mid-flight check this before registering.
+      this.#chaseGeneration += 1;
 
       // Clear fee cache
       this.clearFeeCache();

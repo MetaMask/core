@@ -693,6 +693,7 @@ function validateStrategyOrderParams(
     price?: string;
     triggerPrice?: string;
     timeInForce?: 'GTC' | 'IOC' | 'ALO';
+    clientOrderId?: string;
     takeProfitPrice?: string;
     stopLossPrice?: string;
     takeProfitSize?: string;
@@ -727,10 +728,16 @@ function validateStrategyOrderParams(
   // A strategy owns its own execution: it derives its own prices, rests its own
   // orders, and decides its own time in force. Accepting these fields would
   // mean quietly ignoring them.
+  //
+  // `clientOrderId` is refused for the same reason and cannot be honoured even
+  // in principle: the venue's TWAP action carries no client id, a scale ladder
+  // is many orders and a client id must be unique per order, and a chase
+  // replaces its order on every re-price. One id cannot name any of them.
   if (
     params.price !== undefined ||
     params.triggerPrice !== undefined ||
     params.timeInForce !== undefined ||
+    params.clientOrderId !== undefined ||
     params.takeProfitPrice !== undefined ||
     params.stopLossPrice !== undefined ||
     params.takeProfitSize !== undefined ||
@@ -770,6 +777,7 @@ function validateStrategyOrderParams(
  * @param params.tpslLinkage - How an attached TP/SL is linked
  * @param params.grouping - Deprecated protocol-shaped spelling of `tpslLinkage`
  * @param params.timeInForce - Time in force; only a plain limit order can carry one
+ * @param params.clientOrderId - Client-provided order ID; a strategy placement cannot carry one
  * @param params.twapDuration - TWAP window in whole minutes
  * @param params.twapRandomize - Whether to randomize the TWAP slice timing
  * @param params.scaleMinPrice - Lowest price in a scale ladder
@@ -794,6 +802,7 @@ export function validateOrderParams(
     tpslLinkage?: TpslLinkage;
     grouping?: 'na' | 'normalTpsl' | 'positionTpsl';
     timeInForce?: 'GTC' | 'IOC' | 'ALO';
+    clientOrderId?: string;
   },
 ): { isValid: boolean; error?: string } {
   if (!params.coin) {
