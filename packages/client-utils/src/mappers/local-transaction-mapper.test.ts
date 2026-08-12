@@ -41,7 +41,7 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('maps a native send on an unknown chain without a ticker to a Send with amount, no symbol, and a zero-address native assetId', () => {
+  it('maps a native send on an unknown chain without a ticker to a Send with amount and a zero-address native assetId', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsANativeSendOnAn,
     );
@@ -337,7 +337,7 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with the chainlist native assetId', () => {
+  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with the native assetId', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAnIncomingNativeTransferTo,
     );
@@ -623,7 +623,7 @@ describe('mapLocalTransaction', () => {
       data: { from },
     });
   });
-  it('maps a WETH9 deposit contract interaction to a Wrap activity with a native source amount, no symbol, and the chainlist native assetId when nativeAssetSymbol is omitted', () => {
+  it('maps a WETH9 deposit contract interaction to a Wrap activity with a native source amount and the native assetId when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAWeth9DepositContractInteraction,
     );

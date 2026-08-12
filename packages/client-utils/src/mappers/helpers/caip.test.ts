@@ -111,7 +111,7 @@ describe('caip helpers', () => {
       );
     });
 
-    it('uses chainlist via getNativeAsset when symbol is missing but the chain has slip44', () => {
+    it('resolves when symbol is missing but the chain has slip44', () => {
       mockGetChainById.mockReturnValue({
         slip44: 60,
         nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },

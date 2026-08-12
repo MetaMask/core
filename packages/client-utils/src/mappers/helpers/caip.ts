@@ -90,9 +90,6 @@ export function resolveNativeAssetId(
   }
 
   if (namespace === KnownCaipNamespace.Eip155) {
-    // Prefer chainlist (same source as getNativeAsset) before the zero-address
-    // form so fee/token on one activity don't diverge when symbol is missing
-    // or has no slip44 entry.
     return (
       getNativeAsset(caipChainId)?.assetId ??
       toCaipAssetType(namespace, reference, 'erc20', nativeTokenAddress)
@@ -105,9 +102,7 @@ export function resolveNativeAssetId(
 /**
  * Resolves EVM native symbol, decimals, and CAIP asset id for a chain.
  * Prefers eth-chainlist slip44 except testnet coin type 1, then falls back to
- * `@metamask/slip44` by native symbol. When both slip44 sources miss, falls
- * back to the zero-address ERC-20 CAIP form (`erc20:0x000…000`) so chains with
- * no assigned coin type (e.g. Chiliz) still get an asset id.
+ * `@metamask/slip44` by native symbol.
  *
  * @param chainId - CAIP-2 chain id (eip155 only).
  * @returns Native asset metadata, or undefined when it cannot be resolved.
