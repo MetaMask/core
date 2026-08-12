@@ -994,7 +994,7 @@ describe('PerpsController', () => {
     it('passes only an exact static Hyperliquid snapshot identity and guards config races', async () => {
       mockInfrastructure.terminalApi = {
         ...mockInfrastructure.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals/snapshot',
+        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -1059,7 +1059,7 @@ describe('PerpsController', () => {
     it('disables snapshot adoption for ambiguous bare allowlist identity', async () => {
       mockInfrastructure.terminalApi = {
         ...mockInfrastructure.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals/snapshot',
+        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),
@@ -1088,7 +1088,7 @@ describe('PerpsController', () => {
 
     it('keeps main first in an exact static snapshot identity', async () => {
       mockInfrastructure.terminalApi = {
-        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals/snapshot',
+        globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
       };
       controller = new TestablePerpsController({
         messenger: createMockMessenger(),

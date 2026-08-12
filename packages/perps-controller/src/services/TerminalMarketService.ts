@@ -36,7 +36,6 @@ const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 2;
 const GLOBAL_SNAPSHOT_CONSUMER_MAX_AGE_MS = 30_000;
 const GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES = 1_048_576;
 const GLOBAL_SNAPSHOT_PERCENT_TOLERANCE = 0.01;
-const GLOBAL_SNAPSHOT_OPEN_INTEREST_RELATIVE_TOLERANCE = 0.0001;
 const MINIMUM_EPOCH_MILLISECONDS = Date.UTC(2000, 0, 1);
 const DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
@@ -44,29 +43,25 @@ const DEX_PATTERN = /^(?:main|[a-z0-9][a-z0-9-]*)$/u;
 
 const GlobalSnapshotMarketStruct = object({
   symbol: string(),
+  provider: string(),
   dex: string(),
   name: nullable(string()),
   description: nullable(string()),
   iconUrl: nullable(string()),
   szDecimals: number(),
   maxLeverage: number(),
-  marginTableId: number(),
-  onlyIsolated: boolean(),
-  isDelisted: boolean(),
-  minimumOrderSize: nullable(string()),
   markPrice: string(),
+  price: string(),
   midPrice: nullable(string()),
   oraclePrice: string(),
   change24h: string(),
-  change24hPercent: string(),
-  volume24hUsd: string(),
-  openInterestBase: string(),
-  openInterestUsd: string(),
-  fundingRate: string(),
-  categories: array(string()),
-  marketType: nullable(string()),
-  keywords: array(string()),
-  tags: array(string()),
+  changePercent24h: number(),
+  funding: string(),
+  volume24h: string(),
+  openInterest: string(),
+  category: nullable(string()),
+  keywords: nullable(array(string())),
+  tags: nullable(array(string())),
   listedAt: nullable(number()),
   trend: array(tuple([number(), string()])),
 });
@@ -387,7 +382,6 @@ export class TerminalMarketService {
 
     const marketKeys = new Set<string>();
     const representedDexes = new Set<string>();
-    const tradableDexes = new Set<string>();
     const markets = snapshot.markets
       .map((market, index) => {
         this.#validateSnapshotMarket(
@@ -404,21 +398,9 @@ export class TerminalMarketService {
         representedDexes.add(market.dex);
         return market;
       })
-      .filter((market) => {
-        if (!market.isDelisted) {
-          tradableDexes.add(market.dex);
-          return true;
-        }
-        return false;
-      })
       .map((market) => this.#mapSnapshotMarket(market, expiresAt));
     if (identity.enabledDexes.some((dex) => !representedDexes.has(dex))) {
       throw new Error('Terminal global snapshot is missing a requested DEX');
-    }
-    if (identity.enabledDexes.some((dex) => !tradableDexes.has(dex))) {
-      throw new Error(
-        'Terminal global snapshot has no tradable market for a requested DEX',
-      );
     }
     if (markets.length === 0) {
       throw new Error('Terminal global snapshot has no tradable markets');
@@ -496,6 +478,10 @@ export class TerminalMarketService {
     if (!identity.enabledDexes.includes(market.dex)) {
       throw invalid('dex');
     }
+    const expectedProvider = market.dex === 'main' ? 'hyperliquid' : market.dex;
+    if (market.provider !== expectedProvider) {
+      throw invalid('provider');
+    }
     const expectedPrefix = market.dex === 'main' ? '' : `${market.dex}:`;
     if (
       market.symbol.length === 0 ||
@@ -508,7 +494,6 @@ export class TerminalMarketService {
     if (
       !this.#isNonNegativeSafeInteger(market.szDecimals) ||
       !this.#isPositiveSafeInteger(market.maxLeverage) ||
-      !this.#isNonNegativeSafeInteger(market.marginTableId) ||
       (market.listedAt !== null &&
         (!this.#isNonNegativeSafeInteger(market.listedAt) ||
           market.listedAt < MINIMUM_EPOCH_MILLISECONDS ||
@@ -519,19 +504,15 @@ export class TerminalMarketService {
 
     const decimalFields: [string, string, boolean][] = [
       ['markPrice', market.markPrice, true],
+      ['price', market.price, true],
       ['oraclePrice', market.oraclePrice, true],
       ['change24h', market.change24h, false],
-      ['change24hPercent', market.change24hPercent, false],
-      ['volume24hUsd', market.volume24hUsd, true],
-      ['openInterestBase', market.openInterestBase, true],
-      ['openInterestUsd', market.openInterestUsd, true],
-      ['fundingRate', market.fundingRate, false],
+      ['volume24h', market.volume24h, true],
+      ['openInterest', market.openInterest, true],
+      ['funding', market.funding, false],
     ];
     if (market.midPrice !== null) {
       decimalFields.push(['midPrice', market.midPrice, true]);
-    }
-    if (market.minimumOrderSize !== null) {
-      decimalFields.push(['minimumOrderSize', market.minimumOrderSize, true]);
     }
     for (const [field, value, nonNegative] of decimalFields) {
       const pattern = nonNegative
@@ -541,77 +522,56 @@ export class TerminalMarketService {
         throw invalid(field);
       }
     }
-    const markPrice = Number(market.markPrice);
+    if (market.price !== market.markPrice) {
+      throw invalid('deprecated price alias');
+    }
+    const price = Number(market.markPrice);
     const change24h = Number(market.change24h);
-    const change24hPercent = Number(market.change24hPercent);
-    const previousPrice = markPrice - change24h;
-    if (
-      markPrice <= 0 ||
-      previousPrice <= 0 ||
-      !Number.isFinite(previousPrice)
-    ) {
+    const previousPrice = price - change24h;
+    if (price <= 0 || previousPrice <= 0 || !Number.isFinite(previousPrice)) {
       throw invalid('mark/change coherence');
     }
     const derivedPercent = (change24h / previousPrice) * 100;
     if (
       !Number.isFinite(derivedPercent) ||
-      Math.abs(change24hPercent - derivedPercent) >
+      !Number.isFinite(market.changePercent24h) ||
+      Math.abs(market.changePercent24h - derivedPercent) >
         GLOBAL_SNAPSHOT_PERCENT_TOLERANCE
     ) {
-      throw invalid('change24hPercent coherence');
-    }
-
-    const openInterestBase = Number(market.openInterestBase);
-    const openInterestUsd = Number(market.openInterestUsd);
-    const derivedOpenInterestUsd = openInterestBase * markPrice;
-    const openInterestRelativeError =
-      Math.abs(openInterestUsd - derivedOpenInterestUsd) /
-      Math.max(1, derivedOpenInterestUsd);
-    if (
-      !Number.isFinite(derivedOpenInterestUsd) ||
-      !Number.isFinite(openInterestRelativeError) ||
-      openInterestRelativeError >
-        GLOBAL_SNAPSHOT_OPEN_INTEREST_RELATIVE_TOLERANCE
-    ) {
-      throw invalid('openInterestUsd coherence');
+      throw invalid('changePercent24h coherence');
     }
     for (const [field, values] of [
-      ['categories', market.categories],
       ['keywords', market.keywords],
       ['tags', market.tags],
     ] as const) {
       if (
-        values.some((value) => value.length === 0) ||
-        new Set(values).size !== values.length
+        values !== null &&
+        (values.some((value) => value.length === 0) ||
+          new Set(values).size !== values.length)
       ) {
         throw invalid(field);
       }
-    }
-    if (
-      market.marketType !== null &&
-      !VALID_MARKET_TYPES.has(market.marketType)
-    ) {
-      throw invalid('marketType');
     }
     for (const [field, value] of [
       ['name', market.name],
       ['description', market.description],
       ['iconUrl', market.iconUrl],
+      ['category', market.category],
     ] as const) {
       if (value !== null && value.length === 0) {
         throw invalid(field);
       }
     }
     let previousTrendTimestamp = -1;
-    for (const [timestamp, price] of market.trend) {
+    for (const [timestamp, trendPrice] of market.trend) {
       if (
         !this.#isNonNegativeSafeInteger(timestamp) ||
         timestamp < MINIMUM_EPOCH_MILLISECONDS ||
         timestamp > generatedAt ||
         timestamp <= previousTrendTimestamp ||
-        !NON_NEGATIVE_DECIMAL_PATTERN.test(price) ||
-        !Number.isFinite(Number(price)) ||
-        Number(price) <= 0
+        !NON_NEGATIVE_DECIMAL_PATTERN.test(trendPrice) ||
+        !Number.isFinite(Number(trendPrice)) ||
+        Number(trendPrice) <= 0
       ) {
         throw invalid('trend');
       }
@@ -624,19 +584,14 @@ export class TerminalMarketService {
     sourceExpiresAt: number,
   ): PerpsMarketData {
     const formatters = this.#deps.marketDataFormatters;
-    // The current Terminal monitor derives both change fields from markPx.
-    // Use markPrice for the summary row so price and change share one source
-    // semantic. midPrice remains validated for future live-price consumers.
+    // Keep both provider price semantics explicit in the wire contract. Core
+    // maps markPrice to its UI price while retaining validation of midPrice.
     const price = Number(market.markPrice);
     const change24h = Number(market.change24h);
-    const change24hPercent = Number(market.change24hPercent);
-    const volume = Number(market.volume24hUsd);
-    const openInterestUsd = Number(market.openInterestUsd);
+    const volume = Number(market.volume24h);
+    const openInterest = Number(market.openInterest);
     const isHip3 = market.dex !== 'main';
-    const marketType =
-      market.marketType === null
-        ? undefined
-        : (market.marketType as TerminalAssetMetadata['marketType']);
+    const marketType = this.#marketTypeFor(market.dex, market.category);
 
     return {
       symbol: market.symbol,
@@ -649,22 +604,41 @@ export class TerminalMarketService {
         ranges: formatters.priceRangesUniversal,
       }),
       change24h: formatChange(change24h, formatters),
-      change24hPercent: formatters.formatPercentage(change24hPercent),
+      change24hPercent: formatters.formatPercentage(market.changePercent24h),
       volume: formatters.formatVolume(volume),
-      openInterest: formatters.formatVolume(openInterestUsd),
-      fundingRate: Number(market.fundingRate),
+      openInterest: formatters.formatVolume(openInterest),
+      fundingRate: Number(market.funding),
       marketSource: isHip3 ? market.dex : undefined,
       marketType,
       isHip3,
       isNewMarket: isHip3 && marketType === undefined,
-      ...(market.keywords.length > 0 && { keywords: market.keywords }),
-      ...(market.tags.length > 0 && { tags: market.tags }),
-      ...(market.categories.length > 0 && { categories: market.categories }),
+      ...(market.keywords && { keywords: market.keywords }),
+      ...(market.tags && { tags: market.tags }),
+      ...(market.category && { categories: [market.category] }),
       ...(market.listedAt !== null && { listedAt: market.listedAt }),
       trend: market.trend,
       dataSource: 'terminal-global-snapshot-mark',
       sourceExpiresAt,
     };
+  }
+
+  #marketTypeFor(
+    dex: string,
+    category: string | null,
+  ): TerminalAssetMetadata['marketType'] | undefined {
+    if (dex === 'main') {
+      return MarketCategory.CryptoCurrency;
+    }
+    if (category === 'stocks') {
+      return MarketCategory.Stock;
+    }
+    if (category === 'pre_ipo') {
+      return MarketCategory.PreIpo;
+    }
+    if (category && VALID_MARKET_TYPES.has(category)) {
+      return category as TerminalAssetMetadata['marketType'];
+    }
+    return undefined;
   }
 
   #cloneGlobalSnapshotResult(

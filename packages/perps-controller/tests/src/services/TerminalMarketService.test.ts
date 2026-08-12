@@ -10,27 +10,23 @@ const createSnapshotMarket = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
   symbol: 'BTC',
+  provider: 'hyperliquid',
   dex: 'main',
   name: 'Bitcoin',
   description: 'Original cryptocurrency',
   iconUrl: 'https://example.com/btc.png',
   szDecimals: 5,
   maxLeverage: 50,
-  marginTableId: 1,
-  onlyIsolated: false,
-  isDelisted: false,
-  minimumOrderSize: '10',
   markPrice: '50000',
+  price: '50000',
   midPrice: '50001',
   oraclePrice: '49999',
   change24h: '125',
-  change24hPercent: '0.25',
-  volume24hUsd: '1000000',
-  openInterestBase: '20',
-  openInterestUsd: '1000000',
-  fundingRate: '0.0001',
-  categories: ['crypto'],
-  marketType: 'crypto',
+  changePercent24h: 0.25,
+  funding: '0.0001',
+  volume24h: '1000000',
+  openInterest: '1000000',
+  category: 'crypto',
   keywords: ['bitcoin'],
   tags: ['top-10'],
   listedAt: 1_600_000_000_000,
@@ -535,7 +531,7 @@ describe('TerminalMarketService', () => {
       mockDeps.terminalApi = {
         ...mockDeps.terminalApi,
         globalSnapshotUrl:
-          'https://terminal.test-api.cx.metamask.io/v2/perpetuals/snapshot',
+          'https://terminal.test-api.cx.metamask.io/v2/perpetuals',
       };
     });
 
@@ -582,7 +578,7 @@ describe('TerminalMarketService', () => {
         expiresAt: SNAPSHOT_NOW + 28_000,
       });
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://terminal.test-api.cx.metamask.io/v2/perpetuals/snapshot?provider=hyperliquid&network=mainnet&dexes=main',
+        'https://terminal.test-api.cx.metamask.io/v2/perpetuals?provider=hyperliquid&network=mainnet&dexes=main',
         expect.objectContaining({ method: 'GET' }),
       );
     });
@@ -598,13 +594,13 @@ describe('TerminalMarketService', () => {
       [
         'incoherent mark-based percent',
         createGlobalSnapshot({
-          markets: [createSnapshotMarket({ change24hPercent: '9' })],
+          markets: [createSnapshotMarket({ changePercent24h: 9 })],
         }),
       ],
       [
-        'incoherent USD open interest',
+        'incoherent deprecated price alias',
         createGlobalSnapshot({
-          markets: [createSnapshotMarket({ openInterestUsd: '1' })],
+          markets: [createSnapshotMarket({ price: '50001' })],
         }),
       ],
       [
@@ -614,23 +610,7 @@ describe('TerminalMarketService', () => {
             createSnapshotMarket({
               markPrice: HUGE_FINITE_DECIMAL,
               change24h: `-${HUGE_FINITE_DECIMAL}`,
-              change24hPercent: '0',
-              openInterestBase: '0',
-              openInterestUsd: '0',
-            }),
-          ],
-        }),
-      ],
-      [
-        'overflowing USD open-interest derivation',
-        createGlobalSnapshot({
-          markets: [
-            createSnapshotMarket({
-              markPrice: HUGE_FINITE_DECIMAL,
-              change24h: '0',
-              change24hPercent: '0',
-              openInterestBase: '10',
-              openInterestUsd: HUGE_FINITE_DECIMAL,
+              changePercent24h: 0,
             }),
           ],
         }),
@@ -826,27 +806,10 @@ describe('TerminalMarketService', () => {
           }),
         ],
       ],
-      [
-        'invalid raw open-interest units',
-        [createSnapshotMarket({ openInterestBase: '-1' })],
-      ],
+      ['invalid open interest', [createSnapshotMarket({ openInterest: '-1' })]],
       ['empty non-null name', [createSnapshotMarket({ name: '' })]],
-      ['delisted-only data', [createSnapshotMarket({ isDelisted: true })]],
-      [
-        'enabled DEX with only delisted data',
-        [
-          createSnapshotMarket(),
-          createSnapshotMarket({
-            symbol: 'xyz:TSLA',
-            dex: 'xyz',
-            isDelisted: true,
-          }),
-        ],
-      ],
     ])('rejects %s', async (_name, markets) => {
-      const needsXyz =
-        _name === 'missing requested DEX' ||
-        _name === 'enabled DEX with only delisted data';
+      const needsXyz = _name === 'missing requested DEX';
       jest.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
