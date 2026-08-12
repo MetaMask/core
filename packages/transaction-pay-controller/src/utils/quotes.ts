@@ -322,24 +322,25 @@ function syncTransaction({
 }
 
 /**
- * Determine whether a transaction is waiting on a quote retry: it needs
- * quotes — a payment token with pending conversions, or a selected fiat
- * payment method — but has none, meaning the last quote load failed or
- * returned nothing.
+ * Determine whether a transaction is waiting on a quote retry: it has no
+ * quotes even though the last quote load failed, or quotes are needed — a
+ * payment token with pending conversions, or a selected fiat payment method.
  *
  * @param transactionData - Transaction data to check.
- * @returns True when the transaction needs quotes but has none.
+ * @returns True when the transaction has no quotes but should have some.
  */
 export function isQuoteRetryPending(
   transactionData: TransactionData,
 ): boolean {
-  const { fiatPayment, paymentToken, quotes, sourceAmounts } = transactionData;
+  const { fiatPayment, paymentToken, quoteError, quotes, sourceAmounts } =
+    transactionData;
 
   if (quotes?.length) {
     return false;
   }
 
   return (
+    Boolean(quoteError) ||
     (Boolean(paymentToken) && (sourceAmounts?.length ?? 0) > 0) ||
     Boolean(fiatPayment?.selectedPaymentMethodId)
   );

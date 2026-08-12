@@ -1644,6 +1644,40 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('retries a direct-route transaction after a failed load', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quoteError: { message: 'Failed', reason: 'no-quotes' },
+            quotes: [],
+            quotesLastUpdated: 1,
+            sourceAmounts: [],
+          } as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      // The retry regenerates the no-op quote for the direct route.
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
+      });
+    });
+
     it('retries a transaction with a selected fiat payment method and no quotes', async () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
@@ -1868,6 +1902,15 @@ describe('Quotes Utils', () => {
           ...cloneDeep(TRANSACTION_DATA_MOCK),
           quotes: [],
         } as TransactionData),
+      ).toBe(true);
+    });
+
+    it('returns true when the last quote load failed and there are no quotes', () => {
+      expect(
+        isQuoteRetryPending({
+          quoteError: { message: 'Failed', reason: 'no-quotes' },
+          quotes: [],
+        } as unknown as TransactionData),
       ).toBe(true);
     });
 
