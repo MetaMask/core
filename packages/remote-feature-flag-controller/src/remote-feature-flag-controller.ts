@@ -160,38 +160,6 @@ function findExplicitIdMatch(
 }
 
 /**
- * Returns a copy of `flags` with `metaMetricsIds` removed from every
- * threshold entry. Used before persisting raw flags to state so that
- * MetaMetrics IDs are never written to state logs or debug snapshots.
- *
- * @param flags - The raw feature flags object from the API.
- * @returns A new object with the same structure but without any
- * `metaMetricsIds` fields inside threshold entry arrays.
- */
-function redactMetaMetricsIds(flags: FeatureFlags): FeatureFlags {
-  const result: FeatureFlags = {};
-  for (const [name, value] of Object.entries(flags)) {
-    if (!Array.isArray(value)) {
-      result[name] = value;
-      continue;
-    }
-    result[name] = value.map((entry) => {
-      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
-        return entry;
-      }
-      const entryRecord = entry as Record<string, Json>;
-      if (entryRecord.metaMetricsIds === undefined) {
-        return entry;
-      }
-      const copy: Record<string, Json> = { ...entryRecord };
-      delete copy.metaMetricsIds;
-      return copy as Json;
-    });
-  }
-  return result;
-}
-
-/**
  * Merges the feature flag layers into the effective flags that consumers read,
  * with precedence: defaults < processed remote < local overrides.
  *
@@ -476,11 +444,7 @@ export class RemoteFeatureFlagController extends BaseController<
     }
 
     return {
-      // Strip metaMetricsIds from processed flags so they never appear in
-      // remoteFeatureFlags, which is exposed to the UI and included in state
-      // logs. Arrays that were preserved as-is (e.g. when metaMetricsId is
-      // missing) would otherwise leak explicit-targeting IDs into diagnostics.
-      processedFlags: redactMetaMetricsIds(processedFlags),
+      processedFlags,
       thresholdCache: updatedThresholdCache,
       featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
     };

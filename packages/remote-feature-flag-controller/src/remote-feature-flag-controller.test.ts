@@ -1050,12 +1050,10 @@ describe('RemoteFeatureFlagController', () => {
       );
     });
 
-    it('does not include metaMetricsIds values in remoteFeatureFlags state when metaMetricsId is unavailable', async () => {
+    it('preserves threshold entries as-is, metaMetricsIds included, when metaMetricsId is unavailable', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
       });
-      // No metaMetricsId → threshold arrays are preserved as-is, but
-      // metaMetricsIds must still be stripped from the processed output.
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '',
@@ -1065,14 +1063,12 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      const processedEntries = controller.state.remoteFeatureFlags
-        .testFlag as Record<string, unknown>[];
-      expect(
-        processedEntries.every((entry) => entry.metaMetricsIds === undefined),
-      ).toBe(true);
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual(
+        MOCK_FLAGS_WITH_EXPLICIT_IDS.testFlag,
+      );
     });
 
-    it('does not include metaMetricsIds values in remoteFeatureFlags state when explicit match is found', async () => {
+    it('resolves to a single value carrying no metaMetricsIds when an explicit match is found', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
       });
