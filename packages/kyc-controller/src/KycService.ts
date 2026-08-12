@@ -35,6 +35,11 @@ import type {
 import { UKYC_JWKS_PATH } from './ukyc/constants.js';
 import { encodeStorageAccessTokenForHeader } from './ukyc/storageAccessToken.js';
 import type { UkycStorageAccessToken } from './ukyc/storageAccessToken.js';
+import { WalletRegistrationService } from './wallet-registration-service.js';
+import type {
+  RegistrationOutcome,
+  RegistrationStatus,
+} from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -60,6 +65,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'createUkycSession',
   'createJourney',
   'getSessionStatus',
+  'getMoonpayCustomerId',
+  'getWalletRegistrationStatus',
+  'registerSelfHostedWallet',
 ] as const;
 
 /**
@@ -303,6 +311,13 @@ export type GetSessionStatusParams = {
   sessionId: string;
 };
 
+export type RegisterSelfHostedWalletParams = {
+  customerId: string;
+  address: string;
+  message: string;
+  signature: string;
+};
+
 // === SERVICE DEFINITION ===
 
 /**
@@ -327,6 +342,8 @@ export class KycService extends BaseDataService<
   readonly #baseUrl: string;
 
   readonly #fractalEncryptionBaseUrl: string;
+
+  readonly #walletRegistrationService: WalletRegistrationService;
 
   /**
    * Constructs a new KycService.
@@ -362,6 +379,11 @@ export class KycService extends BaseDataService<
     }
     this.#baseUrl = baseUrl;
     this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
+    this.#walletRegistrationService = new WalletRegistrationService({
+      fetch: fetchFunction,
+      baseUrl,
+      getAuthToken: async (): Promise<string> => this.#getBearerToken(),
+    });
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -399,6 +421,49 @@ export class KycService extends BaseDataService<
       );
     }
     return alpha3;
+  }
+
+  /**
+   * Resolves Iron's internal customer id from the authenticated MetaMask
+   * profile.
+   *
+   * @returns Iron's internal customer id.
+   */
+  async getMoonpayCustomerId(): Promise<string> {
+    return await this.#walletRegistrationService.getMoonpayCustomerId();
+  }
+
+  /**
+   * Checks whether a Monad Money Account address is already registered.
+   *
+   * @param params - The address to check.
+   * @param params.address - Money Account address.
+   * @returns Active, disabled, or absent registration status.
+   */
+  async getWalletRegistrationStatus({
+    address,
+  }: {
+    address: string;
+  }): Promise<RegistrationStatus> {
+    return await this.#walletRegistrationService.getRegistrationStatus({
+      address,
+      blockchain: 'Monad',
+    });
+  }
+
+  /**
+   * Submits a signed Monad Money Account ownership proof.
+   *
+   * @param params - Signed ownership proof.
+   * @returns Registered wallet record.
+   */
+  async registerSelfHostedWallet(
+    params: RegisterSelfHostedWalletParams,
+  ): Promise<RegistrationOutcome> {
+    return await this.#walletRegistrationService.registerSelfHostedWallet({
+      ...params,
+      blockchain: 'Monad',
+    });
   }
 
   /**
@@ -836,6 +901,24 @@ export class KycService extends BaseDataService<
   }
 
   /**
+   * Gets the authenticated wallet bearer token.
+   *
+   * @returns The bearer token.
+   */
+  async #getBearerToken(): Promise<string> {
+    const bearerToken = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    assert(bearerToken, string());
+    if (!bearerToken) {
+      throw new Error(
+        'Unable to obtain an authentication bearer token - is the wallet signed in?',
+      );
+    }
+    return bearerToken;
+  }
+
+  /**
    * Performs a single JSON request.
    *
    * This is meant to be used as the `queryFn` for {@link fetchQuery}, which
@@ -867,16 +950,7 @@ export class KycService extends BaseDataService<
     }
 
     if (authenticated) {
-      const bearerToken = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      assert(bearerToken, string());
-      if (!bearerToken) {
-        throw new Error(
-          'Unable to obtain an authentication bearer token — is the wallet signed in?',
-        );
-      }
-      headers.Authorization = `Bearer ${bearerToken}`;
+      headers.Authorization = `Bearer ${await this.#getBearerToken()}`;
     }
 
     const response = await this.#fetch(url.toString(), {
