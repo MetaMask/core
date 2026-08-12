@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `assetIdsMatch` util to compare assetIds. EVM assetIds are case insensitive
 - Point Arc's native USDC to the registered `slip44:5042` asset ID instead of the `erc20:0x0000...` placeholder ([#9796](https://github.com/MetaMask/core/pull/9796))
 
 ### Changed
