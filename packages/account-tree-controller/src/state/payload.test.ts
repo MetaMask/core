@@ -16,8 +16,8 @@ const MOCK_BAD_SECRET = 8675309;
 function thrownMessage(fn: () => void): string {
   try {
     fn();
-  } catch (e) {
-    return (e as Error).message;
+  } catch (error) {
+    return (error as Error).message;
   }
   throw new Error('Expected function to throw');
 }

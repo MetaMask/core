@@ -103,7 +103,6 @@ describe('formatValidationErrorMessages', () => {
     // sensitive() redacts the value to *** in failure.message — if
     // formatValidationErrorMessages were to use message instead of type, *** would
     // appear in the output. Asserting it does not pins the mechanism.
-    const schema = object({ secret: sensitive(string()) });
     const error = makeStructError({ secret: 12345 });
     const result = formatValidationErrorMessages(error);
     expect(result).toContain('expected: string');
@@ -123,7 +122,7 @@ describe('formatValidationErrorMessages', () => {
       }
     }
     expect(caught).toBeDefined();
-    const failure = caught!.failures()[0];
+    const failure = (caught as StructError).failures()[0];
     expect(failure?.message).toContain('***');
     expect(failure?.message).not.toContain('12345');
   });
