@@ -36,10 +36,13 @@ export type DownloadRetryEvent = {
   error: unknown;
 };
 
-export type DownloadRetryOptions = {
+export type DownloadRetryConfiguration = {
   maxAttempts?: number;
   initialDelayMs?: number;
   maxDelayMs?: number;
+};
+
+export type DownloadRetryOptions = DownloadRetryConfiguration & {
   random?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
   onRetry?: (event: DownloadRetryEvent) => void;

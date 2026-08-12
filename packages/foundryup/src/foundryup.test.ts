@@ -5,6 +5,7 @@ import nock, { cleanAll } from 'nock';
 import { join, relative } from 'path';
 import { parse as parseYaml } from 'yaml';
 
+import { DEFAULT_DOWNLOAD_RETRY_OPTIONS } from './download.js';
 import {
   checkAndDownloadBinaries,
   getBinaryArchiveUrl,
@@ -453,6 +454,9 @@ describe('foundryup', () => {
         version: { version: string; tag: string };
         arch: string;
         platform: string;
+        maxAttempts: number;
+        initialRetryDelayMs: number;
+        maxRetryDelayMs: number;
         checksums?: Checksums;
       };
     };
@@ -554,6 +558,86 @@ describe('foundryup', () => {
           version: 'v2.0.0',
           tag: 'v2.0.0',
         });
+      });
+    });
+
+    describe('retry options', () => {
+      const environmentVariables = [
+        'FOUNDRYUP_MAX_ATTEMPTS',
+        'FOUNDRYUP_INITIAL_RETRY_DELAY_MS',
+        'FOUNDRYUP_MAX_RETRY_DELAY_MS',
+      ] as const;
+      const environment = globalThis.process.env;
+      const originalEnvironment = Object.fromEntries(
+        environmentVariables.map((name) => [name, environment[name]]),
+      );
+
+      beforeEach(() => {
+        for (const name of environmentVariables) {
+          delete environment[name];
+        }
+      });
+
+      afterEach(() => {
+        for (const name of environmentVariables) {
+          const originalValue = originalEnvironment[name];
+          if (originalValue === undefined) {
+            delete environment[name];
+          } else {
+            environment[name] = originalValue;
+          }
+        }
+      });
+
+      it('uses the default retry configuration', () => {
+        const result = actualParseArgs([]);
+
+        expect(result.options).toMatchObject({
+          maxAttempts: DEFAULT_DOWNLOAD_RETRY_OPTIONS.maxAttempts,
+          initialRetryDelayMs: DEFAULT_DOWNLOAD_RETRY_OPTIONS.initialDelayMs,
+          maxRetryDelayMs: DEFAULT_DOWNLOAD_RETRY_OPTIONS.maxDelayMs,
+        });
+      });
+
+      it('parses retry configuration from CLI flags', () => {
+        const result = actualParseArgs([
+          '--max-attempts',
+          '3',
+          '--initial-retry-delay-ms',
+          '250',
+          '--max-retry-delay-ms',
+          '5000',
+        ]);
+
+        expect(result.options).toMatchObject({
+          maxAttempts: 3,
+          initialRetryDelayMs: 250,
+          maxRetryDelayMs: 5_000,
+        });
+      });
+
+      it('parses retry configuration from environment variables', () => {
+        environment.FOUNDRYUP_MAX_ATTEMPTS = '4';
+        environment.FOUNDRYUP_INITIAL_RETRY_DELAY_MS = '500';
+        environment.FOUNDRYUP_MAX_RETRY_DELAY_MS = '10000';
+
+        const result = actualParseArgs([]);
+
+        expect(result.options).toMatchObject({
+          maxAttempts: 4,
+          initialRetryDelayMs: 500,
+          maxRetryDelayMs: 10_000,
+        });
+      });
+
+      it.each([
+        ['--max-attempts', '0'],
+        ['--initial-retry-delay-ms', '-1'],
+        ['--max-retry-delay-ms', '1.5'],
+      ])('rejects an invalid value for %s', (option, value) => {
+        expect(() => actualParseArgs([option, value])).toThrow(
+          `${option} must be a positive integer`,
+        );
       });
     });
   });

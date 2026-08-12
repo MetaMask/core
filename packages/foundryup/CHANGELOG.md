@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Retry transient Foundry archive download failures with exponential backoff and equal jitter, preventing short-lived network, rate-limit, and server errors from immediately aborting installation ([#9854](https://github.com/MetaMask/core/pull/9854))
+  - Configure the retry policy with the `--max-attempts`, `--initial-retry-delay-ms`, and `--max-retry-delay-ms` CLI options or their equivalent `FOUNDRYUP_*` environment variables
 
 ## [1.0.1]
 

@@ -15,6 +15,11 @@ type LastInUnion<U extends PropertyKey> =
     ? Last
     : never;
 
+type KebabToCamelCase<Key extends string> =
+  Key extends `${infer Head}-${infer Tail}`
+    ? `${Head}${Capitalize<KebabToCamelCase<Tail>>}`
+    : Key;
+
 type UnionToTuple<U extends PropertyKey, Last = LastInUnion<U>> = [U] extends [
   never,
 ]
@@ -90,7 +95,9 @@ export type PlatformArchChecksums = {
  * Given a map of raw yargs options config, returns a map of inferred types.
  */
 export type ParsedOptions<O extends { [key: string]: Options }> = {
-  [key in keyof O]: InferredOptionTypes<O>[key];
+  [key in keyof O as key extends string
+    ? KebabToCamelCase<key>
+    : key]: InferredOptionTypes<O>[key];
 };
 
 export type DownloadOptions = {

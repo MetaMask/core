@@ -17,6 +17,7 @@ import { cwd, exit } from 'node:process';
 import { parse as parseYaml } from 'yaml';
 
 import { retryDownload } from './download.js';
+import type { DownloadRetryConfiguration } from './download.js';
 import { extractFrom } from './extract.js';
 import { parseArgs, printBanner } from './options.js';
 import type { Checksums, Architecture, Binary } from './types.js';
@@ -88,6 +89,7 @@ export function getBinaryArchiveUrl(
  * @param platform - The target platform
  * @param arch - The target architecture
  * @param checksums - Optional checksums for verification
+ * @param retryOptions - Optional download retry configuration
  * @returns A promise that resolves to the directory containing the downloaded binaries
  */
 export async function checkAndDownloadBinaries(
@@ -97,6 +99,7 @@ export async function checkAndDownloadBinaries(
   platform: Platform,
   arch: Architecture,
   checksums?: Checksums,
+  retryOptions: DownloadRetryConfiguration = {},
 ): Promise<Dir> {
   let downloadedBinaries: Dir;
   try {
@@ -112,6 +115,7 @@ export async function checkAndDownloadBinaries(
       await retryDownload(
         () => extractFrom(url, binaries, cachePath, platformChecksums),
         {
+          ...retryOptions,
           onRetry: ({ attempt, maxAttempts, delayMs }) => {
             say(
               `download failed; retrying in ${delayMs}ms (attempt ${attempt}/${maxAttempts})`,
@@ -198,6 +202,9 @@ export async function downloadAndInstallFoundryBinaries(): Promise<void> {
     platform,
     binaries,
     checksums,
+    maxAttempts,
+    initialRetryDelayMs,
+    maxRetryDelayMs,
   } = parsedArgs.options;
 
   printBanner();
@@ -226,6 +233,11 @@ export async function downloadAndInstallFoundryBinaries(): Promise<void> {
     platform,
     arch,
     checksums,
+    {
+      maxAttempts,
+      initialDelayMs: initialRetryDelayMs,
+      maxDelayMs: maxRetryDelayMs,
+    },
   );
 
   await installBinaries(downloadedBinaries, BIN_DIR, cachePath);

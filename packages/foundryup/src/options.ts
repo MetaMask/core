@@ -2,6 +2,7 @@ import { platform } from 'node:os';
 import { argv, stdout } from 'node:process';
 import yargs from 'yargs/yargs';
 
+import { DEFAULT_DOWNLOAD_RETRY_OPTIONS } from './download.js';
 import { Architecture, Binary, Platform } from './types.js';
 import type {
   Checksums,
@@ -20,6 +21,21 @@ import { normalizeSystemArchitecture } from './utils.js';
  */
 function isVersionString(value: string): value is `v${string}` {
   return /^v\d/u.test(value);
+}
+
+/**
+ * Validates a CLI option that must be a positive integer.
+ *
+ * @param value - The parsed option value.
+ * @param optionName - The option name used in the error message.
+ * @returns The validated value.
+ * @throws If the value is not a positive integer.
+ */
+function positiveInteger(value: unknown, optionName: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${optionName} must be a positive integer`);
+  }
+  return value;
 }
 
 /**
@@ -55,6 +71,9 @@ export function parseArgs(args: string[] = argv.slice(2)) {
   const { $0, _, ...parsed } = yargs()
     // Ensure unrecognized commands/options are reported as errors.
     .strict()
+    .fail((message, error): never => {
+      throw error ?? new Error(message);
+    })
     // disable yargs's version, as it doesn't make sense here
     .version(false)
     // use the scriptName in `--help` output
@@ -69,7 +88,15 @@ export function parseArgs(args: string[] = argv.slice(2)) {
     // via environment variables prefixed with `FOUNDRYUP_`
     .env('FOUNDRYUP')
     .command(['$0', 'install'], 'Install foundry binaries', (builder) => {
-      builder.options(getOptions()).pkgConf('foundryup');
+      builder
+        .options(getOptions())
+        .check(({ maxAttempts, initialRetryDelayMs, maxRetryDelayMs }) => {
+          positiveInteger(maxAttempts, '--max-attempts');
+          positiveInteger(initialRetryDelayMs, '--initial-retry-delay-ms');
+          positiveInteger(maxRetryDelayMs, '--max-retry-delay-ms');
+          return true;
+        })
+        .pkgConf('foundryup');
     })
     .command('cache', '', (builder) => {
       builder.command('clean', 'Remove the shared cache files').demandCommand();
@@ -148,6 +175,22 @@ function getOptions(
         }
         throw new Error('Invalid version');
       },
+    },
+    'max-attempts': {
+      description:
+        'Specify the total number of download attempts, including the first',
+      type: 'number' as const,
+      default: DEFAULT_DOWNLOAD_RETRY_OPTIONS.maxAttempts,
+    },
+    'initial-retry-delay-ms': {
+      description: 'Specify the initial retry delay in milliseconds',
+      type: 'number' as const,
+      default: DEFAULT_DOWNLOAD_RETRY_OPTIONS.initialDelayMs,
+    },
+    'max-retry-delay-ms': {
+      description: 'Specify the maximum retry delay in milliseconds',
+      type: 'number' as const,
+      default: DEFAULT_DOWNLOAD_RETRY_OPTIONS.maxDelayMs,
     },
     arch: {
       alias: 'a',
