@@ -1,4 +1,46 @@
-import { StructError } from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
+import { array, integer, refine, StructError } from '@metamask/superstruct';
+
+/**
+ * A JSON-compatible representation of a `Uint8Array` as an array of integers
+ * in [0, 255]. Use {@link encodeBytes} and {@link decodeBytes} to convert.
+ */
+export type EncodedBytes = number[];
+
+/**
+ * Superstruct struct that validates an {@link EncodedBytes} value.
+ */
+export const BytesStruct: Struct<EncodedBytes> = refine(
+  array(integer()),
+  'bytes',
+  (value) => {
+    const invalid = value.find((b) => b < 0 || b > 255);
+    return invalid === undefined
+      ? true
+      : `each byte must be in [0, 255]; got ${invalid}`;
+  },
+);
+
+/**
+ * Encodes a `Uint8Array` as a JSON-compatible {@link EncodedBytes}.
+ *
+ * @param bytes - The bytes to encode.
+ * @returns An array of integers in [0, 255].
+ */
+export function encodeBytes(bytes: Uint8Array): EncodedBytes {
+  return Array.from(bytes);
+}
+
+/**
+ * Decodes an {@link EncodedBytes} produced by {@link encodeBytes} back into a `Uint8Array`.
+ * The caller is responsible for zeroing the result when the data is no longer needed.
+ *
+ * @param encoded - The encoded byte array.
+ * @returns The decoded `Uint8Array`.
+ */
+export function decodeBytes(encoded: EncodedBytes): Uint8Array {
+  return new Uint8Array(encoded);
+}
 
 /**
  * Recursively readonly view of `Value` used by snapshot filtering predicate types.

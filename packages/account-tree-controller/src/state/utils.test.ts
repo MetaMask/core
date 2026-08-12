@@ -1,6 +1,69 @@
-import { object, sensitive, string, StructError } from '@metamask/superstruct';
+import {
+  assert,
+  object,
+  sensitive,
+  string,
+  StructError,
+} from '@metamask/superstruct';
 
-import { deepFreeze, formatValidationErrorMessages } from './utils.js';
+import {
+  BytesStruct,
+  decodeBytes,
+  deepFreeze,
+  encodeBytes,
+  formatValidationErrorMessages,
+} from './utils.js';
+
+describe('BytesStruct', () => {
+  it('accepts a valid byte array', () => {
+    expect(() => assert([0, 128, 255], BytesStruct)).not.toThrow();
+  });
+
+  it('accepts an empty array', () => {
+    expect(() => assert([], BytesStruct)).not.toThrow();
+  });
+
+  it('rejects a value below 0', () => {
+    expect(() => assert([-1, 0], BytesStruct)).toThrow(
+      'each byte must be in [0, 255]',
+    );
+  });
+
+  it('rejects a value above 255', () => {
+    expect(() => assert([0, 256], BytesStruct)).toThrow(
+      'each byte must be in [0, 255]',
+    );
+  });
+});
+
+describe('encodeBytes', () => {
+  it('converts a Uint8Array to a number[]', () => {
+    expect(encodeBytes(new Uint8Array([0, 128, 255]))).toStrictEqual([
+      0, 128, 255,
+    ]);
+  });
+
+  it('returns an empty array for an empty Uint8Array', () => {
+    expect(encodeBytes(new Uint8Array([]))).toStrictEqual([]);
+  });
+});
+
+describe('decodeBytes', () => {
+  it('converts a number[] back to a Uint8Array', () => {
+    expect(decodeBytes([0, 128, 255])).toStrictEqual(
+      new Uint8Array([0, 128, 255]),
+    );
+  });
+
+  it('returns an empty Uint8Array for an empty array', () => {
+    expect(decodeBytes([])).toStrictEqual(new Uint8Array([]));
+  });
+
+  it('round-trips with encodeBytes', () => {
+    const original = new Uint8Array([1, 2, 3, 254, 255]);
+    expect(decodeBytes(encodeBytes(original))).toStrictEqual(original);
+  });
+});
 
 describe('deepFreeze', () => {
   it('returns primitives unchanged', () => {

@@ -18,8 +18,8 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
-import type { DeepReadonly } from './utils.js';
-import { formatValidationErrorMessages } from './utils.js';
+import type { DeepReadonly, EncodedBytes } from './utils.js';
+import { BytesStruct, formatValidationErrorMessages } from './utils.js';
 
 /** Stable cross-device wallet identifier. Format: `wallet:<entropySourceId>`. */
 export type AccountWalletPayloadId = `wallet:${string}`;
@@ -114,7 +114,7 @@ export type AccountWalletPrivateKeyGroupEntry = {
    * Absent in metadata-only exports.
    */
   value?: {
-    privateKey: string;
+    privateKey: EncodedBytes;
     encoding: AccountWalletPrivateKeyEncoding;
     /**
      * Account type from `KeyringAccountType` (e.g. `'eip155:eoa'`, `'bip122:p2wpkh'`).
@@ -130,8 +130,8 @@ export type AccountWalletPrivateKeyGroupEntry = {
 export type AccountWalletMnemonicPayload = {
   id: AccountWalletPayloadId;
   type: typeof AccountWalletPayloadType.Mnemonic;
-  /** BIP-39 mnemonic phrase. Absent in metadata-only exports. */
-  value?: string;
+  /** BIP-39 mnemonic phrase encoded as bytes. Absent in metadata-only exports. */
+  value?: EncodedBytes;
   metadata: AccountWalletPayloadMetadata;
   groups: AccountWalletMnemonicGroupEntry[];
 };
@@ -241,7 +241,7 @@ const AccountWalletGroupPayloadMetadataStruct = object({
 });
 
 const AccountWalletPrivateKeyValueStruct = object({
-  privateKey: sensitive(string()),
+  privateKey: sensitive(BytesStruct),
   encoding: enums(Object.values(AccountWalletPrivateKeyEncoding)),
   type: exactOptional(KeyringAccountTypeStruct),
 });
@@ -280,7 +280,7 @@ const AccountWalletMnemonicGroupsStruct = refine(
 const AccountWalletMnemonicPayloadStruct = object({
   id: AccountWalletPayloadIdStruct,
   type: literal(AccountWalletPayloadType.Mnemonic),
-  value: exactOptional(sensitive(string())),
+  value: exactOptional(sensitive(BytesStruct)),
   metadata: AccountWalletPayloadMetadataStruct,
   groups: AccountWalletMnemonicGroupsStruct,
 });
