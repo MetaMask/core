@@ -1326,7 +1326,7 @@ describe('submitFiatQuotes', () => {
       );
     });
 
-    it('skips the vault batch and returns an empty hash when vaultDisabled is enabled', async () => {
+    it('skips the vault batch and returns skipped when vaultDisabled is enabled', async () => {
       const { callMock, request } = getRequest({
         quotes: [
           getFiatQuoteMock({
@@ -1378,7 +1378,7 @@ describe('submitFiatQuotes', () => {
 
       const result = await submitFiatQuotes(request);
 
-      expect(result).toStrictEqual({ transactionHash: '0x' });
+      expect(result).toStrictEqual({ skipped: true });
       expect(callMock).not.toHaveBeenCalledWith(
         'TransactionPayController:getAmountData',
         expect.anything(),

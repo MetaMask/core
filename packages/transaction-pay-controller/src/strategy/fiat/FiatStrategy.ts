@@ -24,6 +24,10 @@ export class FiatStrategy implements PayStrategy<FiatQuote> {
     try {
       const result = await submitFiatQuotes(request);
 
+      if (result.skipped) {
+        return result;
+      }
+
       if (result.transactionHash === undefined) {
         throw new Error('Missing transaction hash');
       }
