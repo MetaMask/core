@@ -1,6 +1,7 @@
-import { ed25519 } from '@noble/curves/ed25519';
 import { hexToBytes, stringToBytes } from '@metamask/utils';
+import { ed25519 } from '@noble/curves/ed25519';
 
+import { base64UrlToBytes } from '../encoding.js';
 import {
   UKYC_CAPABILITY_AUTH_SCHEME,
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
@@ -8,7 +9,6 @@ import {
 } from './constants.js';
 import { canonicalizeJson } from './storageAccessToken.js';
 import { mintUkycTestToken } from './testToken.js';
-import { base64UrlToBytes } from '../encoding.js';
 
 // A fixed 32-byte secret (all 0x42), as hex, so storage_id and keys are stable.
 const SECRET_HEX = '42'.repeat(32);
