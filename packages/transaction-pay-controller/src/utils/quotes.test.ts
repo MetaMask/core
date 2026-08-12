@@ -1655,7 +1655,7 @@ describe('Quotes Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
 
-    it('does not log a refresh when the update is superseded', async () => {
+    it('stamps the attempt time when the update reports no change', async () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
           [TRANSACTION_ID_MOCK]: {
@@ -1678,7 +1678,50 @@ describe('Quotes Utils', () => {
         getStrategiesMock,
       );
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+      // Only the attempt stamp is written so the next retry waits a full
+      // refresh interval instead of running on every tick.
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toStrictEqual({
+        quotesLastUpdated: expect.any(Number),
+      });
+    });
+
+    it('stamps the attempt time when the update throws before starting', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      // updateQuotes throws when the transaction cannot be found.
+      getTransactionMock.mockReturnValueOnce(undefined);
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toStrictEqual({
+        quotesLastUpdated: expect.any(Number),
+      });
     });
 
     it('continues refreshing other transactions when one update fails', async () => {

@@ -395,13 +395,27 @@ export async function refreshQuotes(
 
       if (isUpdated) {
         log('Refreshed quotes', { transactionId, strategy: strategyName });
+      } else {
+        // Not updated (e.g. transaction no longer unapproved): stamp the
+        // attempt so the next one waits a full interval, not every tick.
+        stampQuotesLastUpdated(transactionId, updateTransactionData);
       }
     } catch (error) {
-      // The failure is persisted by updateQuotes; keep refreshing the
-      // remaining transactions.
+      // Also stamp throws that skip the updateQuotes catch, such as
+      // "Transaction not found". Keep refreshing the remaining transactions.
+      stampQuotesLastUpdated(transactionId, updateTransactionData);
       log('Failed to refresh quotes', { transactionId, error });
     }
   }
+}
+
+function stampQuotesLastUpdated(
+  transactionId: string,
+  updateTransactionData: UpdateTransactionDataCallback,
+): void {
+  updateTransactionData(transactionId, (data) => {
+    data.quotesLastUpdated = Date.now();
+  });
 }
 
 function abortPreviousAndCreateController(
