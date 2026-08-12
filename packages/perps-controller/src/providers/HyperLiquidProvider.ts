@@ -612,12 +612,39 @@ function collectPositionTriggerOrders(params: {
 }): {
   takeProfitOrders: PositionTriggerOrder[];
   stopLossOrders: PositionTriggerOrder[];
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
 } {
   const { orders, position, childOrderIds } = params;
 
   const byOrderId = new Map<string, PositionTriggerOrder>();
+  let takeProfitPrice: string | undefined;
+  let stopLossPrice: string | undefined;
 
   orders.forEach((rawOrder) => {
+    if (
+      rawOrder.isTrigger &&
+      rawOrder.reduceOnly &&
+      rawOrder.isPositionTpsl === Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+    ) {
+      if (rawOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = rawOrder.triggerPx;
+      } else if (rawOrder.orderType.includes('Stop')) {
+        stopLossPrice = rawOrder.triggerPx;
+      }
+    }
+
+    rawOrder.children?.forEach((childOrder) => {
+      if (!childOrder.isTrigger || !childOrder.reduceOnly) {
+        return;
+      }
+      if (childOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = childOrder.triggerPx;
+      } else if (childOrder.orderType.includes('Stop')) {
+        stopLossPrice = childOrder.triggerPx;
+      }
+    });
+
     if (
       rawOrder.coin !== position.symbol ||
       !rawOrder.isTrigger ||
@@ -647,6 +674,8 @@ function collectPositionTriggerOrders(params: {
     stopLossOrders: triggerOrders.filter(
       (order) => order.direction !== 'take_profit',
     ),
+    ...(takeProfitPrice && { takeProfitPrice }),
+    ...(stopLossPrice && { stopLossPrice }),
   };
 }
 
@@ -7264,18 +7293,24 @@ export class HyperLiquidProvider implements PerpsProvider {
         .filter(({ position }) => position.szi !== '0')
         .map((assetPosition) => {
           const position = adaptPositionFromSDK(assetPosition);
-          const { takeProfitOrders, stopLossOrders } =
-            collectPositionTriggerOrders({
-              orders: ordersBySymbol.get(position.symbol) ?? [],
-              position,
-              childOrderIds,
-            });
+          const {
+            takeProfitOrders,
+            stopLossOrders,
+            takeProfitPrice,
+            stopLossPrice,
+          } = collectPositionTriggerOrders({
+            orders: ordersBySymbol.get(position.symbol) ?? [],
+            position,
+            childOrderIds,
+          });
           return {
             ...position,
             takeProfitCount: takeProfitOrders.length,
             stopLossCount: stopLossOrders.length,
             takeProfitOrders,
             stopLossOrders,
+            ...(takeProfitPrice && { takeProfitPrice }),
+            ...(stopLossPrice && { stopLossPrice }),
           };
         }),
     );

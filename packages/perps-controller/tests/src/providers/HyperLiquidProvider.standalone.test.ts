@@ -844,6 +844,7 @@ describe('HyperLiquidProvider', () => {
           expect.objectContaining({
             takeProfitCount: 1,
             stopLossCount: 0,
+            takeProfitPrice: '55000',
             takeProfitOrders: [
               expect.objectContaining({
                 orderId: '101',
