@@ -14,6 +14,7 @@ import {
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
+  canonicalizeHyperLiquidDexes,
   FEE_RATES,
   getBridgeInfo,
   getChainId,
@@ -90,6 +91,7 @@ import type {
   GetOrFetchFillsParams,
   GetPositionsParams,
   GetSupportedPathsParams,
+  GetUserDataSnapshotParams,
   HistoricalPortfolioResult,
   InitializeResult,
   PerpsPlatformDependencies,
@@ -125,6 +127,7 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
+  PerpsUserDataSnapshot,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
@@ -609,12 +612,43 @@ function collectPositionTriggerOrders(params: {
 }): {
   takeProfitOrders: PositionTriggerOrder[];
   stopLossOrders: PositionTriggerOrder[];
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
 } {
   const { orders, position, childOrderIds } = params;
 
   const byOrderId = new Map<string, PositionTriggerOrder>();
+  let takeProfitPrice: string | undefined;
+  let stopLossPrice: string | undefined;
 
   orders.forEach((rawOrder) => {
+    if (
+      rawOrder.isTrigger &&
+      rawOrder.reduceOnly &&
+      rawOrder.isPositionTpsl === Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+    ) {
+      if (rawOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = rawOrder.triggerPx;
+      } else if (rawOrder.orderType.includes('Stop')) {
+        stopLossPrice = rawOrder.triggerPx;
+      }
+    }
+
+    rawOrder.children?.forEach((childOrder) => {
+      if (
+        !childOrder.isTrigger ||
+        !childOrder.reduceOnly ||
+        childOrder.isPositionTpsl !== Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+      ) {
+        return;
+      }
+      if (childOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = childOrder.triggerPx;
+      } else if (childOrder.orderType.includes('Stop')) {
+        stopLossPrice = childOrder.triggerPx;
+      }
+    });
+
     if (
       rawOrder.coin !== position.symbol ||
       !rawOrder.isTrigger ||
@@ -644,6 +678,8 @@ function collectPositionTriggerOrders(params: {
     stopLossOrders: triggerOrders.filter(
       (order) => order.direction !== 'take_profit',
     ),
+    ...(takeProfitPrice && { takeProfitPrice }),
+    ...(stopLossPrice && { stopLossPrice }),
   };
 }
 
@@ -863,6 +899,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#allowlistMarkets,
       this.#blocklistMarkets,
       this.#priceDeviationLimit,
+      async () => {
+        await this.#ensureClientsInitialized();
+        const validatedDexs = await this.#getValidatedDexs();
+        return validatedDexs.filter((dex): dex is string => dex !== null);
+      },
     );
 
     // NOTE: Clients are NOT initialized here - they'll be initialized lazily
@@ -7146,6 +7187,181 @@ export class HyperLiquidProvider implements PerpsProvider {
     // buildAssetMapping uses state.raw for perpDexIndex computation.
     const state = this.#dexDiscoveryCache.update(allDexs);
     return state.validated;
+  }
+
+  /**
+   * Fetch a complete standalone user-data bundle.
+   *
+   * Each DEX clearinghouse response is shared by position and account-state
+   * mapping. Any required request failure rejects the entire bundle.
+   *
+   * @param params - User and captured controller identity.
+   * @returns The complete user-data snapshot.
+   */
+  async getUserDataSnapshot(
+    params: GetUserDataSnapshotParams,
+  ): Promise<PerpsUserDataSnapshot> {
+    const { identity, userAddress } = params;
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const snapshotStartedAt = this.#deps.performance.now();
+    const measure = async <Result>(
+      stage: string,
+      request: () => Promise<Result>,
+      dex?: string | null,
+    ): Promise<Result> => {
+      const startedAt = this.#deps.performance.now();
+      const dexDetail = dex === undefined ? {} : { dex: dex ?? 'main' };
+      try {
+        const result = await request();
+        this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+          stage,
+          durationMs: Math.round(this.#deps.performance.now() - startedAt),
+          success: true,
+          ...dexDetail,
+        });
+        return result;
+      } catch (error) {
+        this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+          stage,
+          durationMs: Math.round(this.#deps.performance.now() - startedAt),
+          success: false,
+          ...dexDetail,
+        });
+        throw error;
+      }
+    };
+
+    if (identity.provider !== 'hyperliquid' || identity.network !== network) {
+      throw new Error('User data snapshot identity does not match provider');
+    }
+
+    const requestedDexes = identity.dexes;
+    const canonicalDexes = canonicalizeHyperLiquidDexes(requestedDexes);
+    const hasValidDexIdentity =
+      requestedDexes.length > 0 &&
+      new Set(requestedDexes).size === requestedDexes.length &&
+      requestedDexes.every(
+        (dex) => dex === 'main' || /^[a-z0-9][a-z0-9-]*$/u.test(dex),
+      ) &&
+      requestedDexes.length === canonicalDexes.length &&
+      requestedDexes.every((dex, index) => dex === canonicalDexes[index]);
+    if (!hasValidDexIdentity) {
+      throw new Error('User data snapshot DEX identity is invalid');
+    }
+    const dexs = requestedDexes.map((dex) => (dex === 'main' ? null : dex));
+    const standaloneInfoClient = createStandaloneInfoClient({
+      isTestnet: network === 'testnet',
+    });
+    const buildUserParams = (
+      dex: string | null,
+    ): { user: string; dex?: string } => ({
+      user: userAddress,
+      ...(dex ? { dex } : {}),
+    });
+
+    const [clearinghouseStates, openOrdersByDex, spotState, abstractionMode] =
+      await Promise.all([
+        Promise.all(
+          dexs.map((dex) =>
+            measure(
+              'clearinghouse_state',
+              () =>
+                standaloneInfoClient.clearinghouseState(buildUserParams(dex)),
+              dex,
+            ),
+          ),
+        ),
+        Promise.all(
+          dexs.map((dex) =>
+            measure(
+              'frontend_open_orders',
+              () =>
+                standaloneInfoClient.frontendOpenOrders(buildUserParams(dex)),
+              dex,
+            ),
+          ),
+        ),
+        measure('spot_clearinghouse_state', () =>
+          standaloneInfoClient.spotClearinghouseState({ user: userAddress }),
+        ),
+        measure('user_abstraction', () =>
+          standaloneInfoClient.userAbstraction({ user: userAddress }),
+        ),
+      ]);
+
+    const rawOrders = openOrdersByDex.flat();
+    const childOrderIds = collectChildOrderIds(rawOrders);
+    const ordersBySymbol = groupOrdersBySymbol(rawOrders);
+    const positions = clearinghouseStates.flatMap((state) =>
+      state.assetPositions
+        .filter(({ position }) => position.szi !== '0')
+        .map((assetPosition) => {
+          const position = adaptPositionFromSDK(assetPosition);
+          const {
+            takeProfitOrders,
+            stopLossOrders,
+            takeProfitPrice,
+            stopLossPrice,
+          } = collectPositionTriggerOrders({
+            orders: ordersBySymbol.get(position.symbol) ?? [],
+            position,
+            childOrderIds,
+          });
+          return {
+            ...position,
+            takeProfitCount: takeProfitOrders.length,
+            stopLossCount: stopLossOrders.length,
+            takeProfitOrders,
+            stopLossOrders,
+            ...(takeProfitPrice && { takeProfitPrice }),
+            ...(stopLossPrice && { stopLossPrice }),
+          };
+        }),
+    );
+    const positionsBySymbol = new Map(
+      positions.map((position) => [position.symbol, position]),
+    );
+    const orders = rawOrders.map((order) =>
+      adaptOrderFromSDK(order, positionsBySymbol.get(order.coin)),
+    );
+    const dexAccountStates = clearinghouseStates.map((state) =>
+      adaptAccountStateFromSDK(state),
+    );
+    const accountState = addSpotBalanceToAccountState(
+      aggregateAccountStates(dexAccountStates),
+      spotState,
+      { foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode) },
+    );
+
+    accountState.subAccountBreakdown = Object.fromEntries(
+      dexAccountStates.map((dexAccountState, index) => {
+        return [
+          dexs[index] ?? '',
+          {
+            spendableBalance: dexAccountState.spendableBalance,
+            withdrawableBalance: dexAccountState.withdrawableBalance,
+            totalBalance: dexAccountState.totalBalance,
+          },
+        ];
+      }),
+    );
+
+    const snapshot = {
+      positions,
+      orders,
+      accountState,
+      identity: {
+        ...identity,
+        address: userAddress,
+      },
+    };
+    this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+      stage: 'complete',
+      durationMs: Math.round(this.#deps.performance.now() - snapshotStartedAt),
+      success: true,
+      dexCount: dexs.length,
+    });
+    return snapshot;
   }
 
   /**

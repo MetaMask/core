@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Invalid parameters are rejected with a typed `PERPS_ERROR_CODES` value, and nothing invalid is ever signed; see the new error codes entry below for the full list and for which few are decided after a read rather than before any request.
 - Add `twap`, `scale` and `chase` to `PERPS_EVENT_VALUE.ORDER_TYPE`, which dashboards key on and which `TradingService` emits verbatim ([#9832](https://github.com/MetaMask/core/pull/9832))
 - Add the `StrategyOrderType` and `OrdinaryOrderType` types, plus `STRATEGY_ORDER_TYPES`, `isStrategyOrderType`, `SCALE_ORDER_COUNT`, `computeScalePriceLadder`, `splitScaleSizes`, `computeChaseQuotePrice`, `getPriceTick`, `CHASE_ORDER_CONFIG`, and `HYPERLIQUID_TWAP_LIMITS` ([#9832](https://github.com/MetaMask/core/pull/9832))
+- Add an optional schema-v2 Terminal market snapshot path with strict identity, freshness, completeness, unit, and payload validation before falling back to HyperLiquid ([#9815](https://github.com/MetaMask/core/pull/9815)).
+- Add `PerpsController.getUserDataSnapshot()` to fetch and cache positions, open orders, and account state as one account- and DEX-scoped result ([#9815](https://github.com/MetaMask/core/pull/9815)).
 
 ### Changed
 
@@ -55,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `isLimitExecutionOrderType` is unchanged: it answers the narrower question of whether `OrderParams.price` carries a real limit price, which for a strategy placement it does not.
 - `TriggerOrderType` is now spelled out as `'stop_market' | 'stop_limit' | 'take_profit_market' | 'take_profit_limit'` instead of being derived as `Exclude<OrderType, 'market' | 'limit'>` ([#9832](https://github.com/MetaMask/core/pull/9832))
   - The resolved type is unchanged for existing consumers. Deriving it meant that any order type added to `OrderType` that was neither `market` nor `limit` was pulled into the trigger union automatically and started demanding a trigger price it had no concept of.
+- Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking ([#9815](https://github.com/MetaMask/core/pull/9815)).
+- Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh ([#9815](https://github.com/MetaMask/core/pull/9815)).
 
 ## [11.0.0]
 
