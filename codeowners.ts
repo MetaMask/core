@@ -515,6 +515,10 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [buildRuleForPackage('phishing-controller')],
     },
     {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
+    },
+    {
       title: 'Swaps-Bridge Team',
       rules: [
         buildRuleForPackage('bridge-controller'),
