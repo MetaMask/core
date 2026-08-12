@@ -294,6 +294,25 @@ export type RampsControllerAddAutorampAction = {
 };
 
 /**
+ * Orchestrates a Pix offramp send: register Pix destination, exact-out quote,
+ * create autoramp, persist local autoramp state, then vault withdraw.
+ *
+ * Calling `TransactionPayController:submitMoneyAccountVaultWithdraw` triggers
+ * the existing confirmation sheet as a side effect (`requireApproval: true`).
+ * This promise resolves with ids **after** approval (or throws on reject).
+ * It does not return a handle for Mobile to open the sheet afterward; Mobile
+ * must keep the messenger call alive across confirmation UI.
+ *
+ * @param request - Pix destination, exact-out amount, Money Account, and
+ * stable `clientRequestId` for NeoBank + withdraw + in-flight dedupe.
+ * @returns Result after withdraw approval, including `batchId`.
+ */
+export type RampsControllerSendPixAction = {
+  type: `RampsController:sendPix`;
+  handler: RampsController['sendPix'];
+};
+
+/**
  * Removes a local autoramp account by id.
  * Soft-deletes the remote User Storage entry when sync is available.
  *
@@ -769,6 +788,7 @@ export type RampsControllerMethodActions =
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
   | RampsControllerAddAutorampAction
+  | RampsControllerSendPixAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction

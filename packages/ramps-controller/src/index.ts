@@ -69,6 +69,7 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerSendPixAction,
 } from './RampsController-method-action-types.js';
 export {
   RampsController,
@@ -77,6 +78,34 @@ export {
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
   RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
 } from './RampsController.js';
+export type {
+  TransactionPayControllerSubmitMoneyAccountVaultWithdrawAction,
+} from './RampsController.js';
+export type {
+  PixKeyType,
+  PixRecipientName,
+  SendPixRequest,
+  SendPixResult,
+} from './sendPix.js';
+export {
+  PIX_KEY_TYPES,
+  SEND_PIX_DESTINATION_CURRENCIES,
+  SEND_PIX_SOURCE_CURRENCY_CODE,
+  SEND_PIX_SOURCE_CURRENCY_CHAIN,
+  SEND_PIX_MUSD_DECIMALS,
+  MONEY_ACCOUNT_PIX_SEND_ENABLED_KEY,
+  MONEY_ACCOUNT_WITHDRAW_ENABLED_KEY,
+  SendPixError,
+  isSendPixEnabled,
+  validateSendPixRequest,
+  buildRegisterPixAddressBody,
+  buildCreateAutorampBody,
+  buildAutorampQuoteQuery,
+  parseAndAssertAutorampQuote,
+  parseMusdAmountInRaw,
+  deriveSendPixIds,
+  executeSendPix,
+} from './sendPix.js';
 export type {
   RampsServiceActions,
   RampsServiceEvents,

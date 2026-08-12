@@ -59,8 +59,10 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
+    "@metamask/money-account-utils": "workspace:^",
     "@metamask/profile-sync-controller": "^29.0.0",
-    "@metamask/remote-feature-flag-controller": "^5.0.0"
+    "@metamask/remote-feature-flag-controller": "^5.0.0",
+    "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

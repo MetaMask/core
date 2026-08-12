@@ -160,6 +160,27 @@ describe('NeoBankService', () => {
         walletAddress: undefined,
       });
     });
+
+    it('skips non-object deposit_rails entries when extracting Crypto Hex', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Approved',
+          deposit_rails: [
+            null,
+            'skip',
+            ['array'],
+            {
+              type: 'Crypto',
+              address: '0x4444444444444444444444444444444444444444',
+            },
+          ],
+        }),
+      ).toMatchObject({
+        walletAddress: '0x4444444444444444444444444444444444444444',
+      });
+    });
   });
 
   describe('getAutoramp', () => {
