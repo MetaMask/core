@@ -13,6 +13,7 @@ import { MUSD_MONAD_FIAT_ASSET } from '../strategy/fiat/constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { findRecentChompVaultDeposit } from './chomp.js';
 import { prefixError } from './error-prefix.js';
+import { getMoneyAccountVaultConfig } from './money-account-vault-config.js';
 import { getNetworkClientId } from './provider.js';
 import {
   collectTransactionIds,
@@ -24,6 +25,11 @@ import {
 const log = createModuleLogger(projectLogger, 'ma-vault-deposit');
 
 export const VAULT_ERROR_PREFIX = 'Vault: ';
+
+export type SubmitMoneyAccountVaultDepositResult = {
+  skipped?: true;
+  transactionHash?: Hex;
+};
 
 /**
  * Submits a Money Account mUSD vault deposit batch on Monad once the source
@@ -47,7 +53,8 @@ export const VAULT_ERROR_PREFIX = 'Vault: ';
  * @param options.transaction - Original Money Account transaction meta.
  * @param options.vaultDisabled - When `true`, skip the vault batch and leave
  * the settled mUSD in the Money Account. Caller-evaluated kill-switch.
- * @returns Hash of the final submitted child transaction, if available.
+ * @returns Hash of the final submitted child transaction, or `{ skipped: true }`
+ * when vaulting is disabled.
  */
 export async function submitMoneyAccountVaultDeposit({
   fromBlock,
@@ -65,7 +72,7 @@ export async function submitMoneyAccountVaultDeposit({
   sourceAmountRaw: string;
   transaction: TransactionMeta;
   vaultDisabled: boolean;
-}): Promise<{ transactionHash?: Hex }> {
+}): Promise<SubmitMoneyAccountVaultDepositResult> {
   const transactionId = transaction.id;
   const moneyAccountAddress = (moneyAccountAddressOverride ??
     transaction.txParams.from) as Hex | undefined;
@@ -81,7 +88,7 @@ export async function submitMoneyAccountVaultDeposit({
       transactionId,
     });
 
-    return { transactionHash: '0x' };
+    return { skipped: true };
   }
 
   const nestedTransactions = await resolveVaultDepositBatch({
@@ -91,6 +98,60 @@ export async function submitMoneyAccountVaultDeposit({
     transaction,
     transactionId,
   });
+
+  return await submitMoneyAccountVaultDepositBatch({
+    depositCalls: nestedTransactions,
+    fromBlock,
+    messenger,
+    moneyAccountAddress,
+    sourceAmountRaw,
+    transactionId,
+    vaultDisabled: false,
+  });
+}
+
+/**
+ * Submits pre-built Money Account vault calls without requiring a parent
+ * transaction. When `transactionId` is supplied, submitted child IDs are also
+ * linked to that parent for the existing Fiat and Relay flows.
+ *
+ * @param options - Submission options.
+ * @param options.depositCalls - Pre-built approve and deposit calls.
+ * @param options.fromBlock - Block at which to begin the CHOMP race check.
+ * @param options.messenger - Transaction Pay controller messenger.
+ * @param options.moneyAccountAddress - Money Account that owns the mUSD.
+ * @param options.sourceAmountRaw - Raw mUSD amount to deposit.
+ * @param options.transactionId - Optional parent transaction to link children.
+ * @param options.vaultDisabled - Whether vault submission is disabled.
+ * @returns Hash of the final confirmed vault transaction, or `{ skipped: true }`
+ * when vaulting is disabled.
+ */
+export async function submitMoneyAccountVaultDepositBatch({
+  depositCalls,
+  fromBlock,
+  messenger,
+  moneyAccountAddress,
+  sourceAmountRaw,
+  transactionId,
+  vaultDisabled,
+}: {
+  depositCalls: NestedTransactionMetadata[];
+  fromBlock?: Hex;
+  messenger: TransactionPayControllerMessenger;
+  moneyAccountAddress: Hex;
+  sourceAmountRaw: string;
+  transactionId?: string;
+  vaultDisabled: boolean;
+}): Promise<SubmitMoneyAccountVaultDepositResult> {
+  if (vaultDisabled) {
+    log('Skipping vault deposit because vaultDisabled is true', {
+      moneyAccountAddress,
+      sourceAmountRaw,
+      transactionId,
+    });
+
+    return { skipped: true };
+  }
 
   // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
   // auto-vaulted the funds during or before the checkout window.
@@ -117,23 +178,25 @@ export async function submitMoneyAccountVaultDeposit({
     messenger,
     (id) => {
       transactionIds.push(id);
-      updateTransaction(
-        {
-          transactionId,
-          messenger,
-          note: 'Add required transaction ID from Money Account vault submission',
-        },
-        (tx) => {
-          tx.requiredTransactionIds ??= [];
-          tx.requiredTransactionIds.push(id);
-        },
-      );
+      if (transactionId) {
+        updateTransaction(
+          {
+            transactionId,
+            messenger,
+            note: 'Add required transaction ID from Money Account vault submission',
+          },
+          (tx) => {
+            tx.requiredTransactionIds ??= [];
+            tx.requiredTransactionIds.push(id);
+          },
+        );
+      }
     },
   );
 
   log('Submitting Money Account vault deposit', {
     moneyAccountAddress,
-    nestedTransactionCount: nestedTransactions.length,
+    nestedTransactionCount: depositCalls.length,
     networkClientId,
     sourceAmountRaw,
     transactionId,
@@ -151,7 +214,7 @@ export async function submitMoneyAccountVaultDeposit({
       origin: ORIGIN_METAMASK,
       requireApproval: false,
       skipInitialGasEstimate: true,
-      transactions: nestedTransactions.map((nestedTransaction, index) => ({
+      transactions: depositCalls.map((nestedTransaction, index) => ({
         params: {
           data: nestedTransaction.data,
           to: nestedTransaction.to,
@@ -185,7 +248,7 @@ export async function submitMoneyAccountVaultDeposit({
 
   log('Submitted Money Account vault deposit', {
     moneyAccountAddress,
-    nestedTransactionCount: nestedTransactions.length,
+    nestedTransactionCount: depositCalls.length,
     networkClientId,
     sourceAmountRaw,
     transactionId,
@@ -209,7 +272,7 @@ export async function submitMoneyAccountVaultDeposit({
   log('Confirmed Money Account vault deposit', {
     hash,
     moneyAccountAddress,
-    nestedTransactionCount: nestedTransactions.length,
+    nestedTransactionCount: depositCalls.length,
     networkClientId,
     sourceAmountRaw,
     transactionId,
@@ -316,18 +379,20 @@ async function tryFindChompDeposit({
   messenger: TransactionPayControllerMessenger;
   moneyAccountAddress: Hex;
   sourceAmountRaw: string;
-  transactionId: string;
+  transactionId?: string;
 }): Promise<Hex | undefined> {
   if (!fromBlock) {
     return undefined;
   }
 
   try {
+    const { boringVault } = getMoneyAccountVaultConfig(messenger);
     return await findRecentChompVaultDeposit({
       fromBlock,
       messenger,
       moneyAccountAddress,
       sourceAmountRaw,
+      vaultAddress: boringVault,
     });
   } catch (chompError) {
     log('CHOMP check failed', { chompError, transactionId });
