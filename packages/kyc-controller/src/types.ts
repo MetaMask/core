@@ -22,6 +22,22 @@ export type KycProduct = 'ramps' | 'card' | 'money';
 export type KycVendor = 'moonpay' | 'iron';
 
 /**
+ * Vendor-scoped identity for the currently authenticated KYC customer.
+ *
+ * Exposed to consumers (e.g. ramps) that must attach the vendor customer id to
+ * downstream provider calls without reading the full KYC state, which also
+ * holds session/access tokens. The identifier is session-scoped: it is only
+ * available once the customer has authenticated through the current flow and
+ * is cleared on `reset()`.
+ */
+export type KycCustomerIdentity = {
+  /** The identity vendor that issued {@link KycCustomerIdentity.id}. */
+  vendor: KycVendor;
+  /** The vendor customer id (e.g. MoonPay customer UUID). */
+  id: string;
+};
+
+/**
  * User-keyed KYC status returned by `GET /kyc/status` and stored for Money
  * toast / banner rendering. Collapses Iron + SumSub / relay state into the
  * offsite contract.

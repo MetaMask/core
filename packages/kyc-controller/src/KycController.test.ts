@@ -1215,6 +1215,44 @@ describe('KycController', () => {
     });
   });
 
+  describe('getCustomerIdentity', () => {
+    it('returns null before a vendor customer id is captured', async () => {
+      await withController(({ controller }) => {
+        expect(controller.getCustomerIdentity()).toBeNull();
+      });
+    });
+
+    it('returns the vendor-scoped identity once captured', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.getCustomerIdentity()).toStrictEqual({
+            vendor: 'moonpay',
+            id: 'cust-1',
+          });
+        },
+      );
+    });
+
+    it('returns null after reset clears the captured id', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+          },
+        },
+        ({ controller }) => {
+          controller.reset();
+          expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
+  });
+
   describe('startSumSub', () => {
     it('throws and marks failed when the SDK is unavailable', async () => {
       await withController(async ({ controller, launcher }) => {

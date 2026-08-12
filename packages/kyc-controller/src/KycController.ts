@@ -17,6 +17,7 @@ import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
+  KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
   KycProduct,
@@ -375,6 +376,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'buildResetFrameUrl',
   'checkKycRequired',
   'getKycStatus',
+  'getCustomerIdentity',
   'refreshKycStatus',
   'startSumSub',
   'getSessionStatus',
@@ -1287,6 +1289,26 @@ export class KycController extends BaseController<
    */
   getKycStatus(params: { product: KycProduct }): boolean | undefined {
     return this.state.kycRequiredByProduct[params.product];
+  }
+
+  /**
+   * Returns the vendor-scoped identity for the currently authenticated
+   * customer, or `null` when the flow has not yet captured a vendor customer
+   * id (before authentication or after {@link reset}).
+   *
+   * Exposed so consumers (e.g. ramps autoramp creation) can attach the vendor
+   * customer id to downstream calls without reading the full KYC state, which
+   * also holds session/access tokens. The id is session-scoped and never
+   * persisted.
+   *
+   * @returns The current {@link KycCustomerIdentity}, or `null`.
+   */
+  getCustomerIdentity(): KycCustomerIdentity | null {
+    const { moonpayCustomerId, activeVendor } = this.state;
+    if (!moonpayCustomerId) {
+      return null;
+    }
+    return { vendor: activeVendor, id: moonpayCustomerId };
   }
 
   /**

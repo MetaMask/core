@@ -31,6 +31,7 @@ export type {
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,
+  RampsControllerCreateAutorampAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerMarkAutorampAsNotifiedAction,
   RampsControllerApplyAutorampStatusFromPushAction,
@@ -75,6 +76,7 @@ export {
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
   RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
 } from './RampsController.js';
 export type {
@@ -179,6 +181,7 @@ export type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
   ApplyAutorampRemoteStatusResult,
+  CreateAutorampRequest,
 } from './autorampAccount.js';
 export {
   AutorampStatus,

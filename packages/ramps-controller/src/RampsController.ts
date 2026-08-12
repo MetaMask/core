@@ -15,9 +15,12 @@ import {
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
+import type { KycControllerGetCustomerIdentityAction } from '@metamask/kyc-controller';
+
 import type {
   AutorampAccount,
   AutorampRemoteSnapshot,
+  CreateAutorampRequest,
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
@@ -30,7 +33,10 @@ import {
   updateAutorampInRemoteStorage,
 } from './autoramp-syncing/index.js';
 import type { SyncAutorampsWithUserStorageConfig } from './autoramp-syncing/index.js';
-import type { NeoBankServiceGetAutorampAction } from './NeoBankService-method-action-types.js';
+import type {
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampAction,
+} from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
@@ -191,7 +197,17 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:createAutoramp',
 ];
+
+/**
+ * Other controller actions RampsController calls via the messenger.
+ * Hosts that enable autoramp creation must delegate these from the root
+ * messenger so the controller can resolve the vendor customer identity.
+ */
+export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
+  'KycController:getCustomerIdentity',
+] as const;
 
 /**
  * User Storage / auth actions needed for autoramp Backup & Sync.
@@ -685,6 +701,8 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceCreateAutorampAction
+  | KycControllerGetCustomerIdentityAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -878,6 +896,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'addOrder',
   'removeOrder',
   'addAutoramp',
+  'createAutoramp',
   'removeAutoramp',
   'markAutorampAsNotified',
   'applyAutorampStatusFromPush',
@@ -2628,6 +2647,41 @@ export class RampsController extends BaseController<
     }
 
     return upserted;
+  }
+
+  /**
+   * Creates an autoramp via the Ramp API neo-bank proxy and applies the
+   * returned snapshot locally.
+   *
+   * The MoonPay `customer_id` is not accepted from callers: it is resolved from
+   * the KYC controller's session-scoped identity and injected into the request.
+   * This keeps the sensitive customer id owned by the KYC controller and avoids
+   * requiring the UI to know or plumb it. Throws when no verified identity is
+   * available yet.
+   *
+   * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
+   * @param options - Optional idempotency key forwarded to the proxy.
+   * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
+   * @returns The created/updated local {@link AutorampAccount}.
+   */
+  async createAutoramp(
+    request: CreateAutorampRequest,
+    options: { idempotencyKey?: string } = {},
+  ): Promise<AutorampAccount> {
+    const identity = this.messenger.call('KycController:getCustomerIdentity');
+    if (!identity) {
+      throw new Error(
+        'Cannot create autoramp: no verified KYC customer identity is available.',
+      );
+    }
+
+    const body = { ...request, customer_id: identity.id };
+    const remote = await this.messenger.call(
+      'NeoBankService:createAutoramp',
+      body,
+      options,
+    );
+    return this.#applyAutorampRemoteSnapshot(remote);
   }
 
   /**

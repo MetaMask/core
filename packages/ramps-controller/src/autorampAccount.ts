@@ -57,6 +57,16 @@ export type AutorampAccount = {
 };
 
 /**
+ * Controller-facing payload for creating an autoramp.
+ *
+ * Mirrors the MoonPay `POST /api/autoramps` body that
+ * {@link NeoBankService.createAutoramp} forwards opaquely, minus `customer_id`:
+ * `RampsController.createAutoramp` injects the vendor customer id resolved from
+ * the KYC controller, so callers never supply (or need to know) it.
+ */
+export type CreateAutorampRequest = Record<string, unknown>;
+
+/**
  * Minimal remote snapshot from `GET /api/autoramps/{id}` (or a push payload).
  * Host apps / BFF map MoonPay responses into this shape.
  */

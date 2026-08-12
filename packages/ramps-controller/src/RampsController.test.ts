@@ -23,6 +23,7 @@ import {
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
   RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
 } from './RampsController.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -9031,6 +9032,58 @@ describe('RampsController', () => {
       });
     });
 
+    it('injects the KYC customer id and applies the created autoramp', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'KycController:getCustomerIdentity',
+          () => ({ vendor: 'moonpay', id: 'cust-99' }),
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-99',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        const created = await controller.createAutoramp(
+          { customer_id: 'attacker-supplied', foo: 'bar' },
+          { idempotencyKey: 'idem-1' },
+        );
+
+        expect(createAutoramp).toHaveBeenCalledWith(
+          { foo: 'bar', customer_id: 'cust-99' },
+          { idempotencyKey: 'idem-1' },
+        );
+        expect(created.id).toBe('ar-new');
+        expect(
+          controller.state.autoramps.find((a) => a.id === 'ar-new')?.customerId,
+        ).toBe('cust-99');
+      });
+    });
+
+    it('throws when no KYC customer identity is available', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'KycController:getCustomerIdentity',
+          () => null,
+        );
+        const createAutoramp = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await expect(controller.createAutoramp({})).rejects.toThrow(
+          /no verified KYC customer identity/u,
+        );
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
     it('skips failed refreshes when refreshing all autoramps', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -12032,6 +12085,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
     messenger,
     actions: [
       ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+      ...RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
       ...RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
       'RemoteFeatureFlagController:getState',
     ],

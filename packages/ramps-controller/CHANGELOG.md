@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `RampsController.createAutoramp(request, options?)` method and the `RampsController:createAutoramp` messenger action (plus the exported `RampsControllerCreateAutorampAction` and `CreateAutorampRequest` types). It resolves the MoonPay `customer_id` from the KYC controller via the new `KycController:getCustomerIdentity` action, injects it into the request (overwriting any caller-supplied `customer_id`), forwards the body to `NeoBankService:createAutoramp`, and applies the returned snapshot to local state. Throws when no verified KYC identity is available.
+- Add the exported `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS` constant listing the other-controller actions (`KycController:getCustomerIdentity`) that hosts must delegate to the `RampsController` messenger to enable autoramp creation.
 - Add NeoBankService Pix / autoramp quote client methods and messenger actions, targeting the neobank-proxy `/neobank` prefix on the Ramp API host: `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, and `getCustomerByExternalId`. Pix/quote helpers return parsed proxy JSON; `createAutoramp` maps autoramp-shaped responses via `mapNeoBankAutorampToRemoteSnapshot` (same as `getAutoramp`). Optional `Idempotency-Key` is supported on mutating calls.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ### Changed
 
+- Add a dependency on `@metamask/kyc-controller` so `RampsController` can resolve the vendor customer identity when creating autoramps.
 - Point `NeoBankService.getAutoramp` at `GET /neobank/autoramps/{id}` (neobank-proxy global `/neobank` prefix) instead of `/api/v2/autoramps/{id}`, so Core matches the proxy that ships.
 
 ## [20.0.0]

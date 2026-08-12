@@ -294,6 +294,26 @@ export type RampsControllerAddAutorampAction = {
 };
 
 /**
+ * Creates an autoramp via the Ramp API neo-bank proxy and applies the
+ * returned snapshot locally.
+ *
+ * The MoonPay `customer_id` is not accepted from callers: it is resolved from
+ * the KYC controller's session-scoped identity and injected into the request.
+ * This keeps the sensitive customer id owned by the KYC controller and avoids
+ * requiring the UI to know or plumb it. Throws when no verified identity is
+ * available yet.
+ *
+ * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
+ * @param options - Optional idempotency key forwarded to the proxy.
+ * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
+ * @returns The created/updated local {@link AutorampAccount}.
+ */
+export type RampsControllerCreateAutorampAction = {
+  type: `RampsController:createAutoramp`;
+  handler: RampsController['createAutoramp'];
+};
+
+/**
  * Removes a local autoramp account by id.
  * Soft-deletes the remote User Storage entry when sync is available.
  *
@@ -769,6 +789,7 @@ export type RampsControllerMethodActions =
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
   | RampsControllerAddAutorampAction
+  | RampsControllerCreateAutorampAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction

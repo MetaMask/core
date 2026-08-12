@@ -58,6 +58,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
+    "@metamask/kyc-controller": "^0.0.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^5.0.0"
