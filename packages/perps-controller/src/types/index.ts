@@ -719,7 +719,12 @@ export type CancelOrderParams = {
 
 export type CancelOrderResult = {
   success: boolean;
-  orderId?: string; // Cancelled order ID
+  /**
+   * What was cancelled, named the same way it was placed: an exchange order ID
+   * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
+   * chase session — when `CancelOrderParams.orderType` named one.
+   */
+  orderId?: string;
   error?: string;
   providerId?: PerpsProviderType; // Multi-provider: source provider identifier
 };

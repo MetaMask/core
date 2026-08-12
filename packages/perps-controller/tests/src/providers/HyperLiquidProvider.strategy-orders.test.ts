@@ -2970,7 +2970,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Chase placement racing a disconnect', () => {
-    it('abandons a session whose provider was torn down mid-placement', async () => {
+    it('reports the resting order when teardown lands mid-flight', async () => {
       let disconnected: Promise<unknown> | undefined;
       const order = jest.fn().mockImplementation(async () => {
         // The order is on its way to the venue when the provider is torn down.
@@ -3114,7 +3114,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Chase placement racing a disconnect during preparation', () => {
-    it('abandons a session torn down before its order was placed', async () => {
+    it('places nothing when the teardown lands during preparation', async () => {
       let disconnected: Promise<unknown> | undefined;
       const { exchangeClient } = useStrategyClients({
         exchange: {
@@ -3140,13 +3140,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
       await disconnected;
 
-      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
-
-      // Reported as a failed chase carrying the resting order, not as a chase
-      // whose handle nothing will answer for.
+      // The disconnect landed during the preamble, which is before the chase
+      // reads the book or submits anything — so no order is created for a
+      // provider that has been torn down, and there is nothing left resting to
+      // report.
+      expect(exchangeClient.order).not.toHaveBeenCalled();
       expect(placed.success).toBe(false);
       expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
-      expect(placed.childOrderIds).toStrictEqual(['55']);
+      expect(placed.childOrderIds).toBeUndefined();
     });
   });
 });

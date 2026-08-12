@@ -4601,6 +4601,16 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<OrderResult> {
     const { assetId, szDecimals, formattedSize } = context;
 
+    // The preamble is several round trips long. A disconnect during it has
+    // already torn down everything this session would run on, so the chase
+    // stops here rather than reading the book and putting a fresh order on it
+    // for a provider that no longer exists. The check after the placement
+    // below covers the narrower window this cannot: a disconnect arriving
+    // while that order is in flight.
+    if (generation !== this.#chaseGeneration) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+
     const quotePrice = await this.#getChaseQuotePrice({
       symbol: params.symbol,
       isBuy: params.isBuy,
@@ -4658,11 +4668,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         restingPrice: quotePrice,
       });
 
-      // The order rested, but no strategy is running behind it and no handle
-      // names it — reporting success would hand the caller a chase they cannot
-      // cancel by the route a chase is cancelled through. It is reported as a
-      // failure carrying the exchange id in `childOrderIds`, which is
-      // cancellable through the ordinary single-order path.
+      // The disconnect landed while this order was in flight, which is the one
+      // window the check above cannot close. The order rested, but no strategy
+      // is running behind it and no handle names it — reporting success would
+      // hand the caller a chase they cannot cancel by the route a chase is
+      // cancelled through. It is reported as a failure carrying the exchange id
+      // in `childOrderIds`, which is cancellable through the ordinary
+      // single-order path.
       return createErrorResult(
         new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
         {
