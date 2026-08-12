@@ -250,7 +250,12 @@ export {
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
 } from './constants/perpsConfig.js';
-export type { ProLayoutPreferences } from './constants/perpsConfig.js';
+export type {
+  ProLayoutPreferences,
+  ProPositionsSideFilter,
+  ProPositionsSortDirection,
+  ProPositionsSortField,
+} from './constants/perpsConfig.js';
 
 /**
  * State shape for PerpsController

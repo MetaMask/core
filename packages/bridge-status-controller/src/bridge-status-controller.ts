@@ -1315,7 +1315,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse: payload.quoteResponse,
               accountAddress: params.selectedAccount.address,
               isStxEnabled: params.isStxEnabled,
-              slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+              slippagePercentage: payload.quoteResponse.quote.slippage ?? 0,
             });
             this.#reportSubmittedForNonEvmTx(
               payload.historyKey,
