@@ -127,24 +127,24 @@ describe('LoggingController', () => {
       messenger,
       state: {
         logs: {
-          'foo': {
+          foo: {
             id: 'foo',
             timestamp: Date.now() - inMilliseconds(14, Duration.Day),
             log: {
               type: LogType.GenericLog,
               data: 'bar',
-            }
+            },
           },
-          'baz': {
+          baz: {
             id: 'baz',
             timestamp: Date.now() - inMilliseconds(1, Duration.Day),
             log: {
               type: LogType.GenericLog,
               data: 'qux',
-            }
-          }
-        }
-      }
+            },
+          },
+        },
+      },
     });
 
     expect(
@@ -163,7 +163,7 @@ describe('LoggingController', () => {
         data: 'Generic log',
       }),
     });
-  })
+  });
 
   it('internal method: clear', async () => {
     const rootMessenger = getRootMessenger();

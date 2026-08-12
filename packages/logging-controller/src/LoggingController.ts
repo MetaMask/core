@@ -80,8 +80,7 @@ export class LoggingController extends BaseController<
   LoggingControllerState,
   LoggingControllerMessenger
 > {
-
-  #expiryTime: number;
+  readonly #expiryTime: number;
 
   /**
    * Creates a LoggingController instance.
