@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `DetectionMiddlewareOptions` with an `isTokenDetectionEnabled` callback to `DetectionMiddleware`. `AssetsController` wires it from the `useTokenDetection` preference read via `PreferencesController:getState` (defaulting to enabled when `PreferencesController` is not registered), so when the user's token-autodetection preference is off, new-to-state fungible tokens (`erc20` and `token` namespaces, e.g. ERC-20 and SPL) are neither detected nor persisted from any pipeline, including websocket (account-activity) updates — their balances and stub metadata are stripped from the response. Native assets, staking-contract assets, custom (user-imported) assets, and holdings already tracked in state are unaffected
+  - `AssetsController` also subscribes to `PreferencesController:stateChange` and force-refreshes balances, metadata, and prices when the preference is turned back on, so tokens skipped while it was off are detected without waiting for the next poll
 
 ### Changed
 

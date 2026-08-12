@@ -2930,6 +2930,50 @@ describe('AssetsController', () => {
       });
     });
 
+    it('force refreshes assets when the token detection preference is turned on', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        (messenger.publish as CallableFunction)(
+          'PreferencesController:stateChange',
+          { useTokenDetection: true },
+          [],
+        );
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            forceUpdate: true,
+            dataTypes: ['balance', 'metadata', 'price'],
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('does not refresh assets when the token detection preference is turned off', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        (messenger.publish as CallableFunction)(
+          'PreferencesController:stateChange',
+          { useTokenDetection: false },
+          [],
+        );
+        await flushPromises();
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
         const balanceChangedHandler = jest.fn();

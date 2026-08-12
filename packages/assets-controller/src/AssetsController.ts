@@ -1193,6 +1193,20 @@ export class AssetsController extends BaseController<
       },
       clientControllerSelectors.selectIsUiOpen,
     );
+    // "Autodetect tokens" preference. Turning it on re-runs the pipeline so
+    // tokens skipped while it was off are detected without waiting for the
+    // next poll. Turning it off needs no refresh: already-tracked assets stay
+    // in state, and the next update strips new ones anyway.
+    this.messenger.subscribe(
+      'PreferencesController:stateChange',
+      (useTokenDetection: boolean) => {
+        if (useTokenDetection) {
+          this.#refreshAssetsAfterTokenDetectionEnabled();
+        }
+      },
+      (state) => state.useTokenDetection,
+    );
+
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringUnlocked = true;
       this.#updateActive();
@@ -3803,6 +3817,25 @@ export class AssetsController extends BaseController<
       dataTypes: ['balance', 'metadata'],
     }).catch((error) => {
       log('Failed to refresh assets after network change', { error });
+    });
+  }
+
+  /**
+   * Re-run the assets pipeline after the user turns "Autodetect tokens" back
+   * on, so tokens that were filtered out while it was off are detected,
+   * enriched, and priced right away.
+   */
+  #refreshAssetsAfterTokenDetectionEnabled(): void {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    this.getAssets(accounts, {
+      forceUpdate: true,
+      dataTypes: ['balance', 'metadata', 'price'],
+    }).catch((error) => {
+      log('Failed to refresh assets after token detection enabled', { error });
     });
   }
 
