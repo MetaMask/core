@@ -61,6 +61,15 @@ import type {
 } from './constants.js';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
+type MoneyAccountBalanceServiceGetMoneyAccountBalanceAction = {
+  type: 'MoneyAccountBalanceService:getMoneyAccountBalance';
+  handler: (accountAddress: Hex) => Promise<{
+    musdBalance: string;
+    totalBalance: string;
+    vmusdValueInMusd: string;
+  }>;
+};
+
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AssetsControllerGetStateForTransactionPayAction
@@ -68,6 +77,7 @@ export type AllowedActions =
   | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
+  | MoneyAccountBalanceServiceGetMoneyAccountBalanceAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction

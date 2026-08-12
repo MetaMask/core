@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TransactionPayController:submitMoneyAccountVaultDeposit` action to vault a completed mUSD payout into the Money Account vault, resolving the deposit amount from the payout transaction hash ([#9849](https://github.com/MetaMask/core/pull/9849))
+- Add `TransactionPayController:submitMoneyAccountVaultWithdraw` action to redeem vmUSD and transfer the resulting mUSD to a given recipient in a single atomic, user-confirmed batch ([#9849](https://github.com/MetaMask/core/pull/9849))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))

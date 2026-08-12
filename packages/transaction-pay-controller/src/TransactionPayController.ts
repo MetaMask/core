@@ -29,6 +29,10 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types.js';
 import { getStrategyOrder } from './utils/feature-flags.js';
+import type { SubmitMoneyAccountVaultDepositRequest } from './utils/ma-vault-payout.js';
+import { submitMoneyAccountVaultDepositFromPayout } from './utils/ma-vault-payout.js';
+import type { SubmitMoneyAccountVaultWithdrawRequest } from './utils/ma-vault-withdraw.js';
+import { submitMoneyAccountVaultWithdraw as submitMoneyAccountVaultWithdrawUtil } from './utils/ma-vault-withdraw.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
@@ -45,6 +49,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
+  'submitMoneyAccountVaultDeposit',
+  'submitMoneyAccountVaultWithdraw',
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
@@ -86,6 +92,16 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   readonly #resolveSourceAmount?: ResolveSourceAmountCallback;
+
+  readonly #vaultDepositRequests = new Map<
+    string,
+    Promise<{ transactionHash?: `0x${string}` }>
+  >();
+
+  readonly #vaultWithdrawRequests = new Map<
+    string,
+    Promise<{ batchId: `0x${string}` }>
+  >();
 
   constructor({
     fiatOptions,
@@ -213,6 +229,60 @@ export class TransactionPayController extends BaseController<
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
+  }
+
+  /**
+   * Vaults mUSD received in a completed Iron payout transaction.
+   *
+   * Concurrent calls for the same payout hash share one in-flight submission.
+   *
+   * @param request - Completed Iron payout details.
+   * @returns Hash of the confirmed vault transaction.
+   */
+  submitMoneyAccountVaultDeposit(
+    request: SubmitMoneyAccountVaultDepositRequest,
+  ): Promise<{ transactionHash?: `0x${string}` }> {
+    const key = request.transactionHash.toLowerCase();
+    const current = this.#vaultDepositRequests.get(key);
+    if (current) {
+      return current;
+    }
+
+    const pending = submitMoneyAccountVaultDepositFromPayout(
+      request,
+      this.messenger,
+    ).finally(() => {
+      this.#vaultDepositRequests.delete(key);
+    });
+    this.#vaultDepositRequests.set(key, pending);
+    return pending;
+  }
+
+  /**
+   * Creates a user-confirmed exact-out vmUSD withdrawal to Iron.
+   *
+   * Concurrent calls with the same request ID share one in-flight batch setup.
+   *
+   * @param request - Backend-bound exact-out Iron intent.
+   * @returns Pending transaction batch ID.
+   */
+  submitMoneyAccountVaultWithdraw(
+    request: SubmitMoneyAccountVaultWithdrawRequest,
+  ): Promise<{ batchId: `0x${string}` }> {
+    const key = request.requestId;
+    const current = this.#vaultWithdrawRequests.get(key);
+    if (current) {
+      return current;
+    }
+
+    const pending = submitMoneyAccountVaultWithdrawUtil(
+      request,
+      this.messenger,
+    ).finally(() => {
+      this.#vaultWithdrawRequests.delete(key);
+    });
+    this.#vaultWithdrawRequests.set(key, pending);
+    return pending;
   }
 
   /**

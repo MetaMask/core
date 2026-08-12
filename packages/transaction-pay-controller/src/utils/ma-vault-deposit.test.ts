@@ -7,7 +7,10 @@ import type { Hex } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { findRecentChompVaultDeposit } from './chomp.js';
-import { submitMoneyAccountVaultDeposit } from './ma-vault-deposit.js';
+import {
+  submitMoneyAccountVaultDeposit,
+  submitMoneyAccountVaultDepositBatch,
+} from './ma-vault-deposit.js';
 import { getNetworkClientId } from './provider.js';
 import {
   collectTransactionIds,
@@ -510,6 +513,48 @@ describe('submitMoneyAccountVaultDeposit', () => {
 
       expect(result).toStrictEqual({ transactionHash: '0xvault' });
       expect(findRecentChompVaultDepositMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('parentless vault batches', () => {
+    const depositCalls: BatchTransactionParams[] = [
+      { data: '0xapprove' as Hex, to: '0xapprove' as Hex },
+      { data: '0xdeposit' as Hex, to: '0xdeposit' as Hex },
+    ];
+
+    it('submits without updating a parent transaction', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionController:addTransactionBatch') {
+          return Promise.resolve({ batchId: 'batch-id' });
+        }
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      const result = await submitMoneyAccountVaultDepositBatch({
+        depositCalls,
+        messenger: buildMessenger(callMock),
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        sourceAmountRaw: '5000000',
+        vaultDisabled: false,
+      });
+
+      expect(updateTransactionMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: '0xvault' });
+    });
+
+    it('returns before submission when disabled', async () => {
+      const callMock = jest.fn();
+
+      const result = await submitMoneyAccountVaultDepositBatch({
+        depositCalls,
+        messenger: buildMessenger(callMock),
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        sourceAmountRaw: '5000000',
+        vaultDisabled: true,
+      });
+
+      expect(callMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: '0x' });
     });
   });
 });
