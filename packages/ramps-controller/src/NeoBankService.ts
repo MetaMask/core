@@ -40,7 +40,34 @@ export type NeoBankAutorampResponse = {
   deposit_rails?: unknown[];
 };
 
-const MESSENGER_EXPOSED_METHODS = ['getAutoramp'] as const;
+/**
+ * Optional headers for neo-bank mutating requests.
+ */
+export type NeoBankRequestOptions = {
+  /**
+   * Forwarded as `Idempotency-Key` when set (MoonPay requires it on some POSTs;
+   * neobank-proxy generates one when omitted).
+   */
+  idempotencyKey?: string;
+};
+
+/**
+ * Query string values accepted by neo-bank GET helpers.
+ */
+export type NeoBankQueryParams = Record<
+  string,
+  string | number | boolean | undefined | null
+>;
+
+const MESSENGER_EXPOSED_METHODS = [
+  'getAutoramp',
+  'registerPixAddress',
+  'getAutorampQuote',
+  'createAutoramp',
+  'getAutorampQuoteForAutoramp',
+  'attachAutorampQuote',
+  'getCustomerByExternalId',
+] as const;
 
 /**
  * Actions that {@link NeoBankService} exposes to other consumers.
@@ -65,14 +92,17 @@ export type NeoBankServiceMessenger = Messenger<
 >;
 
 /**
- * Builds an `/api/v2/...` path for the Ramp API neo-bank proxy.
+ * Builds a path under the neobank-proxy global prefix.
  *
- * @param path - Path under the versioned API root (no leading slash).
- * @param version - API version segment.
- * @returns Versioned API path.
+ * Live neobank-proxy (#1124) mounts routes at `/neobank` on the on-ramp.api
+ * host (ALB path routing, no rewrite). Prefer this over `/api/v2/...` so Core
+ * matches the proxy that ships.
+ *
+ * @param path - Path under `/neobank` (no leading slash).
+ * @returns Absolute path segment for URL join against the Ramp API host.
  */
-function getApiPath(path: string, version: string = 'v2'): string {
-  return `api/${version}/${path.replace(/^\//u, '')}`;
+function getNeoBankPath(path: string): string {
+  return `neobank/${path.replace(/^\//u, '')}`;
 }
 
 /**
@@ -128,8 +158,10 @@ export function mapNeoBankAutorampToRemoteSnapshot(
  * Client for MetaMask Ramp API neo-bank endpoints (MoonPay Enterprise proxy).
  *
  * Lives alongside {@link RampsService} and {@link TransakService}. Authentication
- * and MoonPay partner headers are handled by the Ramp API — this service only
+ * and MoonPay partner headers are handled by the Ramp API; this service only
  * attaches the MetaMask user bearer token.
+ *
+ * Paths use the neobank-proxy `/neobank` prefix on the on-ramp.api host.
  */
 export class NeoBankService {
   readonly name: typeof serviceName;
@@ -182,32 +214,42 @@ export class NeoBankService {
     return getBaseUrl(this.#environment);
   }
 
-  async #getRequestHeaders(): Promise<Record<string, string>> {
+  async #getRequestHeaders(
+    options: NeoBankRequestOptions = {},
+  ): Promise<Record<string, string>> {
     const bearerToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
     );
-    return {
+    const headers: Record<string, string> = {
       Authorization: `Bearer ${bearerToken}`,
     };
+    if (options.idempotencyKey) {
+      headers['Idempotency-Key'] = options.idempotencyKey;
+    }
+    return headers;
   }
 
-  /**
-   * Fetches an autoramp account via the Ramp API proxy of
-   * MoonPay `GET /api/autoramps/{autoramp_id}`.
-   *
-   * @param autorampId - MoonPay / Ramp API autoramp id.
-   * @returns Remote snapshot for controller apply/refresh.
-   */
-  async getAutoramp(autorampId: string): Promise<AutorampRemoteSnapshot> {
-    const url = new URL(
-      getApiPath(`autoramps/${encodeURIComponent(autorampId)}`),
-      this.#getBaseUrl(),
-    );
+  #buildUrl(path: string, query?: NeoBankQueryParams): URL {
+    const url = new URL(getNeoBankPath(path), this.#getBaseUrl());
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
+    if (query) {
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined && value !== null) {
+          url.searchParams.set(key, String(value));
+        }
+      }
+    }
+    return url;
+  }
 
-    const response = await this.#policy.execute(async () => {
+  async #getJson<T>(
+    path: string,
+    query?: NeoBankQueryParams,
+  ): Promise<T> {
+    const url = this.#buildUrl(path, query);
+    return this.#policy.execute(async () => {
       const headers = await this.#getRequestHeaders();
       const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
@@ -216,14 +258,151 @@ export class NeoBankService {
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
         );
       }
-      return fetchResponse.json() as Promise<NeoBankAutorampResponse>;
+      return fetchResponse.json() as Promise<T>;
     });
+  }
 
+  async #postJson<T>(
+    path: string,
+    body: Record<string, unknown>,
+    options: NeoBankRequestOptions,
+  ): Promise<T> {
+    const url = this.#buildUrl(path);
+    return this.#policy.execute(async () => {
+      const headers = await this.#getRequestHeaders(options);
+      headers['Content-Type'] = 'application/json';
+      const fetchResponse = await this.#fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<T>;
+    });
+  }
+
+  #mapAutorampResponse(response: NeoBankAutorampResponse): AutorampRemoteSnapshot {
     if (!response || typeof response !== 'object' || !response.id) {
       throw new Error('Malformed response received from neo-bank autoramp API');
     }
-
     return mapNeoBankAutorampToRemoteSnapshot(response);
+  }
+
+  /**
+   * Fetches an autoramp account via neobank-proxy
+   * `GET /neobank/autoramps/{autoramp_id}` (MoonPay
+   * `GET /api/autoramps/{autoramp_id}`).
+   *
+   * @param autorampId - MoonPay / Ramp API autoramp id.
+   * @returns Remote snapshot for controller apply/refresh.
+   */
+  async getAutoramp(autorampId: string): Promise<AutorampRemoteSnapshot> {
+    const response = await this.#getJson<NeoBankAutorampResponse>(
+      `autoramps/${encodeURIComponent(autorampId)}`,
+    );
+    return this.#mapAutorampResponse(response);
+  }
+
+  /**
+   * Registers a Pix address via neobank-proxy `POST /neobank/addresses/pix`.
+   * Body is forwarded as opaque JSON (MoonPay address schema).
+   *
+   * @param body - Pix address registration payload.
+   * @param options - Optional idempotency key.
+   * @returns Parsed proxy JSON response.
+   */
+  async registerPixAddress(
+    body: Record<string, unknown>,
+    options: NeoBankRequestOptions = {},
+  ): Promise<unknown> {
+    return this.#postJson('addresses/pix', body, options);
+  }
+
+  /**
+   * Fetches an autoramp quote via neobank-proxy `GET /neobank/autoramps/quote`.
+   *
+   * @param query - Quote query params (forwarded as-is).
+   * @returns Parsed proxy JSON response.
+   */
+  async getAutorampQuote(query: NeoBankQueryParams = {}): Promise<unknown> {
+    return this.#getJson('autoramps/quote', query);
+  }
+
+  /**
+   * Creates an autoramp from a signed quote via neobank-proxy
+   * `POST /neobank/autoramps` (MoonPay `POST /api/autoramps`).
+   *
+   * @param body - CreateAutoramp / signed-quote payload (forwarded as-is).
+   * @param options - Optional idempotency key.
+   * @returns Remote snapshot for controller apply/refresh.
+   */
+  async createAutoramp(
+    body: Record<string, unknown>,
+    options: NeoBankRequestOptions = {},
+  ): Promise<AutorampRemoteSnapshot> {
+    const response = await this.#postJson<NeoBankAutorampResponse>(
+      'autoramps',
+      body,
+      options,
+    );
+    return this.#mapAutorampResponse(response);
+  }
+
+  /**
+   * Fetches a quote for an existing autoramp via neobank-proxy
+   * `GET /neobank/autoramps/{autoramp_id}/quote`.
+   *
+   * @param autorampId - Autoramp id.
+   * @param query - Quote query params (forwarded as-is).
+   * @returns Parsed proxy JSON response.
+   */
+  async getAutorampQuoteForAutoramp(
+    autorampId: string,
+    query: NeoBankQueryParams = {},
+  ): Promise<unknown> {
+    return this.#getJson(
+      `autoramps/${encodeURIComponent(autorampId)}/quote`,
+      query,
+    );
+  }
+
+  /**
+   * Attaches a signed quote to an autoramp via neobank-proxy
+   * `POST /neobank/autoramps/{autoramp_id}/quotes`.
+   *
+   * @param autorampId - Autoramp id.
+   * @param body - Quote attachment payload (forwarded as-is).
+   * @param options - Optional idempotency key.
+   * @returns Parsed proxy JSON response.
+   */
+  async attachAutorampQuote(
+    autorampId: string,
+    body: Record<string, unknown>,
+    options: NeoBankRequestOptions = {},
+  ): Promise<unknown> {
+    return this.#postJson(
+      `autoramps/${encodeURIComponent(autorampId)}/quotes`,
+      body,
+      options,
+    );
+  }
+
+  /**
+   * Fetches a customer by partner external id via neobank-proxy
+   * `GET /neobank/customers/{external_id}/external`.
+   *
+   * @param externalId - Partner-assigned external customer id.
+   * @returns Parsed proxy JSON response.
+   */
+  async getCustomerByExternalId(externalId: string): Promise<unknown> {
+    return this.#getJson(
+      `customers/${encodeURIComponent(externalId)}/external`,
+    );
   }
 
   onRetry(
