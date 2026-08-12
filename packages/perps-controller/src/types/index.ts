@@ -297,7 +297,16 @@ export type OrderParams = {
 
 export type OrderResult = {
   success?: boolean;
-  orderId?: string; // Order ID from exchange
+  /**
+   * What names the placement afterwards.
+   *
+   * For an ordinary placement this is the exchange's order ID. For a *strategy*
+   * placement it is a handle instead — a venue TWAP id, or a client-generated
+   * scale-group or chase-session id — which is what `CancelOrderParams` takes
+   * together with the matching `orderType`. The individual exchange ids a
+   * strategy expanded into are in `childOrderIds`.
+   */
+  orderId?: string;
   error?: string;
   filledSize?: string; // Amount filled
   // Final normalized size actually submitted to the exchange (post precision

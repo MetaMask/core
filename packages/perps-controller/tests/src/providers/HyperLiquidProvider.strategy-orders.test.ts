@@ -2616,6 +2616,41 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
+    it('refuses an overflow chase before signing or changing leverage', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+        },
+      });
+
+      for (
+        let placed = 0;
+        placed < CHASE_ORDER_CONFIG.MaxActiveSessions;
+        placed += 1
+      ) {
+        await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'chase',
+        } as OrderParams);
+      }
+      (exchangeClient.updateLeverage as jest.Mock).mockClear();
+
+      const overflow = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        leverage: 5,
+      } as OrderParams);
+
+      // Refused before the shared preamble, which completes the signing setup
+      // and applies leverage — neither should be spent on a request that was
+      // always going to be turned away.
+      expect(overflow.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+    });
+
     it('frees a slot when a chase is cancelled', async () => {
       useStrategyClients({
         exchange: {
@@ -2955,20 +2990,22 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
       await disconnected;
 
-      // The order rested, so it is reported — disconnect deliberately leaves
-      // resting orders alone. But no session was registered, so nothing is
-      // scheduled against a provider that has already stopped.
-      expect(placed.success).toBe(true);
+      // No strategy is running, so this is not a successful chase. The order
+      // that rested is reported in childOrderIds — disconnect leaves resting
+      // orders alone — and is reachable through the ordinary single-order
+      // cancel, which is the only route that can name it.
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
       expect(placed.childOrderIds).toStrictEqual(['55']);
+      expect(placed.orderId).toBeUndefined();
 
+      // The reported child is cancellable through the ordinary path, so the
+      // caller is not left holding a live order with no way to reach it.
       const cancelled = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: (placed.childOrderIds as string[])[0],
         symbol: 'ETH',
-        orderType: 'chase',
       });
-      expect(cancelled.error).toBe(
-        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
-      );
+      expect(cancelled).toStrictEqual({ success: true, orderId: '55' });
     });
   });
 
@@ -3103,19 +3140,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
       await disconnected;
 
-      expect(placed.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
 
-      // No session was registered, so the handle does not resolve and no timer
-      // is running against a provider that has been torn down.
-      const cancelled = await provider.cancelOrder({
-        orderId: placed.orderId,
-        symbol: 'ETH',
-        orderType: 'chase',
-      });
-      expect(cancelled.error).toBe(
-        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
-      );
+      // Reported as a failed chase carrying the resting order, not as a chase
+      // whose handle nothing will answer for.
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(placed.childOrderIds).toStrictEqual(['55']);
     });
   });
 });

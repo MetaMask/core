@@ -4189,15 +4189,36 @@ export class HyperLiquidProvider implements PerpsProvider {
     // at the end.
     const generation = this.#chaseGeneration;
 
-    const context = await this.#prepareStrategyPlacement(params);
+    if (orderType !== 'chase') {
+      const context = await this.#prepareStrategyPlacement(params);
+      return orderType === 'twap'
+        ? await this.#placeTwapOrder(params, context)
+        : await this.#placeScaleOrder(params, context);
+    }
 
-    if (orderType === 'twap') {
-      return await this.#placeTwapOrder(params, context);
+    // The chase slot is claimed before the preamble, not after it: the preamble
+    // completes the signing setup and can change the asset's leverage, and a
+    // request that is going to be refused for exceeding the venue's cap must
+    // not cost either. Reserved in the same synchronous step it is checked, so
+    // concurrent placements cannot both see room during the round trips that
+    // follow.
+    const activeChases = [...this.#chaseSessions.values()].filter(
+      (session) => session.active,
+    ).length;
+    if (
+      activeChases + this.#chasePlacementsInFlight >=
+      CHASE_ORDER_CONFIG.MaxActiveSessions
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
     }
-    if (orderType === 'scale') {
-      return await this.#placeScaleOrder(params, context);
+    this.#chasePlacementsInFlight += 1;
+
+    try {
+      const context = await this.#prepareStrategyPlacement(params);
+      return await this.#startChaseSession(params, context, generation);
+    } finally {
+      this.#chasePlacementsInFlight -= 1;
     }
-    return await this.#placeChaseOrder(params, context, generation);
   }
 
   /**
@@ -4563,50 +4584,9 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Start an emulated chase: rest at the near touch, then follow it.
-   *
-   * HyperLiquid has no chase action, so the strategy is run here. The first
-   * order is placed synchronously — a caller that gets a success back has a
-   * real order resting — and the re-pricing loop then runs in the background
-   * until it fills, the window closes, or the session is cancelled.
-   *
-   * @param params - Order parameters.
-   * @param context - Prepared asset and sizing context.
-   * @param generation - Teardown generation captured before any await.
-   * @returns A promise that resolves to the result.
-   */
-  async #placeChaseOrder(
-    params: OrderParams,
-    context: StrategyPlacementContext,
-    generation: number,
-  ): Promise<OrderResult> {
-    // The venue caps simultaneously active chases. Checked before the first
-    // order goes up, so exceeding it costs nothing — and the slot is reserved
-    // in the same synchronous step, because two round trips separate this from
-    // the session being registered and concurrent placements would otherwise
-    // both see room.
-    const activeChases = [...this.#chaseSessions.values()].filter(
-      (session) => session.active,
-    ).length;
-    if (
-      activeChases + this.#chasePlacementsInFlight >=
-      CHASE_ORDER_CONFIG.MaxActiveSessions
-    ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
-    }
-    this.#chasePlacementsInFlight += 1;
-
-    try {
-      return await this.#startChaseSession(params, context, generation);
-    } finally {
-      this.#chasePlacementsInFlight -= 1;
-    }
-  }
-
-  /**
    * Place a chase's first order and register the session that follows it.
    *
-   * Split from `#placeChaseOrder` so the concurrency reservation there wraps
+   * Split from the routing above so the concurrency reservation there wraps
    * every await in one `try`/`finally`.
    *
    * @param params - Order parameters.
@@ -4677,12 +4657,20 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderId,
         restingPrice: quotePrice,
       });
-      return {
-        success: true,
-        orderId,
-        childOrderIds: [orderId],
-        submittedSize: formattedSize,
-      };
+
+      // The order rested, but no strategy is running behind it and no handle
+      // names it — reporting success would hand the caller a chase they cannot
+      // cancel by the route a chase is cancelled through. It is reported as a
+      // failure carrying the exchange id in `childOrderIds`, which is
+      // cancellable through the ordinary single-order path.
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
+        {
+          success: false,
+          childOrderIds: [orderId],
+          submittedSize: formattedSize,
+        },
+      );
     }
 
     this.#chaseSessions.set(sessionId, session);

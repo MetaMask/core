@@ -73,6 +73,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size
   ORDER_CHASE_INTERVAL_INVALID: 'ORDER_CHASE_INTERVAL_INVALID', // chaseIntervalMs below the minimum poll interval
   ORDER_CHASE_DURATION_INVALID: 'ORDER_CHASE_DURATION_INVALID', // chaseMaxDurationMs shorter than one poll interval, or chaseMaxRepricings non-positive
+  ORDER_CHASE_ABANDONED: 'ORDER_CHASE_ABANDONED', // The provider was torn down while the chase was being placed; its order rests but no strategy runs
   ORDER_CHASE_LIMIT_REACHED: 'ORDER_CHASE_LIMIT_REACHED', // The venue's cap on simultaneously active chase orders is already in use
   ORDER_CHASE_TOUCH_UNAVAILABLE: 'ORDER_CHASE_TOUCH_UNAVAILABLE', // The order book returned no price on the side the chase must rest at
   // HyperLiquid client/service errors
