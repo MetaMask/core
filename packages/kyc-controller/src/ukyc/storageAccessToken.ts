@@ -1,12 +1,12 @@
 import { stringToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 
+import { toBase64Url } from '../encoding.js';
 import {
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES,
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
 } from './constants.js';
 import type { UkycClientMaterial } from './deriveClientMaterial.js';
-import { toBase64Url } from '../encoding.js';
 
 /**
  * Mints `storage_access_token` capabilities — the client-signed, scoped,
