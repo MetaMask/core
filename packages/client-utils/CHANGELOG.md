@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fall back to a zero-address ERC-20 CAIP-19 asset id (`eip155:<chainId>/erc20:0x000…000`) in `resolveNativeAssetId` and `getNativeAsset` when an EVM native has no SLIP-44 coin type (previously `undefined`)
+  - `resolveNativeAssetId` no longer requires a `symbol` on EVM chains for this fallback
+  - Non-EVM chains still return `undefined` when no slip44 entry is found
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [2.0.1]

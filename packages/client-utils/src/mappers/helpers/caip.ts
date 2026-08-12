@@ -73,7 +73,7 @@ export function resolveNativeAssetId(
   chainId: string | number | undefined,
   symbol: string | undefined,
 ): CaipAssetType | undefined {
-  if (chainId === undefined || !symbol) {
+  if (chainId === undefined) {
     return undefined;
   }
 
@@ -83,21 +83,26 @@ export function resolveNativeAssetId(
     return undefined;
   }
 
-  const assetReference = getCoinType(symbol);
+  const { namespace, reference } = parseCaipChainId(caipChainId);
+  const assetReference = symbol ? getCoinType(symbol) : undefined;
 
-  if (!assetReference) {
-    return undefined;
+  if (assetReference) {
+    return toCaipAssetType(namespace, reference, 'slip44', assetReference);
   }
 
-  const { namespace, reference } = parseCaipChainId(caipChainId);
+  if (namespace === KnownCaipNamespace.Eip155) {
+    return toCaipAssetType(namespace, reference, 'erc20', nativeTokenAddress);
+  }
 
-  return toCaipAssetType(namespace, reference, 'slip44', assetReference);
+  return undefined;
 }
 
 /**
- * Resolves EVM native symbol, decimals, and slip44 asset id for a chain.
+ * Resolves EVM native symbol, decimals, and CAIP asset id for a chain.
  * Prefers eth-chainlist slip44 except testnet coin type 1, then falls back to
- * `@metamask/slip44` by native symbol.
+ * `@metamask/slip44` by native symbol. When both slip44 sources miss, falls
+ * back to the zero-address ERC-20 CAIP form (`erc20:0x000…000`) so chains with
+ * no assigned coin type (e.g. Chiliz) still get an asset id.
  *
  * @param chainId - CAIP-2 chain id (eip155 only).
  * @returns Native asset metadata, or undefined when it cannot be resolved.
@@ -130,14 +135,14 @@ export function getNativeAsset(chainId: CaipChainId):
       ? String(slip44)
       : getCoinType(nativeCurrency.symbol);
 
-  if (!assetReference) {
-    return undefined;
-  }
+  const assetId = assetReference
+    ? toCaipAssetType(namespace, reference, 'slip44', assetReference)
+    : toCaipAssetType(namespace, reference, 'erc20', nativeTokenAddress);
 
   return {
     symbol: nativeCurrency.symbol,
     decimals: nativeCurrency.decimals ?? nativeTokenDecimals,
-    assetId: toCaipAssetType(namespace, reference, 'slip44', assetReference),
+    assetId,
   };
 }
 
