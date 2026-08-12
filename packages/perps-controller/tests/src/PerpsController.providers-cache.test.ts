@@ -3414,7 +3414,7 @@ describe('PerpsController', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null in aggregated mode when oldest entry exceeds TTL', () => {
+    it('keeps current provider data when another aggregated entry is stale', () => {
       const mockMYXProvider = createMockHyperLiquidProvider();
       markControllerAsInitialized();
       controller.testSetProviders(
@@ -3437,7 +3437,7 @@ describe('PerpsController', () => {
 
       const result = controller.getCachedMarketDataForActiveProvider();
 
-      expect(result).toBeNull();
+      expect(result).toEqual([expect.objectContaining({ symbol: 'MYX' })]);
     });
   });
 

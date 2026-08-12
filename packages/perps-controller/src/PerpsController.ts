@@ -1328,7 +1328,7 @@ export class PerpsController extends BaseController<
           continue;
         }
         if (!this.#isMarketCacheEntryCurrent(providerId, entry, options)) {
-          return null;
+          continue;
         }
         assembled.push(...clonePerpsMarketData(entry.data));
       }

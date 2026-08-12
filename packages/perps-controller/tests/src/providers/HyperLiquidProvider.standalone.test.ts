@@ -871,6 +871,102 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
+      it('ignores child triggers from the inactive TP/SL grouping', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 201,
+            side: 'A',
+            limitPx: '0',
+            triggerPx: '55000',
+            sz: '0',
+            origSz: '0',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Market',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: true,
+            cloid: undefined,
+            children: [],
+          },
+          {
+            coin: 'BTC',
+            oid: 202,
+            side: 'B',
+            limitPx: '44000',
+            triggerPx: '0',
+            sz: '0.5',
+            origSz: '0.5',
+            timestamp: Date.now(),
+            orderType: 'Limit',
+            isTrigger: false,
+            reduceOnly: false,
+            isPositionTpsl: false,
+            cloid: undefined,
+            children: [
+              {
+                coin: 'BTC',
+                oid: 203,
+                side: 'A',
+                limitPx: '0',
+                triggerPx: '',
+                sz: '0',
+                origSz: '0',
+                timestamp: Date.now(),
+                orderType: 'Take Profit Market',
+                isTrigger: true,
+                reduceOnly: true,
+                isPositionTpsl: false,
+                cloid: undefined,
+                children: [],
+              },
+            ],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitCount: 1,
+            takeProfitPrice: '55000',
+          }),
+        );
+      });
+
       it('logs privacy-safe timing for each atomic snapshot stage', async () => {
         mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
           assetPositions: [],

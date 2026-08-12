@@ -635,7 +635,11 @@ function collectPositionTriggerOrders(params: {
     }
 
     rawOrder.children?.forEach((childOrder) => {
-      if (!childOrder.isTrigger || !childOrder.reduceOnly) {
+      if (
+        !childOrder.isTrigger ||
+        !childOrder.reduceOnly ||
+        childOrder.isPositionTpsl !== Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+      ) {
         return;
       }
       if (childOrder.orderType.includes('Take Profit')) {
