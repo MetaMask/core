@@ -217,15 +217,15 @@ describe('foundryup', () => {
       cleanAll();
     });
 
-    it('handles download errors gracefully', async () => {
+    it('propagates permanent download errors', async () => {
       (fs.opendir as jest.Mock).mockRejectedValue({ code: 'ENOENT' });
 
       cleanAll();
       nock('https://example.com')
         .head('/binaries.zip')
-        .reply(500, 'Internal Server Error')
+        .reply(400, 'Bad Request')
         .get('/binaries.zip')
-        .reply(500, 'Internal Server Error');
+        .reply(400, 'Bad Request');
 
       const result = checkAndDownloadBinaries(
         mockUrl,
@@ -235,7 +235,7 @@ describe('foundryup', () => {
         Architecture.Amd64,
       );
       await expect(result).rejects.toThrow(
-        'Request to https://example.com/binaries.zip failed. Status Code: 500 - null',
+        'Request to https://example.com/binaries.zip failed. Status Code: 400 - null',
       );
     });
   });

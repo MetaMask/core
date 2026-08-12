@@ -16,6 +16,7 @@ import { dirname, join, relative } from 'node:path';
 import { cwd, exit } from 'node:process';
 import { parse as parseYaml } from 'yaml';
 
+import { retryDownload } from './download.js';
 import { extractFrom } from './extract.js';
 import { parseArgs, printBanner } from './options.js';
 import type { Checksums, Architecture, Binary } from './types.js';
@@ -108,7 +109,16 @@ export async function checkAndDownloadBinaries(
       say(`installing from ${url.toString()}`);
       // directory doesn't exist, download and extract
       const platformChecksums = transformChecksums(checksums, platform, arch);
-      await extractFrom(url, binaries, cachePath, platformChecksums);
+      await retryDownload(
+        () => extractFrom(url, binaries, cachePath, platformChecksums),
+        {
+          onRetry: ({ attempt, maxAttempts, delayMs }) => {
+            say(
+              `download failed; retrying in ${delayMs}ms (attempt ${attempt}/${maxAttempts})`,
+            );
+          },
+        },
+      );
       downloadedBinaries = await opendir(cachePath);
     } else {
       throw e;
