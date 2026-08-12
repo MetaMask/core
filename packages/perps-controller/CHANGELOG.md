@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1187.0.0 ([#9823](https://github.com/MetaMask/core/pull/9823))
-- Release 1182.0.0 ([#9798](https://github.com/MetaMask/core/pull/9798))
-
 ### Added
 
 - **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
