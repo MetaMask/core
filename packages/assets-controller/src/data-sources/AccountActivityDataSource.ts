@@ -8,7 +8,6 @@ import { isCaipChainId } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
-import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
   AssetMetadata,
@@ -26,8 +25,6 @@ import type { DataSourceState } from './AbstractDataSource.js';
 // ============================================================================
 
 const CONTROLLER_NAME = 'AccountActivityDataSource';
-
-const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
 // BALANCE UPDATE PROCESSING
@@ -304,13 +301,9 @@ export class AccountActivityDataSource extends AbstractDataSource<
       };
 
       Promise.resolve(this.#onAssetsUpdate(response, request)).catch(
-        (error) => {
-          log('Failed to report balance update', { error });
-        },
+        (error) => {},
       );
-    } catch (error) {
-      log('Error handling balance update', error);
-    }
+    } catch (error) {}
   }
 
   /**
@@ -405,9 +398,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
       this.updateActiveChains(Array.from(next), (updatedChains) =>
         this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
       );
-    } catch (error) {
-      log('Error handling status change', error);
-    }
+    } catch (error) {}
   };
 
   // ============================================================================
@@ -420,18 +411,14 @@ export class AccountActivityDataSource extends AbstractDataSource<
         'AccountActivityService:balanceUpdated',
         this.#onBalanceUpdatedBound,
       );
-    } catch (error) {
-      log('Failed to unsubscribe from balanceUpdated', { error });
-    }
+    } catch (error) {}
 
     try {
       this.#messenger.unsubscribe(
         'AccountActivityService:statusChanged',
         this.#onAccountActivityStatusChanged,
       );
-    } catch (error) {
-      log('Failed to unsubscribe from statusChanged', { error });
-    }
+    } catch (error) {}
 
     super.destroy();
   }

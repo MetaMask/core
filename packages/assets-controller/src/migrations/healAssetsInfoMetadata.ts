@@ -9,7 +9,6 @@ import {
 } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   AccountId,
   Caip19AssetId,
@@ -93,8 +92,6 @@ export type AssetsInfoHealingPatch = {
   customAssets: Record<AccountId, Caip19AssetId[]>;
 };
 
-const log = createModuleLogger(projectLogger, 'tempHealAssetsInfoMetadata');
-
 export type TempHealAssetsInfoMetadataOptions = {
   /** Current `AssetsController` state the healing patch is computed against. */
   state: AssetsControllerStateInternal;
@@ -123,7 +120,6 @@ export function tempHealAssetsInfoMetadata({
   captureException,
 }: TempHealAssetsInfoMetadataOptions): AssetsControllerStateInternal {
   const reportError = (error: unknown): void => {
-    log('Failed to heal assetsInfo metadata', error);
     captureException?.(
       new Error(
         `AssetsController: temporary assetsInfo metadata healing failed: ${getErrorMessage(
@@ -147,11 +143,6 @@ export function tempHealAssetsInfoMetadata({
   try {
     const nextState = cloneDeep(state);
     applyHealingPatch(nextState, patch);
-
-    log('Healed wiped assetsInfo metadata for niche-chain tokens', {
-      healedAssetsInfoCount: Object.keys(patch.assetsInfo).length,
-      healedCustomAssetsAccounts: Object.keys(patch.customAssets).length,
-    });
 
     return nextState;
   } catch (error) {

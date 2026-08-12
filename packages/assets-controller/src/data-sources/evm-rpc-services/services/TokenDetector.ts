@@ -1,7 +1,6 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../../../logger.js';
 import type { MulticallClient } from '../clients/index.js';
 import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
@@ -17,8 +16,6 @@ import type {
   TokenListEntry,
 } from '../types/index.js';
 import { reduceInBatchesSerially } from '../utils/index.js';
-
-const log = createModuleLogger(projectLogger, 'TokenDetector');
 
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
@@ -113,8 +110,8 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
         this.#onDetectionUpdate(result);
       }
-    } catch (error) {
-      log('Token detection poll failed', { chainId: input.chainId, error });
+    } catch {
+      // Silently handle errors
     }
   }
 
@@ -226,13 +223,8 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       const list = await this.#tokensApiClient.fetchTokenList(chainId);
       this.#tokenListCache.set(chainId, list);
       return list;
-    } catch (error) {
+    } catch {
       const cached = this.#tokenListCache.get(chainId);
-      log('Failed to fetch token list; using stale cache', {
-        chainId,
-        cachedCount: cached?.length ?? 0,
-        error,
-      });
       return cached ?? [];
     }
   }

@@ -9,7 +9,6 @@ import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
-import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
@@ -29,8 +28,6 @@ import {
 
 const CONTROLLER_NAME = 'TokenDataSource';
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
-
-const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 /** Max asset IDs per tokens API request. */
 const TOKENS_API_BATCH_SIZE = 50;
@@ -218,7 +215,6 @@ export class TokenDataSource {
 
       return new Set(allNetworks);
     } catch (error) {
-      log('Failed to fetch supported networks', { error });
       return new Set();
     }
   }
@@ -238,7 +234,6 @@ export class TokenDataSource {
         this.#fetchTimeoutMs,
       );
     } catch (error) {
-      log('Failed to fetch suggested occurrence floors', { error });
       return {};
     }
   }
@@ -341,7 +336,6 @@ export class TokenDataSource {
         }
       }
     } catch (error) {
-      log('Blockaid bulk token scan failed; keeping all tokens', { error });
       return assets;
     }
 
@@ -481,13 +475,9 @@ export class TokenDataSource {
               }
             }
           }
-          log('Filtered low-occurrence websocket assets', {
-            assetIds: [...spamAssetIds],
-          });
         }
       } catch (error) {
         // Fail open — keep all assets when occurrences cannot be fetched.
-        log('Failed to fetch occurrences for websocket update', { error });
       }
 
       return next(ctx);
@@ -768,9 +758,7 @@ export class TokenDataSource {
             }
           }
         }
-      } catch (error) {
-        log('Failed to fetch metadata', { error });
-      }
+      } catch (error) {}
 
       // Call next() at the end to continue the middleware chain
       return next(ctx);

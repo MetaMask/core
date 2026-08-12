@@ -28,7 +28,6 @@ import type {
   AssetsControllerGetStateAction,
   AssetsControllerMessenger,
 } from '../AssetsController.js';
-import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -68,8 +67,6 @@ import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets.
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
-
-const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
@@ -266,14 +263,6 @@ export class RpcDataSource extends AbstractDataSource<
     const detectionInterval =
       options.detectionInterval ?? DEFAULT_DETECTION_INTERVAL;
 
-    log('Initializing RpcDataSource', {
-      timeout: this.#timeout,
-      balanceInterval,
-      detectionInterval,
-      tokenDetectionEnabled: this.#tokenDetectionEnabled(),
-      useExternalService: this.#useExternalService(),
-    });
-
     // Initialize MulticallClient with a provider getter
     this.#multicallClient = new MulticallClient({
       getProvider: (hexChainId: string): RpcProvider => {
@@ -329,9 +318,7 @@ export class RpcDataSource extends AbstractDataSource<
     this.#balanceFetcher.setOnBalanceUpdate(async (result) => {
       try {
         await this.#handleBalanceUpdate(result);
-      } catch (error) {
-        log('Balance update handler failed', { error });
-      }
+      } catch (error) {}
     });
 
     // Initialize TokenDetector with polling interval. The TokensApiClient is
@@ -354,9 +341,7 @@ export class RpcDataSource extends AbstractDataSource<
     this.#tokenDetector.setOnDetectionUpdate((result) => {
       try {
         this.#handleDetectionUpdate(result);
-      } catch (error) {
-        log('Detection update handler failed', { error });
-      }
+      } catch (error) {}
     });
 
     this.#subscribeToNetworkController();
@@ -378,16 +363,11 @@ export class RpcDataSource extends AbstractDataSource<
    */
   #convertToHumanReadable(rawBalance: string, decimals: number): string {
     if (!Number.isFinite(decimals) || decimals < 0) {
-      log('Invalid decimals — defaulting balance to "0"', {
-        rawBalance,
-        decimals,
-      });
       return '0';
     }
 
     const rawAmount = new BigNumberJS(rawBalance);
     if (!rawAmount.isFinite()) {
-      log('Invalid raw balance — defaulting to "0"', { rawBalance, decimals });
       return '0';
     }
 
@@ -549,15 +529,8 @@ export class RpcDataSource extends AbstractDataSource<
       dataTypes: ['balance'],
     };
 
-    log('Balance update response', {
-      accountId: result.accountId,
-      newBalanceCount: Object.keys(newBalances).length,
-    });
-
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response, request)?.catch((error) => {
-        log('Failed to update assets', { error });
-      });
+      subscription.onAssetsUpdate(response, request)?.catch((error) => {});
     }
   }
 
@@ -567,10 +540,6 @@ export class RpcDataSource extends AbstractDataSource<
    * @param result - The token detection result.
    */
   #handleDetectionUpdate(result: TokenDetectionResult): void {
-    log('Detected new tokens', {
-      count: result.detectedAssets.length,
-    });
-
     // Build new metadata from detected assets
     const newMetadata: Record<Caip19AssetId, AssetMetadata> = {};
     if (result.detectedAssets.length > 0) {
@@ -632,9 +601,7 @@ export class RpcDataSource extends AbstractDataSource<
     };
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response, request)?.catch((error) => {
-        log('Failed to update detected assets', { error });
-      });
+      subscription.onAssetsUpdate(response, request)?.catch((error) => {});
     }
   }
 
@@ -642,7 +609,6 @@ export class RpcDataSource extends AbstractDataSource<
     this.#messenger.subscribe(
       'NetworkController:stateChange',
       (networkState: NetworkState) => {
-        log('NetworkController state changed');
         this.#clearProviderCache();
         this.#updateFromNetworkState(networkState);
       },
@@ -665,9 +631,7 @@ export class RpcDataSource extends AbstractDataSource<
     }
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
     this.#refreshBalanceForChains([caipChainId], 'transactionConfirmed').catch(
-      (error) => {
-        log('Failed to refresh balance after transaction confirmed', { error });
-      },
+      (error) => {},
     );
   }
 
@@ -731,30 +695,18 @@ export class RpcDataSource extends AbstractDataSource<
 
         await subscription.onAssetsUpdate(responseWithMode, request);
         appliedCount += 1;
-      } catch (error) {
-        log('Failed to fetch balance after transaction', {
-          context,
-          chains: subscriptionChains,
-          error,
-        });
-      }
+      } catch (error) {}
     }
 
     if (appliedCount === 0 && context === 'transactionConfirmed') {
-      log('No RpcDataSource subscription covers chain after transaction', {
-        chainsToFetch,
-      });
     }
   }
 
   #initializeFromNetworkController(): void {
-    log('Initializing from NetworkController');
     try {
       const networkState = this.#messenger.call('NetworkController:getState');
       this.#updateFromNetworkState(networkState);
-    } catch (error) {
-      log('Failed to initialize from NetworkController', error);
-    }
+    } catch (error) {}
   }
 
   /**
@@ -802,11 +754,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
     }
 
-    log('Network state updated', {
-      configuredChains: Object.keys(chainStatuses),
-      activeChains,
-    });
-
     // Check if chains changed
     const previousChains = [...this.#activeChains];
     const previousSet = new Set(previousChains);
@@ -850,7 +797,6 @@ export class RpcDataSource extends AbstractDataSource<
 
       return web3Provider;
     } catch (error) {
-      log('Failed to get provider for chain', { chainId, error });
       return undefined;
     }
   }
@@ -953,7 +899,6 @@ export class RpcDataSource extends AbstractDataSource<
    * @param interval - The polling interval in milliseconds.
    */
   setBalancePollingInterval(interval: number): void {
-    log('Setting balance polling interval', { interval });
     this.#balanceFetcher.setIntervalLength(interval);
   }
 
@@ -972,7 +917,6 @@ export class RpcDataSource extends AbstractDataSource<
    * @param interval - The polling interval in milliseconds.
    */
   setDetectionPollingInterval(interval: number): void {
-    log('Setting detection polling interval', { interval });
     this.#tokenDetector.setIntervalLength(interval);
   }
 
@@ -987,7 +931,6 @@ export class RpcDataSource extends AbstractDataSource<
 
   async fetch(request: DataRequest): Promise<DataResponse> {
     if (!this.#isOnboarded()) {
-      log('Skipping fetch - onboarding not complete');
       return {};
     }
 
@@ -997,14 +940,7 @@ export class RpcDataSource extends AbstractDataSource<
       this.#activeChains.includes(chainId),
     );
 
-    log('Fetch requested', {
-      accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
-      requestedChains: request.chainIds,
-      chainsToFetch,
-    });
-
     if (chainsToFetch.length === 0) {
-      log('No active chains to fetch');
       return response;
     }
 
@@ -1130,8 +1066,6 @@ export class RpcDataSource extends AbstractDataSource<
             };
           }
         } catch (error) {
-          log('Failed to fetch balance', { address, chainId, error });
-
           if (!assetsBalance[accountId]) {
             assetsBalance[accountId] = {};
           }
@@ -1164,22 +1098,11 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     if (failedChains.length > 0) {
-      log('Fetch PARTIAL - some chains failed', {
-        successChains: chainsToFetch.filter(
-          (chain) => !failedChains.includes(chain),
-        ),
-        failedChains,
-      });
-
       response.errors = {};
       for (const chainId of failedChains) {
         response.errors[chainId] = 'RPC fetch failed';
       }
     } else {
-      log('Fetch SUCCESS', {
-        chains: chainsToFetch,
-        accountCount: Object.keys(assetsBalance).length,
-      });
     }
 
     response.assetsBalance = assetsBalance;
@@ -1212,8 +1135,6 @@ export class RpcDataSource extends AbstractDataSource<
     const hexChainId = caipChainIdToHex(chainId);
     const { address, id: accountId } = account;
 
-    log('Running token detection', { chainId, accountId });
-
     try {
       const result = await this.#tokenDetector.detectTokens(
         hexChainId,
@@ -1226,15 +1147,8 @@ export class RpcDataSource extends AbstractDataSource<
       );
 
       if (result.detectedAssets.length === 0) {
-        log('No new tokens detected');
         return {};
       }
-
-      log('Detected new tokens', {
-        count: result.detectedAssets.length,
-        chainId,
-        accountId,
-      });
 
       // Convert detected assets to DataResponse format
       const balances: Record<Caip19AssetId, AssetBalance> = {};
@@ -1287,7 +1201,6 @@ export class RpcDataSource extends AbstractDataSource<
 
       return response;
     } catch (error) {
-      log('Token detection failed', { chainId, accountId, error });
       return {};
     }
   }
@@ -1305,11 +1218,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       let successfullyHandledChains: ChainId[] = [];
-
-      log('Middleware fetching', {
-        chains: supportedChains,
-        accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
-      });
 
       const response = await this.fetch({
         ...request,
@@ -1368,7 +1276,6 @@ export class RpcDataSource extends AbstractDataSource<
    */
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     if (!this.#isOnboarded()) {
-      log('Skipping subscribe - onboarding not complete');
       return;
     }
 
@@ -1383,16 +1290,7 @@ export class RpcDataSource extends AbstractDataSource<
           )
         : request.chainIds;
 
-    log('Subscribe requested', {
-      subscriptionId,
-      isUpdate,
-      accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
-      chainsToSubscribe,
-      activeChainsFallback: this.#activeChains.length === 0,
-    });
-
     if (chainsToSubscribe.length === 0) {
-      log('No active chains to subscribe');
       return;
     }
 
@@ -1400,11 +1298,6 @@ export class RpcDataSource extends AbstractDataSource<
     if (isUpdate) {
       const existing = this.#activeSubscriptions.get(subscriptionId);
       if (existing) {
-        log('Updating existing subscription - restarting polling', {
-          subscriptionId,
-          existingChains: existing.chains,
-          newChains: chainsToSubscribe,
-        });
         // Don't return early - continue to unsubscribe and restart polling
       }
     }
@@ -1473,13 +1366,6 @@ export class RpcDataSource extends AbstractDataSource<
       accounts,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
-
-    log('Subscription SUCCESS', {
-      subscriptionId,
-      chains: chainsToSubscribe,
-      balancePollingCount: balancePollingTokens.length,
-      detectionPollingCount: detectionPollingTokens.length,
-    });
   }
 
   /**
@@ -1501,7 +1387,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       this.#activeSubscriptions.delete(subscriptionId);
-      log('Unsubscribed and stopped polling', { subscriptionId });
     }
   }
 
@@ -1516,7 +1401,6 @@ export class RpcDataSource extends AbstractDataSource<
       const state = this.#messenger.call('AssetsController:getState');
       return state.assetsInfo ?? {};
     } catch (error) {
-      log('Failed to get existing assets metadata', { error });
       return {};
     }
   }
@@ -1525,8 +1409,6 @@ export class RpcDataSource extends AbstractDataSource<
    * Destroy the data source and clean up resources.
    */
   destroy(): void {
-    log('Destroying RpcDataSource');
-
     this.#unsubscribeTransactionConfirmed?.();
 
     // Stop all polling
