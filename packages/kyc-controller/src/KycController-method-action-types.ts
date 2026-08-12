@@ -168,6 +168,24 @@ export type KycControllerGetSessionStatusAction = {
 };
 
 /**
+ * Registers a Money Account wallet with MoonPay Iron.
+ *
+ * Consumers provide only the Monad address. The controller reuses the Iron
+ * customer id captured from MoonPay's hosted frame when available, otherwise
+ * it resolves the id from the authenticated MetaMask profile via KycService.
+ * Message construction, signing, submission, and ambiguous-write
+ * reconciliation stay internal to KYC.
+ *
+ * @param params - Money Account wallet registration parameters.
+ * @param params.address - Monad Money Account address.
+ * @returns The successful registration state.
+ */
+export type KycControllerRegisterMoneyAccountWalletAction = {
+  type: `KycController:registerMoneyAccountWallet`;
+  handler: KycController['registerMoneyAccountWallet'];
+};
+
+/**
  * Resets the flow to idle, clearing session tokens and sub-flow state while
  * preserving persisted terms acceptance and the per-product cache.
  */
@@ -192,4 +210,5 @@ export type KycControllerMethodActions =
   | KycControllerGetKycStatusAction
   | KycControllerStartSumSubAction
   | KycControllerGetSessionStatusAction
+  | KycControllerRegisterMoneyAccountWalletAction
   | KycControllerResetAction;

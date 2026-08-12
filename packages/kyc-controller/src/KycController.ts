@@ -4,18 +4,21 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import { buildOwnershipMessage } from './ownership-message.js';
 import type {
   KycDisclaimer,
   KycPhase,
@@ -25,12 +28,20 @@ import type {
   KycSumSubStatus,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { toBase64Url } from './encoding.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
 import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
 import { signStorageAccessToken } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import {
+  createInitialState,
+  transition as transitionWalletRegistration,
+} from './wallet-registration-machine.js';
+import type {
+  RegistrationStatus,
+  SelfHostedRegistration,
+} from './wallet-registration-service.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -320,6 +331,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getKycStatus',
   'startSumSub',
   'getSessionStatus',
+  'registerMoneyAccountWallet',
   'reset',
 ] as const;
 
@@ -334,6 +346,7 @@ export type KycControllerActions =
 
 type AllowedActions =
   | KycServiceMethodActions
+  | KeyringControllerSignPersonalMessageAction
   | UserStorageControllerPerformGetStorageAction
   | UserStorageControllerPerformSetStorageAction;
 
@@ -370,6 +383,16 @@ export type KycControllerOptions = {
    */
   sessionStatusPollIntervalMs?: number;
 };
+
+export type MoneyAccountWalletRegistrationResult =
+  | {
+      type: 'registered' | 'alreadyRegistered';
+      registration: SelfHostedRegistration;
+    }
+  | {
+      type: 'registeredDisabled';
+      registration: SelfHostedRegistration;
+    };
 
 /**
  * The shape of a message posted by a Check/Auth frame.
@@ -1385,6 +1408,169 @@ export class KycController extends BaseController<
     if (this.#pollTimer !== null) {
       clearTimeout(this.#pollTimer);
       this.#pollTimer = null;
+    }
+  }
+
+  /**
+   * Registers a Money Account wallet with MoonPay Iron.
+   *
+   * Consumers provide only the Monad address. The controller reuses the Iron
+   * customer id captured from MoonPay's hosted frame when available, otherwise
+   * it resolves the id from the authenticated MetaMask profile via KycService.
+   * Message construction, signing, submission, and ambiguous-write
+   * reconciliation stay internal to KYC.
+   *
+   * @param params - Money Account wallet registration parameters.
+   * @param params.address - Monad Money Account address.
+   * @returns The successful registration state.
+   */
+  async registerMoneyAccountWallet({
+    address,
+  }: {
+    address: Hex;
+  }): Promise<MoneyAccountWalletRegistrationResult> {
+    let machine = transitionWalletRegistration(createInitialState(), {
+      type: 'START',
+    });
+
+    const toExistingResult = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      if (status.type === 'active') {
+        return { type: 'alreadyRegistered', registration: status.registration };
+      }
+      if (status.type === 'disabled') {
+        return {
+          type: 'registeredDisabled',
+          registration: status.registration,
+        };
+      }
+      return undefined;
+    };
+
+    const lookup = async (): Promise<RegistrationStatus> => {
+      try {
+        return await this.messenger.call(
+          'KycService:getWalletRegistrationStatus',
+          { address },
+        );
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'LOOKUP_FAILED',
+        });
+        throw error;
+      }
+    };
+
+    const applyLookup = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      let eventType: 'LOOKUP_ACTIVE' | 'LOOKUP_DISABLED' | 'LOOKUP_ABSENT' =
+        'LOOKUP_ABSENT';
+      if (status.type === 'active') {
+        eventType = 'LOOKUP_ACTIVE';
+      } else if (status.type === 'disabled') {
+        eventType = 'LOOKUP_DISABLED';
+      }
+      machine = transitionWalletRegistration(machine, {
+        type: eventType,
+      });
+      return toExistingResult(status);
+    };
+
+    const existingStatus = await lookup();
+    const existingResult = applyLookup(existingStatus);
+    if (existingResult) {
+      return existingResult;
+    }
+
+    const customerId =
+      this.state.moonpayCustomerId ??
+      (await this.messenger.call('KycService:getMoonpayCustomerId'));
+
+    while (true) {
+      const message = buildOwnershipMessage({
+        address,
+        customerId,
+        now: new Date(),
+      });
+      let signature: string;
+      try {
+        signature = await this.messenger.call(
+          'KeyringController:signPersonalMessage',
+          { data: message, from: address },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SIGN_OK' });
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'SIGN_FAILED',
+          retryable: false,
+        });
+        throw error;
+      }
+
+      try {
+        const result = await this.messenger.call(
+          'KycService:registerSelfHostedWallet',
+          {
+            address,
+            customerId,
+            message,
+            signature,
+          },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
+        return result;
+      } catch (error) {
+        if (!(error instanceof WalletRegistrationError)) {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+          throw error;
+        }
+
+        if (error.kind === 'conflict') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_CONFLICT',
+          });
+        } else if (error.kind === 'transient') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TRANSIENT',
+          });
+        } else if (error.kind === 'validation') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_VALIDATION',
+            utcRollover:
+              buildOwnershipMessage({
+                address,
+                customerId,
+                now: new Date(),
+              }) !== message,
+          });
+        } else if (error.kind === 'rateLimited') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_RATE_LIMITED',
+          });
+        } else {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+        }
+
+        if (
+          machine.status === 'disambiguate409' ||
+          machine.status === 'checkThenRetry'
+        ) {
+          const reconciledResult = applyLookup(await lookup());
+          if (reconciledResult) {
+            return reconciledResult;
+          }
+        }
+
+        if (machine.status !== 'signing') {
+          throw error;
+        }
+      }
     }
   }
 

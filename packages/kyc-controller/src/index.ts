@@ -8,6 +8,7 @@ export type {
   KycControllerEvents,
   KycControllerGetStateAction,
   KycControllerMessenger,
+  MoneyAccountWalletRegistrationResult,
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
@@ -25,6 +26,7 @@ export type {
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
   KycControllerResetAction,
+  KycControllerRegisterMoneyAccountWalletAction,
   KycControllerStartSumSubAction,
 } from './KycController-method-action-types.js';
 
@@ -44,6 +46,7 @@ export type {
   KycServiceInvalidateQueriesAction,
   KycServiceMessenger,
   KycServiceOptions,
+  RegisterSelfHostedWalletParams,
   UkycSessionResponse,
   WrappedEncryptionKey,
   WrappingKeyResponse,
@@ -58,6 +61,9 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetWrappingKeyAction,
+  KycServiceGetMoonpayCustomerIdAction,
+  KycServiceGetWalletRegistrationStatusAction,
+  KycServiceRegisterSelfHostedWalletAction,
 } from './KycService-method-action-types.js';
 
 export {
@@ -119,3 +125,9 @@ export type {
   MintedUkycTestToken,
   MintUkycTestTokenParams,
 } from './ukyc/testToken.js';
+
+export type {
+  SelfHostedRegistration,
+  WalletRegistrationErrorKind,
+} from './wallet-registration-service.js';
+export { WalletRegistrationError } from './wallet-registration-service.js';
