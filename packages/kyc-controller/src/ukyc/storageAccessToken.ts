@@ -2,7 +2,7 @@ import { stringToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 
 import {
-  UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
+  UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES,
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
 } from './constants.js';
 import type { UkycClientMaterial } from './deriveClientMaterial.js';
@@ -36,7 +36,8 @@ export type UkycTokenPresenter = 'client' | 'idos-relay';
  */
 export type UkycStorageAccessTokenPayload = {
   version: number;
-  aud: string;
+  /** Every verifier that may accept the token, e.g. UKYC Storage and idOS Kwil. */
+  aud: string[];
   // Wire-shape fields are snake_case; they are canonicalized and signed exactly
   // as they appear on the wire.
   /* eslint-disable @typescript-eslint/naming-convention */
@@ -140,6 +141,19 @@ export function canonicalizeJson(value: JsonValue): string {
 }
 
 /**
+ * Formats a date as RFC 3339 UTC with whole-second precision (e.g.
+ * `2026-07-07T00:00:00Z`). `Date.prototype.toISOString` always emits
+ * milliseconds (`...:00.000Z`); the `storage_access_token` wire format omits
+ * fractional seconds, so the sub-second component is truncated (not rounded).
+ *
+ * @param date - The date to format.
+ * @returns The RFC 3339 timestamp without fractional seconds.
+ */
+function toRfc3339Seconds(date: Date): string {
+  return `${date.toISOString().slice(0, 19)}Z`;
+}
+
+/**
  * Builds and signs a `storage_access_token`.
  *
  * @param params - See {@link SignStorageAccessTokenParams}.
@@ -181,13 +195,13 @@ export function signStorageAccessToken(
 
   const payload: UkycStorageAccessTokenPayload = {
     version: UKYC_STORAGE_ACCESS_TOKEN_VERSION,
-    aud: UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
+    aud: [...UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES],
     storage_id: toBase64Url(material.storageId),
     signing_public_key: toBase64Url(material.signingPublicKey),
     operations,
     presenter,
-    issued_at: issuedAt.toISOString(),
-    expires_at: expiresAt.toISOString(),
+    issued_at: toRfc3339Seconds(issuedAt),
+    expires_at: toRfc3339Seconds(expiresAt),
   };
 
   // Only bind session_id for Relay-presented tokens; omit the key entirely for

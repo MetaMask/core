@@ -46,11 +46,27 @@ export const UKYC_KDF_INFO = {
 export const UKYC_STORAGE_ACCESS_TOKEN_VERSION = 1;
 
 /**
- * Audience bound into every `storage_access_token` payload, scoping the
- * capability to the UKYC user-storage service.
+ * Audience identifying the UKYC user-storage service. Required by UKYC Storage
+ * when it verifies a `storage_access_token`.
  */
 export const UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE =
   'metamask:user-storage:ukyc' as const;
+
+/**
+ * Audience identifying the idOS Kwil credential-registry nodes. Required by
+ * idOS Kwil when it verifies a `storage_access_token`.
+ */
+export const UKYC_KWIL_AUDIENCE = 'idos:kwil' as const;
+
+/**
+ * Full audience list bound into every `storage_access_token` payload. `aud`
+ * lists every verifier that may accept the token, so both UKYC Storage and
+ * idOS Kwil can each find their own entry.
+ */
+export const UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES = [
+  UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
+  UKYC_KWIL_AUDIENCE,
+] as const;
 
 /**
  * Standard well-known path where the Fractal encryption service publishes its

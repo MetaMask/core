@@ -2,6 +2,7 @@ import { base64ToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 
 import {
+  UKYC_KWIL_AUDIENCE,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
@@ -73,15 +74,27 @@ describe('UKYC signStorageAccessToken', () => {
 
     expect(token.payload).toStrictEqual({
       version: UKYC_STORAGE_ACCESS_TOKEN_VERSION,
-      aud: UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
+      aud: [UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE, UKYC_KWIL_AUDIENCE],
       storage_id: expect.stringMatching(/^[A-Za-z0-9_-]+$/u),
       signing_public_key: expect.stringMatching(/^[A-Za-z0-9_-]+$/u),
       operations: ['delete'],
       presenter: 'client',
-      issued_at: '2026-07-07T00:00:00.000Z',
-      expires_at: '2026-07-07T04:00:00.000Z',
+      issued_at: '2026-07-07T00:00:00Z',
+      expires_at: '2026-07-07T04:00:00Z',
     });
     expect(token.payload).not.toHaveProperty('session_id');
+  });
+
+  it('formats timestamps as RFC 3339 with whole seconds, truncating sub-second precision', () => {
+    const token = signStorageAccessToken({
+      material: MATERIAL,
+      operations: ['read'],
+      issuedAt: new Date('2026-07-07T00:00:00.715Z'),
+      expiresAt: new Date('2026-07-07T04:00:00.999Z'),
+    });
+
+    expect(token.payload.issued_at).toBe('2026-07-07T00:00:00Z');
+    expect(token.payload.expires_at).toBe('2026-07-07T04:00:00Z');
   });
 
   it('produces a signature that verifies against the signing public key', () => {
