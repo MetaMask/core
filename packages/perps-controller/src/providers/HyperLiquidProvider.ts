@@ -264,24 +264,27 @@ const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
  * A chase rests one tick inside the spread, so its own order *is* the best
  * price on its side. Reading the raw book would therefore see the chase's own
  * quote every tick, conclude the touch has not moved, and never re-price —
- * masking exactly the adverse moves the strategy exists to follow. The level
- * the chase sits on is netted down by its own size, and is skipped entirely
- * when nothing else is left there.
+ * masking exactly the adverse moves the strategy exists to follow. Levels this
+ * provider occupies are netted down by what it holds there, and are skipped
+ * entirely when nothing else is left on them.
  *
- * `own.size` must be what the order still has resting, not what it was placed
- * for: a partially filled order that is netted at its original size subtracts
- * more than it occupies, which can hide external liquidity sharing the level
- * and quote against the wrong price.
+ * "Own" means *every* chase this provider is running on that side, not just the
+ * one asking. Two chases on the same side each netting only themselves would
+ * read the other as the external touch and improve on it, then improve on the
+ * improvement — walking each other toward the opposite side of an unchanged
+ * market.
+ *
+ * The sizes must be what the orders still have resting, not what they were
+ * placed for: an order netted at its original size subtracts more than it
+ * occupies, which can hide external liquidity sharing the level.
  *
  * @param levels - One side of the book, best-first.
- * @param own - The chase's own resting order, if it has one.
- * @param own.price - Price that order rests at.
- * @param own.size - Size that order still has resting at that price.
+ * @param ownByPrice - This provider's own resting size at each price.
  * @returns The best price other participants are showing, or null.
  */
 const readBestExternalPrice = (
   levels: { px: string; sz: string }[] | undefined,
-  own?: { price: string; size: string },
+  ownByPrice: Map<string, number>,
 ): number | null => {
   for (const level of levels ?? []) {
     const price = parseFloat(level.px);
@@ -289,11 +292,7 @@ const readBestExternalPrice = (
       continue;
     }
 
-    let size = parseFloat(level.sz);
-    if (level.px === own?.price) {
-      size -= parseFloat(own.size);
-    }
-
+    const size = parseFloat(level.sz) - (ownByPrice.get(level.px) ?? 0);
     if (size > 0) {
       return price;
     }
@@ -331,71 +330,39 @@ const pickStrategyParams = (
  * The per-order minimum is charged against each order the venue receives, and a
  * strategy placement does not send one order:
  *
- * - a `scale` ladder sends `scaleNumOrders` independent limit orders, so every
- *   rung has to clear the per-order minimum on its own — a $50 ladder over 20
- *   rungs is twenty $2.50 orders, every one of them rejected. The rungs rest
- *   across the ladder rather than at spot, so it is the rung at `scaleMinPrice`
- *   that decides whether the venue takes the ladder: a buy ladder sitting below
- *   the market is worth less per rung than its spot-priced notional suggests;
- * - a `twap` is a single instruction the venue slices itself, so it is bounded
- *   by the venue's own documented minimum for a TWAP rather than by the
- *   per-order minimum;
- * - a `chase` rests one order at a time, so the per-order minimum the caller has
- *   already been checked against is the right bound.
+ * A `twap` is a single instruction the venue slices itself, so it is bounded by
+ * the venue's own documented minimum for a TWAP rather than by the per-order
+ * minimum that `validateOrder` has already applied.
  *
- * Checked here rather than left to come back as an opaque exchange rejection —
- * the same reason the strategy types are excluded from the $10-minimum retry.
+ * `scale` is deliberately absent. Its rungs are the orders the venue charges
+ * the minimum against, and their sizes come from flooring onto the asset's size
+ * grid with the remainder landing on the first rung — none of which is knowable
+ * without `szDecimals`, which this check does not have. Every approximation
+ * available here is unsound in one direction or the other, and the one that was
+ * here rejected ladders whose submitted rungs all cleared the minimum.
+ * `#buildScaleLadder` applies the exact per-rung check against the real grid
+ * sizes, and it runs before anything is signed, so nothing is lost by leaving
+ * the question to it.
+ *
+ * `chase` is absent too: it rests one order at a time, so the per-order minimum
+ * the caller has already been checked against is the right bound.
  *
  * @param params - Notional parameters.
  * @param params.orderType - The order placement type.
  * @param params.orderValueUSD - Total notional of the placement, in USD.
- * @param params.totalSize - Total size of the placement, in base units.
- * @param params.scaleMinPrice - Lowest rung price, for a scale placement.
- * @param params.scaleNumOrders - Number of rungs, for a scale placement.
- * @param params.minimumOrderSize - The venue's per-order minimum, in USD.
  * @returns Validation result with isValid flag and optional error message.
  */
 const validateStrategyNotional = (params: {
   orderType?: OrderType;
   orderValueUSD: number;
-  totalSize: number;
-  scaleMinPrice?: string;
-  scaleNumOrders?: number;
-  minimumOrderSize: number;
 }): { isValid: boolean; error?: string } => {
-  const {
-    orderType,
-    orderValueUSD,
-    totalSize,
-    scaleMinPrice,
-    scaleNumOrders,
-    minimumOrderSize,
-  } = params;
+  const { orderType, orderValueUSD } = params;
 
   if (orderType === 'twap') {
     return orderValueUSD < HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
       ? {
           isValid: false,
           error: PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
-        }
-      : { isValid: true };
-  }
-
-  if (orderType === 'scale' && scaleNumOrders) {
-    // Every rung carries the same slice bar rounding, so the cheapest rung is
-    // the one priced at `scaleMinPrice`. Falls back to the spot-priced average
-    // only when the ladder's lower bound is not usable, which validation has
-    // already rejected by the time a placement reaches the exchange.
-    const lowestRungPrice = parseFloat(scaleMinPrice ?? '');
-    const smallestRungNotional =
-      Number.isFinite(lowestRungPrice) && lowestRungPrice > 0 && totalSize > 0
-        ? (totalSize / scaleNumOrders) * lowestRungPrice
-        : orderValueUSD / scaleNumOrders;
-
-    return smallestRungNotional < minimumOrderSize
-      ? {
-          isValid: false,
-          error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
         }
       : { isValid: true };
   }
@@ -4216,6 +4183,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
     orderType: StrategyOrderType,
   ): Promise<OrderResult> {
+    // Captured before the shared preamble, not after it: that preamble awaits
+    // asset info, validation, trading readiness and a leverage update, and a
+    // disconnect during any of them has to be seen by the chase registration
+    // at the end.
+    const generation = this.#chaseGeneration;
+
     const context = await this.#prepareStrategyPlacement(params);
 
     if (orderType === 'twap') {
@@ -4224,7 +4197,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (orderType === 'scale') {
       return await this.#placeScaleOrder(params, context);
     }
-    return await this.#placeChaseOrder(params, context);
+    return await this.#placeChaseOrder(params, context, generation);
   }
 
   /**
@@ -4599,11 +4572,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before any await.
    * @returns A promise that resolves to the result.
    */
   async #placeChaseOrder(
     params: OrderParams,
     context: StrategyPlacementContext,
+    generation: number,
   ): Promise<OrderResult> {
     // The venue caps simultaneously active chases. Checked before the first
     // order goes up, so exceeding it costs nothing — and the slot is reserved
@@ -4622,7 +4597,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#chasePlacementsInFlight += 1;
 
     try {
-      return await this.#startChaseSession(params, context);
+      return await this.#startChaseSession(params, context, generation);
     } finally {
       this.#chasePlacementsInFlight -= 1;
     }
@@ -4636,14 +4611,15 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before any await.
    * @returns A promise that resolves to the result.
    */
   async #startChaseSession(
     params: OrderParams,
     context: StrategyPlacementContext,
+    generation: number,
   ): Promise<OrderResult> {
     const { assetId, szDecimals, formattedSize } = context;
-    const generation = this.#chaseGeneration;
 
     const quotePrice = await this.#getChaseQuotePrice({
       symbol: params.symbol,
@@ -4762,7 +4738,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // `levels` is [bids, asks], each best-first.
     const ownSide = book?.levels?.[isBuy ? 0 : 1];
-    const netting = await this.#resolveOwnRestingSize({ own, ownSide });
+    const netting = await this.#resolveOwnRestingSizes({
+      symbol,
+      isBuy,
+      callerOrderId: own?.orderId,
+      ownSide,
+    });
     if (netting === 'gone') {
       return 'gone';
     }
@@ -5095,50 +5076,82 @@ export class HyperLiquidProvider implements PerpsProvider {
    * against the venue for every chase on every interval.
    *
    * @param params - Netting parameters.
-   * @param params.own - The chase's own order, as the session last recorded it.
-   * @param params.own.orderId - Exchange ID of that order.
-   * @param params.own.price - Price it rests at.
-   * @param params.own.size - Size it was last placed for.
-   * @param params.ownSide - The side of the book that order rests on.
-   * @returns The order's price and live resting size; `'gone'` when the venue
-   * says it is no longer live; undefined when there is nothing to net out.
+   * @param params.symbol - Market being quoted.
+   * @param params.isBuy - Side being quoted.
+   * @param params.callerOrderId - The asking session's order, if it has one.
+   * @param params.ownSide - The side of the book those orders rest on.
+   * @returns Our resting size at each price, or `'gone'` when the asking
+   * session's own order is no longer live.
    */
-  async #resolveOwnRestingSize(params: {
-    own?: { orderId: string; price: string; size: string };
+  async #resolveOwnRestingSizes(params: {
+    symbol: string;
+    isBuy: boolean;
+    callerOrderId?: string;
     ownSide?: { px: string; sz: string }[];
-  }): Promise<{ price: string; size: string } | 'gone' | undefined> {
-    const { own, ownSide } = params;
-    if (!own) {
-      return undefined;
+  }): Promise<Map<string, number> | 'gone'> {
+    const { symbol, isBuy, callerOrderId, ownSide } = params;
+
+    // Every chase this provider is running on this side, the caller included.
+    const ourOrders = [...this.#chaseSessions.values()]
+      .filter(
+        (session) =>
+          session.orderId !== null &&
+          session.symbol === symbol &&
+          session.isBuy === isBuy,
+      )
+      .map((session) => ({
+        orderId: session.orderId as string,
+        price: session.restingPrice,
+        size: session.size,
+      }));
+
+    if (ourOrders.length === 0) {
+      return new Map();
     }
 
-    const level = ownSide?.find((entry) => entry.px === own.price);
-
-    // A chase rests at or inside the touch, so its price should be showing. A
-    // level that is not there at all is evidence the order has left the book —
-    // most likely filled — and that has to be confirmed rather than assumed
-    // away: if the external touch happens to compute to the same quote, no
-    // re-price is attempted and a dead order would hold its session, and its
-    // slot against the venue's concurrency cap, until the window closed.
-    if (level && parseFloat(level.sz) > parseFloat(own.size)) {
-      // The level holds more than the order possibly could, so external size is
-      // present regardless and the recorded size cannot change the answer.
-      return own;
+    const recorded = new Map<string, number>();
+    for (const order of ourOrders) {
+      recorded.set(
+        order.price,
+        (recorded.get(order.price) ?? 0) + parseFloat(order.size),
+      );
     }
 
-    try {
-      const live = await this.#readOrderRemainder(own.orderId);
-      return live === null ? 'gone' : { price: own.price, size: live };
-    } catch (error) {
-      // A failed lookup must not stop the chase. Falling back to the recorded
-      // size can only over-subtract, which quotes one level deeper rather than
-      // leaving the order stranded at a stale price.
-      this.#deps.debugLogger.log('Chase own-size lookup failed', {
-        orderId: own.orderId,
-        error: ensureError(error, 'HyperLiquidProvider.chaseOwnSize').message,
-      });
-      return own;
+    // A level holding more than we possibly could has external size regardless,
+    // so the recorded figures cannot change the answer there and are left as
+    // they are. Elsewhere the recorded sizes may overstate what is really
+    // resting — an order partially fills without the loop seeing it — and only
+    // then is a lookup worth a round trip.
+    const ambiguous = ourOrders.filter((order) => {
+      const level = ownSide?.find((entry) => entry.px === order.price);
+      return !level || parseFloat(level.sz) <= (recorded.get(order.price) ?? 0);
+    });
+
+    let callerIsGone = false;
+    for (const order of ambiguous) {
+      try {
+        const live = await this.#readOrderRemainder(order.orderId);
+        const delta =
+          (live === null ? 0 : parseFloat(live)) - parseFloat(order.size);
+        recorded.set(
+          order.price,
+          Math.max(0, (recorded.get(order.price) ?? 0) + delta),
+        );
+        if (live === null && order.orderId === callerOrderId) {
+          callerIsGone = true;
+        }
+      } catch (error) {
+        // A failed lookup must not stop the chase. Keeping the recorded size can
+        // only over-subtract, which quotes a level deeper rather than leaving
+        // the order stranded at a stale price.
+        this.#deps.debugLogger.log('Chase own-size lookup failed', {
+          orderId: order.orderId,
+          error: ensureError(error, 'HyperLiquidProvider.chaseOwnSize').message,
+        });
+      }
     }
+
+    return callerIsGone ? 'gone' : recorded;
   }
 
   /**
@@ -9160,15 +9173,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         const strategyMinimum = validateStrategyNotional({
           orderType: params.orderType,
           orderValueUSD,
-          // Derived from the same notional the minimum above was checked
-          // against, so the two cannot disagree when `usdAmount` and `size`
-          // were computed against different prices.
-          totalSize: params.currentPrice
-            ? orderValueUSD / params.currentPrice
-            : parseFloat(params.size || '0'),
-          scaleMinPrice: params.scaleMinPrice,
-          scaleNumOrders: params.scaleNumOrders,
-          minimumOrderSize,
         });
         if (!strategyMinimum.isValid) {
           return strategyMinimum;
@@ -10176,11 +10180,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (this.#isFeeCacheValid(userAddress)) {
         const cached = this.#userFeeCache.get(userAddress);
         if (cached) {
-          // Market orders always use taker rate, limit orders check isMaker
-          let userFeeRate =
-            isMarketExecution || !isMaker
-              ? cached.perpsTakerRate
-              : cached.perpsMakerRate;
+          // Same maker/taker decision as the base rates above, including the
+          // post-only chase case — re-deriving it here would quote a chase at
+          // the taker rate whenever the caller passed isMaker: false.
+          let userFeeRate = chargesMakerRate
+            ? cached.perpsMakerRate
+            : cached.perpsTakerRate;
 
           // Apply HIP-3 dynamic multiplier to user-specific rates (includes Growth Mode)
           if (isHip3Asset && hip3Multiplier > 0) {
@@ -10306,11 +10311,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
 
         this.#userFeeCache.set(userAddress, rates);
-        // Market orders always use taker rate, limit orders check isMaker
-        let userFeeRate =
-          isMarketExecution || !isMaker
-            ? rates.perpsTakerRate
-            : rates.perpsMakerRate;
+        // Same maker/taker decision as the base rates above, chase included.
+        let userFeeRate = chargesMakerRate
+          ? rates.perpsMakerRate
+          : rates.perpsTakerRate;
 
         // Apply HIP-3 dynamic multiplier to API-fetched rates (includes Growth Mode)
         if (isHip3Asset && hip3Multiplier > 0) {

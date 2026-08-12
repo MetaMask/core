@@ -1661,42 +1661,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Strategy notional minimums', () => {
-    // validateOrder runs the real minimum checks; the mocked param validator
-    // only covers the sync shape rules.
-    it('rejects a ladder whose rungs fall below the per-order minimum', async () => {
-      useStrategyClients();
-
-      // $50 over 20 rungs is twenty $2.50 orders; the venue rejects every one.
-      const result = await provider.validateOrder({
-        ...baseOrder,
-        usdAmount: '50',
-        orderType: 'scale',
-        scaleMinPrice: '2000',
-        scaleMaxPrice: '3000',
-        scaleNumOrders: 20,
-      } as OrderParams);
-
-      expect(result).toStrictEqual({
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
-      });
-    });
-
-    it('accepts a ladder whose rungs each clear the minimum', async () => {
-      useStrategyClients();
-
-      const result = await provider.validateOrder({
-        ...baseOrder,
-        usdAmount: '400',
-        orderType: 'scale',
-        scaleMinPrice: '2000',
-        scaleMaxPrice: '3000',
-        scaleNumOrders: 20,
-      } as OrderParams);
-
-      expect(result).toStrictEqual({ isValid: true });
-    });
-
+    // validateOrder owns the minimums it can decide without the asset's size
+    // grid — the TWAP total and the ordinary per-order minimum. A scale
+    // ladder's rungs depend on that grid, so they are checked in the placement
+    // path instead; see "Scale ladder is validated before anything is signed".
     it("rejects a TWAP below the venue's minimum total", async () => {
       useStrategyClients();
 
@@ -1863,47 +1831,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(second.error).toBe(
         PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
       );
-    });
-  });
-
-  describe('Scale notional is bounded by the cheapest rung', () => {
-    it('rejects a ladder resting below spot whose rungs fall short', async () => {
-      useStrategyClients();
-
-      // $220 over 20 rungs is $11 a rung at spot (3000) — above the $10
-      // minimum — but the rungs rest at 1000..1200, where the cheapest is
-      // worth about $3.67. The venue would reject it.
-      const result = await provider.validateOrder({
-        ...baseOrder,
-        size: '0.0733',
-        usdAmount: '220',
-        orderType: 'scale',
-        scaleMinPrice: '1000',
-        scaleMaxPrice: '1200',
-        scaleNumOrders: 20,
-      } as OrderParams);
-
-      expect(result).toStrictEqual({
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
-      });
-    });
-
-    it('accepts a ladder whose cheapest rung clears the minimum', async () => {
-      useStrategyClients();
-
-      // Same ladder, sized so the rung at 1000 is worth $10.
-      const result = await provider.validateOrder({
-        ...baseOrder,
-        size: '0.2',
-        usdAmount: '600',
-        orderType: 'scale',
-        scaleMinPrice: '1000',
-        scaleMaxPrice: '1200',
-        scaleNumOrders: 20,
-      } as OrderParams);
-
-      expect(result).toStrictEqual({ isValid: true });
     });
   });
 
@@ -2187,6 +2114,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
       expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('rejects a ladder whose rungs fall below the per-order minimum', async () => {
+      // $50 over 20 rungs is twenty $2.50 orders; the venue rejects every one.
+      const { result, exchangeClient } = await placeLadder({
+        usdAmount: '50',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 20,
+      });
+
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+      );
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 
@@ -3019,6 +2961,153 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed.success).toBe(true);
       expect(placed.childOrderIds).toStrictEqual(['55']);
 
+      const cancelled = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      expect(cancelled.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      );
+    });
+  });
+
+  describe('Two chases on the same side do not leapfrog each other', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('treats another session of its own as not-external liquidity', async () => {
+      let placements = 0;
+      const order = jest.fn().mockImplementation(async () => {
+        placements += 1;
+        return {
+          status: 'ok',
+          response: {
+            data: { statuses: [{ resting: { oid: 54 + placements } }] },
+          },
+        };
+      });
+
+      // The external bid never moves. The first two reads are the placements,
+      // when nothing of ours is resting yet; afterwards the book carries the
+      // two chases' combined 2 ETH at 2999.1 on top of the external 2999.
+      let bookReads = 0;
+      const l2Book = jest.fn().mockImplementation(async () => {
+        bookReads += 1;
+        const bids =
+          bookReads <= 2
+            ? [{ px: '2999', sz: '10', n: 1 }]
+            : [
+                { px: '2999.1', sz: '2', n: 2 },
+                { px: '2999', sz: '10', n: 1 },
+              ];
+        return {
+          coin: 'ETH',
+          levels: [bids, [{ px: '3001', sz: '10', n: 1 }]],
+        };
+      });
+
+      useStrategyClients({ exchange: { order }, info: { l2Book } });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      expect(order).toHaveBeenCalledTimes(2);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      // Netting only its own order, each session would read the other's 1 ETH
+      // as external size at 2999.1, improve to 2999.2, then improve on that —
+      // walking each other up an unchanged market. Netting everything this
+      // provider holds leaves 2999 as the real touch, the quote unchanged, and
+      // no re-price at all.
+      expect(order).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Chase fee rate against the user schedule', () => {
+    it('quotes the maker rate even when the account has its own fee tier', async () => {
+      const { infoClient } = useStrategyClients({
+        info: {
+          // These are the fields the fee path actually reads; a `feeSchedule`
+          // shape parses to NaN and falls back to the base rates, which would
+          // make this test pass without ever entering the branch it is about.
+          userFees: jest.fn().mockResolvedValue({
+            userCrossRate: '0.00030',
+            userAddRate: '0.00010',
+            userSpotCrossRate: '0.00040',
+            userSpotAddRate: '0.00020',
+            activeReferralDiscount: '0',
+            dailyUserVlm: [],
+          }),
+        },
+      });
+
+      const chase = await provider.calculateFees({
+        orderType: 'chase',
+        isMaker: false,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+      const market = await provider.calculateFees({
+        orderType: 'market',
+        isMaker: false,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      // The account's own schedule was consulted, not the fallback base rates.
+      expect(infoClient.userFees).toHaveBeenCalled();
+      // A chase is post-only whatever the caller passes, and that has to hold
+      // for the account's own schedule as well as the base rates.
+      expect(chase.feeRate).toBeLessThan(market.feeRate);
+    });
+  });
+
+  describe('Chase placement racing a disconnect during preparation', () => {
+    it('abandons a session torn down before its order was placed', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          // The leverage update is part of the shared preamble, before the
+          // chase handler is even reached.
+          updateLeverage: jest.fn().mockImplementation(async () => {
+            disconnected = provider.disconnect();
+            await Promise.resolve();
+            return { status: 'ok' };
+          }),
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        leverage: 5,
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      await disconnected;
+
+      expect(placed.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+
+      // No session was registered, so the handle does not resolve and no timer
+      // is running against a provider that has been torn down.
       const cancelled = await provider.cancelOrder({
         orderId: placed.orderId,
         symbol: 'ETH',
