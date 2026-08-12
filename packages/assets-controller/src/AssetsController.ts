@@ -108,6 +108,7 @@ import {
   getDefaultAssetMetadata,
 } from './defaults.js';
 import { AssetsDataSourceError } from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
 import {
@@ -225,6 +226,8 @@ const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
 const TRACE_UPDATE_PARENT = 'AssetsUpdateEnrichment';
 const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
 const TRACE_STATE_SIZE = 'AssetsStateSize';
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
 // STATE TYPES
@@ -917,7 +920,12 @@ export class AssetsController extends BaseController<
     ): void => {
       try {
         this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
-      } catch (error) {}
+      } catch (error) {
+        log('Failed to handle active chains update', {
+          dataSourceName,
+          error,
+        });
+      }
     };
 
     this.#accountActivityDataSource = new AccountActivityDataSource({
@@ -998,6 +1006,10 @@ export class AssetsController extends BaseController<
       rpcDataSource: this.#rpcDataSource,
     });
 
+    log('Initializing AssetsController', {
+      defaultUpdateInterval: this.#defaultUpdateInterval,
+    });
+
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
@@ -1030,6 +1042,10 @@ export class AssetsController extends BaseController<
       .catch((error) => {
         // Failure to populate native asset cache is non-fatal;
         // #isNativeAsset falls back to the seed data from buildNativeAssetsFromConstant.
+        log(
+          'Failed to populate native asset cache, falling back to seed data',
+          error,
+        );
       });
 
     // Seed the cache synchronously so that synchronous consumers (e.g.
@@ -1048,6 +1064,11 @@ export class AssetsController extends BaseController<
       'NetworkEnablementController:getState',
     );
     this.#enabledChains = this.#extractEnabledChains(enabledNetworkMap);
+
+    log('Initialized state', {
+      enabledNetworkMap,
+      enabledChains: this.#enabledChains,
+    });
   }
 
   /**
@@ -1144,7 +1165,9 @@ export class AssetsController extends BaseController<
         this.#handleNetworkAdded(networkConfiguration.chainId);
         this.#refreshAssetsAfterNetworkAdded(
           networkConfiguration.chainId,
-        ).catch((error) => {});
+        ).catch((error) => {
+          log('Failed to refresh assets after network added', { error });
+        });
       },
     );
 
@@ -1235,7 +1258,11 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
-    }).catch((error) => {});
+    }).catch((error) => {
+      log('Failed to refresh assets after unapproved transaction added', {
+        error,
+      });
+    });
   }
 
   #onTransactionConfirmed(transactionMeta: TransactionMeta): void {
@@ -1260,7 +1287,9 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
-    }).catch((error) => {});
+    }).catch((error) => {
+      log('Failed to refresh assets after transaction confirmed', { error });
+    });
   }
 
   /**
@@ -1309,6 +1338,11 @@ export class AssetsController extends BaseController<
         return;
       }
 
+      log('Account tree changed with new accounts, re-subscribing', {
+        previousCount: this.#lastKnownAccountIds.size,
+        currentCount: currentIds.size,
+      });
+
       const newAccounts = accounts.filter(
         (account) => !this.#lastKnownAccountIds.has(account.id),
       );
@@ -1316,7 +1350,9 @@ export class AssetsController extends BaseController<
       this.#lastKnownAccountIds = currentIds;
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {});
+      this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
+        log('Failed to refresh assets after tree change', error);
+      });
     } else {
       this.#start();
     }
@@ -1341,6 +1377,7 @@ export class AssetsController extends BaseController<
       }
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
+      log('Failed to fetch assets after tree change', error);
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
@@ -1367,6 +1404,7 @@ export class AssetsController extends BaseController<
       this.#subscribeAssets();
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
+      log('Failed to fetch assets on startup', error);
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets();
@@ -1408,6 +1446,11 @@ export class AssetsController extends BaseController<
     if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
       return;
     }
+    log('Data source active chains changed', {
+      dataSourceId,
+      chainCount: activeChains.length,
+      chains: activeChains,
+    });
 
     const previous: ChainId[] = previousChains;
 
@@ -2076,6 +2119,8 @@ export class AssetsController extends BaseController<
   ): Promise<void> {
     const normalizedAssetId = normalizeAssetId(assetId);
 
+    log('Adding custom asset', { accountId, assetId: normalizedAssetId });
+
     this.update((state) => {
       const customAssets = state.customAssets as Record<string, string[]>;
       if (!customAssets[accountId]) {
@@ -2160,6 +2205,8 @@ export class AssetsController extends BaseController<
   removeCustomAsset(accountId: AccountId, assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 
+    log('Removing custom asset', { accountId, assetId: normalizedAssetId });
+
     this.update((state) => {
       if (state.customAssets[accountId]) {
         state.customAssets[accountId] = state.customAssets[accountId].filter(
@@ -2202,6 +2249,8 @@ export class AssetsController extends BaseController<
   hideAsset(assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
 
+    log('Hiding asset', { assetId: normalizedAssetId });
+
     this.update((state) => {
       if (!state.assetPreferences[normalizedAssetId]) {
         state.assetPreferences[normalizedAssetId] = {};
@@ -2217,6 +2266,8 @@ export class AssetsController extends BaseController<
    */
   unhideAsset(assetId: Caip19AssetId): void {
     const normalizedAssetId = normalizeAssetId(assetId);
+
+    log('Unhiding asset', { assetId: normalizedAssetId });
 
     this.update((state) => {
       const prefs = state.assetPreferences[normalizedAssetId];
@@ -2249,6 +2300,11 @@ export class AssetsController extends BaseController<
       state.selectedCurrency = selectedCurrency;
     });
 
+    log('Current currency changed', {
+      previousCurrency,
+      selectedCurrency,
+    });
+
     if (!this.#isBasicFunctionality()) {
       return;
     }
@@ -2262,7 +2318,9 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
         (balances) => Object.keys(balances) as Caip19AssetId[],
       ),
-    }).catch((error) => {});
+    }).catch((error) => {
+      log('Failed to fetch asset prices after current currency change', error);
+    });
   }
 
   /**
@@ -2317,7 +2375,9 @@ export class AssetsController extends BaseController<
       dataTypes: ['price'],
       chainIds,
       assetsForPriceUpdate,
-    }).catch((error) => {});
+    }).catch((error) => {
+      log('Failed to fetch missing prices', { error });
+    });
   }
 
   // ============================================================================
@@ -2827,6 +2887,23 @@ export class AssetsController extends BaseController<
         changedMetadata.length > 0 ||
         changedPriceAssets.length > 0
       ) {
+        log('State updated', {
+          changedBalances:
+            changedBalances.length > 0 ? changedBalances : undefined,
+          changedMetadataCount:
+            changedMetadata.length > 0 ? changedMetadata.length : undefined,
+          changedPricesCount:
+            changedPriceAssets.length > 0
+              ? changedPriceAssets.length
+              : undefined,
+          newAssets:
+            Object.keys(detectedAssets).length > 0
+              ? Object.entries(detectedAssets).map(([accountId, assets]) => ({
+                  accountId,
+                  assets,
+                }))
+              : undefined,
+        });
       }
 
       // Publish balance changed events
@@ -3046,8 +3123,15 @@ export class AssetsController extends BaseController<
       return;
     }
 
+    log('Starting asset tracking', {
+      selectedAccountCount: accounts.length,
+      enabledChainCount: chainIds.length,
+    });
+
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
-    this.#runStartupRefresh(accounts).catch((error) => {});
+    this.#runStartupRefresh(accounts).catch((error) => {
+      log('Failed to start asset tracking', error);
+    });
   }
 
   /**
@@ -3055,6 +3139,11 @@ export class AssetsController extends BaseController<
    * Called when app closes or keyring locks.
    */
   #stop(): void {
+    log('Stopping asset tracking', {
+      activeSubscriptionCount: this.#activeSubscriptions.size,
+      hasPriceSubscription: this.#activeSubscriptions.has('ds:PriceDataSource'),
+    });
+
     this.#firstInitFetchReported = false;
     this.#stateSizeReported = false;
     this.#lastKnownAccountIds = new Set();
@@ -3349,6 +3438,15 @@ export class AssetsController extends BaseController<
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
 
+    log('Subscribe to data source', {
+      sourceId,
+      subscriptionKey,
+      isUpdate,
+      accountCount: accounts.length,
+      chainCount: chains.length,
+      customAssetsOnly: options.customAssetsOnly === true,
+    });
+
     const subscribeReq: SubscriptionRequest = {
       request: this.#buildDataRequest(accounts, chains, {
         assetTypes: ['fungible'],
@@ -3511,6 +3609,11 @@ export class AssetsController extends BaseController<
   async #handleAccountGroupChanged(): Promise<void> {
     const accounts = this.#getSelectedAccounts();
 
+    log('Account group changed', {
+      accountCount: accounts.length,
+      accountIds: accounts.map((a) => a.id),
+    });
+
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
 
     const releaseLock = await this.#accountRefreshMutex.acquire();
@@ -3553,6 +3656,13 @@ export class AssetsController extends BaseController<
         removedChains.push(chain);
       }
     }
+
+    log('Enabled networks changed', {
+      previousCount: previousChains.size,
+      newCount: this.#enabledChains.size,
+      addedChains,
+      removedChains,
+    });
 
     // Note: We intentionally do NOT delete balance data for disabled chains.
     // Users may want to see historical balances even if the network is currently disabled.
@@ -3603,6 +3713,11 @@ export class AssetsController extends BaseController<
     if (!CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(caipChainId)) {
       return;
     }
+
+    log('Network added — seeding default tracked assets', {
+      hexChainId,
+      caipChainId,
+    });
 
     this.#ensureDefaultTrackedAssetsSeeded([caipChainId]);
     const accounts = this.#getSelectedAccounts();
@@ -3664,6 +3779,11 @@ export class AssetsController extends BaseController<
       return;
     }
 
+    log('Selected EVM network switched', {
+      selectedNetworkClientId: networkState.selectedNetworkClientId,
+      selectedChainId,
+    });
+
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       await this.#refreshActiveChainsOnNetworkSwitch();
@@ -3695,7 +3815,9 @@ export class AssetsController extends BaseController<
     this.getAssets(accounts, {
       forceUpdate: true,
       dataTypes: ['balance', 'metadata'],
-    }).catch((error) => {});
+    }).catch((error) => {
+      log('Failed to refresh assets after network change', { error });
+    });
   }
 
   /**
@@ -3712,7 +3834,9 @@ export class AssetsController extends BaseController<
     this.getAssets(accounts, {
       forceUpdate: true,
       dataTypes: ['balance', 'metadata', 'price'],
-    }).catch((error) => {});
+    }).catch((error) => {
+      log('Failed to refresh assets after token detection enabled', { error });
+    });
   }
 
   /**
@@ -3757,6 +3881,12 @@ export class AssetsController extends BaseController<
     sourceId: string,
     request?: DataRequest,
   ): Promise<void> {
+    log('Assets updated from data source', {
+      sourceId,
+      hasBalance: Boolean(response.assetsBalance),
+      hasPrice: Boolean(response.assetsPrice),
+    });
+
     // Enrichment spans only before unlock/first-init fetch completes.
     const pipelineTrace = this.#firstInitFetchReported
       ? undefined
@@ -3873,6 +4003,11 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   destroy(): void {
+    log('Destroying AssetsController', {
+      dataSourceCount: this.#allBalanceDataSources.length,
+      subscriptionCount: this.#activeSubscriptions.size,
+    });
+
     // Destroy instantiated data sources
     this.#accountActivityDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();

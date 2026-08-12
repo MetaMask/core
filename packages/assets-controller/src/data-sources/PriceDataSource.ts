@@ -5,6 +5,7 @@ import type {
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 
+import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
@@ -37,6 +38,8 @@ const FRESHNESS_TTL_POLL_RATIO = 0.9;
 
 /** Maximum number of asset IDs per Price API request. */
 const PRICE_API_BATCH_SIZE = 50;
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
 // OPTIONS
@@ -260,7 +263,9 @@ export class PriceDataSource {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
         };
-      } catch (error) {}
+      } catch (error) {
+        log('Failed to fetch prices via middleware', { error });
+      }
 
       // Call next() at the end to continue the middleware chain
       return next(ctx);
@@ -442,6 +447,10 @@ export class PriceDataSource {
                   continue;
                 }
               } catch (error) {
+                log('Skipping malformed asset ID in balance state', {
+                  assetId,
+                  error,
+                });
                 continue;
               }
             }
@@ -452,6 +461,7 @@ export class PriceDataSource {
 
       return [...assetIds];
     } catch (error) {
+      log('Failed to get asset IDs from balance state', { error });
       return [];
     }
   }
@@ -494,7 +504,9 @@ export class PriceDataSource {
         ...(response.assetsPrice ?? {}),
         ...spotPrices,
       };
-    } catch (error) {}
+    } catch (error) {
+      log('Failed to fetch prices', { error });
+    }
 
     return response;
   }
@@ -536,7 +548,9 @@ export class PriceDataSource {
               updateMode: 'merge',
             });
           }
-        } catch (error) {}
+        } catch (error) {
+          log('Subscription update fetch failed', { subscriptionId, error });
+        }
         return;
       }
     }
@@ -586,7 +600,9 @@ export class PriceDataSource {
             updateMode: 'merge',
           });
         }
-      } catch (error) {}
+      } catch (error) {
+        log('Subscription poll failed', { subscriptionId, error });
+      }
     };
 
     // Set up polling

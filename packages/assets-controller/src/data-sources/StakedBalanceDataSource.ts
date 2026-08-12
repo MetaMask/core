@@ -11,6 +11,7 @@ import {
 import type { Hex } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AccountId,
   ChainId,
@@ -46,6 +47,8 @@ const STAKED_ETH_METADATA: AssetMetadata = {
   symbol: 'ETH',
   decimals: 18,
 };
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 /** Optional configuration for StakedBalanceDataSource. */
 export type StakedBalanceDataSourceConfig = {
@@ -177,6 +180,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#enabled = options.enabled !== false;
     this.#supportedChainIds = getSupportedStakingChainIds() as ChainId[];
 
+    log('Initializing StakedBalanceDataSource', {
+      enabled: this.#enabled,
+      pollInterval: this.#pollInterval,
+    });
+
     // Create StakedBalanceFetcher with provider getter
     this.#stakedBalanceFetcher = new StakedBalanceFetcher({
       pollingInterval: this.#pollInterval,
@@ -188,7 +196,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#stakedBalanceFetcher.setOnStakedBalanceUpdate((result) => {
       try {
         this.#handleStakedBalanceUpdate(result);
-      } catch (error) {}
+      } catch (error) {
+        log('Staked balance update handler failed', { error });
+      }
     });
 
     this.#messenger.subscribe(
@@ -216,6 +226,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    */
   #onNetworkStateChange(): void {
     this.#providerCache.clear();
+    log('Provider cache cleared after network state change');
   }
 
   /**
@@ -290,9 +301,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
     const toRefresh = this.#getToRefreshForChains([caipChainId]);
     if (toRefresh.length > 0) {
-      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch(
-        (error) => {},
-      );
+      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
+        log('Failed to refresh staked balance after transaction', { error });
+      });
     }
   }
 
@@ -395,7 +406,13 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           ...existing,
           [assetId]: { amount: result.amount },
         };
-      } catch (error) {}
+      } catch (error) {
+        log('Failed to fetch staked balance in transaction refresh', {
+          chainId,
+          accountId: account.id,
+          error,
+        });
+      }
     }
 
     const chainIds = [...new Set(toRefresh.map(({ chainId }) => chainId))];
@@ -433,7 +450,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       for (const subscription of this.#activeSubscriptions.values()) {
         subscription
           .onAssetsUpdate(response, request)
-          ?.catch((error: unknown) => {});
+          ?.catch((error: unknown) => {
+            log('Failed to report staked balance update after transaction', {
+              error,
+            });
+          });
       }
     }
   }
@@ -452,6 +473,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         state?.enabledNetworkMap ?? {},
       );
     } catch (error) {
+      log('Failed to get NetworkEnablementController state', { error });
       this.#initializeActiveChainsFromEnabledMap({});
     }
   }
@@ -554,6 +576,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       this.#providerCache.set(hexChainId, provider);
       return provider;
     } catch (error) {
+      log('Failed to get provider for chain', { hexChainId, error });
       return undefined;
     }
   }
@@ -593,10 +616,18 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       dataTypes: ['balance'],
     };
 
+    log('Staked balance update', {
+      accountId: result.accountId,
+      chainId: caipChainId,
+      amount: result.balance.amount,
+    });
+
     for (const subscription of this.#activeSubscriptions.values()) {
       subscription
         .onAssetsUpdate(response, request)
-        ?.catch((error: unknown) => {});
+        ?.catch((error: unknown) => {
+          log('Failed to report staked balance update', { error });
+        });
     }
   }
 
@@ -652,7 +683,13 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           balances[account.id] ??= {};
           const assetId = stakedAssetId(chainId, contractAddress);
           balances[account.id][assetId] = { amount: result.amount };
-        } catch (error) {}
+        } catch (error) {
+          log('Failed to fetch staked balance', {
+            chainId,
+            accountId: account.id,
+            error,
+          });
+        }
       }
     }
 
@@ -714,7 +751,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
             };
           }
         }
-      } catch (error) {}
+      } catch (error) {
+        log('Middleware fetch failed', { error });
+      }
 
       // Pass all chains through (staked balance doesn't claim chains)
       return next(context);
@@ -735,7 +774,14 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       activeChainsSet.has(chainId),
     );
 
+    log('Subscribe requested', {
+      subscriptionId,
+      isUpdate,
+      chainsToSubscribe,
+    });
+
     if (chainsToSubscribe.length === 0) {
+      log('No staking chains to subscribe');
       return;
     }
 
@@ -743,6 +789,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     if (isUpdate) {
       const existing = this.#activeSubscriptions.get(subscriptionId);
       if (existing) {
+        log('Updating existing subscription - restarting polling', {
+          subscriptionId,
+        });
       }
     }
 
@@ -821,9 +870,19 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       ) {
         subscriptionRequest
           .onAssetsUpdate?.(initialResponse)
-          ?.catch((error) => {});
+          ?.catch((error) => {
+            log('Initial staked balance update failed', { error });
+          });
       }
-    } catch (error) {}
+    } catch (error) {
+      log('Initial staked balance fetch failed', { error });
+    }
+
+    log('Subscription SUCCESS', {
+      subscriptionId,
+      chains: chainsToSubscribe,
+      pollingCount: pollingTokens.length,
+    });
   }
 
   /**

@@ -14,6 +14,7 @@ import {
 } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -42,6 +43,8 @@ import { isStakingContractAssetId } from './evm-rpc-services/index.js';
 const CONTROLLER_NAME = 'AccountsApiDataSource';
 const DEFAULT_POLL_INTERVAL = 30_000;
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
 // MESSENGER TYPES
@@ -271,7 +274,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async #handleMigrationFeatureFlagsChanged(): Promise<void> {
     try {
       await this.#refreshActiveChains();
-    } catch (error) {}
+    } catch (error) {
+      log('Failed to refresh active chains after feature flag change', {
+        error,
+      });
+    }
   }
 
   /**
@@ -322,7 +329,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
         },
         20 * 60 * 1000,
       );
-    } catch (error) {}
+    } catch (error) {
+      log('Failed to fetch active chains', error);
+    }
   }
 
   async #refreshActiveChains(): Promise<void> {
@@ -343,7 +352,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
           this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
         );
       }
-    } catch (error) {}
+    } catch (error) {
+      log('Failed to refresh active chains', error);
+    }
   }
 
   /**
@@ -441,6 +452,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
       response.assetsBalance = assetsBalance;
       response.updateMode = 'merge';
     } catch (error) {
+      log('Fetch FAILED', { error, chains: chainsToFetch });
+
       // On error, mark all chains as errors so they can be handled by next middleware
       response.errors = response.errors ?? {};
       for (const chainId of chainsToFetch) {
@@ -748,6 +761,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
           successfullyHandledChains = [];
         }
       } catch (error) {
+        log('Middleware fetch failed', { error });
         successfullyHandledChains = [];
       }
 
@@ -812,7 +826,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
               forceUpdate: true,
             });
             await existing.onAssetsUpdate(fetchResponse);
-          } catch (error) {}
+          } catch (error) {
+            log('Initial fetch for added chains failed', {
+              subscriptionId,
+              addedChains,
+              error,
+            });
+          }
         }
         return;
       }
@@ -839,7 +859,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
         // Report update to AssetsController via callback
         await subscription.onAssetsUpdate(fetchResponse);
-      } catch (error) {}
+      } catch (error) {
+        log('Subscription poll failed', { subscriptionId, error });
+      }
     };
 
     // Set up polling

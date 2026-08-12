@@ -1,3 +1,4 @@
+import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
   AssetsDataSource,
@@ -8,6 +9,8 @@ import type {
 import { mergeDataResponses } from './ParallelMiddleware.js';
 
 const CONTROLLER_NAME = 'RpcFallbackMiddleware';
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 export type RpcFallbackMiddlewareOptions = {
   /** The RPC data source to use as a fallback. */
@@ -45,6 +48,10 @@ export class RpcFallbackMiddleware {
       if (erroredChains.size === 0) {
         return next(ctx);
       }
+
+      log('Retrying failed chains on RPC', {
+        chains: [...erroredChains],
+      });
 
       const filteredRequest = {
         ...ctx.request,

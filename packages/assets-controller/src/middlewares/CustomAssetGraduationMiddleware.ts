@@ -1,5 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
+import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
   AccountId,
@@ -10,6 +11,8 @@ import type {
 import { safeNormalizeAssetId } from '../utils/index.js';
 
 const CONTROLLER_NAME = 'CustomAssetGraduationMiddleware';
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 export type CustomAssetGraduationMiddlewareOptions = {
   getSelectedAccountId: () => AccountId | undefined;
@@ -95,6 +98,10 @@ export class CustomAssetGraduationMiddleware {
         if (!customSet.has(normalizedAssetId)) {
           continue;
         }
+        log('Graduating custom asset', {
+          accountId,
+          assetId: normalizedAssetId,
+        });
         this.#removeCustomAsset(accountId, normalizedAssetId);
       }
 

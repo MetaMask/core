@@ -18,6 +18,7 @@ import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
   ChainId,
@@ -59,6 +60,8 @@ export type AccountsControllerAccountBalancesUpdatedEvent = {
   type: 'AccountsController:accountBalancesUpdated';
   payload: [AccountBalancesUpdatedEventPayload];
 };
+
+const log = createModuleLogger(projectLogger, 'SnapDataSource');
 
 // ============================================================================
 // CONSTANTS
@@ -289,6 +292,10 @@ export class SnapDataSource extends AbstractDataSource<
         try {
           chainId = extractChainFromAssetId(assetId);
         } catch (error) {
+          log('Skipping snap balance for malformed asset ID', {
+            assetId,
+            error,
+          });
           continue;
         }
         if (this.#isChainSupportedBySnap(chainId)) {
@@ -340,6 +347,7 @@ export class SnapDataSource extends AbstractDataSource<
         'SnapController:getRunnableSnaps',
       ) as Snap[];
     } catch (error) {
+      log('Failed to get runnable snaps', error);
       return [];
     }
   }
@@ -360,6 +368,7 @@ export class SnapDataSource extends AbstractDataSource<
         snapId,
       ) as SubjectPermissions<PermissionConstraint>;
     } catch (error) {
+      log('Failed to get permissions for snap', { snapId, error });
       return undefined;
     }
   }
@@ -421,6 +430,7 @@ export class SnapDataSource extends AbstractDataSource<
         // AssetsController not ready yet - expected during initialization
       }
     } catch (error) {
+      log('Keyring snap discovery failed', { error });
       this.state.chainToSnap = {};
       try {
         const previous = [...this.state.activeChains];
@@ -578,6 +588,7 @@ export class SnapDataSource extends AbstractDataSource<
           (chainId) => !failedChains.has(chainId),
         );
       } catch (error) {
+        log('Middleware fetch failed', { error });
         successfullyHandledChains = [];
       }
 
@@ -631,7 +642,9 @@ export class SnapDataSource extends AbstractDataSource<
       if (Object.keys(fetchResponse.assetsBalance ?? {}).length > 0) {
         await this.#onAssetsUpdate(fetchResponse);
       }
-    } catch (error) {}
+    } catch (error) {
+      log('Initial fetch failed', { subscriptionId, error });
+    }
   }
 
   // ============================================================================
@@ -683,7 +696,9 @@ export class SnapDataSource extends AbstractDataSource<
         'AccountsController:accountBalancesUpdated',
         this.#handleSnapBalancesUpdatedBound,
       );
-    } catch (error) {}
+    } catch (error) {
+      log('Failed to unsubscribe from snap keyring events', { error });
+    }
 
     // Unsubscribe from permission changes
     try {
@@ -691,7 +706,9 @@ export class SnapDataSource extends AbstractDataSource<
         'PermissionController:stateChange',
         this.#handlePermissionStateChangeBound,
       );
-    } catch (error) {}
+    } catch (error) {
+      log('Failed to unsubscribe from permission changes', { error });
+    }
 
     // Clear keyring client cache
     this.#keyringClientCache.clear();
