@@ -1056,7 +1056,7 @@ describe('PerpsController', () => {
       expect(priceCallback).toHaveBeenCalledWith([liveUpdate]);
     });
 
-    it('disables snapshot adoption for ambiguous bare allowlist identity', async () => {
+    it('treats a bare allowlist entry as a DEX shorthand', async () => {
       mockInfrastructure.terminalApi = {
         ...mockInfrastructure.terminalApi,
         globalSnapshotUrl: 'https://terminal.test/v2/perpetuals',
@@ -1081,9 +1081,8 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot,
-      ).toBeUndefined();
-      expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
+          .context.globalSnapshot?.request.enabledDexes,
+      ).toStrictEqual(['main', 'xyz']);
     });
 
     it('keeps main first in an exact static snapshot identity', async () => {
@@ -2365,6 +2364,49 @@ describe('PerpsController', () => {
       );
       expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
       expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('preloads a bare DEX allowlist through the atomic snapshot path', async () => {
+      preloadController = new TestablePerpsController({
+        messenger: preloadMessenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz'],
+        },
+        infrastructure: preloadInfrastructure,
+      });
+      preloadMockProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockImplementation(async ({ userAddress, identity }) => ({
+          ...createUserSnapshot(),
+          identity: {
+            ...identity,
+            address: userAddress,
+            dexes: ['main', 'xyz'],
+          },
+        }));
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await jest.advanceTimersByTimeAsync(100);
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          identity: expect.objectContaining({ dexes: ['main', 'xyz'] }),
+        }),
+      );
+      expect(
+        preloadController.state.cachedUserDataByProvider['hyperliquid:mainnet']
+          ?.dexes,
+      ).toStrictEqual(['main', 'xyz']);
     });
 
     it('does not coalesce requests across provider instances', async () => {

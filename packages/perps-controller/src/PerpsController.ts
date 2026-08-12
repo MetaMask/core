@@ -3565,8 +3565,10 @@ export class PerpsController extends BaseController<
     for (const pattern of this.#hip3AllowlistMarkets) {
       const colonIndex = pattern.indexOf(':');
       if (colonIndex <= 0) {
-        // A bare token can mean either a market symbol or DEX shorthand.
-        // That identity is not exact enough for snapshot adoption.
+        if (/^[a-z][a-z0-9]*$/iu.test(pattern)) {
+          dexes.add(pattern.toLowerCase());
+          continue;
+        }
         return undefined;
       }
       const dex = pattern.slice(0, colonIndex);
