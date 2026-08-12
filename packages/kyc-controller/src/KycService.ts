@@ -85,8 +85,9 @@ type AllowedActions =
 /**
  * Published when {@link KycService}'s cache is updated.
  */
-export type KycServiceCacheUpdatedEvent =
-  DataServiceCacheUpdatedEvent<typeof serviceName>;
+export type KycServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
 
 /**
  * Published when a single key within {@link KycService}'s cache is updated.
@@ -568,7 +569,8 @@ export class KycService extends BaseDataService<
     const url = new URL('/vendors/iron/kyc-required', this.#baseUrl);
     const data = await this.fetchQuery({
       queryKey: [`${this.name}:checkIronKycRequired`],
-      queryFn: async () => this.#requestJson(url, { method: 'POST', body: '{}' }),
+      queryFn: async () =>
+        this.#requestJson(url, { method: 'POST', body: '{}' }),
       // The requirement can change server-side, so always re-check.
       staleTime: 0,
       cacheTime: 0,

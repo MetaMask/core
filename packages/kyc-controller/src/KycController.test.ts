@@ -1848,7 +1848,9 @@ describe('KycController', () => {
         await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
 
         expect(controller.state.phase).toBe('error');
-        expect(controller.state.error).toMatch(/Iron customer creation failed/u);
+        expect(controller.state.error).toMatch(
+          /Iron customer creation failed/u,
+        );
       });
     });
 
@@ -2065,7 +2067,9 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.createUkycSession.mockRejectedValue(new Error('sumsub down'));
+          handlers.createUkycSession.mockRejectedValue(
+            new Error('sumsub down'),
+          );
           handlers.fetchIronDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
