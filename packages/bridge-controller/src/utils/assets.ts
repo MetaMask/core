@@ -53,6 +53,8 @@ export const assetIdsMatch = (
     assetId1 === assetId2 ||
     (parseCaipAssetType(assetId1).chain.namespace ===
       KnownCaipNamespace.Eip155 &&
+      parseCaipAssetType(assetId2).chain.namespace ===
+        KnownCaipNamespace.Eip155 &&
       assetId1.toLowerCase() === assetId2.toLowerCase())
   );
 };
