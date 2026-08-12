@@ -40,11 +40,14 @@ import {
   createInitialState,
   transition as transitionWalletRegistration,
 } from './wallet-registration-machine.js';
+import {
+  createIdempotencyKey,
+  WalletRegistrationError,
+} from './wallet-registration-service.js';
 import type {
   RegistrationStatus,
   SelfHostedRegistration,
 } from './wallet-registration-service.js';
-import { WalletRegistrationError } from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -1838,11 +1841,13 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Registers a Money Account wallet with MoonPay Iron.
+   * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
    *
    * Consumers provide only the Monad address. The controller reuses the Iron
    * customer id captured from MoonPay's hosted frame when available, otherwise
-   * it resolves the id from the authenticated MetaMask profile via KycService.
+   * it resolves the id via `GET /neobank/customers/{external_id}/external`
+   * (MetaMask canonical profile id). Customer resolution happens before the
+   * first list/lookup because list requires `customer_id` in the path.
    * Message construction, signing, submission, and ambiguous-write
    * reconciliation stay internal to KYC.
    *
@@ -1874,11 +1879,17 @@ export class KycController extends BaseController<
       return undefined;
     };
 
+    // List requires customer_id in the neobank path, so resolve Iron's id
+    // before the first lookup. Prefer the ephemeral frame-captured value.
+    const customerId =
+      this.state.moonpayCustomerId ??
+      (await this.messenger.call('KycService:getMoonpayCustomerId'));
+
     const lookup = async (): Promise<RegistrationStatus> => {
       try {
         return await this.messenger.call(
           'KycService:getWalletRegistrationStatus',
-          { address },
+          { customerId, address },
         );
       } catch (error) {
         machine = transitionWalletRegistration(machine, {
@@ -1910,9 +1921,10 @@ export class KycController extends BaseController<
       return existingResult;
     }
 
-    const customerId =
-      this.state.moonpayCustomerId ??
-      (await this.messenger.call('KycService:getMoonpayCustomerId'));
+    // Stable across transient retries of the same ownership proof; refreshed
+    // when the UTC-dated message must be rebuilt and re-signed.
+    let idempotencyKey = createIdempotencyKey();
+    let lastMessage: string | undefined;
 
     while (true) {
       const message = buildOwnershipMessage({
@@ -1920,6 +1932,11 @@ export class KycController extends BaseController<
         customerId,
         now: new Date(),
       });
+      if (lastMessage !== undefined && message !== lastMessage) {
+        idempotencyKey = createIdempotencyKey();
+      }
+      lastMessage = message;
+
       let signature: string;
       try {
         signature = await this.messenger.call(
@@ -1943,6 +1960,7 @@ export class KycController extends BaseController<
             customerId,
             message,
             signature,
+            idempotencyKey,
           },
         );
         machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });

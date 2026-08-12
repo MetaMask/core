@@ -216,11 +216,13 @@ export type KycControllerGetSessionStatusAction = {
 };
 
 /**
- * Registers a Money Account wallet with MoonPay Iron.
+ * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
  *
  * Consumers provide only the Monad address. The controller reuses the Iron
  * customer id captured from MoonPay's hosted frame when available, otherwise
- * it resolves the id from the authenticated MetaMask profile via KycService.
+ * it resolves the id via `GET /neobank/customers/{external_id}/external`
+ * (MetaMask canonical profile id). Customer resolution happens before the
+ * first list/lookup because list requires `customer_id` in the path.
  * Message construction, signing, submission, and ambiguous-write
  * reconciliation stay internal to KYC.
  *

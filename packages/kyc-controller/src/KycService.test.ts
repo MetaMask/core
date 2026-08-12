@@ -60,38 +60,49 @@ describe('KycService', () => {
   });
 
   describe('Money Account wallet registration', () => {
-    it('resolves the Iron customer id', async () => {
+    it('resolves the Iron customer id via neobank customer lookup', async () => {
       nock(MOCK_API_URL)
-        .get('/vendors/moonpay/customer')
+        .get('/neobank/customers/canonical-profile-1/external')
         .matchHeader('authorization', 'Bearer test-bearer')
-        .reply(200, { customerId: 'iron-customer-1' });
+        .reply(200, {
+          id: 'iron-customer-1',
+          external_id: 'canonical-profile-1',
+        });
 
       const { service } = getService();
 
       expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
     });
 
-    it('checks Monad wallet registration status', async () => {
+    it('checks Monad wallet registration status for a customer', async () => {
       nock(MOCK_API_URL)
-        .get('/vendors/moonpay/self-hosted-wallets')
+        .get('/neobank/addresses/crypto/iron-customer-1')
+        .query({ filter: 'SelfHosted' })
         .reply(200, []);
 
       const { service } = getService();
 
       expect(
-        await service.getWalletRegistrationStatus({ address: '0xabc' }),
+        await service.getWalletRegistrationStatus({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+        }),
       ).toStrictEqual({ type: 'absent' });
     });
 
-    it('submits a signed Monad wallet ownership proof', async () => {
+    it('submits a signed Monad wallet ownership proof with Idempotency-Key', async () => {
       nock(MOCK_API_URL)
-        .post('/vendors/moonpay/self-hosted-wallets', {
-          customer_id: 'iron-customer-1',
-          address: '0xabc',
-          blockchain: 'Monad',
-          message: 'ownership message',
-          signature: '0xsig',
-        })
+        .post(
+          '/neobank/addresses/crypto/selfhosted',
+          {
+            customer_id: 'iron-customer-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            message: 'ownership message',
+            signature: '0xsig',
+          },
+          { reqheaders: { 'idempotency-key': 'idem-1' } },
+        )
         .reply(200, {
           id: 'wallet-1',
           address: '0xabc',
@@ -106,11 +117,31 @@ describe('KycService', () => {
           address: '0xabc',
           message: 'ownership message',
           signature: '0xsig',
+          idempotencyKey: 'idem-1',
         }),
       ).toMatchObject({
         type: 'registered',
         registration: { id: 'wallet-1', blockchain: 'Monad' },
       });
+    });
+
+    it('uses neobankBaseUrl when provided for wallet routes', async () => {
+      const neobankUrl = 'https://on-ramp.dev-api.cx.metamask.io';
+      nock(neobankUrl)
+        .get('/neobank/customers/canonical-profile-1/external')
+        .reply(200, { id: 'iron-customer-1' });
+
+      const { service } = getService({ neobankBaseUrl: neobankUrl });
+
+      expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
+    });
+
+    it('throws when the session profile has no usable external id', async () => {
+      const { service } = getService({ canonicalProfileId: '' });
+
+      await expect(service.getMoonpayCustomerId()).rejects.toThrow(
+        /Unable to resolve MetaMask canonical profile id/u,
+      );
     });
   });
 
@@ -806,8 +837,11 @@ type RootMessenger = Messenger<
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
  * @param args.baseUrl - Base URL of the KYC API.
+ * @param args.neobankBaseUrl - Optional on-ramp / neobank-proxy base URL.
  * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
  * option so the service falls back to an empty string.
+ * @param args.canonicalProfileId - Canonical profile id returned by
+ * `AuthenticationController:getSessionProfile`.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -815,15 +849,19 @@ function getService({
   geolocation = 'US-NY',
   defaultPolicy = false,
   baseUrl = MOCK_API_URL,
+  neobankBaseUrl,
   // `null` means "omit the option entirely" (exercises the constructor's
   // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
+  canonicalProfileId = 'canonical-profile-1',
 }: {
   bearerToken?: string;
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
+  neobankBaseUrl?: string;
   fractalEncryptionBaseUrl?: string | null;
+  canonicalProfileId?: string;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -839,6 +877,7 @@ function getService({
   rootMessenger.delegate({
     actions: [
       'AuthenticationController:getBearerToken',
+      'AuthenticationController:getSessionProfile',
       'GeolocationController:getGeolocation',
     ],
     events: [],
@@ -849,6 +888,15 @@ function getService({
     async () => bearerToken,
   );
   rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    async () => ({
+      identifierId: 'id-1',
+      profileId: canonicalProfileId,
+      canonicalProfileId,
+      metaMetricsId: 'mm-1',
+    }),
+  );
+  rootMessenger.registerActionHandler(
     'GeolocationController:getGeolocation',
     async () => geolocation as string,
   );
@@ -857,6 +905,7 @@ function getService({
     fetch,
     messenger,
     baseUrl,
+    ...(neobankBaseUrl === undefined ? {} : { neobankBaseUrl }),
     ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
