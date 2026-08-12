@@ -1,6 +1,5 @@
 import { create, coerce, Infer, is, intersection } from '@metamask/superstruct';
 import { parseCaipAssetType } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import { formatAddressToAssetId } from '../utils/caip-formatters.js';
 import { sumAmounts } from '../utils/number-formatters.js';
@@ -18,6 +17,7 @@ import {
 import type { QuoteResponse } from '../validators/quote-response.js';
 import { QuoteSchemaV2, FeeType, QuoteSchema } from '../validators/quote.js';
 import { StepSchemaV2, StepSchema } from '../validators/step.js';
+import { assetIdsMatch } from '../utils/assets.js';
 
 const BridgeAssetV2FromV1 = coerce(
   BridgeAssetV2Schema,
@@ -78,19 +78,19 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
     ...restQuote
   } = value;
 
+  const srcAssetV2 = toBridgeAssetV2(srcAsset);
+
   return {
     src: {
-      amount: new BigNumber(srcTokenAmount)
-        .plus(
-          intent
-            ? 0
-            : (sumAmounts([
-                feeData[FeeType.TX_FEE],
-                feeData[FeeType.METABRIDGE],
-              ])?.amount ?? 0),
-        )
-        .toFixed(),
-      asset: toBridgeAssetV2(srcAsset),
+      amount: sumAmounts([
+        { amount: srcTokenAmount, asset: srcAssetV2 },
+        ...(intent
+          ? []
+          : [feeData[FeeType.TX_FEE], feeData[FeeType.METABRIDGE]].filter(
+              (fee) => assetIdsMatch(fee?.asset?.assetId, srcAssetV2.assetId),
+            )),
+      ])?.amount,
+      asset: srcAssetV2,
       ...(walletAddress && { walletAddress }),
     },
     dest: {
