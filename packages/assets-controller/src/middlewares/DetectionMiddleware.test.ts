@@ -612,9 +612,7 @@ describe('DetectionMiddleware', () => {
       await middleware.assetsMiddleware(context, next);
 
       expect(
-        context.response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[
-          MOCK_STAKING_ASSET
-        ],
+        context.response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[MOCK_STAKING_ASSET],
       ).toStrictEqual({ amount: '1.5' });
     });
 

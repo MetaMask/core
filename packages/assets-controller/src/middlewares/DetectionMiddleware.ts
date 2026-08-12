@@ -149,9 +149,7 @@ export class DetectionMiddleware {
           const knownBalanceLower = detectionEnabled
             ? null
             : new Set(
-                Object.keys(stateAccountBalances).map((id) =>
-                  id.toLowerCase(),
-                ),
+                Object.keys(stateAccountBalances).map((id) => id.toLowerCase()),
               );
 
           for (const assetId of Object.keys(
