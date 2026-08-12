@@ -143,11 +143,23 @@ export type SimulationResponseCallTrace = {
   /** Error message for the call, if any. */
   error?: string;
 
+  /** Sender of the call. */
+  from?: Hex;
+
   /** Raw event logs created by the call. */
   logs?: SimulationResponseLog[] | null;
 
   /** Raw return data from the call (revert hex when reverted). */
   output?: Hex;
+
+  /** Recipient of the call. */
+  to?: Hex;
+
+  /** Frame type of the call, such as `CALL` or `DELEGATECALL`. */
+  type?: string;
+
+  /** Native value transferred by the call. */
+  value?: Hex;
 };
 
 /**

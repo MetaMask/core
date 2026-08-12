@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix simulated native balance changes incorrectly showing a balance increase on chains where the simulation API does not deduct gas from the sender's balance, such as Base and Optimism ([#9840](https://github.com/MetaMask/core/pull/9840))
+  - The gas excluded from the native balance change is now derived from the value flows in the call trace instead of unconditionally adding the estimated gas cost to the final balance.
+
 ## [69.5.2]
 
 ### Changed

@@ -5,6 +5,7 @@ import type { Hex } from '@metamask/utils';
 
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {
+  SimulationResponseCallTrace,
   SimulationResponseLog,
   SimulationResponseTransaction,
 } from '../api/simulation-api.js';
@@ -193,17 +194,20 @@ function createEventResponseMock(
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
  * @param gasCost - Gas cost of the transaction.
+ * @param callTrace - Optional call trace for the transaction.
  * @returns Mock API response.
  */
 function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
   gasCost: number = 0,
+  callTrace?: SimulationResponseCallTrace,
 ): SimulationResponse {
   return {
     transactions: [
       {
         ...defaultResponseTx,
+        ...(callTrace ? { callTrace } : {}),
         return: encodeTo32ByteHex(previousBalance),
         gasCost,
         stateDiff: {
@@ -361,6 +365,160 @@ describe('Balance Change Utils', () => {
           },
           gasUsed: undefined,
           simulationRevert: undefined,
+        });
+      });
+
+      it('excluding estimated gas cost if gas not deducted from state diff', async () => {
+        // Decrease of 0x2 matching the sent value, so no gas was deducted
+        // and the gas cost of 0x5 must not be added to the new balance.
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x64', '0x62', 5, {
+            calls: [],
+            from: USER_ADDRESS_MOCK,
+            logs: [],
+            to: OTHER_ADDRESS_MOCK,
+            type: 'CALL',
+            value: '0x2',
+          }),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2',
+          isDecrease: true,
+          newBalance: '0x62',
+          previousBalance: '0x64',
+        });
+      });
+
+      it('excluding gas deducted from state diff using call trace value flows', async () => {
+        // Decrease of 0x5 with a sent value of 0x2, so the deducted gas of
+        // 0x3 is excluded from the balance change.
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x64', '0x5f', 3, {
+            calls: [],
+            from: USER_ADDRESS_MOCK,
+            logs: [],
+            to: OTHER_ADDRESS_MOCK,
+            type: 'CALL',
+            value: '0x2',
+          }),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2',
+          isDecrease: true,
+          newBalance: '0x62',
+          previousBalance: '0x64',
+        });
+      });
+
+      it('including value from nested calls and ignoring delegate call frames', async () => {
+        // Increase of 0x2 as user received 0x5 in a nested call while 0x3 of
+        // gas was deducted. The delegate call frame value is not a transfer.
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x64', '0x66', 3, {
+            calls: [
+              {
+                from: CONTRACT_ADDRESS_1_MOCK,
+                to: USER_ADDRESS_MOCK,
+                type: 'DELEGATECALL',
+                value: '0x5',
+              },
+              {
+                from: CONTRACT_ADDRESS_1_MOCK,
+                to: USER_ADDRESS_MOCK,
+                type: 'CALL',
+                value: '0x5',
+              },
+            ],
+            from: USER_ADDRESS_MOCK,
+            logs: [],
+            to: CONTRACT_ADDRESS_1_MOCK,
+            type: 'CALL',
+            value: '0x0',
+          }),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x5',
+          isDecrease: false,
+          newBalance: '0x69',
+          previousBalance: '0x64',
+        });
+      });
+
+      it('ignoring value in reverted call frames', async () => {
+        // Decrease of 0x5 from a sent value of 0x2 and gas of 0x3. The value
+        // of 0x4 in the reverted frame was rolled back so is not a flow.
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x64', '0x5f', 3, {
+            calls: [
+              {
+                error: 'execution reverted',
+                from: USER_ADDRESS_MOCK,
+                to: CONTRACT_ADDRESS_1_MOCK,
+                type: 'CALL',
+                value: '0x4',
+              },
+              {
+                from: USER_ADDRESS_MOCK,
+                to: OTHER_ADDRESS_MOCK,
+                type: 'CALL',
+                value: '0x2',
+              },
+            ],
+            from: USER_ADDRESS_MOCK,
+            logs: [],
+            to: CONTRACT_ADDRESS_1_MOCK,
+            type: 'CALL',
+            value: '0x0',
+          }),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2',
+          isDecrease: true,
+          newBalance: '0x62',
+          previousBalance: '0x64',
+        });
+      });
+
+      it('without negative gas offset if balance increases beyond traced value', async () => {
+        // Increase of 0x5 exceeding the received value of 0x3, so no gas
+        // offset is applied rather than reducing the increase.
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x64', '0x69', 0, {
+            calls: [
+              {
+                from: CONTRACT_ADDRESS_1_MOCK,
+                to: USER_ADDRESS_MOCK,
+                type: 'CALL',
+                value: '0x3',
+              },
+            ],
+            from: USER_ADDRESS_MOCK,
+            logs: [],
+            to: CONTRACT_ADDRESS_1_MOCK,
+            type: 'CALL',
+            value: '0x0',
+          }),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x5',
+          isDecrease: false,
+          newBalance: '0x69',
+          previousBalance: '0x64',
         });
       });
     });

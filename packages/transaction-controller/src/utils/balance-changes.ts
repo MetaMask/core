@@ -106,6 +106,10 @@ const SUPPORTED_TOKEN_ABIS = {
 
 const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
 
+// Call frame types that do not transfer the native value in their `value`
+// field, such as delegate calls which retain the parent call context.
+const NO_VALUE_TRANSFER_CALL_TYPES = ['CALLCODE', 'DELEGATECALL', 'STATICCALL'];
+
 type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 
 /**
@@ -215,7 +219,7 @@ function getNativeBalanceChange(
 
   const { txParams } = request;
   const userAddress = txParams.from as Hex;
-  const { stateDiff } = transactionResponse;
+  const { callTrace, stateDiff } = transactionResponse;
   const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
   const newBalance = stateDiff?.post?.[userAddress]?.balance;
 
@@ -223,11 +227,86 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  return getSimulationBalanceChange(
-    previousBalance,
-    newBalance,
-    transactionResponse.gasCost,
+  // Whether gas is deducted from the sender's balance in the state diff
+  // varies by chain, so derive the deducted gas from the value flows in the
+  // call trace rather than trusting the estimated gas cost.
+  const gasOffset =
+    callTrace?.value === undefined
+      ? new BN(transactionResponse.gasCost ?? 0)
+      : getGasDeducted(callTrace, userAddress, previousBalance, newBalance);
+
+  return getSimulationBalanceChange(previousBalance, newBalance, gasOffset);
+}
+
+/**
+ * Calculate the gas deducted from an account balance during simulation.
+ * Determined as the portion of the balance decrease not explained by the
+ * native value flows in the call trace.
+ *
+ * @param callTrace - The root call trace of the simulated transaction.
+ * @param address - The address to calculate the deducted gas for.
+ * @param previousBalance - The balance before the transaction.
+ * @param newBalance - The balance after the transaction.
+ * @returns The gas deducted from the balance.
+ */
+function getGasDeducted(
+  callTrace: SimulationResponseCallTrace,
+  address: Hex,
+  previousBalance: Hex,
+  newBalance: Hex,
+): BN {
+  const netValueFlow = getNativeValueFlow(
+    callTrace,
+    address.toLowerCase() as Hex,
   );
+
+  const gasDeducted = hexToBN(previousBalance)
+    .sub(hexToBN(newBalance))
+    .add(netValueFlow);
+
+  return BN.max(gasDeducted, new BN(0));
+}
+
+/**
+ * Calculate the net native value flow for an address from a call trace tree.
+ *
+ * @param call - The call trace to process.
+ * @param address - The lowercase address to calculate the value flow for.
+ * @returns The net value flow as a BN, positive if the address gains value.
+ */
+function getNativeValueFlow(
+  call: SimulationResponseCallTrace,
+  address: Hex,
+): BN {
+  let total = new BN(0);
+
+  // State changes in reverted frames are rolled back, including any value
+  // transfers within the frame and its nested calls.
+  if (call.error) {
+    return total;
+  }
+
+  const isValueTransfer =
+    !call.type ||
+    !NO_VALUE_TRANSFER_CALL_TYPES.includes(call.type.toUpperCase());
+
+  if (isValueTransfer && call.value) {
+    const value = hexToBN(call.value);
+
+    if (call.to?.toLowerCase() === address) {
+      total = total.add(value);
+    }
+
+    if (call.from?.toLowerCase() === address) {
+      total = total.sub(value);
+    }
+  }
+
+  for (const nestedCall of call.calls ?? []) {
+    total = total.add(getNativeValueFlow(nestedCall, address));
+  }
+
+  return total;
 }
 
 /**
@@ -699,9 +778,9 @@ function extractRootRevert(
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
-  offset: number = 0,
+  offset: BN = new BN(0),
 ): SimulationBalanceChange | undefined {
-  const newBalanceBN = hexToBN(newBalance).add(new BN(offset));
+  const newBalanceBN = hexToBN(newBalance).add(offset);
   const previousBalanceBN = hexToBN(previousBalance);
   const differenceBN = newBalanceBN.sub(previousBalanceBN);
   const isDecrease = differenceBN.isNeg();
