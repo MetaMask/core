@@ -13,6 +13,15 @@ import { AccountTreeSnapshot } from './snapshot.js';
 
 const MOCK_BAD_SECRET = 8675309;
 
+function thrownMessage(fn: () => void): string {
+  try {
+    fn();
+  } catch (e) {
+    return (e as Error).message;
+  }
+  throw new Error('Expected function to throw');
+}
+
 describe('parsePayloadGroupId', () => {
   it('parses a mnemonic group ID (wallet-id/groupIndex)', () => {
     const result = parsePayloadGroupId('wallet:entropy:mnemonic:abc123/0');
@@ -136,6 +145,132 @@ describe('assertAccountTreePayload', () => {
     ).toThrow('Invalid AccountTreePayload:');
   });
 
+  describe('mnemonic value field redaction — nested path and value', () => {
+    const walletId = toWalletPayloadId('entropy-source-1');
+    const payload = {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: [
+        {
+          id: walletId,
+          type: AccountWalletPayloadType.Mnemonic,
+          value: MOCK_BAD_SECRET,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(walletId, 0),
+              groupIndex: 0,
+              metadata: { name: 'Account 0', pinned: false, hidden: false },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('includes the field path in the error message (with formatValidationErrorMessages)', () => {
+      expect(() => assertAccountTreePayload(payload)).toThrow(
+        '[wallets.0.value]',
+      );
+    });
+
+    it('does not leak the value in the error message (with formatValidationErrorMessages)', () => {
+      expect(
+        thrownMessage(() => assertAccountTreePayload(payload)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
+    });
+
+    it('does not leak the value in the error message (with superstruct.sensitive)', () => {
+      expect(
+        thrownMessage(() => assert(payload, AccountTreePayloadStruct)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
+    });
+  });
+
+  describe('private key field redaction — nested path and value', () => {
+    const walletId = toWalletPayloadId('private-key');
+    const payload = {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: [
+        {
+          id: walletId,
+          type: AccountWalletPayloadType.PrivateKey,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(walletId, '0xdeadbeef'),
+              value: { privateKey: MOCK_BAD_SECRET, encoding: 'hex' },
+              metadata: { name: 'Account', pinned: false, hidden: false },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('includes the nested field path in the error message (with formatValidationErrorMessages)', () => {
+      expect(() => assertAccountTreePayload(payload)).toThrow(
+        '[wallets.0.groups.0.value.privateKey]',
+      );
+    });
+
+    it('does not leak the value in the error message (with formatValidationErrorMessages)', () => {
+      expect(
+        thrownMessage(() => assertAccountTreePayload(payload)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
+    });
+
+    it('does not leak the value in the error message (with superstruct.sensitive)', () => {
+      expect(
+        thrownMessage(() => assert(payload, AccountTreePayloadStruct)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
+    });
+  });
+
+  describe('multiple sensitive fields failing simultaneously', () => {
+    const mnemonicWalletId = toWalletPayloadId('entropy-source-1');
+    const privateKeyWalletId = toWalletPayloadId('private-key');
+    const payload = {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: [
+        {
+          id: mnemonicWalletId,
+          type: AccountWalletPayloadType.Mnemonic,
+          value: MOCK_BAD_SECRET,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(mnemonicWalletId, 0),
+              groupIndex: 0,
+              metadata: { name: 'Account 0', pinned: false, hidden: false },
+            },
+          ],
+        },
+        {
+          id: privateKeyWalletId,
+          type: AccountWalletPayloadType.PrivateKey,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(privateKeyWalletId, '0xdeadbeef'),
+              value: { privateKey: MOCK_BAD_SECRET, encoding: 'hex' },
+              metadata: { name: 'Account', pinned: false, hidden: false },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('does not leak either value in the error message (with formatValidationErrorMessages)', () => {
+      expect(
+        thrownMessage(() => assertAccountTreePayload(payload)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
+    });
+
+    it('does not leak either value in the error message (with superstruct.sensitive)', () => {
+      expect(
+        thrownMessage(() => assert(payload, AccountTreePayloadStruct)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
+    });
+  });
+
   describe('mnemonic value field redaction', () => {
     const walletId = toWalletPayloadId('entropy-source-1');
     const payload = {
@@ -157,16 +292,16 @@ describe('assertAccountTreePayload', () => {
       ],
     };
 
-    it('does not leak the value via assertAccountTreePayload', () => {
-      expect(() => assertAccountTreePayload(payload)).toThrow(
-        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
-      );
+    it('does not leak the value (with formatValidationErrorMessages)', () => {
+      expect(
+        thrownMessage(() => assertAccountTreePayload(payload)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
     });
 
-    it('does not leak the value via superstruct assert', () => {
-      expect(() => assert(payload, AccountTreePayloadStruct)).toThrow(
-        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
-      );
+    it('does not leak the value (with superstruct.sensitive)', () => {
+      expect(
+        thrownMessage(() => assert(payload, AccountTreePayloadStruct)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
     });
   });
 
@@ -190,16 +325,16 @@ describe('assertAccountTreePayload', () => {
       ],
     };
 
-    it('does not leak the value via assertAccountTreePayload', () => {
-      expect(() => assertAccountTreePayload(payload)).toThrow(
-        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
-      );
+    it('does not leak the value (with formatValidationErrorMessages)', () => {
+      expect(
+        thrownMessage(() => assertAccountTreePayload(payload)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
     });
 
-    it('does not leak the value via superstruct assert', () => {
-      expect(() => assert(payload, AccountTreePayloadStruct)).toThrow(
-        expect.not.stringContaining(String(MOCK_BAD_SECRET)),
-      );
+    it('does not leak the value (with superstruct.sensitive)', () => {
+      expect(
+        thrownMessage(() => assert(payload, AccountTreePayloadStruct)),
+      ).not.toContain(String(MOCK_BAD_SECRET));
     });
   });
 

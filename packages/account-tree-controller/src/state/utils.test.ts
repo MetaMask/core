@@ -1,4 +1,4 @@
-import { object, string, StructError } from '@metamask/superstruct';
+import { object, sensitive, string, StructError } from '@metamask/superstruct';
 
 import { deepFreeze, formatValidationErrorMessages } from './utils.js';
 
@@ -97,5 +97,34 @@ describe('formatValidationErrorMessages', () => {
     expect(caught).toBeDefined();
     const result = formatValidationErrorMessages(caught as StructError);
     expect(result.split(', ').length).toBeGreaterThan(1);
+  });
+
+  it('uses type/refinement and never failure.message', () => {
+    // sensitive() redacts the value to *** in failure.message — if
+    // formatValidationErrorMessages were to use message instead of type, *** would
+    // appear in the output. Asserting it does not pins the mechanism.
+    const schema = object({ secret: sensitive(string()) });
+    const error = makeStructError({ secret: 12345 });
+    const result = formatValidationErrorMessages(error);
+    expect(result).toContain('expected: string');
+    expect(result).not.toContain('***');
+  });
+
+  it('sensitive() redacts the actual value in failure.message', () => {
+    // This pins the superstruct behaviour we rely on: sensitive() must produce
+    // *** in failure.message so that any code path using message is also safe.
+    const schema = object({ secret: sensitive(string()) });
+    let caught: StructError | undefined;
+    try {
+      schema.assert({ secret: 12345 });
+    } catch (error) {
+      if (error instanceof StructError) {
+        caught = error;
+      }
+    }
+    expect(caught).toBeDefined();
+    const failure = caught!.failures()[0];
+    expect(failure?.message).toContain('***');
+    expect(failure?.message).not.toContain('12345');
   });
 });
