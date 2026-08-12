@@ -3,6 +3,7 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import type { Draft } from 'immer';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
@@ -204,13 +205,18 @@ export async function updateQuotes(
     // Persist the failure so clients can surface it, and stamp the update
     // time so the refresh loop retries on the normal interval instead of
     // every tick.
-    updateTransactionData(transactionId, (data) => {
-      data.quoteError = {
-        message: (error as Error).message,
-        reason: 'no-quotes',
-      };
-      data.quotesLastUpdated = Date.now();
-    });
+    updateExistingTransactionData(
+      messenger,
+      transactionId,
+      updateTransactionData,
+      (data) => {
+        data.quoteError = {
+          message: (error as Error).message,
+          reason: 'no-quotes',
+        };
+        data.quotesLastUpdated = Date.now();
+      },
+    );
 
     throw error;
   } finally {
@@ -398,24 +404,58 @@ export async function refreshQuotes(
       } else {
         // Not updated (e.g. transaction no longer unapproved): stamp the
         // attempt so the next one waits a full interval, not every tick.
-        stampQuotesLastUpdated(transactionId, updateTransactionData);
+        stampQuotesLastUpdated(messenger, transactionId, updateTransactionData);
       }
     } catch (error) {
       // Also stamp throws that skip the updateQuotes catch, such as
       // "Transaction not found". Keep refreshing the remaining transactions.
-      stampQuotesLastUpdated(transactionId, updateTransactionData);
+      stampQuotesLastUpdated(messenger, transactionId, updateTransactionData);
       log('Failed to refresh quotes', { transactionId, error });
     }
   }
 }
 
 function stampQuotesLastUpdated(
+  messenger: TransactionPayControllerMessenger,
   transactionId: string,
   updateTransactionData: UpdateTransactionDataCallback,
 ): void {
-  updateTransactionData(transactionId, (data) => {
-    data.quotesLastUpdated = Date.now();
-  });
+  updateExistingTransactionData(
+    messenger,
+    transactionId,
+    updateTransactionData,
+    (data) => {
+      data.quotesLastUpdated = Date.now();
+    },
+  );
+}
+
+/**
+ * Update transaction data only when the entry still exists in state, so a
+ * late write cannot recreate an entry that cleanup already removed.
+ *
+ * @param messenger - Messenger instance.
+ * @param transactionId - ID of the transaction to update.
+ * @param updateTransactionData - Callback to update transaction data.
+ * @param fn - Function that receives a draft of the transaction data.
+ */
+function updateExistingTransactionData(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+  updateTransactionData: UpdateTransactionDataCallback,
+  fn: (data: Draft<TransactionData>) => void,
+): void {
+  const exists = Boolean(
+    messenger.call('TransactionPayController:getState').transactionData[
+      transactionId
+    ],
+  );
+
+  if (!exists) {
+    return;
+  }
+
+  updateTransactionData(transactionId, fn);
 }
 
 function abortPreviousAndCreateController(

@@ -187,6 +187,11 @@ describe('Quotes Utils', () => {
       },
     );
 
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_ID_MOCK]: cloneDeep(TRANSACTION_DATA_MOCK),
+      },
+    });
     getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
     getQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getBatchTransactionsMock.mockResolvedValue([BATCH_TRANSACTION_MOCK]);
@@ -1341,6 +1346,24 @@ describe('Quotes Utils', () => {
         );
       });
 
+      it('does not persist quote error when pay state was removed', async () => {
+        getControllerStateMock.mockReturnValue({ transactionData: {} });
+        getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
+        calculateTotalsMock.mockImplementationOnce(() => {
+          throw new Error('calculateTotals failed');
+        });
+
+        await expect(run()).rejects.toThrow('calculateTotals failed');
+
+        const transactionDataMock: Record<string, unknown> = {};
+        updateTransactionDataMock.mock.calls.forEach((call) =>
+          call[1](transactionDataMock),
+        );
+
+        expect(transactionDataMock.quoteError).toBeUndefined();
+        expect(transactionDataMock.quotesLastUpdated).toBeUndefined();
+      });
+
       it('catches abort errors thrown by strategy and returns false', async () => {
         const strategyError = new Error('The operation was aborted');
         const gate = deferred<TransactionPayQuote<Json>[]>();
@@ -1722,6 +1745,31 @@ describe('Quotes Utils', () => {
       expect(transactionDataMock).toStrictEqual({
         quotesLastUpdated: expect.any(Number),
       });
+    });
+
+    it('does not stamp the attempt when pay state was removed', async () => {
+      getControllerStateMock
+        .mockReturnValueOnce({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [],
+              quotesLastUpdated: 1,
+            } as TransactionData,
+          },
+        })
+        .mockReturnValue({ transactionData: {} });
+
+      // updateQuotes throws when the transaction cannot be found.
+      getTransactionMock.mockReturnValueOnce(undefined);
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
 
     it('continues refreshing other transactions when one update fails', async () => {
