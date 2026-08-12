@@ -69,6 +69,13 @@ export const UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES = [
 ] as const;
 
 /**
+ * Authorization scheme under which a signed `storage_access_token` envelope is
+ * carried to UKYC Storage: `Authorization: AccessToken <base64url(envelope)>`.
+ * The credentials portion is what `encodeStorageAccessTokenForHeader` returns.
+ */
+export const UKYC_CAPABILITY_AUTH_SCHEME = 'AccessToken' as const;
+
+/**
  * Standard well-known path where the Fractal encryption service publishes its
  * JWKS (the Ed25519 public keys used to sign the `jwtChain`).
  */

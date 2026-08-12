@@ -85,3 +85,37 @@ export type {
   KycSumSubStatus,
   KycVendor,
 } from './types.js';
+
+// UKYC storage-access-token utilities. Exported so a signed capability token can
+// be minted for testing UKYC Storage (see `mintUkycTestToken`).
+export {
+  UKYC_CAPABILITY_AUTH_SCHEME,
+  UKYC_KWIL_AUDIENCE,
+  UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
+  UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES,
+  UKYC_STORAGE_ACCESS_TOKEN_VERSION,
+} from './ukyc/constants.js';
+export {
+  deriveClientMaterial,
+  encodeClientMaterial,
+} from './ukyc/deriveClientMaterial.js';
+export type {
+  EncodedUkycClientMaterial,
+  UkycClientMaterial,
+} from './ukyc/deriveClientMaterial.js';
+export {
+  encodeStorageAccessTokenForHeader,
+  signStorageAccessToken,
+} from './ukyc/storageAccessToken.js';
+export type {
+  SignStorageAccessTokenParams,
+  UkycStorageAccessToken,
+  UkycStorageAccessTokenPayload,
+  UkycStorageOperation,
+  UkycTokenPresenter,
+} from './ukyc/storageAccessToken.js';
+export { mintUkycTestToken } from './ukyc/testToken.js';
+export type {
+  MintedUkycTestToken,
+  MintUkycTestTokenParams,
+} from './ukyc/testToken.js';

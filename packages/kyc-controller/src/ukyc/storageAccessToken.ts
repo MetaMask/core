@@ -221,8 +221,9 @@ export function signStorageAccessToken(
 
 /**
  * Serializes a signed token to a compact string suitable for header transport
- * (e.g. `Authorization: StorageAccessToken <token>`). The complete envelope is
- * base64url-encoded; the private `signing_key` is never included.
+ * (`Authorization: AccessToken <token>`, see `UKYC_CAPABILITY_AUTH_SCHEME`). The
+ * complete envelope is base64url-encoded; the private `signing_key` is never
+ * included.
  *
  * @param token - The signed token envelope.
  * @returns The base64url-encoded envelope string.
