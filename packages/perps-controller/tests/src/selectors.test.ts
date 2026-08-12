@@ -636,6 +636,9 @@ describe('PerpsController selectors', () => {
       chartExpanded: false,
       orderBookPosition: 'left',
       orderFormPosition: 'right',
+      positionsSideFilter: 'all',
+      positionsSortField: 'positionValue',
+      positionsSortDirection: 'desc',
     };
 
     it('returns the pro-mode layout preferences', () => {
@@ -644,6 +647,9 @@ describe('PerpsController selectors', () => {
         chartExpanded: true,
         orderBookPosition: 'right' as const,
         orderFormPosition: 'left' as const,
+        positionsSideFilter: 'long' as const,
+        positionsSortField: 'unrealizedPnl' as const,
+        positionsSortDirection: 'asc' as const,
       };
       const state = {
         proLayoutPreferences,

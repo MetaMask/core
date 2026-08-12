@@ -7,13 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [79.2.0]
+
+### Added
+
+- Export `assetIdsMatch` util to compare assetIds. EVM assetIds are case insensitive ([#9831](https://github.com/MetaMask/core/pull/9831))
+
+### Fixed
+
+- Filter fees by `assetId` when coercing V1 quotes to V2 ([#9831](https://github.com/MetaMask/core/pull/9831))
+
+## [79.1.0]
+
+### Added
+
+- Point Arc's native USDC to the registered `slip44:5042` asset ID instead of the `erc20:0x0000...` placeholder ([#9796](https://github.com/MetaMask/core/pull/9796))
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
+- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
 - Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
 - Bump `@metamask/multichain-network-controller` from `^3.2.2` to `^3.2.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/assets-controllers` from `^111.0.0` to `^111.1.0` ([#9793](https://github.com/MetaMask/core/pull/9793))
 - Bump `@metamask/assets-controller` from `^13.1.1` to `^13.1.2` ([#9813](https://github.com/MetaMask/core/pull/9813))
+
+### Fixed
+
+- Populate QuotesReceived event's `usd_amount_source` property ([#9828](https://github.com/MetaMask/core/pull/9828))
 
 ## [79.0.1]
 
@@ -1892,7 +1912,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.2.0...HEAD
+[79.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.1.0...@metamask/bridge-controller@79.2.0
+[79.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.0.1...@metamask/bridge-controller@79.1.0
 [79.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.0.0...@metamask/bridge-controller@79.0.1
 [79.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.1.0...@metamask/bridge-controller@79.0.0
 [78.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.0.3...@metamask/bridge-controller@78.1.0

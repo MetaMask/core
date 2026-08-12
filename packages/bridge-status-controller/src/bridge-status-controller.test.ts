@@ -4396,6 +4396,7 @@ describe('BridgeStatusController', () => {
         ...quoteWithoutApproval,
         quote: {
           ...quoteWithoutApproval.quote,
+          slippage: 0.01,
           gasIncluded: true,
           gasIncluded7702: false,
           feeData: {
