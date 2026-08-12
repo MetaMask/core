@@ -19,6 +19,9 @@
     },
     {
       "path": "../controller-utils"
+    },
+    {
+      "path": "../kyc-controller"
     }
   ],
   "include": ["../../types", "./src"]

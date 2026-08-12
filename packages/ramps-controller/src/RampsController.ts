@@ -156,11 +156,7 @@ export const controllerName = 'RampsController';
  * Any host (e.g. mobile) that creates a RampsController messenger must delegate
  * these actions from the root messenger so the controller can function.
  */
-export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
-  | RampsServiceActions['type']
-  | TransakServiceActions['type']
-  | NeoBankServiceActions['type']
-)[] = [
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'RampsService:getDefaultRedirectCallbackUrl',
   'RampsService:getGeolocation',
   'RampsService:getCountries',
@@ -198,7 +194,11 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
   'NeoBankService:createAutoramp',
-];
+] as const satisfies readonly (
+  | RampsServiceActions['type']
+  | TransakServiceActions['type']
+  | NeoBankServiceActions['type']
+)[];
 
 /**
  * Other controller actions RampsController calls via the messenger.

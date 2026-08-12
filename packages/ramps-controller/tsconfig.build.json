@@ -21,6 +21,9 @@
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../kyc-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
