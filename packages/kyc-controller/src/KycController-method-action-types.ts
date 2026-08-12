@@ -16,10 +16,25 @@ import type { KycController } from './KycController.js';
  * authentication completes (and chains into document verification when KYC
  * is required). When omitted, the flow stops at `form` and the consumer must
  * call `checkKycRequired` manually.
+ * @param params.vendor - Identity vendor for this flow. Pass `iron` for the
+ * Money/VBA path (no MoonPay Check/Auth frames). Defaults to `moonpay`.
  */
 export type KycControllerInitializeAction = {
   type: `KycController:initialize`;
   handler: KycController['initialize'];
+};
+
+/**
+ * Creates (or resumes) an Iron empty-shell customer. Exposed so Money can
+ * ensure the customer exists before showing T&C screens independently of
+ * {@link initialize}.
+ *
+ * @param params - The parameters.
+ * @param params.email - Email for the Iron customer.
+ */
+export type KycControllerCreateIronCustomerAction = {
+  type: `KycController:createIronCustomer`;
+  handler: KycController['createIronCustomer'];
 };
 
 /**
@@ -42,6 +57,10 @@ export type KycControllerLoadDisclaimersAction = {
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
+ * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
+ * accepted (T&C2). Defaults to `true` when omitted.
+ * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
+ * (T&C2). Defaults to `true` when omitted.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
@@ -155,6 +174,18 @@ export type KycControllerStartSumSubAction = {
 };
 
 /**
+ * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
+ * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
+ * schedules short-interval polling while the status is `pending`.
+ *
+ * @returns The latest status payload.
+ */
+export type KycControllerRefreshKycStatusAction = {
+  type: `KycController:refreshKycStatus`;
+  handler: KycController['refreshKycStatus'];
+};
+
+/**
  * Fetches the current UKYC session status for the active sub-flow and records
  * it on state. Useful for a one-off refresh outside the automatic polling
  * loop that {@link startSumSub} runs.
@@ -181,6 +212,7 @@ export type KycControllerResetAction = {
  */
 export type KycControllerMethodActions =
   | KycControllerInitializeAction
+  | KycControllerCreateIronCustomerAction
   | KycControllerLoadDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction
@@ -191,5 +223,6 @@ export type KycControllerMethodActions =
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
   | KycControllerStartSumSubAction
+  | KycControllerRefreshKycStatusAction
   | KycControllerGetSessionStatusAction
   | KycControllerResetAction;

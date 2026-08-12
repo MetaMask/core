@@ -23,6 +23,8 @@ import type {
   KycSessionStatus,
   KycSumSubLauncher,
   KycSumSubStatus,
+  KycUserStatus,
+  KycVendor,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { toBase64Url } from './encoding.js';
@@ -110,6 +112,14 @@ const SUCCESSFUL_SESSION_STATUSES: ReadonlySet<string> = new Set([
 const VENDOR_PROCESSING_MESSAGE =
   'Your KYC has been submitted and is being processed by the vendor.';
 
+// UKYC / relay error indicating the applicant already finished KYC. Mapped to
+// the simplified `completed` user status for the Money toast surface.
+const SESSION_NOT_IN_VALID_STATE = 'session_not_in_valid_state';
+
+// How often to refresh the user-keyed `GET /kyc/status` while the simplified
+// status is still `pending`. Overridable via the constructor.
+const DEFAULT_USER_STATUS_POLL_INTERVAL_MS = 15_000;
+
 // === STATE ===
 
 /**
@@ -147,6 +157,13 @@ export type KycControllerState = {
   moonpayCustomerId: string | null;
 
   /**
+   * The identity vendor driving the current flow. Captured at `initialize`.
+   * Defaults to `moonpay` when omitted so existing ramps/card callers keep
+   * the Check/Auth frame path. `iron` skips those frames.
+   */
+  activeVendor: KycVendor;
+
+  /**
    * The product the current flow is running for. Captured at `initialize`
    * (or `acceptTermsAndStartSession`) and used to automatically run the
    * KYC-required check once authentication completes. `null` outside a
@@ -159,6 +176,17 @@ export type KycControllerState = {
   kycRequiredByProduct: Partial<Record<KycProduct, boolean>>;
   /** ISO-8601 timestamp of the last KYC-required check (persisted). */
   lastCheckedAt: string | null;
+
+  /**
+   * User-keyed simplified KYC status from `GET /kyc/status` (persisted so the
+   * Money toast can render across cold starts). `null` until the first
+   * successful `refreshKycStatus`.
+   */
+  userStatus: KycUserStatus | null;
+  /** Optional SumSub session id for the retryable error path. */
+  userStatusSumsubSessionId: string | null;
+  /** Optional machine-readable error code for terminal / EDD UX. */
+  userStatusErrorCode: string | null;
 
   /** SumSub document-verification sub-flow state. */
   sumsub: {
@@ -247,6 +275,12 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
+  activeVendor: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
   activeProduct: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -264,6 +298,24 @@ const kycControllerMetadata = {
     includeInStateLogs: true,
     persist: true,
     usedInUi: false,
+  },
+  userStatus: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  userStatusSumsubSessionId: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: true,
+    usedInUi: true,
+  },
+  userStatusErrorCode: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
   },
   sumsub: {
     includeInDebugSnapshot: false,
@@ -292,9 +344,13 @@ export function getDefaultKycControllerState(): KycControllerState {
     sessionToken: null,
     accessToken: null,
     moonpayCustomerId: null,
+    activeVendor: 'moonpay',
     activeProduct: null,
     kycRequiredByProduct: {},
     lastCheckedAt: null,
+    userStatus: null,
+    userStatusSumsubSessionId: null,
+    userStatusErrorCode: null,
     sumsub: {
       status: 'idle',
       result: null,
@@ -311,6 +367,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'initialize',
   'loadDisclaimers',
   'acceptTermsAndStartSession',
+  'createIronCustomer',
   'clearSavedTerms',
   'handleFrameMessage',
   'buildCheckFrameUrl',
@@ -318,6 +375,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'buildResetFrameUrl',
   'checkKycRequired',
   'getKycStatus',
+  'refreshKycStatus',
   'startSumSub',
   'getSessionStatus',
   'reset',
@@ -342,7 +400,23 @@ export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   KycControllerState
 >;
 
-export type KycControllerEvents = KycControllerStateChangeEvent;
+/**
+ * Published when the user-keyed simplified KYC status changes (Money toast).
+ */
+export type KycControllerStatusChangedEvent = {
+  type: `${typeof controllerName}:statusChanged`;
+  payload: [
+    {
+      status: KycUserStatus;
+      sumsubSessionId: string | null;
+      errorCode: string | null;
+    },
+  ];
+};
+
+export type KycControllerEvents =
+  | KycControllerStateChangeEvent
+  | KycControllerStatusChangedEvent;
 
 type AllowedEvents = never;
 
@@ -369,6 +443,12 @@ export type KycControllerOptions = {
    * {@link DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS}.
    */
   sessionStatusPollIntervalMs?: number;
+  /**
+   * How often, in milliseconds, to refresh `GET /kyc/status` while the
+   * simplified user status is `pending`. Defaults to
+   * {@link DEFAULT_USER_STATUS_POLL_INTERVAL_MS}.
+   */
+  userStatusPollIntervalMs?: number;
 };
 
 /**
@@ -434,6 +514,15 @@ export class KycController extends BaseController<
    */
   #pollToken = 0;
 
+  /** Interval, in milliseconds, between user-keyed status polls. */
+  readonly #userStatusPollIntervalMs: number;
+
+  /** Handle for the scheduled next user-status poll, or `null`. */
+  #userStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Monotonic token for the user-status poll loop (see `#pollToken`). */
+  #userStatusPollToken = 0;
+
   /**
    * Constructs a new {@link KycController}.
    *
@@ -443,12 +532,15 @@ export class KycController extends BaseController<
    * @param options.sumsubLauncher - The platform SumSub launcher adapter.
    * @param options.sessionStatusPollIntervalMs - How often to poll the UKYC
    * session status after the SumSub SDK completes.
+   * @param options.userStatusPollIntervalMs - How often to refresh the
+   * user-keyed KYC status while it is still `pending`.
    */
   constructor({
     messenger,
     state,
     sumsubLauncher,
     sessionStatusPollIntervalMs = DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS,
+    userStatusPollIntervalMs = DEFAULT_USER_STATUS_POLL_INTERVAL_MS,
   }: KycControllerOptions) {
     super({
       messenger,
@@ -459,6 +551,7 @@ export class KycController extends BaseController<
 
     this.#sumsubLauncher = sumsubLauncher;
     this.#sessionStatusPollIntervalMs = sessionStatusPollIntervalMs;
+    this.#userStatusPollIntervalMs = userStatusPollIntervalMs;
     this.#keypair = generateKeyPair();
 
     this.messenger.registerMethodActionHandlers(
@@ -510,10 +603,13 @@ export class KycController extends BaseController<
    * authentication completes (and chains into document verification when KYC
    * is required). When omitted, the flow stops at `form` and the consumer must
    * call `checkKycRequired` manually.
+   * @param params.vendor - Identity vendor for this flow. Pass `iron` for the
+   * Money/VBA path (no MoonPay Check/Auth frames). Defaults to `moonpay`.
    */
   async initialize(params?: {
     email?: string;
     product?: KycProduct;
+    vendor?: KycVendor;
   }): Promise<void> {
     // A repeat `initialize` while a session flow is already in progress must
     // not tear it down: creating a new vendor session clears the tokens and
@@ -524,6 +620,8 @@ export class KycController extends BaseController<
       return;
     }
 
+    const vendor = params?.vendor ?? 'moonpay';
+
     // `initialize` starts a fresh flow, so `activeProduct` is always reset to
     // this call's product (or `null`). Otherwise a prior run's product could
     // linger and cause `#continueAfterAuthentication` to auto-run the check /
@@ -532,6 +630,7 @@ export class KycController extends BaseController<
       if (params?.email) {
         state.email = params.email;
       }
+      state.activeVendor = vendor;
       state.activeProduct = params?.product ?? null;
     });
 
@@ -550,12 +649,37 @@ export class KycController extends BaseController<
       // Ignore; disclaimers loading will surface a country error if needed.
     }
 
+    // Iron: create the empty-shell customer before T&C (offsite decision).
+    if (vendor === 'iron' && this.state.email) {
+      try {
+        await this.messenger.call('KycService:createIronCustomer', {
+          email: this.state.email,
+        });
+        if (this.#generation !== generation) {
+          return;
+        }
+      } catch (error) {
+        if (this.#generation !== generation) {
+          return;
+        }
+        this.#fail(`Iron customer creation failed: ${String(error)}`);
+        return;
+      }
+    }
+
     const hasTerms =
       Boolean(this.state.termsAcceptedAt) &&
       this.state.acceptedDisclaimerIds.length > 0;
 
     if (hasTerms && this.state.email) {
-      await this.#createSession();
+      if (vendor === 'iron') {
+        await this.#startIronSession({
+          sumsubTncSigned: true,
+          idosTncSigned: true,
+        });
+      } else {
+        await this.#createSession();
+      }
       return;
     }
 
@@ -563,6 +687,32 @@ export class KycController extends BaseController<
       state.phase = 'terms';
     });
     await this.loadDisclaimers();
+  }
+
+  /**
+   * Creates (or resumes) an Iron empty-shell customer. Exposed so Money can
+   * ensure the customer exists before showing T&C screens independently of
+   * {@link initialize}.
+   *
+   * @param params - The parameters.
+   * @param params.email - Email for the Iron customer.
+   */
+  async createIronCustomer(params: { email: string }): Promise<void> {
+    this.#applyUpdate((state) => {
+      state.email = params.email;
+      state.activeVendor = 'iron';
+    });
+    const generation = this.#generation;
+    try {
+      await this.messenger.call('KycService:createIronCustomer', {
+        email: params.email,
+      });
+    } catch (error) {
+      if (this.#generation !== generation) {
+        return;
+      }
+      this.#fail(`Iron customer creation failed: ${String(error)}`);
+    }
   }
 
   /**
@@ -586,10 +736,14 @@ export class KycController extends BaseController<
           state.geoCountry = country;
         });
       }
-      const disclaimers = await this.messenger.call(
-        'KycService:fetchDisclaimers',
-        { country },
-      );
+      const disclaimers =
+        this.state.activeVendor === 'iron'
+          ? await this.messenger.call('KycService:fetchIronDisclaimers', {
+              country,
+            })
+          : await this.messenger.call('KycService:fetchDisclaimers', {
+              country,
+            });
       this.#updateIfCurrent(generation, (state) => {
         state.disclaimers = disclaimers;
         state.disclaimersError = null;
@@ -610,10 +764,16 @@ export class KycController extends BaseController<
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
+   * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
+   * accepted (T&C2). Defaults to `true` when omitted.
+   * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
+   * (T&C2). Defaults to `true` when omitted.
    */
   async acceptTermsAndStartSession(params?: {
     email?: string;
     product?: KycProduct;
+    sumsubTncSigned?: boolean;
+    idosTncSigned?: boolean;
   }): Promise<void> {
     const termsAcceptedAt = new Date().toISOString();
     const disclaimerIds = this.state.disclaimers.map(
@@ -629,7 +789,99 @@ export class KycController extends BaseController<
       state.termsAcceptedAt = termsAcceptedAt;
       state.acceptedDisclaimerIds = disclaimerIds;
     });
+    if (this.state.activeVendor === 'iron') {
+      await this.#startIronSession({
+        sumsubTncSigned: params?.sumsubTncSigned ?? true,
+        idosTncSigned: params?.idosTncSigned ?? true,
+      });
+      return;
+    }
     await this.#createSession();
+  }
+
+  /**
+   * Iron-only path: post consents (Iron signings + Sumsub/idOS ack), then
+   * launch SumSub — skipping MoonPay Check/Auth frames.
+   *
+   * @param consents - T&C2 boolean flags.
+   */
+  async #startIronSession(consents: {
+    sumsubTncSigned: boolean;
+    idosTncSigned: boolean;
+  }): Promise<void> {
+    const { email, acceptedDisclaimerIds } = this.state;
+    if (!email) {
+      this.#fail('Missing email for Iron session.');
+      return;
+    }
+    if (acceptedDisclaimerIds.length === 0) {
+      this.#fail('Missing Iron disclaimer acceptance.');
+      return;
+    }
+
+    const generation = this.#generation;
+    this.#applyUpdate((state) => {
+      state.error = null;
+      state.phase = 'session';
+      state.statusMessage = 'Submitting consents...';
+      // Iron has no MoonPay session/access tokens.
+      state.sessionToken = null;
+      state.accessToken = null;
+    });
+
+    try {
+      await this.messenger.call('KycService:submitConsents', {
+        ironDisclaimerIds: acceptedDisclaimerIds,
+        sumsubTncSigned: consents.sumsubTncSigned,
+        idosTncSigned: consents.idosTncSigned,
+      });
+      if (this.#generation !== generation) {
+        return;
+      }
+      this.#applyUpdate((state) => {
+        state.phase = 'submit';
+        state.statusMessage = 'Starting document verification...';
+      });
+      const sumsubResult = await this.startSumSub();
+      if (this.#generation !== generation) {
+        return;
+      }
+      if (
+        sumsubResult &&
+        'error' in sumsubResult &&
+        typeof sumsubResult.error === 'string'
+      ) {
+        throw new Error(sumsubResult.error);
+      }
+      // After SumSub, refresh user-keyed status for the Money toast and start
+      // polling while still pending. Soft-fail: toast refresh must not rewind
+      // the consent / SumSub outcome.
+      try {
+        await this.refreshKycStatus();
+      } catch (statusError) {
+        console.error('KYC status refresh failed:', statusError);
+      }
+      this.#updateIfCurrent(generation, (state) => {
+        if (state.phase !== 'error' && state.phase !== 'done') {
+          state.phase = 'done';
+          state.statusMessage = 'KYC submitted.';
+        }
+      });
+    } catch (error) {
+      console.error('Iron session failed:', error);
+      if (this.#generation !== generation) {
+        return;
+      }
+      this.#applyUpdate((state) => {
+        this.#clearAcceptedTerms(state);
+        state.activeProduct = null;
+        state.error = `Iron session failed: ${String(error)}`;
+        state.statusMessage =
+          'Consent / verification failed — accept the terms to try again.';
+        state.phase = 'terms';
+      });
+      await this.loadDisclaimers();
+    }
   }
 
   /**
@@ -1142,14 +1394,20 @@ export class KycController extends BaseController<
         expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
       });
 
+      const isIron = this.state.activeVendor === 'iron';
       const { sessionId, kycStatus, finalStatus } = await this.messenger.call(
         'KycService:createUkycSession',
         {
           jwtToken,
-          vendorMetadata: {
-            moonPayAccessToken: this.state.accessToken,
-            moonPayUserId: this.state.moonpayCustomerId,
-          },
+          vendorId: isIron ? 'iron' : 'moonpay',
+          ...(isIron
+            ? {}
+            : {
+                vendorMetadata: {
+                  moonPayAccessToken: this.state.accessToken,
+                  moonPayUserId: this.state.moonpayCustomerId,
+                },
+              }),
           wrappedEncryptionKey,
           ukycCapabilityToken,
         },
@@ -1256,12 +1514,156 @@ export class KycController extends BaseController<
       }
       return result;
     } catch (error) {
+      // Applicant already finished KYC — treat as completed for Money toast.
+      if (String(error).includes(SESSION_NOT_IN_VALID_STATE)) {
+        this.#applyUserStatus({
+          status: 'completed',
+          sumsubSessionId: null,
+          errorCode: null,
+        });
+        this.#updateIfCurrent(generation, (state) => {
+          state.sumsub.status = 'complete';
+          state.sumsub.result = { alreadyCompleted: true };
+          state.statusMessage = 'KYC already completed.';
+          state.phase = 'done';
+          state.error = null;
+        });
+        return { alreadyCompleted: true };
+      }
       const result = { error: String(error) };
       this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = 'failed';
         state.sumsub.result = result;
       });
       return result;
+    }
+  }
+
+  /**
+   * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
+   * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
+   * schedules short-interval polling while the status is `pending`.
+   *
+   * @returns The latest status payload.
+   */
+  async refreshKycStatus(): Promise<{
+    status: KycUserStatus;
+    sumsubSessionId: string | null;
+    errorCode: string | null;
+  }> {
+    const payload = await this.#fetchAndApplyUserStatus();
+    if (payload.status === 'pending') {
+      this.#ensureUserStatusPolling();
+    } else {
+      this.#stopUserStatusPolling();
+    }
+    return payload;
+  }
+
+  /**
+   * Fetches `GET /kyc/status` and applies it to state without managing the
+   * poll loop (used by both {@link refreshKycStatus} and the poll tick).
+   *
+   * @returns The latest status payload.
+   */
+  async #fetchAndApplyUserStatus(): Promise<{
+    status: KycUserStatus;
+    sumsubSessionId: string | null;
+    errorCode: string | null;
+  }> {
+    const generation = this.#generation;
+    const response = await this.messenger.call('KycService:fetchKycStatus');
+    if (this.#generation !== generation) {
+      return {
+        status: this.state.userStatus ?? 'not-started',
+        sumsubSessionId: this.state.userStatusSumsubSessionId,
+        errorCode: this.state.userStatusErrorCode,
+      };
+    }
+    const payload = {
+      status: response.status,
+      sumsubSessionId: response.sumsubSessionId ?? null,
+      errorCode: response.errorCode ?? null,
+    };
+    this.#applyUserStatus(payload);
+    return payload;
+  }
+
+  /**
+   * Writes user-keyed status onto state and publishes `statusChanged` when the
+   * value actually changes.
+   *
+   * @param payload - The status payload to apply.
+   */
+  #applyUserStatus(payload: {
+    status: KycUserStatus;
+    sumsubSessionId: string | null;
+    errorCode: string | null;
+  }): void {
+    const previous = this.state.userStatus;
+    this.#applyUpdate((state) => {
+      state.userStatus = payload.status;
+      state.userStatusSumsubSessionId = payload.sumsubSessionId;
+      state.userStatusErrorCode = payload.errorCode;
+    });
+    if (previous !== payload.status) {
+      this.messenger.publish(`${controllerName}:statusChanged`, payload);
+    }
+  }
+
+  /**
+   * Starts the user-status poll loop when not already running and status is
+   * still `pending`.
+   */
+  #ensureUserStatusPolling(): void {
+    if (this.#userStatusPollTimer !== null) {
+      return;
+    }
+    const token = this.#userStatusPollToken;
+    const tick = async (): Promise<void> => {
+      try {
+        const payload = await this.#fetchAndApplyUserStatus();
+        // Race with `reset()` / `#stopUserStatusPolling` while the request was
+        // in flight — do not reschedule onto an idle controller.
+        /* istanbul ignore next */
+        if (this.#userStatusPollToken !== token) {
+          return;
+        }
+        if (payload.status !== 'pending') {
+          this.#stopUserStatusPolling();
+          return;
+        }
+      } catch {
+        // Keep polling on transient errors, unless the loop was superseded.
+        /* istanbul ignore next */
+        if (this.#userStatusPollToken !== token) {
+          return;
+        }
+      }
+      this.#userStatusPollTimer = setTimeout(() => {
+        this.#userStatusPollTimer = null;
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        tick();
+      }, this.#userStatusPollIntervalMs);
+      // Allow the process to exit while a pending-status poll is scheduled.
+      this.#userStatusPollTimer.unref();
+    };
+    this.#userStatusPollTimer = setTimeout(() => {
+      this.#userStatusPollTimer = null;
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      tick();
+    }, this.#userStatusPollIntervalMs);
+    this.#userStatusPollTimer.unref();
+  }
+
+  /**
+   * Stops the user-keyed status poll loop.
+   */
+  #stopUserStatusPolling(): void {
+    this.#userStatusPollToken += 1;
+    if (this.#userStatusPollTimer !== null) {
+      clearTimeout(this.#userStatusPollTimer);
+      this.#userStatusPollTimer = null;
     }
   }
 
@@ -1397,6 +1799,7 @@ export class KycController extends BaseController<
     // Stop any session-status polling so a late poll cannot write onto the
     // now-idle controller.
     this.#stopPolling();
+    this.#stopUserStatusPolling();
     // Invalidate any in-flight async work started before this reset so its
     // results are discarded rather than written onto the now-idle controller.
     this.#generation += 1;
@@ -1409,6 +1812,7 @@ export class KycController extends BaseController<
       state.sessionToken = null;
       state.accessToken = null;
       state.moonpayCustomerId = null;
+      state.activeVendor = 'moonpay';
       state.activeProduct = null;
       state.sumsub = {
         status: 'idle',

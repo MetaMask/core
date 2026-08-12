@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Iron (Money/VBA) KYC path to `@metamask/kyc-controller`: `vendor: 'iron'` skips MoonPay Check/Auth frames; `KycService` clients for `/vendors/iron/*`, `POST /consents`, and `GET /kyc/status`; `refreshKycStatus` + `statusChanged` for Money toast state
 - Initial release of the `@metamask/kyc-controller` package for managing KYC / identity verification state across MetaMask clients ([#9781](https://github.com/MetaMask/core/pull/9781))
 - Add `KycController` and `KycService` for managing KYC / identity verification state across MetaMask clients  ([#9615](https://github.com/MetaMask/core/pull/9615))
   - `KycController` (`BaseController`) owns the flow state machine, the Check/Auth frame message protocol, X25519 credential decryption, and SumSub orchestration via an injected `KycSumSubLauncher` adapter.

@@ -14,6 +14,7 @@ import {
   array,
   assert,
   boolean,
+  enums,
   optional,
   string,
   StructError,
@@ -25,7 +26,12 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import type { KycDisclaimer, KycSessionStatus } from './types.js';
+import type {
+  KycDisclaimer,
+  KycSessionStatus,
+  KycUserStatusResponse,
+  KycVendor,
+} from './types.js';
 import { UKYC_JWKS_PATH } from './ukyc/constants.js';
 import { encodeStorageAccessTokenForHeader } from './ukyc/storageAccessToken.js';
 import type { UkycStorageAccessToken } from './ukyc/storageAccessToken.js';
@@ -44,6 +50,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchDisclaimers',
   'createSession',
   'checkKycRequired',
+  'createIronCustomer',
+  'fetchIronDisclaimers',
+  'checkIronKycRequired',
+  'submitConsents',
+  'fetchKycStatus',
   'getWrappingKey',
   'fetchJwks',
   'createUkycSession',
@@ -199,6 +210,29 @@ const SessionStatusResponseStruct = type({
   vendorStatus: string(),
 });
 
+// Iron customer subset — `type` (not `object`) keeps extra Iron fields from
+// failing validation while still requiring the fields the controller needs.
+const IronCustomerResponseStruct = type({
+  id: string(),
+  email: string(),
+  status: string(),
+});
+export type IronCustomerResponse = Infer<typeof IronCustomerResponseStruct>;
+
+const KYC_USER_STATUSES = [
+  'not-started',
+  'pending',
+  'need-more-information',
+  'terminal-failure',
+  'completed',
+] as const;
+
+const KycUserStatusResponseStruct = type({
+  status: enums([...KYC_USER_STATUSES]),
+  sumsubSessionId: optional(string()),
+  errorCode: optional(string()),
+});
+
 // === PARAM TYPES ===
 
 export type CreateSessionParams = {
@@ -211,6 +245,17 @@ export type CheckKycRequiredParams = {
   accessToken: string;
   country: string;
   capabilities?: { product: string }[];
+};
+
+export type CreateIronCustomerParams = {
+  email: string;
+};
+
+export type SubmitConsentsParams = {
+  ironDisclaimerIds: string[];
+  sumsubTncSigned: boolean;
+  idosTncSigned: boolean;
+  kycLevel?: 'standard';
 };
 
 export type GetWrappingKeyParams = {
@@ -230,7 +275,17 @@ export type WrappedEncryptionKey = {
 
 export type CreateUkycSessionParams = {
   jwtToken: string;
-  vendorMetadata: Record<string, unknown>;
+  /**
+   * Identity vendor for the UKYC session. Defaults to `moonpay` for the
+   * existing Check/Auth flow. Pass `iron` for the Money/VBA path (no MoonPay
+   * metadata required).
+   */
+  vendorId?: KycVendor;
+  /**
+   * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
+   * `moonPayUserId`); optional / omitted for Iron.
+   */
+  vendorMetadata?: Record<string, unknown>;
   wrappedEncryptionKey: WrappedEncryptionKey;
   /**
    * The client-signed `ukyc_capability_token` (envelope: payload + Ed25519
@@ -446,6 +501,140 @@ export class KycService extends BaseDataService<
   }
 
   /**
+   * Creates (or resumes) an Iron empty-shell customer for the authenticated
+   * canonical user. Must run before showing Iron T&C so the customer exists in
+   * `SigningsRequired` and resume logic can key off Iron status.
+   *
+   * @param params - The parameters.
+   * @param params.email - Email associated with the Iron customer.
+   * @returns The Iron customer record (subset validated for controller use).
+   */
+  async createIronCustomer(
+    params: CreateIronCustomerParams,
+  ): Promise<IronCustomerResponse> {
+    const url = new URL('/vendors/iron/customers', this.#baseUrl);
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:createIronCustomer`, params.email],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify({ email: params.email }),
+        }),
+      // Customer creation/resume must never serve a stale/cached result.
+      staleTime: 0,
+      cacheTime: 0,
+    });
+    return this.#validateResponse(
+      data,
+      IronCustomerResponseStruct,
+      'iron customers',
+    );
+  }
+
+  /**
+   * Fetches Iron disclaimers / terms the customer must accept before consents
+   * and the SumSub sub-flow.
+   *
+   * @param params - The parameters.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The disclaimers.
+   */
+  async fetchIronDisclaimers({
+    country,
+  }: {
+    country: string;
+  }): Promise<KycDisclaimer[]> {
+    const url = new URL('/vendors/iron/disclaimers', this.#baseUrl);
+    url.searchParams.set('country', country);
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchIronDisclaimers`, country],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      staleTime: inMilliseconds(5, Duration.Minute),
+    });
+    return this.#validateResponse(
+      data,
+      DisclaimersResponseStruct,
+      'iron disclaimers',
+    ) as KycDisclaimer[];
+  }
+
+  /**
+   * Checks whether Iron still requires KYC for the authenticated canonical
+   * user. Unlike the MoonPay variant, this does not take an access token.
+   *
+   * @returns Whether KYC is required.
+   */
+  async checkIronKycRequired(): Promise<{ kycRequired: boolean }> {
+    const url = new URL('/vendors/iron/kyc-required', this.#baseUrl);
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:checkIronKycRequired`],
+      queryFn: async () => this.#requestJson(url, { method: 'POST', body: '{}' }),
+      // The requirement can change server-side, so always re-check.
+      staleTime: 0,
+      cacheTime: 0,
+    });
+    const { required } = this.#validateResponse(
+      data,
+      KycRequiredResponseStruct,
+      'iron kyc-required',
+    );
+    return { kycRequired: required };
+  }
+
+  /**
+   * Posts T&C1 (Iron signings) and T&C2 (Sumsub + idOS) consents for the
+   * authenticated user. The API responds with 204 No Content on success.
+   *
+   * @param params - The consent parameters.
+   */
+  async submitConsents(params: SubmitConsentsParams): Promise<void> {
+    const url = new URL('/consents', this.#baseUrl);
+    await this.fetchQuery({
+      queryKey: [
+        `${this.name}:submitConsents`,
+        params.ironDisclaimerIds,
+        params.sumsubTncSigned,
+        params.idosTncSigned,
+        params.kycLevel ?? 'standard',
+      ],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify({
+            ironDisclaimerIds: params.ironDisclaimerIds,
+            sumsubTncSigned: params.sumsubTncSigned,
+            idosTncSigned: params.idosTncSigned,
+            kycLevel: params.kycLevel ?? 'standard',
+          }),
+        }),
+      staleTime: 0,
+      cacheTime: 0,
+    });
+  }
+
+  /**
+   * Fetches the user-keyed simplified KYC status used by Money toast / banner
+   * surfaces (`GET /kyc/status`).
+   *
+   * @returns The simplified status payload.
+   */
+  async fetchKycStatus(): Promise<KycUserStatusResponse> {
+    const url = new URL('/kyc/status', this.#baseUrl);
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchKycStatus`],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      // Status is polled for toast flips, so it must always be fresh.
+      staleTime: 0,
+      cacheTime: 0,
+    });
+    return this.#validateResponse(
+      data,
+      KycUserStatusResponseStruct,
+      'kyc status',
+    );
+  }
+
+  /**
    * Requests a per-session wrapping key from the UKYC backend.
    *
    * The client sends its ephemeral X25519 public key; the backend responds with
@@ -530,10 +719,10 @@ export class KycService extends BaseDataService<
         this.#requestJson(url, {
           method: 'POST',
           body: JSON.stringify({
-            vendorId: 'moonpay',
+            vendorId: params.vendorId ?? 'moonpay',
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
-            vendorMetadata: params.vendorMetadata,
+            vendorMetadata: params.vendorMetadata ?? {},
             wrappedEncryptionKey: params.wrappedEncryptionKey,
             ukycCapabilityToken: encodeStorageAccessTokenForHeader(
               params.ukycCapabilityToken,
@@ -693,10 +882,31 @@ export class KycService extends BaseDataService<
       headers,
     });
     if (!response.ok) {
+      let detail = '';
+      try {
+        const errorBody: unknown = await response.json();
+        if (errorBody && typeof errorBody === 'object') {
+          const record = errorBody as Record<string, unknown>;
+          if (typeof record.message === 'string') {
+            detail = record.message;
+          } else if (typeof record.error === 'string') {
+            detail = record.error;
+          }
+        }
+      } catch {
+        // Ignore body parse failures; status alone is still useful.
+      }
       throw new HttpError(
         response.status,
-        `Fetching '${url.toString()}' failed with status '${response.status}'`,
+        `Fetching '${url.toString()}' failed with status '${response.status}'${
+          detail ? `: ${detail}` : ''
+        }`,
       );
+    }
+
+    // Consent (and similar) endpoints return 204 No Content.
+    if (response.status === 204) {
+      return null;
     }
 
     return (await response.json()) as Json;

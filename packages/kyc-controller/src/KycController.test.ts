@@ -1769,6 +1769,663 @@ describe('KycController', () => {
     });
   });
 
+  describe('iron vendor flow', () => {
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    it('creates an Iron customer and loads Iron disclaimers on initialize', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.fetchIronDisclaimers.mockResolvedValue([
+          { id: 'd1', display_name: 'Iron T&C', url: 'https://t' },
+        ]);
+
+        await controller.initialize({
+          email: 'a@b.co',
+          vendor: 'iron',
+          product: 'money',
+        });
+
+        expect(handlers.createIronCustomer).toHaveBeenCalledWith({
+          email: 'a@b.co',
+        });
+        expect(handlers.fetchIronDisclaimers).toHaveBeenCalledWith({
+          country: 'USA',
+        });
+        expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+        expect(handlers.createSession).not.toHaveBeenCalled();
+        expect(controller.state.activeVendor).toBe('iron');
+        expect(controller.state.activeProduct).toBe('money');
+        expect(controller.state.phase).toBe('terms');
+        expect(controller.state.disclaimers).toHaveLength(1);
+      });
+    });
+
+    it('fails initialize when Iron customer creation fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createIronCustomer.mockRejectedValue(new Error('iron down'));
+
+        await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+        expect(controller.state.phase).toBe('error');
+        expect(controller.state.error).toMatch(/Iron customer creation failed/u);
+      });
+    });
+
+    it('does not fail initialize when reset lands during Iron customer creation', async () => {
+      await withController(async ({ controller, handlers }) => {
+        let release: (value: {
+          id: string;
+          email: string;
+          status: string;
+        }) => void = () => {
+          // placeholder
+        };
+        handlers.createIronCustomer.mockReturnValue(
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+        );
+
+        const pending = controller.initialize({
+          email: 'a@b.co',
+          vendor: 'iron',
+        });
+        controller.reset();
+        release({ id: '1', email: 'a@b.co', status: 'SigningsRequired' });
+        await pending;
+
+        expect(controller.state.phase).toBe('idle');
+        expect(controller.state.error).toBeNull();
+      });
+    });
+
+    it('does not fail initialize when Iron customer creation rejects after reset', async () => {
+      await withController(async ({ controller, handlers }) => {
+        let release: (error: Error) => void = () => {
+          // placeholder
+        };
+        handlers.createIronCustomer.mockReturnValue(
+          new Promise((_resolve, reject) => {
+            release = reject;
+          }),
+        );
+
+        const pending = controller.initialize({
+          email: 'a@b.co',
+          vendor: 'iron',
+        });
+        controller.reset();
+        release(new Error('late'));
+        await pending;
+
+        expect(controller.state.phase).toBe('idle');
+        expect(controller.state.error).toBeNull();
+      });
+    });
+
+    it('resumes an Iron session when terms and email are already present', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['d1'],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
+
+          await controller.initialize({
+            email: 'a@b.co',
+            vendor: 'iron',
+            product: 'money',
+          });
+
+          expect(handlers.submitConsents).toHaveBeenCalled();
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(controller.state.phase).toBe('done');
+          controller.reset();
+        },
+      );
+    });
+
+    it('createIronCustomer sets the vendor and fails on API errors', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createIronCustomer.mockRejectedValue(new Error('nope'));
+
+        await controller.createIronCustomer({ email: 'a@b.co' });
+
+        expect(controller.state.activeVendor).toBe('iron');
+        expect(controller.state.email).toBe('a@b.co');
+        expect(controller.state.phase).toBe('error');
+      });
+    });
+
+    it('createIronCustomer ignores API errors after reset', async () => {
+      await withController(async ({ controller, handlers }) => {
+        let release: (error: Error) => void = () => {
+          // placeholder
+        };
+        handlers.createIronCustomer.mockReturnValue(
+          new Promise((_resolve, reject) => {
+            release = reject;
+          }),
+        );
+
+        const pending = controller.createIronCustomer({ email: 'a@b.co' });
+        controller.reset();
+        release(new Error('late'));
+        await pending;
+
+        expect(controller.state.phase).toBe('idle');
+        expect(controller.state.error).toBeNull();
+      });
+    });
+
+    it('posts consents and starts SumSub without MoonPay frames', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.submitConsents.mockResolvedValue(undefined);
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.submitConsents).toHaveBeenCalledWith({
+            ironDisclaimerIds: ['d1'],
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+          expect(handlers.createUkycSession).toHaveBeenCalledWith(
+            expect.objectContaining({ vendorId: 'iron' }),
+          );
+          expect(launcher.launch).toHaveBeenCalled();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
+          expect(controller.buildAuthFrameUrl()).toBeNull();
+          expect(controller.state.userStatus).toBe('pending');
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('complete');
+          controller.reset();
+        },
+      );
+    });
+
+    it('fails the Iron session when email is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.acceptTermsAndStartSession();
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing email/u);
+        },
+      );
+    });
+
+    it('fails the Iron session when disclaimer acceptance is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              email: 'a@b.co',
+              disclaimers: [],
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing Iron disclaimer/u);
+        },
+      );
+    });
+
+    it('returns to terms when SumSub fails during the Iron session', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createUkycSession.mockRejectedValue(new Error('sumsub down'));
+          handlers.fetchIronDisclaimers.mockResolvedValue([]);
+
+          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.error).toMatch(/Iron session failed/u);
+        },
+      );
+    });
+
+    it('keeps done when status refresh fails after a successful SumSub', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+          handlers.fetchKycStatus.mockRejectedValue(new Error('status down'));
+
+          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('complete');
+          controller.reset();
+        },
+      );
+    });
+
+    it('ignores in-flight Iron consents after reset', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: () => void = () => {
+            // placeholder
+          };
+          handlers.submitConsents.mockReturnValue(
+            new Promise<void>((resolve) => {
+              release = resolve;
+            }),
+          );
+
+          const pending = controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+          });
+          controller.reset();
+          release();
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('ignores SumSub completion after reset during the Iron session', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          let releaseLaunch: (value: { ok: boolean }) => void = () => {
+            // placeholder
+          };
+          launcher.launch.mockReturnValue(
+            new Promise((resolve) => {
+              releaseLaunch = resolve;
+            }),
+          );
+
+          const pending = controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+          });
+          // Consents + UKYC session run first; wait until launch is pending.
+          await Promise.resolve();
+          await Promise.resolve();
+          controller.reset();
+          releaseLaunch({ ok: true });
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('ignores Iron session failures after reset', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (error: Error) => void = () => {
+            // placeholder
+          };
+          handlers.submitConsents.mockReturnValue(
+            new Promise<void>((_resolve, reject) => {
+              release = reject;
+            }),
+          );
+
+          const pending = controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+          });
+          controller.reset();
+          release(new Error('late consent failure'));
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.error).toBeNull();
+        },
+      );
+    });
+
+    it('refreshKycStatus stores status and emits statusChanged', async () => {
+      await withController(
+        { options: { userStatusPollIntervalMs: 60_000 } },
+        async ({ controller, handlers, rootMessenger }) => {
+          const listener = jest.fn();
+          rootMessenger.subscribe('KycController:statusChanged', listener);
+          handlers.fetchKycStatus.mockResolvedValue({
+            status: 'completed',
+            sumsubSessionId: 'ss-1',
+          });
+
+          const result = await controller.refreshKycStatus();
+
+          expect(result).toStrictEqual({
+            status: 'completed',
+            sumsubSessionId: 'ss-1',
+            errorCode: null,
+          });
+          expect(controller.state.userStatus).toBe('completed');
+          expect(listener).toHaveBeenCalledWith({
+            status: 'completed',
+            sumsubSessionId: 'ss-1',
+            errorCode: null,
+          });
+        },
+      );
+    });
+
+    it('polls user status while pending and stops on a terminal status', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            handlers.fetchKycStatus
+              .mockResolvedValueOnce({ status: 'pending' })
+              .mockResolvedValueOnce({ status: 'pending' })
+              .mockResolvedValueOnce({ status: 'completed' });
+
+            await controller.refreshKycStatus();
+            expect(controller.state.userStatus).toBe('pending');
+
+            // First tick stays pending and reschedules; second tick completes.
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(controller.state.userStatus).toBe('pending');
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(controller.state.userStatus).toBe('completed');
+
+            // A second refresh while pending would no-op the timer start; then
+            // reset clears any leftover handles.
+            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            await controller.refreshKycStatus();
+            await controller.refreshKycStatus();
+            controller.reset();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('drops superseded user-status poll ticks after reset', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            let release: (value: { status: string }) => void = () => {
+              // placeholder
+            };
+            handlers.fetchKycStatus
+              .mockResolvedValueOnce({ status: 'pending' })
+              .mockImplementationOnce(
+                async () =>
+                  new Promise((resolve) => {
+                    release = resolve;
+                  }),
+              );
+
+            await controller.refreshKycStatus();
+            jest.advanceTimersByTime(1000);
+            await Promise.resolve();
+            await Promise.resolve();
+            controller.reset();
+            release({ status: 'completed' });
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(controller.state.userStatus).toBe('pending');
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('keeps polling when a user-status tick fails transiently', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            handlers.fetchKycStatus
+              .mockResolvedValueOnce({ status: 'pending' })
+              .mockRejectedValueOnce(new Error('transient'))
+              .mockResolvedValueOnce({ status: 'completed' });
+
+            await controller.refreshKycStatus();
+            await jest.advanceTimersByTimeAsync(1000);
+            await jest.advanceTimersByTimeAsync(1000);
+
+            expect(controller.state.userStatus).toBe('completed');
+            controller.reset();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('drops superseded user-status ticks that fail after reset', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            let release: (error: Error) => void = () => {
+              // placeholder
+            };
+            handlers.fetchKycStatus
+              .mockResolvedValueOnce({ status: 'pending' })
+              .mockImplementationOnce(
+                async () =>
+                  new Promise((_resolve, reject) => {
+                    release = reject;
+                  }),
+              );
+
+            await controller.refreshKycStatus();
+            jest.advanceTimersByTime(1000);
+            await Promise.resolve();
+            await Promise.resolve();
+            controller.reset();
+            release(new Error('late'));
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(controller.state.userStatus).toBe('pending');
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('returns cached user status when reset lands during refresh', async () => {
+      await withController(
+        {
+          options: {
+            state: { userStatus: 'pending' },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (value: { status: string }) => void = () => {
+            // placeholder
+          };
+          handlers.fetchKycStatus.mockReturnValue(
+            new Promise((resolve) => {
+              release = resolve;
+            }),
+          );
+
+          const pending = controller.refreshKycStatus();
+          controller.reset();
+          release({ status: 'completed' });
+          const result = await pending;
+
+          expect(result.status).toBe('pending');
+        },
+      );
+    });
+
+    it('defaults superseded refresh status to not-started when unset', async () => {
+      await withController(
+        { options: { userStatusPollIntervalMs: 60_000 } },
+        async ({ controller, handlers }) => {
+          let release: (value: { status: string }) => void = () => {
+            // placeholder
+          };
+          handlers.fetchKycStatus.mockReturnValue(
+            new Promise((resolve) => {
+              release = resolve;
+            }),
+          );
+
+          const pending = controller.refreshKycStatus();
+          controller.reset();
+          release({ status: 'completed' });
+          const result = await pending;
+
+          expect(result.status).toBe('not-started');
+        },
+      );
+    });
+
+    it('maps session_not_in_valid_state to completed during SumSub', async () => {
+      await withController(
+        {
+          options: {
+            state: { activeVendor: 'iron', phase: 'submit' },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createUkycSession.mockRejectedValue(
+            new Error(
+              "Fetching 'https://x' failed with status '409': session_not_in_valid_state",
+            ),
+          );
+
+          const result = await controller.startSumSub();
+
+          expect(result).toStrictEqual({ alreadyCompleted: true });
+          expect(controller.state.userStatus).toBe('completed');
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('complete');
+        },
+      );
+    });
+
+    it('keeps phase done when Iron SumSub reports already completed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createUkycSession.mockRejectedValue(
+            new Error('session_not_in_valid_state'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
+
+          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.userStatus).toBe('completed');
+          controller.reset();
+        },
+      );
+    });
+  });
+
   describe('messenger actions', () => {
     it('exposes methods as messenger actions', async () => {
       await withController(({ rootMessenger }) => {
@@ -1791,6 +2448,11 @@ type ServiceHandlers = {
   fetchDisclaimers: jest.Mock;
   createSession: jest.Mock;
   checkKycRequired: jest.Mock;
+  createIronCustomer: jest.Mock;
+  fetchIronDisclaimers: jest.Mock;
+  checkIronKycRequired: jest.Mock;
+  submitConsents: jest.Mock;
+  fetchKycStatus: jest.Mock;
   getWrappingKey: jest.Mock;
   fetchJwks: jest.Mock;
   createUkycSession: jest.Mock;
@@ -1821,6 +2483,11 @@ const SERVICE_ACTIONS = [
   'KycService:fetchDisclaimers',
   'KycService:createSession',
   'KycService:checkKycRequired',
+  'KycService:createIronCustomer',
+  'KycService:fetchIronDisclaimers',
+  'KycService:checkIronKycRequired',
+  'KycService:submitConsents',
+  'KycService:fetchKycStatus',
   'KycService:getWrappingKey',
   'KycService:fetchJwks',
   'KycService:createUkycSession',
@@ -1886,6 +2553,15 @@ function withController<ReturnValue>(
     fetchDisclaimers: jest.fn().mockResolvedValue([]),
     createSession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     checkKycRequired: jest.fn().mockResolvedValue({ kycRequired: false }),
+    createIronCustomer: jest.fn().mockResolvedValue({
+      id: 'iron-1',
+      email: 'a@b.co',
+      status: 'SigningsRequired',
+    }),
+    fetchIronDisclaimers: jest.fn().mockResolvedValue([]),
+    checkIronKycRequired: jest.fn().mockResolvedValue({ kycRequired: true }),
+    submitConsents: jest.fn().mockResolvedValue(undefined),
+    fetchKycStatus: jest.fn().mockResolvedValue({ status: 'pending' }),
     getWrappingKey: jest.fn().mockResolvedValue({
       id: 'wk',
       jwtChain: 'jwt.chain.sig',
@@ -1919,6 +2595,26 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:checkKycRequired',
     handlers.checkKycRequired,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createIronCustomer',
+    handlers.createIronCustomer,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchIronDisclaimers',
+    handlers.fetchIronDisclaimers,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:checkIronKycRequired',
+    handlers.checkIronKycRequired,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:submitConsents',
+    handlers.submitConsents,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchKycStatus',
+    handlers.fetchKycStatus,
   );
   rootMessenger.registerActionHandler(
     'KycService:getWrappingKey',

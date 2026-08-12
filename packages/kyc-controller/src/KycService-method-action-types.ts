@@ -54,6 +54,66 @@ export type KycServiceCheckKycRequiredAction = {
 };
 
 /**
+ * Creates (or resumes) an Iron empty-shell customer for the authenticated
+ * canonical user. Must run before showing Iron T&C so the customer exists in
+ * `SigningsRequired` and resume logic can key off Iron status.
+ *
+ * @param params - The parameters.
+ * @param params.email - Email associated with the Iron customer.
+ * @returns The Iron customer record (subset validated for controller use).
+ */
+export type KycServiceCreateIronCustomerAction = {
+  type: `KycService:createIronCustomer`;
+  handler: KycService['createIronCustomer'];
+};
+
+/**
+ * Fetches Iron disclaimers / terms the customer must accept before consents
+ * and the SumSub sub-flow.
+ *
+ * @param params - The parameters.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The disclaimers.
+ */
+export type KycServiceFetchIronDisclaimersAction = {
+  type: `KycService:fetchIronDisclaimers`;
+  handler: KycService['fetchIronDisclaimers'];
+};
+
+/**
+ * Checks whether Iron still requires KYC for the authenticated canonical
+ * user. Unlike the MoonPay variant, this does not take an access token.
+ *
+ * @returns Whether KYC is required.
+ */
+export type KycServiceCheckIronKycRequiredAction = {
+  type: `KycService:checkIronKycRequired`;
+  handler: KycService['checkIronKycRequired'];
+};
+
+/**
+ * Posts T&C1 (Iron signings) and T&C2 (Sumsub + idOS) consents for the
+ * authenticated user. The API responds with 204 No Content on success.
+ *
+ * @param params - The consent parameters.
+ */
+export type KycServiceSubmitConsentsAction = {
+  type: `KycService:submitConsents`;
+  handler: KycService['submitConsents'];
+};
+
+/**
+ * Fetches the user-keyed simplified KYC status used by Money toast / banner
+ * surfaces (`GET /kyc/status`).
+ *
+ * @returns The simplified status payload.
+ */
+export type KycServiceFetchKycStatusAction = {
+  type: `KycService:fetchKycStatus`;
+  handler: KycService['fetchKycStatus'];
+};
+
+/**
  * Requests a per-session wrapping key from the UKYC backend.
  *
  * The client sends its ephemeral X25519 public key; the backend responds with
@@ -133,6 +193,11 @@ export type KycServiceMethodActions =
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
+  | KycServiceCreateIronCustomerAction
+  | KycServiceFetchIronDisclaimersAction
+  | KycServiceCheckIronKycRequiredAction
+  | KycServiceSubmitConsentsAction
+  | KycServiceFetchKycStatusAction
   | KycServiceGetWrappingKeyAction
   | KycServiceFetchJwksAction
   | KycServiceCreateUkycSessionAction

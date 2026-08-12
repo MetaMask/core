@@ -11,6 +11,7 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
+  KycControllerStatusChangedEvent,
 } from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
@@ -19,11 +20,13 @@ export type {
   KycControllerBuildResetFrameUrlAction,
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
+  KycControllerCreateIronCustomerAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
   KycControllerHandleFrameMessageAction,
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
+  KycControllerRefreshKycStatusAction,
   KycControllerResetAction,
   KycControllerStartSumSubAction,
 } from './KycController-method-action-types.js';
@@ -32,10 +35,12 @@ export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
   CheckKycRequiredParams,
+  CreateIronCustomerParams,
   CreateSessionParams,
   CreateUkycSessionParams,
   GetSessionStatusParams,
   GetWrappingKeyParams,
+  IronCustomerResponse,
   JwksResponse,
   KycServiceActions,
   KycServiceCacheUpdatedEvent,
@@ -44,20 +49,26 @@ export type {
   KycServiceInvalidateQueriesAction,
   KycServiceMessenger,
   KycServiceOptions,
+  SubmitConsentsParams,
   UkycSessionResponse,
   WrappedEncryptionKey,
   WrappingKeyResponse,
 } from './KycService.js';
 export type {
+  KycServiceCheckIronKycRequiredAction,
   KycServiceCheckKycRequiredAction,
+  KycServiceCreateIronCustomerAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
   KycServiceFetchDisclaimersAction,
+  KycServiceFetchIronDisclaimersAction,
   KycServiceFetchJwksAction,
+  KycServiceFetchKycStatusAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetWrappingKeyAction,
+  KycServiceSubmitConsentsAction,
 } from './KycService-method-action-types.js';
 
 export {
@@ -83,6 +94,8 @@ export type {
   KycSumSubLaunchParams,
   KycSumSubLauncher,
   KycSumSubStatus,
+  KycUserStatus,
+  KycUserStatusResponse,
   KycVendor,
 } from './types.js';
 
