@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import * as uuid from 'uuid';
+import { Duration, inMilliseconds } from '@metamask/utils';
 
 import type { LoggingControllerMessenger } from './LoggingController.js';
 import { LoggingController } from './LoggingController.js';
@@ -119,13 +119,32 @@ describe('LoggingController', () => {
     });
   });
 
-  it('action: LoggingController:add prevents possible collision of ids', async () => {
+  it('removes expired logs', () => {
     const rootMessenger = getRootMessenger();
     const messenger = getLoggingControllerMessenger(rootMessenger);
-    const uuidV1Spy = jest.spyOn(uuid, 'v1');
 
     const controller = new LoggingController({
       messenger,
+      state: {
+        logs: {
+          'foo': {
+            id: 'foo',
+            timestamp: Date.now() - inMilliseconds(14, Duration.Day),
+            log: {
+              type: LogType.GenericLog,
+              data: 'bar',
+            }
+          },
+          'baz': {
+            id: 'baz',
+            timestamp: Date.now() - inMilliseconds(1, Duration.Day),
+            log: {
+              type: LogType.GenericLog,
+              data: 'qux',
+            }
+          }
+        }
+      }
     });
 
     expect(
@@ -134,39 +153,17 @@ describe('LoggingController', () => {
         data: `Generic log`,
       }),
     ).toBeUndefined();
-
-    const { id } = Object.values(controller.state.logs)[0];
-
-    uuidV1Spy.mockReturnValueOnce(id);
-
-    expect(
-      rootMessenger.call('LoggingController:add', {
-        type: LogType.GenericLog,
-        data: `Generic log 2`,
-      }),
-    ).toBeUndefined();
     const logs = Object.values(controller.state.logs);
     expect(logs).toHaveLength(2);
-    expect(logs).toContainEqual({
-      timestamp: expect.any(Number),
-      id,
-      log: expect.objectContaining({
-        type: LogType.GenericLog,
-        data: 'Generic log',
-      }),
-    });
-
     expect(logs).toContainEqual({
       timestamp: expect.any(Number),
       id: expect.any(String),
       log: expect.objectContaining({
         type: LogType.GenericLog,
-        data: 'Generic log 2',
+        data: 'Generic log',
       }),
     });
-
-    expect(uuidV1Spy).toHaveBeenCalledTimes(3);
-  });
+  })
 
   it('internal method: clear', async () => {
     const rootMessenger = getRootMessenger();
