@@ -15,6 +15,7 @@ import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 // `verifyJwtChain` (JWKS attestation) and `wrapEncryptionKey` (X25519 sealing)
 // need a real signed chain / valid keys, so they are stubbed here; the rest of
@@ -1778,6 +1779,204 @@ describe('KycController', () => {
     });
   });
 
+  describe('registerMoneyAccountWallet', () => {
+    const registration = {
+      id: 'wallet-1',
+      address: '0xabc',
+      blockchain: 'Monad' as const,
+      disabled: false,
+      isSelf: true,
+    };
+
+    it('returns an existing active registration without signing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'active',
+          registration,
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+        expect(handlers.getMoonpayCustomerId).toHaveBeenCalledTimes(1);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-fallback',
+          address: '0xabc',
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns an existing disabled registration without signing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'disabled',
+          registration: { ...registration, disabled: true },
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registeredDisabled' });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('prefers the customer id captured from the MoonPay frame', async () => {
+      await withController(
+        { options: { state: { moonpayCustomerId: 'frame-customer' } } },
+        async ({ controller, handlers }) => {
+          expect(
+            await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+          ).toMatchObject({ type: 'registered' });
+
+          expect(handlers.getMoonpayCustomerId).not.toHaveBeenCalled();
+          expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+            customerId: 'frame-customer',
+            address: '0xabc',
+          });
+          expect(handlers.signPersonalMessage).toHaveBeenCalledWith({
+            data: expect.stringContaining('as customer frame-customer.'),
+            from: '0xabc',
+          });
+          expect(handlers.registerSelfHostedWallet).toHaveBeenCalledWith(
+            expect.objectContaining({
+              address: '0xabc',
+              customerId: 'frame-customer',
+              signature: '0xsig',
+              idempotencyKey: expect.any(String),
+            }),
+          );
+        },
+      );
+    });
+
+    it('falls back to resolving the customer id from the proxy before list', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+        expect(handlers.getMoonpayCustomerId).toHaveBeenCalledTimes(1);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-fallback',
+          address: '0xabc',
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            customerId: 'iron-customer-fallback',
+            idempotencyKey: expect.any(String),
+          }),
+        );
+      });
+    });
+
+    it('reconciles an ambiguous conflict as already registered', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockResolvedValueOnce({ type: 'active', registration });
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+      });
+    });
+
+    it('rethrows a transient failure when reconciliation remains absent', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const error = new WalletRegistrationError('transient', {
+          httpStatus: 502,
+        });
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(4);
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    it('rebuilds and re-signs after a UTC date rollover', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-08-12T23:59:59.999Z'));
+      try {
+        await withController(async ({ controller, handlers }) => {
+          handlers.registerSelfHostedWallet
+            .mockImplementationOnce(async () => {
+              jest.setSystemTime(new Date('2026-08-13T00:00:00.000Z'));
+              throw new WalletRegistrationError('validation', {
+                httpStatus: 400,
+              });
+            })
+            .mockResolvedValueOnce({
+              type: 'registered',
+              registration,
+            });
+
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+          expect(handlers.signPersonalMessage).toHaveBeenCalledTimes(2);
+          expect(handlers.signPersonalMessage.mock.calls[0][0].data).toContain(
+            'signed on 12/08/2026',
+          );
+          expect(handlers.signPersonalMessage.mock.calls[1][0].data).toContain(
+            'signed on 13/08/2026',
+          );
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it.each([
+      new WalletRegistrationError('validation', { httpStatus: 400 }),
+      new WalletRegistrationError('rateLimited', { httpStatus: 429 }),
+      new WalletRegistrationError('unauthorized', { httpStatus: 401 }),
+      new Error('unexpected'),
+    ])('rethrows terminal registration failure %#', async (error) => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('rethrows an initial lookup failure without signing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const error = new Error('lookup failed');
+        handlers.getWalletRegistrationStatus.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rethrows a signing failure without submitting', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const error = new Error('signing failed');
+        handlers.signPersonalMessage.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('reset', () => {
     it('clears session state but preserves persisted terms', async () => {
       await withController(
@@ -2500,6 +2699,10 @@ type ServiceHandlers = {
   createUkycSession: jest.Mock;
   createJourney: jest.Mock;
   getSessionStatus: jest.Mock;
+  getMoonpayCustomerId: jest.Mock;
+  getWalletRegistrationStatus: jest.Mock;
+  registerSelfHostedWallet: jest.Mock;
+  signPersonalMessage: jest.Mock;
   performGetStorage: jest.Mock;
   performSetStorage: jest.Mock;
 };
@@ -2535,6 +2738,10 @@ const SERVICE_ACTIONS = [
   'KycService:createUkycSession',
   'KycService:createJourney',
   'KycService:getSessionStatus',
+  'KycService:getMoonpayCustomerId',
+  'KycService:getWalletRegistrationStatus',
+  'KycService:registerSelfHostedWallet',
+  'KeyringController:signPersonalMessage',
   'UserStorageController:performGetStorage',
   'UserStorageController:performSetStorage',
 ] as const;
@@ -2619,6 +2826,21 @@ function withController<ReturnValue>(
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
     getSessionStatus: jest.fn().mockResolvedValue(sessionStatus('approved')),
+    getMoonpayCustomerId: jest.fn().mockResolvedValue('iron-customer-fallback'),
+    getWalletRegistrationStatus: jest
+      .fn()
+      .mockResolvedValue({ type: 'absent' }),
+    registerSelfHostedWallet: jest.fn().mockResolvedValue({
+      type: 'registered',
+      registration: {
+        id: 'wallet-1',
+        address: '0xabc',
+        blockchain: 'Monad',
+        disabled: false,
+        isSelf: true,
+      },
+    }),
+    signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
     performGetStorage: jest.fn().mockResolvedValue(null),
     performSetStorage: jest.fn().mockResolvedValue(undefined),
   };
@@ -2677,6 +2899,22 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatus',
     handlers.getSessionStatus,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getMoonpayCustomerId',
+    handlers.getMoonpayCustomerId,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getWalletRegistrationStatus',
+    handlers.getWalletRegistrationStatus,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:registerSelfHostedWallet',
+    handlers.registerSelfHostedWallet,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:signPersonalMessage',
+    handlers.signPersonalMessage,
   );
   rootMessenger.registerActionHandler(
     'UserStorageController:performGetStorage',

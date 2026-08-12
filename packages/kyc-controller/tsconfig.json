@@ -8,6 +8,7 @@
     { "path": "../base-data-service" },
     { "path": "../controller-utils" },
     { "path": "../geolocation-controller" },
+    { "path": "../keyring-controller" },
     { "path": "../messenger" },
     { "path": "../profile-sync-controller" }
   ],
