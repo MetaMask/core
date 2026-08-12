@@ -247,8 +247,9 @@ export class TransactionPayController extends BaseController<
    * Vaults mUSD received in a completed Iron payout transaction.
    *
    * Concurrent calls for the same payout hash share one in-flight submission.
-   * Successful results are retained so retries return the prior hash without
-   * submitting again.
+   * Successful results are retained for the controller lifetime so retries
+   * return the prior hash without submitting again. Skipped results (vaulting
+   * disabled) are not retained, so a later enablement can retry the same hash.
    *
    * @param request - Completed Iron payout details.
    * @returns Hash of the confirmed vault transaction, or `{ skipped: true }`
@@ -266,10 +267,17 @@ export class TransactionPayController extends BaseController<
     const pending = submitMoneyAccountVaultDepositFromPayout(
       request,
       this.messenger,
-    ).catch((error: unknown) => {
-      this.#vaultDepositRequests.delete(key);
-      throw error;
-    });
+    )
+      .then((result) => {
+        if (result.skipped) {
+          this.#vaultDepositRequests.delete(key);
+        }
+        return result;
+      })
+      .catch((error: unknown) => {
+        this.#vaultDepositRequests.delete(key);
+        throw error;
+      });
     this.#vaultDepositRequests.set(key, pending);
     return pending;
   }

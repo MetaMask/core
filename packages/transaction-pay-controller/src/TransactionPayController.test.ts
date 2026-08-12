@@ -204,6 +204,25 @@ describe('TransactionPayController', () => {
       ).toHaveBeenCalledTimes(2);
     });
 
+    it('retries after a skipped deposit once vaulting is enabled', async () => {
+      submitMoneyAccountVaultDepositFromPayoutMock
+        .mockResolvedValueOnce({ skipped: true })
+        .mockResolvedValueOnce({ transactionHash });
+      const controller = createController();
+      const request = { moneyAccountAddress, transactionHash };
+
+      await expect(
+        controller.submitMoneyAccountVaultDeposit(request),
+      ).resolves.toStrictEqual({ skipped: true });
+
+      await expect(
+        controller.submitMoneyAccountVaultDeposit(request),
+      ).resolves.toStrictEqual({ transactionHash });
+      expect(
+        submitMoneyAccountVaultDepositFromPayoutMock,
+      ).toHaveBeenCalledTimes(2);
+    });
+
     it('exposes the exact-out withdraw action through the messenger', async () => {
       submitMoneyAccountVaultWithdrawUtilMock.mockResolvedValue({
         batchId: '0x123' as Hex,
