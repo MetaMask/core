@@ -141,6 +141,11 @@ describe('caip helpers', () => {
     it('returns undefined when the chain id cannot be normalized', () => {
       expect(resolveNativeAssetId('0xzzzz', 'ETH')).toBeUndefined();
     });
+
+    it('returns undefined when chain id is missing', () => {
+      expect(resolveNativeAssetId(undefined, 'ETH')).toBeUndefined();
+      expect(resolveNativeAssetId(undefined, undefined)).toBeUndefined();
+    });
   });
 
   describe('getNativeAsset', () => {

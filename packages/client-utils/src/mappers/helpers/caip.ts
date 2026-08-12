@@ -26,16 +26,15 @@ const slip44BySymbol = ((): Map<string, string> => {
     }
   }
 
-  const maticCoinType = coinTypeBySymbol.get('MATIC');
-  if (maticCoinType && !coinTypeBySymbol.has('POL')) {
-    coinTypeBySymbol.set('POL', maticCoinType);
-  }
-
   return coinTypeBySymbol;
 })();
 
 function getCoinType(symbol: string): string | undefined {
-  return slip44BySymbol.get(symbol.toUpperCase());
+  const normalizedSymbol = symbol.toUpperCase();
+  return (
+    slip44BySymbol.get(normalizedSymbol) ??
+    (normalizedSymbol === 'POL' ? slip44BySymbol.get('MATIC') : undefined)
+  );
 }
 
 /**
