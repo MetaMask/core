@@ -1514,7 +1514,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       let callerCancel: Promise<CancelOrderResult> | undefined;
       let releasePublicCancel: (() => void) | undefined;
       let cancelCalls = 0;
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = jest.fn().mockImplementation(async (): Promise<unknown> => {
         cancelCalls += 1;
         if (cancelCalls === 1) {
           mockWalletService.getUserAddressWithDefault.mockReturnValueOnce(
