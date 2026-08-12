@@ -45,6 +45,7 @@ export type {
   TransactionPayControllerUpdateFiatPaymentAction,
 } from './TransactionPayController-method-action-types.js';
 export type { SubmitMoneyAccountVaultDepositRequest } from './utils/ma-vault-payout.js';
+export type { SubmitMoneyAccountVaultDepositResult } from './utils/ma-vault-deposit.js';
 export type { SubmitMoneyAccountVaultWithdrawRequest } from './utils/ma-vault-withdraw.js';
 export { PaymentOverride, TransactionPayStrategy } from './constants.js';
 export { TransactionPayController } from './TransactionPayController.js';

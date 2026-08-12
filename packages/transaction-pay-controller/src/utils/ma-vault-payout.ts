@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 
 import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
+import type { SubmitMoneyAccountVaultDepositResult } from './ma-vault-deposit.js';
 import { submitMoneyAccountVaultDepositBatch } from './ma-vault-deposit.js';
 import {
   getMoneyAccountVaultConfig,
@@ -23,12 +24,13 @@ export type SubmitMoneyAccountVaultDepositRequest = {
  *
  * @param request - Iron payout details.
  * @param messenger - Transaction Pay controller messenger.
- * @returns Hash of the confirmed vault transaction, or `0x` when disabled.
+ * @returns Hash of the confirmed vault transaction, or `{ skipped: true }` when
+ * vaulting is disabled.
  */
 export async function submitMoneyAccountVaultDepositFromPayout(
   request: SubmitMoneyAccountVaultDepositRequest,
   messenger: TransactionPayControllerMessenger,
-): Promise<{ transactionHash?: Hex }> {
+): Promise<SubmitMoneyAccountVaultDepositResult> {
   const {
     moneyAccountAddress,
     transactionHash,
@@ -39,7 +41,7 @@ export async function submitMoneyAccountVaultDepositFromPayout(
     vaultDisabled ||
     !isMoneyAccountVaultActionEnabled(messenger, 'deposit')
   ) {
-    return { transactionHash: '0x' };
+    return { skipped: true };
   }
 
   const { amountRaw, blockNumber } = await getTransferredAmountFromTxHash({

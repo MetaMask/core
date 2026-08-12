@@ -33,14 +33,9 @@ function getRequest(
 ): SubmitMoneyAccountVaultWithdrawRequest {
   return {
     amountInRaw: '5000000',
-    autorampId: 'autoramp-id',
-    chainId: CHAIN_ID_MONAD,
     moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
-    quoteId: 'quote-id',
-    quoteValidUntil: new Date(Date.now() + 60_000).toISOString(),
     recipient: IRON_ADDRESS,
     requestId: 'request-id',
-    tokenAddress: MUSD_MONAD_ADDRESS,
     ...overrides,
   };
 }
@@ -181,25 +176,13 @@ describe('submitMoneyAccountVaultWithdraw', () => {
     [{ amountInRaw: '0' }, 'Withdrawal amount must be greater than zero'],
     [{ amountInRaw: '-1' }, 'Withdrawal amount must be greater than zero'],
     [{ amountInRaw: 'invalid' }, 'Withdrawal amount must be greater than zero'],
-    [{ quoteValidUntil: 'invalid' }, 'Iron quote expiry is invalid'],
-    [
-      { quoteValidUntil: new Date(Date.now() - 1_000).toISOString() },
-      'Iron quote has expired',
-    ],
-    [{ chainId: '0x1' }, 'Pix withdrawal must use Monad'],
-    [
-      { tokenAddress: '0x7777777777777777777777777777777777777777' },
-      'Pix withdrawal must use mUSD',
-    ],
     [{ recipient: '0x1234' }, 'Iron recipient is invalid'],
     [
       { recipient: MONEY_ACCOUNT_ADDRESS },
       'Iron recipient must differ from the Money Account',
     ],
-    [{ requestId: '' }, 'Missing Iron request identifiers'],
-    [{ quoteId: '' }, 'Missing Iron request identifiers'],
-    [{ autorampId: '' }, 'Missing Iron request identifiers'],
-  ])('rejects invalid exact-out input %#', async (overrides, message) => {
+    [{ requestId: '' }, 'Missing withdraw request id'],
+  ])('rejects invalid withdraw input %#', async (overrides, message) => {
     await expect(
       submitMoneyAccountVaultWithdraw(
         getRequest(overrides),

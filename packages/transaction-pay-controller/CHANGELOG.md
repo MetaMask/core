@@ -14,7 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Slim `SubmitMoneyAccountVaultWithdrawRequest` to on-chain fields only (`amountInRaw`, `moneyAccountAddress`, `recipient`, `requestId`); quote / chain / token validation stays outside Core ([#9849](https://github.com/MetaMask/core/pull/9849))
+- Return `{ skipped: true }` from Money Account vault deposit helpers when vaulting is disabled instead of a fake `0x` transaction hash ([#9849](https://github.com/MetaMask/core/pull/9849))
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+### Fixed
+
+- Persist successful Money Account vault deposit and withdraw results for the controller lifetime so retries / webhook replays do not re-submit or open a second approval ([#9849](https://github.com/MetaMask/core/pull/9849))
+- Match CHOMP vault deposits only when mUSD is transferred to the boring vault with an exact source amount ([#9849](https://github.com/MetaMask/core/pull/9849))
 
 ## [26.3.0]
 

@@ -11,6 +11,7 @@ import {
   submitMoneyAccountVaultDeposit,
   submitMoneyAccountVaultDepositBatch,
 } from './ma-vault-deposit.js';
+import { getMoneyAccountVaultConfig } from './money-account-vault-config.js';
 import { getNetworkClientId } from './provider.js';
 import {
   collectTransactionIds,
@@ -20,12 +21,15 @@ import {
 } from './transaction.js';
 
 jest.mock('./chomp');
+jest.mock('./money-account-vault-config');
 jest.mock('./provider');
 jest.mock('./transaction');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const MONEY_ACCOUNT_ADDRESS_MOCK =
   '0x1111111111111111111111111111111111111111' as Hex;
+const BORING_VAULT_ADDRESS_MOCK =
+  '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'network-client-id-mock';
 
 const TRANSACTION_MOCK = {
@@ -75,6 +79,9 @@ function callSubmit({
 
 describe('submitMoneyAccountVaultDeposit', () => {
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getMoneyAccountVaultConfigMock = jest.mocked(
+    getMoneyAccountVaultConfig,
+  );
   const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
@@ -85,6 +92,13 @@ describe('submitMoneyAccountVaultDeposit', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    getMoneyAccountVaultConfigMock.mockReturnValue({
+      accountantAddress: '0x2222222222222222222222222222222222222222' as Hex,
+      boringVault: BORING_VAULT_ADDRESS_MOCK,
+      chainId: '0x8f' as Hex,
+      lensAddress: '0x3333333333333333333333333333333333333333' as Hex,
+      tellerAddress: '0x4444444444444444444444444444444444444444' as Hex,
+    });
     getNetworkClientIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     collectTransactionIdsMock.mockImplementation(
       (_chainId, _from, _messenger, onTransaction) => {
@@ -273,7 +287,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
 
     const result = await callSubmit({ callMock, vaultDisabled: true });
 
-    expect(result).toStrictEqual({ transactionHash: '0x' });
+    expect(result).toStrictEqual({ skipped: true });
     expect(callMock).not.toHaveBeenCalled();
     expect(updateTransactionMock).not.toHaveBeenCalled();
     expect(collectTransactionIdsMock).not.toHaveBeenCalled();
@@ -554,7 +568,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
       });
 
       expect(callMock).not.toHaveBeenCalled();
-      expect(result).toStrictEqual({ transactionHash: '0x' });
+      expect(result).toStrictEqual({ skipped: true });
     });
   });
 });

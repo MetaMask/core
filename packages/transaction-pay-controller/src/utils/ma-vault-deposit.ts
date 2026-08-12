@@ -13,6 +13,7 @@ import { MUSD_MONAD_FIAT_ASSET } from '../strategy/fiat/constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { findRecentChompVaultDeposit } from './chomp.js';
 import { prefixError } from './error-prefix.js';
+import { getMoneyAccountVaultConfig } from './money-account-vault-config.js';
 import { getNetworkClientId } from './provider.js';
 import {
   collectTransactionIds,
@@ -24,6 +25,11 @@ import {
 const log = createModuleLogger(projectLogger, 'ma-vault-deposit');
 
 export const VAULT_ERROR_PREFIX = 'Vault: ';
+
+export type SubmitMoneyAccountVaultDepositResult = {
+  skipped?: true;
+  transactionHash?: Hex;
+};
 
 /**
  * Submits a Money Account mUSD vault deposit batch on Monad once the source
@@ -47,7 +53,8 @@ export const VAULT_ERROR_PREFIX = 'Vault: ';
  * @param options.transaction - Original Money Account transaction meta.
  * @param options.vaultDisabled - When `true`, skip the vault batch and leave
  * the settled mUSD in the Money Account. Caller-evaluated kill-switch.
- * @returns Hash of the final submitted child transaction, if available.
+ * @returns Hash of the final submitted child transaction, or `{ skipped: true }`
+ * when vaulting is disabled.
  */
 export async function submitMoneyAccountVaultDeposit({
   fromBlock,
@@ -65,7 +72,7 @@ export async function submitMoneyAccountVaultDeposit({
   sourceAmountRaw: string;
   transaction: TransactionMeta;
   vaultDisabled: boolean;
-}): Promise<{ transactionHash?: Hex }> {
+}): Promise<SubmitMoneyAccountVaultDepositResult> {
   const transactionId = transaction.id;
   const moneyAccountAddress = (moneyAccountAddressOverride ??
     transaction.txParams.from) as Hex | undefined;
@@ -81,7 +88,7 @@ export async function submitMoneyAccountVaultDeposit({
       transactionId,
     });
 
-    return { transactionHash: '0x' };
+    return { skipped: true };
   }
 
   const nestedTransactions = await resolveVaultDepositBatch({
@@ -116,7 +123,8 @@ export async function submitMoneyAccountVaultDeposit({
  * @param options.sourceAmountRaw - Raw mUSD amount to deposit.
  * @param options.transactionId - Optional parent transaction to link children.
  * @param options.vaultDisabled - Whether vault submission is disabled.
- * @returns Hash of the final confirmed vault transaction.
+ * @returns Hash of the final confirmed vault transaction, or `{ skipped: true }`
+ * when vaulting is disabled.
  */
 export async function submitMoneyAccountVaultDepositBatch({
   depositCalls,
@@ -134,7 +142,7 @@ export async function submitMoneyAccountVaultDepositBatch({
   sourceAmountRaw: string;
   transactionId?: string;
   vaultDisabled: boolean;
-}): Promise<{ transactionHash?: Hex }> {
+}): Promise<SubmitMoneyAccountVaultDepositResult> {
   if (vaultDisabled) {
     log('Skipping vault deposit because vaultDisabled is true', {
       moneyAccountAddress,
@@ -142,7 +150,7 @@ export async function submitMoneyAccountVaultDepositBatch({
       transactionId,
     });
 
-    return { transactionHash: '0x' };
+    return { skipped: true };
   }
 
   // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
@@ -378,11 +386,13 @@ async function tryFindChompDeposit({
   }
 
   try {
+    const { boringVault } = getMoneyAccountVaultConfig(messenger);
     return await findRecentChompVaultDeposit({
       fromBlock,
       messenger,
       moneyAccountAddress,
       sourceAmountRaw,
+      vaultAddress: boringVault,
     });
   } catch (chompError) {
     log('CHOMP check failed', { chompError, transactionId });

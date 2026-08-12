@@ -176,7 +176,7 @@ describe('submitMoneyAccountVaultDepositFromPayout', () => {
       getMessenger(),
     );
 
-    expect(result).toStrictEqual({ transactionHash: '0x' });
+    expect(result).toStrictEqual({ skipped: true });
     expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
   });
 
@@ -192,7 +192,7 @@ describe('submitMoneyAccountVaultDepositFromPayout', () => {
       getMessenger(),
     );
 
-    expect(result).toStrictEqual({ transactionHash: '0x' });
+    expect(result).toStrictEqual({ skipped: true });
     expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
   });
 });

@@ -5,7 +5,7 @@ import type { TransactionBatchResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { isValidHexAddress } from '@metamask/utils';
 
-import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants.js';
+import { CHAIN_ID_MONAD } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import {
   getMoneyAccountVaultConfig,
@@ -13,22 +13,21 @@ import {
 } from './money-account-vault-config.js';
 import { getNetworkClientId } from './provider.js';
 
+/**
+ * On-chain withdraw intent. Quote / Pix / Iron identifiers stay outside Core;
+ * Monad and mUSD are fixed by the Money Account vault config constants.
+ */
 export type SubmitMoneyAccountVaultWithdrawRequest = {
   amountInRaw: string;
-  autorampId: string;
-  chainId: Hex;
   moneyAccountAddress: Hex;
-  quoteId: string;
-  quoteValidUntil: string;
   recipient: Hex;
   requestId: string;
-  tokenAddress: Hex;
 };
 
 /**
  * Creates a user-confirmed atomic vmUSD withdrawal and mUSD transfer to Iron.
  *
- * @param request - Backend-bound exact-out Iron intent.
+ * @param request - Exact-out withdraw intent.
  * @param messenger - Transaction Pay controller messenger.
  * @returns The pending transaction batch ID.
  */
@@ -89,8 +88,8 @@ export async function submitMoneyAccountVaultWithdraw(
 function validateRequest(
   request: SubmitMoneyAccountVaultWithdrawRequest,
 ): void {
-  if (!request.requestId || !request.quoteId || !request.autorampId) {
-    throw new Error('Missing Iron request identifiers');
+  if (!request.requestId) {
+    throw new Error('Missing withdraw request id');
   }
 
   let amount: bigint;
@@ -104,20 +103,6 @@ function validateRequest(
     throw new Error('Withdrawal amount must be greater than zero');
   }
 
-  const expiry = Date.parse(request.quoteValidUntil);
-  if (Number.isNaN(expiry)) {
-    throw new Error('Iron quote expiry is invalid');
-  }
-  if (expiry <= Date.now()) {
-    throw new Error('Iron quote has expired');
-  }
-
-  if (request.chainId !== CHAIN_ID_MONAD) {
-    throw new Error('Pix withdrawal must use Monad');
-  }
-  if (request.tokenAddress.toLowerCase() !== MUSD_MONAD_ADDRESS.toLowerCase()) {
-    throw new Error('Pix withdrawal must use mUSD');
-  }
   if (!isValidHexAddress(request.recipient)) {
     throw new Error('Iron recipient is invalid');
   }

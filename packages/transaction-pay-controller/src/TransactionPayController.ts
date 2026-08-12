@@ -29,6 +29,7 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types.js';
 import { getStrategyOrder } from './utils/feature-flags.js';
+import type { SubmitMoneyAccountVaultDepositResult } from './utils/ma-vault-deposit.js';
 import type { SubmitMoneyAccountVaultDepositRequest } from './utils/ma-vault-payout.js';
 import { submitMoneyAccountVaultDepositFromPayout } from './utils/ma-vault-payout.js';
 import type { SubmitMoneyAccountVaultWithdrawRequest } from './utils/ma-vault-withdraw.js';
@@ -93,11 +94,22 @@ export class TransactionPayController extends BaseController<
 
   readonly #resolveSourceAmount?: ResolveSourceAmountCallback;
 
+  /**
+   * In-flight and completed payout vault deposits, keyed by payout tx hash.
+   * Completed successes stay cached for the controller lifetime so webhook
+   * replays / retries do not re-submit. Preferable to persisted state here
+   * because vaulting is idempotent per process and avoids a state migration.
+   */
   readonly #vaultDepositRequests = new Map<
     string,
-    Promise<{ transactionHash?: `0x${string}` }>
+    Promise<SubmitMoneyAccountVaultDepositResult>
   >();
 
+  /**
+   * In-flight and completed withdraw batch setups, keyed by requestId.
+   * Successful `addTransactionBatch` results stay cached for the controller
+   * lifetime so a second call cannot open another approval for the same id.
+   */
   readonly #vaultWithdrawRequests = new Map<
     string,
     Promise<{ batchId: `0x${string}` }>
@@ -235,13 +247,16 @@ export class TransactionPayController extends BaseController<
    * Vaults mUSD received in a completed Iron payout transaction.
    *
    * Concurrent calls for the same payout hash share one in-flight submission.
+   * Successful results are retained so retries return the prior hash without
+   * submitting again.
    *
    * @param request - Completed Iron payout details.
-   * @returns Hash of the confirmed vault transaction.
+   * @returns Hash of the confirmed vault transaction, or `{ skipped: true }`
+   * when vaulting is disabled.
    */
   submitMoneyAccountVaultDeposit(
     request: SubmitMoneyAccountVaultDepositRequest,
-  ): Promise<{ transactionHash?: `0x${string}` }> {
+  ): Promise<SubmitMoneyAccountVaultDepositResult> {
     const key = request.transactionHash.toLowerCase();
     const current = this.#vaultDepositRequests.get(key);
     if (current) {
@@ -251,8 +266,9 @@ export class TransactionPayController extends BaseController<
     const pending = submitMoneyAccountVaultDepositFromPayout(
       request,
       this.messenger,
-    ).finally(() => {
+    ).catch((error: unknown) => {
       this.#vaultDepositRequests.delete(key);
+      throw error;
     });
     this.#vaultDepositRequests.set(key, pending);
     return pending;
@@ -262,6 +278,8 @@ export class TransactionPayController extends BaseController<
    * Creates a user-confirmed exact-out vmUSD withdrawal to Iron.
    *
    * Concurrent calls with the same request ID share one in-flight batch setup.
+   * Successful batch results are retained so a later call returns the same
+   * `batchId` without creating another approval.
    *
    * @param request - Backend-bound exact-out Iron intent.
    * @returns Pending transaction batch ID.
@@ -278,8 +296,9 @@ export class TransactionPayController extends BaseController<
     const pending = submitMoneyAccountVaultWithdrawUtil(
       request,
       this.messenger,
-    ).finally(() => {
+    ).catch((error: unknown) => {
       this.#vaultWithdrawRequests.delete(key);
+      throw error;
     });
     this.#vaultWithdrawRequests.set(key, pending);
     return pending;

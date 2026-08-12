@@ -834,6 +834,7 @@ export type PayStrategy<OriginalQuote> = {
 
   /** Execute or submit the quotes to obtain required tokens. */
   execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<{
+    skipped?: true;
     transactionHash?: Hex;
   }>;
 };

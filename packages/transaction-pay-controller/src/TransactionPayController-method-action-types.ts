@@ -53,9 +53,12 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
  * Vaults mUSD received in a completed Iron payout transaction.
  *
  * Concurrent calls for the same payout hash share one in-flight submission.
+ * Successful results are retained so retries return the prior hash without
+ * submitting again.
  *
  * @param request - Completed Iron payout details.
- * @returns Hash of the confirmed vault transaction.
+ * @returns Hash of the confirmed vault transaction, or `{ skipped: true }`
+ * when vaulting is disabled.
  */
 export type TransactionPayControllerSubmitMoneyAccountVaultDepositAction = {
   type: `TransactionPayController:submitMoneyAccountVaultDeposit`;
@@ -66,6 +69,8 @@ export type TransactionPayControllerSubmitMoneyAccountVaultDepositAction = {
  * Creates a user-confirmed exact-out vmUSD withdrawal to Iron.
  *
  * Concurrent calls with the same request ID share one in-flight batch setup.
+ * Successful batch results are retained so a later call returns the same
+ * `batchId` without creating another approval.
  *
  * @param request - Backend-bound exact-out Iron intent.
  * @returns Pending transaction batch ID.
