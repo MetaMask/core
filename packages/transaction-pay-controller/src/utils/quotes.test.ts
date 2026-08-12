@@ -1346,6 +1346,44 @@ describe('Quotes Utils', () => {
         );
       });
 
+      it('drops stale no-op quotes when the quote pipeline throws', async () => {
+        getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
+        calculateTotalsMock.mockImplementationOnce(() => {
+          throw new Error('calculateTotals failed');
+        });
+
+        await expect(run()).rejects.toThrow('calculateTotals failed');
+
+        // Seed the draft with a no-op quote from a previous direct route.
+        const transactionDataMock: Record<string, unknown> = {
+          quotes: [{ strategy: TransactionPayStrategy.None }],
+        };
+        updateTransactionDataMock.mock.calls.forEach((call) =>
+          call[1](transactionDataMock),
+        );
+
+        expect(transactionDataMock.quotes).toStrictEqual([]);
+      });
+
+      it('keeps executable quotes when the quote pipeline throws', async () => {
+        getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
+        calculateTotalsMock.mockImplementationOnce(() => {
+          throw new Error('calculateTotals failed');
+        });
+
+        await expect(run()).rejects.toThrow('calculateTotals failed');
+
+        // Seed the draft with an executable quote from a previous refresh.
+        const transactionDataMock: Record<string, unknown> = {
+          quotes: [QUOTE_MOCK],
+        };
+        updateTransactionDataMock.mock.calls.forEach((call) =>
+          call[1](transactionDataMock),
+        );
+
+        expect(transactionDataMock.quotes).toStrictEqual([QUOTE_MOCK]);
+      });
+
       it('does not persist quote error when pay state was removed', async () => {
         getControllerStateMock.mockReturnValue({ transactionData: {} });
         getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);

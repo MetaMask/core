@@ -215,6 +215,18 @@ export async function updateQuotes(
           reason: 'no-quotes',
         };
         data.quotesLastUpdated = Date.now();
+
+        // Stale no-op quotes from a previous direct route would block the
+        // retry loop, so drop them. Executable quotes stay usable until a
+        // refresh replaces them.
+        if (
+          data.quotes?.length &&
+          data.quotes.every(
+            (quote) => quote.strategy === TransactionPayStrategy.None,
+          )
+        ) {
+          data.quotes = [];
+        }
       },
     );
 
