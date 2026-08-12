@@ -36,7 +36,7 @@ describe('mapLocalTransaction', () => {
           decimals: 18,
           direction: 'out',
           assetType: 'native',
-          assetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          assetId: 'eip155:1/slip44:60',
         },
       },
     });
@@ -337,7 +337,7 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with the zero-address native assetId', () => {
+  it('maps an incoming native transfer without nativeAssetSymbol to a Receive with the chainlist native assetId', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAnIncomingNativeTransferTo,
     );
@@ -351,7 +351,7 @@ describe('mapLocalTransaction', () => {
       },
     });
     expect(item.type === 'receive' ? item.data.token?.assetId : 'unset').toBe(
-      'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+      'eip155:1/slip44:60',
     );
   });
   it('maps an mUSD conversion to a Convert activity', () => {
@@ -623,7 +623,7 @@ describe('mapLocalTransaction', () => {
       data: { from },
     });
   });
-  it('maps a WETH9 deposit contract interaction to a Wrap activity with a native source amount, no symbol, and a zero-address native assetId when nativeAssetSymbol is omitted', () => {
+  it('maps a WETH9 deposit contract interaction to a Wrap activity with a native source amount, no symbol, and the chainlist native assetId when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAWeth9DepositContractInteraction,
     );
@@ -640,7 +640,7 @@ describe('mapLocalTransaction', () => {
           decimals: 18,
           direction: 'out',
           assetType: 'native',
-          assetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          assetId: 'eip155:1/slip44:60',
         },
         destinationToken: {
           amount: '0x3782dace9d900000',
@@ -714,7 +714,7 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('maps a native value contract interaction with amount, no symbol, and a zero-address native assetId when nativeAssetSymbol is omitted', () => {
+  it('maps a native value contract interaction with amount, no symbol, and the chainlist native assetId when nativeAssetSymbol is omitted', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsANativeValueContractInteraction,
     );
@@ -732,7 +732,7 @@ describe('mapLocalTransaction', () => {
           decimals: 18,
           direction: 'out',
           assetType: 'native',
-          assetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          assetId: 'eip155:1/slip44:60',
         },
         methodId: '0xd0e30db0',
       },

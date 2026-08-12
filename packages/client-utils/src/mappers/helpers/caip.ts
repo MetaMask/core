@@ -90,7 +90,13 @@ export function resolveNativeAssetId(
   }
 
   if (namespace === KnownCaipNamespace.Eip155) {
-    return toCaipAssetType(namespace, reference, 'erc20', nativeTokenAddress);
+    // Prefer chainlist (same source as getNativeAsset) before the zero-address
+    // form so fee/token on one activity don't diverge when symbol is missing
+    // or has no slip44 entry.
+    return (
+      getNativeAsset(caipChainId)?.assetId ??
+      toCaipAssetType(namespace, reference, 'erc20', nativeTokenAddress)
+    );
   }
 
   return undefined;

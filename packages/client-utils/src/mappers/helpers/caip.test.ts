@@ -111,18 +111,35 @@ describe('caip helpers', () => {
       );
     });
 
-    it('falls back to the zero-address erc20 form on eip155 chains without a symbol', () => {
+    it('uses chainlist via getNativeAsset when symbol is missing but the chain has slip44', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
       expect(resolveNativeAssetId('eip155:8453', undefined)).toBe(
-        'eip155:8453/erc20:0x0000000000000000000000000000000000000000',
-      );
-      expect(resolveNativeAssetId('eip155:4663', undefined)).toBe(
-        'eip155:4663/erc20:0x0000000000000000000000000000000000000000',
+        'eip155:8453/slip44:60',
       );
     });
 
-    it('falls back to the zero-address erc20 form on eip155 chains when the symbol has no slip44', () => {
+    it('falls back to the zero-address erc20 form when symbol and chainlist both miss slip44', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'Chiliz', symbol: 'CHZ', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
       expect(resolveNativeAssetId('eip155:88888', 'CHZ')).toBe(
         'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      );
+      expect(resolveNativeAssetId('eip155:88888', undefined)).toBe(
+        'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      );
+    });
+
+    it('falls back to the zero-address erc20 form when the chain is absent from chainlist', () => {
+      mockGetChainById.mockReturnValue(undefined);
+
+      expect(resolveNativeAssetId('eip155:4663', undefined)).toBe(
+        'eip155:4663/erc20:0x0000000000000000000000000000000000000000',
       );
     });
 
