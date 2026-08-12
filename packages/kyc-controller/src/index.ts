@@ -1,9 +1,31 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export type { BuildOwnershipMessageRequest } from './ownership-message.js';
+export { buildOwnershipMessage } from './ownership-message.js';
+export type {
+  Blockchain,
+  FailureSource,
+  FetchLike,
+  GetRegistrationStatusRequest,
+  HttpResponse,
+  ProofType,
+  RegisterSelfHostedWalletRequest,
+  RegistrationOutcome,
+  RegistrationStatus,
+  SelfHostedRegistration,
+  WalletRegistrationErrorKind,
+  WalletRegistrationServiceOptions,
+} from './wallet-registration-service.js';
+export {
+  WalletRegistrationError,
+  WalletRegistrationService,
+} from './wallet-registration-service.js';
+export type {
+  ConflictType,
+  WalletRegistrationContext,
+  WalletRegistrationEvent,
+  WalletRegistrationState,
+  WalletRegistrationStatus,
+} from './wallet-registration-machine.js';
+export {
+  createInitialState,
+  transition,
+} from './wallet-registration-machine.js';
