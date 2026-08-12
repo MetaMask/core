@@ -33,12 +33,88 @@ import type {
   PerpsPlatformDependencies,
   PerpsMarketData,
   TerminalAssetMetadata,
+  MarketDataFormatters,
 } from '../types/index.js';
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import {
+  calculateOpenInterestUSD,
+  deriveHip3MarketFields,
+  formatMarketPriceFields,
+} from '../utils/marketDataTransform.js';
 import { applyMarketFilters } from '../utils/marketUtils.js';
 import type { ServiceContext } from './ServiceContext.js';
+
+/**
+ * Coerce a Terminal API value (string | number | undefined) to a number.
+ *
+ * @param value - The raw value to coerce.
+ * @returns The numeric value, or `NaN` when absent/unparseable.
+ */
+function toNumber(value: string | number | undefined): number {
+  return typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+}
+
+/**
+ * Build PerpsMarketData straight from Terminal metadata, skipping the
+ * HyperLiquid provider call entirely. Symbols with no usable price are
+ * dropped rather than rendered with a placeholder.
+ *
+ * @param metadata - Per-symbol Terminal metadata map.
+ * @param formatters - Injectable formatters for platform-agnostic formatting.
+ * @returns Formatted PerpsMarketData array, empty if no symbol has a price
+ * (caller should fall back to the provider path in that case).
+ */
+function buildMarketsFromTerminalMetadata(
+  metadata: Map<string, TerminalAssetMetadata>,
+  formatters: MarketDataFormatters,
+): PerpsMarketData[] {
+  const result: PerpsMarketData[] = [];
+
+  for (const [symbol, meta] of metadata.entries()) {
+    const currentPrice = toNumber(meta.price);
+    if (isNaN(currentPrice) || currentPrice <= 0) {
+      continue;
+    }
+
+    const change24h = toNumber(meta.change24h);
+    const change24hPercent = toNumber(meta.changePercent24h);
+    const volume = toNumber(meta.volume24h);
+    const openInterest = calculateOpenInterestUSD(
+      meta.openInterest,
+      currentPrice,
+    );
+    const fundingRate = toNumber(meta.funding);
+
+    const { marketSource, isHip3, isNewMarket } = deriveHip3MarketFields(
+      symbol,
+      meta.marketType,
+    );
+
+    result.push({
+      symbol,
+      name: meta.name ?? symbol,
+      ...(meta.description !== undefined && { description: meta.description }),
+      maxLeverage: `${meta.maxLeverage ?? 1}x`,
+      ...formatMarketPriceFields(
+        { currentPrice, change24h, change24hPercent, volume, openInterest },
+        formatters,
+      ),
+      fundingRate: isNaN(fundingRate) ? undefined : fundingRate,
+      marketSource,
+      ...(meta.marketType !== undefined && { marketType: meta.marketType }),
+      isHip3,
+      isNewMarket,
+      ...(meta.keywords !== undefined && { keywords: meta.keywords }),
+      ...(meta.tags !== undefined && { tags: meta.tags }),
+      ...(meta.listedAt !== undefined && { listedAt: meta.listedAt }),
+      ...(meta.trend !== undefined && { trend: meta.trend }),
+    });
+  }
+
+  return result;
+}
 
 /**
  * MarketDataService
@@ -876,20 +952,24 @@ export class MarketDataService {
    * Get market data with prices (includes price, volume, 24h change).
    * Applies optional category filtering, sorting, and limit after fetching.
    * When `useTerminalApi` is true, enriches provider data with Terminal API metadata
-   * (name, keywords, tags, categories). On Terminal API failure, falls back silently.
+   * (name, keywords, tags, marketType). On Terminal API failure, falls back silently.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.params - Optional filter/sort/limit params.
    * @param options.context - The service context for dependencies.
+   * @param options.isMarketAllowed - Optional filter callback applied to
+   * Terminal-priced markets so that allowlist/blocklist rules from the provider
+   * layer are enforced even when the provider is bypassed.
    * @returns The result of the operation.
    */
   async getMarketDataWithPrices(options: {
     provider: PerpsProvider;
     params?: GetMarketDataWithPricesParams;
     context: ServiceContext;
+    isMarketAllowed?: (symbol: string) => boolean;
   }): Promise<PerpsMarketData[]> {
-    const { provider, params, context } = options;
+    const { provider, params, context, isMarketAllowed } = options;
     const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -911,9 +991,10 @@ export class MarketDataService {
         },
       });
 
-      // Fetch Terminal API metadata before provider data when enabled.
-      // Terminal metadata enriches the provider result (name, keywords, tags,
-      // categories) but never replaces live pricing / funding data.
+      // Fetch Terminal metadata first. If it already has a usable price,
+      // build markets from it directly and skip the HyperLiquid provider
+      // call. Otherwise fall back to the provider and just enrich it with
+      // Terminal's name/keywords/tags.
       let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
       if (useTerminalApi && this.#deps.terminalMarketService) {
         try {
@@ -929,12 +1010,32 @@ export class MarketDataService {
         }
       }
 
-      const markets = await provider.getMarketDataWithPrices();
+      let terminalPricedMarkets = terminalMetadata
+        ? buildMarketsFromTerminalMetadata(
+            terminalMetadata,
+            this.#deps.marketDataFormatters,
+          )
+        : [];
 
-      // Enrich with terminal metadata when available
-      const enriched = terminalMetadata
-        ? this.#enrichWithTerminalMetadata(markets, terminalMetadata)
-        : markets;
+      // Same allowlist/blocklist rules the provider applies, so HIP-3
+      // markets that aren't tradeable don't surface here just because we
+      // bypassed the provider.
+      if (isMarketAllowed) {
+        terminalPricedMarkets = terminalPricedMarkets.filter((market) =>
+          isMarketAllowed(market.symbol),
+        );
+      }
+
+      let enriched: PerpsMarketData[];
+      if (terminalPricedMarkets.length > 0) {
+        enriched = terminalPricedMarkets;
+      } else {
+        const markets = await provider.getMarketDataWithPrices();
+        // Enrich with terminal metadata when available
+        enriched = terminalMetadata
+          ? this.#enrichWithTerminalMetadata(markets, terminalMetadata)
+          : markets;
+      }
 
       const filtered = applyMarketFilters(enriched, params);
 
@@ -1357,8 +1458,7 @@ export class MarketDataService {
    * Merge Terminal API metadata into provider-sourced PerpsMarketData.
    * For each market, if the terminal metadata map contains an entry for its
    * symbol, override name/description/marketType and attach
-   * keywords/tags/categories. Unmatched markets keep their provider-sourced
-   * values.
+   * keywords/tags. Unmatched markets keep their provider-sourced values.
    *
    * @param markets - Markets from the provider.
    * @param metadata - Per-symbol metadata from the Terminal API.
@@ -1383,7 +1483,6 @@ export class MarketDataService {
         ...(meta.marketType !== undefined && { marketType: meta.marketType }),
         ...(meta.keywords !== undefined && { keywords: meta.keywords }),
         ...(meta.tags !== undefined && { tags: meta.tags }),
-        ...(meta.categories !== undefined && { categories: meta.categories }),
         ...(meta.listedAt !== undefined && { listedAt: meta.listedAt }),
       };
     });
