@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix simulated native balance changes incorrectly showing a balance increase on chains where the simulation API does not deduct gas from the sender's balance, such as Base and Optimism ([#9836](https://github.com/MetaMask/core/pull/9836))
+- Fix simulated native balance changes incorrectly showing a balance increase when the simulation API does not deduct gas from the sender's balance in the state diff ([#9836](https://github.com/MetaMask/core/pull/9836))
+  - This can happen on any chain: always on OP-stack chains such as Base, and on other chains including Ethereum when the priority fee is low or the sender balance is overridden.
   - The gas excluded from the native balance change is now derived from the value flows in the call trace instead of unconditionally adding the estimated gas cost to the final balance.
 
 ## [69.5.2]
