@@ -97,7 +97,9 @@ describe('wallet registration machine: signing', () => {
   });
 
   it('cancellation during signing aborts without failing', () => {
-    expect(transition(atSigning(), { type: 'CANCEL' }).status).toBe('cancelled');
+    expect(transition(atSigning(), { type: 'CANCEL' }).status).toBe(
+      'cancelled',
+    );
   });
 });
 
@@ -121,9 +123,9 @@ describe('wallet registration machine: submitting outcomes', () => {
   });
 
   it('timeout / 5xx enters checkThenRetry', () => {
-    expect(transition(atSubmitting(), { type: 'SUBMIT_TRANSIENT' }).status).toBe(
-      'checkThenRetry',
-    );
+    expect(
+      transition(atSubmitting(), { type: 'SUBMIT_TRANSIENT' }).status,
+    ).toBe('checkThenRetry');
   });
 
   it('a UTC-rollover 400 rebuilds and re-signs once', () => {

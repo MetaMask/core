@@ -179,75 +179,76 @@ const checkThenRetryAbsent: Handler = (state, event) =>
     ? toSigning(state, event)
     : keep('failedRetryable')(state, event);
 
-const TABLE: Partial<Record<WalletRegistrationStatus, Partial<Record<EventType, Handler>>>> =
-  {
-    idle: {
-      START: toPreparing,
-    },
-    preparing: {
-      PREREQ_MISSING_CUSTOMER: keep('missingCustomer'),
-      PREREQ_MISSING_MONEY_ACCOUNT: keep('missingMoneyAccount'),
-      PREREQ_UPGRADE_INCOMPLETE: keep('upgradeIncomplete'),
-      PREREQ_UNSUPPORTED_ACCOUNT: keep('unsupportedAccount'),
-      BLOCKCHAIN_BLOCKED: keep('blockchainBlocked'),
-      WALLET_LOCKED: keep('awaitingUnlock'),
-      LOOKUP_ACTIVE: toAlreadyRegistered,
-      LOOKUP_DISABLED: toRegisteredDisabled,
-      LOOKUP_ABSENT: toSigning,
-      LOOKUP_FAILED: toLookupUnavailable,
-    },
-    awaitingUnlock: {
-      WALLET_UNLOCKED: keep('signing'),
-    },
-    signing: {
-      SIGN_OK: keep('submitting'),
-      SIGN_REJECTED: toCancelled,
-      SIGN_FAILED: signFailed,
-      WALLET_LOCKED: keep('awaitingUnlock'),
-      CANCEL: toCancelled,
-    },
-    submitting: {
-      SUBMIT_OK: keep('registered'),
-      SUBMIT_CONFLICT: submitConflict,
-      SUBMIT_TRANSIENT: keep('checkThenRetry'),
-      SUBMIT_VALIDATION: submitValidation,
-      SUBMIT_TERMINAL: keep('failedTerminal'),
-      SUBMIT_RATE_LIMITED: keep('failedRetryable'),
-      CANCEL: toCancelled,
-    },
-    disambiguate409: {
-      LOOKUP_ACTIVE: toAlreadyRegistered,
-      LOOKUP_DISABLED: toRegisteredDisabled,
-      LOOKUP_ABSENT: disambiguateAbsent,
-      LOOKUP_FAILED: toLookupUnavailable,
-      CANCEL: toCancelled,
-    },
-    checkThenRetry: {
-      LOOKUP_ACTIVE: toAlreadyRegistered,
-      LOOKUP_DISABLED: toRegisteredDisabled,
-      LOOKUP_ABSENT: checkThenRetryAbsent,
-      LOOKUP_FAILED: toLookupUnavailable,
-      CANCEL: toCancelled,
-    },
-    failedRetryable: {
-      RETRY: toPreparing,
-    },
-    lookupUnavailable: {
-      RETRY: toPreparing,
-    },
-    cancelled: {
-      RETRY: toPreparing,
-    },
-    missingCustomer: {
-      RETRY: toPreparing,
-    },
-    missingMoneyAccount: {
-      RETRY: toPreparing,
-    },
-    upgradeIncomplete: {
-      RETRY: toPreparing,
-    },
-  };
+const TABLE: Partial<
+  Record<WalletRegistrationStatus, Partial<Record<EventType, Handler>>>
+> = {
+  idle: {
+    START: toPreparing,
+  },
+  preparing: {
+    PREREQ_MISSING_CUSTOMER: keep('missingCustomer'),
+    PREREQ_MISSING_MONEY_ACCOUNT: keep('missingMoneyAccount'),
+    PREREQ_UPGRADE_INCOMPLETE: keep('upgradeIncomplete'),
+    PREREQ_UNSUPPORTED_ACCOUNT: keep('unsupportedAccount'),
+    BLOCKCHAIN_BLOCKED: keep('blockchainBlocked'),
+    WALLET_LOCKED: keep('awaitingUnlock'),
+    LOOKUP_ACTIVE: toAlreadyRegistered,
+    LOOKUP_DISABLED: toRegisteredDisabled,
+    LOOKUP_ABSENT: toSigning,
+    LOOKUP_FAILED: toLookupUnavailable,
+  },
+  awaitingUnlock: {
+    WALLET_UNLOCKED: keep('signing'),
+  },
+  signing: {
+    SIGN_OK: keep('submitting'),
+    SIGN_REJECTED: toCancelled,
+    SIGN_FAILED: signFailed,
+    WALLET_LOCKED: keep('awaitingUnlock'),
+    CANCEL: toCancelled,
+  },
+  submitting: {
+    SUBMIT_OK: keep('registered'),
+    SUBMIT_CONFLICT: submitConflict,
+    SUBMIT_TRANSIENT: keep('checkThenRetry'),
+    SUBMIT_VALIDATION: submitValidation,
+    SUBMIT_TERMINAL: keep('failedTerminal'),
+    SUBMIT_RATE_LIMITED: keep('failedRetryable'),
+    CANCEL: toCancelled,
+  },
+  disambiguate409: {
+    LOOKUP_ACTIVE: toAlreadyRegistered,
+    LOOKUP_DISABLED: toRegisteredDisabled,
+    LOOKUP_ABSENT: disambiguateAbsent,
+    LOOKUP_FAILED: toLookupUnavailable,
+    CANCEL: toCancelled,
+  },
+  checkThenRetry: {
+    LOOKUP_ACTIVE: toAlreadyRegistered,
+    LOOKUP_DISABLED: toRegisteredDisabled,
+    LOOKUP_ABSENT: checkThenRetryAbsent,
+    LOOKUP_FAILED: toLookupUnavailable,
+    CANCEL: toCancelled,
+  },
+  failedRetryable: {
+    RETRY: toPreparing,
+  },
+  lookupUnavailable: {
+    RETRY: toPreparing,
+  },
+  cancelled: {
+    RETRY: toPreparing,
+  },
+  missingCustomer: {
+    RETRY: toPreparing,
+  },
+  missingMoneyAccount: {
+    RETRY: toPreparing,
+  },
+  upgradeIncomplete: {
+    RETRY: toPreparing,
+  },
+};
 
 /**
  * Pure transition reducer. Unhandled (state, event) pairs are no-ops, which is
