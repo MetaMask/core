@@ -110,19 +110,19 @@ export type TokensControllerState = {
 const metadata: StateMetadata<TokensControllerState> = {
   allTokens: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allIgnoredTokens: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allDetectedTokens: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
