@@ -14,6 +14,7 @@ import {
 } from '@metamask/superstruct';
 import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 
+import { canonicalizeHyperLiquidDexes } from '../constants/hyperLiquidConfig.js';
 import {
   PERPS_CONSTANTS,
   TERMINAL_API_CONFIG,
@@ -36,6 +37,7 @@ const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 2;
 const GLOBAL_SNAPSHOT_CONSUMER_MAX_AGE_MS = 30_000;
 const GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES = 1_048_576;
 const GLOBAL_SNAPSHOT_PERCENT_TOLERANCE = 0.01;
+const GLOBAL_SNAPSHOT_MAX_FUTURE_CLOCK_SKEW_MS = 5_000;
 const MINIMUM_EPOCH_MILLISECONDS = Date.UTC(2000, 0, 1);
 const DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
@@ -362,8 +364,8 @@ export class TerminalMarketService {
       !this.#isNonNegativeSafeInteger(snapshot.receivedAt) ||
       !this.#isPositiveSafeInteger(snapshot.maxAgeMs) ||
       snapshot.receivedAt > snapshot.generatedAt ||
-      snapshot.generatedAt > now ||
-      snapshot.receivedAt > now
+      snapshot.generatedAt > now + GLOBAL_SNAPSHOT_MAX_FUTURE_CLOCK_SKEW_MS ||
+      snapshot.receivedAt > now + GLOBAL_SNAPSHOT_MAX_FUTURE_CLOCK_SKEW_MS
     ) {
       throw new Error('Terminal global snapshot has invalid timestamps');
     }
@@ -450,7 +452,10 @@ export class TerminalMarketService {
     if (new Set(normalized).size !== normalized.length) {
       throw new Error('Terminal global snapshot contains duplicate DEXes');
     }
-    return normalized.sort();
+    if (!normalized.includes('main')) {
+      throw new Error('Terminal global snapshot requires the main DEX');
+    }
+    return canonicalizeHyperLiquidDexes(normalized);
   }
 
   async #createFingerprint(
@@ -524,6 +529,12 @@ export class TerminalMarketService {
     }
     if (market.price !== market.markPrice) {
       throw invalid('deprecated price alias');
+    }
+    if (
+      Number(market.oraclePrice) <= 0 ||
+      (market.midPrice !== null && Number(market.midPrice) <= 0)
+    ) {
+      throw invalid('reference price');
     }
     const price = Number(market.markPrice);
     const change24h = Number(market.change24h);

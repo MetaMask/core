@@ -7256,13 +7256,34 @@ export class HyperLiquidProvider implements PerpsProvider {
         ),
       ]);
 
+    const rawOrders = openOrdersByDex.flat();
+    const childOrderIds = collectChildOrderIds(rawOrders);
+    const ordersBySymbol = groupOrdersBySymbol(rawOrders);
     const positions = clearinghouseStates.flatMap((state) =>
       state.assetPositions
         .filter(({ position }) => position.szi !== '0')
-        .map((assetPosition) => adaptPositionFromSDK(assetPosition)),
+        .map((assetPosition) => {
+          const position = adaptPositionFromSDK(assetPosition);
+          const { takeProfitOrders, stopLossOrders } =
+            collectPositionTriggerOrders({
+              orders: ordersBySymbol.get(position.symbol) ?? [],
+              position,
+              childOrderIds,
+            });
+          return {
+            ...position,
+            takeProfitCount: takeProfitOrders.length,
+            stopLossCount: stopLossOrders.length,
+            takeProfitOrders,
+            stopLossOrders,
+          };
+        }),
     );
-    const orders = openOrdersByDex.flatMap((dexOrders) =>
-      dexOrders.map((order) => adaptOrderFromSDK(order, undefined)),
+    const positionsBySymbol = new Map(
+      positions.map((position) => [position.symbol, position]),
+    );
+    const orders = rawOrders.map((order) =>
+      adaptOrderFromSDK(order, positionsBySymbol.get(order.coin)),
     );
     const dexAccountStates = clearinghouseStates.map((state) =>
       adaptAccountStateFromSDK(state),

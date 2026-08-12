@@ -1519,12 +1519,7 @@
   },
   "packages/perps-controller/src/PerpsController.ts": {
     "no-restricted-syntax": {
-      "count": 3
-    }
-  },
-  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/perps-controller/src/utils/myxAdapter.ts": {

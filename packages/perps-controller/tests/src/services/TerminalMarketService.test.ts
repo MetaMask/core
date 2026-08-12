@@ -583,6 +583,27 @@ describe('TerminalMarketService', () => {
       );
     });
 
+    it('keeps main first when canonicalizing requested DEXes', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 503,
+        statusText: 'Service Unavailable',
+      } as Response);
+
+      await expect(
+        service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          enabledDexes: ['flx', 'main'],
+        }),
+      ).rejects.toThrow('Terminal global snapshot returned 503');
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'https://terminal.test-api.cx.metamask.io/v2/perpetuals?provider=hyperliquid&network=mainnet&dexes=main%2Cflx',
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+
     it.each([
       ['unknown top-level key', createGlobalSnapshot({ extra: true })],
       [
@@ -771,8 +792,8 @@ describe('TerminalMarketService', () => {
       ['empty markets', { markets: [] }],
       ['incomplete', { complete: false }],
       ['per-DEX error', { perDexErrors: [{ dex: 'main', error: 'TIMEOUT' }] }],
-      ['future generatedAt', { generatedAt: SNAPSHOT_NOW + 1 }],
-      ['future receivedAt', { receivedAt: SNAPSHOT_NOW + 1 }],
+      ['future generatedAt', { generatedAt: SNAPSHOT_NOW + 5_001 }],
+      ['future receivedAt', { receivedAt: SNAPSHOT_NOW + 5_001 }],
       [
         'stale source age',
         {
@@ -793,6 +814,46 @@ describe('TerminalMarketService', () => {
           enabledDexes: ['main'],
         }),
       ).rejects.toThrow('Terminal global snapshot');
+    });
+
+    it('accepts timestamps within the producer clock-skew allowance', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            generatedAt: SNAPSHOT_NOW + 5_000,
+            receivedAt: SNAPSHOT_NOW + 5_000,
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+
+      expect(result.markets).toStrictEqual(expect.any(Array));
+    });
+
+    it.each([
+      ['oracle price', { oraclePrice: '0' }],
+      ['mid price', { midPrice: '0' }],
+    ])('rejects a non-positive %s', async (_name, marketOverrides) => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [createSnapshotMarket(marketOverrides)],
+          }),
+        ),
+      );
+
+      await expect(
+        service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          enabledDexes: ['main'],
+        }),
+      ).rejects.toThrow('reference price');
     });
 
     it.each([

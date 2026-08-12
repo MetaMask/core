@@ -2367,6 +2367,35 @@ describe('PerpsController', () => {
       expect(preloadInfrastructure.diskCache.setItem).toHaveBeenCalledTimes(1);
     });
 
+    it('does not coalesce requests across provider instances', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const firstRequest = preloadController.getUserDataSnapshot();
+      const replacementProvider = createMockHyperLiquidProvider();
+      replacementProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockResolvedValue(createUserSnapshot());
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', replacementProvider]]),
+      );
+
+      await expect(preloadController.getUserDataSnapshot()).resolves.toEqual(
+        createUserSnapshot(),
+      );
+      deferred.resolve(createUserSnapshot());
+      await expect(firstRequest).rejects.toThrow('context changed');
+
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+      expect(replacementProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+    });
+
     it('serializes disk writes so an older account cannot overwrite a newer one', async () => {
       let resolveFirstWrite!: () => void;
       const firstWrite = new Promise<void>((resolve) => {

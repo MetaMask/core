@@ -797,7 +797,24 @@ describe('HyperLiquidProvider', () => {
         mockStandaloneInfoClient.clearinghouseState.mockResolvedValue(
           clearinghouseState,
         );
-        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 101,
+            side: 'A',
+            limitPx: '0',
+            triggerPx: '55000',
+            sz: '0',
+            origSz: '0',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Market',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: true,
+            cloid: undefined,
+            children: [],
+          },
+        ]);
 
         const result = await provider.getUserDataSnapshot({
           userAddress: mockUserAddress,
@@ -823,7 +840,26 @@ describe('HyperLiquidProvider', () => {
           1,
         );
         expect(result.positions).toHaveLength(1);
-        expect(result.orders).toEqual([]);
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitCount: 1,
+            stopLossCount: 0,
+            takeProfitOrders: [
+              expect.objectContaining({
+                orderId: '101',
+                size: '0.5',
+                triggerPrice: '55000',
+              }),
+            ],
+          }),
+        );
+        expect(result.orders).toEqual([
+          expect.objectContaining({
+            orderId: '101',
+            size: '0.5',
+            originalSize: '0.5',
+          }),
+        ]);
         expect(result.accountState.totalBalance).toBe('25000');
         expect(result.identity).toEqual({
           provider: 'hyperliquid',

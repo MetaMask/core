@@ -1574,16 +1574,16 @@ export class PerpsController extends BaseController<
       ...expectedDexes,
     ].join('|');
     const existingRequest = this.#userSnapshotRequests.get(requestKey);
-    if (existingRequest) {
-      return existingRequest;
+    if (existingRequest?.provider === provider) {
+      return existingRequest.promise;
     }
 
     const request = this.#fetchAndCacheUserDataSnapshot(context);
-    this.#userSnapshotRequests.set(requestKey, request);
+    this.#userSnapshotRequests.set(requestKey, { provider, promise: request });
     try {
       return await request;
     } finally {
-      if (this.#userSnapshotRequests.get(requestKey) === request) {
+      if (this.#userSnapshotRequests.get(requestKey)?.promise === request) {
         this.#userSnapshotRequests.delete(requestKey);
       }
     }
@@ -3601,7 +3601,7 @@ export class PerpsController extends BaseController<
 
   readonly #userSnapshotRequests = new Map<
     string,
-    Promise<PerpsUserDataSnapshot>
+    { provider: PerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
   >();
 
   #preloadStateUnsubscribe: (() => void) | null = null;
