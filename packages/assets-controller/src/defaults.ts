@@ -32,23 +32,8 @@ const MUSD_METADATA: FungibleAssetMetadata = {
 };
 
 /**
- * Hardcoded metadata for native USDC on Arc (5042/0x13b2).
- *
- * Arc's native gas token is USDC. It's a default tracked asset (see
- * `DEFAULT_TRACKED_ASSETS_BY_CHAIN` below) so `#ensureDefaultTrackedAssetsSeeded`
- * writes both a zero `assetsBalance` entry and this `assetsInfo` metadata up
- * front. That explicit metadata seed is required because it can never arrive
- * from a live poll: Arc's Accounts-API balance fetch always succeeds, which
- * marks the chain "handled" and skips the RPC fallback path that would
- * otherwise be the only place writing `type: 'native'` for this id. Without
- * a metadata entry here, the zero-balance native row that
- * `#ensureNativeBalancesDefaultZero` seeds for every chain has no
- * `type: 'native'` to be recognized by, and is silently dropped by clients
- * that gate rendering on it (e.g. metamask-mobile's `assets-migration.ts`).
- *
- * The `0x3600...` ERC20 interface for USDC on Arc is no longer tracked here
- * — it's not a valid representation to default-track anymore now that the
- * native id carries its own metadata directly.
+ * Arc's native USDC also exists as its own ERC20 (`0x3600...`); Accounts API
+ * resolves that identity without ever seeding native `assetsInfo` metadata.
  */
 const ARC_NATIVE_ASSET_ID = 'eip155:5042/slip44:5042';
 
