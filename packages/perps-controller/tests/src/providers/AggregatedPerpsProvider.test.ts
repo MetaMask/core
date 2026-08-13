@@ -99,6 +99,8 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     // Configuration
     setLiveDataConfig: jest.fn(),
     setUserFeeDiscount: jest.fn(),
+    setUserFeeResolution: jest.fn(),
+    approveSubscriptionBuilderFee: jest.fn().mockResolvedValue(true),
 
     // Lifecycle
     toggleTestnet: jest
@@ -627,6 +629,36 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(mockHLProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
       expect(mockMYXProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
+    });
+
+    it('preserves the fee source for providers that support full resolutions', () => {
+      const resolution = {
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription' as const,
+        subscription: { eligible: true, reason: 'eligible' as const },
+      };
+      mockMYXProvider.setUserFeeResolution = undefined;
+
+      aggregatedProvider.setUserFeeResolution(resolution);
+
+      expect(mockHLProvider.setUserFeeResolution).toHaveBeenCalledWith(
+        resolution,
+      );
+      expect(mockMYXProvider.setUserFeeDiscount).toHaveBeenCalledWith(10000);
+    });
+
+    it('delegates subscription builder approval to the default provider', async () => {
+      await expect(
+        aggregatedProvider.approveSubscriptionBuilderFee(),
+      ).resolves.toBe(true);
+
+      expect(
+        mockHLProvider.approveSubscriptionBuilderFee,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockMYXProvider.approveSubscriptionBuilderFee,
+      ).not.toHaveBeenCalled();
     });
   });
 
