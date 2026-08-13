@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Read the `stableTokens` remote feature flag in `getStablecoins` instead of `stable-tokens` ([#9885](https://github.com/MetaMask/core/pull/9885))
 
+### Removed
+
+- **BREAKING:** Remove `resolveSourceAmount` constructor option from `TransactionPayController` and the associated `ResolveSourceAmountCallback`, `ResolveSourceAmountRequest`, and `ResolveSourceAmountResponse` types ([#9802](https://github.com/MetaMask/core/pull/9802))
+  - `resolveSourceAmount` is replaced by the more capable `getBalance` callback, which receives the full transaction and transaction data and returns `{ balanceHuman, balanceRaw }`. Migrate by replacing `resolveSourceAmount: ({ isMaxAmount, paymentOverride }) => ({ sourceAmountRaw })` with `getBalance: ({ transaction, transactionData }) => ({ balanceHuman, balanceRaw })`.
+
 ## [26.3.0]
 
 ### Added
