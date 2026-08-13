@@ -65,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent `CLIENT_NOT_INITIALIZED` errors during cold-start and reconnection by awaiting in-flight initialization in trading action methods (`placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `deposit`, `withdraw`, etc.) ([#9032](https://github.com/MetaMask/core/pull/9032))
 - Fix compound error string (`CLIENT_NOT_INITIALIZED: <reason>`) breaking i18n translation lookup — now always throws the plain `CLIENT_NOT_INITIALIZED` code ([#9032](https://github.com/MetaMask/core/pull/9032))
 - Recreate all four SDK clients (including `ExchangeClient` and HTTP `InfoClient`) during WebSocket reconnection so `isInitialized()` returns `true` after reconnect ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Bring the HyperLiquid SDK clients up before the provider's first asset-metadata read, so a trading action taken during cold start or after a disconnect waits for the clients instead of failing with `CLIENT_NOT_INITIALIZED` ([#9865](https://github.com/MetaMask/core/pull/9865))
+  - `placeOrder` resolves asset info before it ensures trading readiness, so waiting for controller initialization alone was not enough: the metadata read still hit an uninitialized `InfoClient` and the order failed. Warm reads are unaffected — the cached path returns before the client check.
 
 ## [11.0.0]
 

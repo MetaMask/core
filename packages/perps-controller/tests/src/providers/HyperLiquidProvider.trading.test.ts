@@ -535,6 +535,37 @@ describe('HyperLiquidProvider', () => {
     });
   });
   describe('Trading Operations', () => {
+    it('brings the SDK clients up before reading asset metadata', async () => {
+      // Reproduces the cold-start / post-disconnect failure: placeOrder resolves
+      // asset info (an InfoClient read) before it ensures trading readiness, so
+      // an order taken while the clients are still down used to fail with
+      // CLIENT_NOT_INITIALIZED instead of waiting for them.
+      let clientsUp = false;
+      const infoClient = mockClientService.getInfoClient();
+      mockClientService.initialize.mockImplementation(async () => {
+        clientsUp = true;
+      });
+      mockClientService.getInfoClient.mockImplementation(() => {
+        if (!clientsUp) {
+          throw new Error(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+        }
+        return infoClient;
+      });
+
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      };
+
+      const result = await provider.placeOrder(orderParams);
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.initialize).toHaveBeenCalled();
+    });
+
     it('places a market order successfully', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
