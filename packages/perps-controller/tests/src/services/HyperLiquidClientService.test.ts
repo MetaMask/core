@@ -1713,7 +1713,8 @@ describe('HyperLiquidClientService', () => {
 
       mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
       await service.reconnect();
-      const transportCalls = (WebSocketTransport as jest.Mock).mock.calls.length;
+      const transportCalls = (WebSocketTransport as jest.Mock).mock.calls
+        .length;
 
       await service.ensureSubscriptionClient(mockWallet);
 
