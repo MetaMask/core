@@ -1,0 +1,70 @@
+{
+  "name": "@metamask/network-controller",
+  "version": "12.1.2",
+  "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/network-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2",
+    "@metamask/eth-json-rpc-infura": "^8.1.1",
+    "@metamask/eth-json-rpc-middleware": "^11.0.0",
+    "@metamask/eth-json-rpc-provider": "^1.0.0",
+    "@metamask/eth-query": "^3.0.1",
+    "@metamask/swappable-obj-proxy": "^2.1.0",
+    "@metamask/utils": "^6.2.0",
+    "async-mutex": "^0.2.6",
+    "eth-block-tracker": "^7.0.1",
+    "eth-rpc-errors": "^4.0.2",
+    "immer": "^9.0.6",
+    "json-rpc-engine": "^6.1.0",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@json-rpc-specification/meta-schema": "^1.0.6",
+    "@metamask/auto-changelog": "^3.1.0",
+    "@types/jest": "^27.4.1",
+    "@types/jest-when": "^2.7.3",
+    "@types/lodash": "^4.14.191",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "jest-when": "^3.4.2",
+    "lodash": "^4.17.21",
+    "nock": "^13.3.1",
+    "sinon": "^9.2.4",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
