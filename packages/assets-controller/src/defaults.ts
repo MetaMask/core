@@ -32,20 +32,31 @@ const MUSD_METADATA: FungibleAssetMetadata = {
 };
 
 /**
- * Harcoded metadata for USDC on Arc (5042/0x13b2).
- * USDC exists as both native (18 decimals) and ERC20 (6 decimals).
- * We choose to force-hide the native version to avoid double listing using
- * `CHAIN_IDS_WITH_NO_NATIVE_TOKEN`.
- * In the meantime, the code below force-shows USDC the ERC20 token.
+ * Hardcoded metadata for native USDC on Arc (5042/0x13b2).
+ *
+ * Arc's native gas token is USDC. It's a default tracked asset (see
+ * `DEFAULT_TRACKED_ASSETS_BY_CHAIN` below) so `#ensureDefaultTrackedAssetsSeeded`
+ * writes both a zero `assetsBalance` entry and this `assetsInfo` metadata up
+ * front. That explicit metadata seed is required because it can never arrive
+ * from a live poll: Arc's Accounts-API balance fetch always succeeds, which
+ * marks the chain "handled" and skips the RPC fallback path that would
+ * otherwise be the only place writing `type: 'native'` for this id. Without
+ * a metadata entry here, the zero-balance native row that
+ * `#ensureNativeBalancesDefaultZero` seeds for every chain has no
+ * `type: 'native'` to be recognized by, and is silently dropped by clients
+ * that gate rendering on it (e.g. metamask-mobile's `assets-migration.ts`).
+ *
+ * The `0x3600...` ERC20 interface for USDC on Arc is no longer tracked here
+ * — it's not a valid representation to default-track anymore now that the
+ * native id carries its own metadata directly.
  */
-const USDC_ON_ARC_ASSET_ID =
-  'eip155:5042/erc20:0x3600000000000000000000000000000000000000';
+const ARC_NATIVE_ASSET_ID = 'eip155:5042/slip44:5042';
 
-const USDC_ON_ARC_METADATA: FungibleAssetMetadata = {
-  type: 'erc20',
+const ARC_NATIVE_METADATA: FungibleAssetMetadata = {
+  type: 'native',
   symbol: 'USDC',
   name: 'USDC',
-  decimals: 6,
+  decimals: 18,
 };
 
 /**
@@ -76,7 +87,7 @@ export const DEFAULT_TRACKED_ASSETS_BY_CHAIN: ReadonlyMap<
   ['eip155:1' as ChainId, [musdAssetId('eip155:1' as ChainId)]],
   ['eip155:59144' as ChainId, [musdAssetId('eip155:59144' as ChainId)]],
   ['eip155:143' as ChainId, [musdAssetId('eip155:143' as ChainId)]],
-  ['eip155:5042' as ChainId, [USDC_ON_ARC_ASSET_ID]],
+  ['eip155:5042' as ChainId, [ARC_NATIVE_ASSET_ID]],
 ]);
 
 /**
@@ -97,7 +108,7 @@ export const DEFAULT_ASSET_METADATA: ReadonlyMap<string, AssetMetadata> =
     [musdAssetId('eip155:1' as ChainId), MUSD_METADATA],
     [musdAssetId('eip155:59144' as ChainId), MUSD_METADATA],
     [musdAssetId('eip155:143' as ChainId), MUSD_METADATA],
-    [USDC_ON_ARC_ASSET_ID, USDC_ON_ARC_METADATA],
+    [ARC_NATIVE_ASSET_ID, ARC_NATIVE_METADATA],
   ]);
 
 /**
