@@ -183,8 +183,6 @@ async function exportPrivateKeyWalletObject(
     groups: [],
   };
 
-  idMap.add(walletObj.id, wallet.id);
-
   for (const groupObj of Object.values(walletObj.groups)) {
     const accountId = groupObj.accounts[0];
     if (!accountId) {
@@ -303,6 +301,9 @@ export async function exportState(
         privateKeyWallet.groups.push(...exported.groups);
       } else {
         privateKeyWallet = exported;
+
+        // Register only once, since all private keys are exported into the same wallet entry.
+        idMap.add(walletObj.id, exported.id);
       }
     } else {
       // AccountWalletType.Snap and hardware keyrings: skipped for now.
