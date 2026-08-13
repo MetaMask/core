@@ -80,6 +80,7 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
+  PerpsFeeResolution,
 } from '../types/index.js';
 
 /**
@@ -654,6 +655,24 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         provider.setUserFeeDiscount(discountBips);
       }
     });
+  }
+
+  setUserFeeResolution(resolution: PerpsFeeResolution | undefined): void {
+    this.#providers.forEach((provider) => {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(resolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(resolution?.discountBips);
+      }
+    });
+  }
+
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const provider =
+      this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
+    return provider.approveSubscriptionBuilderFee
+      ? provider.approveSubscriptionBuilderFee()
+      : false;
   }
 
   // ============================================================================

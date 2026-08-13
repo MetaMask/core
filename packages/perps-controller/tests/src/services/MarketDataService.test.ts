@@ -823,6 +823,103 @@ describe('MarketDataService', () => {
       expect(result).toEqual(mockFees);
     });
 
+    it('surfaces subscription eligibility and remainingNotionalUsd on the fee preview', async () => {
+      const params: FeeCalculationParams = {
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '1000',
+        isMaker: false,
+      };
+      const mockFees: FeeCalculationResult = {
+        feeRate: 0.0015,
+        feeAmount: 1.5,
+        protocolFeeRate: 0.00045,
+        metamaskFeeRate: 0.001,
+      };
+      mockProvider.calculateFees.mockResolvedValue(mockFees);
+
+      const result = await marketDataService.calculateFees({
+        provider: mockProvider,
+        params,
+        context: {
+          ...mockContext,
+          subscriptionFeeWaiver: {
+            eligible: true,
+            reason: 'eligible',
+            remainingNotionalUsd: 2500,
+          },
+        },
+      });
+
+      expect(result).toStrictEqual({
+        ...mockFees,
+        subscription: {
+          eligible: true,
+          reason: 'eligible',
+          remainingNotionalUsd: 2500,
+        },
+      });
+    });
+
+    it('reads the fee preview waiver status without any side effects', async () => {
+      const params: FeeCalculationParams = {
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '1000',
+        isMaker: false,
+      };
+      const mockFees: FeeCalculationResult = {
+        feeRate: 0.0015,
+        feeAmount: 1.5,
+        protocolFeeRate: 0.00045,
+        metamaskFeeRate: 0.001,
+      };
+      mockProvider.calculateFees.mockResolvedValue(mockFees);
+      const waiver = {
+        eligible: true,
+        reason: 'eligible' as const,
+        remainingNotionalUsd: 2500,
+      };
+
+      const result = await marketDataService.calculateFees({
+        provider: mockProvider,
+        params,
+        context: { ...mockContext, subscriptionFeeWaiver: waiver },
+      });
+
+      // The quoted rates are untouched, the cap is not mutated, and the
+      // provider is asked exactly once for the same params.
+      expect(result.feeRate).toBe(mockFees.feeRate);
+      expect(result.metamaskFeeRate).toBe(mockFees.metamaskFeeRate);
+      expect(result.protocolFeeRate).toBe(mockFees.protocolFeeRate);
+      expect(waiver).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 2500,
+      });
+      expect(mockProvider.calculateFees).toHaveBeenCalledTimes(1);
+      expect(mockProvider.calculateFees).toHaveBeenCalledWith(params);
+    });
+
+    it('omits the subscription preview when no waiver status is provided', async () => {
+      const params: FeeCalculationParams = {
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '1000',
+        isMaker: false,
+      };
+      const mockFees: FeeCalculationResult = { feeRate: 0.0015 };
+      mockProvider.calculateFees.mockResolvedValue(mockFees);
+
+      const result = await marketDataService.calculateFees({
+        provider: mockProvider,
+        params,
+        context: mockContext,
+      });
+
+      expect(result).toStrictEqual(mockFees);
+    });
+
     it('handles fee calculation errors', async () => {
       const params: FeeCalculationParams = {
         orderType: 'limit',
