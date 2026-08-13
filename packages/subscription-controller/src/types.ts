@@ -9,15 +9,36 @@ export type SubscriptionApiError = {
   statusCode?: number;
 };
 
+/**
+ * Supported subscription products.
+ */
 export const PRODUCT_TYPES = {
+  /**
+   * MetaMask Shield.
+   */
   SHIELD: 'shield',
+  /**
+   * Money Account Plus (delegation-based crypto billing).
+   */
   MONEY_ACCOUNT_PLUS: 'money_account_plus',
 } as const;
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
 
+/**
+ * How a crypto subscription is authorized.
+ *
+ * Use `erc20_approval` with `rawTransaction` (e.g. Shield). Use `delegation`
+ * with `delegationHash` (e.g. Money Account Plus).
+ */
 export const CRYPTO_AUTH_METHODS = {
+  /**
+   * User signs an ERC-20 approve transaction.
+   */
   ERC20_APPROVAL: 'erc20_approval',
+  /**
+   * User authorizes via a stored delegation hash.
+   */
   DELEGATION: 'delegation',
 } as const;
 
@@ -167,8 +188,9 @@ export type StartSubscriptionRequest = {
   useTestClock?: boolean;
 
   /**
-   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
-   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   * Optional CAIP account ID of the rewards account to opt in alongside this
+   * subscription. Required when the user wants to link rewards during
+   * subscription creation.
    *
    * @example {
    *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -206,7 +228,9 @@ export type StartCryptoSubscriptionRequest = {
    */
   rawTransaction?: Hex;
   /**
-   * Crypto authorization method. Defaults to `erc20_approval` when omitted.
+   * Crypto authorization method. Defaults to `CRYPTO_AUTH_METHODS.ERC20_APPROVAL`
+   * when omitted. Use `CRYPTO_AUTH_METHODS.DELEGATION` for products such as
+   * Money Account Plus.
    */
   cryptoAuthMethod?: CryptoAuthMethod;
   /**
@@ -216,8 +240,9 @@ export type StartCryptoSubscriptionRequest = {
   isSponsored?: boolean;
   useTestClock?: boolean;
   /**
-   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
-   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
+   * Optional CAIP account ID of the rewards account to opt in alongside this
+   * subscription. Required when the user wants to link rewards during
+   * subscription creation.
    *
    * @example {
    *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -443,6 +468,13 @@ export type ISubscriptionService = {
   unCancelSubscription(request: {
     subscriptionId: string;
   }): Promise<Subscription>;
+  /**
+   * Starts a card-paid subscription checkout session for the requested products
+   * (e.g. Shield or Money Account Plus).
+   *
+   * @param request - The start subscription request.
+   * @returns The checkout session response.
+   */
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;

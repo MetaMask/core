@@ -417,6 +417,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.triggerAccessTokenRefresh();
   }
 
+  /**
+   * Starts a card-paid subscription checkout session for the requested products
+   * (e.g. Shield or Money Account Plus).
+   *
+   * @param request - The start subscription request.
+   * @returns The checkout session response.
+   */
   async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {

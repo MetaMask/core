@@ -9,13 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `PRODUCT_TYPES.MONEY_ACCOUNT_PLUS`, delegation crypto auth (`CRYPTO_AUTH_METHODS`), and PR-141 pricing fields (`products`, `cryptoAuthMethod`, `delegateAddress`, vault token metadata, and source tokens) for multi-product subscriptions. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- Add multi-product and delegation-based crypto subscription types and pricing fields. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - `PRODUCT_TYPES.MONEY_ACCOUNT_PLUS`
+  - `CRYPTO_AUTH_METHODS` (`erc20_approval`, `delegation`) and `CryptoAuthMethod`
+  - Optional `PricingPaymentMethod.products` and `PricingPaymentMethod.cryptoAuthMethod`
+  - Optional `ChainPaymentInfo.delegateAddress`
+  - Optional `TokenPaymentInfo` vault metadata: `isVaultShare`, `accountantAddress`, `sources`
 
 ### Changed
 
-- **BREAKING:** Rename `SubscriptionController:startShieldSubscriptionWithCard` to `SubscriptionController:startSubscriptionWithCard`. Update messenger calls from `startShieldSubscriptionWithCard` to `startSubscriptionWithCard`. ([#9866](https://github.com/MetaMask/core/pull/9866))
-- **BREAKING:** Rename `SubscriptionController:submitShieldSubscriptionCryptoApproval` to `SubscriptionController:submitSubscriptionCryptoApproval` and add a required `productType` parameter as the first argument after the action name. This handler is Shield ERC-20 approve only (`productType` must be Shield and `txMeta.type` must be `TransactionType.shieldSubscriptionApprove`); other products should use `startSubscriptionWithCrypto`. ([#9866](https://github.com/MetaMask/core/pull/9866))
-- Generalize subscription controller state and flows for multiple products: per-product `lastSelectedPaymentMethod`, product-scoped crypto payment-method lookup, and trial requests derived from `trialPeriodDays` plus `trialedProducts`. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Rename `startShieldSubscriptionWithCard` to `startSubscriptionWithCard`. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - Rename `SubscriptionController.startShieldSubscriptionWithCard` to `startSubscriptionWithCard`.
+  - Rename the messenger action `SubscriptionController:startShieldSubscriptionWithCard` to `SubscriptionController:startSubscriptionWithCard`.
+  - Rename the exported action type `SubscriptionControllerStartShieldSubscriptionWithCardAction` to `SubscriptionControllerStartSubscriptionWithCardAction`.
+- **BREAKING:** Rename `submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval` and add a required `productType` parameter as the first argument. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - Rename `SubscriptionController.submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval`.
+  - Rename the messenger action `SubscriptionController:submitShieldSubscriptionCryptoApproval` to `SubscriptionController:submitSubscriptionCryptoApproval`.
+  - Rename the exported action type `SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction` to `SubscriptionControllerSubmitSubscriptionCryptoApprovalAction`.
+  - This handler is Shield ERC-20 approve only (`productType` must be Shield and `txMeta.type` must be `TransactionType.shieldSubscriptionApprove`); other products should use `startSubscriptionWithCrypto`.
+- **BREAKING:** Make `TokenPaymentInfo.conversionRate` optional. Consumers that access `.conversionRate.usd` without optional chaining will fail typecheck. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Change `SubscriptionControllerState.lastSelectedPaymentMethod` from `Record<ProductType, CachedLastSelectedPaymentMethod>` to `Partial<Record<ProductType, CachedLastSelectedPaymentMethod>>`. Product keys may be absent; consumers must handle missing entries. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- Generalize subscription controller flows for multiple products: product-scoped crypto payment-method lookup, and trial requests derived from `trialPeriodDays` plus `trialedProducts`. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - `StartCryptoSubscriptionRequest.rawTransaction` is now optional for delegation-based crypto subscriptions; add optional `cryptoAuthMethod` and `delegationHash` fields. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 

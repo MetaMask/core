@@ -256,7 +256,8 @@ export class SubscriptionService extends BaseDataService<
   }
 
   /**
-   * Starts a subscription with a card payment method.
+   * Starts a card-paid subscription checkout session for the requested products
+   * (e.g. Shield or Money Account Plus).
    *
    * @param request - The start subscription request.
    * @returns The checkout session response.

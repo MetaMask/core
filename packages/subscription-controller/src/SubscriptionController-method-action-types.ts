@@ -52,6 +52,13 @@ export type SubscriptionControllerUnCancelSubscriptionAction = {
   handler: SubscriptionController['unCancelSubscription'];
 };
 
+/**
+ * Starts a card-paid subscription checkout session for the requested products
+ * (e.g. Shield or Money Account Plus).
+ *
+ * @param request - The start subscription request.
+ * @returns The checkout session response.
+ */
 export type SubscriptionControllerStartSubscriptionWithCardAction = {
   type: `SubscriptionController:startSubscriptionWithCard`;
   handler: SubscriptionController['startSubscriptionWithCard'];
