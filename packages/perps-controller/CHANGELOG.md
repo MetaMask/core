@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `PERPS_EVENT_PROPERTY.PERPS_MODE` (`perps_mode`) for Lite/Pro interface mode analytics (`'lite' | 'pro'`), distinct from existing `PERPS_EVENT_PROPERTY.MODE` (`mode`) which is search intent (`discovery` / `intent` / `browse`)
+- Add `PERPS_EVENT_PROPERTY.PERPS_MODE` (`perps_mode`) for Lite/Pro interface mode analytics (`'lite' | 'pro'`), distinct from existing `PERPS_EVENT_PROPERTY.MODE` (`mode`) which is search intent (`discovery` / `intent` / `browse`) ([#9819](https://github.com/MetaMask/core/pull/9819))
 - **BREAKING:** Add `positionsSideFilter`, `positionsSortField`, and `positionsSortDirection` to the flat `ProLayoutPreferences` object (defaults `'all'`, `'positionValue'`, `'desc'`) so Pro Positions/Orders panel sort and side-filter preferences persist across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProPositionsSideFilter`, `ProPositionsSortField`, and `ProPositionsSortDirection` ([#9838](https://github.com/MetaMask/core/pull/9838))
   - Consumers that construct a full `ProLayoutPreferences` object (instead of using `DEFAULT_PRO_LAYOUT_PREFERENCES`, the getter, or the patch setter) must include the new fields. Persisted state that predates them remains valid at runtime because the getter/selector merge over defaults.
 - **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
