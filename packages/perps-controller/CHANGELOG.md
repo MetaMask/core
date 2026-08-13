@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1187.0.0 ([#9823](https://github.com/MetaMask/core/pull/9823))
+- Release 1182.0.0 ([#9798](https://github.com/MetaMask/core/pull/9798))
+
 ### Added
 
 - **BREAKING:** Add `ordersSideFilter`, `ordersSortField`, and `ordersSortDirection` to the flat `ProLayoutPreferences` object (defaults `'all'`, `'time'`, `'desc'`) so Pro Orders panel side-filter and sort preferences persist independently of Positions across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProOrdersSideFilter`, `ProOrdersSortField`, and `ProOrdersSortDirection` ([#9862](https://github.com/MetaMask/core/pull/9862))
@@ -51,8 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Invalid parameters are rejected with a typed `PERPS_ERROR_CODES` value, and nothing invalid is ever signed; see the new error codes entry below for the full list and for which few are decided after a read rather than before any request.
 - Add `twap`, `scale` and `chase` to `PERPS_EVENT_VALUE.ORDER_TYPE`, which dashboards key on and which `TradingService` emits verbatim ([#9832](https://github.com/MetaMask/core/pull/9832))
 - Add the `StrategyOrderType` and `OrdinaryOrderType` types, plus `STRATEGY_ORDER_TYPES`, `isStrategyOrderType`, `SCALE_ORDER_COUNT`, `computeScalePriceLadder`, `splitScaleSizes`, `computeChaseQuotePrice`, `getPriceTick`, `CHASE_ORDER_CONFIG`, and `HYPERLIQUID_TWAP_LIMITS` ([#9832](https://github.com/MetaMask/core/pull/9832))
-- Add an optional schema-v2 Terminal market snapshot path with strict identity, freshness, completeness, unit, and payload validation before falling back to HyperLiquid ([#9815](https://github.com/MetaMask/core/pull/9815)).
-- Add `PerpsController.getUserDataSnapshot()` to fetch and cache positions, open orders, and account state as one account- and DEX-scoped result ([#9815](https://github.com/MetaMask/core/pull/9815)).
+- Add an optional schema-v2 Terminal market snapshot path with strict identity, freshness, completeness, unit, and payload validation before falling back to HyperLiquid. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Add `PerpsController.getUserDataSnapshot()` to fetch and cache positions, open orders, and account state as one account- and DEX-scoped result. ([#9815](https://github.com/MetaMask/core/pull/9815))
 - Add a subscription fee-waiver source to the MetaMask builder fee, wired through the optional `PerpsPlatformDependencies.subscription.getPerpsBenefits()` dependency, along with the `PerpsSubscriptionBenefits`, `PerpsSubscriptionUsage`, `PerpsSubscriptionFeeWaiverStatus`, `PerpsFeeSource`, and `PerpsFeeResolution` types and the `SUBSCRIPTION_BENEFITS_CACHE` constant ([#9857](https://github.com/MetaMask/core/pull/9857))
   - `RewardsIntegrationService.resolveFee()` returns the lowest fee across the default, rewards (VIP and season, already collapsed by `RewardsController`), and subscription sources, together with the winning source and the subscription gate outcome. The subscription source contributes `0` bips only when the eligibility gate — `status=active`, `perpsFeeWaiver` entitled, `usage=available`, not exhausted — passes on the cached benefits snapshot.
   - `RewardsIntegrationService.resolveFee()` and `getSubscriptionFeeWaiverStatus()` are pure cache consumers and never start a subscription request on the order-signing path. `PerpsController.calculateFees()` owns preview hydration through `refreshSubscriptionBenefits()`. A snapshot older than `SUBSCRIPTION_BENEFITS_CACHE.MaxStaleMs` can no longer grant the waiver, and a failed or unreachable refresh falls back to the next-lowest source instead of erroring or over-granting.
@@ -65,14 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `RewardsIntegrationService.calculateUserFeeDiscount()` now returns the unified resolver's winning discount instead of the rewards discount alone, while preserving `undefined` when no source has resolved. TradingService passes the full `PerpsFeeResolution` to providers, isolates it across concurrent operations, and applies it to flip orders. HyperLiquid uses the configured subscription builder only after account-scoped approval through `PerpsController.approveSubscriptionBuilderFee()`; otherwise it uses the ordinary builder at the standard fee ([#9857](https://github.com/MetaMask/core/pull/9857))
-
 - `getTriggerExecution` now reports `'limit'` for `scale` and `chase`, which rest limit orders on the book without carrying an `OrderParams.price`, and `'market'` for `twap`, whose suborders cross it ([#9832](https://github.com/MetaMask/core/pull/9832))
   - This is what decides the fee tier and the max order value, so a scale ladder and a chase are no longer quoted at the taker rate or held to the tighter market-order cap. `calculateFees` additionally quotes `chase` at the maker rate regardless of `isMaker`, because a post-only order can only fill as a maker.
   - `isLimitExecutionOrderType` is unchanged: it answers the narrower question of whether `OrderParams.price` carries a real limit price, which for a strategy placement it does not.
 - `TriggerOrderType` is now spelled out as `'stop_market' | 'stop_limit' | 'take_profit_market' | 'take_profit_limit'` instead of being derived as `Exclude<OrderType, 'market' | 'limit'>` ([#9832](https://github.com/MetaMask/core/pull/9832))
   - The resolved type is unchanged for existing consumers. Deriving it meant that any order type added to `OrderType` that was neither `market` nor `limit` was pulled into the trigger union automatically and started demanding a trigger price it had no concept of.
-- Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking ([#9815](https://github.com/MetaMask/core/pull/9815)).
-- Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh ([#9815](https://github.com/MetaMask/core/pull/9815)).
+- Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh. ([#9815](https://github.com/MetaMask/core/pull/9815))
 
 ### Fixed
 
