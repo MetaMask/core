@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Eden (`714`/`0x2ca`) to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`, pricing its native TIA at the zero-address ([#9874](https://github.com/MetaMask/core/pull/9874))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
