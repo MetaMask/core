@@ -3,7 +3,6 @@ import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { EthAccountType } from '@metamask/keyring-api';
 import { PrivateKeyExportedAccount } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { encodeMnemonicWords } from '@metamask/keyring-sdk';
 
 import type {
   AccountTreeControllerMessenger,
@@ -30,6 +29,7 @@ import {
   toGroupPayloadId,
 } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
+import { encodeBytes } from './utils.js';
 
 /**
  * Returns `true` if `wallet` is an HD entropy wallet ({@link AccountWalletEntropyObject}).
@@ -149,7 +149,7 @@ async function exportMnemonicWalletObject(
       throw new Error(`Failed to export mnemonic for wallet ${wallet.id}`);
     }
 
-    wallet.value = encodeMnemonicWords(mnemonic);
+    wallet.value = encodeBytes(mnemonic);
   }
 
   return wallet;
@@ -236,7 +236,7 @@ async function exportPrivateKeyWalletObject(
         );
       }
       group.value = {
-        privateKey: exported.privateKey,
+        privateKey: encodeBytes(new TextEncoder().encode(exported.privateKey)),
         encoding: exported.encoding,
         type: EthAccountType.Eoa,
       };

@@ -9,7 +9,6 @@ import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller
 import { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { decodeMnemonicWords } from '@metamask/keyring-sdk';
 
 import type {
   AccountTreeControllerMessenger,
@@ -32,6 +31,7 @@ import {
   toWalletPayloadId,
 } from './payload.js';
 import type { AccountTreeSnapshot } from './snapshot.js';
+import { decodeBytes } from './utils.js';
 
 /** Context required by {@link importState}. */
 export type ImportContext = {
@@ -244,7 +244,7 @@ async function importMnemonicWallet(
     }
 
     // Import the mnemonic as a new HD wallet.
-    const mnemonic = decodeMnemonicWords(payloadWallet.value);
+    const mnemonic = decodeBytes(payloadWallet.value);
     const { id } = await context.messenger.call(
       'MultichainAccountService:createMultichainAccountWallet',
       { type: 'import', mnemonic },
@@ -349,7 +349,10 @@ async function importPrivateKeyWallet(
           // Safe to assert `group.value` is present because we filtered out groups
           // without a `value` above.
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const { privateKey, encoding } = group.value!;
+          const { privateKey: privateKeyBytes, encoding } = group.value!;
+          const privateKey = new TextDecoder().decode(
+            decodeBytes(privateKeyBytes),
+          );
           const [account] = await keyringV2.createAccounts({
             type: 'private-key:import',
             accountType: EthAccountType.Eoa,

@@ -24,6 +24,7 @@ import {
   toWalletPayloadId,
 } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
+import { encodeBytes } from './utils.js';
 
 // Valid 20-byte hex addresses for use with getUUIDFromAddressOfNormalAccount.
 const ADDR_A = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -44,8 +45,20 @@ const MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID = toWalletPayloadId(
   AccountWalletPayloadType.PrivateKey,
 );
 
-const TEST_MNEMONIC =
-  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const TEST_MNEMONIC = encodeBytes(
+  new TextEncoder().encode(
+    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+  ),
+);
+const MOCK_PRIVATE_KEY_HEX_STRING = '0xdeadbeef';
+const MOCK_PRIVATE_KEY_HEX_BYTES = encodeBytes(
+  new TextEncoder().encode(MOCK_PRIVATE_KEY_HEX_STRING),
+);
+
+const MOCK_PRIVATE_KEY_B58_STRING = '5Kb8kLf9z...';
+const MOCK_PRIVATE_KEY_B58_BYTES = encodeBytes(
+  new TextEncoder().encode(MOCK_PRIVATE_KEY_B58_STRING),
+);
 
 const MNEMONIC_PAYLOAD = {
   version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
@@ -755,7 +768,7 @@ describe('importState', () => {
                   ADDR_B,
                 ),
                 value: {
-                  privateKey: '0xdeadbeef',
+                  privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                   encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                 },
                 metadata: { name: 'New Import', pinned: false, hidden: false },
@@ -779,7 +792,7 @@ describe('importState', () => {
         expect.objectContaining({
           type: 'private-key:import',
           accountType: EthAccountType.Eoa,
-          privateKey: '0xdeadbeef',
+          privateKey: MOCK_PRIVATE_KEY_HEX_STRING,
           encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
         }),
       );
@@ -839,7 +852,7 @@ describe('importState', () => {
                   ADDR_B,
                 ),
                 value: {
-                  privateKey: '0xdeadbeef',
+                  privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                   encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                 },
                 metadata: { name: 'New Import', pinned: false, hidden: false },
@@ -863,7 +876,7 @@ describe('importState', () => {
         expect.objectContaining({
           type: 'private-key:import',
           accountType: EthAccountType.Eoa,
-          privateKey: '0xdeadbeef',
+          privateKey: MOCK_PRIVATE_KEY_HEX_STRING,
           encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
         }),
       );
@@ -924,7 +937,7 @@ describe('importState', () => {
                   ADDR_B,
                 ),
                 value: {
-                  privateKey: '0xdeadbeef',
+                  privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                   encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                 },
                 metadata: { name: 'New Import', pinned: false, hidden: false },
@@ -943,7 +956,7 @@ describe('importState', () => {
         expect.objectContaining({
           type: 'private-key:import',
           accountType: EthAccountType.Eoa,
-          privateKey: '0xdeadbeef',
+          privateKey: MOCK_PRIVATE_KEY_HEX_STRING,
           encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
         }),
       );
@@ -974,7 +987,7 @@ describe('importState', () => {
                     ADDR_C,
                   ),
                   value: {
-                    privateKey: '0xdeadbeef',
+                    privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                     encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                   },
                   metadata: { name: 'Fail', pinned: false, hidden: false },
@@ -1007,7 +1020,7 @@ describe('importState', () => {
                     ADDR_C,
                   ),
                   value: {
-                    privateKey: '0xdeadbeef',
+                    privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                     encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                   },
                   metadata: { name: 'Fail', pinned: false, hidden: false },
@@ -1036,7 +1049,7 @@ describe('importState', () => {
                   ADDR_A,
                 ),
                 value: {
-                  privateKey: '5Kb8kLf9z...',
+                  privateKey: MOCK_PRIVATE_KEY_B58_BYTES,
                   encoding: AccountWalletPrivateKeyEncoding.Base58,
                   type: 'bip122:p2wpkh',
                 },
@@ -1076,7 +1089,7 @@ describe('importState', () => {
                   ADDR_A,
                 ),
                 value: {
-                  privateKey: '0xdeadbeef',
+                  privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                   encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                   type: EthAccountType.Eoa,
                 },
@@ -1147,7 +1160,7 @@ describe('importState', () => {
                   ADDR_C,
                 ),
                 value: {
-                  privateKey: '0xdeadbeef',
+                  privateKey: MOCK_PRIVATE_KEY_HEX_BYTES,
                   encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
                 },
                 metadata: { name: 'Orphan', pinned: false, hidden: false },

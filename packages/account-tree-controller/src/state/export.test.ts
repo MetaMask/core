@@ -323,8 +323,7 @@ describe('exportState', () => {
       const snapshot = await exportState(context, { includeSecrets: true });
       const wallet = snapshot.serialize().wallets[0] as { value?: string };
 
-      expect(wallet.value).toBeDefined();
-      expect(typeof wallet.value).toBe('string');
+      expect(Array.isArray(wallet.value)).toBe(true);
     });
 
     it('throws when includeSecrets is true but mnemonic is unavailable', async () => {
@@ -533,10 +532,12 @@ describe('exportState', () => {
 
       const snapshot = await exportState(context, { includeSecrets: true });
       const group = snapshot.serialize().wallets[0]?.groups[0] as {
-        value?: { privateKey: string; encoding: string; type: string };
+        value?: { privateKey: number[]; encoding: string; type: string };
       };
 
-      expect(group.value?.privateKey).toBe('0xdeadbeef');
+      expect(group.value?.privateKey).toStrictEqual(
+        Array.from(new TextEncoder().encode('0xdeadbeef')),
+      );
       expect(group.value?.encoding).toBe(
         AccountWalletPrivateKeyEncoding.Hexadecimal,
       );
