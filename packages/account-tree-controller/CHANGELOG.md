@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
 
+### Fixed
+
+- `clearState` now resets internal mappings and resets selected account group through `:selectedAccountGroupChange` ([#9825](https://github.com/MetaMask/core/pull/9825))
+  - Consumers are (and were already) expected to handle `''` for `:selectedAccountGroupChange` (which can happens during onboarding, and now, during wallet resets).
+
 ## [7.6.1]
 
 ### Changed
