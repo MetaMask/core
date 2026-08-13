@@ -2028,7 +2028,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
-    // Cache miss or skipCache=true - fetch from API
+    // Cache miss or skipCache=true - fetch from API.
+    // Bring the SDK clients up first. This is the first client touch on the
+    // write path — placeOrder resolves asset info before it ensures trading
+    // readiness — so without it a cold start or a post-disconnect action fails
+    // with CLIENT_NOT_INITIALIZED instead of waiting for the clients it needs.
+    // Idempotent, and a warm cache hit returns above without reaching here.
+    await this.#ensureClientsInitialized();
     const infoClient = this.#clientService.getInfoClient();
     // Pass dex only for HIP-3 DEXs; omit for main DEX (empty string).
     // Testnet API returns null when dex="" is explicitly sent.
