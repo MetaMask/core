@@ -762,6 +762,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #pendingBuilderFeeApprovals = new Map<string, Promise<void>>();
 
+  #subscriptionBuilderApprovalEpoch = 0;
+
   /** Builder approvals keyed by network, account, and builder address. */
   readonly #approvedBuilderAddresses = new Set<string>();
 
@@ -3117,7 +3119,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Whether the builder is approved for the current account.
    */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const approvalEpoch = this.#subscriptionBuilderApprovalEpoch;
     await this.#ensureClientsInitialized();
+    if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+      return false;
+    }
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const builderAddress = this.#getSubscriptionBuilderAddress(isTestnet);
@@ -3153,6 +3159,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         builderAddress,
         userAddress,
       );
+      if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+        return;
+      }
       if (
         currentApproval !== null &&
         currentApproval >= BUILDER_FEE_CONFIG.MaxFeeDecimal
@@ -3166,10 +3175,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         builder: builderAddress,
         maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
       });
+      if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+        return;
+      }
       const afterApproval = await this.#checkBuilderFeeApproval(
         builderAddress,
         userAddress,
       );
+      if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+        return;
+      }
       if (
         afterApproval === null ||
         afterApproval < BUILDER_FEE_CONFIG.MaxFeeDecimal
@@ -3184,7 +3199,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     try {
       await approval;
-      return true;
+      return this.#approvedBuilderAddresses.has(key);
     } catch (error) {
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: Subscription builder approval unavailable',
@@ -3192,7 +3207,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       return false;
     } finally {
-      this.#pendingBuilderFeeApprovals.delete(key);
+      if (this.#pendingBuilderFeeApprovals.get(key) === approval) {
+        this.#pendingBuilderFeeApprovals.delete(key);
+      }
     }
   }
 
@@ -10948,6 +10965,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Clear session caches (ensures fresh state on reconnect/account switch)
       this.#referralCheckCache.clear();
       this.#builderFeeCheckCache.clear();
+      this.#subscriptionBuilderApprovalEpoch += 1;
       this.#approvedBuilderAddresses.clear();
       this.#userFeeResolution = undefined;
       this.#userFeeDiscountBips = undefined;

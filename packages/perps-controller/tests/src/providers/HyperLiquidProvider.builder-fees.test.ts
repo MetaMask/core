@@ -856,6 +856,66 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it('fences subscription approval across disconnect and preserves reconnect dedupe', async () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      let releaseOldRead: (value: number) => void = () => undefined;
+      const oldRead = new Promise<number>((resolve) => {
+        releaseOldRead = resolve;
+      });
+      let markOldReadStarted: () => void = () => undefined;
+      const oldReadStarted = new Promise<void>((resolve) => {
+        markOldReadStarted = resolve;
+      });
+      let releaseNewRead: (value: number) => void = () => undefined;
+      const newRead = new Promise<number>((resolve) => {
+        releaseNewRead = resolve;
+      });
+      let markNewReadStarted: () => void = () => undefined;
+      const newReadStarted = new Promise<void>((resolve) => {
+        markNewReadStarted = resolve;
+      });
+      const maxBuilderFee = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          markOldReadStarted();
+          return oldRead;
+        })
+        .mockImplementationOnce(() => {
+          markNewReadStarted();
+          return newRead;
+        })
+        .mockResolvedValue(0.001);
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      const oldApproval = provider.approveSubscriptionBuilderFee();
+      await oldReadStarted;
+      await provider.disconnect();
+
+      const newApproval = provider.approveSubscriptionBuilderFee();
+      await newReadStarted;
+      releaseOldRead(0);
+
+      await expect(oldApproval).resolves.toBe(false);
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
+      expect(maxBuilderFee).toHaveBeenCalledTimes(2);
+
+      const dedupedApproval = provider.approveSubscriptionBuilderFee();
+      await Promise.resolve();
+      expect(maxBuilderFee).toHaveBeenCalledTimes(2);
+
+      releaseNewRead(0.001);
+      await expect(
+        Promise.all([newApproval, dedupedApproval]),
+      ).resolves.toStrictEqual([true, true]);
+    });
+
     it('falls back to the standard fee when the subscription builder is not approved', async () => {
       const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
       const defaultBuilder = BUILDER_FEE_CONFIG.MainnetBuilder;
