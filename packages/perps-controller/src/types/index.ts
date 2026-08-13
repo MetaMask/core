@@ -1249,6 +1249,112 @@ export type FeeCalculationResult = {
     volumeDiscount?: number;
     stakingDiscount?: number;
   };
+
+  /**
+   * Read-only subscription fee-waiver preview, sourced from the same cached
+   * benefits snapshot the fee resolver uses. Present only when the controller
+   * has a subscription source wired; the quoted rates above are not adjusted
+   * from it, so surfacing this never mutates the cap or the cache.
+   */
+  subscription?: PerpsSubscriptionFeeWaiverStatus;
+};
+
+/**
+ * Usage state of the perps fee waiver on a subscription benefits snapshot.
+ */
+export type PerpsSubscriptionUsage = 'available' | 'exhausted';
+
+/**
+ * Subscription benefits as returned by `GET /v1/profiles/{profileId}/benefits`.
+ *
+ * The perps controller never performs this request itself — the client owns the
+ * Profile JWT and injects the read through
+ * {@link PerpsPlatformDependencies.subscription}. Only the fields the perps fee
+ * waiver depends on are modelled here.
+ */
+export type PerpsSubscriptionBenefits = {
+  /** Subscription status; only `active` can pass the eligibility gate. */
+  status: string;
+
+  /** Perps fee waiver entitlement and its remaining allowance. */
+  perpsFeeWaiver?: {
+    /** Whether the plan entitles this profile to the perps fee waiver. */
+    entitled: boolean;
+
+    /** Backend usage state; only `available` can pass the eligibility gate. */
+    usage?: PerpsSubscriptionUsage;
+
+    /**
+     * Set by the backend once the notional cap is crossed. Honored on the next
+     * cache refresh — there is no client-held reservation to release.
+     */
+    exhausted?: boolean;
+
+    /** Notional (USD) still covered by the waiver, for fee previews. */
+    remainingNotionalUsd?: number;
+  };
+};
+
+/**
+ * Why the subscription fee waiver did or did not apply, plus the remaining
+ * allowance for fee previews. Derived purely from the cached benefits snapshot.
+ */
+export type PerpsSubscriptionFeeWaiverStatus = {
+  /** True only when every condition of the eligibility gate passed. */
+  eligible: boolean;
+
+  /**
+   * Gate outcome:
+   * - `eligible` — every condition passed
+   * - `no-source` — no subscription dependency is wired
+   * - `not-hydrated` — nothing cached yet; a refresh was kicked off
+   * - `stale` — the cached snapshot is past the hard-stale ceiling
+   * - `inactive` — subscription status is not `active`
+   * - `not-entitled` — the plan does not include the perps fee waiver
+   * - `exhausted` — the backend reported the notional cap as spent
+   */
+  reason:
+    | 'eligible'
+    | 'no-source'
+    | 'not-hydrated'
+    | 'stale'
+    | 'inactive'
+    | 'not-entitled'
+    | 'exhausted';
+
+  /** Notional (USD) still covered by the waiver, when the backend reports it. */
+  remainingNotionalUsd?: number;
+};
+
+/**
+ * Fee source that won the unified resolver.
+ *
+ * `rewards` covers both VIP and season discounts: `RewardsController` already
+ * returns the better of the two as a single discount, so the perps controller
+ * treats them as one source rather than re-deriving the split.
+ */
+export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
+
+/**
+ * Outcome of the unified fee resolver.
+ */
+export type PerpsFeeResolution = {
+  /** Winning MetaMask builder fee, in basis points (lowest across sources). */
+  feeBips: number;
+
+  /**
+   * Winning fee expressed as a discount off the default builder fee, in basis
+   * points — the unit providers consume. `undefined` when no source resolved
+   * (e.g. rewards state has not hydrated and no subscription waiver applies),
+   * so callers do not treat it as a definitive "no discount" answer.
+   */
+  discountBips: number | undefined;
+
+  /** Source that produced the winning fee. */
+  source: PerpsFeeSource;
+
+  /** Subscription gate outcome, always populated for observability. */
+  subscription: PerpsSubscriptionFeeWaiverStatus;
 };
 
 export type UpdatePositionTPSLParams = {
@@ -2027,6 +2133,28 @@ export type PerpsPlatformDependencies = {
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
     ): Promise<number | null>;
+  };
+
+  // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
+  /**
+   * Optional subscription source for the unified fee resolver.
+   *
+   * The client owns the Profile JWT, so it performs
+   * `GET /v1/profiles/{profileId}/benefits` and hands the perps controller the
+   * parsed body. The controller caches the result stale-while-revalidate and
+   * never awaits this call on the order-signing path.
+   *
+   * Omit it entirely on clients that do not ship the subscription waiver; the
+   * resolver then falls back to the rewards and default sources.
+   */
+  subscription?: {
+    /**
+     * Read the current profile's subscription benefits.
+     * Resolve `null` when there is no subscription to report (signed out, no
+     * profile). Rejections are tolerated: the resolver keeps the previous
+     * snapshot and never grants the waiver from a failed read.
+     */
+    getPerpsBenefits(): Promise<PerpsSubscriptionBenefits | null>;
   };
 };
 

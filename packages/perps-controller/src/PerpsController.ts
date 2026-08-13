@@ -5154,7 +5154,16 @@ export class PerpsController extends BaseController<
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
     const provider = this.getActiveProvider();
-    const context = this.#createServiceContext('calculateFees');
+    // Cached, synchronous read of the same benefits snapshot the fee resolver
+    // uses — the preview surfaces eligibility and remaining notional without
+    // any network call or cap mutation. Clients with no subscription source
+    // wired get the untouched fee shape.
+    const waiverStatus =
+      this.#rewardsIntegrationService.getSubscriptionFeeWaiverStatus();
+    const context = this.#createServiceContext('calculateFees', {
+      subscriptionFeeWaiver:
+        waiverStatus.reason === 'no-source' ? undefined : waiverStatus,
+    });
     return this.#marketDataService.calculateFees({ provider, params, context });
   }
 

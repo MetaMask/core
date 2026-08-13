@@ -689,6 +689,51 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('sets the builder fee to 0 when the resolved discount is a full subscription waiver', async () => {
+      // Builder fee already approved: this test is about the fee value on the
+      // signed payload, not the approval flow.
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      };
+      const exchangeClient = mockClientService.getExchangeClient();
+
+      // Control: with no source undercutting it, the default builder fee is charged.
+      const baseline = await provider.placeOrder(orderParams);
+
+      expect(baseline.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: expect.any(String),
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+
+      // The unified resolver reports a full waiver as a 10000 bips discount,
+      // which the provider must map to builder.f = 0.
+      (exchangeClient.order as jest.Mock).mockClear();
+      provider.setUserFeeDiscount(10000);
+
+      const waived = await provider.placeOrder(orderParams);
+
+      expect(waived.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: { b: expect.any(String), f: 0 },
+        }),
+      );
+    });
+
     it('includes builder fee and referral setup in TP/SL updates', async () => {
       // Mock builder fee not approved to trigger approval call
       mockClientService.getInfoClient = jest.fn().mockReturnValue({
