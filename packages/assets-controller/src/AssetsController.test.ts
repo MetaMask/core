@@ -3415,15 +3415,21 @@ describe('AssetsController', () => {
 
   describe('account group changes', () => {
     it('handles account group change', async () => {
-      await withController(async ({ messenger }) => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue([]);
+
         (messenger.publish as CallableFunction)(
           'AccountTreeController:selectedAccountGroupChange',
-          undefined,
+          'entropy:mock-keyring-id-1/0',
+          '',
         );
 
         await new Promise(process.nextTick);
 
-        expect(true).toBe(true);
+        expect(getAssetsSpy).toHaveBeenCalled();
+        getAssetsSpy.mockRestore();
       });
     });
 
@@ -3431,19 +3437,16 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
-        try {
-          (messenger.publish as CallableFunction)(
-            'AccountTreeController:selectedAccountGroupChange',
-            '',
-            'entropy:mock-keyring-id-1/0',
-          );
+        (messenger.publish as CallableFunction)(
+          'AccountTreeController:selectedAccountGroupChange',
+          '',
+          'entropy:mock-keyring-id-1/0',
+        );
 
-          await new Promise(process.nextTick);
+        await new Promise(process.nextTick);
 
-          expect(getAssetsSpy).not.toHaveBeenCalled();
-        } finally {
-          getAssetsSpy.mockRestore();
-        }
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+        getAssetsSpy.mockRestore();
       });
     });
   });
