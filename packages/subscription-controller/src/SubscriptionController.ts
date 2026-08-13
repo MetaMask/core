@@ -495,12 +495,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       productType,
       lastSelectedPaymentMethodForProduct.plan,
     );
+    // get the latest subscriptions state before computing trial eligibility
+    await this.getSubscriptions();
     const isTrialRequested = this.#getIsTrialRequested(
       productType,
       lastSelectedPaymentMethodForProduct.plan,
     );
-    // get the latest subscriptions state to check if the user has an active subscription
-    await this.getSubscriptions();
     const currentSubscription = this.getSubscriptionByProduct(productType);
 
     this.#assertValidSubscriptionStateForCryptoApproval({
