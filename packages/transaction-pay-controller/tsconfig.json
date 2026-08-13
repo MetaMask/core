@@ -38,6 +38,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../money-account-utils"
+    },
+    {
       "path": "../sentinel-api-service"
     }
   ],

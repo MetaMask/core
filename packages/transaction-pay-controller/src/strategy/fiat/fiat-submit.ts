@@ -133,6 +133,10 @@ export async function submitFiatQuotes(
       request,
     });
 
+    if (result.skipped) {
+      return result;
+    }
+
     if (result.transactionHash === undefined) {
       throw new Error('Missing transaction hash');
     }
@@ -239,7 +243,7 @@ async function submitRelayAfterFiatCompletion({
 }: {
   order: RampsOrder;
   request: PayStrategyExecuteRequest<FiatQuote>;
-}): Promise<{ transactionHash?: Hex }> {
+}): Promise<{ skipped?: true; transactionHash?: Hex }> {
   const { messenger, quotes, transaction } = request;
   const transactionId = transaction.id;
 

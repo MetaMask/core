@@ -89,6 +89,19 @@ describe('FiatStrategy', () => {
       ).rejects.toThrow('Fiat: Missing transaction hash');
     });
 
+    it('returns skipped when vault deposit is disabled', async () => {
+      submitFiatQuotesMock.mockResolvedValue({ skipped: true });
+
+      const result = await new FiatStrategy().execute({
+        isSmartTransaction: () => false,
+        quotes: [QUOTE_MOCK],
+        messenger: {} as TransactionPayControllerMessenger,
+        transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+      });
+
+      expect(result).toStrictEqual({ skipped: true });
+    });
+
     it('preserves nested Post-Ramp and Vault prefixes', async () => {
       submitFiatQuotesMock.mockRejectedValue(
         new Error('Post-Ramp: Direct mUSD: Vault: Missing transaction hash'),
