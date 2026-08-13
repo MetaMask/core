@@ -35,16 +35,18 @@ import type {
   SubscriptionServiceUpdatePaymentMethodCryptoAction,
 } from './SubscriptionService-method-action-types.js';
 import {
+  CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
-  PRODUCT_TYPES,
   SUBSCRIPTION_STATUSES,
 } from './types.js';
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
+  CryptoAuthMethod,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   GetSubscriptionsEligibilitiesRequest,
+  PricingPaymentMethod,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
@@ -82,9 +84,8 @@ export type SubscriptionControllerState = {
    * This is used to display the last selected payment method in the UI.
    * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
    */
-  lastSelectedPaymentMethod?: Record<
-    ProductType,
-    CachedLastSelectedPaymentMethod
+  lastSelectedPaymentMethod?: Partial<
+    Record<ProductType, CachedLastSelectedPaymentMethod>
   >;
 };
 
@@ -221,10 +222,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptionsEligibilities',
   'cancelSubscription',
   'unCancelSubscription',
-  'startShieldSubscriptionWithCard',
+  'startSubscriptionWithCard',
   'startSubscriptionWithCrypto',
   'stopAllPolling',
-  'submitShieldSubscriptionCryptoApproval',
+  'submitSubscriptionCryptoApproval',
   'getCryptoApproveTransactionParams',
   'updatePaymentMethod',
   'getBillingPortalUrl',
@@ -415,7 +416,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.triggerAccessTokenRefresh();
   }
 
-  async startShieldSubscriptionWithCard(
+  async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
     this.#assertIsUserNotSubscribed({ products: request.products });
@@ -442,14 +443,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Handles shield subscription crypto approval transactions.
+   * Handles subscription crypto approval transactions for ERC-20 approval flows.
    *
+   * @param productType - The subscription product.
    * @param txMeta - The transaction metadata.
    * @param isSponsored - Whether the transaction is sponsored.
-   * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
+   * @param rewardAccountId - The account ID of the reward subscription to link.
    * @returns void
    */
-  async submitShieldSubscriptionCryptoApproval(
+  async submitSubscriptionCryptoApproval(
+    productType: ProductType,
     txMeta: TransactionMeta,
     isSponsored?: boolean,
     rewardAccountId?: CaipAccountId,
@@ -463,34 +466,33 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Chain ID or raw transaction not found');
     }
 
-    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
+    const { pricing, lastSelectedPaymentMethod } = this.state;
     if (!pricing) {
       throw new Error('Subscription pricing not found');
     }
     if (!lastSelectedPaymentMethod) {
       throw new Error('Last selected payment method not found');
     }
-    const lastSelectedPaymentMethodShield =
-      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
-    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
+    const lastSelectedPaymentMethodForProduct =
+      lastSelectedPaymentMethod[productType];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodForProduct);
 
     const productPrice = this.#getProductPriceByProductAndPlan(
-      PRODUCT_TYPES.SHIELD,
-      lastSelectedPaymentMethodShield.plan,
+      productType,
+      lastSelectedPaymentMethodForProduct.plan,
     );
-    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
-    // get the latest subscriptions state to check if the user has an active shield subscription
+    const isTrialRequested = this.#getIsTrialRequested(
+      productType,
+      lastSelectedPaymentMethodForProduct.plan,
+    );
+    // get the latest subscriptions state to check if the user has an active subscription
     await this.getSubscriptions();
-    const currentSubscription = this.state.subscriptions.find((subscription) =>
-      subscription.products.some(
-        (product) => product.name === PRODUCT_TYPES.SHIELD,
-      ),
-    );
+    const currentSubscription = this.getSubscriptionByProduct(productType);
 
     this.#assertValidSubscriptionStateForCryptoApproval({
-      productType: PRODUCT_TYPES.SHIELD,
+      productType,
     });
-    // if shield subscription exists, this transaction is for changing payment method
+    // if subscription exists, this transaction is for changing payment method
     const isChangePaymentMethod = Boolean(currentSubscription);
 
     if (isChangePaymentMethod) {
@@ -499,23 +501,24 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         subscriptionId: (currentSubscription as Subscription).id,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
-        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+        tokenSymbol: lastSelectedPaymentMethodForProduct.paymentTokenSymbol,
         rawTransaction: rawTx as Hex,
         recurringInterval: productPrice.interval,
         billingCycles: productPrice.minBillingCycles,
       });
     } else {
-      const params = {
-        products: [PRODUCT_TYPES.SHIELD],
-        isTrialRequested: !isTrialed,
+      const params: StartCryptoSubscriptionRequest = {
+        products: [productType],
+        isTrialRequested,
         recurringInterval: productPrice.interval,
         billingCycles: productPrice.minBillingCycles,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
-        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
+        tokenSymbol: lastSelectedPaymentMethodForProduct.paymentTokenSymbol,
         rawTransaction: rawTx as Hex,
+        cryptoAuthMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
         isSponsored,
-        useTestClock: lastSelectedPaymentMethodShield.useTestClock,
+        useTestClock: lastSelectedPaymentMethodForProduct.useTestClock,
         rewardAccountId,
       };
       await this.startSubscriptionWithCrypto(params);
@@ -556,8 +559,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Price not found');
     }
 
-    const chainsPaymentInfo = pricing.paymentMethods.find(
-      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
+    const chainsPaymentInfo = this.#findCryptoPaymentMethod(
+      request.productType,
+      CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
@@ -818,8 +822,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     tokenPaymentInfo: TokenPaymentInfo,
   ): string {
     const conversionRate =
-      tokenPaymentInfo.conversionRate[
-        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      tokenPaymentInfo.conversionRate?.[
+        price.currency as keyof NonNullable<TokenPaymentInfo['conversionRate']>
       ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
@@ -846,8 +850,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     tokenPaymentInfo: TokenPaymentInfo,
   ): string {
     const conversionRate =
-      tokenPaymentInfo.conversionRate[
-        price.currency as keyof typeof tokenPaymentInfo.conversionRate
+      tokenPaymentInfo.conversionRate?.[
+        price.currency as keyof NonNullable<TokenPaymentInfo['conversionRate']>
       ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
@@ -983,7 +987,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     chainId: Hex,
     products: ProductType[],
   ): boolean {
-    const isSponsorshipSupported = this.#getChainSupportsSponsorship(chainId);
+    const isSponsorshipSupported = this.#getChainSupportsSponsorship(
+      chainId,
+      products[0],
+    );
 
     // verify if the user has trialed the provided products before
     const hasTrialedBefore = this.state.trialedProducts.some((product) =>
@@ -993,9 +1000,45 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return isSponsorshipSupported && !hasTrialedBefore;
   }
 
-  #getChainSupportsSponsorship(chainId: Hex): boolean {
-    const cryptoPaymentInfo = this.state.pricing?.paymentMethods.find(
-      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
+  #getIsTrialRequested(
+    productType: ProductType,
+    plan: RecurringInterval,
+  ): boolean {
+    if (this.state.trialedProducts.includes(productType)) {
+      return false;
+    }
+    const productPrice = this.#getProductPriceByProductAndPlan(
+      productType,
+      plan,
+    );
+    return productPrice.trialPeriodDays > 0;
+  }
+
+  #findCryptoPaymentMethod(
+    productType: ProductType,
+    cryptoAuthMethod: CryptoAuthMethod,
+  ): PricingPaymentMethod | undefined {
+    return this.state.pricing?.paymentMethods.find((paymentMethod) => {
+      if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
+        return false;
+      }
+      const authMatches =
+        !paymentMethod.cryptoAuthMethod ||
+        paymentMethod.cryptoAuthMethod === cryptoAuthMethod;
+      const productMatches =
+        !paymentMethod.products?.length ||
+        paymentMethod.products.includes(productType);
+      return authMatches && productMatches;
+    });
+  }
+
+  #getChainSupportsSponsorship(
+    chainId: Hex,
+    productType: ProductType,
+  ): boolean {
+    const cryptoPaymentInfo = this.#findCryptoPaymentMethod(
+      productType,
+      CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
     );
 
     const isSponsorshipSupported = cryptoPaymentInfo?.chains?.find(

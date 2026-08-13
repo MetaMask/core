@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PRODUCT_TYPES.MONEY_ACCOUNT_PLUS`, delegation crypto auth (`CRYPTO_AUTH_METHODS`), and PR-141 pricing fields (`products`, `cryptoAuthMethod`, `delegateAddress`, vault token metadata, and source tokens) for multi-product subscriptions.
+
 ### Changed
 
+- **BREAKING:** Rename `SubscriptionController:startShieldSubscriptionWithCard` to `SubscriptionController:startSubscriptionWithCard`. Update messenger calls from `startShieldSubscriptionWithCard` to `startSubscriptionWithCard`.
+- **BREAKING:** Rename `SubscriptionController:submitShieldSubscriptionCryptoApproval` to `SubscriptionController:submitSubscriptionCryptoApproval` and add a required `productType` parameter as the first argument after the action name.
+- Generalize subscription controller state and flows for multiple products: per-product `lastSelectedPaymentMethod`, product-scoped crypto payment-method lookup, and trial requests derived from `trialPeriodDays` plus `trialedProducts`.
+- `StartCryptoSubscriptionRequest.rawTransaction` is now optional for delegation-based crypto subscriptions; add optional `cryptoAuthMethod` and `delegationHash` fields.
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [7.0.0]

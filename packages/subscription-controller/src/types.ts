@@ -11,9 +11,18 @@ export type SubscriptionApiError = {
 
 export const PRODUCT_TYPES = {
   SHIELD: 'shield',
+  MONEY_ACCOUNT_PLUS: 'money_account_plus',
 } as const;
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
+
+export const CRYPTO_AUTH_METHODS = {
+  ERC20_APPROVAL: 'erc20_approval',
+  DELEGATION: 'delegation',
+} as const;
+
+export type CryptoAuthMethod =
+  (typeof CRYPTO_AUTH_METHODS)[keyof typeof CRYPTO_AUTH_METHODS];
 
 export const PAYMENT_TYPES = {
   byCard: 'card',
@@ -183,7 +192,19 @@ export type StartCryptoSubscriptionRequest = {
    * e.g. "USDC"
    */
   tokenSymbol: string;
-  rawTransaction: Hex;
+  /**
+   * Required for ERC-20 approval subscriptions. Omitted for delegation-based
+   * subscriptions (e.g. Money Account).
+   */
+  rawTransaction?: Hex;
+  /**
+   * Crypto authorization method. Defaults to `erc20_approval` when omitted.
+   */
+  cryptoAuthMethod?: CryptoAuthMethod;
+  /**
+   * Delegation hash from Authenticated User Storage (required for delegation).
+   */
+  delegationHash?: Hex;
   isSponsored?: boolean;
   useTestClock?: boolean;
   /**
@@ -254,14 +275,30 @@ export type TokenPaymentInfo = {
       usd: '1.0',
     },
    */
-  conversionRate: {
+  conversionRate?: {
     usd: string;
   };
+  /**
+   * Whether the token is a yield-bearing vault share priced via an accountant rate.
+   */
+  isVaultShare?: boolean;
+  /**
+   * Veda accountant address used to value this vault share.
+   */
+  accountantAddress?: Hex;
+  /**
+   * Source tokens that can be converted into this settlement token.
+   */
+  sources?: TokenPaymentInfo[];
 };
 
 export type ChainPaymentInfo = {
   chainId: Hex;
   paymentAddress: Hex;
+  /**
+   * Delegate address clients authorize when using the delegation auth method.
+   */
+  delegateAddress?: Hex;
   tokens: TokenPaymentInfo[];
   /**
    * Whether the chain supports sponsorship for the trialed subscription approval transaction.
@@ -272,6 +309,14 @@ export type ChainPaymentInfo = {
 
 export type PricingPaymentMethod = {
   type: PaymentType;
+  /**
+   * Crypto authorization method for this payment method row (crypto only).
+   */
+  cryptoAuthMethod?: CryptoAuthMethod;
+  /**
+   * Products that support this payment method.
+   */
+  products?: ProductType[];
   chains?: ChainPaymentInfo[];
 };
 
@@ -490,6 +535,7 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
   useTestClock?: boolean;
+  cryptoAuthMethod?: CryptoAuthMethod;
 };
 
 /**

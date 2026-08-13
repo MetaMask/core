@@ -2,26 +2,31 @@ import {
   array,
   boolean,
   enums,
+  lazy,
   nullable,
   number,
   optional,
   string,
   type,
+  type Struct,
   union,
 } from '@metamask/superstruct';
 import { StrictHexStruct, CaipAccountIdStruct } from '@metamask/utils';
 
 import {
   CANCEL_TYPES,
+  CRYPTO_AUTH_METHODS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
 } from './types.js';
+import type { TokenPaymentInfo } from './types.js';
 
 const ProductTypeStruct = enums(Object.values(PRODUCT_TYPES));
 const PaymentTypeStruct = enums(Object.values(PAYMENT_TYPES));
+const CryptoAuthMethodStruct = enums(Object.values(CRYPTO_AUTH_METHODS));
 const RecurringIntervalStruct = enums(Object.values(RECURRING_INTERVALS));
 const SubscriptionStatusStruct = enums(Object.values(SUBSCRIPTION_STATUSES));
 const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
@@ -125,24 +130,34 @@ const ProductPricingStruct = type({
   prices: array(ProductPriceStruct),
 });
 
-const TokenPaymentInfoStruct = type({
-  symbol: string(),
-  address: StrictHexStruct,
-  decimals: number(),
-  conversionRate: type({
-    usd: string(),
+const TokenPaymentInfoStruct: Struct<TokenPaymentInfo> = lazy(() =>
+  type({
+    symbol: string(),
+    address: StrictHexStruct,
+    decimals: number(),
+    conversionRate: optional(
+      type({
+        usd: string(),
+      }),
+    ),
+    isVaultShare: optional(boolean()),
+    accountantAddress: optional(StrictHexStruct),
+    sources: optional(array(TokenPaymentInfoStruct)),
   }),
-});
+) as Struct<TokenPaymentInfo>;
 
 const ChainPaymentInfoStruct = type({
   chainId: StrictHexStruct,
   paymentAddress: StrictHexStruct,
+  delegateAddress: optional(StrictHexStruct),
   tokens: array(TokenPaymentInfoStruct),
   isSponsorshipSupported: optional(boolean()),
 });
 
 const PricingPaymentMethodStruct = type({
   type: PaymentTypeStruct,
+  cryptoAuthMethod: optional(CryptoAuthMethodStruct),
+  products: optional(array(ProductTypeStruct)),
   chains: optional(array(ChainPaymentInfoStruct)),
 });
 

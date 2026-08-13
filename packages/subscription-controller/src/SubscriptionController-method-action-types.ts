@@ -52,9 +52,9 @@ export type SubscriptionControllerUnCancelSubscriptionAction = {
   handler: SubscriptionController['unCancelSubscription'];
 };
 
-export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
-  type: `SubscriptionController:startShieldSubscriptionWithCard`;
-  handler: SubscriptionController['startShieldSubscriptionWithCard'];
+export type SubscriptionControllerStartSubscriptionWithCardAction = {
+  type: `SubscriptionController:startSubscriptionWithCard`;
+  handler: SubscriptionController['startSubscriptionWithCard'];
 };
 
 export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
@@ -63,18 +63,18 @@ export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
 };
 
 /**
- * Handles shield subscription crypto approval transactions.
+ * Handles subscription crypto approval transactions for ERC-20 approval flows.
  *
+ * @param productType - The subscription product.
  * @param txMeta - The transaction metadata.
  * @param isSponsored - Whether the transaction is sponsored.
- * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
+ * @param rewardAccountId - The account ID of the reward subscription to link.
  * @returns void
  */
-export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
-  {
-    type: `SubscriptionController:submitShieldSubscriptionCryptoApproval`;
-    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
-  };
+export type SubscriptionControllerSubmitSubscriptionCryptoApprovalAction = {
+  type: `SubscriptionController:submitSubscriptionCryptoApproval`;
+  handler: SubscriptionController['submitSubscriptionCryptoApproval'];
+};
 
 /**
  * Get transaction params to create crypto approve transaction for subscription payment
@@ -242,9 +242,9 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetSubscriptionsEligibilitiesAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerUnCancelSubscriptionAction
-  | SubscriptionControllerStartShieldSubscriptionWithCardAction
+  | SubscriptionControllerStartSubscriptionWithCardAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
+  | SubscriptionControllerSubmitSubscriptionCryptoApprovalAction
   | SubscriptionControllerGetCryptoApproveTransactionParamsAction
   | SubscriptionControllerUpdatePaymentMethodAction
   | SubscriptionControllerGetBillingPortalUrlAction

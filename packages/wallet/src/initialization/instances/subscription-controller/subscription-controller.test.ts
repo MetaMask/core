@@ -203,4 +203,136 @@ describe('subscriptionController', () => {
       getDefaultSubscriptionControllerState(),
     );
   });
+
+  it('calls generic startSubscriptionWithCard through the root messenger', async () => {
+    const rootMessenger = getRootMessenger();
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
+      'AuthenticationController:getBearerToken',
+      async () => 'test-bearer-token',
+    );
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
+      'AuthenticationController:getSessionProfile',
+      async () => ({
+        profileId: 'profile-1',
+        canonicalProfileId: 'canonical-profile-1',
+        metaMetricsId: 'metametrics-1',
+      }),
+    );
+    registerActionHandler(
+      rootMessenger,
+      'AuthenticationController',
+      'AuthenticationController:performSignOut',
+      jest.fn(),
+    );
+    const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
+    const fetchFunction = jest.fn(
+      async () =>
+        new globalThis.Response(
+          JSON.stringify({
+            checkoutSessionUrl: 'https://checkout.example.com/session/123',
+          }),
+          { status: 200 },
+        ),
+    );
+
+    subscriptionService.init({
+      state: undefined,
+      messenger: serviceMessenger,
+      options: {
+        fetchFunction,
+      },
+    });
+
+    const controllerMessenger =
+      subscriptionController.getMessenger(rootMessenger);
+    subscriptionController.init({
+      state: undefined,
+      messenger: controllerMessenger,
+      options: {},
+    });
+
+    const result = await rootMessenger.call(
+      'SubscriptionController:startSubscriptionWithCard',
+      {
+        products: ['money_account'],
+        isTrialRequested: false,
+        recurringInterval: 'month',
+      },
+    );
+
+    expect(result).toStrictEqual({
+      checkoutSessionUrl: 'https://checkout.example.com/session/123',
+    });
+  });
+
+  it('forwards dual-product initial state to the controller', () => {
+    const messenger = subscriptionController.getMessenger(getRootMessenger());
+
+    const instance = subscriptionController.init({
+      state: {
+        subscriptions: [
+          {
+            id: 'sub_shield',
+            products: [
+              {
+                name: 'shield',
+                currency: 'usd',
+                unitAmount: 900,
+                unitDecimals: 2,
+              },
+            ],
+            currentPeriodStart: '2024-01-01T00:00:00Z',
+            currentPeriodEnd: '2024-02-01T00:00:00Z',
+            status: 'active',
+            interval: 'month',
+            paymentMethod: {
+              type: 'card',
+              card: {
+                brand: 'visa',
+                displayBrand: 'visa',
+                last4: '1234',
+              },
+            },
+            isEligibleForSupport: true,
+            cancelType: 'allowed_at_period_end',
+          },
+          {
+            id: 'sub_money_account',
+            products: [
+              {
+                name: 'money_account',
+                currency: 'usd',
+                unitAmount: 499,
+                unitDecimals: 2,
+              },
+            ],
+            currentPeriodStart: '2024-01-01T00:00:00Z',
+            currentPeriodEnd: '2024-02-01T00:00:00Z',
+            status: 'active',
+            interval: 'month',
+            paymentMethod: {
+              type: 'crypto',
+              crypto: {
+                payerAddress: '0x1234567890123456789012345678901234567890',
+                chainId: '0x8f',
+                tokenSymbol: 'pvmUSD',
+              },
+            },
+            isEligibleForSupport: false,
+            cancelType: 'allowed_at_period_end',
+          },
+        ],
+        trialedProducts: ['shield'],
+      },
+      messenger,
+      options: {},
+    });
+
+    expect(instance.state.subscriptions).toHaveLength(2);
+    expect(instance.state.trialedProducts).toStrictEqual(['shield']);
+  });
 });

@@ -1266,6 +1266,212 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('multi-product support', () => {
+    const MOCK_MONEY_ACCOUNT_PRICING_RESPONSE: PricingResponse = {
+      products: [
+        {
+          name: PRODUCT_TYPES.SHIELD,
+          prices: [
+            {
+              interval: RECURRING_INTERVALS.month,
+              unitAmount: 900,
+              unitDecimals: 2,
+              currency: 'usd',
+              trialPeriodDays: 14,
+              minBillingCycles: 12,
+              minBillingCyclesForBalance: 1,
+            },
+          ],
+        },
+        {
+          name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+          prices: [
+            {
+              interval: RECURRING_INTERVALS.month,
+              unitAmount: 499,
+              unitDecimals: 2,
+              currency: 'usd',
+              trialPeriodDays: 0,
+              minBillingCycles: 12,
+              minBillingCyclesForBalance: 1,
+            },
+          ],
+        },
+      ],
+      paymentMethods: [
+        {
+          type: PAYMENT_TYPES.byCard,
+          products: [PRODUCT_TYPES.SHIELD],
+        },
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          cryptoAuthMethod: 'erc20_approval',
+          products: [PRODUCT_TYPES.SHIELD],
+          chains: [
+            {
+              chainId: '0x1',
+              paymentAddress: '0x00000000000000000000000000000000000000a2',
+              tokens: [
+                {
+                  symbol: 'USDC',
+                  address: '0xa9f2867708c727fe250fb0d1fbeb4b4c8e1818e8',
+                  decimals: 9,
+                  conversionRate: { usd: '1.0' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          cryptoAuthMethod: 'delegation',
+          products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          chains: [
+            {
+              chainId: '0x8f',
+              paymentAddress: '0x00000000000000000000000000000000000000a1',
+              delegateAddress: '0x00000000000000000000000000000000000000c0',
+              tokens: [
+                {
+                  symbol: 'pvmUSD',
+                  address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                  decimals: 6,
+                  isVaultShare: true,
+                  accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+                  sources: [
+                    {
+                      symbol: 'mUSD',
+                      address: '0xacA92E438df0B2401fF60dA7E4337B687a2435DA',
+                      decimals: 6,
+                      conversionRate: { usd: '1.0' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should validate Money Account pricing responses', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_MONEY_ACCOUNT_PRICING_RESPONSE }),
+        );
+
+        const result = await service.getPricing();
+
+        expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT_PRICING_RESPONSE);
+      });
+    });
+
+    it('should forward delegation-based Money Account crypto subscriptions', async () => {
+      const delegationRequest: StartCryptoSubscriptionRequest = {
+        products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+        isTrialRequested: false,
+        recurringInterval: RECURRING_INTERVALS.month,
+        billingCycles: 12,
+        chainId: '0x8f',
+        payerAddress: '0x0000000000000000000000000000000000000001',
+        tokenSymbol: 'pvmUSD',
+        cryptoAuthMethod: 'delegation',
+        delegationHash: '0xabc',
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptionId: 'sub_money_account',
+              status: SUBSCRIPTION_STATUSES.active,
+            },
+          }),
+        );
+
+        await service.startSubscriptionWithCrypto(delegationRequest);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions/crypto'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify(delegationRequest),
+          },
+        );
+      });
+    });
+
+    it('should return dual-product subscription responses', async () => {
+      const moneyAccountSubscription: Subscription = {
+        ...MOCK_SUBSCRIPTION,
+        id: 'sub_money_account',
+        products: [
+          {
+            name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            currency: 'usd',
+            unitAmount: 499,
+            unitDecimals: 2,
+          },
+        ],
+        paymentMethod: {
+          type: PAYMENT_TYPES.byCrypto,
+          crypto: {
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            chainId: '0x8f',
+            tokenSymbol: 'pvmUSD',
+          },
+        },
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              customerId: 'cus_1',
+              subscriptions: [MOCK_SUBSCRIPTION, moneyAccountSubscription],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions).toHaveLength(2);
+        expect(result.trialedProducts).toStrictEqual([PRODUCT_TYPES.SHIELD]);
+      });
+    });
+
+    it('should return Money Account eligibility responses', async () => {
+      const moneyAccountEligibility: SubscriptionEligibility = {
+        product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        canSubscribe: true,
+        canViewEntryModal: false,
+        cohorts: [],
+        assignedCohort: null,
+        hasAssignedCohortExpired: false,
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: [
+              createMockEligibilityResponse(),
+              moneyAccountEligibility,
+            ],
+          }),
+        );
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toStrictEqual([
+          createMockEligibilityResponse(),
+          moneyAccountEligibility,
+        ]);
+      });
+    });
+  });
+
   describe('error handling', () => {
     it('rethrows SubscriptionServiceError thrown by fetchQuery without wrapping', async () => {
       const fetchMock = jest.fn();
