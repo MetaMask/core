@@ -210,7 +210,7 @@ export function toGroupPayloadId(
 
 /** Options accepted by {@link AccountTreeController.exportState}. */
 export type ExportStateOptions = {
-  /** When `true`, secrets (mnemonic / private keys) are included. Requires the vault to be unlocked. */
+  /** When `true`, secrets (mnemonic / private keys) are included in the export. */
   includeSecrets?: boolean;
 };
 

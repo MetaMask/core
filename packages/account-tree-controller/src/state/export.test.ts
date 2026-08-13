@@ -273,18 +273,18 @@ describe('isPrivateKeyWalletObject', () => {
 
 describe('exportState', () => {
   describe('vault locking', () => {
-    it('throws when includeSecrets is true and the vault is locked', async () => {
+    it('throws when the vault is locked', async () => {
       const { context } = setup({ isUnlocked: false });
-      await expect(
-        exportState(context, { includeSecrets: true }),
-      ).rejects.toThrow(
-        'Cannot include secrets in export when vault is locked',
+      await expect(exportState(context)).rejects.toThrow(
+        'Cannot export account tree when vault is locked',
       );
     });
 
-    it('does not throw when includeSecrets is false and vault is locked', async () => {
+    it('throws when the vault is locked even without includeSecrets', async () => {
       const { context } = setup({ isUnlocked: false });
-      expect(await exportState(context)).toBeDefined();
+      await expect(
+        exportState(context, { includeSecrets: false }),
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
     });
   });
 
