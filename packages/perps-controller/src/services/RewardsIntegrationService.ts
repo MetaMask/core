@@ -66,6 +66,15 @@ export class RewardsIntegrationService {
   /** Last successful benefits read, or undefined before the first one. */
   #benefitsSnapshot: BenefitsSnapshot | undefined;
 
+  /**
+   * When the last benefits read finished, successful or not.
+   *
+   * Separate from `#benefitsSnapshot.fetchedAt`, which only advances on
+   * success: a failing read must still throttle the next opportunistic
+   * refresh, otherwise an outage turns every fee preview into a new request.
+   */
+  #lastAttemptAt: number | undefined;
+
   /** In-flight background refresh, deduped so only one runs at a time. */
   #benefitsRefresh: Promise<void> | undefined;
 
@@ -124,8 +133,13 @@ export class RewardsIntegrationService {
    */
   async resolveFee(): Promise<PerpsFeeResolution> {
     // Cached, synchronous, non-blocking — safe on the order-signing path.
-    const subscription = this.getSubscriptionFeeWaiverStatus();
+    // Read once up front so any opportunistic refresh starts before the awaited
+    // rewards round trip rather than after it.
+    this.getSubscriptionFeeWaiverStatus();
     const rewardsDiscountBips = await this.#calculateRewardsDiscount();
+    // Re-read: a background refresh may have landed during that await, and the
+    // freshest cached value costs nothing here.
+    const subscription = this.getSubscriptionFeeWaiverStatus();
 
     let feeBips = DEFAULT_FEE_BIPS;
     let source: PerpsFeeSource = 'default';
@@ -179,11 +193,19 @@ export class RewardsIntegrationService {
       return { eligible: false, reason: 'no-source' };
     }
 
+    const now = Date.now();
     const snapshot = this.#benefitsSnapshot;
-    const age = snapshot ? Date.now() - snapshot.fetchedAt : Infinity;
+    const age = snapshot ? now - snapshot.fetchedAt : Infinity;
+    // Throttled on the last *attempt*, not the last success, so a benefits
+    // outage retries once per freshness window instead of once per caller.
+    const sinceAttempt =
+      this.#lastAttemptAt === undefined ? Infinity : now - this.#lastAttemptAt;
 
     // Stale-while-revalidate: serve what we have, refresh in the background.
-    if (age >= SUBSCRIPTION_BENEFITS_CACHE.FreshMs) {
+    if (
+      age >= SUBSCRIPTION_BENEFITS_CACHE.FreshMs &&
+      sinceAttempt >= SUBSCRIPTION_BENEFITS_CACHE.FreshMs
+    ) {
       this.refreshSubscriptionBenefits().catch(() => undefined);
     }
 
@@ -235,6 +257,24 @@ export class RewardsIntegrationService {
   }
 
   /**
+   * Drop the cached benefits snapshot.
+   *
+   * Call this when the identity behind the benefits changes — sign-out, or a
+   * profile switch — since the snapshot carries no profile identity of its own
+   * and would otherwise keep answering for the previous profile until the next
+   * successful refresh. The next status read reports `not-hydrated` and starts
+   * a fresh fetch, so the waiver is withheld rather than mis-granted.
+   */
+  invalidateSubscriptionBenefits(): void {
+    this.#benefitsSnapshot = undefined;
+    this.#lastAttemptAt = undefined;
+
+    this.#deps.debugLogger.log(
+      'RewardsIntegrationService: Subscription benefits cache invalidated',
+    );
+  }
+
+  /**
    * Perform one benefits read and store it, keeping the previous snapshot on
    * error. Never rejects, so background callers cannot produce an unhandled
    * rejection.
@@ -273,6 +313,9 @@ export class RewardsIntegrationService {
           },
         },
       );
+    } finally {
+      // Recorded on failure too — this is what throttles the retry loop.
+      this.#lastAttemptAt = Date.now();
     }
   }
 
@@ -393,6 +436,8 @@ export class RewardsIntegrationService {
  * `usage=available`. A backend `exhausted` flag (or an `exhausted` usage) fails
  * the gate on its own; anything short of an affirmative `available` is treated
  * as not entitled, because the waiver is only granted on positive evidence.
+ * A `null` payload means there is no subscription at all, which is reported
+ * separately from a subscription that exists but is not active.
  *
  * @param benefits - The cached benefits payload, or null when there is none.
  * @returns The gate outcome plus the remaining notional when reported.
@@ -403,7 +448,13 @@ function evaluateFeeWaiverGate(
   const waiver = benefits?.perpsFeeWaiver;
   const { remainingNotionalUsd } = waiver ?? {};
 
-  if (benefits?.status !== 'active') {
+  // `null` is the DI contract's "nothing to report" (signed out, no profile),
+  // which is distinct from a subscription that exists but is not active.
+  if (benefits === null) {
+    return { eligible: false, reason: 'no-subscription' };
+  }
+
+  if (benefits.status !== 'active') {
     return { eligible: false, reason: 'inactive', remainingNotionalUsd };
   }
 

@@ -380,7 +380,8 @@ describe('RewardsIntegrationService', () => {
           eligible: false,
           reason: 'exhausted',
         },
-        { benefits: null, eligible: false, reason: 'inactive' },
+        // `null` is "no subscription to report", not "subscription inactive".
+        { benefits: null, eligible: false, reason: 'no-subscription' },
       ];
 
       (
@@ -580,6 +581,74 @@ describe('RewardsIntegrationService', () => {
       ]);
 
       expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+    });
+
+    it('throttles the opportunistic refresh while the benefits read keeps failing', async () => {
+      // A failing read never advances the snapshot timestamp, so without an
+      // attempt-based throttle every caller would start a new request.
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockRejectedValue(new Error('benefits endpoint down')),
+      );
+
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Ten fee previews inside the freshness window: still one request.
+      for (let i = 0; i < 10; i++) {
+        expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+          eligible: false,
+          reason: 'not-hydrated',
+        });
+      }
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Past the window, exactly one retry is allowed through.
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      service.getSubscriptionFeeWaiverStatus();
+      service.getSubscriptionFeeWaiverStatus();
+      await Promise.resolve();
+
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates the cached benefits snapshot on demand', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      // Sign-out / profile switch: the snapshot must stop answering for the
+      // previous profile immediately, not at the next freshness boundary.
+      service.invalidateSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      // Invalidation clears the retry throttle too, so the refetch is immediate.
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses a background refresh that lands during the rewards round trip', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      // The rewards read resolves only after the benefits refresh has landed,
+      // which is exactly the window a pre-await snapshot would miss.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockImplementation(async () => {
+        await service.refreshSubscriptionBenefits();
+        return 6500;
+      });
+
+      const resolution = await service.resolveFee();
+
+      expect(getPerpsBenefits).toHaveBeenCalled();
+      expect(resolution.subscription.eligible).toBe(true);
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(0);
     });
 
     it('keeps calculateUserFeeDiscount returning the resolved discount bips', async () => {

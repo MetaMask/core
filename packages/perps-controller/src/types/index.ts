@@ -1309,6 +1309,8 @@ export type PerpsSubscriptionFeeWaiverStatus = {
    * - `no-source` — no subscription dependency is wired
    * - `not-hydrated` — nothing cached yet; a refresh was kicked off
    * - `stale` — the cached snapshot is past the hard-stale ceiling
+   * - `no-subscription` — the read succeeded but reported no subscription at
+   *   all (signed out, or no profile)
    * - `inactive` — subscription status is not `active`
    * - `not-entitled` — the plan does not include the perps fee waiver
    * - `exhausted` — the backend reported the notional cap as spent
@@ -1318,6 +1320,7 @@ export type PerpsSubscriptionFeeWaiverStatus = {
     | 'no-source'
     | 'not-hydrated'
     | 'stale'
+    | 'no-subscription'
     | 'inactive'
     | 'not-entitled'
     | 'exhausted';
