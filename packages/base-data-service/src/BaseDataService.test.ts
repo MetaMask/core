@@ -130,7 +130,7 @@ describe('BaseDataService', () => {
     expect(page1.data).toHaveLength(3);
 
     const page2 = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
-      page: { after: page1.pageInfo.endCursor },
+      after: page1.pageInfo.endCursor,
     });
 
     expect(page2.data).toHaveLength(3);
@@ -143,7 +143,7 @@ describe('BaseDataService', () => {
 
     const page1 = await service.getActivityWithoutCallbacks(TEST_ADDRESS);
     await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
-      page: { after: page1.pageInfo.endCursor },
+      after: page1.pageInfo.endCursor,
     });
 
     // The query is stale (zero `staleTime`), so a param-less call rebuilds the
@@ -162,7 +162,7 @@ describe('BaseDataService', () => {
 
     // Cold jump straight to a later page.
     const jumped = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
-      page: { after: TRANSACTIONS_PAGE_2_CURSOR },
+      after: TRANSACTIONS_PAGE_2_CURSOR,
     });
     expect(jumped.data).toHaveLength(3);
 
@@ -179,9 +179,8 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
-      initialPageParam: null,
-    });
+    // `getActivityWithoutCallbacks` uses `null` as its initial page param.
+    await service.getActivityWithoutCallbacks(TEST_ADDRESS);
 
     // `null` is a valid page param, so it must reach the query function rather
     // than being coerced to `undefined`.
@@ -192,9 +191,10 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
+    // `getActivityWithoutCallbacks` sets a `null` initial page param, but an
+    // explicit jump target must still win.
     const page = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
-      initialPageParam: null,
-      page: { after: TRANSACTIONS_PAGE_2_CURSOR },
+      after: TRANSACTIONS_PAGE_2_CURSOR,
     });
 
     expect(page.data).toHaveLength(3);
@@ -205,12 +205,10 @@ describe('BaseDataService', () => {
     ]);
   });
 
-  it('does not refetch a fresh paginated query', async () => {
+  it('does not refetch a previously fetched paginated query', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    // Only one page-1 response is mocked, so a second fetch would fail. A fresh
-    // cached query must be served without another request.
     const page1 = await service.getActivity(TEST_ADDRESS);
     const pageAgain = await service.getActivity(TEST_ADDRESS);
 
