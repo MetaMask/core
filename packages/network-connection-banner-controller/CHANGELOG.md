@@ -9,7 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.6.0` ([#9470](https://github.com/MetaMask/core/pull/9470), [#9520](https://github.com/MetaMask/core/pull/9520))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/network-enablement-controller` from `^6.0.1` to `^6.0.3` ([#9740](https://github.com/MetaMask/core/pull/9740), [#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [0.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-enablement-controller` from `^6.0.0` to `^6.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [0.1.1]
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^6.0.0` ([#9470](https://github.com/MetaMask/core/pull/9470), [#9520](https://github.com/MetaMask/core/pull/9520), [#9706](https://github.com/MetaMask/core/pull/9706))
 
 ## [0.1.0]
 
@@ -20,5 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dismissal, and switching custom RPC endpoints to an available Infura endpoint
   ([#9041](https://github.com/MetaMask/core/pull/9041))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.2...HEAD
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.1...@metamask/network-connection-banner-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.0...@metamask/network-connection-banner-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-connection-banner-controller@0.1.0

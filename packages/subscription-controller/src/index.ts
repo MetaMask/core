@@ -6,8 +6,6 @@ export type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
-  AllowedActions,
-  AllowedEvents,
 } from './SubscriptionController.js';
 export type {
   SubscriptionControllerGetPricingAction,
@@ -103,5 +101,33 @@ export {
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
 } from './constants.js';
-export type { SubscriptionServiceConfig } from './SubscriptionService.js';
-export { SubscriptionService } from './SubscriptionService.js';
+export type {
+  SubscriptionServiceOptions,
+  SubscriptionServiceMessenger,
+  SubscriptionServiceActions,
+  SubscriptionServiceEvents,
+  SubscriptionServiceCacheUpdatedEvent,
+  SubscriptionServiceGranularCacheUpdatedEvent,
+  SubscriptionServiceInvalidateQueriesAction,
+} from './SubscriptionService.js';
+export {
+  SubscriptionService,
+  serviceName as subscriptionServiceName,
+  SUBSCRIPTION_URL,
+} from './SubscriptionService.js';
+export type {
+  SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceCancelSubscriptionAction,
+  SubscriptionServiceUnCancelSubscriptionAction,
+  SubscriptionServiceStartSubscriptionWithCardAction,
+  SubscriptionServiceStartSubscriptionWithCryptoAction,
+  SubscriptionServiceUpdatePaymentMethodCardAction,
+  SubscriptionServiceUpdatePaymentMethodCryptoAction,
+  SubscriptionServiceGetSubscriptionsEligibilitiesAction,
+  SubscriptionServiceSubmitUserEventAction,
+  SubscriptionServiceAssignUserToCohortAction,
+  SubscriptionServiceSubmitSponsorshipIntentsAction,
+  SubscriptionServiceLinkRewardsAction,
+  SubscriptionServiceGetPricingAction,
+  SubscriptionServiceGetBillingPortalUrlAction,
+} from './SubscriptionService-method-action-types.js';

@@ -95,6 +95,47 @@ export type MessengerEvents<
     : never;
 
 /**
+ * Extract the namespace from a Messenger type.
+ *
+ * @template Subject - The messenger type to extract from.
+ */
+export type MessengerNamespace<
+  Subject extends Messenger<string, ActionConstraint, EventConstraint>,
+> =
+  Subject extends Messenger<infer N, ActionConstraint, EventConstraint>
+    ? N
+    : never;
+
+/**
+ * Validate that all members of a union are present in a tuple.
+ *
+ * When all required members are present, evaluates to the input tuple unchanged.
+ * When members are missing, evaluates to a branded intersection type that
+ * produces a clear compile error showing exactly which items are missing via
+ * the `__MISSING_DELEGATIONS__` property.
+ *
+ * @template Required - The union of all required string types.
+ * @template Provided - The readonly tuple of provided string types.
+ * @example
+ * ```typescript
+ * // OK — all required items present
+ * type T1 = RequireExhaustive<'A' | 'B', readonly ['A', 'B']>;
+ * // => readonly ['A', 'B']
+ *
+ * // Error — 'C' is missing
+ * type T2 = RequireExhaustive<'A' | 'B' | 'C', readonly ['A', 'B']>;
+ * // => readonly ['A', 'B'] & { __MISSING_DELEGATIONS__: 'C' }
+ * ```
+ */
+type RequireExhaustive<
+  Required extends string,
+  Provided extends readonly string[],
+> = [Exclude<Required, Provided[number]>] extends [never]
+  ? Provided
+  : // eslint-disable-next-line @typescript-eslint/naming-convention
+    Provided & { __MISSING_DELEGATIONS__: Exclude<Required, Provided[number]> };
+
+/**
  * Messenger namespace checks can be disabled by using this as the `namespace` constructor
  * parameter, and using `MockAnyNamespace` as the Namespace type parameter.
  *
@@ -1127,6 +1168,65 @@ export class Messenger<
 
       this.#subscribe(eventType, subscriber, { delegation: true });
     }
+  }
+
+  /**
+   * Delegate all external actions and events to another messenger, with
+   * compile-time exhaustiveness checking.
+   *
+   * Unlike {@link delegate}, which accepts a partial list of actions/events,
+   * this method requires that **every** action and event the delegatee needs
+   * from outside its own namespace is included. If any are missing, TypeScript
+   * produces a type error showing the missing items.
+   *
+   * The source messenger's action/event types must include every required
+   * external item. Items the source cannot provide still appear in the
+   * missing set, so incomplete source typing fails loudly instead of being
+   * silently skipped.
+   *
+   * Use this when a single source messenger provides all external
+   * actions/events for a child messenger (the common pattern in controller
+   * initialisation).
+   *
+   * @param args - Arguments.
+   * @param args.actions - The action types to delegate. Must include every
+   *   action type defined on the delegatee that is **not** under its own
+   *   namespace.
+   * @param args.events - The event types to delegate. Must include every event
+   *   type defined on the delegatee that is **not** under its own namespace.
+   * @param args.messenger - The messenger to delegate to.
+   * @template Delegatee - The messenger the actions/events are delegated to.
+   * @template DelegatedActions - An array of delegated action type strings.
+   * @template DelegatedEvents - An array of delegated event type strings.
+   */
+  delegateAll<
+    Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
+  >({
+    actions,
+    events,
+    messenger,
+  }: {
+    messenger: Delegatee;
+    actions: RequireExhaustive<
+      NotNamespacedBy<
+        MessengerNamespace<Delegatee>,
+        MessengerActions<Delegatee>['type']
+      >,
+      DelegatedActions
+    >;
+    events: RequireExhaustive<
+      NotNamespacedBy<
+        MessengerNamespace<Delegatee>,
+        MessengerEvents<Delegatee>['type']
+      >,
+      DelegatedEvents
+    >;
+  }): void {
+    this.delegate({ actions, events, messenger });
   }
 
   /**

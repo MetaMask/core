@@ -2,11 +2,15 @@ import type { StateMetadata } from '@metamask/base-controller';
 import {
   QuoteMetadata,
   RequiredEventContextFromClient,
-  QuoteResponse,
+  QuoteResponseV1,
   Trade,
   FeatureId,
   BatchSellTradesResponse,
   InputPrimaryDenomination,
+  QuoteResponse,
+  toQuoteMetadataV1,
+  mergeQuoteMetadata,
+  toQuoteResponseV1,
 } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
@@ -19,8 +23,10 @@ import {
   PollingStatus,
   formatChainIdToHex,
 } from '@metamask/bridge-controller';
+import { QuoteResponseSchemaV1 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { is } from '@metamask/superstruct';
 import {
   TransactionStatus,
   TransactionType,
@@ -376,6 +382,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         txMeta.id,
         false,
         txMeta.chainId,
+        txMeta.hash,
       );
     }
 
@@ -433,7 +440,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ) {
         this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
       }
-      this.#quoteStatusManager.reportFinalised(txMeta.id, true, txMeta.chainId);
+      this.#quoteStatusManager.reportFinalised(
+        txMeta.id,
+        true,
+        txMeta.chainId,
+        txMeta.hash,
+      );
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         historyKey,
@@ -920,10 +932,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Report finalization as a failure here, this is the only place that
     // permanently ends polling, so it's the correct and non-duplicative point
     // to emit the final status.
+    const historyItem = this.state.txHistory[bridgeTxMetaId];
     this.#quoteStatusManager.reportFinalised(
       bridgeTxMetaId,
       false,
-      this.state.txHistory[bridgeTxMetaId]?.quote.srcChainId,
+      historyItem?.quote.srcChainId,
+      historyItem?.status.srcChain.txHash,
     );
     this.#deleteHistoryItem(bridgeTxMetaId);
   };
@@ -1085,6 +1099,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           bridgeTxMetaId,
           status.status === StatusTypes.COMPLETE,
           historyItem.quote.srcChainId,
+          settlementTxHash,
         );
 
         if (status.status === StatusTypes.COMPLETE) {
@@ -1300,7 +1315,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse: payload.quoteResponse,
               accountAddress: params.selectedAccount.address,
               isStxEnabled: params.isStxEnabled,
-              slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+              slippagePercentage: payload.quoteResponse.quote.slippage ?? 0,
             });
             this.#reportSubmittedForNonEvmTx(
               payload.historyKey,
@@ -1312,17 +1327,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             this.#startPollingForTxId(payload.historyKey);
             break;
 
-          case SubmitStep.PublishCompletedEvent:
+          case SubmitStep.PublishCompletedEvent: {
+            const completedHistoryItem =
+              this.state.txHistory[payload.historyKey];
             this.#quoteStatusManager.reportFinalised(
               payload.historyKey,
               true,
-              this.state.txHistory[payload.historyKey]?.quote.srcChainId,
+              completedHistoryItem?.quote.srcChainId,
+              completedHistoryItem?.status.srcChain.txHash,
             );
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Completed,
               payload.historyKey,
             );
             break;
+          }
 
           /* c8 ignore start */
           default:
@@ -1359,8 +1378,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitTx = async (
     accountAddress: string,
     maybeQuoteResponses:
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
+      | QuoteResponse
+      | QuoteResponse[]
+      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)
+      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown,
@@ -1375,9 +1396,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
      * and the same account. In this case its safe to use the first quote response's properties for
      * metrics and other pre-submission logic
      */
-    const quoteResponses = Array.isArray(maybeQuoteResponses)
+    const quoteResponsesV1orV2 = Array.isArray(maybeQuoteResponses)
       ? maybeQuoteResponses
       : [maybeQuoteResponses];
+    // Convert quote responses to V1 format and preserve metadata for consistency
+    const quoteResponses = quoteResponsesV1orV2.map((quote) => {
+      if (is(quote, QuoteResponseSchemaV1)) {
+        return quote;
+      }
+      const quoteMetadata = toQuoteMetadataV1(quote);
+      return mergeQuoteMetadata(toQuoteResponseV1(quote), quoteMetadata);
+    });
     const quoteResponse = quoteResponses[0];
 
     const { quote } = quoteResponse;
@@ -1506,7 +1535,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @throws An error if intent or transaction submission fails before they get published
    */
   submitIntent = async (params: {
-    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+    quoteResponse: QuoteResponse;
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1544,7 +1573,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   submitBatchSell = async (params: {
-    quoteResponses: ((QuoteResponse<Trade, Trade> & QuoteMetadata) | null)[];
+    quoteResponses: (QuoteResponse | null)[];
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1561,9 +1590,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return await this.submitTx(
       params.accountAddress,
       params.quoteResponses.filter(
-        (
-          quoteResponse,
-        ): quoteResponse is QuoteResponse<Trade, Trade> & QuoteMetadata =>
+        (quoteResponse): quoteResponse is QuoteResponse & QuoteMetadata =>
           quoteResponse !== null,
       ),
       params.isStxEnabled ?? false,

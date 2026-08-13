@@ -347,5 +347,13 @@ describe('SnapTracker', () => {
 
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
+
+    it('does nothing when a removal event fires for an untracked Snap', () => {
+      const { tracker, rootMessenger } = setup();
+
+      publishSnapDisabled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
+
+      expect(tracker.getSnaps()).toStrictEqual([]);
+    });
   });
 });

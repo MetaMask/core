@@ -10,6 +10,9 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
+      "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
       "path": "../signature-controller/tsconfig.build.json"
     },
     {
@@ -17,6 +20,9 @@
     },
     {
       "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
     },
     {
       "path": "../controller-utils/tsconfig.build.json"

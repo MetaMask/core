@@ -231,6 +231,7 @@ type RequiredEventContextFromClientBase = {
       can_submit: QuoteFetchData['can_submit'];
       usd_balance_source?: number;
       has_sufficient_gas_for_quote?: boolean | null;
+      usd_amount_source: number;
     };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
@@ -310,7 +311,7 @@ type RequiredEventContextFromClientBase = {
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
-    'gas_included'
+    'gas_included' | 'gas_included_7702'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
@@ -319,7 +320,7 @@ type RequiredEventContextFromClientBase = {
     };
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: Pick<
     TradeData,
-    'gas_included'
+    'gas_included' | 'gas_included_7702'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {

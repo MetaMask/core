@@ -7,7 +7,14 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import type { CandleData, OrderType } from './perps-types.js';
+import type {
+  CandleData,
+  OrderType,
+  StrategyOrderType,
+  TpslLinkage,
+  TriggerDirection,
+  TriggerOrderType,
+} from './perps-types.js';
 
 /**
  * Connection states for WebSocket management.
@@ -173,13 +180,13 @@ export type TrackingData = {
   // Chart library active when the trade was initiated (e.g., lightweight, advanced)
   chartLibrary?: string;
 
-  // Entry point / discovery attribution (TAT-3080). Propagated onto trade/close/
+  // Entry point / discovery attribution. Propagated onto trade/close/
   // cancel/risk events as entry_point, discovery_source, perp_discovery_source.
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
 
-  // HyperLiquid protocol fee rate (TAT-3149). Emitted as hl_fee_rate on trade +
+  // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
 
@@ -202,7 +209,7 @@ export type TPSLTrackingData = {
   /**
    * @deprecated Source of the TP/SL update (e.g., 'tp_sl_view', 'position_card').
    * Prefer `entryPoint` / `discoverySource` / `perpDiscoverySource` for risk-event
-   * attribution (TAT-3080); `source` is retained for backward compatibility.
+   * attribution; `source` is retained for backward compatibility.
    */
   source: string;
   positionSize: number; // Unsigned position size for metrics
@@ -211,7 +218,7 @@ export type TPSLTrackingData = {
   isEditingExistingPosition?: boolean; // true = editing existing position, false = creating for new order
   entryPrice?: number; // Entry price for percentage calculations
 
-  // Entry point / discovery attribution (TAT-3080), propagated onto risk events.
+  // Entry point / discovery attribution, propagated onto risk events.
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
@@ -226,7 +233,7 @@ export type OrderParams = {
   price?: string; // Limit price (required for limit orders)
   reduceOnly?: boolean; // Reduce-only flag
   isFullClose?: boolean; // Indicates closing 100% of position (skips $10 minimum validation)
-  timeInForce?: 'GTC' | 'IOC' | 'ALO'; // Time in force
+  timeInForce?: 'GTC' | 'IOC' | 'ALO'; // Time in force for plain limit orders
 
   // USD as source of truth (hybrid approach)
   usdAmount?: string; // USD amount (primary source of truth, provider calculates size from this)
@@ -240,10 +247,42 @@ export type OrderParams = {
    */
   slippage?: number;
 
+  // Trigger placement (stop_market, stop_limit, take_profit_market, take_profit_limit).
+  // Required for those order types and rejected for market/limit orders.
+  triggerPrice?: string; // Price at which the resting order activates
+
+  // Strategy placement (twap, scale, chase). Each group below is required for
+  // its own order type and rejected on every other one, so a stray field can
+  // never be silently dropped. Strategy orders carry no `price`, `triggerPrice`,
+  // `timeInForce` or attached TP/SL — the strategy owns its own execution.
+  twapDuration?: number; // TWAP window in whole minutes; each provider enforces its own venue's bounds
+  twapRandomize?: boolean; // Randomize the timing of the TWAP slices (default false)
+  scaleMinPrice?: string; // Lowest limit price in the scale ladder
+  scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
+  scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
+  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 3000, min 1000)
+  chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
+  chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
+
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
   stopLossPrice?: string; // Stop loss price
+  // Partial TP/SL: size of the attached TP/SL order. Omit for a TP/SL covering
+  // the full order size. Must be positive and no greater than `size`.
+  takeProfitSize?: string; // Quantity covered by the attached take profit
+  stopLossSize?: string; // Quantity covered by the attached stop loss
   clientOrderId?: string; // Optional client-provided order ID
+  /**
+   * How an attached TP/SL is linked: to this order (`order`), to the resulting
+   * position (`position`), or absent (`none`). Defaults to `none` without TP/SL
+   * and `order` with TP/SL. Takes precedence over the deprecated `grouping`.
+   */
+  tpslLinkage?: TpslLinkage;
+  /**
+   * @deprecated Use `tpslLinkage`. This field carries HyperLiquid's own grouping
+   * vocabulary; it is honoured for existing callers but a provider-agnostic
+   * placement should not depend on protocol wording.
+   */
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)
@@ -258,7 +297,16 @@ export type OrderParams = {
 
 export type OrderResult = {
   success?: boolean;
-  orderId?: string; // Order ID from exchange
+  /**
+   * What names the placement afterwards.
+   *
+   * For an ordinary placement this is the exchange's order ID. For a *strategy*
+   * placement it is a handle instead — a venue TWAP id, or a client-generated
+   * scale-group or chase-session id — which is what `CancelOrderParams` takes
+   * together with the matching `orderType`. The individual exchange ids a
+   * strategy expanded into are in `childOrderIds`.
+   */
+  orderId?: string;
   error?: string;
   filledSize?: string; // Amount filled
   // Final normalized size actually submitted to the exchange (post precision
@@ -267,6 +315,19 @@ export type OrderResult = {
   // real submitted size rather than the caller's pre-normalization params.size.
   submittedSize?: string;
   averagePrice?: string; // Average execution price
+  // Exchange IDs of the individual orders a strategy placement expanded into.
+  // `orderId` carries the strategy handle instead, so these are what a caller
+  // needs to cancel the children directly.
+  //
+  // For a `scale` ladder they stay valid: the rungs are placed once and are not
+  // replaced, so they remain cancellable even after the session-scoped handle is
+  // gone. For a `chase` this is only the order resting at placement time — the
+  // strategy cancels and re-places as the touch moves, and each replacement has
+  // a new ID that is held in the session rather than reported here, so the value
+  // goes stale on the first re-price. Cancel a live chase by its handle.
+  //
+  // Absent for every non-strategy placement.
+  childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
 
@@ -291,11 +352,42 @@ export type Position = {
     sinceOpen: string; // Funding since position opened
     sinceChange: string; // Funding since last size change
   };
-  takeProfitPrice?: string; // Take profit price (if set)
-  stopLossPrice?: string; // Stop loss price (if set)
+  /**
+   * Take profit price (if set).
+   *
+   * Legacy summary field: it may also reflect a TP/SL child of a *pending* order
+   * on this market, which `takeProfitOrders` and `takeProfitCount` deliberately
+   * exclude because such a child protects that order rather than the position.
+   * A position can therefore report a price here with an empty array and a count
+   * of `0`. Prefer `takeProfitOrders` for anything that must be exact.
+   */
+  takeProfitPrice?: string;
+  /**
+   * Stop loss price (if set). Same caveat as `takeProfitPrice`.
+   */
+  stopLossPrice?: string;
   takeProfitCount: number; // Take profit count, how many tps can affect the position
   stopLossCount: number; // Stop loss count, how many sls can affect the position
+  // Full view of the trigger orders attached to this position, including
+  // quantity-scoped (partial) ones. The scalar `takeProfitPrice`/`stopLossPrice`
+  // fields above only carry one price each and cannot represent partial TP/SL.
+  takeProfitOrders?: PositionTriggerOrder[];
+  stopLossOrders?: PositionTriggerOrder[];
   providerId?: PerpsProviderType; // Multi-provider: which provider holds this position (injected by aggregator)
+};
+
+/**
+ * A trigger order attached to a position, as surfaced in position state.
+ * Provider-agnostic: protocols map their own trigger representation onto this.
+ */
+export type PositionTriggerOrder = {
+  orderId: string; // Exchange order ID (cancelable)
+  direction: TriggerDirection; // Whether the trigger takes profit or stops loss. Always known: recovered from the trigger price against the entry when the exchange does not name the placement type
+  orderType?: TriggerOrderType; // Normalized placement type. Absent when the exchange reported an unnamed trigger, whose execution mode cannot be recovered
+  triggerPrice: string; // Price at which the order activates
+  size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
+  isPartial: boolean; // true when `size` is smaller than the position size
+  reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
@@ -354,7 +446,18 @@ export type AccountState = {
 export type ClosePositionParams = {
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
-  orderType?: OrderType; // Close order type (default: market)
+  /**
+   * Close order type (default: market). Only `market` and `limit` are meaningful
+   * here: `ClosePositionParams` carries no trigger price, so a trigger-based
+   * close is not expressible and would be rejected during placement.
+   *
+   * Strategy placements are excluded at the type level rather than left to a
+   * runtime rejection, because this type cannot carry any of the fields they
+   * require and `closePosition` has no path that executes them. Derived with
+   * `Exclude` on purpose: it shrinks as `StrategyOrderType` grows, so a strategy
+   * added later is refused here automatically.
+   */
+  orderType?: Exclude<OrderType, StrategyOrderType>;
   price?: string; // Limit price (required for limit close)
   currentPrice?: number; // Current market price for validation
 
@@ -371,8 +474,24 @@ export type ClosePositionParams = {
 
   /**
    * Optional live position data from WebSocket.
-   * If provided, skips the REST API position fetch (avoids rate limiting issues).
-   * If not provided, falls back to fetching positions via REST API cache.
+   *
+   * Pass a WebSocket-sourced snapshot only. The provider treats its own
+   * WebSocket position cache as fresher than this value and overrides the
+   * snapshot's size and side with it, so a REST-sourced (potentially older)
+   * position gives no benefit here.
+   *
+   * Providing it avoids a position fetch in the common case, but does not
+   * guarantee one is skipped: when the WebSocket cache does not cover the
+   * symbol's DEX (for example a HIP-3 DEX whose subscription has not published
+   * this session), the provider issues a single `clearinghouseState` request for
+   * that DEX alone, because the cache's silence proves nothing about the symbol.
+   * If that request succeeds, its answer is authoritative — the close fails with
+   * `No position found for <symbol>` when the DEX reports the symbol gone, even
+   * if it reports no positions at all. This snapshot is used only when that
+   * request fails, since a failed lookup proves nothing either.
+   *
+   * If not provided, the position is read from the WebSocket cache, falling back
+   * to a REST fetch when the cache is not initialized.
    */
   position?: Position;
 };
@@ -532,6 +651,10 @@ export type PerpsMarketData = {
    * Indicates this market snapshot came from the last known good cache after live fetch failure.
    */
   isStale?: boolean;
+  /** Identifies an atomic Terminal summary whose price/change use mark semantics. */
+  dataSource?: 'terminal-global-snapshot-mark';
+  /** Source-bounded expiry for an atomic Terminal summary. */
+  sourceExpiresAt?: number;
   /**
    * Searchable keywords from Terminal API metadata (e.g., ['defi', 'layer-1'])
    */
@@ -544,6 +667,8 @@ export type PerpsMarketData = {
    * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
    */
   categories?: string[];
+  /** Timestamped hourly price points supplied by the atomic Terminal snapshot. */
+  trend?: [timestampMs: number, price: string][];
   /**
    * Epoch ms when this market was listed on the Terminal backend.
    * Sourced from the Terminal API `listedAt` field.
@@ -582,8 +707,17 @@ export type SwitchProviderResult = {
 };
 
 export type CancelOrderParams = {
-  orderId: string; // Order ID to cancel
+  orderId: string; // Order ID to cancel, or the strategy handle when orderType is a strategy type
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
+  /**
+   * Placement type of what is being cancelled. Only the strategy types
+   * (`twap`, `scale`, `chase`) change anything: each is cancelled through its
+   * own path — the venue's TWAP cancel endpoint, a batch cancel of the ladder's
+   * children, or stopping the chase session and cancelling its live order.
+   * Omit it (or pass an ordinary order type) to cancel a single resting order,
+   * which is what every existing caller does.
+   */
+  orderType?: OrderType;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
@@ -591,7 +725,12 @@ export type CancelOrderParams = {
 
 export type CancelOrderResult = {
   success: boolean;
-  orderId?: string; // Cancelled order ID
+  /**
+   * What was cancelled, named the same way it was placed: an exchange order ID
+   * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
+   * chase session — when `CancelOrderParams.orderType` named one.
+   */
+  orderId?: string;
   error?: string;
   providerId?: PerpsProviderType; // Multi-provider: source provider identifier
 };
@@ -858,6 +997,23 @@ export type GetAccountStateParams = {
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
 };
 
+export type GetUserDataSnapshotParams = {
+  userAddress: string;
+  identity: {
+    provider: 'hyperliquid';
+    network: 'mainnet' | 'testnet';
+    hip3ConfigVersion: number;
+    dexes: string[];
+  };
+};
+
+export type PerpsUserDataSnapshot = {
+  positions: Position[];
+  orders: Order[];
+  accountState: AccountState;
+  identity: GetUserDataSnapshotParams['identity'] & { address: string };
+};
+
 export type GetOrderFillsParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
   user?: Hex; // Optional: user address (defaults to selected account)
@@ -930,7 +1086,7 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
-  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
+  useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
 };
 
 /**
@@ -945,7 +1101,7 @@ export type GetMarketDataWithPricesParams = {
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
-  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
+  useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
 };
 
 export type SubscribePricesParams = {
@@ -1065,7 +1221,9 @@ export type MaintenanceMarginParams = {
 };
 
 export type FeeCalculationParams = {
-  orderType: 'market' | 'limit';
+  // Trigger placements are charged as their execution kind (a stop_limit pays
+  // limit-order fees when it fills, a stop_market pays taker fees).
+  orderType: OrderType;
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
@@ -1097,6 +1255,12 @@ export type UpdatePositionTPSLParams = {
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
   takeProfitPrice?: string; // Optional: undefined to remove
   stopLossPrice?: string; // Optional: undefined to remove
+  // Partial TP/SL: quantity covered by the TP/SL order. Omit to cover the whole
+  // position. When either size is provided the TP/SL orders are placed as
+  // standalone reduce-only triggers, since a position-bound TP/SL cannot carry a
+  // quantity.
+  takeProfitSize?: string;
+  stopLossSize?: string;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
@@ -1128,6 +1292,10 @@ export type Order = {
   takeProfitOrderId?: string; // Take profit order ID
   detailedOrderType?: string; // Full order type from exchange (e.g., 'Take Profit Limit', 'Stop Market')
   isTrigger?: boolean; // Whether this is a trigger order (TP/SL)
+  // Normalized trigger placement type, set for trigger orders only. `orderType`
+  // above stays coarse (how the order executes) so existing consumers keep
+  // their meaning; this field carries the full placement type.
+  triggerOrderType?: TriggerOrderType;
   reduceOnly?: boolean; // Whether this is a reduce-only order
   isPositionTpsl?: boolean; // Whether this TP/SL is associated with the full position
   parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows
@@ -1162,6 +1330,9 @@ export type PerpsProvider = {
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
+  getUserDataSnapshot?(
+    params: GetUserDataSnapshotParams,
+  ): Promise<PerpsUserDataSnapshot>;
   getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]>;
   getMarketDataWithPrices(): Promise<PerpsMarketData[]>;
   withdraw(params: WithdrawParams): Promise<WithdrawResult>; // API operation - stays in provider
@@ -1433,7 +1604,7 @@ export enum PerpsAnalyticsEvent {
   RiskManagement = 'Perp Risk Management',
   PerpsError = 'Perp Error',
   AccountSetup = 'Perp Account Setup',
-  // New funnel + search events (TAT-3084, TAT-3202).
+  // New funnel + search events.
   // Names must match MetaMetrics/Mixpanel exactly; no other event names may be added.
   TransactionConsidered = 'Perp Transaction Considered',
   TradeQuoteReceived = 'Perp Trade Quote Received',
@@ -1443,7 +1614,7 @@ export enum PerpsAnalyticsEvent {
 }
 
 /**
- * UTM / discovery attribution context for Perps analytics (TAT-3133, TAT-3140).
+ * UTM / discovery attribution context for Perps analytics.
  *
  * Held transiently in-memory by PerpsController (never persisted in state) and
  * merged into analytics event properties so client-originated UTM attribution
@@ -1751,6 +1922,22 @@ export type PerpsTerminalMarketService = {
   }>;
   clearCache(): void;
   logError(error: unknown, method: string): void;
+  fetchGlobalSnapshot?(
+    request: PerpsGlobalSnapshotRequest,
+  ): Promise<PerpsGlobalSnapshotResult>;
+};
+
+/** Exact identity a client expects from an atomic global Perps snapshot. */
+export type PerpsGlobalSnapshotRequest = {
+  provider: 'hyperliquid';
+  network: 'mainnet' | 'testnet';
+  enabledDexes: string[];
+};
+
+/** Validated snapshot data and its source-bounded expiry. */
+export type PerpsGlobalSnapshotResult = {
+  markets: PerpsMarketData[];
+  expiresAt: number;
 };
 
 /**
@@ -1804,13 +1991,15 @@ export type PerpsPlatformDependencies = {
   };
 
   // === Terminal API (market metadata source) ===
-  /**
-   * Full endpoint URL for the MetaMask Terminal API perpetuals endpoint.
-   * Each client build (dev/uat/prd) injects the correct environment URL
-   * (e.g. `https://terminal.api.cx.metamask.io/v1/perpetuals`).
-   * Never hardcoded in controller code — always provided by the platform.
-   * Optional: only required when Terminal API features (useTerminalApi) are enabled.
-   */
+  terminalApi?: {
+    /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
+    marketDataUrl?: string;
+
+    /** Full endpoint URL for the schema-v2 atomic global Perps snapshot. */
+    globalSnapshotUrl?: string;
+  };
+
+  /** @deprecated Use `terminalApi.marketDataUrl`. */
   terminalApiUrl?: string;
 
   /**

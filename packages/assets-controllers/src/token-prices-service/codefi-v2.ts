@@ -290,7 +290,8 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1079': 'eip155:4217/slip44:60', // Tempo Mainnet - No native asset
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
-  '0x13b2': 'eip155:5042/erc20:0x0000000000000000000000000000000000000000', // Arc - Native symbol: USDC
+  '0x13a7': 'eip155:5031/slip44:5031', // Somnia Mainnet - Native symbol: SOMI
+  '0x13b2': 'eip155:5042/slip44:5042', // Arc - Native symbol: USDC
   '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
   '0x1237': 'eip155:4663/slip44:60', // Robinhood Chain - Native symbol: ETH
@@ -323,6 +324,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+  '0x4115': 'eip155:16661/slip44:1111116661', // 0G Chain - Native symbol: 0G
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES

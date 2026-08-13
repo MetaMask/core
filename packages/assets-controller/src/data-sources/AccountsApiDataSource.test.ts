@@ -565,6 +565,33 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('excludes staking contract asset IDs from v5 balance response', async () => {
+    const stakingAssetId =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+    const balances = [
+      createMockBalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        'eip155:1/slip44:60',
+        '1000000000000000000',
+      ),
+      createMockBalanceItem(`eip155:1:${MOCK_ADDRESS}`, stakingAssetId, '0'),
+    ];
+
+    const { controller } = await setupController({ balances });
+
+    const response = await controller.fetch(createDataRequest());
+    const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+    expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+    expect(
+      Object.keys(accountBalances).some((id) =>
+        id.toLowerCase().includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+      ),
+    ).toBe(false);
+
+    controller.destroy();
+  });
+
   it('fetch marks unprocessed networks as errors', async () => {
     const { controller } = await setupController({
       unprocessedNetworks: ['eip155:1'],
@@ -755,6 +782,40 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
+    it('excludes staking contract asset IDs from v6 balance response', async () => {
+      const stakingAssetId =
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        v6Accounts: [
+          {
+            accountId: `eip155:1:${MOCK_ADDRESS}`,
+            balances: [
+              createMockV6BalanceItem(
+                'eip155:1/slip44:60',
+                '1000000000000000000',
+              ),
+              createMockV6BalanceItem(stakingAssetId, '0'),
+            ],
+          },
+        ],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+      const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+      expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+      expect(
+        Object.keys(accountBalances).some((id) =>
+          id
+            .toLowerCase()
+            .includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+        ),
+      ).toBe(false);
+
+      controller.destroy();
+    });
+
     it('marks v6 unprocessed networks as errors', async () => {
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
@@ -933,6 +994,59 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
+
+    controller.destroy();
+  });
+
+  it('subscribe update immediately fetches newly added chains', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    const fetchSpy = jest.spyOn(controller, 'fetch');
+
+    // Simulate a chain handoff (e.g. websocket coverage dropped for Polygon).
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ chainIds: [CHAIN_POLYGON] }),
+    );
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('subscribe update does not fetch when no chains are added', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    // Removing a chain (or an account-only update) should not trigger a fetch.
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });

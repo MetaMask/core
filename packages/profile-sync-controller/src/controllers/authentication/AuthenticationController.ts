@@ -10,13 +10,16 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
 import type {
+  LoginIdentifierType,
   LoginResponse,
   ProfileAlias,
   SRPInterface,
+  SrpLoginTag,
   UserProfile,
   UserProfileLineage,
 } from '../../sdk/index.js';
@@ -28,8 +31,11 @@ import {
 } from '../../sdk/index.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
+  getHdKeyringEntropySourceIds,
+  getPrimaryHdKeyringEntropySourceId,
+} from '../../shared/utils/entropy-source.js';
+import {
   createSnapPublicKeyRequest,
-  createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests.js';
 import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types.js';
@@ -149,7 +155,8 @@ export type Events =
 // Allowed Actions
 type AllowedActions =
   | KeyringControllerGetStateAction
-  | SnapControllerHandleRequestAction;
+  | SnapControllerHandleRequestAction
+  | SeedlessOnboardingControllerGetStateAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
@@ -178,8 +185,6 @@ export class AuthenticationController extends BaseController<
   };
 
   #isUnlocked = false;
-
-  #cachedPrimaryEntropySourceId?: string;
 
   // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
   // before its first await; if it changes mid-flight we must NOT clear
@@ -249,6 +254,8 @@ export class AuthenticationController extends BaseController<
           getIdentifier: this.#snapGetPublicKey.bind(this),
           signMessage: this.#snapSignMessage.bind(this),
         },
+        getLoginTag: this.#getLoginTag.bind(this),
+        getLoginIdentifierType: this.#getLoginIdentifierType.bind(this),
         metametrics: this.#metametrics,
       },
     );
@@ -264,8 +271,7 @@ export class AuthenticationController extends BaseController<
   async #getLoginResponseFromState(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     if (!this.state.srpSessionData?.[resolvedId]) {
       return null;
     }
@@ -276,8 +282,7 @@ export class AuthenticationController extends BaseController<
     loginResponse: LoginResponse,
     entropySourceId?: string,
   ) {
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
       state.isSignedIn = true;
@@ -300,44 +305,129 @@ export class AuthenticationController extends BaseController<
     }
   }
 
-  async #getPrimaryEntropySourceId(): Promise<string> {
-    if (this.#cachedPrimaryEntropySourceId) {
-      return this.#cachedPrimaryEntropySourceId;
-    }
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
+  /**
+   * Reads the HD keyring entropy source IDs from KeyringController.
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getHdKeyringEntropySourceIds(keyrings);
+  }
 
-    if (allPublicKeys.length === 0) {
-      throw new Error(
-        '#getPrimaryEntropySourceId - No entropy sources found from snap',
+  /**
+   * Resolves the primary SRP's entropy source ID from KeyringController rather
+   * than the message-signing snap, so callers like `getBearerToken()` are not
+   * blocked on snap boot.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve while
+   * the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getPrimaryHdKeyringEntropySourceId(keyrings);
+  }
+
+  /**
+   * Resolves the SRP login tag for `raw_message`.
+   *
+   * - `primary` for the first HD entropy source
+   * - `secondary` for any other entropy source
+   *
+   * @param entropySourceId - Entropy source for this login attempt.
+   * @returns The login tag to append to the signed message.
+   */
+  async #getLoginTag(entropySourceId?: string): Promise<SrpLoginTag> {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? primaryEntropySourceId;
+
+    return resolvedId === primaryEntropySourceId ? 'primary' : 'secondary';
+  }
+
+  /**
+   * Resolves metametrics `identifier_type` for `/srp/login`
+   * (`SRP` | `GOOGLE` | `APPLE` | `TELEGRAM`).
+   *
+   * This is the auth method for the entropy source, independent of
+   * {@link SrpLoginTag} (`primary` / `secondary`).
+   *
+   * SeedlessOnboarding currently exposes a single vault-level
+   * `authConnection`, which always backs the primary entropy source. Non-
+   * primary sources therefore return `SRP`. If social identities become
+   * per-entropy later, resolve from that metadata instead of assuming
+   * primary === social.
+   *
+   * Soft-fails to `SRP` when SeedlessOnboarding is not registered.
+   *
+   * @param entropySourceId - Entropy source for this login attempt.
+   * @returns The login identifier type.
+   */
+  async #getLoginIdentifierType(
+    entropySourceId?: string,
+  ): Promise<LoginIdentifierType> {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? primaryEntropySourceId;
+
+    // Social vault authConnection is only associated with the primary source.
+    if (resolvedId !== primaryEntropySourceId) {
+      return 'SRP';
+    }
+
+    return this.#resolveSocialIdentifierType();
+  }
+
+  /**
+   * Maps `SeedlessOnboardingController.state.authConnection` to a login
+   * identifier type when a social vault is present.
+   *
+   * Returns `SRP` if there is no vault, the provider is unrecognized, or
+   * SeedlessOnboardingController is unavailable on the messenger.
+   *
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #resolveSocialIdentifierType(): LoginIdentifierType {
+    try {
+      const { vault, authConnection } = this.messenger.call(
+        'SeedlessOnboardingController:getState',
       );
-    }
+      if (vault === null || vault === undefined) {
+        return 'SRP';
+      }
 
-    const primaryId = allPublicKeys[0][0];
-    if (!primaryId) {
-      throw new Error(
-        '#getPrimaryEntropySourceId - Primary entropy source ID is undefined',
-      );
+      // Match provider strings from SeedlessOnboarding state rather than
+      // importing AuthConnection — a value import would load that package
+      // (and its heavy deps) whenever this controller is imported.
+      switch (authConnection) {
+        case 'google':
+          return 'GOOGLE';
+        case 'apple':
+          return 'APPLE';
+        case 'telegram':
+          return 'TELEGRAM';
+        default:
+          return 'SRP';
+      }
+    } catch {
+      return 'SRP';
     }
-
-    this.#cachedPrimaryEntropySourceId = primaryId;
-    return this.#cachedPrimaryEntropySourceId;
   }
 
   public async performSignIn(): Promise<string[]> {
     this.#assertIsUnlocked('performSignIn');
 
     const epochAtStart = this.#profilePairingRequestEpoch;
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
+    const entropySourceIds = this.#getHdKeyringEntropySourceIds();
     const accessTokens: string[] = [];
 
     // We iterate sequentially in order to be sure that the first entry
     // is the primary SRP LoginResponse.
-    for (const [entropySourceId] of allPublicKeys) {
+    for (const entropySourceId of entropySourceIds) {
       const accessToken = await this.#auth.getAccessToken(entropySourceId);
       accessTokens.push(accessToken);
     }
 
-    if (allPublicKeys.length < 2) {
+    if (entropySourceIds.length < 2) {
       // Single-SRP wallet: nothing to pair.
       this.#tryClearNeedsProfilePairing(epochAtStart);
     } else {
@@ -396,10 +486,10 @@ export class AuthenticationController extends BaseController<
    * pair API call was in-flight.
    */
   async #doPair(accessTokens: string[], epochAtStart: number): Promise<void> {
-    const previousCanonical = await this.#getCanonicalProfileId();
+    const previousCanonical = this.#getCanonicalProfileId();
 
     const profileAliases = await this.#pairSrpProfiles(accessTokens);
-    const newCanonical = await this.#getCanonicalProfileId();
+    const newCanonical = this.#getCanonicalProfileId();
 
     // If somehow we cannot compute the new canonical profile ID after pairing,
     // we just return now and do not update the `needsProfilePairing` flag.
@@ -459,8 +549,8 @@ export class AuthenticationController extends BaseController<
    *
    * @returns The canonical profile id, or `null` if unavailable.
    */
-  async #getCanonicalProfileId(): Promise<string | null> {
-    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+  #getCanonicalProfileId(): string | null {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     return (
       this.state.srpSessionData?.[primaryEntropySourceId]?.profile
         ?.canonicalProfileId ?? null
@@ -468,7 +558,6 @@ export class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
-    this.#cachedPrimaryEntropySourceId = undefined;
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
@@ -488,8 +577,7 @@ export class AuthenticationController extends BaseController<
    */
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getAccessToken(resolvedId);
   }
 
@@ -510,8 +598,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfile(resolvedId);
   }
 
@@ -534,11 +621,11 @@ export class AuthenticationController extends BaseController<
   public async refreshCanonicalProfileId(): Promise<string> {
     this.#assertIsUnlocked('refreshCanonicalProfileId');
 
-    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     this.#invalidateSrpSession(primaryEntropySourceId);
     await this.#auth.getAccessToken(primaryEntropySourceId);
 
-    const canonical = await this.#getCanonicalProfileId();
+    const canonical = this.#getCanonicalProfileId();
     if (!canonical) {
       throw new Error(
         'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
@@ -565,8 +652,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfileLineage(resolvedId);
   }
 
@@ -585,8 +671,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<string> {
     this.#assertIsUnlocked('getCustomerServiceToken');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getCustomerServiceToken(resolvedId);
   }
 
@@ -608,22 +693,6 @@ export class AuthenticationController extends BaseController<
       'SnapController:handleRequest',
       createSnapPublicKeyRequest(entropySourceId),
     )) as string;
-
-    return result;
-  }
-
-  /**
-   * Returns a mapping of entropy source IDs to auth snap public keys.
-   *
-   * @returns A mapping of entropy source IDs to public keys.
-   */
-  async #snapGetAllPublicKeys(): Promise<[string, string][]> {
-    this.#assertIsUnlocked('#snapGetAllPublicKeys');
-
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapAllPublicKeysRequest(),
-    )) as [string, string][];
 
     return result;
   }

@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { getDaemonPaths } from '../src/daemon/paths.js';
-import { isProcessAlive, readPidFile } from '../src/daemon/utils.js';
+import { cleanupDaemon } from './helpers.js';
 
 // Subprocess-level lifecycle test for the `mm daemon` command suite. Unlike the
 // in-process suites (`socket-integration.test.ts` exercises the transport in
@@ -152,26 +152,6 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-/**
- * Guarantee no daemon is left running and remove the temp data directory,
- * regardless of how a test ended. Kills by the recorded PID directly (rather
- * than going through `mm daemon stop`) so a wedged daemon cannot block cleanup.
- *
- * @param dataDir - The temp data directory to tear down.
- */
-async function cleanup(dataDir: string): Promise<void> {
-  const { pidPath } = getDaemonPaths(dataDir);
-  const pid = await readPidFile(pidPath).catch(() => undefined);
-  if (pid !== undefined && isProcessAlive(pid)) {
-    try {
-      process.kill(pid, 'SIGKILL');
-    } catch {
-      // Already gone — nothing to clean up.
-    }
-  }
-  await rm(dataDir, { recursive: true, force: true });
-}
-
 describe('mm daemon lifecycle (subprocess e2e)', () => {
   let dataDir: string;
 
@@ -180,7 +160,7 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
   });
 
   afterEach(async () => {
-    await cleanup(dataDir);
+    await cleanupDaemon(dataDir);
   });
 
   it(
