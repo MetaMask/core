@@ -438,6 +438,7 @@ describe('properties', () => {
           "quoted_time_minutes": 1,
           "token_symbol_destination": "USDC",
           "token_symbol_source": "ETH",
+          "usd_amount_source": 0,
           "usd_balance_source": 0,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
