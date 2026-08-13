@@ -2771,7 +2771,7 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should not handle subscription crypto approval for non-shield subscription transactions', async () => {
+    it('should throw for non-shield-approve transaction types', async () => {
       await withController(
         {
           state: {
@@ -2781,7 +2781,6 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
-          // Create a non-shield subscription transaction
           const txMeta = {
             ...generateMockTxMeta(),
             type: TransactionType.contractInteraction,
@@ -2789,13 +2788,64 @@ describe('SubscriptionController', () => {
             hash: '0x123',
           };
 
-          await rootMessenger.call(
-            'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:submitSubscriptionCryptoApproval',
+              PRODUCT_TYPES.SHIELD,
+              txMeta,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.CryptoApprovalRequiresShieldApprove,
           );
 
-          // Verify that decodeTransactionDataHandler was not called
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw when productType is not Shield', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:submitSubscriptionCryptoApproval',
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+              txMeta,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.CryptoApprovalRequiresShieldApprove,
+          );
+
           expect(
             mockService.startSubscriptionWithCrypto,
           ).not.toHaveBeenCalled();

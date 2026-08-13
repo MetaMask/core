@@ -46,6 +46,7 @@ export enum SubscriptionControllerErrorMessage {
   PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
   ProductPriceNotFound = `${controllerName} - Product price not found`,
   SubscriptionNotValidForCryptoApproval = `${controllerName} - Subscription is not valid for crypto approval`,
+  CryptoApprovalRequiresShieldApprove = `${controllerName} - Crypto approval is only supported for Shield ERC-20 approve transactions`,
   LinkRewardsFailed = `${controllerName} - Failed to link rewards`,
 }
 

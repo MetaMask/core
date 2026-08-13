@@ -63,12 +63,20 @@ export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
 };
 
 /**
- * Handles subscription crypto approval transactions for ERC-20 approval flows.
+ * Submits a Shield ERC-20 crypto approval transaction to start or update a
+ * crypto subscription.
  *
- * @param productType - The subscription product.
- * @param txMeta - The transaction metadata.
+ * This handler is Shield / `TransactionType.shieldSubscriptionApprove` only.
+ * Delegation-based products (e.g. Money Account) must call
+ * `startSubscriptionWithCrypto` instead.
+ *
+ * @param productType - The subscription product. Must be `PRODUCT_TYPES.SHIELD`.
+ * @param txMeta - The transaction metadata. Must have type
+ * `TransactionType.shieldSubscriptionApprove`.
  * @param isSponsored - Whether the transaction is sponsored.
  * @param rewardAccountId - The account ID of the reward subscription to link.
+ * @throws If `productType` is not Shield or `txMeta.type` is not
+ * `shieldSubscriptionApprove`.
  * @returns void
  */
 export type SubscriptionControllerSubmitSubscriptionCryptoApprovalAction = {
