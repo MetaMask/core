@@ -5,6 +5,7 @@ import type {
 import {
   BaseController,
   ControllerGetStateAction,
+  ControllerStateChangedEvent,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
@@ -19,7 +20,12 @@ import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
 } from './constants/eventNames.js';
-import { USDC_SYMBOL } from './constants/hyperLiquidConfig.js';
+import {
+  canonicalizeHyperLiquidDexes,
+  MAINNET_HIP3_CONFIG,
+  TESTNET_HIP3_CONFIG,
+  USDC_SYMBOL,
+} from './constants/hyperLiquidConfig.js';
 import { PerpsMeasurementName } from './constants/performanceMetrics.js';
 import type {
   SortOptionId,
@@ -30,7 +36,6 @@ import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
-  PERPS_DISK_CACHE_USER_DATA,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
@@ -120,6 +125,7 @@ import type {
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
   PerpsProviderType,
+  PerpsUserDataSnapshot,
   PerpsSelectedPaymentToken,
   PerpsRemoteFeatureFlagState,
   PerpsTransactionParams,
@@ -141,6 +147,7 @@ import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
 import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
 import {
+  clonePerpsMarketData,
   compileMarketPattern,
   shouldIncludeMarket,
 } from './utils/marketUtils.js';
@@ -150,10 +157,48 @@ import {
   persistMarketEntriesToDisk,
   persistUserEntriesToDisk,
 } from './utils/perpsDiskPersistence.js';
+import type { DiskCacheUserEntry } from './utils/perpsDiskPersistence.js';
 import { wait } from './utils/wait.js';
 
 /** Derived type for logger options from PerpsLogger interface */
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
+
+function cloneUserDataSnapshot(
+  snapshot: PerpsUserDataSnapshot,
+): PerpsUserDataSnapshot {
+  return {
+    positions: snapshot.positions.map((position) => ({
+      ...position,
+      leverage: { ...position.leverage },
+      cumulativeFunding: { ...position.cumulativeFunding },
+      ...(position.takeProfitOrders && {
+        takeProfitOrders: position.takeProfitOrders.map((order) => ({
+          ...order,
+        })),
+      }),
+      ...(position.stopLossOrders && {
+        stopLossOrders: position.stopLossOrders.map((order) => ({
+          ...order,
+        })),
+      }),
+    })),
+    orders: snapshot.orders.map((order) => ({ ...order })),
+    accountState: {
+      ...snapshot.accountState,
+      ...(snapshot.accountState.subAccountBreakdown && {
+        subAccountBreakdown: Object.fromEntries(
+          Object.entries(snapshot.accountState.subAccountBreakdown).map(
+            ([dex, balances]) => [dex, { ...balances }],
+          ),
+        ),
+      }),
+    },
+    identity: {
+      ...snapshot.identity,
+      dexes: [...snapshot.identity.dexes],
+    },
+  };
+}
 
 /**
  * Returns the first non-empty string from the given values.
@@ -250,7 +295,15 @@ export {
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
 } from './constants/perpsConfig.js';
-export type { ProLayoutPreferences } from './constants/perpsConfig.js';
+export type {
+  ProLayoutPreferences,
+  ProOrdersSideFilter,
+  ProOrdersSortDirection,
+  ProOrdersSortField,
+  ProPositionsSideFilter,
+  ProPositionsSortDirection,
+  ProPositionsSortField,
+} from './constants/perpsConfig.js';
 
 /**
  * State shape for PerpsController
@@ -437,11 +490,18 @@ export type PerpsControllerState = {
   // Keyed by "providerId:network" (e.g. 'hyperliquid:mainnet', 'myx:testnet')
   cachedMarketDataByProvider: Record<
     string,
-    { data: PerpsMarketData[]; timestamp: number }
+    {
+      data: PerpsMarketData[];
+      timestamp: number;
+      sourceExpiresAt?: number;
+      hip3ConfigVersion?: number;
+      dexes?: string[];
+    }
   >;
 
   // Cached user data from background preloading (REST snapshots, not WebSocket)
-  // Keyed by "providerId:network" (e.g. 'hyperliquid:mainnet', 'myx:testnet')
+  // Keyed by "providerId:network". The entry carries the selected address and
+  // exact HyperLiquid configuration identity, both validated before reads.
   cachedUserDataByProvider: Record<
     string,
     {
@@ -450,6 +510,8 @@ export type PerpsControllerState = {
       accountState: AccountState | null;
       timestamp: number;
       address: string;
+      hip3ConfigVersion?: number;
+      dexes?: string[];
     }
   >;
 };
@@ -728,10 +790,9 @@ const metadata: StateMetadata<PerpsControllerState> = {
 /**
  * PerpsController events
  */
-export type PerpsControllerEvents = ControllerStateChangeEvent<
-  'PerpsController',
-  PerpsControllerState
->;
+export type PerpsControllerEvents =
+  | ControllerStateChangeEvent<'PerpsController', PerpsControllerState>
+  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>;
 
 /**
  * The action which can be used to retrieve the state of the
@@ -787,6 +848,16 @@ type BlockedRegionList = {
   source: 'remote' | 'fallback';
 };
 
+type UserSnapshotContext = {
+  provider: PerpsProvider;
+  standaloneProvider: HyperLiquidProvider | null;
+  address: string;
+  isTestnet: boolean;
+  hip3ConfigVersion: number;
+  expectedDexes: string[];
+  isCurrent: () => boolean;
+};
+
 const MESSENGER_EXPOSED_METHODS = [
   'calculateFees',
   'calculateLiquidationPrice',
@@ -815,6 +886,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getBlockExplorerUrl',
   'getCachedMarketDataForActiveProvider',
   'getCachedUserDataForActiveProvider',
+  'getUserDataSnapshot',
   'getCurrentNetwork',
   'getFunding',
   'getHistoricalPortfolio',
@@ -1012,6 +1084,11 @@ export class PerpsController extends BaseController<
 
   #standaloneProviderHip3Version: number | null = null;
 
+  readonly #standaloneProviderOperations = new Map<
+    PerpsProvider,
+    Set<Promise<unknown>>
+  >();
+
   #eligibilityCheckDeferred: boolean;
 
   /**
@@ -1028,6 +1105,8 @@ export class PerpsController extends BaseController<
    * a failed operation does not stall subsequent ones.
    */
   #ausQueue: Promise<void> = Promise.resolve();
+
+  #userDiskWrite: Promise<void> = Promise.resolve();
 
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
@@ -1080,7 +1159,9 @@ export class PerpsController extends BaseController<
       ...infrastructure,
       terminalMarketService:
         infrastructure.terminalMarketService ??
-        (infrastructure.terminalApiUrl
+        (infrastructure.terminalApi?.marketDataUrl ||
+        infrastructure.terminalApiUrl ||
+        infrastructure.terminalApi?.globalSnapshotUrl
           ? new TerminalMarketService(infrastructure)
           : undefined),
     });
@@ -1241,7 +1322,6 @@ export class PerpsController extends BaseController<
     if (activeProvider === 'aggregated') {
       // Assemble from all registered provider entries
       const assembled: PerpsMarketData[] = [];
-      let oldestTimestamp = Infinity;
       for (const providerId of this.#getAggregatedCacheProviderIds(
         Object.keys(cache),
       )) {
@@ -1250,17 +1330,12 @@ export class PerpsController extends BaseController<
         if (!entry || entry.data.length === 0) {
           continue;
         }
-        oldestTimestamp = Math.min(oldestTimestamp, entry.timestamp);
-        assembled.push(...entry.data);
+        if (!this.#isMarketCacheEntryCurrent(providerId, entry, options)) {
+          continue;
+        }
+        assembled.push(...clonePerpsMarketData(entry.data));
       }
       if (assembled.length === 0) {
-        return null;
-      }
-      // Check TTL against the oldest entry
-      if (
-        !options?.skipTTL &&
-        Date.now() - oldestTimestamp > PerpsController.#preloadGuardMs * 10
-      ) {
         return null;
       }
       return assembled;
@@ -1272,13 +1347,33 @@ export class PerpsController extends BaseController<
     if (!entry || entry.data.length === 0) {
       return null;
     }
-    if (
-      !options?.skipTTL &&
-      Date.now() - entry.timestamp > PerpsController.#preloadGuardMs * 10
-    ) {
+    if (!this.#isMarketCacheEntryCurrent(activeProvider, entry, options)) {
       return null;
     }
-    return entry.data;
+    return clonePerpsMarketData(entry.data);
+  }
+
+  #isMarketCacheEntryCurrent(
+    providerId: string,
+    entry: PerpsControllerState['cachedMarketDataByProvider'][string],
+    options?: { skipTTL?: boolean },
+  ): boolean {
+    if (entry.sourceExpiresAt !== undefined) {
+      const expectedDexes = this.#getStaticSnapshotDexes();
+      return (
+        providerId === 'hyperliquid' &&
+        Date.now() < entry.sourceExpiresAt &&
+        entry.hip3ConfigVersion === this.state.hip3ConfigVersion &&
+        expectedDexes !== undefined &&
+        Array.isArray(entry.dexes) &&
+        entry.dexes.length === expectedDexes.length &&
+        entry.dexes.every((dex, index) => dex === expectedDexes[index])
+      );
+    }
+    return (
+      options?.skipTTL === true ||
+      Date.now() - entry.timestamp <= PerpsController.#preloadGuardMs * 10
+    );
   }
 
   /**
@@ -1307,14 +1402,22 @@ export class PerpsController extends BaseController<
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       currentAddress = evmAccount?.address ?? null;
     } catch {
-      // Can't determine current account — trust the cache
+      // Account identity is required before account-scoped data can be trusted.
     }
+
+    if (!currentAddress) {
+      return null;
+    }
+    const selectedAddress = currentAddress;
 
     const skipTTL = options?.skipTTL ?? false;
 
     const isValidEntry = (
-      entry: { timestamp: number; address: string } | undefined,
-    ): entry is { timestamp: number; address: string } => {
+      providerId: string,
+      entry:
+        | PerpsControllerState['cachedUserDataByProvider'][string]
+        | undefined,
+    ): entry is PerpsControllerState['cachedUserDataByProvider'][string] => {
       if (!entry) {
         return false;
       }
@@ -1322,8 +1425,7 @@ export class PerpsController extends BaseController<
         return false;
       }
       if (
-        currentAddress &&
-        entry.address.toLowerCase() !== currentAddress.toLowerCase()
+        !this.#isUserCacheIdentityCurrent(providerId, entry, selectedAddress)
       ) {
         return false;
       }
@@ -1340,9 +1442,12 @@ export class PerpsController extends BaseController<
       for (const providerId of this.#getAggregatedCacheProviderIds(
         Object.keys(cache),
       )) {
-        const key = buildProviderCacheKey(providerId, this.state.isTestnet);
-        const entry = cache[key];
-        if (!isValidEntry(entry)) {
+        const providerNetworkKey = buildProviderCacheKey(
+          providerId,
+          this.state.isTestnet,
+        );
+        const entry = cache[providerNetworkKey];
+        if (!isValidEntry(providerId, entry)) {
           continue;
         }
         hasValidEntry = true;
@@ -1366,9 +1471,12 @@ export class PerpsController extends BaseController<
     }
 
     // Single provider mode
-    const key = buildProviderCacheKey(activeProvider, this.state.isTestnet);
-    const entry = cache[key];
-    if (!entry || !isValidEntry(entry)) {
+    const providerNetworkKey = buildProviderCacheKey(
+      activeProvider,
+      this.state.isTestnet,
+    );
+    const entry = cache[providerNetworkKey];
+    if (!entry || !isValidEntry(activeProvider, entry)) {
       return null;
     }
 
@@ -1377,6 +1485,199 @@ export class PerpsController extends BaseController<
       orders: entry.orders,
       accountState: entry.accountState,
     };
+  }
+
+  #isUserCacheIdentityCurrent(
+    providerId: string,
+    entry: PerpsControllerState['cachedUserDataByProvider'][string],
+    address: string,
+  ): boolean {
+    if (entry.address.toLowerCase() !== address.toLowerCase()) {
+      return false;
+    }
+    if (providerId !== 'hyperliquid') {
+      return true;
+    }
+
+    const expectedDexes = this.#getStaticSnapshotDexes();
+    return (
+      entry.hip3ConfigVersion === this.state.hip3ConfigVersion &&
+      expectedDexes !== undefined &&
+      Array.isArray(entry.dexes) &&
+      entry.dexes.length === expectedDexes.length &&
+      entry.dexes.every((dex, index) => dex === expectedDexes[index])
+    );
+  }
+
+  /**
+   * Fetch, validate, and atomically cache a complete user-data snapshot.
+   * This remains callable after mount so consumers can seed their live channel
+   * from one coherent positions/orders/account result.
+   *
+   * @returns The accepted user-data snapshot.
+   */
+  async getUserDataSnapshot(): Promise<PerpsUserDataSnapshot> {
+    const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
+    if (!evmAccount?.address) {
+      throw new Error('Cannot fetch user data snapshot without an EVM account');
+    }
+    if (this.state.activeProvider !== 'hyperliquid') {
+      throw new Error('User data snapshots require Hyperliquid provider mode');
+    }
+
+    const capturedActiveProvider = this.activeProviderInstance;
+    const standaloneProvider = capturedActiveProvider
+      ? null
+      : this.#getOrCreateStandaloneProvider();
+    const provider = capturedActiveProvider ?? standaloneProvider;
+    if (!provider) {
+      throw new Error('Cannot create standalone Hyperliquid provider');
+    }
+    const { address } = evmAccount;
+    const { isTestnet, hip3ConfigVersion } = this.state;
+    const network = isTestnet ? 'testnet' : 'mainnet';
+    const expectedDexes = this.#getStaticSnapshotDexes();
+    if (!expectedDexes) {
+      throw new Error('User data snapshot DEX identity is not static');
+    }
+    const isCurrent = (): boolean => {
+      let currentAddress: string | undefined;
+      try {
+        currentAddress = getSelectedEvmAccountFromMessenger(
+          this.messenger,
+        )?.address;
+      } catch {
+        return false;
+      }
+
+      return (
+        this.state.activeProvider === 'hyperliquid' &&
+        (!capturedActiveProvider ||
+          this.activeProviderInstance === capturedActiveProvider) &&
+        this.state.isTestnet === isTestnet &&
+        this.state.hip3ConfigVersion === hip3ConfigVersion &&
+        currentAddress?.toLowerCase() === address.toLowerCase()
+      );
+    };
+
+    const context: UserSnapshotContext = {
+      provider,
+      standaloneProvider,
+      address,
+      isTestnet,
+      hip3ConfigVersion,
+      expectedDexes,
+      isCurrent,
+    };
+    const requestKey = [
+      'hyperliquid',
+      network,
+      address.toLowerCase(),
+      hip3ConfigVersion,
+      ...expectedDexes,
+    ].join('|');
+    const existingRequest = this.#userSnapshotRequests.get(requestKey);
+    if (existingRequest?.provider === provider) {
+      return existingRequest.promise;
+    }
+
+    const request = this.#fetchAndCacheUserDataSnapshot(context);
+    this.#userSnapshotRequests.set(requestKey, { provider, promise: request });
+    try {
+      return await request;
+    } finally {
+      if (this.#userSnapshotRequests.get(requestKey)?.promise === request) {
+        this.#userSnapshotRequests.delete(requestKey);
+      }
+    }
+  }
+
+  async #fetchAndCacheUserDataSnapshot(
+    context: UserSnapshotContext,
+  ): Promise<PerpsUserDataSnapshot> {
+    const {
+      provider,
+      standaloneProvider,
+      address,
+      isTestnet,
+      hip3ConfigVersion,
+      expectedDexes,
+      isCurrent,
+    } = context;
+    if (!isCurrent()) {
+      throw new Error('User data snapshot context changed');
+    }
+    if (!provider.getUserDataSnapshot) {
+      throw new Error('Provider has no atomic snapshot API');
+    }
+    const identity = {
+      provider: 'hyperliquid' as const,
+      network: isTestnet ? ('testnet' as const) : ('mainnet' as const),
+      hip3ConfigVersion,
+      dexes: expectedDexes,
+    };
+    const snapshotRequest = provider.getUserDataSnapshot({
+      userAddress: address,
+      identity,
+    });
+    const snapshot = standaloneProvider
+      ? await this.#trackStandaloneProviderOperation(
+          standaloneProvider,
+          snapshotRequest,
+        )
+      : await snapshotRequest;
+
+    if (!isCurrent()) {
+      throw new Error('User data snapshot context changed');
+    }
+
+    const snapshotIdentity = snapshot.identity;
+    const hasCompleteBundle =
+      Array.isArray(snapshot.positions) &&
+      Array.isArray(snapshot.orders) &&
+      snapshot.accountState !== null &&
+      typeof snapshot.accountState === 'object';
+    const hasExactIdentity =
+      snapshotIdentity.provider === identity.provider &&
+      snapshotIdentity.network === identity.network &&
+      snapshotIdentity.hip3ConfigVersion === identity.hip3ConfigVersion &&
+      snapshotIdentity.address.toLowerCase() === address.toLowerCase() &&
+      snapshotIdentity.dexes.length === expectedDexes.length &&
+      snapshotIdentity.dexes.every(
+        (dex, index) => dex === expectedDexes[index],
+      );
+    if (!hasCompleteBundle || !hasExactIdentity) {
+      throw new Error('User data snapshot is incomplete or mismatched');
+    }
+
+    if (!isCurrent()) {
+      throw new Error('User data snapshot context changed');
+    }
+
+    const cachedSnapshot = cloneUserDataSnapshot(snapshot);
+    const result = cloneUserDataSnapshot(snapshot);
+    const timestamp = Date.now();
+    const providerNetworkKey = buildProviderCacheKey('hyperliquid', isTestnet);
+    this.update((state) => {
+      state.cachedUserDataByProvider[providerNetworkKey] = {
+        positions: cachedSnapshot.positions,
+        orders: cachedSnapshot.orders,
+        accountState: cachedSnapshot.accountState,
+        timestamp,
+        address,
+        hip3ConfigVersion,
+        dexes: expectedDexes,
+      };
+    });
+    this.#persistUserCacheToDisk();
+    this.#debugLog('PerpsController: user cache snapshot written', {
+      writtenKey: providerNetworkKey,
+      availableKeys: Object.keys(this.state.cachedUserDataByProvider).sort(),
+      positionCount: cachedSnapshot.positions.length,
+      orderCount: cachedSnapshot.orders.length,
+    });
+
+    return result;
   }
 
   /**
@@ -1398,10 +1699,13 @@ export class PerpsController extends BaseController<
       return this.#standaloneProvider;
     }
 
-    // Stale or missing — tear down old one (fire-and-forget)
+    // Stale or missing — retire the old provider after active operations finish.
     if (this.#standaloneProvider) {
       const old = this.#standaloneProvider;
-      Promise.resolve(old.disconnect()).catch(() => {
+      this.#standaloneProvider = null;
+      this.#standaloneProviderIsTestnet = null;
+      this.#standaloneProviderHip3Version = null;
+      this.#retireStandaloneProvider(old).catch(() => {
         /* best-effort */
       });
     }
@@ -1427,22 +1731,54 @@ export class PerpsController extends BaseController<
     return this.#standaloneProvider;
   }
 
+  #trackStandaloneProviderOperation<Result>(
+    provider: PerpsProvider,
+    operation: Promise<Result>,
+  ): Promise<Result> {
+    const operations =
+      this.#standaloneProviderOperations.get(provider) ?? new Set();
+    this.#standaloneProviderOperations.set(provider, operations);
+
+    const trackedOperation = operation.finally(() => {
+      operations.delete(trackedOperation);
+      if (operations.size === 0) {
+        this.#standaloneProviderOperations.delete(provider);
+      }
+    });
+    operations.add(trackedOperation);
+
+    return trackedOperation;
+  }
+
+  async #retireStandaloneProvider(
+    provider: HyperLiquidProvider,
+  ): Promise<void> {
+    const operations = this.#standaloneProviderOperations.get(provider);
+    if (operations?.size) {
+      await Promise.allSettled([...operations]);
+    }
+    try {
+      await provider.disconnect();
+    } catch {
+      /* best-effort */
+    } finally {
+      this.#standaloneProviderOperations.delete(provider);
+    }
+  }
+
   /**
    * Disconnect and discard the cached standalone provider (if any).
    * Best-effort — errors are silently caught.
    */
   async #cleanupStandaloneProvider(): Promise<void> {
-    if (!this.#standaloneProvider) {
+    const provider = this.#standaloneProvider;
+    if (!provider) {
       return;
-    }
-    try {
-      await this.#standaloneProvider.disconnect();
-    } catch {
-      /* best-effort */
     }
     this.#standaloneProvider = null;
     this.#standaloneProviderIsTestnet = null;
     this.#standaloneProviderHip3Version = null;
+    await this.#retireStandaloneProvider(provider);
   }
 
   /**
@@ -2940,7 +3276,10 @@ export class PerpsController extends BaseController<
       // TODO: When adding new providers (MYX), consider a provider factory pattern
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return provider.getPositions(params);
+      const operation = provider.getPositions(params);
+      return provider === this.#standaloneProvider
+        ? this.#trackStandaloneProviderOperation(provider, operation)
+        : operation;
     }
 
     const provider = this.getActiveProvider();
@@ -3012,7 +3351,10 @@ export class PerpsController extends BaseController<
     if (params?.standalone && params.userAddress) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return provider.getOpenOrders(params);
+      const operation = provider.getOpenOrders(params);
+      return provider === this.#standaloneProvider
+        ? this.#trackStandaloneProviderOperation(provider, operation)
+        : operation;
     }
 
     const provider = this.getActiveProvider();
@@ -3064,7 +3406,10 @@ export class PerpsController extends BaseController<
       // Fallback to cached standalone provider for pre-initialization discovery
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return provider.getAccountState(params);
+      const operation = provider.getAccountState(params);
+      return provider === this.#standaloneProvider
+        ? this.#trackStandaloneProviderOperation(provider, operation)
+        : operation;
     }
 
     const provider = this.getActiveProvider();
@@ -3108,12 +3453,15 @@ export class PerpsController extends BaseController<
     if (params?.standalone) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return this.#marketDataService.getMarkets({
+      const operation = this.#marketDataService.getMarkets({
         provider,
         params,
         context: this.#createServiceContext('getMarkets'),
         isMarketAllowed,
       });
+      return provider === this.#standaloneProvider
+        ? this.#trackStandaloneProviderOperation(provider, operation)
+        : operation;
     }
 
     const provider = this.getActiveProvider();
@@ -3143,22 +3491,97 @@ export class PerpsController extends BaseController<
   async getMarketDataWithPrices(
     params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
+    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    const context = this.#createServiceContext('getMarketDataWithPrices', {
+      ...(globalSnapshot && { globalSnapshot }),
+    });
     if (params?.standalone) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return this.#marketDataService.getMarketDataWithPrices({
+      const operation = this.#marketDataService.getMarketDataWithPrices({
         provider,
         params,
-        context: this.#createServiceContext('getMarketDataWithPrices'),
+        context,
       });
+      return provider === this.#standaloneProvider
+        ? this.#trackStandaloneProviderOperation(provider, operation)
+        : operation;
     }
 
     const provider = this.getActiveProvider();
     return this.#marketDataService.getMarketDataWithPrices({
       provider,
       params,
-      context: this.#createServiceContext('getMarketDataWithPrices'),
+      context,
     });
+  }
+
+  /**
+   * Capture the exact static identity required to adopt an atomic snapshot.
+   * Dynamic DEX discovery and non-Hyperliquid provider modes deliberately opt
+   * out so they retain the provider path.
+   *
+   * @returns Snapshot identity plus a race guard, or undefined when unsafe.
+   */
+  #buildGlobalSnapshotContext(): ServiceContext['globalSnapshot'] {
+    const snapshotConfigured =
+      Boolean(this.#options.infrastructure.terminalApi?.globalSnapshotUrl) ||
+      typeof this.#options.infrastructure.terminalMarketService
+        ?.fetchGlobalSnapshot === 'function';
+    if (!snapshotConfigured || this.state.activeProvider !== 'hyperliquid') {
+      return undefined;
+    }
+
+    const enabledDexes = this.#getStaticSnapshotDexes();
+    if (!enabledDexes) {
+      return undefined;
+    }
+    const { isTestnet, hip3ConfigVersion } = this.state;
+    return {
+      request: {
+        provider: 'hyperliquid',
+        network: isTestnet ? 'testnet' : 'mainnet',
+        enabledDexes,
+      },
+      isCurrent: () =>
+        this.state.activeProvider === 'hyperliquid' &&
+        this.state.isTestnet === isTestnet &&
+        this.state.hip3ConfigVersion === hip3ConfigVersion,
+      isMarketAllowed: this.#buildMarketAllowedFilter(),
+    };
+  }
+
+  #getStaticSnapshotDexes(): string[] | undefined {
+    if (!this.#hip3Enabled) {
+      return ['main'];
+    }
+    if (this.state.isTestnet) {
+      return TESTNET_HIP3_CONFIG.AutoDiscoverAll
+        ? undefined
+        : canonicalizeHyperLiquidDexes(TESTNET_HIP3_CONFIG.EnabledDexs);
+    }
+    if (MAINNET_HIP3_CONFIG.AutoDiscoverAll) {
+      return undefined;
+    }
+
+    const dexes = new Set<string>();
+    for (const pattern of this.#hip3AllowlistMarkets) {
+      const colonIndex = pattern.indexOf(':');
+      if (colonIndex <= 0) {
+        if (/^[a-z][a-z0-9]*$/iu.test(pattern)) {
+          dexes.add(pattern.toLowerCase());
+          continue;
+        }
+        return undefined;
+      }
+      const dex = pattern.slice(0, colonIndex);
+      if (dex && /^[a-z0-9][a-z0-9-]*$/u.test(dex)) {
+        dexes.add(dex);
+      } else {
+        return undefined;
+      }
+    }
+    return canonicalizeHyperLiquidDexes(dexes);
   }
 
   // ============================================================================
@@ -3175,7 +3598,16 @@ export class PerpsController extends BaseController<
 
   #isPreloading = false;
 
+  #marketPreloadQueued = false;
+
   #isPreloadingUserData = false;
+
+  #userPreloadQueued = false;
+
+  readonly #userSnapshotRequests = new Map<
+    string,
+    { provider: PerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
+  >();
 
   #preloadStateUnsubscribe: (() => void) | null = null;
 
@@ -3225,6 +3657,47 @@ export class PerpsController extends BaseController<
     });
   }
 
+  /** Persist the latest selected-account snapshot for each provider/network. */
+  #persistUserCacheToDisk(): void {
+    const entries: DiskCacheUserEntry[] = [];
+
+    for (const [cacheKey, entry] of Object.entries(
+      this.state.cachedUserDataByProvider,
+    )) {
+      const [providerId, network] = cacheKey.split(':');
+      if (
+        !providerId ||
+        (network !== 'mainnet' && network !== 'testnet') ||
+        providerId === 'aggregated'
+      ) {
+        continue;
+      }
+      entries.push({
+        providerNetworkKey: `${providerId}:${network}`,
+        address: entry.address,
+        positions: entry.positions,
+        orders: entry.orders,
+        accountState: entry.accountState,
+        timestamp: entry.timestamp,
+        ...(entry.hip3ConfigVersion !== undefined && {
+          hip3ConfigVersion: entry.hip3ConfigVersion,
+        }),
+        ...(entry.dexes !== undefined && { dexes: entry.dexes }),
+      });
+    }
+
+    this.#userDiskWrite = this.#userDiskWrite
+      .then(() =>
+        persistUserEntriesToDisk(
+          this.#options.infrastructure.diskCache,
+          entries,
+        ),
+      )
+      .catch(() => {
+        // Disk persistence is best-effort and must not block live data.
+      });
+  }
+
   /**
    * Start background market data preloading.
    * Fetches market data immediately and refreshes every 5 minutes.
@@ -3246,10 +3719,16 @@ export class PerpsController extends BaseController<
     this.#performMarketDataPreload().catch(() => {
       /* fire-and-forget */
     });
+    this.#performUserDataPreload().catch(() => {
+      /* fire-and-forget */
+    });
 
     // Periodic refresh
     this.#preloadTimer = setInterval(() => {
       this.#performMarketDataPreload().catch(() => {
+        /* fire-and-forget */
+      });
+      this.#performUserDataPreload().catch(() => {
         /* fire-and-forget */
       });
     }, PerpsController.#preloadRefreshMs);
@@ -3297,46 +3776,32 @@ export class PerpsController extends BaseController<
         this.#performMarketDataPreload().catch(() => {
           /* fire-and-forget */
         });
+        this.#performUserDataPreload().catch(() => {
+          /* fire-and-forget */
+        });
       }
     };
 
-    this.messenger.subscribe('PerpsController:stateChange', handler);
+    this.messenger.subscribe('PerpsController:stateChanged', handler);
     this.#preloadStateUnsubscribe = (): void => {
-      this.messenger.unsubscribe('PerpsController:stateChange', handler);
+      this.messenger.unsubscribe('PerpsController:stateChanged', handler);
     };
 
     // Watch for selected account changes and selected account group changes.
     const accountChangeHandler = (): void => {
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       const currentAddress = evmAccount?.address ?? null;
+      this.#debugLog('PerpsController: account cache selection', {
+        address: currentAddress?.toLowerCase() ?? null,
+        availableKeys: Object.keys(this.state.cachedUserDataByProvider).sort(),
+      });
 
-      // If any cached entry belongs to a different account, clear all entries.
-      // Max 4 entries (2 providers × 2 networks) — clearing all is simple and safe.
-      const hasStaleEntries = Object.values(
-        this.state.cachedUserDataByProvider,
-      ).some(
-        (entry) =>
-          entry.address.toLowerCase() !== currentAddress?.toLowerCase(),
-      );
-      if (hasStaleEntries) {
-        this.#debugLog(
-          'PerpsController: Account changed, clearing user data cache',
-        );
-        this.update((state) => {
-          state.cachedUserDataByProvider = {};
+      // The address guard makes the previous entry unreadable immediately;
+      // refresh replaces it under the existing provider/network key.
+      if (currentAddress) {
+        this.#performUserDataPreload().catch(() => {
+          /* fire-and-forget */
         });
-        // Invalidate disk-cached user data for the old account
-        this.#options.infrastructure.diskCache
-          .removeItem(PERPS_DISK_CACHE_USER_DATA)
-          .catch(() => {
-            /* fire-and-forget */
-          });
-        // Only preload if the new account is an EVM account
-        if (currentAddress) {
-          this.#performUserDataPreload().catch(() => {
-            /* fire-and-forget */
-          });
-        }
       }
     };
     this.messenger.subscribe(
@@ -3378,6 +3843,8 @@ export class PerpsController extends BaseController<
     }
     this.#previousIsTestnet = null;
     this.#previousHip3ConfigVersion = null;
+    this.#marketPreloadQueued = false;
+    this.#userPreloadQueued = false;
     this.#cleanupStandaloneProvider().catch(() => {
       /* fire-and-forget to preserve sync signature */
     });
@@ -3388,6 +3855,7 @@ export class PerpsController extends BaseController<
    */
   async #performMarketDataPreload(): Promise<void> {
     if (this.#isPreloading) {
+      this.#marketPreloadQueued = true;
       return;
     }
 
@@ -3407,11 +3875,18 @@ export class PerpsController extends BaseController<
       actualProviderId,
       this.state.isTestnet,
     );
+    const preloadContext = {
+      activeProvider: this.state.activeProvider,
+      isTestnet: this.state.isTestnet,
+      hip3ConfigVersion: this.state.hip3ConfigVersion,
+    };
+    const staticSnapshotDexes = this.#getStaticSnapshotDexes();
 
     const now = Date.now();
     const existingEntry = this.state.cachedMarketDataByProvider[cacheKey];
     if (
       existingEntry &&
+      this.#isMarketCacheEntryCurrent(actualProviderId, existingEntry) &&
       now - existingEntry.timestamp < PerpsController.#preloadGuardMs
     ) {
       return;
@@ -3443,8 +3918,41 @@ export class PerpsController extends BaseController<
         markets: data.length,
       });
 
+      if (
+        this.state.activeProvider !== preloadContext.activeProvider ||
+        this.state.isTestnet !== preloadContext.isTestnet ||
+        this.state.hip3ConfigVersion !== preloadContext.hip3ConfigVersion
+      ) {
+        traceData = {
+          success: false,
+          error: 'Global snapshot preload context changed',
+        };
+        this.#debugLog(
+          'PerpsController: Discarding stale global snapshot preload',
+        );
+        return;
+      }
+
       // Store under per-provider key(s)
       const ts = Date.now();
+      const sourceExpiries = data.flatMap((market) =>
+        market.dataSource === 'terminal-global-snapshot-mark' &&
+        typeof market.sourceExpiresAt === 'number'
+          ? [market.sourceExpiresAt]
+          : [],
+      );
+      const sourceExpiresAt =
+        data.length > 0 && sourceExpiries.length === data.length
+          ? Math.min(...sourceExpiries)
+          : undefined;
+      const snapshotCacheIdentity =
+        sourceExpiresAt !== undefined && staticSnapshotDexes
+          ? {
+              sourceExpiresAt,
+              hip3ConfigVersion: preloadContext.hip3ConfigVersion,
+              dexes: staticSnapshotDexes,
+            }
+          : {};
       const marketDiskEntries: {
         providerNetworkKey: string;
         data: PerpsMarketData[];
@@ -3495,6 +4003,7 @@ export class PerpsController extends BaseController<
           state.cachedMarketDataByProvider[cacheKey] = {
             data,
             timestamp: ts,
+            ...snapshotCacheIdentity,
           };
         });
       }
@@ -3515,11 +4024,6 @@ export class PerpsController extends BaseController<
         performance.now() - preloadStart,
         'millisecond',
       );
-
-      // Also preload user data (fire-and-forget, non-blocking)
-      this.#performUserDataPreload().catch(() => {
-        /* fire-and-forget */
-      });
     } catch (error) {
       traceData = {
         success: false,
@@ -3539,6 +4043,12 @@ export class PerpsController extends BaseController<
         data: traceData,
       });
       this.#isPreloading = false;
+      if (this.#marketPreloadQueued && this.#preloadTimer) {
+        this.#marketPreloadQueued = false;
+        this.#performMarketDataPreload().catch(() => {
+          // Background preload is best-effort.
+        });
+      }
     }
   }
 
@@ -3548,6 +4058,11 @@ export class PerpsController extends BaseController<
    */
   async #performUserDataPreload(): Promise<void> {
     if (this.#isPreloadingUserData) {
+      this.#userPreloadQueued = true;
+      return;
+    }
+
+    if (this.#isReinitializing) {
       return;
     }
 
@@ -3558,33 +4073,73 @@ export class PerpsController extends BaseController<
     }
 
     const userAddress = evmAccount.address;
+    const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
+    const { activeProviderInstance } = this;
+    const hyperliquidDexes = this.#getStaticSnapshotDexes();
+    const isCurrent = (): boolean => {
+      let currentAddress: string | undefined;
+      try {
+        currentAddress = getSelectedEvmAccountFromMessenger(
+          this.messenger,
+        )?.address;
+      } catch {
+        return false;
+      }
+      return (
+        this.state.activeProvider === activeProvider &&
+        this.activeProviderInstance === activeProviderInstance &&
+        this.state.isTestnet === isTestnet &&
+        this.state.hip3ConfigVersion === hip3ConfigVersion &&
+        currentAddress?.toLowerCase() === userAddress.toLowerCase()
+      );
+    };
 
     // Determine actual provider (same logic as market preload)
-    const actualProviderId = this.activeProviderInstance
-      ? this.state.activeProvider // includes 'aggregated'
+    const actualProviderId = activeProviderInstance
+      ? activeProvider // includes 'aggregated'
       : 'hyperliquid';
-    const userCacheKey = buildProviderCacheKey(
+    const providerNetworkKey = buildProviderCacheKey(
       actualProviderId,
-      this.state.isTestnet,
+      isTestnet,
     );
 
     // Skip if cache is fresh and for same account
     const now = Date.now();
-    const existingEntry = this.state.cachedUserDataByProvider[userCacheKey];
+    const existingEntry =
+      this.state.cachedUserDataByProvider[providerNetworkKey];
+    const hasMatchingCache =
+      existingEntry !== undefined &&
+      this.#isUserCacheIdentityCurrent(
+        actualProviderId,
+        existingEntry,
+        userAddress,
+      );
+    const cacheAgeMs = existingEntry ? now - existingEntry.timestamp : null;
+    const websocketState = this.getWebSocketConnectionState();
+    let selectedEntryKey: string | null = null;
+    if (this.state.cachedUserDataByProvider[providerNetworkKey]) {
+      selectedEntryKey = providerNetworkKey;
+    }
+    this.#debugLog('PerpsController: user cache preload decision', {
+      requestedKey: providerNetworkKey,
+      selectedEntryKey,
+      availableKeys: Object.keys(this.state.cachedUserDataByProvider).sort(),
+      hasMatchingCache,
+      cacheAgeMs,
+      websocketState,
+    });
     if (
-      existingEntry?.address === userAddress &&
+      existingEntry &&
+      hasMatchingCache &&
       now - existingEntry.timestamp < PerpsController.#preloadGuardMs
     ) {
       return;
     }
 
-    // Skip standalone REST polling when WebSocket is connected — live data is streaming
     if (
+      hasMatchingCache &&
       this.getWebSocketConnectionState() === WebSocketConnectionState.Connected
     ) {
-      this.#debugLog(
-        'PerpsController: Skipping user data preload — WebSocket connected',
-      );
       return;
     }
 
@@ -3606,8 +4161,8 @@ export class PerpsController extends BaseController<
         id: traceId,
         op: PerpsTraceOperations.Operation,
         tags: {
-          provider: this.state.activeProvider,
-          isTestnet: this.state.isTestnet,
+          provider: activeProvider,
+          isTestnet,
         },
         data: { userAddress },
       });
@@ -3616,16 +4171,37 @@ export class PerpsController extends BaseController<
         userAddress,
       });
 
+      if (activeProvider === 'hyperliquid') {
+        const snapshot = await this.getUserDataSnapshot();
+        this.#debugLog('PerpsController: User data preloaded', {
+          positionCount: snapshot.positions.length,
+          orderCount: snapshot.orders.length,
+          totalBalance: snapshot.accountState.totalBalance,
+        });
+        traceData = {
+          success: true,
+          positionCount: snapshot.positions.length,
+          orderCount: snapshot.orders.length,
+        };
+        this.#options.infrastructure.tracer.setMeasurement(
+          PerpsMeasurementName.PerpsUserDataPreload,
+          performance.now() - preloadStart,
+          'millisecond',
+        );
+        return;
+      }
+
       const [positions, orders, accountState] = await Promise.all([
         this.getPositions({ standalone: true, userAddress }),
         this.getOpenOrders({ standalone: true, userAddress }),
         this.getAccountState({ standalone: true, userAddress }),
       ]);
 
-      if (
-        this.state.activeProvider === 'aggregated' &&
-        this.activeProviderInstance
-      ) {
+      if (!isCurrent()) {
+        throw new Error('User data preload context changed');
+      }
+
+      if (activeProvider === 'aggregated' && activeProviderInstance) {
         // Split by providerId and write one cache entry per provider key
         // (mirrors the market-data preload pattern at ~line 2976)
         const ts = Date.now();
@@ -3663,33 +4239,22 @@ export class PerpsController extends BaseController<
           accountState.providerId ?? fallbackProviderId,
         ).accountState = accountState;
 
-        const diskEntries: {
-          providerNetworkKey: string;
-          address: string;
-          positions: Position[];
-          orders: Order[];
-          accountState: AccountState | null;
-          timestamp: number;
-        }[] = [];
         this.update((state) => {
           for (const [pid, data] of byProvider) {
-            const key = buildProviderCacheKey(pid, this.state.isTestnet);
-            diskEntries.push({
-              providerNetworkKey: key,
-              address: userAddress,
-              positions: data.positions,
-              orders: data.orders,
-              accountState: data.accountState,
-              timestamp: ts,
-            });
+            const key = buildProviderCacheKey(pid, isTestnet);
             state.cachedUserDataByProvider[key] = {
               ...data,
               timestamp: ts,
               address: userAddress,
+              ...(pid === 'hyperliquid' &&
+                hyperliquidDexes && {
+                  hip3ConfigVersion,
+                  dexes: hyperliquidDexes,
+                }),
             };
           }
           // Write aggregated sentinel so the staleness guard sees it
-          state.cachedUserDataByProvider[userCacheKey] = {
+          state.cachedUserDataByProvider[providerNetworkKey] = {
             positions: [],
             orders: [],
             accountState: null,
@@ -3698,33 +4263,26 @@ export class PerpsController extends BaseController<
           };
         });
 
-        persistUserEntriesToDisk(
-          this.#options.infrastructure.diskCache,
-          diskEntries,
-        );
+        this.#persistUserCacheToDisk();
       } else {
         // Single provider — store directly under its key
         const ts = Date.now();
         this.update((state) => {
-          state.cachedUserDataByProvider[userCacheKey] = {
+          state.cachedUserDataByProvider[providerNetworkKey] = {
             positions,
             orders,
             accountState,
             timestamp: ts,
             address: userAddress,
+            ...(actualProviderId === 'hyperliquid' &&
+              hyperliquidDexes && {
+                hip3ConfigVersion,
+                dexes: hyperliquidDexes,
+              }),
           };
         });
 
-        persistUserEntriesToDisk(this.#options.infrastructure.diskCache, [
-          {
-            providerNetworkKey: userCacheKey,
-            address: userAddress,
-            positions,
-            orders,
-            accountState,
-            timestamp: ts,
-          },
-        ]);
+        this.#persistUserCacheToDisk();
       }
 
       this.#debugLog('PerpsController: User data preloaded', {
@@ -3763,6 +4321,12 @@ export class PerpsController extends BaseController<
         data: traceData,
       });
       this.#isPreloadingUserData = false;
+      if (this.#userPreloadQueued && this.#preloadTimer) {
+        this.#userPreloadQueued = false;
+        this.#performUserDataPreload().catch(() => {
+          // Background preload is best-effort.
+        });
+      }
     }
   }
 
@@ -4070,6 +4634,9 @@ export class PerpsController extends BaseController<
         this.#performMarketDataPreload().catch(() => {
           /* fire-and-forget */
         });
+        this.#performUserDataPreload().catch(() => {
+          /* fire-and-forget */
+        });
       }
     }
   }
@@ -4208,6 +4775,9 @@ export class PerpsController extends BaseController<
       // Re-trigger preload now that reinit is complete.
       if (this.#preloadTimer) {
         this.#performMarketDataPreload().catch(() => {
+          /* fire-and-forget */
+        });
+        this.#performUserDataPreload().catch(() => {
           /* fire-and-forget */
         });
       }

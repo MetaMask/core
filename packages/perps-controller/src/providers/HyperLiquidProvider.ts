@@ -14,6 +14,7 @@ import {
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
+  canonicalizeHyperLiquidDexes,
   FEE_RATES,
   getBridgeInfo,
   getChainId,
@@ -29,6 +30,8 @@ import {
   USDC_SYMBOL,
 } from '../constants/hyperLiquidConfig.js';
 import {
+  CHASE_ORDER_CONFIG,
+  HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
@@ -88,6 +91,7 @@ import type {
   GetOrFetchFillsParams,
   GetPositionsParams,
   GetSupportedPathsParams,
+  GetUserDataSnapshotParams,
   HistoricalPortfolioResult,
   InitializeResult,
   PerpsPlatformDependencies,
@@ -123,9 +127,10 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
+  PerpsUserDataSnapshot,
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
-import type { OrderType } from '../types/perps-types.js';
+import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
 import type {
   ExtendedAssetMeta,
   ExtendedPerpDex,
@@ -165,6 +170,8 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../utils/hyperLiquidValidation.js';
+import type { StrategyOrderValidationParams } from '../utils/hyperLiquidValidation.js';
+import { generatePerpsId } from '../utils/idUtils.js';
 import { transformMarketData } from '../utils/marketDataTransform.js';
 import {
   compileMarketPattern,
@@ -175,13 +182,17 @@ import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
+  computeChaseQuotePrice,
+  computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
+  splitScaleSizes,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
+  isStrategyOrderType,
   isTriggerOrderType,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
@@ -201,6 +212,166 @@ import {
  */
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
+
+/**
+ * Exchange messages that mean a cancel was refused because the order is not on
+ * the book any more.
+ *
+ * HyperLiquid answers a cancel it cannot match with "Order was never placed,
+ * already canceled, or filled." That is a rejection of the request but a
+ * confirmation of what the caller wanted — nothing of that order is resting.
+ * Every other rejection (multi-sig, a stale nonce, a rate limit) leaves the
+ * order exactly where it was, which is a materially different outcome.
+ */
+const ALREADY_GONE_CANCEL_MARKERS = [
+  'never placed',
+  'already canceled',
+  'already cancelled',
+  'order not found',
+];
+
+/**
+ * What happened to one order a cancel was asked to remove.
+ *
+ * `cancelled` and `gone` both mean nothing of it is resting, which is all a
+ * caller asked for; only `refused` leaves an order behind.
+ */
+type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
+
+/**
+ * Classify one entry of a cancel response.
+ *
+ * @param status - A single status from the exchange's cancel response.
+ * @returns Whether the order was cancelled, was already gone, or still rests.
+ */
+const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
+  if (status === 'success') {
+    return 'cancelled';
+  }
+
+  const message = (
+    isStatusObject(status) && typeof status.error === 'string'
+      ? status.error
+      : ''
+  ).toLowerCase();
+
+  return ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker))
+    ? 'gone'
+    : 'refused';
+};
+
+/**
+ * Read the best price on one side of the book, discounting the chase's own
+ * order.
+ *
+ * A chase rests one tick inside the spread, so its own order *is* the best
+ * price on its side. Reading the raw book would therefore see the chase's own
+ * quote every tick, conclude the touch has not moved, and never re-price —
+ * masking exactly the adverse moves the strategy exists to follow. Levels this
+ * provider occupies are netted down by what it holds there, and are skipped
+ * entirely when nothing else is left on them.
+ *
+ * "Own" means *every* chase this provider is running on that side, not just the
+ * one asking. Two chases on the same side each netting only themselves would
+ * read the other as the external touch and improve on it, then improve on the
+ * improvement — walking each other toward the opposite side of an unchanged
+ * market.
+ *
+ * The sizes must be what the orders still have resting, not what they were
+ * placed for: an order netted at its original size subtracts more than it
+ * occupies, which can hide external liquidity sharing the level.
+ *
+ * @param levels - One side of the book, best-first.
+ * @param ownByPrice - This provider's own resting size at each price.
+ * @returns The best price other participants are showing, or null.
+ */
+const readBestExternalPrice = (
+  levels: { px: string; sz: string }[] | undefined,
+  ownByPrice: Map<string, number>,
+): number | null => {
+  for (const level of levels ?? []) {
+    const price = parseFloat(level.px);
+    if (!Number.isFinite(price) || price <= 0) {
+      continue;
+    }
+
+    const size = parseFloat(level.sz) - (ownByPrice.get(level.px) ?? 0);
+    if (size > 0) {
+      return price;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Narrow order params down to their strategy fields.
+ *
+ * Both validation entry points forward exactly this group, so a field added to
+ * `StrategyOrderValidationParams` reaches both of them or neither.
+ *
+ * @param params - Order parameters.
+ * @returns The strategy fields, as validation takes them.
+ */
+const pickStrategyParams = (
+  params: OrderParams,
+): StrategyOrderValidationParams => ({
+  twapDuration: params.twapDuration,
+  twapRandomize: params.twapRandomize,
+  scaleMinPrice: params.scaleMinPrice,
+  scaleMaxPrice: params.scaleMaxPrice,
+  scaleNumOrders: params.scaleNumOrders,
+  chaseIntervalMs: params.chaseIntervalMs,
+  chaseMaxDurationMs: params.chaseMaxDurationMs,
+  chaseMaxRepricings: params.chaseMaxRepricings,
+});
+
+/**
+ * Check a strategy placement's notional against the minimum the venue will
+ * actually apply to it.
+ *
+ * The per-order minimum is charged against each order the venue receives, and a
+ * strategy placement does not send one order:
+ *
+ * A `twap` is a single instruction the venue slices itself, so it is bounded by
+ * the venue's own documented minimum for a TWAP rather than by the per-order
+ * minimum that `validateOrder` has already applied.
+ *
+ * `scale` is deliberately absent. Its rungs are the orders the venue charges
+ * the minimum against, and their sizes come from flooring onto the asset's size
+ * grid with the remainder landing on the first rung — none of which is knowable
+ * without `szDecimals`, which this check does not have. Every approximation
+ * available here is unsound in one direction or the other, and the one that was
+ * here rejected ladders whose submitted rungs all cleared the minimum.
+ * `#buildScaleLadder` applies the exact per-rung check against the real grid
+ * sizes, and it runs before anything is signed, so nothing is lost by leaving
+ * the question to it.
+ *
+ * `chase` is absent too: it rests one order at a time, so the per-order minimum
+ * the caller has already been checked against is the right bound.
+ *
+ * @param params - Notional parameters.
+ * @param params.orderType - The order placement type.
+ * @param params.orderValueUSD - Total notional of the placement, in USD.
+ * @returns Validation result with isValid flag and optional error message.
+ */
+const validateStrategyNotional = (params: {
+  orderType?: OrderType;
+  orderValueUSD: number;
+}): { isValid: boolean; error?: string } => {
+  const { orderType, orderValueUSD } = params;
+
+  if (orderType === 'twap') {
+    return orderValueUSD < HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
+      ? {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
+        }
+      : { isValid: true };
+  }
+
+  return { isValid: true };
+};
 
 // Helper method parameter interfaces (module-level for class-dependent methods only)
 type GetAssetInfoParams = {
@@ -290,6 +461,95 @@ type GetOrFetchPriceParams = {
 };
 
 /**
+ * What every strategy placement needs before it can talk to the exchange.
+ *
+ * The single-order path derives the same values inline; strategy placements
+ * share them through `#prepareStrategyPlacement` so the three of them cannot
+ * drift apart on validation, readiness, or leverage.
+ */
+type StrategyPlacementContext = {
+  assetId: number;
+  szDecimals: number;
+  finalPositionSize: number;
+  formattedSize: string;
+  /** The validated ladder a scale placement submits; absent for other types. */
+  ladder?: ScaleLadder;
+};
+
+/**
+ * A scale placement's rungs, exactly as they will be submitted.
+ *
+ * Built and checked before anything is signed, so the sizes and prices the
+ * venue sees are the ones the minimums were applied to.
+ */
+type ScaleLadder = {
+  prices: string[];
+  sizes: string[];
+};
+
+/**
+ * A scale ladder's children, held so the group can be cancelled as one.
+ *
+ * Session-scoped on purpose: the IDs also come back to the caller as
+ * `OrderResult.childOrderIds`, so a consumer that outlives this provider
+ * instance can still cancel them through the ordinary batch cancel.
+ */
+type ScaleOrderGroup = {
+  assetId: number;
+  orderIds: string[];
+};
+
+/**
+ * A running chase: the order currently resting, and the loop re-pricing it.
+ */
+type ChaseSession = {
+  symbol: string;
+  assetId: number;
+  isBuy: boolean;
+  szDecimals: number;
+  reduceOnly: boolean;
+  /** Exchange ID of the order resting right now, or null once it is gone. */
+  orderId: string | null;
+  /**
+   * Size the order resting right now was placed for.
+   *
+   * Shrinks as the chase re-prices: a child that partially filled before it was
+   * cancelled leaves less to chase, and re-placing the original size would
+   * execute more than the caller asked for.
+   */
+  size: string;
+  /**
+   * Settles when an in-flight replacement has finished resting (or failed).
+   * Null while no placement is in flight.
+   *
+   * `orderId` is null for the whole of that round trip, which is
+   * indistinguishable from "nothing rests" unless a canceller can tell the two
+   * apart — so a cancel joins this before deciding what to cancel.
+   */
+  pendingReplacement: Promise<void> | null;
+  /** Price the resting order sits at. */
+  restingPrice: string;
+  intervalMs: number;
+  /**
+   * Builder fee this chase was quoted at, in tenths of a basis point.
+   *
+   * Captured when the session starts because the rewards discount it reflects
+   * is set around the caller's `placeOrder` and cleared as soon as that returns.
+   * A chase returns immediately, so every replacement runs after the clear and
+   * would otherwise be re-quoted at the undiscounted maximum.
+   */
+  builderFee: number;
+  /** Absolute deadline, as a `Date.now()` stamp. */
+  deadline: number;
+  maxRepricings: number;
+  repricings: number;
+  /** Cleared when the session stops; null while no tick is pending. */
+  timer: ReturnType<typeof setTimeout> | null;
+  /** False once the chase has stopped re-pricing, whatever the reason. */
+  active: boolean;
+};
+
+/**
  * Collect the order IDs of every TP/SL child carried by a parent order.
  *
  * HyperLiquid lists `normalTpsl` children both nested under their parent and as
@@ -352,12 +612,43 @@ function collectPositionTriggerOrders(params: {
 }): {
   takeProfitOrders: PositionTriggerOrder[];
   stopLossOrders: PositionTriggerOrder[];
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
 } {
   const { orders, position, childOrderIds } = params;
 
   const byOrderId = new Map<string, PositionTriggerOrder>();
+  let takeProfitPrice: string | undefined;
+  let stopLossPrice: string | undefined;
 
   orders.forEach((rawOrder) => {
+    if (
+      rawOrder.isTrigger &&
+      rawOrder.reduceOnly &&
+      rawOrder.isPositionTpsl === Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+    ) {
+      if (rawOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = rawOrder.triggerPx;
+      } else if (rawOrder.orderType.includes('Stop')) {
+        stopLossPrice = rawOrder.triggerPx;
+      }
+    }
+
+    rawOrder.children?.forEach((childOrder) => {
+      if (
+        !childOrder.isTrigger ||
+        !childOrder.reduceOnly ||
+        childOrder.isPositionTpsl !== Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+      ) {
+        return;
+      }
+      if (childOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = childOrder.triggerPx;
+      } else if (childOrder.orderType.includes('Stop')) {
+        stopLossPrice = childOrder.triggerPx;
+      }
+    });
+
     if (
       rawOrder.coin !== position.symbol ||
       !rawOrder.isTrigger ||
@@ -387,6 +678,8 @@ function collectPositionTriggerOrders(params: {
     stopLossOrders: triggerOrders.filter(
       (order) => order.direction !== 'take_profit',
     ),
+    ...(takeProfitPrice && { takeProfitPrice }),
+    ...(stopLossPrice && { stopLossPrice }),
   };
 }
 
@@ -516,6 +809,27 @@ export class HyperLiquidProvider implements PerpsProvider {
     'invalid nonce': PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
   };
 
+  // Scale ladders placed by this provider instance, keyed by group handle, so
+  // one cancel can reach every rung. Cleared on disconnect; the rung IDs are
+  // also returned to the caller as `OrderResult.childOrderIds`.
+  readonly #scaleOrderGroups = new Map<string, ScaleOrderGroup>();
+
+  // Chase sessions running on this provider instance, keyed by session handle.
+  // Each owns a pending timer, so disconnect has to stop them.
+  readonly #chaseSessions = new Map<string, ChaseSession>();
+
+  // Chase placements that have reserved a slot against the venue's concurrency
+  // cap but have not registered their session yet. Two round trips separate the
+  // two, and a reservation is what keeps concurrent placements from both
+  // passing the check.
+  #chasePlacementsInFlight = 0;
+
+  // Bumped by every teardown that clears the chase registry. A placement
+  // captures it before its round trips and refuses to register afterwards if it
+  // has moved: a session registered after a disconnect would schedule a
+  // background timer against a provider that has already been torn down.
+  #chaseGeneration = 0;
+
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
 
@@ -585,6 +899,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#allowlistMarkets,
       this.#blocklistMarkets,
       this.#priceDeviationLimit,
+      async () => {
+        await this.#ensureClientsInitialized();
+        const validatedDexs = await this.#getValidatedDexs();
+        return validatedDexs.filter((dex): dex is string => dex !== null);
+      },
     );
 
     // NOTE: Clients are NOT initialized here - they'll be initialized lazily
@@ -3627,9 +3946,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
         timeInForce: params.timeInForce,
+        clientOrderId: params.clientOrderId,
+        ...pickStrategyParams(params),
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
+      }
+
+      // Strategy placements expand into an execution schedule rather than a
+      // single order, so they leave the shared path here — before the order
+      // array, the HIP-3 transfer, and the atomic single-order submit, none of
+      // which describe what a TWAP, a ladder, or a chase does.
+      if (isStrategyOrderType(params.orderType)) {
+        return await this.#placeStrategyOrder(params, params.orderType);
       }
 
       // Extract DEX name for API calls (main DEX = null)
@@ -3821,7 +4150,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       // close, so the retry would either be rejected as "Reduce only order would
       // increase position" or resubmit an identical order. Surfacing the
       // minimum-value error names the real problem instead.
-      if (isMinimumOrderError && retryCount === 0 && !params.reduceOnly) {
+      //
+      // Strategy placements are excluded for the same reason in a different
+      // shape: the minimum applies to each TWAP slice and each ladder rung, not
+      // to the total, so growing the total by 1.5% does not clear it.
+      if (
+        isMinimumOrderError &&
+        retryCount === 0 &&
+        !params.reduceOnly &&
+        !isStrategyOrderType(params.orderType)
+      ) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -3873,6 +4211,1370 @@ export class HyperLiquidProvider implements PerpsProvider {
         isBuy: params.isBuy,
       });
     }
+  }
+
+  /**
+   * Dispatch a strategy placement to the handler that owns it.
+   *
+   * @param params - Order parameters, already validated.
+   * @param orderType - The strategy type, narrowed by the caller.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeStrategyOrder(
+    params: OrderParams,
+    orderType: StrategyOrderType,
+  ): Promise<OrderResult> {
+    // Captured before the shared preamble, not after it: that preamble awaits
+    // asset info, validation, trading readiness and a leverage update, and a
+    // disconnect during any of them has to be seen by the chase registration
+    // at the end.
+    const generation = this.#chaseGeneration;
+
+    if (orderType !== 'chase') {
+      const context = await this.#prepareStrategyPlacement(params);
+      return orderType === 'twap'
+        ? await this.#placeTwapOrder(params, context)
+        : await this.#placeScaleOrder(params, context);
+    }
+
+    // The chase slot is claimed before the preamble, not after it: the preamble
+    // completes the signing setup and can change the asset's leverage, and a
+    // request that is going to be refused for exceeding the venue's cap must
+    // not cost either. Reserved in the same synchronous step it is checked, so
+    // concurrent placements cannot both see room during the round trips that
+    // follow.
+    const activeChases = [...this.#chaseSessions.values()].filter(
+      (session) => session.active,
+    ).length;
+    if (
+      activeChases + this.#chasePlacementsInFlight >=
+      CHASE_ORDER_CONFIG.MaxActiveSessions
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
+    }
+    this.#chasePlacementsInFlight += 1;
+
+    try {
+      const context = await this.#prepareStrategyPlacement(params);
+      return await this.#startChaseSession(params, context, generation);
+    } finally {
+      this.#chasePlacementsInFlight -= 1;
+    }
+  }
+
+  /**
+   * Run the shared preamble every strategy placement needs.
+   *
+   * Mirrors the single-order path's own preamble — validate against a live
+   * price, complete the signing setup, resolve the asset ID, apply leverage —
+   * so a strategy order is held to the same rules as an ordinary one.
+   *
+   * @param params - Order parameters.
+   * @returns The asset and sizing context the strategy handlers submit with.
+   */
+  async #prepareStrategyPlacement(
+    params: OrderParams,
+  ): Promise<StrategyPlacementContext> {
+    const { dex: dexName } = parseAssetName(params.symbol);
+
+    // A HIP-3 order is preceded by a margin transfer onto the builder DEX and
+    // followed by a rebalance, both of which are wired into the single-order
+    // submit path and its rollback. Rather than half-support that here, a
+    // strategy placement on a HIP-3 market is refused outright.
+    if (dexName !== null) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
+    }
+
+    const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
+      symbol: params.symbol,
+      dexName,
+    });
+
+    const effectivePrice =
+      params.currentPrice && params.currentPrice > 0
+        ? params.currentPrice
+        : currentPrice;
+
+    await this.#validateOrderBeforePlacement({
+      ...params,
+      currentPrice: effectivePrice,
+    });
+
+    const normalizedMaxSlippageBps =
+      params.maxSlippageBps ??
+      (typeof params.slippage === 'number'
+        ? Math.round(params.slippage * BASIS_POINTS_DIVISOR)
+        : undefined);
+
+    const { finalPositionSize } = calculateFinalPositionSize({
+      usdAmount: params.usdAmount,
+      size: params.size,
+      currentPrice: effectivePrice,
+      priceAtCalculation: params.priceAtCalculation,
+      maxSlippageBps: normalizedMaxSlippageBps,
+      szDecimals: assetInfo.szDecimals,
+      leverage: params.leverage,
+      reduceOnly: params.reduceOnly,
+    });
+
+    const formattedSize = formatHyperLiquidSize({
+      size: finalPositionSize,
+      szDecimals: assetInfo.szDecimals,
+    });
+
+    // Everything below is checked here, before anything is signed: it needs
+    // `szDecimals`, which only arrives with the asset info above, and these are
+    // caller mistakes that must not cost a leverage change or a signing prompt
+    // first.
+    const ladder =
+      params.orderType === 'scale'
+        ? this.#buildScaleLadder({
+            params,
+            szDecimals: assetInfo.szDecimals,
+            finalPositionSize,
+          })
+        : undefined;
+
+    // `validateOrder` applied the venue minimum to the notional the caller
+    // asked for; this applies it to the size actually being submitted. The two
+    // differ whenever sizing floors onto the grid rather than rounding up to
+    // meet the requested USD — which is exactly what a reduce-only order does,
+    // since the venue rejects a close larger than the position. A boundary
+    // amount can therefore clear the check the caller sees and still arrive
+    // under the minimum the venue charges against what it receives.
+    if (params.orderType === 'twap' || params.orderType === 'chase') {
+      const submittedNotional = parseFloat(formattedSize) * effectivePrice;
+      const minimumNotional =
+        params.orderType === 'twap'
+          ? HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
+          : this.#getMinimumOrderSize();
+
+      if (submittedNotional < minimumNotional) {
+        throw new Error(
+          params.orderType === 'twap'
+            ? PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL
+            : PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        );
+      }
+    }
+
+    // Kept after validation so an invalid strategy order never triggers the
+    // signature prompts in trading setup — same ordering as `placeOrder`.
+    await this.#ensureReadyForTrading();
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: params.symbol,
+      dexName,
+      meta,
+    });
+
+    await this.#prepareAssetForTrading({
+      symbol: params.symbol,
+      assetId,
+      leverage: params.leverage,
+    });
+
+    return {
+      assetId,
+      szDecimals: assetInfo.szDecimals,
+      finalPositionSize,
+      formattedSize,
+      ladder,
+    };
+  }
+
+  /**
+   * The venue's minimum value for a single order, in USD.
+   *
+   * @returns The minimum for the network this provider is pointed at.
+   */
+  #getMinimumOrderSize(): number {
+    return this.#clientService.isTestnetMode()
+      ? TRADING_DEFAULTS.amount.testnet
+      : TRADING_DEFAULTS.amount.mainnet;
+  }
+
+  /**
+   * Build a scale placement's rungs and check them as the venue will see them.
+   *
+   * Three things can only be decided once the asset's precision is known, and
+   * all of them are decided here rather than after the order is on its way:
+   *
+   * - **Prices collapse.** Two distinct rung prices can round onto the same
+   *   venue-formatted price, which would submit several orders at one price
+   *   instead of a ladder spanning the requested range.
+   * - **Slices are not the average.** `splitScaleSizes` floors onto the size
+   *   grid and puts the remainder on the first rung, so no rung carries the
+   *   average slice the pre-network check in `validateOrder` approximates with.
+   * - **The cheapest rung decides.** Each rung is an independent order, so the
+   *   venue applies its per-order minimum to the smallest slice at the lowest
+   *   price, not to the ladder's total.
+   *
+   * @param options - Ladder inputs.
+   * @param options.params - Order parameters.
+   * @param options.szDecimals - The asset's size and price precision.
+   * @param options.finalPositionSize - Total size to spread across the rungs.
+   * @returns The rungs, exactly as they will be submitted.
+   */
+  #buildScaleLadder(options: {
+    params: OrderParams;
+    szDecimals: number;
+    finalPositionSize: number;
+  }): ScaleLadder {
+    const { params, szDecimals, finalPositionSize } = options;
+    const count = params.scaleNumOrders as number;
+
+    const prices = computeScalePriceLadder({
+      minPrice: parseFloat(params.scaleMinPrice as string),
+      maxPrice: parseFloat(params.scaleMaxPrice as string),
+      count,
+    }).map((price) => formatHyperLiquidPrice({ price, szDecimals }));
+
+    if (new Set(prices).size !== prices.length) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    }
+
+    // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing.
+    const sizes = splitScaleSizes({
+      totalSize: finalPositionSize,
+      count,
+      szDecimals,
+    });
+
+    const minimumOrderSize = this.#getMinimumOrderSize();
+    const cheapestRungNotional = Math.min(
+      ...sizes.map(
+        (size, index) => parseFloat(size) * parseFloat(prices[index]),
+      ),
+    );
+    if (cheapestRungNotional < minimumOrderSize) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
+    }
+
+    return { prices, sizes };
+  }
+
+  /**
+   * Submit a TWAP through HyperLiquid's dedicated TWAP action.
+   *
+   * A TWAP is not an order on the book, so it does not go through the `order`
+   * action, carries no builder fee, and comes back identified by a `twapId`
+   * rather than an `oid`. That ID is the handle `cancelOrder` needs.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeTwapOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+  ): Promise<OrderResult> {
+    const { assetId, formattedSize } = context;
+    const exchangeClient = this.#clientService.getExchangeClient();
+
+    this.#deps.debugLogger.log('Submitting TWAP order', {
+      symbol: params.symbol,
+      assetId,
+      size: formattedSize,
+      durationMinutes: params.twapDuration,
+      randomize: params.twapRandomize ?? false,
+    });
+
+    const result = await exchangeClient.twapOrder({
+      twap: {
+        a: assetId,
+        b: params.isBuy,
+        s: formattedSize,
+        r: params.reduceOnly ?? false,
+        // Validation has already established this is a whole number of minutes
+        // inside the venue's bounds.
+        m: params.twapDuration as number,
+        t: params.twapRandomize ?? false,
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`TWAP order failed: ${JSON.stringify(result)}`);
+    }
+
+    const status = result.response?.data?.status;
+    if (!isStatusObject(status) || !hasProperty(status, 'running')) {
+      const rawError =
+        (status as { error?: string } | undefined)?.error ??
+        'TWAP order rejected';
+      throw new Error(rawError);
+    }
+
+    const running = status.running as { twapId: number };
+
+    return {
+      success: true,
+      orderId: running.twapId.toString(),
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Fan a scale placement out into one batch of resting limit orders.
+   *
+   * The whole ladder goes in a single `order` action, which is one round trip
+   * and one signature rather than one per rung. It is **not** atomic: an `na`
+   * grouping evaluates each entry independently, so the response can report
+   * some rungs resting and others rejected. A partial ladder is reported as
+   * such — `submittedSize` covers only the rungs that actually rested — rather
+   * than as a full submission.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeScaleOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+  ): Promise<OrderResult> {
+    const { assetId, szDecimals, formattedSize, ladder } = context;
+    // Built and validated in `#prepareStrategyPlacement`, before anything was
+    // signed, so what is submitted here is exactly what the minimums were
+    // applied to.
+    const { prices, sizes } = ladder as ScaleLadder;
+    const count = prices.length;
+
+    const orders: SDKOrderParams[] = prices.map((price, index) => ({
+      a: assetId,
+      b: params.isBuy,
+      p: price,
+      s: sizes[index],
+      r: params.reduceOnly ?? false,
+      t: { limit: { tif: 'Gtc' as const } },
+    }));
+
+    this.#deps.debugLogger.log('Submitting scale ladder', {
+      symbol: params.symbol,
+      assetId,
+      count,
+      prices: orders.map((order) => order.p),
+      sizes,
+    });
+
+    const exchangeClient = this.#clientService.getExchangeClient();
+    const result = await exchangeClient.order({
+      orders,
+      grouping: 'na',
+      builder: {
+        b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
+        f: this.#getDiscountedBuilderFee(),
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`Scale order failed: ${JSON.stringify(result)}`);
+    }
+
+    const statuses = result.response?.data?.statuses ?? [];
+    // Which rung each ID came from matters: `submittedSize` has to add up the
+    // slices that actually rested, not the total that was asked for.
+    const restedRungs = statuses
+      .map((status, index) => ({
+        orderId: this.#readOrderIdFromStatus(status),
+        size: sizes[index],
+      }))
+      .filter(
+        (rung): rung is { orderId: string; size: string } =>
+          rung.orderId !== undefined,
+      );
+
+    // A ladder that came back with no IDs at all rested nothing; reporting it
+    // as a success would hand the caller a handle that cancels nothing.
+    if (restedRungs.length === 0) {
+      throw new Error(
+        `Scale order rejected: ${JSON.stringify(result.response?.data)}`,
+      );
+    }
+
+    const childOrderIds = restedRungs.map((rung) => rung.orderId);
+    const groupId = generatePerpsId('scale');
+    this.#scaleOrderGroups.set(groupId, { assetId, orderIds: childOrderIds });
+
+    // The batch is not atomic, so a ladder can come back part-rested. Reporting
+    // the requested total as submitted would tell the caller they are exposed
+    // for more than they are.
+    const isPartial = restedRungs.length < count;
+    if (isPartial) {
+      this.#deps.debugLogger.log('Scale ladder only partly rested', {
+        groupId,
+        rested: restedRungs.length,
+        requested: count,
+        statuses,
+      });
+    }
+
+    return {
+      success: true,
+      orderId: groupId,
+      childOrderIds,
+      submittedSize: isPartial
+        ? formatHyperLiquidSize({
+            size: restedRungs.reduce(
+              (total, rung) => total + parseFloat(rung.size),
+              0,
+            ),
+            szDecimals,
+          })
+        : formattedSize,
+    };
+  }
+
+  /**
+   * Place a chase's first order and register the session that follows it.
+   *
+   * Split from the routing above so the concurrency reservation there wraps
+   * every await in one `try`/`finally`.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before any await.
+   * @returns A promise that resolves to the result.
+   */
+  async #startChaseSession(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+    generation: number,
+  ): Promise<OrderResult> {
+    const { assetId, szDecimals, formattedSize } = context;
+
+    // The preamble is several round trips long. A disconnect during it has
+    // already torn down everything this session would run on, so the chase
+    // stops here rather than reading the book and putting a fresh order on it
+    // for a provider that no longer exists.
+    if (generation !== this.#chaseGeneration) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+
+    const quotePrice = await this.#getChaseQuotePrice({
+      symbol: params.symbol,
+      isBuy: params.isBuy,
+      szDecimals,
+    });
+    if (quotePrice === 'gone') {
+      // No own order to be gone on a first placement; narrows the union.
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    // The book read is a round trip of its own, so the check above does not
+    // cover it. Re-checked here, immediately before the only statement that
+    // signs anything: every await on this path is now followed by a refusal
+    // before the next one, leaving one window that cannot be closed from here
+    // — a disconnect arriving while the submission itself is in flight, which
+    // the check after it handles.
+    if (generation !== this.#chaseGeneration) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+
+    // Read once, while the caller's discount context is still set.
+    const builderFee = this.#getDiscountedBuilderFee();
+
+    // Held onto rather than looked up again after the submission returns.
+    // `disconnect` drops the service's client reference synchronously, so a
+    // retraction that asked for a client after the fact would be refused one
+    // and leave the order resting under the account that placed it. This
+    // instance signed the order and can still cancel it as that account.
+    const placingClient = this.#clientService.getExchangeClient();
+
+    const orderId = await this.#restChaseOrder({
+      assetId,
+      isBuy: params.isBuy,
+      price: quotePrice,
+      size: formattedSize,
+      reduceOnly: params.reduceOnly ?? false,
+      builderFee,
+      exchangeClient: placingClient,
+    });
+
+    const intervalMs =
+      params.chaseIntervalMs ?? CHASE_ORDER_CONFIG.DefaultIntervalMs;
+    const sessionId = generatePerpsId('chase');
+    const session: ChaseSession = {
+      symbol: params.symbol,
+      assetId,
+      isBuy: params.isBuy,
+      size: formattedSize,
+      szDecimals,
+      reduceOnly: params.reduceOnly ?? false,
+      orderId,
+      pendingReplacement: null,
+      restingPrice: quotePrice,
+      intervalMs,
+      builderFee,
+      deadline:
+        Date.now() +
+        (params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs),
+      maxRepricings:
+        params.chaseMaxRepricings ?? CHASE_ORDER_CONFIG.DefaultMaxRepricings,
+      repricings: 0,
+      timer: null,
+      active: true,
+    };
+    // A disconnect landed while the submission was in flight — the one window
+    // the checks above cannot close. The order rested, but no strategy is
+    // running behind it and no handle names it, so this placement is reported
+    // as a failure. That makes the resting order an orphan: the caller is told
+    // the chase failed, nothing refreshes the caches a successful placement
+    // would have invalidated, and the exchange id is only usable for as long as
+    // the provider stays pointed at the account that placed it — a disconnect
+    // is usually followed by an account or network switch, after which handing
+    // the id back is no remedy at all. So it is cancelled here, through the
+    // client that signed it — the account switch cannot reach that instance —
+    // and the failure is then true of the venue as well as of this provider.
+    // Best-effort still: the transport underneath that client may already be
+    // closing, so a cancel that does not land falls back to reporting the id.
+    if (generation !== this.#chaseGeneration) {
+      this.#deps.debugLogger.log('Chase placement outlived its provider', {
+        orderId,
+        restingPrice: quotePrice,
+      });
+
+      const outcome = await this.#retractOrphanedChaseOrder(
+        session,
+        placingClient,
+      );
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
+        {
+          success: false,
+          // Reported only when the retraction did not take. Naming an order
+          // that is no longer on the book would send the caller to cancel
+          // something already gone; naming one that still rests is the only
+          // route left to it.
+          ...(outcome === 'refused' ? { childOrderIds: [orderId] } : {}),
+          submittedSize: formattedSize,
+        },
+      );
+    }
+
+    this.#chaseSessions.set(sessionId, session);
+    this.#scheduleChaseTick(sessionId);
+
+    this.#deps.debugLogger.log('Chase session started', {
+      sessionId,
+      symbol: params.symbol,
+      orderId,
+      restingPrice: quotePrice,
+      intervalMs,
+    });
+
+    return {
+      success: true,
+      orderId: sessionId,
+      childOrderIds: [orderId],
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Read the price a chase must rest at: the best bid for a buy, the best ask
+   * for a sell.
+   *
+   * The touch, not the mid: a post-only order priced at the mid would either
+   * cross or be rejected, and a chase that never rests at the front of the
+   * queue is not chasing anything.
+   *
+   * @param params - The lookup parameters.
+   * @param params.symbol - Market to read.
+   * @param params.isBuy - Which side the chase rests on.
+   * @param params.szDecimals - Asset size precision, for price formatting.
+   * @param params.own - The chase's own resting order, excluded from the book.
+   * @param params.own.orderId - Exchange ID of that order.
+   * @param params.own.price - Price that order rests at.
+   * @param params.own.size - Size it was last placed for.
+   * @returns The formatted price the chase should rest at, or `'gone'` when the
+   * order it was chasing is no longer live.
+   */
+  async #getChaseQuotePrice(params: {
+    symbol: string;
+    isBuy: boolean;
+    szDecimals: number;
+    /** The chase's own resting order, excluded from the book it reads. */
+    own?: { orderId: string; price: string; size: string };
+  }): Promise<string | 'gone'> {
+    const { symbol, isBuy, szDecimals, own } = params;
+
+    const book = await this.#clientService.getInfoClient().l2Book({
+      coin: symbol,
+    });
+
+    // `levels` is [bids, asks], each best-first.
+    const ownSide = book?.levels?.[isBuy ? 0 : 1];
+    const netting = await this.#resolveOwnRestingSizes({
+      symbol,
+      isBuy,
+      callerOrderId: own?.orderId,
+      ownSide,
+    });
+    if (netting === 'gone') {
+      return 'gone';
+    }
+
+    const bestBid = readBestExternalPrice(book?.levels?.[0], netting);
+    const bestAsk = readBestExternalPrice(book?.levels?.[1], netting);
+
+    if (bestBid === null || bestAsk === null) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    return computeChaseQuotePrice({ bestBid, bestAsk, isBuy, szDecimals });
+  }
+
+  /**
+   * Rest one post-only order for a chase and return its exchange ID.
+   *
+   * @param params - The placement parameters.
+   * @param params.assetId - Resolved asset ID.
+   * @param params.isBuy - Order side.
+   * @param params.price - Formatted limit price.
+   * @param params.size - Formatted size.
+   * @param params.reduceOnly - Whether the order may only reduce a position.
+   * @param params.builderFee - Builder fee, in tenths of a basis point, captured
+   * when the session started so replacements keep the rate they were quoted at.
+   * @param params.exchangeClient - Client to submit through. Passed in rather
+   * than looked up here so a first placement can keep the instance it signed
+   * with, which is the only one that can take the order back once `disconnect`
+   * has dropped the service's reference.
+   * @returns The resting order's exchange ID.
+   */
+  async #restChaseOrder(params: {
+    assetId: number;
+    isBuy: boolean;
+    price: string;
+    size: string;
+    reduceOnly: boolean;
+    builderFee: number;
+    exchangeClient: ExchangeClient;
+  }): Promise<string> {
+    const result = await params.exchangeClient.order({
+      orders: [
+        {
+          a: params.assetId,
+          b: params.isBuy,
+          p: params.price,
+          s: params.size,
+          r: params.reduceOnly,
+          // Post-only: a chase adds liquidity at the touch. Crossing would end
+          // the chase on its first tick at a worse price than resting does.
+          t: { limit: { tif: 'Alo' as const } },
+        },
+      ],
+      grouping: 'na',
+      builder: {
+        b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
+        f: params.builderFee,
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`Chase order failed: ${JSON.stringify(result)}`);
+    }
+
+    const orderId = this.#readOrderIdFromStatus(
+      result.response?.data?.statuses?.[0],
+    );
+    if (!orderId) {
+      throw new Error(
+        `Chase order rejected: ${JSON.stringify(result.response?.data)}`,
+      );
+    }
+
+    return orderId;
+  }
+
+  /**
+   * Schedule the next tick of a chase session.
+   *
+   * @param sessionId - Session to advance.
+   */
+  #scheduleChaseTick(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      // A rejected tick must not stop the session from being cancellable, and
+      // must not surface as an unhandled rejection either.
+      this.#runChaseTick(sessionId).catch((error: unknown) => {
+        this.#deps.debugLogger.log('Chase tick failed', {
+          sessionId,
+          error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
+        });
+        this.#recoverFailedChaseTick(sessionId);
+      });
+    }, session.intervalMs);
+
+    // Node keeps the process alive for a pending timer; a background chase is
+    // not a reason to hold an exiting process open. React Native's timers have
+    // no `unref`, hence the guard.
+    timer.unref?.();
+    session.timer = timer;
+  }
+
+  /**
+   * Decide what a session does after one of its ticks threw.
+   *
+   * Two outcomes, told apart by whether the session still owns a resting order:
+   *
+   * - It does — the failure was a book read or a refused cancel, and the order
+   *   is untouched. The chase keeps going; the deadline check at the top of the
+   *   next tick ends it if the window has since closed. Letting a transient
+   *   error end the chase would strand a live order under a session that still
+   *   claimed to be re-pricing it.
+   * - It does not — the tick cancelled the order and then failed to rest its
+   *   replacement, so nothing is on the book. There is nothing left to chase and
+   *   nothing left to cancel, so the session ends here. Leaving it `active` would
+   *   report a live chase with no timer, and every later cancel would try to
+   *   cancel the dead order and keep the handle forever.
+   *
+   * @param sessionId - Session whose tick failed.
+   */
+  #recoverFailedChaseTick(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    if (session.orderId === null) {
+      session.active = false;
+      this.#deps.debugLogger.log('Chase ended with nothing resting', {
+        sessionId,
+      });
+      return;
+    }
+
+    this.#scheduleChaseTick(sessionId);
+  }
+
+  /**
+   * Advance one chase session: re-price if the touch has moved, stop if the
+   * window has closed.
+   *
+   * @param sessionId - Session to advance.
+   */
+  async #runChaseTick(sessionId: string): Promise<void> {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    if (Date.now() >= session.deadline) {
+      // The window closed. The last order stays resting as an ordinary limit
+      // order and the session stays registered, so cancelling by its handle
+      // still reaches that order.
+      session.active = false;
+      this.#deps.debugLogger.log('Chase session window closed', { sessionId });
+      return;
+    }
+
+    const quotePrice = await this.#getChaseQuotePrice({
+      symbol: session.symbol,
+      isBuy: session.isBuy,
+      szDecimals: session.szDecimals,
+      own: session.orderId
+        ? {
+            orderId: session.orderId,
+            price: session.restingPrice,
+            size: session.size,
+          }
+        : undefined,
+    });
+
+    if (quotePrice === 'gone') {
+      // The order left the book without the loop seeing it — it filled. Ending
+      // here releases its slot against the venue's concurrency cap instead of
+      // holding one until the window closes.
+      session.orderId = null;
+      session.active = false;
+      this.#deps.debugLogger.log('Chase order filled between ticks', {
+        sessionId,
+      });
+      return;
+    }
+
+    // The book read is a round trip, and a cancel arriving during it stops the
+    // session. Without this re-check the tick would cancel and re-place the very
+    // order the caller just asked to be rid of.
+    if (!session.active) {
+      return;
+    }
+
+    if (quotePrice !== session.restingPrice && session.orderId) {
+      const outcome = await this.#cancelChaseChild(session);
+
+      // The cancel is a second round trip, and this is the window where a
+      // caller's `cancelOrder` does the most damage: it would cancel the order
+      // this tick has already cancelled, report the cancel incomplete, and then
+      // this tick would rest a replacement the caller has no idea exists.
+      // Stopping here leaves nothing on the book.
+      if (!session.active) {
+        // A refused cancel leaves the child resting. Preserve its ID so the
+        // caller that stopped this session can report an incomplete cancel and
+        // retry it instead of orphaning the order.
+        if (outcome !== 'refused') {
+          session.orderId = null;
+        }
+        return;
+      }
+
+      if (outcome === 'refused') {
+        // The exchange kept the order, so it is still resting at the old price.
+        // Placing the replacement anyway would double the position. Leave it
+        // alone and try again on the next tick, which is why this falls through
+        // to the reschedule below rather than ending the session.
+        this.#deps.debugLogger.log('Chase reprice cancel refused', {
+          sessionId,
+          orderId: session.orderId,
+        });
+      } else if (outcome === 'gone') {
+        // The order left the book between ticks: it filled, or something else
+        // cancelled it. There is nothing left to chase.
+        session.orderId = null;
+        session.active = false;
+        this.#deps.debugLogger.log('Chase order no longer resting', {
+          sessionId,
+        });
+        return;
+      } else {
+        // The cancel is confirmed, so the session owns nothing from here on.
+        // Recorded before the read rather than after it: a read that rejects
+        // would otherwise leave the session naming an order that is already off
+        // the book, and recovery would reschedule a chase with nothing resting.
+        const cancelledOrderId = session.orderId;
+        session.orderId = null;
+
+        // No further fills can reach a cancelled order, so what it did not fill
+        // is now fixed. Sampling before the cancel would have left a window in
+        // which a fill lands and is then re-placed.
+        const remaining = await this.#readOrderRemainder(cancelledOrderId);
+
+        // Another round trip, another window for a cancel to land. By now the
+        // old order is already off the book, so a cancel that arrived during it
+        // found nothing to cancel and reported success — resting a replacement
+        // after that would put an order on the book the caller believes is gone
+        // and has no handle for.
+        if (!session.active || !this.#chaseSessions.has(sessionId)) {
+          this.#deps.debugLogger.log('Chase cancelled mid-reprice', {
+            sessionId,
+          });
+          return;
+        }
+
+        if (remaining === null) {
+          // It filled completely between ticks; there is nothing left to chase.
+          session.active = false;
+          this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
+          return;
+        }
+
+        // Published *before* the placement starts, not from the promise it
+        // returns: the window opens the moment `#restChaseOrder` is entered, so
+        // deriving the marker from its return value would leave the synchronous
+        // prefix of that call unguarded. A cancel arriving anywhere inside the
+        // round trip now waits for the replacement to land instead of reading
+        // the null `orderId` as "nothing rests", reporting success, and dropping
+        // the handle while this call is still putting an order on the book.
+        let settleReplacement: (() => void) | undefined;
+        session.pendingReplacement = new Promise<void>((resolve) => {
+          settleReplacement = resolve;
+        });
+
+        try {
+          session.orderId = await this.#restChaseOrder({
+            assetId: session.assetId,
+            isBuy: session.isBuy,
+            price: quotePrice,
+            size: remaining,
+            reduceOnly: session.reduceOnly,
+            builderFee: session.builderFee,
+            // A running session is on a live provider, so the current client is
+            // the right one; only the first placement has a teardown to survive.
+            exchangeClient: this.#clientService.getExchangeClient(),
+          });
+          session.size = remaining;
+        } finally {
+          // Cleared before the waiters wake, so they see the settled session.
+          session.pendingReplacement = null;
+          settleReplacement?.();
+        }
+        session.restingPrice = quotePrice;
+        session.repricings += 1;
+
+        this.#deps.debugLogger.log('Chase re-priced', {
+          sessionId,
+          orderId: session.orderId,
+          restingPrice: quotePrice,
+          size: session.size,
+          repricings: session.repricings,
+        });
+
+        // A cancel that arrived during the round trip is now waiting on this
+        // session; it cancels the order just recorded above. A `disconnect`
+        // deregisters the session instead, and deliberately leaves resting
+        // orders alone — logged with its ID so it stays traceable.
+        if (!this.#chaseSessions.has(sessionId)) {
+          this.#deps.debugLogger.log('Chase replacement outlived its session', {
+            sessionId,
+            orderId: session.orderId,
+          });
+          return;
+        }
+        if (!session.active) {
+          return;
+        }
+      }
+    }
+
+    if (session.repricings >= session.maxRepricings) {
+      session.active = false;
+      this.#deps.debugLogger.log('Chase repricing cap reached', { sessionId });
+      return;
+    }
+
+    this.#scheduleChaseTick(sessionId);
+  }
+
+  /**
+   * Resolve how much of the chase's own order is really sitting on its level.
+   *
+   * The session tracks what its order was last *placed* for, which overstates
+   * the order once it partially fills. Over-subtracting only matters when it
+   * would net the level away entirely — while the level still shows more size
+   * than the order could possibly hold, the level has external liquidity either
+   * way and the stale figure is good enough.
+   *
+   * So the live size is fetched only in the ambiguous case, which keeps the
+   * common tick to a single book read rather than doubling the request rate
+   * against the venue for every chase on every interval.
+   *
+   * @param params - Netting parameters.
+   * @param params.symbol - Market being quoted.
+   * @param params.isBuy - Side being quoted.
+   * @param params.callerOrderId - The asking session's order, if it has one.
+   * @param params.ownSide - The side of the book those orders rest on.
+   * @returns Our resting size at each price, or `'gone'` when the asking
+   * session's own order is no longer live.
+   */
+  async #resolveOwnRestingSizes(params: {
+    symbol: string;
+    isBuy: boolean;
+    callerOrderId?: string;
+    ownSide?: { px: string; sz: string }[];
+  }): Promise<Map<string, number> | 'gone'> {
+    const { symbol, isBuy, callerOrderId, ownSide } = params;
+
+    // Every chase this provider is running on this side, the caller included.
+    const ourOrders = [...this.#chaseSessions.values()]
+      .filter(
+        (session) =>
+          session.orderId !== null &&
+          session.symbol === symbol &&
+          session.isBuy === isBuy,
+      )
+      .map((session) => ({
+        orderId: session.orderId as string,
+        price: session.restingPrice,
+        size: session.size,
+      }));
+
+    if (ourOrders.length === 0) {
+      return new Map();
+    }
+
+    const recorded = new Map<string, number>();
+    for (const order of ourOrders) {
+      recorded.set(
+        order.price,
+        (recorded.get(order.price) ?? 0) + parseFloat(order.size),
+      );
+    }
+
+    // A level holding more than we possibly could has external size regardless,
+    // so the recorded figures cannot change the answer there and are left as
+    // they are. Elsewhere the recorded sizes may overstate what is really
+    // resting — an order partially fills without the loop seeing it — and only
+    // then is a lookup worth a round trip.
+    const ambiguous = ourOrders.filter((order) => {
+      const level = ownSide?.find((entry) => entry.px === order.price);
+      return !level || parseFloat(level.sz) <= (recorded.get(order.price) ?? 0);
+    });
+
+    let callerIsGone = false;
+    for (const order of ambiguous) {
+      try {
+        const live = await this.#readOrderRemainder(order.orderId);
+        const delta =
+          (live === null ? 0 : parseFloat(live)) - parseFloat(order.size);
+        recorded.set(
+          order.price,
+          Math.max(0, (recorded.get(order.price) ?? 0) + delta),
+        );
+        if (live === null && order.orderId === callerOrderId) {
+          callerIsGone = true;
+        }
+      } catch (error) {
+        // A failed lookup must not stop the chase. Keeping the recorded size can
+        // only over-subtract, which quotes a level deeper rather than leaving
+        // the order stranded at a stale price.
+        this.#deps.debugLogger.log('Chase own-size lookup failed', {
+          orderId: order.orderId,
+          error: ensureError(error, 'HyperLiquidProvider.chaseOwnSize').message,
+        });
+      }
+    }
+
+    return callerIsGone ? 'gone' : recorded;
+  }
+
+  /**
+   * Read what a chase's just-cancelled order left unfilled.
+   *
+   * A chase re-prices by cancelling and re-placing, and the order it cancels
+   * may have partially filled first; re-placing the session's original size
+   * would execute more than the caller asked for.
+   *
+   * Read *after* the cancel on purpose. The order's status endpoint answers for
+   * an order that is no longer on the book, and once the cancel has landed no
+   * further fills can reach it — so the unfilled size it reports is final.
+   * Sampling the open-order book beforehand would instead leave a one-round-trip
+   * window in which a fill lands and is then re-placed on top.
+   *
+   * @param orderId - Exchange ID of the order that was just cancelled.
+   * @returns The unfilled size, or null when nothing is left to chase.
+   */
+  async #readOrderRemainder(orderId: string): Promise<string | null> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const status = await this.#clientService.getInfoClient().orderStatus({
+      user: userAddress,
+      oid: parseInt(orderId, 10),
+    });
+
+    if (status.status !== 'order') {
+      return null;
+    }
+
+    const remaining = String(status.order.order.sz);
+    return parseFloat(remaining) > 0 ? remaining : null;
+  }
+
+  /**
+   * Cancel the order a chase session currently has resting.
+   *
+   * @param session - The session whose child to cancel.
+   * @param placingClient - Client to cancel through. Omitted by every cancel on
+   * a live provider, which wants the current one; an abandoned placement passes
+   * the client it signed with, the only one still able to reach its order.
+   * @returns Whether the order was cancelled, was already gone, or still rests.
+   */
+  async #cancelChaseChild(
+    session: ChaseSession,
+    placingClient?: ExchangeClient,
+  ): Promise<CancelChildOutcome> {
+    if (!session.orderId) {
+      return 'gone';
+    }
+
+    // Looked up only once there is something to cancel, so a session with
+    // nothing resting still answers on a provider whose client is already gone.
+    const exchangeClient =
+      placingClient ?? this.#clientService.getExchangeClient();
+    const result = await exchangeClient.cancel({
+      cancels: [{ a: session.assetId, o: parseInt(session.orderId, 10) }],
+    });
+
+    return classifyCancelStatus(result.response?.data?.statuses?.[0]);
+  }
+
+  /**
+   * Take back the order of a chase that was abandoned before it registered.
+   *
+   * Best-effort by construction: the provider is already being torn down, so a
+   * cancel that fails outright is reported rather than retried or thrown. The
+   * caller reports the placement as a failure either way — the outcome only
+   * decides whether an exchange id is worth handing back with it.
+   *
+   * @param session - The unregistered session holding the resting order.
+   * @param placingClient - The client the order was signed with. The service's
+   * own reference is already cleared by the time this runs, so asking it for a
+   * client here would fail before a cancel was ever sent.
+   * @returns Whether the order was cancelled, was already gone, or still rests.
+   */
+  async #retractOrphanedChaseOrder(
+    session: ChaseSession,
+    placingClient: ExchangeClient,
+  ): Promise<CancelChildOutcome> {
+    try {
+      const outcome = await this.#cancelChaseChild(session, placingClient);
+      this.#deps.debugLogger.log('Retracted abandoned chase order', {
+        orderId: session.orderId,
+        outcome,
+      });
+      return outcome;
+    } catch (error) {
+      this.#deps.debugLogger.log('Could not retract abandoned chase order', {
+        orderId: session.orderId,
+        error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
+          .message,
+      });
+      return 'refused';
+    }
+  }
+
+  /**
+   * Stop a chase session's re-pricing loop.
+   *
+   * @param sessionId - Session to stop.
+   */
+  #stopChaseSession(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session) {
+      return;
+    }
+
+    session.active = false;
+    if (session.timer) {
+      clearTimeout(session.timer);
+      session.timer = null;
+    }
+  }
+
+  /**
+   * Cancel a strategy placement by its handle.
+   *
+   * @param params - Cancellation parameters.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelStrategyOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    try {
+      this.#deps.debugLogger.log('Canceling strategy order:', params);
+
+      if (params.orderType === 'twap') {
+        return await this.#cancelTwapOrder(params);
+      }
+      if (params.orderType === 'scale') {
+        return await this.#cancelScaleOrder(params);
+      }
+      return await this.#cancelChaseOrder(params);
+    } catch (error) {
+      const mappedError = this.#mapError(error);
+      this.#deps.logger.error(
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrder', mappedError, {
+          orderId: params.orderId,
+          coin: params.symbol,
+          orderType: params.orderType,
+        }),
+      );
+      return createErrorResult(mappedError, {
+        success: false,
+        orderId: params.orderId,
+      });
+    }
+  }
+
+  /**
+   * Cancel a running TWAP through the venue's TWAP cancel action.
+   *
+   * A TWAP never rested on the book, so the ordinary `cancel` action has no
+   * order ID to match and would reject it.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the TWAP ID.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelTwapOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    await this.#ensureReady();
+
+    const coinValidation = validateCoinExists(
+      params.symbol,
+      this.#symbolToAssetId,
+    );
+    if (!coinValidation.isValid) {
+      throw new Error(coinValidation.error);
+    }
+
+    await this.#ensureReadyForTrading();
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: params.symbol,
+      dexName: parseAssetName(params.symbol).dex,
+    });
+
+    const result = await this.#clientService.getExchangeClient().twapCancel({
+      a: assetId,
+      t: parseInt(params.orderId, 10),
+    });
+
+    const status = result.response?.data?.status;
+    if (status === 'success') {
+      return { success: true, orderId: params.orderId };
+    }
+
+    const rawError =
+      (status as { error?: string } | undefined)?.error ??
+      'TWAP cancellation failed';
+    return createErrorResult(this.#mapError(new Error(rawError)), {
+      success: false,
+      orderId: params.orderId,
+    });
+  }
+
+  /**
+   * Cancel every child of a scale ladder in one batch.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the group handle.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelScaleOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const group = this.#scaleOrderGroups.get(params.orderId);
+    if (!group) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    await this.#ensureReadyForTrading();
+
+    const result = await this.#clientService.getExchangeClient().cancel({
+      cancels: group.orderIds.map((orderId) => ({
+        a: group.assetId,
+        o: parseInt(orderId, 10),
+      })),
+    });
+
+    const statuses = result.response?.data?.statuses ?? [];
+    // A rung that filled or was cancelled individually comes back as a
+    // rejection, but nothing of it is resting — counting it as still live would
+    // pin the handle open for a ladder that is entirely off the book.
+    const remaining = group.orderIds.filter(
+      (_unused, index) => classifyCancelStatus(statuses[index]) === 'refused',
+    );
+
+    if (remaining.length === 0) {
+      this.#scaleOrderGroups.delete(params.orderId);
+      return { success: true, orderId: params.orderId };
+    }
+
+    // A rung the exchange refused to cancel may still be resting. Keeping the
+    // handle registered against what is left means the caller can retry the
+    // same cancel rather than being told the ladder is gone when it is not.
+    this.#scaleOrderGroups.set(params.orderId, {
+      assetId: group.assetId,
+      orderIds: remaining,
+    });
+    this.#deps.debugLogger.log('Scale group cancel left children resting', {
+      groupId: params.orderId,
+      remaining: remaining.length,
+      total: group.orderIds.length,
+    });
+
+    return createErrorResult(
+      new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+      { success: false, orderId: params.orderId },
+    );
+  }
+
+  /**
+   * Stop a chase session and cancel whatever it still has resting.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the session handle.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelChaseOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const session = this.#chaseSessions.get(params.orderId);
+    if (!session) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    // Stopped first: a tick that fired between here and the cancel below would
+    // otherwise re-place the very order being cancelled.
+    this.#stopChaseSession(params.orderId);
+
+    // A replacement already in flight cannot be called off, so the cancel waits
+    // for it and then cancels whatever it rested. Deciding without waiting would
+    // read the session's null `orderId` as "nothing rests" and report a clean
+    // cancellation over an order that was about to appear on the book.
+    if (session.pendingReplacement) {
+      await session.pendingReplacement;
+    }
+
+    // Nothing rests: the order filled, something else cancelled it, or a
+    // replacement failed to go up. Either way the session ends cleanly.
+    if (session.orderId === null) {
+      this.#chaseSessions.delete(params.orderId);
+      return { success: true, orderId: params.orderId };
+    }
+
+    await this.#ensureReadyForTrading();
+    // Only a refusal leaves an order behind. A child that had already filled or
+    // been cancelled is reported as a rejection too, but nothing of it is
+    // resting — treating that as a failure would pin the handle open forever on
+    // a chase that is entirely finished.
+    if ((await this.#cancelChaseChild(session)) === 'refused') {
+      // The order is still resting. The session stays registered — stopped, but
+      // still cancellable — so the caller can retry with the same handle.
+      this.#deps.debugLogger.log('Chase cancel left its order resting', {
+        sessionId: params.orderId,
+        orderId: session.orderId,
+      });
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+        { success: false, orderId: params.orderId },
+      );
+    }
+
+    this.#chaseSessions.delete(params.orderId);
+    return { success: true, orderId: params.orderId };
+  }
+
+  /**
+   * Read an order ID out of one `order` action status entry.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The order ID, or undefined when the entry rested nothing.
+   */
+  #readOrderIdFromStatus(status: unknown): string | undefined {
+    if (!isStatusObject(status)) {
+      return undefined;
+    }
+
+    // `hasProperty` types the property as `unknown`, so each branch is cast to
+    // the only shape the exchange puts there.
+    const restingOrder = hasProperty(status, 'resting')
+      ? (status.resting as { oid?: number })
+      : undefined;
+    const filledOrder = hasProperty(status, 'filled')
+      ? (status.filled as { oid?: number })
+      : undefined;
+
+    return (
+      restingOrder?.oid?.toString() ?? filledOrder?.oid?.toString() ?? undefined
+    );
+  }
+
+  /**
+   * The builder fee this account pays, after any rewards discount.
+   *
+   * @returns The fee in tenths of a basis point.
+   */
+  #getDiscountedBuilderFee(): number {
+    if (this.#userFeeDiscountBips === undefined) {
+      return BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
+    }
+    return Math.floor(
+      BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
+        (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
+    );
   }
 
   /**
@@ -3981,6 +5683,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         return {
           success: false,
           error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
+      // A strategy placement is not a single resting order, so there is nothing
+      // for `modify` to rewrite: it would submit the edit as an ordinary
+      // FrontendMarket modification and quietly drop the TWAP schedule, the
+      // ladder, or the chase loop the caller asked for. Cancel by the strategy
+      // handle and place again.
+      if (isStrategyOrderType(params.newOrder.orderType)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
         };
       }
 
@@ -4187,6 +5901,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // A strategy handle is not an exchange order ID, so it cannot go through
+    // the single-order cancel below. Callers that omit `orderType` — every
+    // existing one — keep the behaviour they have today.
+    if (params.orderType && isStrategyOrderType(params.orderType)) {
+      return await this.#cancelStrategyOrder(params);
+    }
+
     try {
       this.#deps.debugLogger.log('Canceling order:', params);
 
@@ -5466,6 +7187,181 @@ export class HyperLiquidProvider implements PerpsProvider {
     // buildAssetMapping uses state.raw for perpDexIndex computation.
     const state = this.#dexDiscoveryCache.update(allDexs);
     return state.validated;
+  }
+
+  /**
+   * Fetch a complete standalone user-data bundle.
+   *
+   * Each DEX clearinghouse response is shared by position and account-state
+   * mapping. Any required request failure rejects the entire bundle.
+   *
+   * @param params - User and captured controller identity.
+   * @returns The complete user-data snapshot.
+   */
+  async getUserDataSnapshot(
+    params: GetUserDataSnapshotParams,
+  ): Promise<PerpsUserDataSnapshot> {
+    const { identity, userAddress } = params;
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const snapshotStartedAt = this.#deps.performance.now();
+    const measure = async <Result>(
+      stage: string,
+      request: () => Promise<Result>,
+      dex?: string | null,
+    ): Promise<Result> => {
+      const startedAt = this.#deps.performance.now();
+      const dexDetail = dex === undefined ? {} : { dex: dex ?? 'main' };
+      try {
+        const result = await request();
+        this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+          stage,
+          durationMs: Math.round(this.#deps.performance.now() - startedAt),
+          success: true,
+          ...dexDetail,
+        });
+        return result;
+      } catch (error) {
+        this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+          stage,
+          durationMs: Math.round(this.#deps.performance.now() - startedAt),
+          success: false,
+          ...dexDetail,
+        });
+        throw error;
+      }
+    };
+
+    if (identity.provider !== 'hyperliquid' || identity.network !== network) {
+      throw new Error('User data snapshot identity does not match provider');
+    }
+
+    const requestedDexes = identity.dexes;
+    const canonicalDexes = canonicalizeHyperLiquidDexes(requestedDexes);
+    const hasValidDexIdentity =
+      requestedDexes.length > 0 &&
+      new Set(requestedDexes).size === requestedDexes.length &&
+      requestedDexes.every(
+        (dex) => dex === 'main' || /^[a-z0-9][a-z0-9-]*$/u.test(dex),
+      ) &&
+      requestedDexes.length === canonicalDexes.length &&
+      requestedDexes.every((dex, index) => dex === canonicalDexes[index]);
+    if (!hasValidDexIdentity) {
+      throw new Error('User data snapshot DEX identity is invalid');
+    }
+    const dexs = requestedDexes.map((dex) => (dex === 'main' ? null : dex));
+    const standaloneInfoClient = createStandaloneInfoClient({
+      isTestnet: network === 'testnet',
+    });
+    const buildUserParams = (
+      dex: string | null,
+    ): { user: string; dex?: string } => ({
+      user: userAddress,
+      ...(dex ? { dex } : {}),
+    });
+
+    const [clearinghouseStates, openOrdersByDex, spotState, abstractionMode] =
+      await Promise.all([
+        Promise.all(
+          dexs.map((dex) =>
+            measure(
+              'clearinghouse_state',
+              () =>
+                standaloneInfoClient.clearinghouseState(buildUserParams(dex)),
+              dex,
+            ),
+          ),
+        ),
+        Promise.all(
+          dexs.map((dex) =>
+            measure(
+              'frontend_open_orders',
+              () =>
+                standaloneInfoClient.frontendOpenOrders(buildUserParams(dex)),
+              dex,
+            ),
+          ),
+        ),
+        measure('spot_clearinghouse_state', () =>
+          standaloneInfoClient.spotClearinghouseState({ user: userAddress }),
+        ),
+        measure('user_abstraction', () =>
+          standaloneInfoClient.userAbstraction({ user: userAddress }),
+        ),
+      ]);
+
+    const rawOrders = openOrdersByDex.flat();
+    const childOrderIds = collectChildOrderIds(rawOrders);
+    const ordersBySymbol = groupOrdersBySymbol(rawOrders);
+    const positions = clearinghouseStates.flatMap((state) =>
+      state.assetPositions
+        .filter(({ position }) => position.szi !== '0')
+        .map((assetPosition) => {
+          const position = adaptPositionFromSDK(assetPosition);
+          const {
+            takeProfitOrders,
+            stopLossOrders,
+            takeProfitPrice,
+            stopLossPrice,
+          } = collectPositionTriggerOrders({
+            orders: ordersBySymbol.get(position.symbol) ?? [],
+            position,
+            childOrderIds,
+          });
+          return {
+            ...position,
+            takeProfitCount: takeProfitOrders.length,
+            stopLossCount: stopLossOrders.length,
+            takeProfitOrders,
+            stopLossOrders,
+            ...(takeProfitPrice && { takeProfitPrice }),
+            ...(stopLossPrice && { stopLossPrice }),
+          };
+        }),
+    );
+    const positionsBySymbol = new Map(
+      positions.map((position) => [position.symbol, position]),
+    );
+    const orders = rawOrders.map((order) =>
+      adaptOrderFromSDK(order, positionsBySymbol.get(order.coin)),
+    );
+    const dexAccountStates = clearinghouseStates.map((state) =>
+      adaptAccountStateFromSDK(state),
+    );
+    const accountState = addSpotBalanceToAccountState(
+      aggregateAccountStates(dexAccountStates),
+      spotState,
+      { foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode) },
+    );
+
+    accountState.subAccountBreakdown = Object.fromEntries(
+      dexAccountStates.map((dexAccountState, index) => {
+        return [
+          dexs[index] ?? '',
+          {
+            spendableBalance: dexAccountState.spendableBalance,
+            withdrawableBalance: dexAccountState.withdrawableBalance,
+            totalBalance: dexAccountState.totalBalance,
+          },
+        ];
+      }),
+    );
+
+    const snapshot = {
+      positions,
+      orders,
+      accountState,
+      identity: {
+        ...identity,
+        address: userAddress,
+      },
+    };
+    this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+      stage: 'complete',
+      durationMs: Math.round(this.#deps.performance.now() - snapshotStartedAt),
+      success: true,
+      dexCount: dexs.length,
+    });
+    return snapshot;
   }
 
   /**
@@ -7470,6 +9366,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         tpslLinkage: params.tpslLinkage,
         grouping: params.grouping,
         timeInForce: params.timeInForce,
+        clientOrderId: params.clientOrderId,
+        ...pickStrategyParams(params),
       });
       if (!basicValidation.isValid) {
         return basicValidation;
@@ -7564,6 +9462,16 @@ export class HyperLiquidProvider implements PerpsProvider {
             isValid: false,
             error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
           };
+        }
+
+        // A strategy placement's total clearing the per-order minimum does not
+        // mean the orders it expands into will.
+        const strategyMinimum = validateStrategyNotional({
+          orderType: params.orderType,
+          orderValueUSD,
+        });
+        if (!strategyMinimum.isValid) {
+          return strategyMinimum;
         }
       }
 
@@ -8504,13 +10412,20 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const { orderType, isMaker = false, amount, symbol } = params;
 
-    // Trigger placements are charged as their execution kind: a stop_market fills
-    // as a market order (taker), a stop_limit as a limit order.
+    // Every placement is charged as its execution kind: a stop_market fills as a
+    // market order (taker), a stop_limit as a limit order, a scale ladder as the
+    // resting limit orders it fans out into, and a TWAP as the marketable
+    // suborders it crosses the book with.
     const isMarketExecution = getTriggerExecution(orderType) === 'market';
 
+    // A chase is post-only by construction, so it can only ever fill as a maker.
+    // Quoting it at the taker rate would overstate the fee whatever the caller
+    // passes for `isMaker`.
+    const chargesMakerRate =
+      orderType === 'chase' || (!isMarketExecution && isMaker);
+
     // Start with base rates from config
-    let feeRate =
-      isMarketExecution || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
+    let feeRate = chargesMakerRate ? FEE_RATES.maker : FEE_RATES.taker;
 
     // Parse symbol to detect HIP-3 DEX (e.g., "xyz:TSLA" → dex="xyz", parsedSymbol="TSLA")
     const { dex, symbol: parsedSymbol } = parseAssetName(symbol);
@@ -8561,11 +10476,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (this.#isFeeCacheValid(userAddress)) {
         const cached = this.#userFeeCache.get(userAddress);
         if (cached) {
-          // Market orders always use taker rate, limit orders check isMaker
-          let userFeeRate =
-            isMarketExecution || !isMaker
-              ? cached.perpsTakerRate
-              : cached.perpsMakerRate;
+          // Same maker/taker decision as the base rates above, including the
+          // post-only chase case — re-deriving it here would quote a chase at
+          // the taker rate whenever the caller passed isMaker: false.
+          let userFeeRate = chargesMakerRate
+            ? cached.perpsMakerRate
+            : cached.perpsTakerRate;
 
           // Apply HIP-3 dynamic multiplier to user-specific rates (includes Growth Mode)
           if (isHip3Asset && hip3Multiplier > 0) {
@@ -8691,11 +10607,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
 
         this.#userFeeCache.set(userAddress, rates);
-        // Market orders always use taker rate, limit orders check isMaker
-        let userFeeRate =
-          isMarketExecution || !isMaker
-            ? rates.perpsTakerRate
-            : rates.perpsMakerRate;
+        // Same maker/taker decision as the base rates above, chase included.
+        let userFeeRate = chargesMakerRate
+          ? rates.perpsMakerRate
+          : rates.perpsTakerRate;
 
         // Apply HIP-3 dynamic multiplier to API-fetched rates (includes Growth Mode)
         if (isHip3Asset && hip3Multiplier > 0) {
@@ -8863,6 +10778,18 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Clear subscriptions through subscription service
       this.#subscriptionService.clearAll();
+
+      // Stop every chase loop: each holds a pending timer, and re-pricing after
+      // a disconnect would sign orders against a client that is being torn down.
+      // Orders already resting are deliberately left alone — disconnecting is
+      // not a request to cancel the user's positions or orders.
+      for (const sessionId of this.#chaseSessions.keys()) {
+        this.#stopChaseSession(sessionId);
+      }
+      this.#chaseSessions.clear();
+      this.#scaleOrderGroups.clear();
+      // Placements still mid-flight check this before registering.
+      this.#chaseGeneration += 1;
 
       // Clear fee cache
       this.clearFeeCache();

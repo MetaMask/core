@@ -427,7 +427,6 @@ linkStyle default opacity:0.5
   keyring_controller --> controller_utils;
   keyring_controller --> messenger;
   logging_controller --> base_controller;
-  logging_controller --> controller_utils;
   logging_controller --> messenger;
   message_manager --> base_controller;
   message_manager --> controller_utils;
