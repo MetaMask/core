@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 
+### Fixed
+
+- Never serve Accounts API balances from the TanStack cache in any flow (forced refresh, polling, websocket-triggered fetches): `AccountsApiDataSource` now invalidates cached balance queries before every fetch and fetches with `staleTime: 0, gcTime: 0`, so v5 and v6 balance requests always hit the network and their results are never retained for reuse — previously non-forced polls could reuse balances cached for up to 60s and even `forceUpdate: true` only shrank the cache window to 100ms, so `getAssets(..., { forceUpdate: true })` (pull-to-refresh, post-swap/post-transaction refresh) could still return stale cached balances
+
 ## [13.1.2]
 
 ### Changed

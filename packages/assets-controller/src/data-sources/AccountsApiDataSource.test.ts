@@ -43,6 +43,7 @@ type MockApiClient = {
     fetchV2SupportedNetworks: jest.Mock;
     fetchV5MultiAccountBalances: jest.Mock;
     fetchV6MultiAccountBalances: jest.Mock;
+    invalidateBalances: jest.Mock;
   };
 };
 
@@ -87,6 +88,7 @@ function createMockApiClient(
         unprocessedNetworks,
         unprocessedIncludeAssetIds: [],
       }),
+      invalidateBalances: jest.fn().mockResolvedValue(undefined),
     },
   };
 }
@@ -519,25 +521,74 @@ describe('AccountsApiDataSource', () => {
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
-      undefined,
+      { staleTime: 0, gcTime: 0 },
     );
 
     controller.destroy();
   });
 
-  it('uses a short-lived TanStack cache window when forceUpdate is true', async () => {
-    const { controller, apiClient } = await setupController();
+  // Balances must never be served from the TanStack cache in any flow.
+  it.each([
+    { forceUpdate: undefined },
+    { forceUpdate: false },
+    { forceUpdate: true },
+  ])(
+    'always invalidates the balances cache and fetches with no-cache options (v5, forceUpdate: $forceUpdate)',
+    async ({ forceUpdate }) => {
+      const { controller, apiClient } = await setupController();
 
-    await controller.fetch(createDataRequest({ forceUpdate: true }));
+      await controller.fetch(createDataRequest({ forceUpdate }));
 
-    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
-      [`eip155:1:${MOCK_ADDRESS}`],
-      undefined,
-      { staleTime: 100, gcTime: 100 },
-    );
+      expect(apiClient.accounts.invalidateBalances).toHaveBeenCalledTimes(1);
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, {
+        staleTime: 0,
+        gcTime: 0,
+      });
+      // Invalidation must precede the fetch so a fresh cache entry cannot be
+      // reused.
+      expect(
+        apiClient.accounts.invalidateBalances.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        apiClient.accounts.fetchV5MultiAccountBalances.mock
+          .invocationCallOrder[0],
+      );
 
-    controller.destroy();
-  });
+      controller.destroy();
+    },
+  );
+
+  it.each([
+    { forceUpdate: undefined },
+    { forceUpdate: false },
+    { forceUpdate: true },
+  ])(
+    'always invalidates the balances cache and fetches with no-cache options (v6, forceUpdate: $forceUpdate)',
+    async ({ forceUpdate }) => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      await controller.fetch(createDataRequest({ forceUpdate }));
+
+      expect(apiClient.accounts.invalidateBalances).toHaveBeenCalledTimes(1);
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, {
+        staleTime: 0,
+        gcTime: 0,
+      });
+      expect(
+        apiClient.accounts.invalidateBalances.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        apiClient.accounts.fetchV6MultiAccountBalances.mock
+          .invocationCallOrder[0],
+      );
+
+      controller.destroy();
+    },
+  );
 
   it('fetch processes balance response', async () => {
     const balances = [
@@ -696,11 +747,10 @@ describe('AccountsApiDataSource', () => {
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledWith(
-        [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
-        undefined,
-      );
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, {
+        staleTime: 0,
+        gcTime: 0,
+      });
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
       ).not.toHaveBeenCalled();
@@ -861,11 +911,10 @@ describe('AccountsApiDataSource', () => {
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledWith(
-        [`eip155:1:${MOCK_ADDRESS}`],
-        undefined,
-        undefined,
-      );
+      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, {
+        staleTime: 0,
+        gcTime: 0,
+      });
 
       controller.destroy();
     });

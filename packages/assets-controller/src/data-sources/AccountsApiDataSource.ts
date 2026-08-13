@@ -427,9 +427,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const fetchOptions = request.forceUpdate
-        ? { staleTime: 100, gcTime: 100 }
-        : undefined;
+      // Balances must never be served from the TanStack cache in any flow
+      // (polling, forced refresh, websocket-triggered): invalidate cached
+      // balance queries first (fetchQuery refetches invalidated queries
+      // regardless of freshness), then fetch with staleTime/gcTime 0 so the
+      // response is neither read back nor retained.
+      const fetchOptions = { staleTime: 0, gcTime: 0 };
+      await this.#apiClient.accounts.invalidateBalances();
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
       // read here (not cached) so a runtime toggle can revert v6 -> v5.
@@ -482,13 +486,15 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * Fetch balances from the legacy v5 endpoint and process them.
    *
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
-   * @param fetchOptions - Cache/fetch options (e.g. force update settings).
+   * @param fetchOptions - No-cache fetch options (balances are never cached).
+   * @param fetchOptions.staleTime - Time in ms before cached data is stale.
+   * @param fetchOptions.gcTime - Time in ms before cached data is removed.
    * @param request - The original data request containing accounts to map.
    * @returns Unprocessed networks and processed asset balances by account.
    */
   async #fetchV5Balances(
     accountIds: string[],
-    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    fetchOptions: { staleTime: number; gcTime: number },
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
@@ -519,13 +525,15 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * Fetch balances from the v6 endpoint and process them.
    *
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
-   * @param fetchOptions - Cache/fetch options (e.g. force update settings).
+   * @param fetchOptions - No-cache fetch options (balances are never cached).
+   * @param fetchOptions.staleTime - Time in ms before cached data is stale.
+   * @param fetchOptions.gcTime - Time in ms before cached data is removed.
    * @param request - The original data request containing accounts to map.
    * @returns Unprocessed networks and processed asset balances by account.
    */
   async #fetchV6Balances(
     accountIds: string[],
-    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    fetchOptions: { staleTime: number; gcTime: number },
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];

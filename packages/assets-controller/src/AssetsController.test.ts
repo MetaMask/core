@@ -1409,6 +1409,7 @@ describe('AssetsController', () => {
           }),
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances,
+          invalidateBalances: jest.fn().mockResolvedValue(undefined),
         },
       } as unknown as ApiPlatformClient;
 
@@ -3044,6 +3045,7 @@ describe('AssetsController', () => {
             partialSupport: [],
           }),
           fetchV5MultiAccountBalances,
+          invalidateBalances: jest.fn().mockResolvedValue(undefined),
         },
       } as unknown as ApiPlatformClient;
 
@@ -3363,6 +3365,7 @@ describe('AssetsController', () => {
             balances: [],
             unprocessedNetworks: [],
           }),
+          invalidateBalances: jest.fn().mockResolvedValue(undefined),
         },
       } as unknown as ApiPlatformClient;
 

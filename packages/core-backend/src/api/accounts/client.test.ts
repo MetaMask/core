@@ -336,6 +336,162 @@ describe('AccountsApiClient', () => {
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    describe('balances cache behavior', () => {
+      const v5Response = (balance: string): V5BalancesResponse => ({
+        count: 1,
+        unprocessedNetworks: [],
+        balances: [
+          {
+            object: 'token',
+            symbol: 'ETH',
+            name: 'Ethereum',
+            type: 'native',
+            decimals: 18,
+            assetId: 'eip155:1/slip44:60',
+            balance,
+            accountId: 'eip155:1:0x123',
+          },
+        ],
+      });
+
+      const v6Response = (balance: string): V6BalancesResponse => ({
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        accounts: [
+          {
+            accountId: 'eip155:1:0x123',
+            balances: [
+              {
+                category: 'token',
+                assetId: 'eip155:1/slip44:60',
+                name: 'Ethereum',
+                symbol: 'ETH',
+                decimals: 18,
+                balance,
+              },
+            ],
+            processingDefiPositions: false,
+          },
+        ],
+      });
+
+      it('reuses a fresh cached v5 response when no fetch options are passed', async () => {
+        mockFetch.mockResolvedValueOnce(createMockResponse(v5Response('1')));
+
+        const first = await client.accounts.fetchV5MultiAccountBalances([
+          'eip155:1:0x123',
+        ]);
+        const second = await client.accounts.fetchV5MultiAccountBalances([
+          'eip155:1:0x123',
+        ]);
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(second).toStrictEqual(first);
+      });
+
+      it('refetches v5 balances over the network after invalidateBalances with no-cache options, even when a fresh cache entry exists', async () => {
+        mockFetch
+          .mockResolvedValueOnce(createMockResponse(v5Response('1')))
+          .mockResolvedValueOnce(createMockResponse(v5Response('2')));
+
+        await client.accounts.fetchV5MultiAccountBalances(['eip155:1:0x123']);
+        await client.accounts.invalidateBalances();
+        const result = await client.accounts.fetchV5MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          { staleTime: 0, gcTime: 0 },
+        );
+
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(result.balances[0]?.balance).toBe('2');
+      });
+
+      it('never reuses cached v5 balances across consecutive fetches with no-cache options', async () => {
+        mockFetch
+          .mockResolvedValueOnce(createMockResponse(v5Response('1')))
+          .mockResolvedValueOnce(createMockResponse(v5Response('2')))
+          .mockResolvedValueOnce(createMockResponse(v5Response('3')));
+
+        const noCache = { staleTime: 0, gcTime: 0 };
+        await client.accounts.fetchV5MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          noCache,
+        );
+        await client.accounts.fetchV5MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          noCache,
+        );
+        const result = await client.accounts.fetchV5MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          noCache,
+        );
+
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+        expect(result.balances[0]?.balance).toBe('3');
+      });
+
+      it('reuses a fresh cached v6 response when no fetch options are passed', async () => {
+        mockFetch.mockResolvedValueOnce(createMockResponse(v6Response('1')));
+
+        const first = await client.accounts.fetchV6MultiAccountBalances([
+          'eip155:1:0x123',
+        ]);
+        const second = await client.accounts.fetchV6MultiAccountBalances([
+          'eip155:1:0x123',
+        ]);
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(second).toStrictEqual(first);
+      });
+
+      it('refetches v6 balances over the network after invalidateBalances with no-cache options, even when a fresh cache entry exists', async () => {
+        mockFetch
+          .mockResolvedValueOnce(createMockResponse(v6Response('1')))
+          .mockResolvedValueOnce(createMockResponse(v6Response('2')));
+
+        await client.accounts.fetchV6MultiAccountBalances(['eip155:1:0x123']);
+        await client.accounts.invalidateBalances();
+        const result = await client.accounts.fetchV6MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          { staleTime: 0, gcTime: 0 },
+        );
+
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(result.accounts[0]?.balances[0]?.balance).toBe('2');
+      });
+
+      it('never reuses cached v6 balances across consecutive fetches with no-cache options', async () => {
+        mockFetch
+          .mockResolvedValueOnce(createMockResponse(v6Response('1')))
+          .mockResolvedValueOnce(createMockResponse(v6Response('2')))
+          .mockResolvedValueOnce(createMockResponse(v6Response('3')));
+
+        const noCache = { staleTime: 0, gcTime: 0 };
+        await client.accounts.fetchV6MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          noCache,
+        );
+        await client.accounts.fetchV6MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          noCache,
+        );
+        const result = await client.accounts.fetchV6MultiAccountBalances(
+          ['eip155:1:0x123'],
+          undefined,
+          noCache,
+        );
+
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+        expect(result.accounts[0]?.balances[0]?.balance).toBe('3');
+      });
+    });
   });
 
   describe('Transactions', () => {
