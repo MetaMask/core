@@ -757,6 +757,59 @@ describe('SubscriptionService', () => {
         expect(result).toStrictEqual(response);
       });
     });
+
+    it.each([
+      [
+        'delegation without delegationHash',
+        { cryptoAuthMethod: 'delegation' as const },
+      ],
+      [
+        'ERC-20 without rawTransaction',
+        { cryptoAuthMethod: 'erc20_approval' as const },
+      ],
+      ['omitted method without rawTransaction', {}],
+      [
+        'both rawTransaction and delegationHash',
+        { rawTransaction: '0xdeadbeef' as const, delegationHash: '0xabc' },
+      ],
+      [
+        'delegation with both fields',
+        {
+          cryptoAuthMethod: 'delegation' as const,
+          rawTransaction: '0xdeadbeef' as const,
+          delegationHash: '0xabc' as const,
+        },
+      ],
+      [
+        'ERC-20 with only delegationHash',
+        {
+          cryptoAuthMethod: 'erc20_approval' as const,
+          delegationHash: '0xabc' as const,
+        },
+      ],
+    ])(
+      'rejects %s without posting',
+      async (
+        _case: string,
+        overrides: Partial<StartCryptoSubscriptionRequest>,
+      ) => {
+        const fetchMock = jest.fn();
+        const { service } = createService({ fetchMock });
+        const { rawTransaction: _rawTransaction, ...base } =
+          MOCK_CRYPTO_REQUEST;
+        const request: StartCryptoSubscriptionRequest = {
+          ...base,
+          ...overrides,
+        };
+
+        await expect(
+          service.startSubscriptionWithCrypto(request),
+        ).rejects.toThrow(
+          SubscriptionServiceErrorMessage.InvalidCryptoAuthCombo,
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('getPricing', () => {

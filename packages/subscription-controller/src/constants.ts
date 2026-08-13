@@ -56,6 +56,7 @@ export enum SubscriptionServiceErrorMessage {
   FailedToUncancelSubscription = 'Failed to uncancel subscription',
   FailedToStartSubscriptionWithCard = 'Failed to start subscription with card',
   FailedToStartSubscriptionWithCrypto = 'Failed to start subscription with crypto',
+  InvalidCryptoAuthCombo = 'Crypto subscription requires exactly one of rawTransaction (erc20_approval) or delegationHash (delegation)',
   FailedToUpdatePaymentMethodCard = 'Failed to update payment method card',
   FailedToUpdatePaymentMethodCrypto = 'Failed to update payment method crypto',
   FailedToGetSubscriptionsEligibilities = 'Failed to get subscriptions eligibilities',

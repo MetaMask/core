@@ -181,6 +181,14 @@ export type StartSubscriptionResponse = {
   checkoutSessionUrl: string;
 };
 
+/**
+ * Request to start a crypto subscription.
+ *
+ * Auth fields are XOR: provide `rawTransaction` for ERC-20 approval (the
+ * default when `cryptoAuthMethod` is omitted), or `delegationHash` with
+ * `cryptoAuthMethod: 'delegation'`. Combining or omitting both is rejected at
+ * runtime by `startSubscriptionWithCrypto`.
+ */
 export type StartCryptoSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;
