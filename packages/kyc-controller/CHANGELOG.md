@@ -25,4 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move Money Account wallet registration to `@metamask/ramps-controller`: removes `KycController.registerMoneyAccountWallet`, the `KycService` wallet-registration methods (`getMoonpayCustomerId`, `getWalletRegistrationStatus`, `registerSelfHostedWallet`), the `neobankBaseUrl` service option, and the wallet registration exports (`WalletRegistrationError`, `SelfHostedRegistration`, `MoneyAccountWalletRegistrationResult`, and related types). Wallet ownership signing is a Money Movement (neobank-proxy) concern, so it now lives on `RampsController` / `NeoBankService`. ([#9853](https://github.com/MetaMask/core/pull/9853))
 
+### Fixed
+
+- Clear `moonpayCustomerId` when the active vendor changes, so `getCustomerIdentity()` can no longer report a MoonPay customer id under another vendor. The id is dropped when `initialize` starts a non-MoonPay flow and when `createIronCustomer` switches to Iron. ([#9861](https://github.com/MetaMask/core/pull/9861), [#9853](https://github.com/MetaMask/core/pull/9853))
+- Call `unref()` on the user-status poll timer only when it exists. React Native and browser timers are numbers, so the unconditional call threw when Money status polling started outside Node. ([#9861](https://github.com/MetaMask/core/pull/9861), [#9853](https://github.com/MetaMask/core/pull/9853))
+- Skip the `session_not_in_valid_state` completion write when a `reset()` superseded the SumSub flow, so a late vendor response can no longer force `userStatus` to `completed` (and publish `statusChanged`) on an idle controller. ([#9861](https://github.com/MetaMask/core/pull/9861), [#9853](https://github.com/MetaMask/core/pull/9853))
+
 [Unreleased]: https://github.com/MetaMask/core/

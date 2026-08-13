@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve autoramp / Money Account wallet-registration customer id only via Profile Sync + `NeoBankService:getCustomerByExternalId` (prefer `canonicalProfileId`, else `profileId`). Stop calling `KycController:getCustomerIdentity` from ramps; remove the local `KycControllerGetCustomerIdentityAction` type and drop that action from `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS`. ([#9859](https://github.com/MetaMask/core/pull/9859), [#9853](https://github.com/MetaMask/core/pull/9853))
 - Point `NeoBankService.getAutoramp` at `GET /neobank/autoramps/{id}` (neobank-proxy global `/neobank` prefix) instead of `/api/v2/autoramps/{id}`, so Core matches the proxy that ships. ([#9853](https://github.com/MetaMask/core/pull/9853))
 
+### Fixed
+
+- Keep the local `customerId` / `walletAddress` when a remote autoramp snapshot omits or blanks them. The proxy sends empty identity fields on partial status pushes, and `applyAutorampRemoteStatus` / `mapNeoBankAutorampToRemoteSnapshot` treated those as a clear, wiping valid local values during refresh-on-load and websocket pushes. ([#9861](https://github.com/MetaMask/core/pull/9861), [#9853](https://github.com/MetaMask/core/pull/9853))
+
 ## [20.0.0]
 
 ### Changed
