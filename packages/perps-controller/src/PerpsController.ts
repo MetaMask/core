@@ -297,6 +297,8 @@ export {
 } from './constants/perpsConfig.js';
 export type {
   ProLayoutPreferences,
+  ProOrdersSortDirection,
+  ProOrdersSortField,
   ProPositionsSideFilter,
   ProPositionsSortDirection,
   ProPositionsSortField,

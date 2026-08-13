@@ -507,14 +507,24 @@ export type ProPositionsSortField =
 export type ProPositionsSortDirection = 'asc' | 'desc';
 
 /**
+ * Sort fields available on the Pro Orders list.
+ */
+export type ProOrdersSortField = 'orderValue' | 'size' | 'price' | 'time';
+
+/**
+ * Sort direction for the Pro Orders list.
+ */
+export type ProOrdersSortDirection = 'asc' | 'desc';
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
  * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
- * reserved for future container-position UI. `positionsSideFilter` /
- * `positionsSortField` / `positionsSortDirection` back the Positions/Orders
- * panel sort and side filter so they survive market navigation and app
- * restarts.
+ * reserved for future container-position UI. `positionsSideFilter` is the
+ * shared Positions/Orders side filter. `positionsSortField` /
+ * `positionsSortDirection` and `ordersSortField` / `ordersSortDirection`
+ * back each list's sort so they survive market navigation and app restarts.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
@@ -524,6 +534,8 @@ export type ProLayoutPreferences = {
   positionsSideFilter: ProPositionsSideFilter;
   positionsSortField: ProPositionsSortField;
   positionsSortDirection: ProPositionsSortDirection;
+  ordersSortField: ProOrdersSortField;
+  ordersSortDirection: ProOrdersSortDirection;
 };
 
 /**
@@ -541,6 +553,8 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   positionsSideFilter: 'all',
   positionsSortField: 'positionValue',
   positionsSortDirection: 'desc',
+  ordersSortField: 'time',
+  ordersSortDirection: 'desc',
 };
 
 /**
