@@ -905,6 +905,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getWithdrawalProgress',
   'getWithdrawalRoutes',
   'init',
+  'invalidateSubscriptionBenefits',
   'isCurrentlyReinitializing',
   'isFirstTimeUserOnCurrentNetwork',
   'isWatchlistMarket',
@@ -5165,6 +5166,20 @@ export class PerpsController extends BaseController<
         waiverStatus.reason === 'no-source' ? undefined : waiverStatus,
     });
     return this.#marketDataService.calculateFees({ provider, params, context });
+  }
+
+  /**
+   * Drop the cached subscription benefits snapshot.
+   *
+   * Call this when the identity behind the benefits changes — sign-out, or a
+   * profile switch. The snapshot carries no profile identity of its own, so
+   * without this it keeps answering for the previous profile until the next
+   * successful refresh. The next fee resolution reports the waiver as
+   * unavailable and refetches, so the waiver is withheld rather than
+   * mis-granted.
+   */
+  invalidateSubscriptionBenefits(): void {
+    this.#rewardsIntegrationService.invalidateSubscriptionBenefits();
   }
 
   /**

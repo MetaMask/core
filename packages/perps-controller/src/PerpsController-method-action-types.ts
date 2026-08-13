@@ -779,6 +779,21 @@ export type PerpsControllerCalculateFeesAction = {
 };
 
 /**
+ * Drop the cached subscription benefits snapshot.
+ *
+ * Call this when the identity behind the benefits changes — sign-out, or a
+ * profile switch. The snapshot carries no profile identity of its own, so
+ * without this it keeps answering for the previous profile until the next
+ * successful refresh. The next fee resolution reports the waiver as
+ * unavailable and refetches, so the waiver is withheld rather than
+ * mis-granted.
+ */
+export type PerpsControllerInvalidateSubscriptionBenefitsAction = {
+  type: `PerpsController:invalidateSubscriptionBenefits`;
+  handler: PerpsController['invalidateSubscriptionBenefits'];
+};
+
+/**
  * Disconnect provider and cleanup subscriptions
  * Call this when navigating away from Perps screens to prevent battery drain
  */
@@ -1197,6 +1212,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction
   | PerpsControllerStopEligibilityMonitoringAction

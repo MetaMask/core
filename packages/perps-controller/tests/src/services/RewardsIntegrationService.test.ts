@@ -630,6 +630,33 @@ describe('RewardsIntegrationService', () => {
       expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
     });
 
+    it('discards an in-flight benefits read that resolves after invalidation', async () => {
+      // Profile A's read is still in flight when the client signs out. Without
+      // an epoch fence it would repopulate the cache — and mark it fresh —
+      // granting profile A's waiver to profile B.
+      let releaseProfileA: (value: unknown) => void = () => undefined;
+      const getPerpsBenefits = wireSubscription(
+        jest.fn(
+          async () =>
+            new Promise((resolve) => {
+              releaseProfileA = resolve;
+            }),
+        ),
+      );
+
+      const inFlight = service.refreshSubscriptionBenefits();
+      service.invalidateSubscriptionBenefits();
+      releaseProfileA(createBenefits());
+      await inFlight;
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      // The discarded attempt must not throttle the new identity's first fetch.
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+    });
+
     it('uses a background refresh that lands during the rewards round trip', async () => {
       const getPerpsBenefits = wireSubscription(
         jest.fn().mockResolvedValue(createBenefits()),

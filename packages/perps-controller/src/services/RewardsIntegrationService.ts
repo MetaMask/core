@@ -79,6 +79,16 @@ export class RewardsIntegrationService {
   #benefitsRefresh: Promise<void> | undefined;
 
   /**
+   * Identity generation for the cached benefits.
+   *
+   * Bumped by {@link invalidateSubscriptionBenefits}; a read that resolves
+   * against a superseded epoch is discarded rather than written back, so a
+   * refresh issued for the previous profile cannot repopulate the cache after
+   * a sign-out or profile switch.
+   */
+  #benefitsEpoch = 0;
+
+  /**
    * Create a new RewardsIntegrationService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
@@ -268,6 +278,9 @@ export class RewardsIntegrationService {
   invalidateSubscriptionBenefits(): void {
     this.#benefitsSnapshot = undefined;
     this.#lastAttemptAt = undefined;
+    // Fence any in-flight read: it was issued for the previous identity, so its
+    // result must not repopulate the cache after this point.
+    this.#benefitsEpoch += 1;
 
     this.#deps.debugLogger.log(
       'RewardsIntegrationService: Subscription benefits cache invalidated',
@@ -284,8 +297,20 @@ export class RewardsIntegrationService {
   async #readSubscriptionBenefits(
     source: NonNullable<PerpsPlatformDependencies['subscription']>,
   ): Promise<void> {
+    const epoch = this.#benefitsEpoch;
+
     try {
       const benefits = await source.getPerpsBenefits();
+
+      if (epoch !== this.#benefitsEpoch) {
+        // Invalidated while this read was in flight: it belongs to a previous
+        // identity, so discarding it is the only safe outcome.
+        this.#deps.debugLogger.log(
+          'RewardsIntegrationService: Discarding benefits read from a previous identity',
+        );
+        return;
+      }
+
       this.#benefitsSnapshot = { benefits, fetchedAt: Date.now() };
 
       this.#deps.debugLogger.log(
@@ -314,8 +339,13 @@ export class RewardsIntegrationService {
         },
       );
     } finally {
-      // Recorded on failure too — this is what throttles the retry loop.
-      this.#lastAttemptAt = Date.now();
+      // Recorded on failure too — this is what throttles the retry loop. Not
+      // recorded for a fenced read: that attempt belongs to a previous
+      // identity, and letting it throttle would delay the new identity's first
+      // fetch by a whole freshness window.
+      if (epoch === this.#benefitsEpoch) {
+        this.#lastAttemptAt = Date.now();
+      }
     }
   }
 

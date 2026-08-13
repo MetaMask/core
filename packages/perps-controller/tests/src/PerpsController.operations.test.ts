@@ -899,6 +899,23 @@ describe('PerpsController', () => {
       getStatus.mockRestore();
     });
 
+    it('exposes subscription benefits invalidation to clients', async () => {
+      // The service is private to the controller, so a client detecting a
+      // sign-out or profile switch can only reach it through this method.
+      const invalidate = jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'invalidateSubscriptionBenefits',
+        )
+        .mockImplementation(() => undefined);
+
+      controller.invalidateSubscriptionBenefits();
+
+      expect(invalidate).toHaveBeenCalledTimes(1);
+
+      invalidate.mockRestore();
+    });
+
     it('omits the subscription waiver from the fee preview when no source is wired', async () => {
       const feeParams = {
         orderType: 'market' as const,
