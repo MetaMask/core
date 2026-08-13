@@ -41,7 +41,7 @@ export type ImportContext = {
   /** Sets a group name. Implementations must resolve name conflicts automatically. */
   setAccountGroupName: (groupId: AccountGroupId, name: string) => void;
   setAccountGroupPinned: (groupId: AccountGroupId, pinned: boolean) => void;
-  setAccountGroupHideen: (groupId: AccountGroupId, hidden: boolean) => void;
+  setAccountGroupHidden: (groupId: AccountGroupId, hidden: boolean) => void;
 };
 
 /**
@@ -170,7 +170,7 @@ function setGroupMetadata(
 ): void {
   context.setAccountGroupName(localGroupId, payloadGroupMetadata.name);
   context.setAccountGroupPinned(localGroupId, payloadGroupMetadata.pinned);
-  context.setAccountGroupHideen(localGroupId, payloadGroupMetadata.hidden);
+  context.setAccountGroupHidden(localGroupId, payloadGroupMetadata.hidden);
 }
 
 /**

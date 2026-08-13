@@ -150,7 +150,7 @@ function setup({
       setWalletName: jest.Mock;
       setAccountGroupName: jest.Mock;
       setAccountGroupPinned: jest.Mock;
-      setAccountGroupHideen: jest.Mock;
+      setAccountGroupHidden: jest.Mock;
     };
   };
   /* eslint-enable @typescript-eslint/naming-convention */
@@ -171,7 +171,7 @@ function setup({
       setWalletName: jest.fn(),
       setAccountGroupName: jest.fn(),
       setAccountGroupPinned: jest.fn(),
-      setAccountGroupHideen: jest.fn(),
+      setAccountGroupHidden: jest.fn(),
     },
   };
 
@@ -209,7 +209,7 @@ function setup({
     setWalletName: mocks.setters.setWalletName,
     setAccountGroupName: mocks.setters.setAccountGroupName,
     setAccountGroupPinned: mocks.setters.setAccountGroupPinned,
-    setAccountGroupHideen: mocks.setters.setAccountGroupHideen,
+    setAccountGroupHidden: mocks.setters.setAccountGroupHidden,
   };
 
   return { context, mocks, walletsRef };
@@ -288,7 +288,7 @@ describe('importState', () => {
         MOCK_HD_GROUP_ID_0,
         true,
       );
-      expect(mocks.setters.setAccountGroupHideen).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupHidden).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_0,
         false,
       );
@@ -300,7 +300,7 @@ describe('importState', () => {
         MOCK_HD_GROUP_ID_1,
         false,
       );
-      expect(mocks.setters.setAccountGroupHideen).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupHidden).toHaveBeenCalledWith(
         MOCK_HD_GROUP_ID_1,
         true,
       );
@@ -708,7 +708,7 @@ describe('importState', () => {
         pkGroupId,
         true,
       );
-      expect(mocks.setters.setAccountGroupHideen).toHaveBeenCalledWith(
+      expect(mocks.setters.setAccountGroupHidden).toHaveBeenCalledWith(
         pkGroupId,
         false,
       );
