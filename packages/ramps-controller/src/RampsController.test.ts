@@ -9451,6 +9451,19 @@ describe('RampsController', () => {
       });
     });
 
+    it('creates an autoramp from a push that carries no wallet address', async () => {
+      await withController(({ controller }) => {
+        const created = controller.applyAutorampStatusFromPush({
+          id: 'ar-new',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(created.walletAddress).toBe('');
+        expect(controller.state.autoramps).toHaveLength(1);
+      });
+    });
+
     it('keeps local identity fields when a remote push omits or blanks them', async () => {
       await withController(({ controller }) => {
         controller.addAutoramp({

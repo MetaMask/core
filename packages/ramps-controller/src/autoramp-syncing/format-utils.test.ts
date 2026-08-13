@@ -61,6 +61,35 @@ describe('autoramp-syncing/format-utils', () => {
     expect(stripAutorampSyncMetadata(mapped)).not.toHaveProperty('deletedAt');
   });
 
+  it('stamps the current time when the account has no update timestamp', () => {
+    const entry = mapAutorampToUserStorageEntry({
+      ...account,
+      updatedAt: 0,
+    });
+
+    expect(entry.lu).toBeGreaterThan(0);
+    expect(entry.o).not.toHaveProperty('notifiedForStatus');
+    expect(entry).not.toHaveProperty('dt');
+  });
+
+  it('normalizes a notified status and defaults a missing timestamp', () => {
+    const mapped = mapUserStorageEntryToAutoramp({
+      [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+      o: {
+        id: 'ar-1',
+        customerId: 'cust-1',
+        walletAddress: '0xabc',
+        status: AutorampStatus.Approved,
+        lastSeenStatus: AutorampStatus.Approved,
+        notifiedForStatus: AutorampStatus.Approved,
+      },
+    });
+
+    expect(mapped.notifiedForStatus).toBe(AutorampStatus.Approved);
+    expect(mapped.updatedAt).toBeGreaterThan(0);
+    expect(mapped).not.toHaveProperty('deletedAt');
+  });
+
   it('compares sync-relevant fields', () => {
     expect(areAutorampsEqual(account, { ...account })).toBe(true);
     expect(

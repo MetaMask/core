@@ -384,6 +384,51 @@ describe('syncAutorampsWithUserStorage', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('re-uploads a local account whose newer remote copy was not imported', async () => {
+    // The account is queued for deletion, so the newer remote copy is not
+    // applied locally; the surviving local copy still has to reach the remote.
+    const local = buildAccount({ id: 'ar-1', updatedAt: 1_000 });
+    const remote = buildAccount({
+      id: 'ar-1',
+      status: AutorampStatus.Approved,
+      updatedAt: 5_000,
+    });
+    const harness = buildHarness({
+      localAccounts: [local],
+      remoteEntries: [toRemoteEntryJson(remote)],
+      pendingDeletes: [local],
+    });
+
+    await syncAutorampsWithUserStorage({}, harness.options);
+
+    expect(harness.controller.addAutoramp).not.toHaveBeenCalled();
+    const [entries] = harness.batchSetCalls();
+    expect(entries.map(([key]) => key)).toStrictEqual(['ar-1']);
+    expect(JSON.parse(entries[0][1]).o.status).toBe(AutorampStatus.Authorized);
+  });
+
+  it('stamps a re-uploaded local account that has no timestamp', async () => {
+    const local = {
+      ...buildAccount({ id: 'ar-1' }),
+      updatedAt: 0,
+    } as unknown as AutorampAccount;
+    const remote = buildAccount({
+      id: 'ar-1',
+      status: AutorampStatus.Approved,
+      updatedAt: 5_000,
+    });
+    const harness = buildHarness({
+      localAccounts: [local],
+      remoteEntries: [toRemoteEntryJson(remote)],
+      pendingDeletes: [local],
+    });
+
+    await syncAutorampsWithUserStorage({}, harness.options);
+
+    const [entries] = harness.batchSetCalls();
+    expect(JSON.parse(entries[0][1]).lu).toBeGreaterThan(0);
+  });
+
   it('reports an unsupported storage version and skips the entry', async () => {
     const harness = buildHarness({
       remoteEntries: [
