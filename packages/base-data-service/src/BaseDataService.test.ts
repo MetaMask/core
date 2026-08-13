@@ -156,6 +156,25 @@ describe('BaseDataService', () => {
     expect(rebuilt.data).toHaveLength(3);
   });
 
+  it('recovers the first page after a cold jump on refetch', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    // Cold jump straight to a later page.
+    const jumped = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
+      page: { after: TRANSACTIONS_PAGE_2_CURSOR },
+    });
+    expect(jumped.data).toHaveLength(3);
+
+    // A param-less refetch must fetch the real first page, not the jumped-to
+    // page. The jump must not have overwritten the query's initial page param.
+    mockTransactionsPage1();
+    const first = await service.getActivityWithoutCallbacks(TEST_ADDRESS);
+
+    expect(first.data).toHaveLength(3);
+    expect(first.data).not.toStrictEqual(jumped.data);
+  });
+
   it('preserves a `null` initial page param', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
