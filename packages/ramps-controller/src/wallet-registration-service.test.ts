@@ -104,6 +104,10 @@ describe('createIdempotencyKey', () => {
     } finally {
       if (originalDescriptor) {
         Object.defineProperty(globalThis, 'crypto', originalDescriptor);
+      } else {
+        // Node 18 exposes no own `crypto` descriptor, so the stub has to be
+        // removed rather than restored, or it leaks into later tests.
+        Reflect.deleteProperty(globalThis, 'crypto');
       }
     }
   });
