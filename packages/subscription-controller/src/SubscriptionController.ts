@@ -972,12 +972,19 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Asserts that the value is a valid crypto payment method.
    *
+   * After this assert, `cryptoAuthMethod` and `useTestClock` remain optional
+   * because persisted cache entries may omit them.
+   *
    * @param value - The value to assert.
    * @throws an error if the value is not a valid crypto payment method.
    */
   #assertIsPaymentMethodCrypto(
     value: CachedLastSelectedPaymentMethod | undefined,
-  ): asserts value is Required<CachedLastSelectedPaymentMethod> {
+  ): asserts value is CachedLastSelectedPaymentMethod & {
+    type: typeof PAYMENT_TYPES.byCrypto;
+    paymentTokenAddress: Hex;
+    paymentTokenSymbol: string;
+  } {
     if (
       value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||

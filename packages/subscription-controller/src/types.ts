@@ -543,6 +543,10 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
   useTestClock?: boolean;
+  /**
+   * Crypto authorization method. Omitted on persisted cache entries written
+   * before this field existed; treat as `erc20_approval` when missing.
+   */
   cryptoAuthMethod?: CryptoAuthMethod;
 };
 
