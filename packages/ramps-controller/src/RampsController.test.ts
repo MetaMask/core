@@ -9033,11 +9033,21 @@ describe('RampsController', () => {
       });
     });
 
-    it('injects the KYC customer id and applies the created autoramp', async () => {
+    it('injects the Profile Sync customer id and applies the created autoramp', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
-          'KycController:getCustomerIdentity',
-          () => ({ vendor: 'moonpay', id: 'cust-99' }),
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => ({ id: 'cust-99' }),
         );
         const createAutoramp = jest.fn().mockResolvedValue({
           id: 'ar-new',
@@ -9066,12 +9076,44 @@ describe('RampsController', () => {
       });
     });
 
-    it('throws when no KYC identity or mapped external customer is available', async () => {
+    it('prefers canonicalProfileId when resolving the external customer id', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
-          'KycController:getCustomerIdentity',
-          () => null,
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
         );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-canonical' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-canonical',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('canonical-1');
+      });
+    });
+
+    it('throws when no mapped external customer is available', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'AuthenticationController:getSessionProfile',
           async () =>
@@ -9095,6 +9137,72 @@ describe('RampsController', () => {
           /no MoonPay customer is mapped to external id "profile-1"/u,
         );
         expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when the wallet is not signed in to Profile Sync', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: '',
+              canonicalProfileId: '',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await expect(controller.createAutoramp({})).rejects.toThrow(
+          /wallet is not signed in to Profile Sync/u,
+        );
+        expect(getCustomerByExternalId).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('falls back to profileId when canonicalProfileId is empty', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: '',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-profile' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          async () => ({
+            id: 'ar-new',
+            customerId: 'cust-profile',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Created,
+          }),
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('profile-1');
       });
     });
 
@@ -9209,7 +9317,8 @@ describe('RampsController', () => {
     };
 
     type WalletRegistrationHandlers = {
-      getCustomerIdentity: jest.Mock;
+      getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
       getWalletRegistrationStatus: jest.Mock;
       registerSelfHostedWallet: jest.Mock;
       signPersonalMessage: jest.Mock;
@@ -9226,9 +9335,14 @@ describe('RampsController', () => {
       rootMessenger: RootMessenger,
     ): WalletRegistrationHandlers {
       const handlers: WalletRegistrationHandlers = {
-        getCustomerIdentity: jest
+        getSessionProfile: jest.fn().mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          metaMetricsId: 'mm-1',
+        }),
+        getCustomerByExternalId: jest
           .fn()
-          .mockReturnValue({ vendor: 'iron', id: 'iron-customer-1' }),
+          .mockResolvedValue({ id: 'iron-customer-1' }),
         getWalletRegistrationStatus: jest
           .fn()
           .mockResolvedValue({ type: 'absent' }),
@@ -9239,8 +9353,12 @@ describe('RampsController', () => {
         signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
       };
       rootMessenger.registerActionHandler(
-        'KycController:getCustomerIdentity',
-        handlers.getCustomerIdentity,
+        'AuthenticationController:getSessionProfile',
+        handlers.getSessionProfile,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId',
+        handlers.getCustomerByExternalId,
       );
       rootMessenger.registerActionHandler(
         'NeoBankService:getWalletRegistrationStatus',
@@ -9317,30 +9435,24 @@ describe('RampsController', () => {
       });
     });
 
-    it('falls back to the external-id customer lookup when KYC has no identity', async () => {
+    it('resolves the customer id via Profile Sync external-id lookup', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerWalletRegistrationHandlers(rootMessenger);
-        handlers.getCustomerIdentity.mockReturnValue(null);
-        rootMessenger.registerActionHandler(
-          'AuthenticationController:getSessionProfile',
-          async () =>
-            ({
-              identifierId: 'id-1',
-              profileId: 'profile-1',
-              metaMetricsId: 'mm-1',
-            }) as never,
-        );
-        const getCustomerByExternalId = jest
-          .fn()
-          .mockResolvedValue({ id: 'iron-customer-fallback' });
-        rootMessenger.registerActionHandler(
-          'NeoBankService:getCustomerByExternalId',
-          getCustomerByExternalId,
-        );
+        handlers.getSessionProfile.mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          canonicalProfileId: 'canonical-1',
+          metaMetricsId: 'mm-1',
+        });
+        handlers.getCustomerByExternalId.mockResolvedValue({
+          id: 'iron-customer-fallback',
+        });
 
         await controller.registerMoneyAccountWallet({ address: '0xabc' });
 
-        expect(getCustomerByExternalId).toHaveBeenCalledWith('profile-1');
+        expect(handlers.getCustomerByExternalId).toHaveBeenCalledWith(
+          'canonical-1',
+        );
         expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
           customerId: 'iron-customer-fallback',
           address: '0xabc',
