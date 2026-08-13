@@ -258,7 +258,7 @@ describe('subscriptionController', () => {
     const result = await rootMessenger.call(
       'SubscriptionController:startSubscriptionWithCard',
       {
-        products: ['money_account'],
+        products: ['money_account_plus'],
         isTrialRequested: false,
         recurringInterval: 'month',
       },
@@ -304,7 +304,7 @@ describe('subscriptionController', () => {
             id: 'sub_money_account',
             products: [
               {
-                name: 'money_account',
+                name: 'money_account_plus',
                 currency: 'usd',
                 unitAmount: 499,
                 unitDecimals: 2,
