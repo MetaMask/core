@@ -360,21 +360,6 @@ export class BaseDataService<
     });
 
     if (!query?.state.data || pageParam === undefined) {
-      // @tanstack/query-core requires an `initialPageParam`, which becomes the
-      // param of the first (and only) page this fetches. Prefer an explicit
-      // per-call `pageParam` (a cold jump to a specific page); otherwise use the
-      // consumer's `initialPageParam`. Branching on a strict `undefined` check
-      // (rather than `??`) preserves `null`, which is a valid `Json` page param
-      // and query-core's usual first-page sentinel. The value can legitimately
-      // be `undefined` here (the very first page), which query-core accepts at
-      // runtime but not in its `TPageParam` type, hence the cast.
-      let initialPageParam: TPageParam;
-      if (pageParam === undefined) {
-        initialPageParam = options.initialPageParam as TPageParam;
-      } else {
-        initialPageParam = pageParam;
-      }
-
       const result = await this.#queryClient.fetchInfiniteQuery<
         TQueryFnData,
         TError,
@@ -383,14 +368,33 @@ export class BaseDataService<
         TPageParam
       >({
         ...options,
-        initialPageParam,
+        // `initialPageParam` identifies the query's first page. Keep it as the
+        // consumer's value (which may be `undefined` for the very first page)
+        // rather than an explicit per-call `pageParam`: overwriting it would
+        // make a cold jump to page N masquerade as the first page, so a later
+        // refetch could never recover the real first page. query-core accepts
+        // `undefined` at runtime but not in its `TPageParam` type, hence the
+        // cast.
+        initialPageParam: options.initialPageParam as TPageParam,
         // Provide a no-op `getNextPageParam` when the consumer omits one.
         // @tanstack/query-core walks `getNextPageParam` when it refetches a
         // multi-page infinite query, so a missing resolver would throw once more
         // than one page has been cached.
         getNextPageParam: options.getNextPageParam ?? ((): null => null),
         queryFn: (context) =>
-          this.#policy.execute(() => options.queryFn(context)),
+          this.#policy.execute(() =>
+            // Use query-core's context param when it has one (the derived param
+            // during a refetch, or an explicit/`null` `initialPageParam`). Only
+            // when it has none (the very first page) substitute the caller's
+            // explicit `pageParam`, which is how a cold jump fetches a specific
+            // page. The strict `undefined` check (rather than `??`) forwards a
+            // `null` param unchanged.
+            options.queryFn(
+              context.pageParam === undefined
+                ? { ...context, pageParam }
+                : context,
+            ),
+          ),
       });
 
       return result.pages[0];
