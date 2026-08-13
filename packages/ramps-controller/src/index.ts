@@ -13,7 +13,6 @@ export type {
   TransakState,
   NativeProvidersState,
   MoneyAccountWalletRegistrationResult,
-  KycControllerGetCustomerIdentityAction,
   KeyringControllerSignPersonalMessageAction,
 } from './RampsController.js';
 export type {
