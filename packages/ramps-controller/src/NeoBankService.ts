@@ -2,7 +2,11 @@ import type {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  handleWhen,
+  HttpError,
+} from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
@@ -23,6 +27,27 @@ import type {
  * Name of the NeoBankService messenger namespace.
  */
 export const serviceName = 'NeoBankService';
+
+/**
+ * Determines whether a failed neo-bank request is worth re-issuing.
+ *
+ * 4xx responses describe the request or the account's state (e.g. 403
+ * "Customer is not active", 422 validation), so repeating them only multiplies
+ * the same rejection. 429 stays retryable alongside 5xx and non-HTTP
+ * network/timeout errors.
+ *
+ * @param error - Error thrown while performing the request.
+ * @returns `true` when the error is worth retrying.
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    if (error.httpStatus === 429) {
+      return true;
+    }
+    return error.httpStatus < 400 || error.httpStatus >= 500;
+  }
+  return true;
+}
 
 /**
  * Raw autoramp payload from the MetaMask Ramp API neo-bank proxy.
@@ -232,7 +257,10 @@ export class NeoBankService {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy(policyOptions);
+    this.#policy = createServicePolicy({
+      retryFilterPolicy: handleWhen(isRetryableError),
+      ...policyOptions,
+    });
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
@@ -299,6 +327,32 @@ export class NeoBankService {
     return url;
   }
 
+  /**
+   * Throws an {@link HttpError} that carries the upstream response body.
+   *
+   * The neobank-proxy mirrors MoonPay's status *and* body verbatim, so the
+   * body is usually the only place that explains a 4xx (e.g. which field or
+   * permission was rejected). Dropping it makes failures undiagnosable.
+   *
+   * @param url - Request URL, for context in the message.
+   * @param response - Non-OK fetch response.
+   */
+  async #throwHttpError(url: URL, response: Response): Promise<never> {
+    let detail = '';
+    try {
+      const body = (await response.text()).trim();
+      if (body) {
+        detail = ` - ${body.slice(0, 500)}`;
+      }
+    } catch {
+      // Body already consumed or unreadable; the status alone still helps.
+    }
+    throw new HttpError(
+      response.status,
+      `Fetching '${url.toString()}' failed with status '${response.status}'${detail}`,
+    );
+  }
+
   async #getJson<ResponseBody>(
     path: string,
     query?: NeoBankQueryParams,
@@ -308,10 +362,7 @@ export class NeoBankService {
       const headers = await this.#getRequestHeaders();
       const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
+        await this.#throwHttpError(url, fetchResponse);
       }
       return fetchResponse.json() as Promise<ResponseBody>;
     });
@@ -332,10 +383,7 @@ export class NeoBankService {
         body: JSON.stringify(body),
       });
       if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
+        await this.#throwHttpError(url, fetchResponse);
       }
       return fetchResponse.json() as Promise<ResponseBody>;
     });
