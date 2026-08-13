@@ -8,9 +8,9 @@ import {
   optional,
   string,
   type,
-  type Struct,
   union,
 } from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
 import { StrictHexStruct, CaipAccountIdStruct } from '@metamask/utils';
 
 import {

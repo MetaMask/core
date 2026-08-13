@@ -1628,7 +1628,8 @@ describe('SubscriptionController', () => {
                   chains: [
                     {
                       chainId: '0x2',
-                      paymentAddress: '0x00000000000000000000000000000000000000a2',
+                      paymentAddress:
+                        '0x00000000000000000000000000000000000000a2',
                       tokens: [],
                     },
                   ],
@@ -1688,7 +1689,8 @@ describe('SubscriptionController', () => {
                   chains: [
                     {
                       chainId: '0x1',
-                      paymentAddress: '0x00000000000000000000000000000000000000a2',
+                      paymentAddress:
+                        '0x00000000000000000000000000000000000000a2',
                       tokens: [
                         {
                           address: '0xtoken',

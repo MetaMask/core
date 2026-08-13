@@ -1337,7 +1337,8 @@ describe('SubscriptionService', () => {
                   address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
                   decimals: 6,
                   isVaultShare: true,
-                  accountantAddress: '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+                  accountantAddress:
+                    '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
                   sources: [
                     {
                       symbol: 'mUSD',
