@@ -8,10 +8,7 @@ import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
-import type {
-  AuthenticationControllerGetBearerTokenAction,
-  AuthenticationControllerGetSessionProfileAction,
-} from '@metamask/profile-sync-controller/auth';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { Infer, Struct } from '@metamask/superstruct';
 import {
   array,
@@ -38,11 +35,6 @@ import type {
 import { UKYC_JWKS_PATH } from './ukyc/constants.js';
 import { encodeStorageAccessTokenForHeader } from './ukyc/storageAccessToken.js';
 import type { UkycStorageAccessToken } from './ukyc/storageAccessToken.js';
-import { WalletRegistrationService } from './wallet-registration-service.js';
-import type {
-  RegistrationOutcome,
-  RegistrationStatus,
-} from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -68,9 +60,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'createUkycSession',
   'createJourney',
   'getSessionStatus',
-  'getMoonpayCustomerId',
-  'getWalletRegistrationStatus',
-  'registerSelfHostedWallet',
 ] as const;
 
 /**
@@ -91,7 +80,6 @@ export type KycServiceActions =
  */
 type AllowedActions =
   | AuthenticationControllerGetBearerTokenAction
-  | AuthenticationControllerGetSessionProfileAction
   | GeolocationControllerGetGeolocationAction;
 
 /**
@@ -139,13 +127,6 @@ export type KycServiceOptions = {
    * Mandatory value that sets the base url to KYC api
    */
   baseUrl: string;
-  /**
-   * Base URL of the on-ramp / neobank-proxy host used for Money Account wallet
-   * registration (e.g. `https://on-ramp.dev-api.cx.metamask.io`). Paths are
-   * under `/neobank`. When omitted, falls back to {@link baseUrl} so local
-   * tests can target a single mock host.
-   */
-  neobankBaseUrl?: string;
   /**
    * Base URL of the Fractal encryption service, from which the JWKS used to
    * verify the `jwtChain` returned by {@link KycService.getWrappingKey} is
@@ -322,23 +303,6 @@ export type GetSessionStatusParams = {
   sessionId: string;
 };
 
-export type GetWalletRegistrationStatusParams = {
-  customerId: string;
-  address: string;
-};
-
-export type RegisterSelfHostedWalletParams = {
-  customerId: string;
-  address: string;
-  message: string;
-  signature: string;
-  /**
-   * Forwarded as `Idempotency-Key` on the neobank-proxy POST. Prefer a stable
-   * key across retries of the same ownership body.
-   */
-  idempotencyKey?: string;
-};
-
 // === SERVICE DEFINITION ===
 
 /**
@@ -364,8 +328,6 @@ export class KycService extends BaseDataService<
 
   readonly #fractalEncryptionBaseUrl: string;
 
-  readonly #walletRegistrationService: WalletRegistrationService;
-
   /**
    * Constructs a new KycService.
    *
@@ -373,8 +335,6 @@ export class KycService extends BaseDataService<
    * @param options.messenger - The messenger suited for this service.
    * @param options.fetch - A function used to make HTTP requests.
    * @param options.baseUrl - Base URL of the KYC API
-   * @param options.neobankBaseUrl - Base URL of the neobank-proxy host for
-   * wallet registration. Defaults to `baseUrl` when omitted.
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
    * encryption service, from which the JWKS used to verify the wrapping-key
    * `jwtChain` is fetched.
@@ -386,7 +346,6 @@ export class KycService extends BaseDataService<
     messenger,
     fetch: fetchFunction,
     baseUrl,
-    neobankBaseUrl,
     fractalEncryptionBaseUrl,
     queryClientConfig = {},
     policyOptions = {},
@@ -403,13 +362,6 @@ export class KycService extends BaseDataService<
     }
     this.#baseUrl = baseUrl;
     this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
-    this.#walletRegistrationService = new WalletRegistrationService({
-      fetch: fetchFunction,
-      baseUrl: neobankBaseUrl ?? baseUrl,
-      getAuthToken: async (): Promise<string> => this.#getBearerToken(),
-      getExternalId: async (): Promise<string> =>
-        this.#getCanonicalExternalId(),
-    });
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -447,51 +399,6 @@ export class KycService extends BaseDataService<
       );
     }
     return alpha3;
-  }
-
-  /**
-   * Resolves Iron's internal customer id via neobank-proxy customer lookup,
-   * using the MetaMask canonical profile id as the partner `external_id`.
-   *
-   * @returns Iron's internal customer id.
-   */
-  async getMoonpayCustomerId(): Promise<string> {
-    return await this.#walletRegistrationService.getMoonpayCustomerId();
-  }
-
-  /**
-   * Checks whether a Monad Money Account address is already registered for the
-   * given Iron customer.
-   *
-   * @param params - Customer id and address to check.
-   * @param params.customerId - Iron / MoonPay customer UUID.
-   * @param params.address - Money Account address.
-   * @returns Active, disabled, or absent registration status.
-   */
-  async getWalletRegistrationStatus({
-    customerId,
-    address,
-  }: GetWalletRegistrationStatusParams): Promise<RegistrationStatus> {
-    return await this.#walletRegistrationService.getRegistrationStatus({
-      customerId,
-      address,
-      blockchain: 'Monad',
-    });
-  }
-
-  /**
-   * Submits a signed Monad Money Account ownership proof.
-   *
-   * @param params - Signed ownership proof.
-   * @returns Registered wallet record.
-   */
-  async registerSelfHostedWallet(
-    params: RegisterSelfHostedWalletParams,
-  ): Promise<RegistrationOutcome> {
-    return await this.#walletRegistrationService.registerSelfHostedWallet({
-      ...params,
-      blockchain: 'Monad',
-    });
   }
 
   /**
@@ -944,29 +851,6 @@ export class KycService extends BaseDataService<
       );
     }
     return bearerToken;
-  }
-
-  /**
-   * Resolves the MetaMask canonical profile id used as MoonPay's partner
-   * `external_id` for neobank customer lookup.
-   *
-   * @returns Canonical profile id.
-   */
-  async #getCanonicalExternalId(): Promise<string> {
-    const profile = await this.messenger.call(
-      'AuthenticationController:getSessionProfile',
-    );
-    const canonical = profile?.canonicalProfileId;
-    const externalId =
-      typeof canonical === 'string' && canonical.length > 0
-        ? canonical
-        : profile?.profileId;
-    if (typeof externalId !== 'string' || externalId.length === 0) {
-      throw new Error(
-        'Unable to resolve MetaMask canonical profile id for MoonPay customer lookup',
-      );
-    }
-    return externalId;
   }
 
   /**

@@ -18,42 +18,6 @@ export type KycServiceGetGeoCountryAction = {
 };
 
 /**
- * Resolves Iron's internal customer id via neobank-proxy customer lookup,
- * using the MetaMask canonical profile id as the partner `external_id`.
- *
- * @returns Iron's internal customer id.
- */
-export type KycServiceGetMoonpayCustomerIdAction = {
-  type: `KycService:getMoonpayCustomerId`;
-  handler: KycService['getMoonpayCustomerId'];
-};
-
-/**
- * Checks whether a Monad Money Account address is already registered for the
- * given Iron customer.
- *
- * @param params - Customer id and address to check.
- * @param params.customerId - Iron / MoonPay customer UUID.
- * @param params.address - Money Account address.
- * @returns Active, disabled, or absent registration status.
- */
-export type KycServiceGetWalletRegistrationStatusAction = {
-  type: `KycService:getWalletRegistrationStatus`;
-  handler: KycService['getWalletRegistrationStatus'];
-};
-
-/**
- * Submits a signed Monad Money Account ownership proof.
- *
- * @param params - Signed ownership proof.
- * @returns Registered wallet record.
- */
-export type KycServiceRegisterSelfHostedWalletAction = {
-  type: `KycService:registerSelfHostedWallet`;
-  handler: KycService['registerSelfHostedWallet'];
-};
-
-/**
  * Fetches the disclaimers the customer must accept before a session is
  * created.
  *
@@ -226,9 +190,6 @@ export type KycServiceGetSessionStatusAction = {
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
-  | KycServiceGetMoonpayCustomerIdAction
-  | KycServiceGetWalletRegistrationStatusAction
-  | KycServiceRegisterSelfHostedWalletAction
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction

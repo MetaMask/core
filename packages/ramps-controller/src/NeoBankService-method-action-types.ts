@@ -95,6 +95,43 @@ export type NeoBankServiceGetCustomerByExternalIdAction = {
 };
 
 /**
+ * Resolves Iron's internal customer id via neobank-proxy customer lookup,
+ * using the MetaMask canonical profile id as the partner `external_id`.
+ *
+ * @returns Iron's internal customer id.
+ */
+export type NeoBankServiceGetMoonpayCustomerIdAction = {
+  type: `NeoBankService:getMoonpayCustomerId`;
+  handler: NeoBankService['getMoonpayCustomerId'];
+};
+
+/**
+ * Checks whether a Monad Money Account address is already registered for the
+ * given Iron customer.
+ *
+ * @param params - Customer id and address to check.
+ * @param params.customerId - Iron / MoonPay customer UUID.
+ * @param params.address - Money Account address.
+ * @returns Active, disabled, or absent registration status.
+ */
+export type NeoBankServiceGetWalletRegistrationStatusAction = {
+  type: `NeoBankService:getWalletRegistrationStatus`;
+  handler: NeoBankService['getWalletRegistrationStatus'];
+};
+
+/**
+ * Submits a signed Monad Money Account ownership proof via neobank-proxy
+ * `POST /neobank/addresses/crypto/selfhosted`.
+ *
+ * @param params - Signed ownership proof.
+ * @returns Registered wallet record.
+ */
+export type NeoBankServiceRegisterSelfHostedWalletAction = {
+  type: `NeoBankService:registerSelfHostedWallet`;
+  handler: NeoBankService['registerSelfHostedWallet'];
+};
+
+/**
  * Union of all NeoBankService action types.
  */
 export type NeoBankServiceMethodActions =
@@ -104,4 +141,7 @@ export type NeoBankServiceMethodActions =
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetAutorampQuoteForAutorampAction
   | NeoBankServiceAttachAutorampQuoteAction
-  | NeoBankServiceGetCustomerByExternalIdAction;
+  | NeoBankServiceGetCustomerByExternalIdAction
+  | NeoBankServiceGetMoonpayCustomerIdAction
+  | NeoBankServiceGetWalletRegistrationStatusAction
+  | NeoBankServiceRegisterSelfHostedWalletAction;

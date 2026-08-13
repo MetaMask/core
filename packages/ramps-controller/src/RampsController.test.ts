@@ -50,6 +50,7 @@ import type {
 } from './RampsService.js';
 import { RampsOrderStatus } from './RampsService.js';
 import { RequestStatus } from './RequestCache.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -9065,11 +9066,24 @@ describe('RampsController', () => {
       });
     });
 
-    it('throws when no KYC customer identity is available', async () => {
+    it('throws when no KYC identity or mapped external customer is available', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'KycController:getCustomerIdentity',
           () => null,
+        );
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => null,
         );
         const createAutoramp = jest.fn();
         rootMessenger.registerActionHandler(
@@ -9078,7 +9092,7 @@ describe('RampsController', () => {
         );
 
         await expect(controller.createAutoramp({})).rejects.toThrow(
-          /no verified KYC customer identity/u,
+          /no MoonPay customer is mapped to external id "profile-1"/u,
         );
         expect(createAutoramp).not.toHaveBeenCalled();
       });
@@ -9181,6 +9195,267 @@ describe('RampsController', () => {
         expect(controller.state.autoramps[0]?.notifiedForStatus).toBe(
           AutorampStatus.Approved,
         );
+      });
+    });
+  });
+
+  describe('registerMoneyAccountWallet', () => {
+    const registration = {
+      id: 'wallet-1',
+      address: '0xabc',
+      blockchain: 'Monad' as const,
+      disabled: false,
+      isSelf: true,
+    };
+
+    type WalletRegistrationHandlers = {
+      getCustomerIdentity: jest.Mock;
+      getWalletRegistrationStatus: jest.Mock;
+      registerSelfHostedWallet: jest.Mock;
+      signPersonalMessage: jest.Mock;
+    };
+
+    /**
+     * Registers default handlers for every messenger action the wallet
+     * registration flow calls, returning the mocks for per-test overrides.
+     *
+     * @param rootMessenger - The root messenger of the controller under test.
+     * @returns The registered handler mocks.
+     */
+    function registerWalletRegistrationHandlers(
+      rootMessenger: RootMessenger,
+    ): WalletRegistrationHandlers {
+      const handlers: WalletRegistrationHandlers = {
+        getCustomerIdentity: jest
+          .fn()
+          .mockReturnValue({ vendor: 'iron', id: 'iron-customer-1' }),
+        getWalletRegistrationStatus: jest
+          .fn()
+          .mockResolvedValue({ type: 'absent' }),
+        registerSelfHostedWallet: jest.fn().mockResolvedValue({
+          type: 'registered',
+          registration,
+        }),
+        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
+      };
+      rootMessenger.registerActionHandler(
+        'KycController:getCustomerIdentity',
+        handlers.getCustomerIdentity,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getWalletRegistrationStatus',
+        handlers.getWalletRegistrationStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:registerSelfHostedWallet',
+        handlers.registerSelfHostedWallet,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signPersonalMessage',
+        handlers.signPersonalMessage,
+      );
+      return handlers;
+    }
+
+    it('returns an existing active registration without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'active',
+          registration,
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns an existing disabled registration without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'disabled',
+          registration: { ...registration, disabled: true },
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registeredDisabled' });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('signs and submits an ownership proof for an absent registration', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registered' });
+
+        expect(handlers.signPersonalMessage).toHaveBeenCalledWith({
+          data: expect.stringContaining('as customer iron-customer-1.'),
+          from: '0xabc',
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address: '0xabc',
+            customerId: 'iron-customer-1',
+            signature: '0xsig',
+            idempotencyKey: expect.any(String),
+          }),
+        );
+      });
+    });
+
+    it('falls back to the external-id customer lookup when KYC has no identity', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getCustomerIdentity.mockReturnValue(null);
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'iron-customer-fallback' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+
+        await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('profile-1');
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-fallback',
+          address: '0xabc',
+        });
+      });
+    });
+
+    it('reconciles an ambiguous conflict as already registered', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockResolvedValueOnce({ type: 'active', registration });
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+      });
+    });
+
+    it('rethrows a transient failure when reconciliation remains absent', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new WalletRegistrationError('transient', {
+          httpStatus: 502,
+        });
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(4);
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    it('rebuilds and re-signs after a UTC date rollover', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-08-12T23:59:59.999Z'));
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerWalletRegistrationHandlers(rootMessenger);
+          handlers.registerSelfHostedWallet
+            .mockImplementationOnce(async () => {
+              jest.setSystemTime(new Date('2026-08-13T00:00:00.000Z'));
+              throw new WalletRegistrationError('validation', {
+                httpStatus: 400,
+              });
+            })
+            .mockResolvedValueOnce({
+              type: 'registered',
+              registration,
+            });
+
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+          expect(handlers.signPersonalMessage).toHaveBeenCalledTimes(2);
+          expect(handlers.signPersonalMessage.mock.calls[0][0].data).toContain(
+            'signed on 12/08/2026',
+          );
+          expect(handlers.signPersonalMessage.mock.calls[1][0].data).toContain(
+            'signed on 13/08/2026',
+          );
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it.each([
+      new WalletRegistrationError('validation', { httpStatus: 400 }),
+      new WalletRegistrationError('rateLimited', { httpStatus: 429 }),
+      new WalletRegistrationError('unauthorized', { httpStatus: 401 }),
+      new Error('unexpected'),
+    ])('rethrows terminal registration failure %#', async (error) => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('rethrows an initial lookup failure without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new Error('lookup failed');
+        handlers.getWalletRegistrationStatus.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rethrows a signing failure without submitting', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new Error('signing failed');
+        handlers.signPersonalMessage.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
       });
     });
   });

@@ -13,6 +13,11 @@ import type {
 } from './autorampAccount.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
+import { WalletRegistrationService } from './wallet-registration-service.js';
+import type {
+  RegistrationOutcome,
+  RegistrationStatus,
+} from './wallet-registration-service.js';
 
 /**
  * Name of the NeoBankService messenger namespace.
@@ -59,6 +64,23 @@ export type NeoBankQueryParams = Record<
   string | number | boolean | undefined | null
 >;
 
+export type GetWalletRegistrationStatusParams = {
+  customerId: string;
+  address: string;
+};
+
+export type RegisterSelfHostedWalletParams = {
+  customerId: string;
+  address: string;
+  message: string;
+  signature: string;
+  /**
+   * Forwarded as `Idempotency-Key` on the neobank-proxy POST. Prefer a stable
+   * key across retries of the same ownership body.
+   */
+  idempotencyKey?: string;
+};
+
 const MESSENGER_EXPOSED_METHODS = [
   'getAutoramp',
   'registerPixAddress',
@@ -67,6 +89,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAutorampQuoteForAutoramp',
   'attachAutorampQuote',
   'getCustomerByExternalId',
+  'getMoonpayCustomerId',
+  'getWalletRegistrationStatus',
+  'registerSelfHostedWallet',
 ] as const;
 
 /**
@@ -75,7 +100,8 @@ const MESSENGER_EXPOSED_METHODS = [
 export type NeoBankServiceActions = NeoBankServiceMethodActions;
 
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
 export type NeoBankServiceEvents = never;
 
@@ -178,6 +204,8 @@ export class NeoBankService {
 
   readonly #baseUrlOverride?: string;
 
+  #walletRegistrationService: WalletRegistrationService | undefined;
+
   constructor({
     messenger,
     environment = RampsEnvironment.Staging,
@@ -212,6 +240,25 @@ export class NeoBankService {
       return this.#baseUrlOverride;
     }
     return getBaseUrl(this.#environment);
+  }
+
+  /**
+   * Lazily builds the wallet registration client. Deferred so constructing the
+   * service never resolves the base URL eagerly (an invalid environment only
+   * throws when a request is made, matching the other neo-bank methods).
+   *
+   * @returns The wallet registration client.
+   */
+  #getWalletRegistrationService(): WalletRegistrationService {
+    this.#walletRegistrationService ??= new WalletRegistrationService({
+      fetch: this.#fetch,
+      baseUrl: this.#getBaseUrl(),
+      getAuthToken: async (): Promise<string> =>
+        this.#messenger.call('AuthenticationController:getBearerToken'),
+      getExternalId: async (): Promise<string> =>
+        this.#getCanonicalExternalId(),
+    });
+    return this.#walletRegistrationService;
   }
 
   async #getRequestHeaders(
@@ -403,6 +450,75 @@ export class NeoBankService {
     return this.#getJson(
       `customers/${encodeURIComponent(externalId)}/external`,
     );
+  }
+
+  /**
+   * Resolves Iron's internal customer id via neobank-proxy customer lookup,
+   * using the MetaMask canonical profile id as the partner `external_id`.
+   *
+   * @returns Iron's internal customer id.
+   */
+  async getMoonpayCustomerId(): Promise<string> {
+    return await this.#getWalletRegistrationService().getMoonpayCustomerId();
+  }
+
+  /**
+   * Checks whether a Monad Money Account address is already registered for the
+   * given Iron customer.
+   *
+   * @param params - Customer id and address to check.
+   * @param params.customerId - Iron / MoonPay customer UUID.
+   * @param params.address - Money Account address.
+   * @returns Active, disabled, or absent registration status.
+   */
+  async getWalletRegistrationStatus({
+    customerId,
+    address,
+  }: GetWalletRegistrationStatusParams): Promise<RegistrationStatus> {
+    return await this.#getWalletRegistrationService().getRegistrationStatus({
+      customerId,
+      address,
+      blockchain: 'Monad',
+    });
+  }
+
+  /**
+   * Submits a signed Monad Money Account ownership proof via neobank-proxy
+   * `POST /neobank/addresses/crypto/selfhosted`.
+   *
+   * @param params - Signed ownership proof.
+   * @returns Registered wallet record.
+   */
+  async registerSelfHostedWallet(
+    params: RegisterSelfHostedWalletParams,
+  ): Promise<RegistrationOutcome> {
+    return await this.#getWalletRegistrationService().registerSelfHostedWallet({
+      ...params,
+      blockchain: 'Monad',
+    });
+  }
+
+  /**
+   * Resolves the MetaMask canonical profile id used as MoonPay's partner
+   * `external_id` for neobank customer lookup.
+   *
+   * @returns Canonical profile id.
+   */
+  async #getCanonicalExternalId(): Promise<string> {
+    const profile = await this.#messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonical = profile?.canonicalProfileId;
+    const externalId =
+      typeof canonical === 'string' && canonical.length > 0
+        ? canonical
+        : profile?.profileId;
+    if (typeof externalId !== 'string' || externalId.length === 0) {
+      throw new Error(
+        'Unable to resolve MetaMask canonical profile id for MoonPay customer lookup',
+      );
+    }
+    return externalId;
   }
 
   onRetry(

@@ -12,6 +12,9 @@ export type {
   ResourceState,
   TransakState,
   NativeProvidersState,
+  MoneyAccountWalletRegistrationResult,
+  KycControllerGetCustomerIdentityAction,
+  KeyringControllerSignPersonalMessageAction,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -33,6 +36,7 @@ export type {
   RampsControllerAddAutorampAction,
   RampsControllerCreateAutorampAction,
   RampsControllerRemoveAutorampAction,
+  RampsControllerRegisterMoneyAccountWalletAction,
   RampsControllerMarkAutorampAsNotifiedAction,
   RampsControllerApplyAutorampStatusFromPushAction,
   RampsControllerRefreshAutorampAction,
@@ -216,6 +220,8 @@ export type {
   NeoBankAutorampResponse,
   NeoBankRequestOptions,
   NeoBankQueryParams,
+  GetWalletRegistrationStatusParams,
+  RegisterSelfHostedWalletParams,
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
@@ -225,6 +231,9 @@ export type {
   NeoBankServiceGetAutorampQuoteForAutorampAction,
   NeoBankServiceAttachAutorampQuoteAction,
   NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetMoonpayCustomerIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
   NeoBankServiceMethodActions,
 } from './NeoBankService-method-action-types.js';
 export {
@@ -287,3 +296,13 @@ export type {
   TransakServiceGeneratePaymentWidgetUrlAction,
   TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';
+
+export type {
+  Blockchain,
+  RegistrationOutcome,
+  RegistrationStatus,
+  SelfHostedRegistration,
+  WalletRegistrationErrorKind,
+} from './wallet-registration-service.js';
+export { WalletRegistrationError } from './wallet-registration-service.js';
+export { buildOwnershipMessage } from './ownership-message.js';
