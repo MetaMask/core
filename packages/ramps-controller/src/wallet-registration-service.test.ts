@@ -87,6 +87,31 @@ describe('createIdempotencyKey', () => {
     expect(createIdempotencyKey().length).toBeGreaterThan(0);
   });
 
+  // `globalThis.crypto.randomUUID` is absent under Node 18, so the preferred
+  // path has to be exercised against an installed stub rather than the ambient
+  // runtime.
+  it('prefers randomUUID when the runtime provides it', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'crypto',
+    );
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: { randomUUID: () => 'uuid-1' },
+    });
+    try {
+      expect(createIdempotencyKey()).toBe('uuid-1');
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, 'crypto', originalDescriptor);
+      } else {
+        // Node 18 exposes no own `crypto` descriptor, so the stub has to be
+        // removed rather than restored, or it leaks into later tests.
+        Reflect.deleteProperty(globalThis, 'crypto');
+      }
+    }
+  });
+
   it('falls back when randomUUID is unavailable', () => {
     const originalDescriptor = Object.getOwnPropertyDescriptor(
       globalThis,

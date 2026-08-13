@@ -9305,6 +9305,194 @@ describe('RampsController', () => {
         );
       });
     });
+
+    /**
+     * Registers the User Storage / auth handlers that let the incremental
+     * autoramp pushes run, so tests can drive the remote-write code paths.
+     *
+     * @param rootMessenger - Root messenger of the controller under test.
+     * @param batchSet - Handler for `performBatchSetStorage`.
+     */
+    function registerAutorampSyncHandlers(
+      rootMessenger: RootMessenger,
+      batchSet: jest.Mock,
+    ): void {
+      rootMessenger.registerActionHandler(
+        'UserStorageController:getState',
+        () => ({ isBackupAndSyncEnabled: true }) as never,
+      );
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:isSignedIn',
+        () => true,
+      );
+      rootMessenger.registerActionHandler(
+        'UserStorageController:performGetStorageAllFeatureEntries',
+        async () => [],
+      );
+      rootMessenger.registerActionHandler(
+        'UserStorageController:performBatchSetStorage',
+        batchSet,
+      );
+    }
+
+    /**
+     * Lets floating remote-push promises settle.
+     */
+    async function flushPromises(): Promise<void> {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    it('updates an existing autoramp when the id is already known', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xdef',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(controller.state.autoramps).toHaveLength(1);
+        expect(updated.walletAddress).toBe('0xdef');
+        expect(updated.status).toBe(AutorampStatus.Approved);
+      });
+    });
+
+    it('ignores removal and notification for unknown autoramp ids', async () => {
+      await withController(({ controller }) => {
+        controller.removeAutoramp('missing');
+        controller.markAutorampAsNotified('missing');
+
+        expect(controller.state.autoramps).toStrictEqual([]);
+      });
+    });
+
+    it('queues a remote delete when a full sync holds the semaphore', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        controller.setIsAutorampSyncingInProgress(true);
+        controller.removeAutoramp('ar-1');
+
+        const pending = controller.getPendingRemoteAutorampDeletes();
+        expect(pending.map((account) => account.id)).toStrictEqual(['ar-1']);
+
+        controller.acknowledgePendingRemoteAutorampDeletes([]);
+        expect(controller.getPendingRemoteAutorampDeletes()).toHaveLength(1);
+
+        controller.acknowledgePendingRemoteAutorampDeletes(pending);
+        expect(controller.getPendingRemoteAutorampDeletes()).toStrictEqual([]);
+
+        controller.setIsAutorampSyncingInProgress(false);
+      });
+    });
+
+    it('suppresses remote pushes while applying sync changes locally', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const batchSet = jest.fn().mockResolvedValue(undefined);
+        registerAutorampSyncHandlers(rootMessenger, batchSet);
+
+        controller.setIsApplyingAutorampSyncChanges(true);
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+        controller.markAutorampAsNotified('ar-1');
+        controller.removeAutoramp('ar-1');
+        controller.setIsApplyingAutorampSyncChanges(false);
+
+        await flushPromises();
+
+        expect(batchSet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('swallows remote storage failures raised by autoramp mutations', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const batchSet = jest.fn().mockRejectedValue(new Error('storage down'));
+        registerAutorampSyncHandlers(rootMessenger, batchSet);
+
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+        await flushPromises();
+
+        controller.markAutorampAsNotified('ar-1');
+        await flushPromises();
+
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+        });
+        await flushPromises();
+
+        controller.removeAutoramp('ar-1');
+        await flushPromises();
+
+        expect(batchSet).toHaveBeenCalled();
+        expect(controller.state.autoramps).toStrictEqual([]);
+      });
+    });
+
+    it('creates an autoramp from a push that carries no wallet address', async () => {
+      await withController(({ controller }) => {
+        const created = controller.applyAutorampStatusFromPush({
+          id: 'ar-new',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(created.walletAddress).toBe('');
+        expect(controller.state.autoramps).toHaveLength(1);
+      });
+    });
+
+    it('keeps local identity fields when a remote push omits or blanks them', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const afterOmitted = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: '',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(afterOmitted.customerId).toBe('cust-1');
+        expect(afterOmitted.walletAddress).toBe('0xabc');
+
+        const afterBlank = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: '',
+          walletAddress: '',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(afterBlank.customerId).toBe('cust-1');
+        expect(afterBlank.walletAddress).toBe('0xabc');
+      });
+    });
   });
 
   describe('registerMoneyAccountWallet', () => {

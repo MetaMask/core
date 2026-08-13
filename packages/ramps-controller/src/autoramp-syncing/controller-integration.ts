@@ -153,7 +153,7 @@ async function getRemoteAutoramps(
 async function saveAutorampsToUserStorage(
   accounts: SyncAutorampAccount[],
   options: AutorampSyncingOptions,
-  config: SyncAutorampsWithUserStorageConfig = {},
+  config: SyncAutorampsWithUserStorageConfig,
 ): Promise<void> {
   const { getMessenger, trace } = options;
   const { onAutorampSyncErroneousSituation } = config;
@@ -162,6 +162,9 @@ async function saveAutorampsToUserStorage(
     const storageEntries: [string, string][] = [];
     for (const account of accounts) {
       const key = createAutorampStorageKey(account);
+      // Defensive: every caller filters on `isSyncableAutoramp` or a non-empty
+      // key before reaching here, so an id-less account is unreachable today.
+      /* istanbul ignore next */
       if (!key) {
         onAutorampSyncErroneousSituation?.(
           'Skipping autoramp remote write with empty storage key',
@@ -174,6 +177,9 @@ async function saveAutorampsToUserStorage(
         JSON.stringify(mapAutorampToUserStorageEntry(account)),
       ]);
     }
+    // Defensive: only reachable if every account was skipped above, which the
+    // callers' filtering already rules out.
+    /* istanbul ignore next */
     if (storageEntries.length === 0) {
       return;
     }
@@ -289,6 +295,9 @@ export async function syncAutorampsWithUserStorage(
         ...getLocalAccounts()
           .filter((account) => {
             const key = createAutorampStorageKey(account);
+            // Defensive: `pendingDeletes` already excludes anything still
+            // present locally, so this cannot match a local account.
+            /* istanbul ignore next */
             if (pendingDeleteKeys.has(key)) {
               return false;
             }

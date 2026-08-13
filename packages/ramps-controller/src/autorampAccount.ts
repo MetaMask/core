@@ -207,8 +207,15 @@ export function applyAutorampRemoteStatus(
   const account: AutorampAccount = {
     ...local,
     id: remote.id,
-    customerId: remote.customerId ?? local.customerId,
-    walletAddress: remote.walletAddress ?? local.walletAddress,
+    // A blank remote identity field means "not supplied", not "cleared": the
+    // proxy omits or empties these on partial status pushes, so keep the local
+    // value rather than wiping it.
+    customerId:
+      remote.customerId.length > 0 ? remote.customerId : local.customerId,
+    walletAddress:
+      remote.walletAddress !== undefined && remote.walletAddress.length > 0
+        ? remote.walletAddress
+        : local.walletAddress,
     status: remoteStatus,
     lastSeenStatus: previousStatus,
     updatedAt: Date.now(),

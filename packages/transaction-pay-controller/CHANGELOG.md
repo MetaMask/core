@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Persist successful Money Account vault deposit and withdraw results for the controller lifetime so retries / webhook replays do not re-submit or open a second approval ([#9849](https://github.com/MetaMask/core/pull/9849), [#9853](https://github.com/MetaMask/core/pull/9853))
+- Persist successful Money Account vault deposit and withdraw results for the controller lifetime so retries / webhook replays do not re-submit or open a second approval. Skipped results (vaulting disabled) are not retained, so a later enablement can retry the same payout hash. ([#9849](https://github.com/MetaMask/core/pull/9849), [#9861](https://github.com/MetaMask/core/pull/9861), [#9853](https://github.com/MetaMask/core/pull/9853))
 - Match CHOMP vault deposits only when mUSD is transferred to the boring vault with an exact source amount ([#9849](https://github.com/MetaMask/core/pull/9849), [#9853](https://github.com/MetaMask/core/pull/9853))
 
 ## [26.3.0]
