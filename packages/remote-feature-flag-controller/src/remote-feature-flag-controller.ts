@@ -236,23 +236,12 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
-    // Last session's effective flags stand in for the remote layer until
-    // `init` re-derives it from the persisted raw flags, or a fetch replaces
-    // it. Overrides are layered on top rather than subtracted out, so a remote
-    // flag that happens to share an override's value is not lost.
-    const processedRemoteFeatureFlags = initialState.remoteFeatureFlags;
-
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
         ...initialState,
-        remoteFeatureFlags: {
-          ...defaultFeatureFlags,
-          ...processedRemoteFeatureFlags,
-          ...initialState.localOverrides,
-        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
@@ -260,7 +249,11 @@ export class RemoteFeatureFlagController extends BaseController<
     });
 
     this.#defaultFeatureFlags = defaultFeatureFlags;
-    this.#processedRemoteFeatureFlags = processedRemoteFeatureFlags;
+    // Last session's effective flags stand in for the remote layer until
+    // `init` re-derives it from the persisted raw flags, or a fetch replaces
+    // it. Overrides are layered on top rather than subtracted out, so a remote
+    // flag that happens to share an override's value is not lost.
+    this.#processedRemoteFeatureFlags = initialState.remoteFeatureFlags;
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
@@ -290,7 +283,7 @@ export class RemoteFeatureFlagController extends BaseController<
   }: {
     processedRemoteFeatureFlags?: FeatureFlags;
     localOverrides?: FeatureFlags;
-  }): FeatureFlags {
+  } = {}): FeatureFlags {
     return {
       ...this.#defaultFeatureFlags,
       ...processedRemoteFeatureFlags,
@@ -338,37 +331,36 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
-   * Re-derives feature flags from the raw flags already in state. Threshold selection needs to await a hash and so
-   * cannot run in the constructor
+   * Computes the effective feature flags, re-deriving the remote layer from the
+   * raw flags already in state. Threshold selection needs to await a hash and
+   * so cannot run in the constructor, which is why this cannot be part of
+   * construction. Clients must call this once after constructing the
+   * controller.
    *
-   * Does nothing when there are no persisted raw flags, so that a fresh
-   * install or state persisted before raw flags were stored keeps the flags
-   * carried over from the previous session.
+   * When there are no persisted raw flags, as on a fresh install or for state
+   * persisted before raw flags were stored, the previous session's flags stand
+   * in for the remote layer so that nothing is lost.
    */
   async init(): Promise<void> {
     const { rawRemoteFeatureFlags } = this.state;
+    const hasRawRemoteFeatureFlags =
+      rawRemoteFeatureFlags && Object.keys(rawRemoteFeatureFlags).length > 0;
 
-    if (
-      !rawRemoteFeatureFlags ||
-      Object.keys(rawRemoteFeatureFlags).length === 0
-    ) {
-      return;
-    }
+    const resolved = hasRawRemoteFeatureFlags
+      ? await this.#processRemoteFeatureFlags(rawRemoteFeatureFlags)
+      : undefined;
 
-    const resolved = await this.#processRemoteFeatureFlags(
-      rawRemoteFeatureFlags,
-    );
-
-    this.#processedRemoteFeatureFlags = resolved.processedFlags;
+    this.#processedRemoteFeatureFlags =
+      resolved?.processedFlags ?? this.state.remoteFeatureFlags;
 
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
-          processedRemoteFeatureFlags: resolved.processedFlags,
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags(),
+        ...(resolved && {
+          thresholdCache: resolved.thresholdCache,
+          featureFlagThresholdGroups: resolved.featureFlagThresholdGroups,
         }),
-        thresholdCache: resolved.thresholdCache,
-        featureFlagThresholdGroups: resolved.featureFlagThresholdGroups,
       };
     });
   }

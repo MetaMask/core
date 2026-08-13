@@ -1651,7 +1651,7 @@ describe('RemoteFeatureFlagController', () => {
         });
       });
 
-      it('uses persisted remoteFeatureFlags with overrides on init', () => {
+      it('uses persisted remoteFeatureFlags with overrides on init', async () => {
         const { controller } = createController({
           state: {
             remoteFeatureFlags: {
@@ -1664,13 +1664,15 @@ describe('RemoteFeatureFlagController', () => {
           },
         });
 
+        await controller.init();
+
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
           overrideFlag: 'overrideValue',
         });
       });
 
-      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', () => {
+      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', async () => {
         const { controller, messenger } = createController({
           state: {
             remoteFeatureFlags: {
@@ -1682,6 +1684,8 @@ describe('RemoteFeatureFlagController', () => {
             },
           },
         });
+
+        await controller.init();
 
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
@@ -1702,7 +1706,7 @@ describe('RemoteFeatureFlagController', () => {
   });
 
   describe('defaultFeatureFlags', () => {
-    it('initializes with defaults when no remote or persisted flags exist', () => {
+    it('initializes with defaults when no remote or persisted flags exist', async () => {
       const { controller } = createController({
         defaultFeatureFlags: {
           defaultFlag: 'defaultValue',
@@ -1710,13 +1714,15 @@ describe('RemoteFeatureFlagController', () => {
         },
       });
 
+      await controller.init();
+
       expect(controller.state.remoteFeatureFlags).toStrictEqual({
         defaultFlag: 'defaultValue',
         anotherDefault: false,
       });
     });
 
-    it('applies precedence of override over remote over default', () => {
+    it('applies precedence of override over remote over default', async () => {
       const { controller } = createController({
         state: {
           remoteFeatureFlags: {
@@ -1732,6 +1738,8 @@ describe('RemoteFeatureFlagController', () => {
           defaultOnly: 'fromDefaults',
         },
       });
+
+      await controller.init();
 
       expect(controller.state.remoteFeatureFlags).toStrictEqual({
         sharedFlag: 'overrideValue',
@@ -1943,7 +1951,7 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('does nothing when there are no persisted raw flags', async () => {
+    it('carries over the previous session flags when there are no persisted raw flags', async () => {
       const { controller } = createController({
         state: {
           remoteFeatureFlags: { carriedOver: 'fromLastSession' },
@@ -1960,7 +1968,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.cacheTimestamp).toBe(123456789);
     });
 
-    it('does nothing when raw flags are absent from persisted state', async () => {
+    it('carries over the previous session flags when raw flags are absent from persisted state', async () => {
       const { controller } = createController({
         state: {
           remoteFeatureFlags: { carriedOver: 'fromLastSession' },
@@ -1972,6 +1980,62 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(controller.state.remoteFeatureFlags).toStrictEqual({
         carriedOver: 'fromLastSession',
+      });
+    });
+
+    it('layers defaults and overrides onto the carried over flags when there are no raw flags', async () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: {
+            carriedOver: 'fromLastSession',
+            sharedFlag: 'fromLastSession',
+          },
+          localOverrides: { sharedFlag: 'overridden' },
+          rawRemoteFeatureFlags: {},
+        },
+        defaultFeatureFlags: {
+          defaultOnly: 'fromDefaults',
+          carriedOver: 'fromDefaults',
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        carriedOver: 'fromLastSession',
+        sharedFlag: 'overridden',
+      });
+    });
+
+    it('applies defaults and overrides on a fresh install with no persisted flags', async () => {
+      const { controller } = createController({
+        state: { localOverrides: { sharedFlag: 'overridden' } },
+        defaultFeatureFlags: {
+          defaultOnly: 'fromDefaults',
+          sharedFlag: 'fromDefaults',
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        sharedFlag: 'overridden',
+      });
+    });
+
+    it('leaves the merge to init rather than the constructor', () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { remoteFlag: 'fromLastSession' },
+          localOverrides: { overrideFlag: 'overridden' },
+        },
+        defaultFeatureFlags: { defaultOnly: 'fromDefaults' },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'fromLastSession',
       });
     });
 
