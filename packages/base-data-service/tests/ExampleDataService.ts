@@ -158,22 +158,19 @@ export class ExampleDataService extends BaseDataService<
   /**
    * Fetch activity without providing page-param callbacks, driving pagination
    * purely by the explicit page param passed to the base method (the way a
-   * consumer that paginates by cursor does). Uses a zero `staleTime` so
-   * refetches can be exercised, and records every page param the query function
-   * receives in `pageParamsSeen`.
+   * consumer that paginates by cursor does). Uses `null` as its first-page
+   * param and a zero `staleTime` so refetches can be exercised, and records
+   * every page param the query function receives in `pageParamsSeen`.
    *
    * @param address - The account address.
-   * @param options - Optional page param and initial page param.
-   * @param options.page - The page to fetch.
-   * @param options.initialPageParam - The initial page param to configure.
+   * @param page - The page to fetch. Passed last so this method works when
+   * invoked through `createUIQueryClient`, which appends the page param as the
+   * final argument.
    * @returns A page of activity.
    */
   async getActivityWithoutCallbacks(
     address: string,
-    {
-      page,
-      initialPageParam,
-    }: { page?: PageParam; initialPageParam?: PageParam | null } = {},
+    page?: PageParam,
   ): Promise<GetActivityResponse> {
     return this.fetchInfiniteQuery<
       GetActivityResponse,
@@ -208,7 +205,7 @@ export class ExampleDataService extends BaseDataService<
 
           return response.json();
         },
-        initialPageParam,
+        initialPageParam: null,
         staleTime: 0,
       },
       page,
