@@ -1,3 +1,7 @@
+import { parseCaipAssetType } from '@metamask/utils';
+
+import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/index.js';
+import { CaipAssetNamespace } from '../data-sources/TokenDataSource.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type { AccountId, Caip19AssetId, Middleware } from '../types.js';
@@ -9,8 +13,28 @@ import { normalizeAssetId } from '../utils/index.js';
 
 const CONTROLLER_NAME = 'DetectionMiddleware';
 
-// Logger for debugging
-createModuleLogger(projectLogger, CONTROLLER_NAME);
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
+
+/**
+ * Whether an asset is subject to the token-detection toggle: fungible tokens
+ * (EVM `erc20`, non-EVM `token` — SPL, TRC, etc.). Natives (`slip44`),
+ * staking-contract assets, and anything unparseable are never gated.
+ *
+ * @param assetId - The CAIP-19 asset ID to classify.
+ * @returns `true` when the asset should be blocked while detection is off.
+ */
+function isDetectionGatedAsset(assetId: string): boolean {
+  try {
+    const { assetNamespace } = parseCaipAssetType(assetId as Caip19AssetId);
+    return (
+      (assetNamespace === (CaipAssetNamespace.Erc20 as string) ||
+        assetNamespace === (CaipAssetNamespace.Token as string)) &&
+      !isStakingContractAssetId(assetId)
+    );
+  } catch {
+    return false;
+  }
+}
 
 // ============================================================================
 // DETECTION MIDDLEWARE
@@ -29,14 +53,37 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
  * - Each account's custom assets from state are always included because they
  *   may have no balance yet and are explicitly managed by the user.
  *
+ * When token detection is disabled (`isTokenDetectionEnabled` returns false),
+ * new-to-state fungible tokens (`erc20` / `token` namespaces) are neither
+ * detected nor persisted: their balances and stub metadata are stripped from
+ * the response. Natives, staking-contract assets, custom (user-imported)
+ * assets, and assets already tracked in state are unaffected.
+ *
  * Usage:
  * ```typescript
  * const detectionMiddleware = new DetectionMiddleware();
  * const middleware = detectionMiddleware.assetsMiddleware;
  * ```
  */
+
+/** Constructor options for {@link DetectionMiddleware}. */
+export type DetectionMiddlewareOptions = {
+  /**
+   * Whether automatic token detection is enabled (e.g. the user's
+   * "Autodetect tokens" preference). Defaults to `() => true`.
+   */
+  isTokenDetectionEnabled?: () => boolean;
+};
+
 export class DetectionMiddleware {
   readonly name = CONTROLLER_NAME;
+
+  readonly #isTokenDetectionEnabled: () => boolean;
+
+  constructor(options: DetectionMiddlewareOptions = {}) {
+    this.#isTokenDetectionEnabled =
+      options.isTokenDetectionEnabled ?? ((): boolean => true);
+  }
 
   getName(): string {
     return this.name;
@@ -71,6 +118,21 @@ export class DetectionMiddleware {
 
       const detectedAssets: Record<AccountId, Caip19AssetId[]> = {};
 
+      const detectionEnabled = this.#isTokenDetectionEnabled();
+      // Lower-cased asset IDs stripped from the response because token
+      // detection is off; used to purge their stub metadata afterwards.
+      const strippedAssetIds = new Set<string>();
+      // Lower-cased state metadata keys, built lazily (only when detection is
+      // off) so the destructive strip below cannot misfire on a known holding
+      // reported by a source in a different address case.
+      let knownMetadataLower: Set<string> | null = null;
+      const getKnownMetadataLower = (): Set<string> => {
+        knownMetadataLower ??= new Set(
+          Object.keys(stateAssetsInfo).map((id) => id.toLowerCase()),
+        );
+        return knownMetadataLower;
+      };
+
       // 1. From balance response: only include assets that are genuinely new —
       //    not already present in state.assetsBalance or state.assetsInfo.
       if (response.assetsBalance) {
@@ -80,6 +142,15 @@ export class DetectionMiddleware {
           const detected: Caip19AssetId[] = [];
 
           const stateAccountBalances = stateAssetsBalance[accountId] ?? {};
+          const customForAccount = stateCustomAssets?.[accountId] ?? [];
+          const customLowerIds = detectionEnabled
+            ? null
+            : new Set(customForAccount.map((id) => id.toLowerCase()));
+          const knownBalanceLower = detectionEnabled
+            ? null
+            : new Set(
+                Object.keys(stateAccountBalances).map((id) => id.toLowerCase()),
+              );
 
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
@@ -92,12 +163,32 @@ export class DetectionMiddleware {
             ) {
               continue;
             }
+
+            // Token detection off: new-to-state fungible tokens (erc20 / SPL
+            // and similar `token` namespaces) are neither detected nor
+            // persisted. Natives, staking contracts, custom assets, and
+            // holdings already known to state (any address case) still flow.
+            if (
+              !detectionEnabled &&
+              isDetectionGatedAsset(assetId) &&
+              !customLowerIds?.has(assetId.toLowerCase())
+            ) {
+              const lowerId = assetId.toLowerCase();
+              if (
+                !knownBalanceLower?.has(lowerId) &&
+                !getKnownMetadataLower().has(lowerId)
+              ) {
+                delete (accountBalances as Record<string, unknown>)[assetId];
+                strippedAssetIds.add(lowerId);
+              }
+              continue;
+            }
+
             detected.push(caipAssetId);
           }
 
           // Merge custom assets for this account, applying the same filter:
           // skip if already in state balance or already has metadata.
-          const customForAccount = stateCustomAssets?.[accountId] ?? [];
           for (const assetId of customForAccount) {
             if (detected.includes(assetId)) {
               continue;
@@ -115,6 +206,23 @@ export class DetectionMiddleware {
             detectedAssets[accountId] = detected;
           }
         }
+      }
+
+      // Drop stub metadata (e.g. websocket-seeded name/symbol) of stripped
+      // tokens so it never persists to state — a persisted stub would make
+      // the token look "known" on the next update and let it bypass the
+      // detection gate.
+      if (strippedAssetIds.size > 0) {
+        if (response.assetsInfo) {
+          for (const assetId of Object.keys(response.assetsInfo)) {
+            if (strippedAssetIds.has(assetId.toLowerCase())) {
+              delete response.assetsInfo[assetId as Caip19AssetId];
+            }
+          }
+        }
+        log('Token detection disabled - stripped new tokens from response', {
+          assetIds: [...strippedAssetIds],
+        });
       }
 
       // 2. Accounts in request that weren't in balance response: include their

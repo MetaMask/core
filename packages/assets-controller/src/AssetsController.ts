@@ -45,7 +45,10 @@ import type {
   PermissionControllerStateChange,
 } from '@metamask/permission-controller';
 import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
-import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  PreferencesControllerGetStateAction,
+  PreferencesControllerStateChangeEvent,
+} from '@metamask/preferences-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
@@ -339,7 +342,9 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  // DetectionMiddleware ("Autodetect tokens" preference)
+  | PreferencesControllerGetStateAction;
 
 type AllowedEvents =
   // AssetsController
@@ -826,6 +831,23 @@ export class AssetsController extends BaseController<
 
   readonly #detectionMiddleware: DetectionMiddleware;
 
+  /**
+   * "Autodetect tokens" preference; fails open (enabled) on clients that
+   * don't register PreferencesController (e.g. mobile).
+   *
+   * @returns Whether token autodetection is enabled.
+   */
+  readonly #tokenDetectionEnabled = (): boolean => {
+    try {
+      const preferencesState = this.messenger.call(
+        'PreferencesController:getState',
+      );
+      return preferencesState?.useTokenDetection ?? true;
+    } catch {
+      return true;
+    }
+  };
+
   readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
 
   readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
@@ -964,7 +986,9 @@ export class AssetsController extends BaseController<
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
     });
-    this.#detectionMiddleware = new DetectionMiddleware();
+    this.#detectionMiddleware = new DetectionMiddleware({
+      isTokenDetectionEnabled: this.#tokenDetectionEnabled,
+    });
     this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
       {
         getSelectedAccountId: (): AccountId | undefined => {
@@ -1169,6 +1193,20 @@ export class AssetsController extends BaseController<
       },
       clientControllerSelectors.selectIsUiOpen,
     );
+    // "Autodetect tokens" preference. Turning it on re-runs the pipeline so
+    // tokens skipped while it was off are detected without waiting for the
+    // next poll. Turning it off needs no refresh: already-tracked assets stay
+    // in state, and the next update strips new ones anyway.
+    this.messenger.subscribe(
+      'PreferencesController:stateChange',
+      (useTokenDetection: boolean) => {
+        if (useTokenDetection) {
+          this.#refreshAssetsAfterTokenDetectionEnabled();
+        }
+      },
+      (state) => state.useTokenDetection,
+    );
+
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringUnlocked = true;
       this.#updateActive();
@@ -3783,6 +3821,25 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Re-run the assets pipeline after the user turns "Autodetect tokens" back
+   * on, so tokens that were filtered out while it was off are detected,
+   * enriched, and priced right away.
+   */
+  #refreshAssetsAfterTokenDetectionEnabled(): void {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    this.getAssets(accounts, {
+      forceUpdate: true,
+      dataTypes: ['balance', 'metadata', 'price'],
+    }).catch((error) => {
+      log('Failed to refresh assets after token detection enabled', { error });
+    });
+  }
+
+  /**
    * Refresh balances and fetch missing prices after a network is added.
    *
    * @param hexChainId - Hex chain id of the newly-added network.
@@ -3877,9 +3934,12 @@ export class AssetsController extends BaseController<
         // Websocket updates can carry brand-new spam airdrops: enrich them
         // with Token API occurrences and drop below-floor tokens BEFORE
         // detection, so spam is never detected, enriched, priced or persisted.
+        // Skipped when token detection is off — DetectionMiddleware strips
+        // every new token anyway, so the occurrence lookups would be wasted.
         const shouldFilterOccurrences =
           sourceId === 'AccountActivityDataSource' &&
-          this.#isBasicFunctionality();
+          this.#isBasicFunctionality() &&
+          this.#tokenDetectionEnabled();
 
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets

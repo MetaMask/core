@@ -824,6 +824,92 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('token detection preference', () => {
+    const registerUseTokenDetection = (
+      messenger: RootMessenger,
+      useTokenDetection: boolean,
+    ): void => {
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('PreferencesController:getState', () => ({
+        useTokenDetection,
+      }));
+    };
+
+    // Built per test: the pipeline mutates the response in place when it
+    // strips gated tokens, so a shared object would leak across tests.
+    const newAssetsUpdate = (): DataResponse => ({
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [MOCK_ASSET_ID]: { amount: '1000000' },
+          [MOCK_NATIVE_ASSET_ID]: { amount: '2000000000000000000' },
+        },
+      },
+    });
+
+    // isBasicFunctionality is disabled so the occurrence filter (which needs
+    // a real token API response) stays out of the way and the tests observe
+    // DetectionMiddleware's preference gating in isolation.
+    it('strips new fungible tokens but keeps natives when useTokenDetection is false', async () => {
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          registerUseTokenDetection(messenger, false);
+
+          await controller.handleAssetsUpdate(
+            newAssetsUpdate(),
+            'AccountActivityDataSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toBeUndefined();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('keeps new fungible tokens when useTokenDetection is true', async () => {
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          registerUseTokenDetection(messenger, true);
+
+          await controller.handleAssetsUpdate(
+            newAssetsUpdate(),
+            'AccountActivityDataSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('keeps new fungible tokens when PreferencesController is not registered (fail open)', async () => {
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            newAssetsUpdate(),
+            'AccountActivityDataSource',
+          );
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toBeDefined();
+        },
+      );
+    });
+  });
+
   describe('getCustomAssets', () => {
     it('returns empty array for account with no custom assets', async () => {
       await withController(({ controller }) => {
@@ -2839,6 +2925,50 @@ describe('AssetsController', () => {
             forceUpdate: true,
           },
         );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('force refreshes assets when the token detection preference is turned on', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        (messenger.publish as CallableFunction)(
+          'PreferencesController:stateChange',
+          { useTokenDetection: true },
+          [],
+        );
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            forceUpdate: true,
+            dataTypes: ['balance', 'metadata', 'price'],
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('does not refresh assets when the token detection preference is turned off', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        (messenger.publish as CallableFunction)(
+          'PreferencesController:stateChange',
+          { useTokenDetection: false },
+          [],
+        );
+        await flushPromises();
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
 
         getAssetsSpy.mockRestore();
       });
