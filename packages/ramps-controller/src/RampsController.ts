@@ -221,26 +221,16 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
 /**
  * Other controller actions RampsController calls via the messenger.
  * Hosts that enable autoramp creation must delegate these from the root
- * messenger so the controller can resolve the vendor customer identity.
- * `KeyringController:signPersonalMessage` is required for Money Account
- * self-hosted wallet registration (EIP-191 ownership proof).
+ * messenger so the controller can resolve the vendor customer identity via
+ * Profile Sync (`AuthenticationController:getSessionProfile`) and the
+ * neo-bank external-id lookup. `KeyringController:signPersonalMessage` is
+ * required for Money Account self-hosted wallet registration (EIP-191
+ * ownership proof).
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
-  'KycController:getCustomerIdentity',
   'AuthenticationController:getSessionProfile',
   'KeyringController:signPersonalMessage',
 ] as const;
-
-/**
- * Structural type for the KYC controller's `getCustomerIdentity` messenger
- * action. Declared locally (mirroring `@metamask/kyc-controller`) so this
- * package does not need a dependency on the KYC package; the messenger only
- * matches on the action `type` string, so the shapes stay compatible.
- */
-export type KycControllerGetCustomerIdentityAction = {
-  type: 'KycController:getCustomerIdentity';
-  handler: () => { vendor: string; id: string } | null;
-};
 
 /**
  * Structural type for the keyring controller's `signPersonalMessage` messenger
@@ -762,7 +752,6 @@ type AllowedActions =
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
-  | KycControllerGetCustomerIdentityAction
   | KeyringControllerSignPersonalMessageAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
@@ -2718,8 +2707,8 @@ export class RampsController extends BaseController<
    *
    * The MoonPay `customer_id` is not accepted from callers: it is resolved via
    * {@link RampsController.resolveAutorampCustomerId} and injected into the
-   * request. This keeps the sensitive customer id owned by KYC / the neo-bank
-   * proxy and avoids requiring the UI to know or plumb it.
+   * request. This keeps the sensitive customer id owned by Profile Sync /
+   * the neo-bank proxy and avoids requiring the UI to know or plumb it.
    *
    * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
    * @param options - Optional idempotency key forwarded to the proxy.
@@ -2744,25 +2733,24 @@ export class RampsController extends BaseController<
   /**
    * Resolves the MoonPay `customer_id` for autoramp operations.
    *
-   * Prefers the KYC controller's session-scoped identity (populated when a
-   * MoonPay Check/Auth frame reports a `customer.id`). When that is not yet
-   * available, falls back to mapping the wallet's Profile Sync id (the partner
-   * `external_id`) to the MoonPay customer via the neo-bank proxy's
-   * `GET /neobank/customers/{external_id}/external`.
+   * Maps the wallet's Profile Sync id (the partner `external_id`) to the
+   * MoonPay customer via the neo-bank proxy's
+   * `GET /neobank/customers/{external_id}/external`. Prefers
+   * `canonicalProfileId` when present, otherwise `profileId`, matching
+   * {@link NeoBankService}'s canonical external-id resolution.
    *
    * @returns The MoonPay customer id.
    */
   async resolveAutorampCustomerId(): Promise<string> {
-    const identity = this.messenger.call('KycController:getCustomerIdentity');
-    if (identity?.id) {
-      return identity.id;
-    }
-
     const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
-    const externalId = profile?.profileId;
-    if (!externalId) {
+    const canonical = profile?.canonicalProfileId;
+    const externalId =
+      typeof canonical === 'string' && canonical.length > 0
+        ? canonical
+        : profile?.profileId;
+    if (typeof externalId !== 'string' || externalId.length === 0) {
       throw new Error(
         'Cannot create autoramp: wallet is not signed in to Profile Sync.',
       );
@@ -2790,11 +2778,11 @@ export class RampsController extends BaseController<
    * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
    *
    * Consumers provide only the Monad address. The controller resolves the Iron
-   * customer id via {@link RampsController.resolveAutorampCustomerId} (KYC
-   * session identity when available, otherwise the neobank-proxy external-id
-   * lookup) before the first list/lookup because list requires `customer_id`
-   * in the path. Message construction, EIP-191 signing, submission, and
-   * ambiguous-write reconciliation stay internal to this controller.
+   * customer id via {@link RampsController.resolveAutorampCustomerId}
+   * (Profile Sync → neobank-proxy external-id lookup) before the first
+   * list/lookup because list requires `customer_id` in the path. Message
+   * construction, EIP-191 signing, submission, and ambiguous-write
+   * reconciliation stay internal to this controller.
    *
    * @param params - Money Account wallet registration parameters.
    * @param params.address - Monad Money Account address.

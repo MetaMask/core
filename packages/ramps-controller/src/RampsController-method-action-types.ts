@@ -299,8 +299,8 @@ export type RampsControllerAddAutorampAction = {
  *
  * The MoonPay `customer_id` is not accepted from callers: it is resolved via
  * {@link RampsController.resolveAutorampCustomerId} and injected into the
- * request. This keeps the sensitive customer id owned by KYC / the neo-bank
- * proxy and avoids requiring the UI to know or plumb it.
+ * request. This keeps the sensitive customer id owned by Profile Sync /
+ * the neo-bank proxy and avoids requiring the UI to know or plumb it.
  *
  * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
  * @param options - Optional idempotency key forwarded to the proxy.
@@ -316,11 +316,11 @@ export type RampsControllerCreateAutorampAction = {
  * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
  *
  * Consumers provide only the Monad address. The controller resolves the Iron
- * customer id via {@link RampsController.resolveAutorampCustomerId} (KYC
- * session identity when available, otherwise the neobank-proxy external-id
- * lookup) before the first list/lookup because list requires `customer_id`
- * in the path. Message construction, EIP-191 signing, submission, and
- * ambiguous-write reconciliation stay internal to this controller.
+ * customer id via {@link RampsController.resolveAutorampCustomerId}
+ * (Profile Sync → neobank-proxy external-id lookup) before the first
+ * list/lookup because list requires `customer_id` in the path. Message
+ * construction, EIP-191 signing, submission, and ambiguous-write
+ * reconciliation stay internal to this controller.
  *
  * @param params - Money Account wallet registration parameters.
  * @param params.address - Monad Money Account address.
