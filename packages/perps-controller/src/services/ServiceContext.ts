@@ -1,5 +1,9 @@
 import type { PerpsControllerState } from '../PerpsController.js';
-import type { Order, Position } from '../types/index.js';
+import type {
+  Order,
+  PerpsGlobalSnapshotRequest,
+  Position,
+} from '../types/index.js';
 
 /**
  * ServiceContext
@@ -59,6 +63,16 @@ export type ServiceContext = {
    */
   getOpenOrders?: () => Promise<Order[]>;
   getPositions?: () => Promise<Position[]>;
+
+  /**
+   * Exact per-call identity and guards for adopting a global market snapshot.
+   * Omitted when the active provider or DEX configuration is not static.
+   */
+  globalSnapshot?: {
+    request: PerpsGlobalSnapshotRequest;
+    isCurrent: () => boolean;
+    isMarketAllowed: (symbol: string) => boolean;
+  };
 
   /**
    * Callback functions for controller-specific operations
