@@ -1681,6 +1681,29 @@ describe('HyperLiquidClientService', () => {
       expect(freshService.isInitialized()).toBe(false);
     });
 
+    it('reports uninitialized when reconnect readiness fails', async () => {
+      await service.initialize(mockWallet);
+      expect(service.isInitialized()).toBe(true);
+
+      // Clients are constructed before the transport reports ready, so a
+      // rejected ready() must not leave a session that looks usable.
+      mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
+      await service.reconnect();
+
+      expect(service.isInitialized()).toBe(false);
+      expect(service.getSubscriptionClient()).toBeUndefined();
+    });
+
+    it('reports uninitialized when reconnect readiness fails after a disconnect', async () => {
+      await service.initialize(mockWallet);
+      await service.disconnect();
+
+      mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
+      await service.reconnect();
+
+      expect(service.isInitialized()).toBe(false);
+    });
+
     it('performDisconnection resets isReconnecting flag', async () => {
       const {
         WebSocketConnectionState,
