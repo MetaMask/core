@@ -234,7 +234,6 @@ export type {
   NeoBankServiceGetMoonpayCustomerIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
-  NeoBankServiceMethodActions,
 } from './NeoBankService-method-action-types.js';
 export {
   NeoBankService,

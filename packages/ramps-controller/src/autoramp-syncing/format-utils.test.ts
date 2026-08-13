@@ -1,8 +1,5 @@
 import { AutorampStatus, createAutorampAccount } from '../autorampAccount.js';
-import {
-  USER_STORAGE_VERSION,
-  USER_STORAGE_VERSION_KEY,
-} from './constants.js';
+import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
 import {
   areAutorampsEqual,
   createAutorampStorageKey,

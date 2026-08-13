@@ -6,16 +6,22 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { UserStorageController } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
-  getHeadlessProviderAllowlist,
-  isHeadlessAllProvidersEnabled,
-  normalizeHeadlessProviderId,
-} from './featureFlags.js';
-
+  deleteAutorampInRemoteStorage,
+  syncAutorampsWithUserStorage as syncAutorampsWithUserStorageInternal,
+  updateAutorampInRemoteStorage,
+} from './autoramp-syncing/index.js';
+import type { SyncAutorampsWithUserStorageConfig } from './autoramp-syncing/index.js';
+import type {
+  AutorampSyncingController,
+  AutorampSyncingOptions,
+} from './autoramp-syncing/types.js';
 import type {
   AutorampAccount,
   AutorampRemoteSnapshot,
@@ -27,11 +33,10 @@ import {
   markAutorampNotified,
 } from './autorampAccount.js';
 import {
-  deleteAutorampInRemoteStorage,
-  syncAutorampsWithUserStorage as syncAutorampsWithUserStorageInternal,
-  updateAutorampInRemoteStorage,
-} from './autoramp-syncing/index.js';
-import type { SyncAutorampsWithUserStorageConfig } from './autoramp-syncing/index.js';
+  getHeadlessProviderAllowlist,
+  isHeadlessAllProvidersEnabled,
+  normalizeHeadlessProviderId,
+} from './featureFlags.js';
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
@@ -40,25 +45,11 @@ import type {
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
-import { buildOwnershipMessage } from './ownership-message.js';
-import {
-  createInitialState as createInitialWalletRegistrationState,
-  transition as transitionWalletRegistration,
-} from './wallet-registration-machine.js';
-import {
-  createIdempotencyKey,
-  WalletRegistrationError,
-} from './wallet-registration-service.js';
-import type {
-  RegistrationStatus,
-  SelfHostedRegistration,
-} from './wallet-registration-service.js';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { UserStorageController } from '@metamask/profile-sync-controller';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
 } from './orderStatus.js';
+import { buildOwnershipMessage } from './ownership-message.js';
 import {
   getProvidersServingAsset,
   providerServesAsset,
@@ -156,6 +147,18 @@ import type {
   TransakOrder,
 } from './TransakService.js';
 import type { TransakServiceActions } from './TransakService.js';
+import {
+  createInitialState as createInitialWalletRegistrationState,
+  transition as transitionWalletRegistration,
+} from './wallet-registration-machine.js';
+import {
+  createIdempotencyKey,
+  WalletRegistrationError,
+} from './wallet-registration-service.js';
+import type {
+  RegistrationStatus,
+  SelfHostedRegistration,
+} from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -2602,6 +2605,8 @@ export class RampsController extends BaseController<
 
   /**
    * Whether a full autoramp User Storage sync is currently running.
+   *
+   * @returns True when a full autoramp sync is in progress.
    */
   get isAutorampSyncingInProgress(): boolean {
     return this.#isAutorampSyncingInProgress;
@@ -2651,10 +2656,10 @@ export class RampsController extends BaseController<
       );
   }
 
-  #getAutorampSyncingOptions() {
+  #getAutorampSyncingOptions(): AutorampSyncingOptions {
     return {
-      getRampsControllerInstance: () => this,
-      getMessenger: () => this.messenger,
+      getRampsControllerInstance: (): AutorampSyncingController => this,
+      getMessenger: (): RampsControllerMessenger => this.messenger,
     };
   }
 
@@ -2677,8 +2682,9 @@ export class RampsController extends BaseController<
         },
   ): AutorampAccount {
     const account =
-      'updatedAt' in accountOrInput && 'lastSeenStatus' in accountOrInput
-        ? (accountOrInput as AutorampAccount)
+      typeof (accountOrInput as AutorampAccount).updatedAt === 'number' &&
+      (accountOrInput as AutorampAccount).lastSeenStatus !== undefined
+        ? accountOrInput
         : createAutorampAccount(accountOrInput);
 
     this.update((state) => {
@@ -3034,9 +3040,7 @@ export class RampsController extends BaseController<
    * @param remote - Remote autoramp snapshot.
    * @returns The updated local account.
    */
-  applyAutorampStatusFromPush(
-    remote: AutorampRemoteSnapshot,
-  ): AutorampAccount {
+  applyAutorampStatusFromPush(remote: AutorampRemoteSnapshot): AutorampAccount {
     return this.#applyAutorampRemoteSnapshot(remote);
   }
 
@@ -3090,9 +3094,12 @@ export class RampsController extends BaseController<
     );
   }
 
-  #applyAutorampRemoteSnapshot(remote: AutorampRemoteSnapshot): AutorampAccount {
+  #applyAutorampRemoteSnapshot(
+    remote: AutorampRemoteSnapshot,
+  ): AutorampAccount {
     const local =
-      this.state.autoramps.find((autoramp) => autoramp.id === remote.id) ?? null;
+      this.state.autoramps.find((autoramp) => autoramp.id === remote.id) ??
+      null;
     const result = applyAutorampRemoteStatus(local, remote);
 
     this.update((state) => {

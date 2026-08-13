@@ -21,7 +21,7 @@ describe('autoramp-syncing/sync-utils', () => {
         setIsApplyingAutorampSyncChanges: jest.fn(),
         addAutoramp: jest.fn(),
         removeAutoramp: jest.fn(),
-        getPendingRemoteAutorampDeletes: () => [],
+        getPendingRemoteAutorampDeletes: (): [] => [],
         acknowledgePendingRemoteAutorampDeletes: jest.fn(),
       }),
     };
@@ -49,7 +49,7 @@ describe('autoramp-syncing/sync-utils', () => {
         setIsApplyingAutorampSyncChanges: jest.fn(),
         addAutoramp: jest.fn(),
         removeAutoramp: jest.fn(),
-        getPendingRemoteAutorampDeletes: () => [],
+        getPendingRemoteAutorampDeletes: (): [] => [],
         acknowledgePendingRemoteAutorampDeletes: jest.fn(),
       }),
     } as AutorampSyncingOptions;

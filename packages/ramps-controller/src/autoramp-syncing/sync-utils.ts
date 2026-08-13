@@ -25,7 +25,8 @@ export function canPerformAutorampSyncing(
     const isBackupAndSyncEnabled = Boolean(
       userStorageState.isBackupAndSyncEnabled,
     );
-    const isRampsSyncingEnabled = userStorageState.isRampsSyncingEnabled ?? true;
+    const isRampsSyncingEnabled =
+      userStorageState.isRampsSyncingEnabled ?? true;
     const isAuthEnabled = getMessenger().call(
       'AuthenticationController:isSignedIn',
     );

@@ -1,13 +1,7 @@
 import type { AutorampAccount } from '../autorampAccount.js';
 import { normalizeAutorampStatus } from '../autorampAccount.js';
-import {
-  USER_STORAGE_VERSION,
-  USER_STORAGE_VERSION_KEY,
-} from './constants.js';
-import type {
-  SyncAutorampAccount,
-  UserStorageAutorampEntry,
-} from './types.js';
+import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
+import type { SyncAutorampAccount, UserStorageAutorampEntry } from './types.js';
 
 /**
  * Storage key for an autoramp entry (MoonPay autoramp id).
@@ -32,11 +26,11 @@ export function isSyncableAutoramp(
 ): account is AutorampAccount {
   return Boolean(
     account &&
-      typeof account.id === 'string' &&
-      account.id.length > 0 &&
-      typeof account.customerId === 'string' &&
-      typeof account.walletAddress === 'string' &&
-      account.status,
+    typeof account.id === 'string' &&
+    account.id.length > 0 &&
+    typeof account.customerId === 'string' &&
+    typeof account.walletAddress === 'string' &&
+    account.status,
   );
 }
 
