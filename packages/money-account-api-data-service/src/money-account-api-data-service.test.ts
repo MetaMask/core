@@ -7,7 +7,11 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
-import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
+import {
+  DEFAULT_STALE_TIME_MS,
+  Env,
+  MONEY_ACCOUNT_API_URL_MAP,
+} from './constants.js';
 import { MoneyAccountApiResponseValidationError } from './errors.js';
 import type {
   MoneyAccountApiDataServiceMessenger,
@@ -642,6 +646,50 @@ describe('MoneyAccountApiDataService', () => {
       });
       expect(secondPage.next_cursor).toBeNull();
       expect(secondPage.has_more).toBe(false);
+      service.destroy();
+    });
+
+    it('refetches all cached pages when the query is stale', async () => {
+      const { service } = createService(Env.DEV);
+
+      const page2Response = {
+        ...MOCK_HISTORY_RESPONSE,
+        next_cursor: null,
+        has_more: false,
+      };
+
+      // Build a two-page cache.
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .reply(200, MOCK_HISTORY_RESPONSE);
+      await service.fetchHistory(MOCK_ADDRESS);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .query({ cursor: 'eyJiIjoxMDAwMH0=' })
+        .reply(200, page2Response);
+      await service.fetchHistory(MOCK_ADDRESS, { cursor: 'eyJiIjoxMDAwMH0=' });
+
+      // Make the cache stale, then refetch both pages. The rebuild walks
+      // `getNextPageParam` to re-derive the second page's cursor from the first.
+      const now = Date.now();
+      const nowSpy = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(now + DEFAULT_STALE_TIME_MS + 1);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .reply(200, MOCK_HISTORY_RESPONSE);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/history`)
+        .query({ cursor: 'eyJiIjoxMDAwMH0=' })
+        .reply(200, page2Response);
+
+      const refetched = await service.fetchHistory(MOCK_ADDRESS);
+
+      expect(refetched.cash_flows).toHaveLength(1);
+
+      nowSpy.mockRestore();
       service.destroy();
     });
 

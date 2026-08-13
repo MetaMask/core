@@ -60,13 +60,21 @@ export class ExampleDataService extends BaseDataService<
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
 
-  // Records the page params that `getActivityByCursor`'s query function
-  // is invoked with, so tests can assert what actually reached it.
+  // Records the page params that `getActivity`'s query function is invoked
+  // with, so tests can assert what actually reached it.
   readonly pageParamsSeen: (PageParam | null | undefined)[] = [];
+
+  readonly #activityStaleTime: number;
 
   constructor(
     messenger: ExampleMessenger,
-    { persistenceConfig }: { persistenceConfig?: PersistenceConfiguration } = {
+    {
+      persistenceConfig,
+      activityStaleTime = inMilliseconds(5, Duration.Minute),
+    }: {
+      persistenceConfig?: PersistenceConfiguration;
+      activityStaleTime?: number;
+    } = {
       persistenceConfig: { maxAge: inMilliseconds(1, Duration.Day) },
     },
   ) {
@@ -80,6 +88,8 @@ export class ExampleDataService extends BaseDataService<
       },
       persistenceConfig,
     });
+
+    this.#activityStaleTime = activityStaleTime;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -117,71 +127,10 @@ export class ExampleDataService extends BaseDataService<
       unknown,
       GetActivityResponse,
       [string, string],
-      PageParam
-    >(
-      {
-        queryKey: [`${this.name}:getActivity`, address],
-        queryFn: async ({ pageParam }) => {
-          const caipAddress = `eip155:0:${address.toLowerCase()}`;
-          const url = new URL(
-            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
-          );
-
-          if (pageParam?.after) {
-            url.searchParams.set('after', pageParam.after);
-          } else if (pageParam?.before) {
-            url.searchParams.set('before', pageParam.before);
-          }
-
-          const response = await fetch(url);
-
-          if (!response.ok) {
-            throw new Error(
-              `Query failed with status code: ${response.status}.`,
-            );
-          }
-
-          return response.json();
-        },
-        getPreviousPageParam: ({ pageInfo }) =>
-          pageInfo.hasPreviousPage
-            ? { before: pageInfo.startCursor }
-            : undefined,
-        getNextPageParam: ({ pageInfo }) =>
-          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
-        staleTime: inMilliseconds(5, Duration.Minute),
-      },
-      page,
-    );
-  }
-
-  /**
-   * Fetch activity by cursor. Unlike `getActivity`, this omits the
-   * `getNextPageParam` / `getPreviousPageParam` callbacks and drives pagination
-   * purely by the explicit page param passed to the base method, the way a
-   * consumer that paginates by cursor does. Uses `null` as its first-page param
-   * and a zero `staleTime` so refetches can be exercised, and records every
-   * page param the query function receives in `pageParamsSeen`.
-   *
-   * @param address - The account address.
-   * @param page - The page to fetch. Passed last so this method works when
-   * invoked through `createUIQueryClient`, which appends the page param as the
-   * final argument.
-   * @returns A page of activity.
-   */
-  async getActivityByCursor(
-    address: string,
-    page?: PageParam,
-  ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<
-      GetActivityResponse,
-      unknown,
-      GetActivityResponse,
-      [string, string],
       PageParam | null
     >(
       {
-        queryKey: [`${this.name}:getActivityByCursor`, address],
+        queryKey: [`${this.name}:getActivity`, address],
         queryFn: async ({ pageParam }) => {
           this.pageParamsSeen.push(pageParam);
 
@@ -207,7 +156,13 @@ export class ExampleDataService extends BaseDataService<
           return response.json();
         },
         initialPageParam: null,
-        staleTime: 0,
+        getPreviousPageParam: ({ pageInfo }) =>
+          pageInfo.hasPreviousPage
+            ? { before: pageInfo.startCursor }
+            : undefined,
+        getNextPageParam: ({ pageInfo }) =>
+          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
+        staleTime: this.#activityStaleTime,
       },
       page,
     );

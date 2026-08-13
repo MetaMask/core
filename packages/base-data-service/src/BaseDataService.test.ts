@@ -160,47 +160,12 @@ describe('BaseDataService', () => {
     expect(first.data).not.toStrictEqual(jumped.data);
   });
 
-  it('handles paginated queries without page-param callbacks', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
-    const service = new ExampleDataService(messenger);
-
-    const page1 = await service.getActivityByCursor(TEST_ADDRESS);
-
-    expect(page1.data).toHaveLength(3);
-
-    const page2 = await service.getActivityByCursor(TEST_ADDRESS, {
-      after: page1.pageInfo.endCursor,
-    });
-
-    expect(page2.data).toHaveLength(3);
-    expect(page2.data).not.toStrictEqual(page1.data);
-  });
-
-  it('refetches stale paginated queries without page-param callbacks', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
-    const service = new ExampleDataService(messenger);
-
-    const page1 = await service.getActivityByCursor(TEST_ADDRESS);
-    await service.getActivityByCursor(TEST_ADDRESS, {
-      after: page1.pageInfo.endCursor,
-    });
-
-    // The query is stale (zero `staleTime`), so a param-less call rebuilds the
-    // cached pages. That rebuild walks `getNextPageParam`, which this query
-    // does not provide, so the base service must supply a no-op to avoid a
-    // throw.
-    mockTransactionsPage1();
-    const rebuilt = await service.getActivityByCursor(TEST_ADDRESS);
-
-    expect(rebuilt.data).toHaveLength(3);
-  });
-
   it('recovers the first page after a cold jump on refetch', async () => {
     const messenger = new Messenger({ namespace: serviceName });
-    const service = new ExampleDataService(messenger);
+    const service = new ExampleDataService(messenger, { activityStaleTime: 0 });
 
     // Cold jump straight to a later page.
-    const jumped = await service.getActivityByCursor(TEST_ADDRESS, {
+    const jumped = await service.getActivity(TEST_ADDRESS, {
       after: TRANSACTIONS_PAGE_2_CURSOR,
     });
     expect(jumped.data).toHaveLength(3);
@@ -208,7 +173,7 @@ describe('BaseDataService', () => {
     // A param-less refetch must fetch the real first page, not the jumped-to
     // page. The jump must not have overwritten the query's initial page param.
     mockTransactionsPage1();
-    const first = await service.getActivityByCursor(TEST_ADDRESS);
+    const first = await service.getActivity(TEST_ADDRESS);
 
     expect(first.data).toHaveLength(3);
     expect(first.data).not.toStrictEqual(jumped.data);
@@ -218,8 +183,8 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    // `getActivityByCursor` uses `null` as its initial page param.
-    await service.getActivityByCursor(TEST_ADDRESS);
+    // `getActivity` uses `null` as its initial page param.
+    await service.getActivity(TEST_ADDRESS);
 
     // `null` is a valid page param, so it must reach the query function rather
     // than being coerced to `undefined`.
@@ -230,9 +195,9 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    // `getActivityByCursor` sets a `null` initial page param, but an
-    // explicit jump target must still win.
-    const page = await service.getActivityByCursor(TEST_ADDRESS, {
+    // `getActivity` sets a `null` initial page param, but an explicit jump
+    // target must still win.
+    const page = await service.getActivity(TEST_ADDRESS, {
       after: TRANSACTIONS_PAGE_2_CURSOR,
     });
 

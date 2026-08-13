@@ -338,11 +338,12 @@ export class BaseDataService<
           SkipToken
         >
       >;
-      // These are required by @tanstack/query-core for infinite queries but
-      // remain optional here: consumers may drive pagination purely by passing
-      // an explicit `pageParam` (see below).
-      initialPageParam?: TPageParam;
-      getNextPageParam?: GetNextPageParamFunction<TPageParam, TQueryFnData>;
+      // Required, matching `@tanstack/query-core`'s own `fetchInfiniteQuery`:
+      // the first-page param and the resolver used to walk forward when
+      // refetching a multi-page query. `getPreviousPageParam` stays optional
+      // (only needed for backward pagination).
+      initialPageParam: TPageParam;
+      getNextPageParam: GetNextPageParamFunction<TPageParam, TQueryFnData>;
       getPreviousPageParam?: GetPreviousPageParamFunction<
         TPageParam,
         TQueryFnData
@@ -392,27 +393,16 @@ export class BaseDataService<
         TPageParam
       >({
         ...options,
-        // `initialPageParam` identifies the query's first page. Keep it as the
-        // consumer's value (which may be `undefined` for the very first page)
-        // rather than an explicit per-call `pageParam`: overwriting it would
-        // make a cold jump to page N masquerade as the first page, so a later
-        // refetch could never recover the real first page. query-core accepts
-        // `undefined` at runtime but not in its `TPageParam` type, hence the
-        // cast.
-        initialPageParam: options.initialPageParam as TPageParam,
-        // Provide a no-op `getNextPageParam` when the consumer omits one.
-        // @tanstack/query-core walks `getNextPageParam` when it refetches a
-        // multi-page infinite query, so a missing resolver would throw once more
-        // than one page has been cached.
-        getNextPageParam: options.getNextPageParam ?? ((): null => null),
         queryFn: (context) =>
           this.#policy.execute(() =>
             // On a cold jump the caller passes an explicit `pageParam`; fetch
-            // that page, overriding whatever first-page param query-core would
-            // use (which may be a non-`undefined` `initialPageParam`).
-            // Otherwise use query-core's context param, which preserves a
-            // `null` initial page param. Only the fresh path reaches this
-            // wrapper; the cached path below supplies its own query function.
+            // that page, overriding the consumer's `initialPageParam` that
+            // query-core would otherwise use for the first page. Overriding via
+            // `queryFn` (rather than `initialPageParam`) keeps the query's
+            // stored first-page param intact, so a later refetch can still
+            // recover the real first page. Otherwise use query-core's context
+            // param. Only the fresh path reaches this wrapper; the cached path
+            // below supplies its own query function.
             options.queryFn(
               pageParam === undefined ? context : { ...context, pageParam },
             ),

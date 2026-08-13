@@ -436,6 +436,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
             },
           );
         },
+        initialPageParam: null,
+        getNextPageParam: (lastPage) => lastPage.next_cursor,
       },
       options?.cursor ?? undefined,
     );
