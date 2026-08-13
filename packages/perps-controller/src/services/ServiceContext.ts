@@ -2,6 +2,7 @@ import type { PerpsControllerState } from '../PerpsController.js';
 import type {
   Order,
   PerpsGlobalSnapshotRequest,
+  PerpsSubscriptionFeeWaiverStatus,
   Position,
 } from '../types/index.js';
 
@@ -73,6 +74,14 @@ export type ServiceContext = {
     isCurrent: () => boolean;
     isMarketAllowed: (symbol: string) => boolean;
   };
+
+  /**
+   * Cached subscription fee-waiver status for read-only fee previews.
+   * Read by the controller from `RewardsIntegrationService` — the same cached
+   * benefits snapshot the fee resolver uses — and omitted entirely when no
+   * subscription source is wired.
+   */
+  subscriptionFeeWaiver?: PerpsSubscriptionFeeWaiverStatus;
 
   /**
    * Callback functions for controller-specific operations

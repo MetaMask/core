@@ -1485,7 +1485,7 @@ export class HyperLiquidSubscriptionService {
       // independent of the spot generation, and the post-fetch path below
       // correctly handles the generation-changed case (seal + re-aggregate
       // instead of overwriting WS spot).
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const lowerUserAddress = userAddress.toLowerCase();
       // Fetch spot state + abstraction mode in parallel — mode decides
       // whether the spot fold applies in addSpotBalanceToAccountState.

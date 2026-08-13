@@ -1286,10 +1286,17 @@ export class MarketDataService {
     params: FeeCalculationParams;
     context: ServiceContext;
   }): Promise<FeeCalculationResult> {
-    const { provider, params } = options;
+    const { provider, params, context } = options;
 
     try {
-      return await provider.calculateFees(params);
+      const fees = await provider.calculateFees(params);
+
+      // Read-only preview of the same cached benefits snapshot the fee resolver
+      // reads. The quoted rates are left untouched: surfacing eligibility and
+      // the remaining notional must not mutate the cap or the cache.
+      return context.subscriptionFeeWaiver
+        ? { ...fees, subscription: context.subscriptionFeeWaiver }
+        : fees;
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.calculateFees'),

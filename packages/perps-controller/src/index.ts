@@ -52,6 +52,7 @@ export type {
   ProPositionsSortField,
 } from './PerpsController.js';
 export type {
+  PerpsControllerApproveSubscriptionBuilderFeeAction,
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
   PerpsControllerCalculateMaintenanceMarginAction,
@@ -101,6 +102,7 @@ export type {
   PerpsControllerGetWithdrawalProgressAction,
   PerpsControllerGetWithdrawalRoutesAction,
   PerpsControllerInitAction,
+  PerpsControllerInvalidateSubscriptionBenefitsAction,
   PerpsControllerIsCurrentlyReinitializingAction,
   PerpsControllerIsFirstTimeUserOnCurrentNetworkAction,
   PerpsControllerIsWatchlistMarketAction,
@@ -246,6 +248,11 @@ export type {
   MaintenanceMarginParams,
   FeeCalculationParams,
   FeeCalculationResult,
+  PerpsSubscriptionBenefits,
+  PerpsSubscriptionUsage,
+  PerpsSubscriptionFeeWaiverStatus,
+  PerpsFeeSource,
+  PerpsFeeResolution,
   UpdatePositionTPSLParams,
   Order,
   Funding,
