@@ -90,4 +90,29 @@ describe('message-signing SIP-6 helpers', () => {
     );
     expect(bytesToHex(withDefaultSalt)).toBe(bytesToHex(withExplicitEmptySalt));
   });
+
+  it('derives SIP-6 entropy when crypto.subtle exists without importKey', async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'crypto',
+    );
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: { subtle: { digest: async () => new ArrayBuffer(0) } },
+    });
+
+    try {
+      const privateKey = await deriveSip6PrivateKey({
+        seed: TEST_SEED,
+        input: 'foo',
+      });
+      expect(bytesToHex(privateKey)).toBe(SIP6_VECTORS[0].entropy);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, 'crypto', originalDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, 'crypto');
+      }
+    }
+  });
 });

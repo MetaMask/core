@@ -9,7 +9,8 @@ import {
   stringToBytes,
 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha2';
+import { hmac } from '@noble/hashes/hmac';
+import { sha256, sha512 } from '@noble/hashes/sha2';
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
 
 /**
@@ -51,6 +52,19 @@ export const MESSAGE_SIGNING_SNAP_ID = 'npm:@metamask/message-signing-snap';
 const SIP_6_MAGIC_VALUE = `1399742832'` as `${number}'`;
 
 const HARDENED_VALUE = 0x80000000;
+
+/**
+ * HMAC-SHA-512 for `@metamask/key-tree`.
+ *
+ * Passed into `SLIP10Node.fromSeed` so SIP-6 never uses Web Crypto.
+ * `@metamask/key-tree` treats any `crypto.subtle` as complete and then HMAC
+ * via `importKey` / `sign`. React Native only implements `digest`; its
+ * SubtleCrypto cannot HMAC. Noble HMAC is byte-identical without SubtleCrypto.
+ */
+const NOBLE_HMAC_SHA512 = {
+  hmacSha512: async (key: Uint8Array, data: Uint8Array): Promise<Uint8Array> =>
+    hmac(sha512, key, data),
+};
 
 /**
  * Copy of `@metamask/snaps-rpc-methods` `getDerivationPathArray`.
@@ -98,14 +112,17 @@ export async function deriveSip6PrivateKey({
   );
   const computedDerivationPath = getDerivationPathArray(hash);
 
-  const { privateKey } = await SLIP10Node.fromSeed({
-    derivationPath: [
-      seed,
-      `bip32:${SIP_6_MAGIC_VALUE}`,
-      ...computedDerivationPath,
-    ],
-    curve: 'secp256k1',
-  });
+  const { privateKey } = await SLIP10Node.fromSeed(
+    {
+      derivationPath: [
+        seed,
+        `bip32:${SIP_6_MAGIC_VALUE}`,
+        ...computedDerivationPath,
+      ],
+      curve: 'secp256k1',
+    },
+    NOBLE_HMAC_SHA512,
+  );
 
   assert(privateKey, 'Failed to derive SIP-6 entropy.');
   return hexToBytes(privateKey);
