@@ -61,7 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking ([#9815](https://github.com/MetaMask/core/pull/9815)).
 - Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh ([#9815](https://github.com/MetaMask/core/pull/9815)).
 
-
 ## [11.0.0]
 
 ### Added
