@@ -297,11 +297,10 @@ export type RampsControllerAddAutorampAction = {
  * Creates an autoramp via the Ramp API neo-bank proxy and applies the
  * returned snapshot locally.
  *
- * The MoonPay `customer_id` is not accepted from callers: it is resolved from
- * the KYC controller's session-scoped identity and injected into the request.
- * This keeps the sensitive customer id owned by the KYC controller and avoids
- * requiring the UI to know or plumb it. Throws when no verified identity is
- * available yet.
+ * The MoonPay `customer_id` is not accepted from callers: it is resolved via
+ * {@link RampsController.resolveAutorampCustomerId} and injected into the
+ * request. This keeps the sensitive customer id owned by KYC / the neo-bank
+ * proxy and avoids requiring the UI to know or plumb it.
  *
  * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
  * @param options - Optional idempotency key forwarded to the proxy.
@@ -311,6 +310,25 @@ export type RampsControllerAddAutorampAction = {
 export type RampsControllerCreateAutorampAction = {
   type: `RampsController:createAutoramp`;
   handler: RampsController['createAutoramp'];
+};
+
+/**
+ * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
+ *
+ * Consumers provide only the Monad address. The controller resolves the Iron
+ * customer id via {@link RampsController.resolveAutorampCustomerId} (KYC
+ * session identity when available, otherwise the neobank-proxy external-id
+ * lookup) before the first list/lookup because list requires `customer_id`
+ * in the path. Message construction, EIP-191 signing, submission, and
+ * ambiguous-write reconciliation stay internal to this controller.
+ *
+ * @param params - Money Account wallet registration parameters.
+ * @param params.address - Monad Money Account address.
+ * @returns The successful registration state.
+ */
+export type RampsControllerRegisterMoneyAccountWalletAction = {
+  type: `RampsController:registerMoneyAccountWallet`;
+  handler: RampsController['registerMoneyAccountWallet'];
 };
 
 /**
@@ -790,6 +808,7 @@ export type RampsControllerMethodActions =
   | RampsControllerRemoveOrderAction
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
+  | RampsControllerRegisterMoneyAccountWalletAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction

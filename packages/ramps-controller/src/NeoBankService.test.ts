@@ -14,14 +14,20 @@ const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
 /**
  * Builds a NeoBankService with AuthenticationController bearer auth stubbed.
  *
- * @param options - Optional constructor overrides. Pass `omitDefaults: true` to
- * exercise constructor defaulted parameters (`environment`, `policyOptions`).
+ * @param options - Optional constructor overrides.
+ * @param options.environment - Ramp environment for host selection.
+ * @param options.baseUrlOverride - Overrides the environment-derived host.
+ * @param options.omitDefaults - Pass `true` to exercise constructor defaulted
+ * parameters (`environment`, `policyOptions`).
+ * @param options.canonicalProfileId - Canonical profile id returned by the
+ * stubbed `AuthenticationController:getSessionProfile` (wallet registration).
  * @returns Service instance for the test.
  */
 function createService(options?: {
   environment?: RampsEnvironment;
   baseUrlOverride?: string;
   omitDefaults?: boolean;
+  canonicalProfileId?: string;
 }): NeoBankService {
   const rootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE as MockAnyNamespace,
@@ -30,6 +36,18 @@ function createService(options?: {
     'AuthenticationController:getBearerToken',
     async () => 'test-token',
   );
+  const canonicalProfileId =
+    options?.canonicalProfileId ?? 'canonical-profile-1';
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    async () =>
+      ({
+        identifierId: 'id-1',
+        profileId: canonicalProfileId,
+        canonicalProfileId,
+        metaMetricsId: 'mm-1',
+      }) as never,
+  );
 
   const messenger = new Messenger({
     namespace: 'NeoBankService',
@@ -37,7 +55,10 @@ function createService(options?: {
   }) as unknown as NeoBankServiceMessenger;
   rootMessenger.delegate({
     messenger,
-    actions: ['AuthenticationController:getBearerToken'],
+    actions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:getSessionProfile',
+    ],
   });
 
   if (options?.omitDefaults) {
@@ -339,6 +360,92 @@ describe('NeoBankService', () => {
 
       expect(scope.isDone()).toBe(true);
       expect(result).toMatchObject({ id: 'cust-1', external_id: 'ext-1' });
+    });
+  });
+
+  describe('Money Account wallet registration', () => {
+    it('resolves the Iron customer id via neobank customer lookup', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/customers/canonical-profile-1/external')
+        .matchHeader('authorization', 'Bearer test-token')
+        .reply(200, {
+          id: 'iron-customer-1',
+          external_id: 'canonical-profile-1',
+        });
+
+      const service = createService();
+
+      expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
+    });
+
+    it('checks Monad wallet registration status for a customer', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/addresses/crypto/iron-customer-1')
+        .query({ filter: 'SelfHosted' })
+        .reply(200, []);
+
+      const service = createService();
+
+      expect(
+        await service.getWalletRegistrationStatus({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+        }),
+      ).toStrictEqual({ type: 'absent' });
+    });
+
+    it('submits a signed Monad wallet ownership proof with Idempotency-Key', async () => {
+      nock(STAGING_BASE)
+        .post(
+          '/neobank/addresses/crypto/selfhosted',
+          {
+            customer_id: 'iron-customer-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            message: 'ownership message',
+            signature: '0xsig',
+          },
+          { reqheaders: { 'idempotency-key': 'idem-1' } },
+        )
+        .reply(200, {
+          id: 'wallet-1',
+          address: '0xabc',
+          disabled: false,
+        });
+
+      const service = createService();
+
+      expect(
+        await service.registerSelfHostedWallet({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+          message: 'ownership message',
+          signature: '0xsig',
+          idempotencyKey: 'idem-1',
+        }),
+      ).toMatchObject({
+        type: 'registered',
+        registration: { id: 'wallet-1', blockchain: 'Monad' },
+      });
+    });
+
+    it('uses the baseUrlOverride host for wallet routes', async () => {
+      const overrideUrl = 'https://on-ramp.dev-api.cx.metamask.io';
+      nock(overrideUrl)
+        .get('/neobank/customers/canonical-profile-1/external')
+        .reply(200, { id: 'iron-customer-1' });
+
+      const service = createService({ baseUrlOverride: overrideUrl });
+
+      expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
+    });
+
+    it('throws when the session profile has no usable external id', async () => {
+      const service = createService({ canonicalProfileId: '' });
+
+      await expect(service.getMoonpayCustomerId()).rejects.toThrow(
+        /Unable to resolve MetaMask canonical profile id/u,
+      );
     });
   });
 

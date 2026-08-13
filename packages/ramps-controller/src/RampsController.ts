@@ -15,7 +15,6 @@ import {
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
-import type { KycControllerGetCustomerIdentityAction } from '@metamask/kyc-controller';
 
 import type {
   AutorampAccount,
@@ -37,8 +36,23 @@ import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
   NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
+import { buildOwnershipMessage } from './ownership-message.js';
+import {
+  createInitialState as createInitialWalletRegistrationState,
+  transition as transitionWalletRegistration,
+} from './wallet-registration-machine.js';
+import {
+  createIdempotencyKey,
+  WalletRegistrationError,
+} from './wallet-registration-service.js';
+import type {
+  RegistrationStatus,
+  SelfHostedRegistration,
+} from './wallet-registration-service.js';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
 import {
@@ -196,6 +210,8 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'NeoBankService:getAutoramp',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
+  'NeoBankService:getWalletRegistrationStatus',
+  'NeoBankService:registerSelfHostedWallet',
 ] as const satisfies readonly (
   | RampsServiceActions['type']
   | TransakServiceActions['type']
@@ -206,11 +222,49 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
  * Other controller actions RampsController calls via the messenger.
  * Hosts that enable autoramp creation must delegate these from the root
  * messenger so the controller can resolve the vendor customer identity.
+ * `KeyringController:signPersonalMessage` is required for Money Account
+ * self-hosted wallet registration (EIP-191 ownership proof).
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:getCustomerIdentity',
   'AuthenticationController:getSessionProfile',
+  'KeyringController:signPersonalMessage',
 ] as const;
+
+/**
+ * Structural type for the KYC controller's `getCustomerIdentity` messenger
+ * action. Declared locally (mirroring `@metamask/kyc-controller`) so this
+ * package does not need a dependency on the KYC package; the messenger only
+ * matches on the action `type` string, so the shapes stay compatible.
+ */
+export type KycControllerGetCustomerIdentityAction = {
+  type: 'KycController:getCustomerIdentity';
+  handler: () => { vendor: string; id: string } | null;
+};
+
+/**
+ * Structural type for the keyring controller's `signPersonalMessage` messenger
+ * action (EIP-191). Declared locally (mirroring
+ * `@metamask/keyring-controller`) to avoid a package dependency for a single
+ * type-only messenger action.
+ */
+export type KeyringControllerSignPersonalMessageAction = {
+  type: 'KeyringController:signPersonalMessage';
+  handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Successful outcome of {@link RampsController.registerMoneyAccountWallet}.
+ */
+export type MoneyAccountWalletRegistrationResult =
+  | {
+      type: 'registered' | 'alreadyRegistered';
+      registration: SelfHostedRegistration;
+    }
+  | {
+      type: 'registeredDisabled';
+      registration: SelfHostedRegistration;
+    };
 
 /**
  * User Storage / auth actions needed for autoramp Backup & Sync.
@@ -706,7 +760,10 @@ type AllowedActions =
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
+  | NeoBankServiceGetWalletRegistrationStatusAction
+  | NeoBankServiceRegisterSelfHostedWalletAction
   | KycControllerGetCustomerIdentityAction
+  | KeyringControllerSignPersonalMessageAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -903,6 +960,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'addAutoramp',
   'createAutoramp',
   'removeAutoramp',
+  'registerMoneyAccountWallet',
   'markAutorampAsNotified',
   'applyAutorampStatusFromPush',
   'refreshAutoramp',
@@ -2726,6 +2784,182 @@ export class RampsController extends BaseController<
       );
     }
     return customerId;
+  }
+
+  /**
+   * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
+   *
+   * Consumers provide only the Monad address. The controller resolves the Iron
+   * customer id via {@link RampsController.resolveAutorampCustomerId} (KYC
+   * session identity when available, otherwise the neobank-proxy external-id
+   * lookup) before the first list/lookup because list requires `customer_id`
+   * in the path. Message construction, EIP-191 signing, submission, and
+   * ambiguous-write reconciliation stay internal to this controller.
+   *
+   * @param params - Money Account wallet registration parameters.
+   * @param params.address - Monad Money Account address.
+   * @returns The successful registration state.
+   */
+  async registerMoneyAccountWallet({
+    address,
+  }: {
+    address: string;
+  }): Promise<MoneyAccountWalletRegistrationResult> {
+    let machine = transitionWalletRegistration(
+      createInitialWalletRegistrationState(),
+      { type: 'START' },
+    );
+
+    const toExistingResult = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      if (status.type === 'active') {
+        return { type: 'alreadyRegistered', registration: status.registration };
+      }
+      if (status.type === 'disabled') {
+        return {
+          type: 'registeredDisabled',
+          registration: status.registration,
+        };
+      }
+      return undefined;
+    };
+
+    // List requires customer_id in the neobank path, so resolve Iron's id
+    // before the first lookup.
+    const customerId = await this.resolveAutorampCustomerId();
+
+    const lookup = async (): Promise<RegistrationStatus> => {
+      try {
+        return await this.messenger.call(
+          'NeoBankService:getWalletRegistrationStatus',
+          { customerId, address },
+        );
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'LOOKUP_FAILED',
+        });
+        throw error;
+      }
+    };
+
+    const applyLookup = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      let eventType: 'LOOKUP_ACTIVE' | 'LOOKUP_DISABLED' | 'LOOKUP_ABSENT' =
+        'LOOKUP_ABSENT';
+      if (status.type === 'active') {
+        eventType = 'LOOKUP_ACTIVE';
+      } else if (status.type === 'disabled') {
+        eventType = 'LOOKUP_DISABLED';
+      }
+      machine = transitionWalletRegistration(machine, {
+        type: eventType,
+      });
+      return toExistingResult(status);
+    };
+
+    const existingStatus = await lookup();
+    const existingResult = applyLookup(existingStatus);
+    if (existingResult) {
+      return existingResult;
+    }
+
+    // Stable across transient retries of the same ownership proof; refreshed
+    // when the UTC-dated message must be rebuilt and re-signed.
+    let idempotencyKey = createIdempotencyKey();
+    let lastMessage: string | undefined;
+
+    while (true) {
+      const message = buildOwnershipMessage({
+        address,
+        customerId,
+        now: new Date(),
+      });
+      if (lastMessage !== undefined && message !== lastMessage) {
+        idempotencyKey = createIdempotencyKey();
+      }
+      lastMessage = message;
+
+      let signature: string;
+      try {
+        signature = await this.messenger.call(
+          'KeyringController:signPersonalMessage',
+          { data: message, from: address },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SIGN_OK' });
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'SIGN_FAILED',
+          retryable: false,
+        });
+        throw error;
+      }
+
+      try {
+        const result = await this.messenger.call(
+          'NeoBankService:registerSelfHostedWallet',
+          {
+            address,
+            customerId,
+            message,
+            signature,
+            idempotencyKey,
+          },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
+        return result;
+      } catch (error) {
+        if (!(error instanceof WalletRegistrationError)) {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+          throw error;
+        }
+
+        if (error.kind === 'conflict') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_CONFLICT',
+          });
+        } else if (error.kind === 'transient') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TRANSIENT',
+          });
+        } else if (error.kind === 'validation') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_VALIDATION',
+            utcRollover:
+              buildOwnershipMessage({
+                address,
+                customerId,
+                now: new Date(),
+              }) !== message,
+          });
+        } else if (error.kind === 'rateLimited') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_RATE_LIMITED',
+          });
+        } else {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+        }
+
+        if (
+          machine.status === 'disambiguate409' ||
+          machine.status === 'checkThenRetry'
+        ) {
+          const reconciledResult = applyLookup(await lookup());
+          if (reconciledResult) {
+            return reconciledResult;
+          }
+        }
+
+        if (machine.status !== 'signing') {
+          throw error;
+        }
+      }
+    }
   }
 
   /**

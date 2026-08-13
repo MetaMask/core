@@ -12,7 +12,6 @@ describe('@metamask/kyc-controller', () => {
       alpha2ToAlpha3: expect.any(Function),
       generateKeyPair: expect.any(Function),
       decryptCredentials: expect.any(Function),
-      WalletRegistrationError: expect.any(Function),
       controllerName: 'KycController',
       serviceName: 'KycService',
     });
