@@ -703,6 +703,7 @@ describe('PerpsController', () => {
         positionsSideFilter: 'all',
         positionsSortField: 'positionValue',
         positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
         ordersSortField: 'time',
         ordersSortDirection: 'desc',
       });
@@ -719,6 +720,7 @@ describe('PerpsController', () => {
         positionsSideFilter: 'all',
         positionsSortField: 'positionValue',
         positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
         ordersSortField: 'time',
         ordersSortDirection: 'desc',
       });
@@ -734,6 +736,7 @@ describe('PerpsController', () => {
         positionsSortDirection: 'asc',
       });
       controller.setProLayoutPreferences({
+        ordersSideFilter: 'short',
         ordersSortField: 'orderValue',
         ordersSortDirection: 'asc',
       });
@@ -746,6 +749,7 @@ describe('PerpsController', () => {
         positionsSideFilter: 'long',
         positionsSortField: 'unrealizedPnl',
         positionsSortDirection: 'asc',
+        ordersSideFilter: 'short',
         ordersSortField: 'orderValue',
         ordersSortDirection: 'asc',
       });
@@ -768,6 +772,7 @@ describe('PerpsController', () => {
         positionsSideFilter: 'all',
         positionsSortField: 'unrealizedPnl',
         positionsSortDirection: 'asc',
+        ordersSideFilter: 'all',
         ordersSortField: 'time',
         ordersSortDirection: 'desc',
       });
@@ -790,8 +795,27 @@ describe('PerpsController', () => {
         positionsSideFilter: 'all',
         positionsSortField: 'positionValue',
         positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
         ordersSortField: 'price',
         ordersSortDirection: 'asc',
+      });
+    });
+
+    it('updates orders side filter without clobbering positions side filter', () => {
+      controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
+      controller.setProLayoutPreferences({ ordersSideFilter: 'short' });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'long',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'short',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
       });
     });
 
@@ -817,6 +841,7 @@ describe('PerpsController', () => {
         positionsSideFilter: 'all',
         positionsSortField: 'positionValue',
         positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
         ordersSortField: 'time',
         ordersSortDirection: 'desc',
       });

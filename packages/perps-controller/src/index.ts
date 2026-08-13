@@ -44,6 +44,7 @@ export type {
   PerpsControllerActions,
   PerpsControllerEvents,
   ProLayoutPreferences,
+  ProOrdersSideFilter,
   ProOrdersSortDirection,
   ProOrdersSortField,
   ProPositionsSideFilter,
