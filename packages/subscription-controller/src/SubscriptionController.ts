@@ -1036,12 +1036,18 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
         return false;
       }
+      // Persisted pre-PR pricing is typically `{ type: 'crypto', chains }` with
+      // neither field. Treat omitted values as the legacy meaning (Shield +
+      // erc20_approval), not as wildcards, so Money Account lookups cannot
+      // match Shield's spender/chains.
       const authMatches =
-        !paymentMethod.cryptoAuthMethod ||
-        paymentMethod.cryptoAuthMethod === cryptoAuthMethod;
-      const productMatches =
-        !paymentMethod.products?.length ||
-        paymentMethod.products.includes(productType);
+        (paymentMethod.cryptoAuthMethod ??
+          CRYPTO_AUTH_METHODS.ERC20_APPROVAL) === cryptoAuthMethod;
+      const productMatches = (
+        paymentMethod.products?.length
+          ? paymentMethod.products
+          : [PRODUCT_TYPES.SHIELD]
+      ).includes(productType);
       return authMatches && productMatches;
     });
   }

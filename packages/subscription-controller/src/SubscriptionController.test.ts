@@ -1450,6 +1450,94 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('does not treat omitted products and cryptoAuthMethod as wildcards for Money Account', async () => {
+      const shieldPaymentAddress = '0x00000000000000000000000000000000000000a2';
+      const mapPaymentAddress = '0x00000000000000000000000000000000000000c0';
+      const mapProductPrice: ProductPricing = {
+        ...MOCK_PRODUCT_PRICE,
+        name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      };
+      const [legacyShieldChain] = MOCK_PRICING_PAYMENT_METHOD.chains ?? [];
+
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE, mapProductPrice],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  chains: MOCK_PRICING_PAYMENT_METHOD.chains,
+                },
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  cryptoAuthMethod: 'erc20_approval',
+                  products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+                  chains: [
+                    {
+                      chainId: '0x1',
+                      paymentAddress: mapPaymentAddress,
+                      tokens: legacyShieldChain.tokens,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          const result = rootMessenger.call(
+            'SubscriptionController:getCryptoApproveTransactionParams',
+            {
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+              interval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(result.paymentAddress).toBe(mapPaymentAddress);
+          expect(result.paymentAddress).not.toBe(shieldPaymentAddress);
+        },
+      );
+    });
+
+    it('does not return Shield spender for Money Account when pricing is legacy crypto-only', async () => {
+      const mapProductPrice: ProductPricing = {
+        ...MOCK_PRODUCT_PRICE,
+        name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      };
+
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE, mapProductPrice],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  chains: MOCK_PRICING_PAYMENT_METHOD.chains,
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'SubscriptionController:getCryptoApproveTransactionParams',
+              {
+                chainId: '0x1',
+                paymentTokenAddress: '0xtoken',
+                productType: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                interval: RECURRING_INTERVALS.month,
+              },
+            ),
+          ).toThrow('Chains payment info not found');
+        },
+      );
+    });
+
     it('returns transaction params for crypto approve transaction', async () => {
       await withController(
         {
