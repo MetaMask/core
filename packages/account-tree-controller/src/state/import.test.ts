@@ -700,6 +700,9 @@ describe('importState', () => {
 
       await importSnapshot(context, payload);
 
+      // The private-key wallet name is derived from its keyring type and is not
+      // user-customisable, so import must never overwrite it.
+      expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
       expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
         pkGroupId,
         'Renamed Imported',
