@@ -98,6 +98,7 @@ export type {
   PerpsControllerGetWithdrawalProgressAction,
   PerpsControllerGetWithdrawalRoutesAction,
   PerpsControllerInitAction,
+  PerpsControllerInvalidateSubscriptionBenefitsAction,
   PerpsControllerIsCurrentlyReinitializingAction,
   PerpsControllerIsFirstTimeUserOnCurrentNetworkAction,
   PerpsControllerIsWatchlistMarketAction,

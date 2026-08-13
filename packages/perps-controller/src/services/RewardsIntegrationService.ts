@@ -281,6 +281,11 @@ export class RewardsIntegrationService {
     // Fence any in-flight read: it was issued for the previous identity, so its
     // result must not repopulate the cache after this point.
     this.#benefitsEpoch += 1;
+    // Drop the dedupe handle too. The fenced read can only be discarded, so
+    // leaving it in place would make the next refresh await it instead of
+    // fetching for the new identity. Its `finally` guard compares against the
+    // current handle, so it will not clear whatever replaces it here.
+    this.#benefitsRefresh = undefined;
 
     this.#deps.debugLogger.log(
       'RewardsIntegrationService: Subscription benefits cache invalidated',

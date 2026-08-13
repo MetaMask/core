@@ -657,6 +657,39 @@ describe('RewardsIntegrationService', () => {
       expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
     });
 
+    it('starts a fresh read when the next caller arrives while a fenced read is still in flight', async () => {
+      // Profile A's read is still in flight at sign-out, so the epoch fence can
+      // only discard it. Deduping profile B onto it would leave the cache
+      // unhydrated instead of fetching for the new identity.
+      const releases: ((value: unknown) => void)[] = [];
+      const getPerpsBenefits = wireSubscription(
+        jest.fn(
+          async () =>
+            new Promise((resolve) => {
+              releases.push(resolve);
+            }),
+        ),
+      );
+
+      const profileARead = service.refreshSubscriptionBenefits();
+      service.invalidateSubscriptionBenefits();
+
+      // The documented contract: the next status read starts a fresh fetch.
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+
+      // Dedupes onto profile B's read, which is what gives us a handle on it.
+      const profileBRead = service.refreshSubscriptionBenefits();
+      releases.forEach((release) => release(createBenefits()));
+      await Promise.all([profileARead, profileBRead]);
+
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+    });
+
     it('uses a background refresh that lands during the rewards round trip', async () => {
       const getPerpsBenefits = wireSubscription(
         jest.fn().mockResolvedValue(createBenefits()),
