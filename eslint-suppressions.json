@@ -1141,17 +1141,11 @@
   "packages/logging-controller/src/LoggingController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
-    },
-    "import-x/namespace": {
-      "count": 1
     }
   },
   "packages/logging-controller/src/LoggingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
-    },
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/message-manager/src/AbstractMessageManager.test.ts": {
@@ -1525,12 +1519,7 @@
   },
   "packages/perps-controller/src/PerpsController.ts": {
     "no-restricted-syntax": {
-      "count": 3
-    }
-  },
-  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
