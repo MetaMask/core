@@ -7,6 +7,7 @@ import {
 import { AccountGroupType } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { SnapId } from '@metamask/snaps-sdk';
+import { InternalAccount } from '@metamask/snaps-utils';
 
 import type {
   AccountTreeControllerMessenger,
@@ -81,7 +82,7 @@ const MOCK_PRIVATE_KEY_WALLET_STATE: AccountTreeControllerState['accountTree']['
         [MOCK_PRIVATE_KEY_GROUP_ID]: {
           id: MOCK_PRIVATE_KEY_GROUP_ID,
           type: AccountGroupType.SingleAccount,
-          accounts: ['account-pk-1'],
+          accounts: ['account-private-key-1'],
           metadata: {
             name: 'Imported 1',
             pinned: false,
@@ -499,7 +500,7 @@ describe('exportState', () => {
         wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
       });
       mocks.AccountsController.getAccount.mockReturnValue({
-        id: 'account-pk-1',
+        id: 'account-private-key-1',
         address: '0xabc',
       });
 
@@ -522,7 +523,7 @@ describe('exportState', () => {
         wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
       });
       mocks.AccountsController.getAccount.mockReturnValue({
-        id: 'account-pk-1',
+        id: 'account-private-key-1',
         address: '0xabc',
       });
       mocks.KeyringController.withKeyringV2 = makePrivateKeyExportHandler({
@@ -549,7 +550,7 @@ describe('exportState', () => {
         wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
       });
       mocks.AccountsController.getAccount.mockReturnValue({
-        id: 'account-pk-1',
+        id: 'account-private-key-1',
         address: '0xabc',
       });
       mocks.KeyringController.withKeyringV2.mockImplementation(
@@ -569,7 +570,7 @@ describe('exportState', () => {
         wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
       });
       mocks.AccountsController.getAccount.mockReturnValue({
-        id: 'account-pk-1',
+        id: 'account-private-key-1',
         address: '0xabc',
       });
       mocks.KeyringController.withKeyringV2 =
@@ -632,7 +633,7 @@ describe('exportState', () => {
         wallets: MOCK_PRIVATE_KEY_WALLET_STATE,
       });
       mocks.AccountsController.getAccount.mockReturnValue({
-        id: 'account-pk-1',
+        id: 'account-private-key-1',
         address: '0xabc',
       });
 
@@ -649,21 +650,24 @@ describe('exportState', () => {
     });
 
     it('merges multiple simple-keyring wallets into one private-key payload entry', async () => {
-      const secondPkWalletId =
+      const secondPrivateKeyWalletId =
         'keyring:simple:legacy' as typeof MOCK_PRIVATE_KEY_WALLET_ID;
-      const secondPkGroupId = toAccountGroupId(secondPkWalletId, '0xdef');
+      const secondPrivateKeyGroupId = toAccountGroupId(
+        secondPrivateKeyWalletId,
+        '0xdef',
+      );
 
       const wallets: AccountTreeControllerState['accountTree']['wallets'] = {
         ...MOCK_PRIVATE_KEY_WALLET_STATE,
-        [secondPkWalletId]: {
-          id: secondPkWalletId,
+        [secondPrivateKeyWalletId]: {
+          id: secondPrivateKeyWalletId,
           type: AccountWalletType.Keyring,
           status: 'ready',
           groups: {
-            [secondPkGroupId]: {
-              id: secondPkGroupId,
+            [secondPrivateKeyGroupId]: {
+              id: secondPrivateKeyGroupId,
               type: AccountGroupType.SingleAccount,
-              accounts: ['account-pk-2'],
+              accounts: ['account-private-key-2'],
               metadata: {
                 name: 'Imported 2',
                 pinned: false,
@@ -680,15 +684,17 @@ describe('exportState', () => {
       };
 
       const { context, mocks } = setup({ wallets });
-      mocks.AccountsController.getAccount.mockImplementation((accountId) => {
-        if (accountId === 'account-pk-1') {
-          return { id: 'account-pk-1', address: '0xabc' };
-        }
-        if (accountId === 'account-pk-2') {
-          return { id: 'account-pk-2', address: '0xdef' };
-        }
-        return undefined;
-      });
+      mocks.AccountsController.getAccount.mockImplementation(
+        (accountId: InternalAccount['id']) => {
+          if (accountId === 'account-private-key-1') {
+            return { id: 'account-private-key-1', address: '0xabc' };
+          }
+          if (accountId === 'account-private-key-2') {
+            return { id: 'account-private-key-2', address: '0xdef' };
+          }
+          return undefined;
+        },
+      );
 
       const snapshot = await exportState(context);
       const payload = snapshot.serialize();
