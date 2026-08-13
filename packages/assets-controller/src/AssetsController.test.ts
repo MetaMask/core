@@ -3426,6 +3426,26 @@ describe('AssetsController', () => {
         expect(true).toBe(true);
       });
     });
+
+    it('skips asset refresh when group ID is empty (onboarding or wallet reset)', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        try {
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            'entropy:mock-keyring-id-1/0',
+          );
+
+          await new Promise(process.nextTick);
+
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        } finally {
+          getAssetsSpy.mockRestore();
+        }
+      });
+    });
   });
 
   describe('account tree state change', () => {
