@@ -163,9 +163,9 @@ describe('computeAutorampMergePlan', () => {
 
     const plan = computeAutorampMergePlan([local], [remote]);
 
-    expect(plan.accountsToUpdateRemotely.map((account) => account.id)).toStrictEqual(
-      ['ar-1'],
-    );
+    expect(
+      plan.accountsToUpdateRemotely.map((account) => account.id),
+    ).toStrictEqual(['ar-1']);
     expect(plan.accountsToDeleteLocally).toStrictEqual([]);
   });
 
@@ -178,9 +178,9 @@ describe('computeAutorampMergePlan', () => {
 
     const plan = computeAutorampMergePlan([local], [remote]);
 
-    expect(plan.accountsToDeleteLocally.map((account) => account.id)).toStrictEqual(
-      ['ar-1'],
-    );
+    expect(
+      plan.accountsToDeleteLocally.map((account) => account.id),
+    ).toStrictEqual(['ar-1']);
   });
 
   it('imports the remote account when it is newer than the local copy', () => {
@@ -193,9 +193,9 @@ describe('computeAutorampMergePlan', () => {
 
     const plan = computeAutorampMergePlan([local], [remote]);
 
-    expect(plan.accountsToAddOrUpdateLocally.map((a) => a.status)).toStrictEqual([
-      AutorampStatus.Approved,
-    ]);
+    expect(
+      plan.accountsToAddOrUpdateLocally.map((a) => a.status),
+    ).toStrictEqual([AutorampStatus.Approved]);
     expect(plan.accountsToUpdateRemotely).toStrictEqual([]);
   });
 
@@ -218,7 +218,9 @@ describe('syncAutorampsWithUserStorage', () => {
 
     await syncAutorampsWithUserStorage({}, harness.options);
 
-    expect(harness.controller.setIsAutorampSyncingInProgress).not.toHaveBeenCalled();
+    expect(
+      harness.controller.setIsAutorampSyncingInProgress,
+    ).not.toHaveBeenCalled();
     expect(harness.batchSetCalls()).toStrictEqual([]);
   });
 
@@ -228,9 +230,9 @@ describe('syncAutorampsWithUserStorage', () => {
     await syncAutorampsWithUserStorage({}, harness.options);
 
     expect(harness.batchSetCalls()).toStrictEqual([]);
-    expect(harness.controller.setIsAutorampSyncingInProgress).toHaveBeenCalledWith(
-      false,
-    );
+    expect(
+      harness.controller.setIsAutorampSyncingInProgress,
+    ).toHaveBeenCalledWith(false);
   });
 
   it('treats a null feature-entries response as empty', async () => {
@@ -257,7 +259,9 @@ describe('syncAutorampsWithUserStorage', () => {
 
   it('imports remote-only accounts into controller state', async () => {
     const remote = buildAccount({ id: 'ar-remote', updatedAt: 2_000 });
-    const harness = buildHarness({ remoteEntries: [toRemoteEntryJson(remote)] });
+    const harness = buildHarness({
+      remoteEntries: [toRemoteEntryJson(remote)],
+    });
 
     await syncAutorampsWithUserStorage({}, harness.options);
 
@@ -288,29 +292,9 @@ describe('syncAutorampsWithUserStorage', () => {
       ...buildAccount({ id: 'ar-local' }),
       updatedAt: 0,
     } as unknown as AutorampAccount;
-    const harness = buildHarness({ localAccounts: [local] });
-    harness.call.mockImplementation((action: string, ...args: unknown[]) => {
-      if (action === 'UserStorageController:getState') {
-        return { isBackupAndSyncEnabled: true };
-      }
-      if (action === 'AuthenticationController:isSignedIn') {
-        return true;
-      }
-      if (
-        action === 'UserStorageController:performGetStorageAllFeatureEntries'
-      ) {
-        return [toRemoteEntryJson(buildAccount({ id: 'ar-untouched' }))];
-      }
-      if (action === 'UserStorageController:performBatchSetStorage') {
-        const entries = args[1] as [string, string][];
-        const uploaded = entries.find(([key]) => key === 'ar-local');
-        expect(uploaded).toBeDefined();
-        expect(JSON.parse((uploaded as [string, string])[1]).lu).toBeGreaterThan(
-          0,
-        );
-        return undefined;
-      }
-      throw new Error(`unexpected action ${action}`);
+    const harness = buildHarness({
+      localAccounts: [local],
+      remoteEntries: [toRemoteEntryJson(buildAccount({ id: 'ar-untouched' }))],
     });
 
     await syncAutorampsWithUserStorage({}, harness.options);
@@ -320,6 +304,10 @@ describe('syncAutorampsWithUserStorage', () => {
       USER_STORAGE_RAMPS_AUTORAMPS_FEATURE,
       expect.any(Array),
     );
+    const [entries] = harness.batchSetCalls();
+    const uploaded = entries.find(([key]) => key === 'ar-local');
+    expect(uploaded).toBeDefined();
+    expect(JSON.parse((uploaded as [string, string])[1]).lu).toBeGreaterThan(0);
   });
 
   it('deletes local accounts that were tombstoned remotely', async () => {
@@ -363,7 +351,9 @@ describe('syncAutorampsWithUserStorage', () => {
     const [entries] = harness.batchSetCalls();
     const tombstone = entries.find(([key]) => key === 'ar-pending');
     expect(tombstone).toBeDefined();
-    expect(JSON.parse((tombstone as [string, string])[1]).dt).toBeGreaterThan(0);
+    expect(JSON.parse((tombstone as [string, string])[1]).dt).toBeGreaterThan(
+      0,
+    );
     expect(
       harness.controller.acknowledgePendingRemoteAutorampDeletes,
     ).toHaveBeenCalledWith([pending]);
@@ -568,17 +558,19 @@ describe('syncAutorampsWithUserStorage', () => {
       'Error synchronizing autoramps',
       { error: failure },
     );
-    expect(harness.controller.setIsAutorampSyncingInProgress).toHaveBeenLastCalledWith(
-      false,
-    );
+    expect(
+      harness.controller.setIsAutorampSyncingInProgress,
+    ).toHaveBeenLastCalledWith(false);
   });
 
   it('wraps the sync and the batch save in traces when a callback is given', async () => {
     const traceNames: string[] = [];
-    const trace = jest.fn(async (request: { name: string }, fn?: () => unknown) => {
-      traceNames.push(request.name);
-      return await (fn as () => Promise<unknown>)();
-    }) as unknown as AutorampSyncingOptions['trace'];
+    const trace = jest.fn(
+      async (request: { name: string }, fn?: () => unknown) => {
+        traceNames.push(request.name);
+        return await (fn as () => Promise<unknown>)();
+      },
+    ) as unknown as AutorampSyncingOptions['trace'];
 
     const harness = buildHarness({
       localAccounts: [buildAccount({ id: 'ar-local' })],
