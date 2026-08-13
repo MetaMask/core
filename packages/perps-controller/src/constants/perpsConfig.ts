@@ -487,9 +487,10 @@ export enum PerpsMode {
 }
 
 /**
- * Side filter for the Pro Positions/Orders panel (long/short/all).
+ * Side filter for the Pro Positions list (long/short/all).
  *
- * Shared across markets via `proLayoutPreferences.positionsSideFilter`.
+ * Independent of `ordersSideFilter`. Shared across markets via
+ * `proLayoutPreferences.positionsSideFilter`.
  */
 export type ProPositionsSideFilter = 'all' | 'long' | 'short';
 
@@ -507,14 +508,31 @@ export type ProPositionsSortField =
 export type ProPositionsSortDirection = 'asc' | 'desc';
 
 /**
+ * Side filter for the Pro Orders list (long/short/all).
+ *
+ * Independent of `positionsSideFilter`. Shared across markets via
+ * `proLayoutPreferences.ordersSideFilter`.
+ */
+export type ProOrdersSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Orders list.
+ */
+export type ProOrdersSortField = 'orderValue' | 'size' | 'price' | 'time';
+
+/**
+ * Sort direction for the Pro Orders list.
+ */
+export type ProOrdersSortDirection = 'asc' | 'desc';
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
  * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
- * reserved for future container-position UI. `positionsSideFilter` /
- * `positionsSortField` / `positionsSortDirection` back the Positions/Orders
- * panel sort and side filter so they survive market navigation and app
- * restarts.
+ * reserved for future container-position UI. Positions and Orders each have
+ * their own side filter and sort so they survive market navigation and app
+ * restarts independently.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
@@ -524,6 +542,9 @@ export type ProLayoutPreferences = {
   positionsSideFilter: ProPositionsSideFilter;
   positionsSortField: ProPositionsSortField;
   positionsSortDirection: ProPositionsSortDirection;
+  ordersSideFilter: ProOrdersSideFilter;
+  ordersSortField: ProOrdersSortField;
+  ordersSortDirection: ProOrdersSortDirection;
 };
 
 /**
@@ -541,6 +562,9 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   positionsSideFilter: 'all',
   positionsSortField: 'positionValue',
   positionsSortDirection: 'desc',
+  ordersSideFilter: 'all',
+  ordersSortField: 'time',
+  ordersSortDirection: 'desc',
 };
 
 /**
