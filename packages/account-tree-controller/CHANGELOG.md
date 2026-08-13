@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat(account-tree-controller): add export support ([#9863](https://github.com/MetaMask/core/pull/9863))
-- feat(account-tree-controller): add payload/snapshot support ([#9826](https://github.com/MetaMask/core/pull/9826))
-
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
