@@ -121,6 +121,45 @@ describe('BaseDataService', () => {
     expect(page2.data).not.toStrictEqual(page3.data);
   });
 
+  it('returns a cached page without refetching when re-requested', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    const page1 = await service.getActivity(TEST_ADDRESS);
+    const page2 = await service.getActivity(TEST_ADDRESS, {
+      after: page1.pageInfo.endCursor,
+    });
+
+    // Only one page-2 response is mocked, so re-requesting page 2 must be
+    // served from the cache without another request.
+    const page2Again = await service.getActivity(TEST_ADDRESS, {
+      after: page1.pageInfo.endCursor,
+    });
+
+    expect(page2Again.data).toStrictEqual(page2.data);
+  });
+
+  it('recovers the first page after a cold jump within the stale time', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    // Cold jump straight to a later page.
+    const jumped = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_3_CURSOR,
+    });
+    expect(jumped.data).toHaveLength(3);
+
+    // A param-less read must return the real first page even while the query is
+    // still fresh: `getActivity` provides `getPreviousPageParam`, so the base
+    // service detects that the cached first page is a cold-jump page and
+    // refetches from the start.
+    mockTransactionsPage1();
+    const first = await service.getActivity(TEST_ADDRESS);
+
+    expect(first.data).toHaveLength(3);
+    expect(first.data).not.toStrictEqual(jumped.data);
+  });
+
   it('handles paginated queries without page-param callbacks', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);

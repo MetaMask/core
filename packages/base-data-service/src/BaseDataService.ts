@@ -360,6 +360,29 @@ export class BaseDataService<
       queryKey: options.queryKey,
     });
 
+    // A param-less call must return the first page. If the cached first page
+    // reports a previous page, it was produced by a cold jump (it is not
+    // actually the first page), so drop the query and refetch from
+    // `initialPageParam`. This detection needs `getPreviousPageParam`; a
+    // forward-only consumer cannot detect it, so for those a cold jump followed
+    // by a param-less read within `staleTime` still returns the jumped page.
+    if (query?.state.data && pageParam === undefined) {
+      const { pages: cachedPages, pageParams: cachedPageParams } =
+        query.state.data;
+      const firstPagePrevious = options.getPreviousPageParam?.(
+        cachedPages[0],
+        cachedPages,
+        cachedPageParams[0],
+        cachedPageParams,
+      );
+      if (firstPagePrevious !== undefined && firstPagePrevious !== null) {
+        this.#queryClient.removeQueries({
+          queryKey: options.queryKey,
+          exact: true,
+        });
+      }
+    }
+
     if (!query?.state.data || pageParam === undefined) {
       const result = await this.#queryClient.fetchInfiniteQuery<
         TQueryFnData,
@@ -400,6 +423,16 @@ export class BaseDataService<
     }
 
     const { pages, pageParams } = query.state.data;
+
+    // If the requested page is already cached, return it instead of refetching
+    // it (which would also append a duplicate page to the cache).
+    const cachedPageIndex = pageParams.findIndex((param) =>
+      deepEqual(param, pageParam),
+    );
+    if (cachedPageIndex !== -1) {
+      return pages[cachedPageIndex];
+    }
+
     const previous = options.getPreviousPageParam?.(
       pages[0],
       pages,
@@ -415,6 +448,13 @@ export class BaseDataService<
     // fetches query-core's derived context param, rather than reusing the one
     // stored by the fresh path (whose closed-over `pageParam` would otherwise
     // pin every page to the originally requested one).
+    //
+    // Note: `query.fetch` persists these overrides onto the query via
+    // `setOptions`, so `query.options.getNextPageParam` is left as this stale
+    // `() => pageParam` closure afterwards. That is safe here only because every
+    // subsequent call re-supplies fresh options (the fresh path re-fetches with
+    // the consumer's options; this cached path re-overrides), and nothing
+    // triggers a bare `query.fetch()` (there are no observers or auto-refetch).
     const result = await query.fetch(
       {
         ...query.options,
