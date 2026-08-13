@@ -1,3 +1,4 @@
+import type { AutorampAccount } from '../autorampAccount.js';
 import {
   USER_STORAGE_RAMPS_AUTORAMPS_FEATURE,
   USER_STORAGE_VERSION,
@@ -157,7 +158,7 @@ async function saveAutorampsToUserStorage(
   const { getMessenger, trace } = options;
   const { onAutorampSyncErroneousSituation } = config;
 
-  const save = async () => {
+  const save = async (): Promise<void> => {
     const storageEntries: [string, string][] = [];
     for (const account of accounts) {
       const key = createAutorampStorageKey(account);
@@ -217,13 +218,15 @@ export async function syncAutorampsWithUserStorage(
   controller.setIsAutorampSyncingInProgress(true);
 
   try {
-    const validRemoteAccounts = (await getRemoteAutoramps(options, config)).filter(
+    const validRemoteAccounts = (
+      await getRemoteAutoramps(options, config)
+    ).filter(
       (account: SyncAutorampAccount) =>
         Boolean(account.deletedAt) || isSyncableAutoramp(account),
     );
 
-    const performSync = async () => {
-      const getLocalAccounts = () =>
+    const performSync = async (): Promise<void> => {
+      const getLocalAccounts = (): AutorampAccount[] =>
         controller.state.autoramps.filter(isSyncableAutoramp);
 
       const pendingDeleteKeysBeforeApply = new Set(
@@ -332,9 +335,8 @@ export async function syncAutorampsWithUserStorage(
         {
           name: TraceName.AutorampSyncFull,
           data: {
-            localAutorampCount: controller.state.autoramps.filter(
-              isSyncableAutoramp,
-            ).length,
+            localAutorampCount:
+              controller.state.autoramps.filter(isSyncableAutoramp).length,
             remoteAutorampCount: validRemoteAccounts.length,
           },
         },
@@ -368,11 +370,8 @@ export async function updateAutorampInRemoteStorage(
 ): Promise<void> {
   const { trace } = options;
 
-  const update = async () => {
-    if (
-      !canPerformAutorampSyncing(options) ||
-      !isSyncableAutoramp(account)
-    ) {
+  const update = async (): Promise<void> => {
+    if (!canPerformAutorampSyncing(options) || !isSyncableAutoramp(account)) {
       return;
     }
     await saveAutorampsToUserStorage(
@@ -403,7 +402,7 @@ export async function deleteAutorampInRemoteStorage(
 ): Promise<void> {
   const { trace } = options;
 
-  const remove = async () => {
+  const remove = async (): Promise<void> => {
     if (!canPerformAutorampSyncing(options) || !account.id) {
       return;
     }

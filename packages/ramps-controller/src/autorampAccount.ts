@@ -5,6 +5,7 @@
 
 /**
  * Autoramp lifecycle statuses from MoonPay Enterprise.
+ *
  * @see https://dev.enterprise.moonpay.com/autoramp-status
  */
 export enum AutorampStatus {
@@ -136,6 +137,12 @@ export function normalizeAutorampStatus(
  * Build a new local autoramp account from create/response fields.
  *
  * @param input - Required identity + status fields.
+ * @param input.id - MoonPay autoramp id.
+ * @param input.customerId - MoonPay customer id.
+ * @param input.walletAddress - Destination wallet address.
+ * @param input.status - Optional remote status (defaults to Authorized).
+ * @param input.depositRailsSummary - Optional non-PII deposit readiness cache.
+ * @param input.updatedAt - Optional epoch ms timestamp (defaults to now).
  * @returns A new {@link AutorampAccount}.
  */
 export function createAutorampAccount(input: {
@@ -200,8 +207,8 @@ export function applyAutorampRemoteStatus(
   const account: AutorampAccount = {
     ...local,
     id: remote.id,
-    customerId: remote.customerId || local.customerId,
-    walletAddress: remote.walletAddress || local.walletAddress,
+    customerId: remote.customerId ?? local.customerId,
+    walletAddress: remote.walletAddress ?? local.walletAddress,
     status: remoteStatus,
     lastSeenStatus: previousStatus,
     updatedAt: Date.now(),
@@ -223,7 +230,9 @@ export function applyAutorampRemoteStatus(
  * @param account - Account to update.
  * @returns Account with `notifiedForStatus` set to current status.
  */
-export function markAutorampNotified(account: AutorampAccount): AutorampAccount {
+export function markAutorampNotified(
+  account: AutorampAccount,
+): AutorampAccount {
   return {
     ...account,
     notifiedForStatus: account.status,

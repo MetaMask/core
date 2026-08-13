@@ -11,8 +11,8 @@ import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import { AutorampStatus } from './autorampAccount.js';
+import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
@@ -50,7 +50,6 @@ import type {
 } from './RampsService.js';
 import { RampsOrderStatus } from './RampsService.js';
 import { RequestStatus } from './RequestCache.js';
-import { WalletRegistrationError } from './wallet-registration-service.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -67,6 +66,7 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 /**
  * The default redirect ("fake callback") URL a staging `RampsService` returns.

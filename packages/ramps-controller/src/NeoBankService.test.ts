@@ -1,4 +1,6 @@
-import nock from 'nock';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
+import nock, { cleanAll } from 'nock';
 
 import {
   mapNeoBankAutorampToRemoteSnapshot,
@@ -6,8 +8,6 @@ import {
 } from './NeoBankService.js';
 import type { NeoBankServiceMessenger } from './NeoBankService.js';
 import { RampsEnvironment } from './RampsService.js';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
 
 const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
 
@@ -82,7 +82,7 @@ function createService(options?: {
 
 describe('NeoBankService', () => {
   afterEach(() => {
-    nock.cleanAll();
+    cleanAll();
   });
 
   describe('mapNeoBankAutorampToRemoteSnapshot', () => {
@@ -132,7 +132,7 @@ describe('NeoBankService', () => {
   });
 
   describe('getAutoramp', () => {
-    it('GETs /neobank/autoramps/{id} with bearer auth', async () => {
+    it('gets /neobank/autoramps/{id} with bearer auth', async () => {
       const scope = nock(STAGING_BASE)
         .get(/\/neobank\/autoramps\/ar-1/u)
         .matchHeader('Authorization', 'Bearer test-token')
@@ -156,7 +156,9 @@ describe('NeoBankService', () => {
     });
 
     it('throws HttpError when the proxy returns a non-2xx status', async () => {
-      nock(STAGING_BASE).get(/\/neobank\/autoramps\/missing/u).reply(404);
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramps\/missing/u)
+        .reply(404);
 
       const service = createService();
       await expect(service.getAutoramp('missing')).rejects.toThrow(
@@ -177,7 +179,7 @@ describe('NeoBankService', () => {
   });
 
   describe('registerPixAddress', () => {
-    it('POSTs /neobank/addresses/pix with JSON body and bearer auth', async () => {
+    it('posts /neobank/addresses/pix with JSON body and bearer auth', async () => {
       const body = {
         type: 'Pix',
         pix_key: 'user@example.com',
@@ -216,7 +218,7 @@ describe('NeoBankService', () => {
   });
 
   describe('getAutorampQuote', () => {
-    it('GETs /neobank/autoramps/quote with query params', async () => {
+    it('gets /neobank/autoramps/quote with query params', async () => {
       const scope = nock(STAGING_BASE)
         .get('/neobank/autoramps/quote')
         .query((query) => {
@@ -243,7 +245,7 @@ describe('NeoBankService', () => {
   });
 
   describe('createAutoramp', () => {
-    it('POSTs /neobank/autoramps and maps the Autoramp response', async () => {
+    it('posts /neobank/autoramps and maps the Autoramp response', async () => {
       const body = {
         signed_quote: 'sig',
         customer_id: 'cust-1',
@@ -309,7 +311,7 @@ describe('NeoBankService', () => {
   });
 
   describe('getAutorampQuoteForAutoramp', () => {
-    it('GETs /neobank/autoramps/{id}/quote with query params', async () => {
+    it('gets /neobank/autoramps/{id}/quote with query params', async () => {
       const scope = nock(STAGING_BASE)
         .get('/neobank/autoramps/ar-1/quote')
         .query((query) => {
@@ -329,7 +331,7 @@ describe('NeoBankService', () => {
   });
 
   describe('attachAutorampQuote', () => {
-    it('POSTs /neobank/autoramps/{id}/quotes with JSON body', async () => {
+    it('posts /neobank/autoramps/{id}/quotes with JSON body', async () => {
       const body = { signed_quote: 'attach-sig' };
 
       const scope = nock(STAGING_BASE)
@@ -348,7 +350,7 @@ describe('NeoBankService', () => {
   });
 
   describe('getCustomerByExternalId', () => {
-    it('GETs /neobank/customers/{external_id}/external', async () => {
+    it('gets /neobank/customers/{external_id}/external', async () => {
       const scope = nock(STAGING_BASE)
         .get('/neobank/customers/ext-1/external')
         .query(true)

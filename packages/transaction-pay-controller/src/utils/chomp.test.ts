@@ -11,8 +11,7 @@ const MONEY_ACCOUNT_ADDRESS =
   '0x1111111111111111111111111111111111111111' as Hex;
 const BORING_VAULT_ADDRESS =
   '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
-const OTHER_RECIPIENT =
-  '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
+const OTHER_RECIPIENT = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const CHOMP_TX_HASH =
   '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
 const FROM_BLOCK = '0x100' as Hex;
@@ -54,11 +53,7 @@ function buildMusdTransferLog({
   return {
     address: MUSD_MONAD_ADDRESS,
     data,
-    topics: [
-      ERC20_TRANSFER_TOPIC,
-      MONEY_ACCOUNT_PADDED,
-      padAddress(to),
-    ],
+    topics: [ERC20_TRANSFER_TOPIC, MONEY_ACCOUNT_PADDED, padAddress(to)],
     transactionHash: txHash,
   };
 }

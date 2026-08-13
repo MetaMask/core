@@ -32,16 +32,20 @@ export const serviceName = 'NeoBankService';
  */
 export type NeoBankAutorampResponse = {
   id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   customer_id: string;
   status: string;
   /**
    * Destination wallet when present on the proxy response.
    * Field name may evolve with the Ramp API contract.
    */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   wallet_address?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   recipient_account?: {
     address?: string;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   deposit_rails?: unknown[];
 };
 
@@ -162,7 +166,8 @@ export function mapNeoBankAutorampToRemoteSnapshot(
   response: NeoBankAutorampResponse,
 ): AutorampRemoteSnapshot {
   const depositRails = response.deposit_rails;
-  const hasDepositRails = Array.isArray(depositRails) && depositRails.length > 0;
+  const hasDepositRails =
+    Array.isArray(depositRails) && depositRails.length > 0;
   const depositRailsSummary: AutorampDepositRailsSummary | undefined =
     hasDepositRails || response.status === 'Approved'
       ? {
@@ -291,10 +296,10 @@ export class NeoBankService {
     return url;
   }
 
-  async #getJson<T>(
+  async #getJson<ResponseBody>(
     path: string,
     query?: NeoBankQueryParams,
-  ): Promise<T> {
+  ): Promise<ResponseBody> {
     const url = this.#buildUrl(path, query);
     return this.#policy.execute(async () => {
       const headers = await this.#getRequestHeaders();
@@ -305,15 +310,15 @@ export class NeoBankService {
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
         );
       }
-      return fetchResponse.json() as Promise<T>;
+      return fetchResponse.json() as Promise<ResponseBody>;
     });
   }
 
-  async #postJson<T>(
+  async #postJson<ResponseBody>(
     path: string,
     body: Record<string, unknown>,
     options: NeoBankRequestOptions,
-  ): Promise<T> {
+  ): Promise<ResponseBody> {
     const url = this.#buildUrl(path);
     return this.#policy.execute(async () => {
       const headers = await this.#getRequestHeaders(options);
@@ -329,11 +334,13 @@ export class NeoBankService {
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
         );
       }
-      return fetchResponse.json() as Promise<T>;
+      return fetchResponse.json() as Promise<ResponseBody>;
     });
   }
 
-  #mapAutorampResponse(response: NeoBankAutorampResponse): AutorampRemoteSnapshot {
+  #mapAutorampResponse(
+    response: NeoBankAutorampResponse,
+  ): AutorampRemoteSnapshot {
     if (!response || typeof response !== 'object' || !response.id) {
       throw new Error('Malformed response received from neo-bank autoramp API');
     }
