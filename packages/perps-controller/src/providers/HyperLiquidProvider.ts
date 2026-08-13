@@ -1767,7 +1767,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       'Price cache miss for getOrFetchPrice, falling back to REST allMids',
       { symbol },
     );
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const mids = await infoClient.allMids(
       dexName ? { dex: dexName } : undefined,
     );
@@ -2035,7 +2035,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // with CLIENT_NOT_INITIALIZED instead of waiting for the clients it needs.
     // Idempotent, and a warm cache hit returns above without reaching here.
     await this.#ensureClientsInitialized();
-    const infoClient = this.#clientService.getInfoClient();
+    // Metadata is request/response data, so keep this path available while a
+    // failed WebSocket reconnect is retrying.
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     // Pass dex only for HIP-3 DEXs; omit for main DEX (empty string).
     // Testnet API returns null when dex="" is explicitly sent.
     const meta = await infoClient.meta(dexKey ? { dex: dexKey } : undefined);

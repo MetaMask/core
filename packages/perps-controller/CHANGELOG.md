@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recreate all four SDK clients (including `ExchangeClient` and HTTP `InfoClient`) during WebSocket reconnection so `isInitialized()` returns `true` after reconnect ([#9032](https://github.com/MetaMask/core/pull/9032))
 - Bring the HyperLiquid SDK clients up before the provider's first asset-metadata read, so a trading action taken during cold start or after a disconnect waits for the clients instead of failing with `CLIENT_NOT_INITIALIZED` ([#9865](https://github.com/MetaMask/core/pull/9865))
   - `placeOrder` resolves asset info before it ensures trading readiness, so waiting for controller initialization alone was not enough: the metadata read still hit an uninitialized `InfoClient` and the order failed. Warm reads are unaffected — the cached path returns before the client check.
-- Clear the SDK clients and transports when a reconnection attempt fails before the WebSocket reports ready, so `isInitialized()` no longer reports a usable session backed by a socket that never opened ([#9868](https://github.com/MetaMask/core/pull/9868))
+- Publish WebSocket-backed SDK clients only after reconnection succeeds, while keeping HTTP-backed metadata and trading clients available during retries ([#9868](https://github.com/MetaMask/core/pull/9868))
 
 ## [11.0.0]
 

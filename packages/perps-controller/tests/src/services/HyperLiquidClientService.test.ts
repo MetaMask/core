@@ -1692,6 +1692,9 @@ describe('HyperLiquidClientService', () => {
 
       expect(service.isInitialized()).toBe(false);
       expect(service.getSubscriptionClient()).toBeUndefined();
+      expect(() => service.getInfoClient()).toThrow('CLIENT_NOT_INITIALIZED');
+      expect(service.getInfoClient({ useHttp: true })).toBe(mockInfoClientHttp);
+      expect(service.getExchangeClient()).toBe(mockExchangeClient);
     });
 
     it('reports uninitialized when reconnect readiness fails after a disconnect', async () => {
@@ -1702,6 +1705,22 @@ describe('HyperLiquidClientService', () => {
       await service.reconnect();
 
       expect(service.isInitialized()).toBe(false);
+    });
+
+    it('does not initialize a competing subscription client during retry backoff', async () => {
+      const { WebSocketTransport } = require('@nktkas/hyperliquid');
+      await service.initialize(mockWallet);
+
+      mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
+      await service.reconnect();
+      const transportCalls = (WebSocketTransport as jest.Mock).mock.calls.length;
+
+      await service.ensureSubscriptionClient(mockWallet);
+
+      expect((WebSocketTransport as jest.Mock).mock.calls).toHaveLength(
+        transportCalls,
+      );
+      expect(service.getSubscriptionClient()).toBeUndefined();
     });
 
     it('performDisconnection resets isReconnecting flag', async () => {
