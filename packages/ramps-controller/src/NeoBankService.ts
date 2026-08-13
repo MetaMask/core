@@ -179,7 +179,10 @@ export function mapNeoBankAutorampToRemoteSnapshot(
     id: response.id,
     customerId: response.customer_id,
     walletAddress:
-      response.wallet_address ?? response.recipient_account?.address,
+      response.wallet_address !== undefined &&
+      response.wallet_address.length > 0
+        ? response.wallet_address
+        : response.recipient_account?.address,
     status: response.status,
     depositRailsSummary,
   };

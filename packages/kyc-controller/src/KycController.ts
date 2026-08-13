@@ -633,6 +633,12 @@ export class KycController extends BaseController<
         state.email = params.email;
       }
       state.activeVendor = vendor;
+      // `moonpayCustomerId` is only ever issued by the MoonPay Check / Auth
+      // frames. Leaving it set while the flow switches to another vendor would
+      // make `getCustomerIdentity` report a MoonPay id under the wrong vendor.
+      if (vendor !== 'moonpay') {
+        state.moonpayCustomerId = null;
+      }
       state.activeProduct = params?.product ?? null;
     });
 
@@ -703,6 +709,9 @@ export class KycController extends BaseController<
     this.#applyUpdate((state) => {
       state.email = params.email;
       state.activeVendor = 'iron';
+      // See `initialize`: a MoonPay-issued customer id must not survive a
+      // switch to Iron, or `getCustomerIdentity` reports the wrong vendor.
+      state.moonpayCustomerId = null;
     });
     const generation = this.#generation;
     try {
@@ -1537,6 +1546,12 @@ export class KycController extends BaseController<
     } catch (error) {
       // Applicant already finished KYC — treat as completed for Money toast.
       if (String(error).includes(SESSION_NOT_IN_VALID_STATE)) {
+        // A reset() may have landed while `launch` was in flight; forcing
+        // `completed` (and publishing `statusChanged`) on an idle controller
+        // would resurrect a flow the consumer already tore down.
+        if (this.#generation !== generation) {
+          return { alreadyCompleted: true };
+        }
         this.#applyUserStatus({
           status: 'completed',
           sumsubSessionId: null,
@@ -1670,14 +1685,16 @@ export class KycController extends BaseController<
         tick();
       }, this.#userStatusPollIntervalMs);
       // Allow the process to exit while a pending-status poll is scheduled.
-      this.#userStatusPollTimer.unref();
+      // React Native / browser timers are numbers with no `unref`, hence the
+      // optional call.
+      this.#userStatusPollTimer.unref?.();
     };
     this.#userStatusPollTimer = setTimeout(() => {
       this.#userStatusPollTimer = null;
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       tick();
     }, this.#userStatusPollIntervalMs);
-    this.#userStatusPollTimer.unref();
+    this.#userStatusPollTimer.unref?.();
   }
 
   /**

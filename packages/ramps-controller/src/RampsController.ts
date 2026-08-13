@@ -316,6 +316,22 @@ function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
   );
 }
 
+/**
+ * Distinguishes an already-materialized {@link AutorampAccount} from the
+ * create-fields shape accepted by {@link RampsController.addAutoramp}.
+ *
+ * @param value - Full account or create fields.
+ * @returns Whether the value already carries the derived account fields.
+ */
+function isFullAutorampAccount(
+  value: AutorampAccount | { id: string; customerId: string },
+): value is AutorampAccount {
+  return (
+    typeof (value as AutorampAccount).updatedAt === 'number' &&
+    (value as AutorampAccount).lastSeenStatus !== undefined
+  );
+}
+
 function getRampsErrorInfo(error: unknown): RampsErrorInfo {
   if (error instanceof BrokenCircuitError && hasStringMessage(error)) {
     return {
@@ -2670,11 +2686,9 @@ export class RampsController extends BaseController<
           status?: AutorampAccount['status'] | string;
         },
   ): AutorampAccount {
-    const account =
-      typeof (accountOrInput as AutorampAccount).updatedAt === 'number' &&
-      (accountOrInput as AutorampAccount).lastSeenStatus !== undefined
-        ? accountOrInput
-        : createAutorampAccount(accountOrInput);
+    const account: AutorampAccount = isFullAutorampAccount(accountOrInput)
+      ? accountOrInput
+      : createAutorampAccount(accountOrInput);
 
     this.update((state) => {
       const idx = state.autoramps.findIndex(
