@@ -1251,6 +1251,53 @@ describe('KycController', () => {
         },
       );
     });
+
+    it('drops a MoonPay id when initialize switches to another vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+          },
+        },
+        async ({ controller }) => {
+          await controller.initialize({ vendor: 'iron' });
+
+          expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
+
+    it('keeps a MoonPay id when initialize stays on MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+          },
+        },
+        async ({ controller }) => {
+          await controller.initialize({ vendor: 'moonpay' });
+
+          expect(controller.state.moonpayCustomerId).toBe('cust-1');
+        },
+      );
+    });
+
+    it('drops a MoonPay id when an Iron customer is created', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+          },
+        },
+        async ({ controller }) => {
+          await controller.createIronCustomer({ email: 'a@b.co' });
+
+          expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
   });
 
   describe('startSumSub', () => {
@@ -2437,6 +2484,33 @@ describe('KycController', () => {
           expect(controller.state.userStatus).toBe('completed');
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
+        },
+      );
+    });
+
+    it('leaves an already-reset controller idle when SumSub reports a stale session', async () => {
+      await withController(
+        {
+          options: {
+            state: { activeVendor: 'iron', phase: 'submit' },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let rejectSession: (error: Error) => void = () => undefined;
+          handlers.createUkycSession.mockReturnValue(
+            new Promise((_resolve, reject) => {
+              rejectSession = reject;
+            }),
+          );
+
+          const pending = controller.startSumSub();
+          controller.reset();
+          rejectSession(new Error('session_not_in_valid_state'));
+
+          expect(await pending).toStrictEqual({ alreadyCompleted: true });
+          expect(controller.state.userStatus).toBeNull();
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.sumsub.status).toBe('idle');
         },
       );
     });
