@@ -23,10 +23,8 @@ import {
   PollingStatus,
   formatChainIdToHex,
 } from '@metamask/bridge-controller';
-import { QuoteResponseSchemaV1 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { is } from '@metamask/superstruct';
 import {
   TransactionStatus,
   TransactionType,
@@ -1403,8 +1401,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       : [maybeQuoteResponses];
     // Convert quote responses to V1 format and preserve metadata for consistency
     const quoteResponses = quoteResponsesV1orV2.map((quote) => {
-      if (is(quote, QuoteResponseSchemaV1)) {
-        return quote;
+      if (!Object.prototype.hasOwnProperty.call(quote.quote ?? {}, 'src')) {
+        return quote as QuoteResponseV1<Trade, Trade> & QuoteMetadata;
       }
 
       const quoteMetadataV1 = toQuoteMetadataV1(quote, migrationPhase);

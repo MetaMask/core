@@ -82,11 +82,13 @@ export const toQuoteMetadataV2 = (
         minAmountValueInCurrency: minToTokenAmount?.valueInCurrency,
       },
       feeData: {
-        network: [
-          toAmountAndAsset(nativeAsset, networkFeeToUse, {
-            asset: nativeAsset,
-          }),
-        ],
+        ...includeIfTruthy(networkFeeToUse, {
+          network: [
+            toAmountAndAsset(nativeAsset, networkFeeToUse, {
+              asset: nativeAsset,
+            }),
+          ],
+        }),
         ...includeIfTruthy(relayerFee, {
           relayer: [
             toAmountAndAsset(nativeAsset, relayerFee, { asset: nativeAsset }),

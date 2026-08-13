@@ -6,6 +6,7 @@ import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
 import { QuoteMetadataMigrationPhase } from './types.js';
+import { includeIfTruthy } from './include-if-truthy.js';
 
 /**
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}
@@ -33,6 +34,7 @@ export function mergeQuoteMetadata(
     quoteResponse,
   );
 
+  // legacyQuoteMetadata is returned for testing purposes only
   if (migrationPhase === QuoteMetadataMigrationPhase.V2WithV1Fallback) {
     return merge(
       {},
@@ -44,10 +46,34 @@ export function mergeQuoteMetadata(
     );
   }
 
+  const { quote, ...restQuoteResponse } = quoteResponse;
+  const { feeData, ...restQuote } = quote ?? {};
+  const txFeeGasParams = includeIfTruthy(feeData?.txFee?.[0], {
+    maxFeePerGas: feeData?.txFee?.[0]?.maxFeePerGas,
+    maxPriorityFeePerGas: feeData?.txFee?.[0]?.maxPriorityFeePerGas,
+  });
+
+  // Omit fields that should be replaced with legacy metadata values
+  const sanitizedQuoteResponseV2 = {
+    quote: {
+      ...restQuote,
+      ...(feeData?.metabridge || feeData?.txFee
+        ? {
+            feeData: {
+              metabridge: feeData.metabridge,
+              ...includeIfTruthy(txFeeGasParams, {
+                txFee: txFeeGasParams ? [txFeeGasParams] : undefined,
+              }),
+            },
+          }
+        : {}),
+    },
+  };
   return merge(
     {},
-    quoteResponse,
-    normalizedAmounts,
+    restQuoteResponse,
+    sanitizedQuoteResponseV2,
+    toNormalizedAmounts(sanitizedQuoteResponseV2),
     legacyQuoteMetadataV2,
     legacyQuoteMetadata,
   );

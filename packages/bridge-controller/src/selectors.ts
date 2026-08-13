@@ -49,6 +49,8 @@ import { QuoteMetadataMigrationPhase } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
 import type { QuoteResponse } from './validators/quote-response.js';
 
+const EMPTY_QUOTE_METADATA: unknown[] = [];
+
 /**
  * The controller states that provide exchange rates
  */
@@ -102,7 +104,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
-  migrationPhase?: QuoteMetadataMigrationPhase;
+  migrationPhase: QuoteMetadataMigrationPhase;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -348,8 +350,9 @@ const selectMetadata = createBridgeSelector(
     quoteRequest,
     migrationPhase,
   ) => {
+    // Return early if the migration phase is V2Only because we don't need to calculate metadata
     if (migrationPhase === QuoteMetadataMigrationPhase.V2Only) {
-      return [];
+      return EMPTY_QUOTE_METADATA as DeepPartial<QuoteMetadata>[];
     }
     const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0] ?? {};
 
@@ -404,7 +407,7 @@ const selectCurrencyValues = createBridgeSelector(
   ],
   (quotes, usdToFiatExchangeRateString, migrationPhase) => {
     if (migrationPhase === QuoteMetadataMigrationPhase.V1Data) {
-      return [];
+      return EMPTY_QUOTE_METADATA as DeepPartial<QuoteResponse>[];
     }
     const usdToFiatExchangeRate = usdToFiatExchangeRateString
       ? new BigNumber(usdToFiatExchangeRateString)
@@ -548,6 +551,7 @@ export const selectIsQuoteExpired = createBridgeSelector(
  *   {
  *     sortOrder: state.bridge.sortOrder,
  *     selectedQuote: state.bridge.selectedQuote,
+ *     migrationPhase: '2',
  *   }
  * ));
  * ```

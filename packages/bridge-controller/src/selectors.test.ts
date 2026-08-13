@@ -691,6 +691,7 @@ describe('Bridge Selectors', () => {
     const mockClientParams = {
       sortOrder: SortOrder.COST_ASC,
       selectedQuote: null,
+      migrationPhase: QuoteMetadataMigrationPhase.V1Data,
     };
 
     it('should return sorted quotes with metadata', () => {

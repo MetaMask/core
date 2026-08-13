@@ -17,7 +17,6 @@ import type {
 import type { BridgeAsset } from '../../validators/bridge-asset.js';
 import { FloatStringSchema } from '../../validators/number.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
-import { QuoteResponseSchemaV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { TxData } from '../../validators/trade.js';
 import { assetIdsMatch } from '../assets.js';
@@ -451,8 +450,13 @@ export const calcQuoteMetadata = (
     nativeExchangeRate = {},
   } = options;
 
-  const isQuoteV2 = is(quote, QuoteResponseSchemaV2);
-  const quoteV1 = isQuoteV2 ? toQuoteResponseV1(quote) : quote;
+  const isQuoteV2 = Object.prototype.hasOwnProperty.call(
+    quote.quote ?? {},
+    'src',
+  );
+  const quoteV1 = isQuoteV2
+    ? toQuoteResponseV1(quote)
+    : (quote as QuoteResponseV1);
 
   const sentAmount = calcSentAmount(
     quoteV1.quote,

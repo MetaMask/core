@@ -63,14 +63,16 @@ export const toCurrencyValues = (
             .filter((feeType) => feeData[feeType])
             .map((feeType) => [feeType, feeData[feeType]?.map(toFiat)]),
         ),
-      priceData: {
-        ...(priceImpactFiat && {
-          priceImpact: priceImpactFiat,
-        }),
-        ...(adjustedReturnFiat && {
-          adjustedReturn: adjustedReturnFiat,
-        }),
-      },
+      ...((priceImpactFiat ?? adjustedReturnFiat) && {
+        priceData: {
+          ...(priceImpactFiat && {
+            priceImpact: priceImpactFiat,
+          }),
+          ...(adjustedReturnFiat && {
+            adjustedReturn: adjustedReturnFiat,
+          }),
+        },
+      }),
     },
   };
 };
