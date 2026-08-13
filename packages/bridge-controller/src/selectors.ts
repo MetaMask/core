@@ -49,7 +49,7 @@ import { QuoteMetadataMigrationPhase } from './utils/quote-metadata/types.js';
 import { getDefaultSlippagePercentage } from './utils/slippage.js';
 import type { QuoteResponse } from './validators/quote-response.js';
 
-const EMPTY_QUOTE_METADATA: unknown[] = [];
+const EMPTY_QUOTE_METADATA: never[] = [];
 
 /**
  * The controller states that provide exchange rates
@@ -352,7 +352,7 @@ const selectMetadata = createBridgeSelector(
   ) => {
     // Return early if the migration phase is V2Only because we don't need to calculate metadata
     if (migrationPhase === QuoteMetadataMigrationPhase.V2Only) {
-      return EMPTY_QUOTE_METADATA as DeepPartial<QuoteMetadata>[];
+      return EMPTY_QUOTE_METADATA;
     }
     const { destTokenAddress, srcChainId, destChainId } = quoteRequest[0] ?? {};
 
@@ -407,7 +407,7 @@ const selectCurrencyValues = createBridgeSelector(
   ],
   (quotes, usdToFiatExchangeRateString, migrationPhase) => {
     if (migrationPhase === QuoteMetadataMigrationPhase.V1Data) {
-      return EMPTY_QUOTE_METADATA as DeepPartial<QuoteResponse>[];
+      return EMPTY_QUOTE_METADATA;
     }
     const usdToFiatExchangeRate = usdToFiatExchangeRateString
       ? new BigNumber(usdToFiatExchangeRateString)

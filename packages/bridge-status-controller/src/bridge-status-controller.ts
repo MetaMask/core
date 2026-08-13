@@ -10,6 +10,7 @@ import {
   QuoteResponse,
   toQuoteMetadataV1,
   toQuoteResponseV1,
+  isQuoteResponseV2,
 } from '@metamask/bridge-controller';
 import type { QuoteMetadataMigrationPhase } from '@metamask/bridge-controller';
 import {
@@ -1401,8 +1402,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       : [maybeQuoteResponses];
     // Convert quote responses to V1 format and preserve metadata for consistency
     const quoteResponses = quoteResponsesV1orV2.map((quote) => {
-      if (!Object.prototype.hasOwnProperty.call(quote.quote ?? {}, 'src')) {
-        return quote as QuoteResponseV1<Trade, Trade> & QuoteMetadata;
+      if (!isQuoteResponseV2(quote)) {
+        return quote;
       }
 
       const quoteMetadataV1 = toQuoteMetadataV1(quote, migrationPhase);

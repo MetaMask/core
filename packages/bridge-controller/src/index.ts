@@ -118,6 +118,7 @@ export {
 export {
   validateQuoteResponse,
   type QuoteResponse,
+  isQuoteResponseV2,
 } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';

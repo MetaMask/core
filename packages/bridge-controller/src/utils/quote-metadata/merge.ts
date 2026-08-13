@@ -2,11 +2,11 @@ import { merge } from 'lodash';
 
 import type { DeepPartial } from '../../types.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
+import { includeIfTruthy } from './include-if-truthy.js';
 import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
 import { QuoteMetadataMigrationPhase } from './types.js';
-import { includeIfTruthy } from './include-if-truthy.js';
 
 /**
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}
@@ -23,10 +23,13 @@ export function mergeQuoteMetadata(
   migrationPhase: QuoteMetadataMigrationPhase = QuoteMetadataMigrationPhase.V1Data,
   currencyValues?: DeepPartial<QuoteResponse>,
 ): QuoteResponse & QuoteMetadata {
-  const normalizedAmounts = toNormalizedAmounts(quoteResponse);
-
   if (migrationPhase === QuoteMetadataMigrationPhase.V2Only) {
-    return merge({}, quoteResponse, normalizedAmounts, currencyValues);
+    return merge(
+      {},
+      quoteResponse,
+      toNormalizedAmounts(quoteResponse),
+      currencyValues,
+    );
   }
 
   const legacyQuoteMetadataV2 = toQuoteMetadataV2(
@@ -34,14 +37,13 @@ export function mergeQuoteMetadata(
     quoteResponse,
   );
 
-  // legacyQuoteMetadata is returned for testing purposes only
   if (migrationPhase === QuoteMetadataMigrationPhase.V2WithV1Fallback) {
     return merge(
       {},
       legacyQuoteMetadataV2,
-      legacyQuoteMetadata,
+      legacyQuoteMetadata, // legacyQuoteMetadata is returned for testing purposes only
       quoteResponse,
-      normalizedAmounts,
+      toNormalizedAmounts(quoteResponse),
       currencyValues,
     );
   }
@@ -62,7 +64,7 @@ export function mergeQuoteMetadata(
             feeData: {
               metabridge: feeData.metabridge,
               ...includeIfTruthy(txFeeGasParams, {
-                txFee: txFeeGasParams ? [txFeeGasParams] : undefined,
+                txFee: txFeeGasParams && [txFeeGasParams],
               }),
             },
           }

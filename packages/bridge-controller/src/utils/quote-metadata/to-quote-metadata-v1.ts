@@ -3,6 +3,7 @@ import { merge } from 'lodash';
 import type { DeepPartial } from '../../types.js';
 import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import { isQuoteResponseV2 } from '../../validators/quote-response.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { sumAmounts } from '../number-formatters.js';
 import { includeIfTruthy } from './include-if-truthy.js';
@@ -58,8 +59,7 @@ export const toQuoteMetadataV1 = (
 
   if (
     migrationPhase === QuoteMetadataMigrationPhase.V1Data ||
-    // Shallow check for the presence of the `src` property
-    !Object.prototype.hasOwnProperty.call(quoteResponse.quote ?? {}, 'src')
+    !isQuoteResponseV2(quoteResponse)
   ) {
     return legacyMetadata;
   }
@@ -71,7 +71,7 @@ export const toQuoteMetadataV1 = (
       priceData,
       feeData: { network, relayer, txFee },
     },
-  } = quoteResponse as QuoteResponse;
+  } = quoteResponse;
 
   const totalNetworkFeeV2 = sumAmounts(network, relayer);
 

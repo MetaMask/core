@@ -1,16 +1,16 @@
 import { merge } from 'lodash';
 
 import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20.js';
-import type { QuoteResponse } from '../../validators/quote-response.js';
-import { mergeQuoteMetadata } from './merge.js';
-import { QuoteMetadataMigrationPhase } from './types.js';
-import type { QuoteMetadata } from './types.js';
-import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import {
   getNativeAssetForChainId,
   toBridgeAssetV2,
   toQuoteMetadataV2,
 } from '../../index.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { mergeQuoteMetadata } from './merge.js';
+import { toNormalizedAmounts } from './to-normalized-amounts.js';
+import { QuoteMetadataMigrationPhase } from './types.js';
+import type { QuoteMetadata } from './types.js';
 
 const EMPTY_QUOTE = {
   quote: {
