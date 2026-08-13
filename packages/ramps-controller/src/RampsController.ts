@@ -36,6 +36,7 @@ import type { SyncAutorampsWithUserStorageConfig } from './autoramp-syncing/inde
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -194,6 +195,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
   'NeoBankService:createAutoramp',
+  'NeoBankService:getCustomerByExternalId',
 ] as const satisfies readonly (
   | RampsServiceActions['type']
   | TransakServiceActions['type']
@@ -207,6 +209,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:getCustomerIdentity',
+  'AuthenticationController:getSessionProfile',
 ] as const;
 
 /**
@@ -702,11 +705,13 @@ type AllowedActions =
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceCreateAutorampAction
+  | NeoBankServiceGetCustomerByExternalIdAction
   | KycControllerGetCustomerIdentityAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
-  | AuthenticationController.AuthenticationControllerIsSignedInAction;
+  | AuthenticationController.AuthenticationControllerIsSignedInAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -2653,11 +2658,10 @@ export class RampsController extends BaseController<
    * Creates an autoramp via the Ramp API neo-bank proxy and applies the
    * returned snapshot locally.
    *
-   * The MoonPay `customer_id` is not accepted from callers: it is resolved from
-   * the KYC controller's session-scoped identity and injected into the request.
-   * This keeps the sensitive customer id owned by the KYC controller and avoids
-   * requiring the UI to know or plumb it. Throws when no verified identity is
-   * available yet.
+   * The MoonPay `customer_id` is not accepted from callers: it is resolved via
+   * {@link RampsController.resolveAutorampCustomerId} and injected into the
+   * request. This keeps the sensitive customer id owned by KYC / the neo-bank
+   * proxy and avoids requiring the UI to know or plumb it.
    *
    * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
    * @param options - Optional idempotency key forwarded to the proxy.
@@ -2668,20 +2672,60 @@ export class RampsController extends BaseController<
     request: CreateAutorampRequest,
     options: { idempotencyKey?: string } = {},
   ): Promise<AutorampAccount> {
-    const identity = this.messenger.call('KycController:getCustomerIdentity');
-    if (!identity) {
-      throw new Error(
-        'Cannot create autoramp: no verified KYC customer identity is available.',
-      );
-    }
+    const customerId = await this.resolveAutorampCustomerId();
 
-    const body = { ...request, customer_id: identity.id };
+    const body = { ...request, customer_id: customerId };
     const remote = await this.messenger.call(
       'NeoBankService:createAutoramp',
       body,
       options,
     );
     return this.#applyAutorampRemoteSnapshot(remote);
+  }
+
+  /**
+   * Resolves the MoonPay `customer_id` for autoramp operations.
+   *
+   * Prefers the KYC controller's session-scoped identity (populated when a
+   * MoonPay Check/Auth frame reports a `customer.id`). When that is not yet
+   * available, falls back to mapping the wallet's Profile Sync id (the partner
+   * `external_id`) to the MoonPay customer via the neo-bank proxy's
+   * `GET /neobank/customers/{external_id}/external`.
+   *
+   * @returns The MoonPay customer id.
+   */
+  async resolveAutorampCustomerId(): Promise<string> {
+    const identity = this.messenger.call('KycController:getCustomerIdentity');
+    if (identity?.id) {
+      return identity.id;
+    }
+
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const externalId = profile?.profileId;
+    if (!externalId) {
+      throw new Error(
+        'Cannot create autoramp: wallet is not signed in to Profile Sync.',
+      );
+    }
+
+    const customer = await this.messenger.call(
+      'NeoBankService:getCustomerByExternalId',
+      externalId,
+    );
+    const customerId =
+      customer &&
+      typeof customer === 'object' &&
+      typeof (customer as { id?: unknown }).id === 'string'
+        ? (customer as { id: string }).id
+        : null;
+    if (!customerId) {
+      throw new Error(
+        `Cannot create autoramp: no MoonPay customer is mapped to external id "${externalId}".`,
+      );
+    }
+    return customerId;
   }
 
   /**
