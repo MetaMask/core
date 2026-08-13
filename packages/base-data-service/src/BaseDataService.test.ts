@@ -125,11 +125,11 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    const page1 = await service.getActivityWithoutCallbacks(TEST_ADDRESS);
+    const page1 = await service.getActivityByCursor(TEST_ADDRESS);
 
     expect(page1.data).toHaveLength(3);
 
-    const page2 = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
+    const page2 = await service.getActivityByCursor(TEST_ADDRESS, {
       after: page1.pageInfo.endCursor,
     });
 
@@ -141,8 +141,8 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    const page1 = await service.getActivityWithoutCallbacks(TEST_ADDRESS);
-    await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
+    const page1 = await service.getActivityByCursor(TEST_ADDRESS);
+    await service.getActivityByCursor(TEST_ADDRESS, {
       after: page1.pageInfo.endCursor,
     });
 
@@ -151,7 +151,7 @@ describe('BaseDataService', () => {
     // does not provide, so the base service must supply a no-op to avoid a
     // throw.
     mockTransactionsPage1();
-    const rebuilt = await service.getActivityWithoutCallbacks(TEST_ADDRESS);
+    const rebuilt = await service.getActivityByCursor(TEST_ADDRESS);
 
     expect(rebuilt.data).toHaveLength(3);
   });
@@ -161,7 +161,7 @@ describe('BaseDataService', () => {
     const service = new ExampleDataService(messenger);
 
     // Cold jump straight to a later page.
-    const jumped = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
+    const jumped = await service.getActivityByCursor(TEST_ADDRESS, {
       after: TRANSACTIONS_PAGE_2_CURSOR,
     });
     expect(jumped.data).toHaveLength(3);
@@ -169,7 +169,7 @@ describe('BaseDataService', () => {
     // A param-less refetch must fetch the real first page, not the jumped-to
     // page. The jump must not have overwritten the query's initial page param.
     mockTransactionsPage1();
-    const first = await service.getActivityWithoutCallbacks(TEST_ADDRESS);
+    const first = await service.getActivityByCursor(TEST_ADDRESS);
 
     expect(first.data).toHaveLength(3);
     expect(first.data).not.toStrictEqual(jumped.data);
@@ -179,8 +179,8 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    // `getActivityWithoutCallbacks` uses `null` as its initial page param.
-    await service.getActivityWithoutCallbacks(TEST_ADDRESS);
+    // `getActivityByCursor` uses `null` as its initial page param.
+    await service.getActivityByCursor(TEST_ADDRESS);
 
     // `null` is a valid page param, so it must reach the query function rather
     // than being coerced to `undefined`.
@@ -191,9 +191,9 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    // `getActivityWithoutCallbacks` sets a `null` initial page param, but an
+    // `getActivityByCursor` sets a `null` initial page param, but an
     // explicit jump target must still win.
-    const page = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
+    const page = await service.getActivityByCursor(TEST_ADDRESS, {
       after: TRANSACTIONS_PAGE_2_CURSOR,
     });
 
