@@ -1234,6 +1234,26 @@ export class HyperLiquidClientService {
       this.#updateConnectionState(WebSocketConnectionState.Connected);
       this.#isReconnecting = false;
     } catch {
+      // Drop the half-built session, mirroring initialize()'s cleanup. The
+      // clients are constructed before the transport reports ready, so leaving
+      // them in place would make isInitialized() report a usable session while
+      // the WebSocket never opened, and callers gated on it would issue reads
+      // over a dead socket instead of taking the uninitialized path.
+      this.#subscriptionClient = undefined;
+      this.#infoClient = undefined;
+      this.#infoClientHttp = undefined;
+      this.#exchangeClient = undefined;
+
+      if (this.#wsTransport) {
+        try {
+          this.#wsTransport.close();
+        } catch {
+          // Ignore cleanup errors - transport may already be dead
+        }
+      }
+      this.#wsTransport = undefined;
+      this.#httpTransport = undefined;
+
       // Reset flag before scheduling retry so the next attempt can proceed
       this.#isReconnecting = false;
 
