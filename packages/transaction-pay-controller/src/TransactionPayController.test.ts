@@ -196,9 +196,9 @@ describe('TransactionPayController', () => {
         controller.submitMoneyAccountVaultDeposit(request),
       ).rejects.toThrow('vault failed');
 
-      await expect(
-        controller.submitMoneyAccountVaultDeposit(request),
-      ).resolves.toStrictEqual({ transactionHash });
+      expect(
+        await controller.submitMoneyAccountVaultDeposit(request),
+      ).toStrictEqual({ transactionHash });
       expect(
         submitMoneyAccountVaultDepositFromPayoutMock,
       ).toHaveBeenCalledTimes(2);
@@ -211,13 +211,13 @@ describe('TransactionPayController', () => {
       const controller = createController();
       const request = { moneyAccountAddress, transactionHash };
 
-      await expect(
-        controller.submitMoneyAccountVaultDeposit(request),
-      ).resolves.toStrictEqual({ skipped: true });
+      expect(
+        await controller.submitMoneyAccountVaultDeposit(request),
+      ).toStrictEqual({ skipped: true });
 
-      await expect(
-        controller.submitMoneyAccountVaultDeposit(request),
-      ).resolves.toStrictEqual({ transactionHash });
+      expect(
+        await controller.submitMoneyAccountVaultDeposit(request),
+      ).toStrictEqual({ transactionHash });
       expect(
         submitMoneyAccountVaultDepositFromPayoutMock,
       ).toHaveBeenCalledTimes(2);
@@ -308,9 +308,9 @@ describe('TransactionPayController', () => {
         controller.submitMoneyAccountVaultWithdraw(request),
       ).rejects.toThrow('batch failed');
 
-      await expect(
-        controller.submitMoneyAccountVaultWithdraw(request),
-      ).resolves.toStrictEqual({ batchId: '0x123' });
+      expect(
+        await controller.submitMoneyAccountVaultWithdraw(request),
+      ).toStrictEqual({ batchId: '0x123' });
       expect(submitMoneyAccountVaultWithdrawUtilMock).toHaveBeenCalledTimes(2);
     });
   });
