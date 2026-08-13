@@ -779,14 +779,25 @@ export type PerpsControllerCalculateFeesAction = {
 };
 
 /**
+ * Approve the dedicated subscription builder outside order submission.
+ * Until this succeeds, subscription waivers fall back to the ordinary
+ * builder at the standard fee.
+ *
+ * @returns Whether the subscription builder is approved.
+ */
+export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
+  type: `PerpsController:approveSubscriptionBuilderFee`;
+  handler: PerpsController['approveSubscriptionBuilderFee'];
+};
+
+/**
  * Drop the cached subscription benefits snapshot.
  *
  * Call this when the identity behind the benefits changes — sign-out, or a
  * profile switch. The snapshot carries no profile identity of its own, so
  * without this it keeps answering for the previous profile until the next
  * successful refresh. The next fee resolution reports the waiver as
- * unavailable and refetches, so the waiver is withheld rather than
- * mis-granted.
+ * unavailable, so it is withheld until preview or lifecycle hydration.
  */
 export type PerpsControllerInvalidateSubscriptionBenefitsAction = {
   type: `PerpsController:invalidateSubscriptionBenefits`;
@@ -1212,6 +1223,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerApproveSubscriptionBuilderFeeAction
   | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction

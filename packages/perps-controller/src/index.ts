@@ -49,6 +49,7 @@ export type {
   ProPositionsSortField,
 } from './PerpsController.js';
 export type {
+  PerpsControllerApproveSubscriptionBuilderFeeAction,
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
   PerpsControllerCalculateMaintenanceMarginAction,

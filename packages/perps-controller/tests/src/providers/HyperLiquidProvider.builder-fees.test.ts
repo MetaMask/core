@@ -341,6 +341,8 @@ const createTestProvider = (
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
     initialAssetMapping?: [string, number][];
+    subscriptionBuilderAddressTestnet?: string;
+    subscriptionBuilderAddressMainnet?: string;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -689,7 +691,7 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
-    it('sets the builder fee to 0 when the resolved discount is a full subscription waiver', async () => {
+    it('routes an approved subscription waiver through the dedicated builder', async () => {
       // Builder fee already approved: this test is about the fee value on the
       // signed payload, not the approval flow.
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
@@ -719,19 +721,182 @@ describe('HyperLiquidProvider', () => {
         }),
       );
 
-      // The unified resolver reports a full waiver as a 10000 bips discount,
-      // which the provider must map to builder.f = 0.
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+
       (exchangeClient.order as jest.Mock).mockClear();
-      provider.setUserFeeDiscount(10000);
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      });
 
       const waived = await provider.placeOrder(orderParams);
 
       expect(waived.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledWith(
         expect.objectContaining({
-          builder: { b: expect.any(String), f: 0 },
+          builder: { b: subscriptionBuilder, f: 0 },
         }),
       );
+    });
+
+    it('initializes clients before approving the subscription builder', async () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+
+      expect(mockClientService.initialize).toHaveBeenCalledTimes(1);
+      expect(mockClientService.getInfoClient).toHaveBeenCalled();
+    });
+
+    it('does not reuse subscription builder approval after an account switch', async () => {
+      const accountA = '0x1234567890123456789012345678901234567890';
+      const accountB = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      const exchangeClient = mockClientService.getExchangeClient();
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountB);
+      (exchangeClient.order as jest.Mock).mockClear();
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+    });
+
+    it('keeps subscription approval reads scoped to the initiating account', async () => {
+      const accountA = '0x1234567890123456789012345678901234567890';
+      const accountB = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      let releaseInitialRead: (value: number) => void = () => undefined;
+      const initialRead = new Promise<number>((resolve) => {
+        releaseInitialRead = resolve;
+      });
+      let markInitialReadStarted: () => void = () => undefined;
+      const initialReadStarted = new Promise<void>((resolve) => {
+        markInitialReadStarted = resolve;
+      });
+      const maxBuilderFee = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          markInitialReadStarted();
+          return initialRead;
+        })
+        .mockResolvedValueOnce(0.001);
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      const approval = provider.approveSubscriptionBuilderFee();
+      await initialReadStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountB);
+      releaseInitialRead(0);
+
+      await expect(approval).resolves.toBe(true);
+      expect(maxBuilderFee).toHaveBeenNthCalledWith(1, {
+        user: accountA,
+        builder: subscriptionBuilder,
+      });
+      expect(maxBuilderFee).toHaveBeenNthCalledWith(2, {
+        user: accountA,
+        builder: subscriptionBuilder,
+      });
+    });
+
+    it('falls back to the standard fee when the subscription builder is not approved', async () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      const defaultBuilder = BUILDER_FEE_CONFIG.MainnetBuilder;
+      const exchangeClient = mockClientService.getExchangeClient();
+      const maxBuilderFee = jest.fn().mockResolvedValue(0.001);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee,
+        }),
+      );
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: defaultBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+      expect(maxBuilderFee).not.toHaveBeenCalledWith(
+        expect.objectContaining({ builder: subscriptionBuilder }),
+      );
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
     it('includes builder fee and referral setup in TP/SL updates', async () => {

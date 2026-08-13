@@ -828,6 +828,21 @@ describe('PerpsController', () => {
   });
 
   describe('fee calculations', () => {
+    it('approves the subscription builder outside order submission', async () => {
+      mockProvider.approveSubscriptionBuilderFee = jest
+        .fn()
+        .mockResolvedValue(true);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+      expect(mockProvider.approveSubscriptionBuilderFee).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
     it('calculates fees', async () => {
       const feeParams = {
         orderType: 'market' as const,
@@ -881,13 +896,22 @@ describe('PerpsController', () => {
           'getSubscriptionFeeWaiverStatus',
         )
         .mockReturnValue(waiverStatus);
+      const refresh = jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
 
       await controller.calculateFees(feeParams);
 
-      expect(getStatus).toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh.mock.invocationCallOrder[0]).toBeLessThan(
+        getStatus.mock.invocationCallOrder[0],
+      );
       expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
         expect.objectContaining({
           context: expect.objectContaining({
@@ -897,6 +921,7 @@ describe('PerpsController', () => {
       );
 
       getStatus.mockRestore();
+      refresh.mockRestore();
     });
 
     it('exposes subscription benefits invalidation to clients', async () => {

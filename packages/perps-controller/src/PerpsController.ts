@@ -856,6 +856,7 @@ type UserSnapshotContext = {
 };
 
 const MESSENGER_EXPOSED_METHODS = [
+  'approveSubscriptionBuilderFee',
   'calculateFees',
   'calculateLiquidationPrice',
   'calculateMaintenanceMargin',
@@ -1722,6 +1723,12 @@ export class PerpsController extends BaseController<
       builderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.builderAddressMainnet,
+      subscriptionBuilderAddressTestnet:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.subscriptionBuilderAddressTestnet,
+      subscriptionBuilderAddressMainnet:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.subscriptionBuilderAddressMainnet,
     });
     this.#standaloneProviderIsTestnet = currentIsTestnet;
     this.#standaloneProviderHip3Version = currentHip3Version;
@@ -2204,6 +2211,12 @@ export class PerpsController extends BaseController<
       builderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.builderAddressMainnet,
+      subscriptionBuilderAddressTestnet:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.subscriptionBuilderAddressTestnet,
+      subscriptionBuilderAddressMainnet:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.subscriptionBuilderAddressMainnet,
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -5155,10 +5168,10 @@ export class PerpsController extends BaseController<
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
     const provider = this.getActiveProvider();
-    // Cached, synchronous read of the same benefits snapshot the fee resolver
-    // uses — the preview surfaces eligibility and remaining notional without
-    // any network call or cap mutation. Clients with no subscription source
-    // wired get the untouched fee shape.
+    // Preview owns subscription hydration. The submit resolver remains a pure
+    // cache read and can therefore never start a benefits request while an
+    // order is being signed.
+    await this.#rewardsIntegrationService.refreshSubscriptionBenefits();
     const waiverStatus =
       this.#rewardsIntegrationService.getSubscriptionFeeWaiverStatus();
     const context = this.#createServiceContext('calculateFees', {
@@ -5169,14 +5182,27 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Approve the dedicated subscription builder outside order submission.
+   * Until this succeeds, subscription waivers fall back to the ordinary
+   * builder at the standard fee.
+   *
+   * @returns Whether the subscription builder is approved.
+   */
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const provider = this.getActiveProvider();
+    return provider.approveSubscriptionBuilderFee
+      ? provider.approveSubscriptionBuilderFee()
+      : false;
+  }
+
+  /**
    * Drop the cached subscription benefits snapshot.
    *
    * Call this when the identity behind the benefits changes — sign-out, or a
    * profile switch. The snapshot carries no profile identity of its own, so
    * without this it keeps answering for the previous profile until the next
    * successful refresh. The next fee resolution reports the waiver as
-   * unavailable and refetches, so the waiver is withheld rather than
-   * mis-granted.
+   * unavailable, so it is withheld until preview or lifecycle hydration.
    */
   invalidateSubscriptionBenefits(): void {
     this.#rewardsIntegrationService.invalidateSubscriptionBenefits();

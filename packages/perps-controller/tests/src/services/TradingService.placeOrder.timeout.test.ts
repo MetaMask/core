@@ -20,7 +20,10 @@ describe('TradingService.placeOrder — order submission timeout', () => {
   let tradingService: TradingService;
   let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
   let mockProvider: jest.Mocked<PerpsProvider>;
-  let mockRewardsService: { calculateUserFeeDiscount: jest.Mock };
+  let mockRewardsService: {
+    calculateUserFeeDiscount: jest.Mock;
+    resolveFee: jest.Mock;
+  };
   let mockContext: ReturnType<typeof createMockServiceContext>;
   let mockReportOrderToDataLake: jest.Mock;
 
@@ -37,6 +40,12 @@ describe('TradingService.placeOrder — order submission timeout', () => {
     tradingService = new TradingService(mockDeps);
     mockRewardsService = {
       calculateUserFeeDiscount: jest.fn().mockResolvedValue(undefined),
+      resolveFee: jest.fn().mockResolvedValue({
+        feeBips: 10,
+        discountBips: undefined,
+        source: 'default',
+        subscription: { eligible: false, reason: 'no-source' },
+      }),
     };
     tradingService.setControllerDependencies({
       rewardsIntegrationService: mockRewardsService as never,
@@ -99,7 +108,6 @@ describe('TradingService.placeOrder — order submission timeout', () => {
       context: mockContext,
       reportOrderToDataLake: mockReportOrderToDataLake,
     });
-
     // Advance past the threshold, allowing microtasks (fee discount await) to run first
     await jest.advanceTimersByTimeAsync(
       PERPS_CONSTANTS.PlaceOrderTimeoutMs + 1,
@@ -152,6 +160,9 @@ describe('TradingService.placeOrder — order submission timeout', () => {
       context: mockContext,
       reportOrderToDataLake: mockReportOrderToDataLake,
     });
+    const rejection = expect(placeOrderPromise).rejects.toThrow(
+      'Provider connection timed out',
+    );
 
     await jest.advanceTimersByTimeAsync(
       PERPS_CONSTANTS.PlaceOrderTimeoutMs + 1,
@@ -160,9 +171,7 @@ describe('TradingService.placeOrder — order submission timeout', () => {
     const originalError = new Error('Provider connection timed out');
     rejectOrder(originalError);
 
-    await expect(placeOrderPromise).rejects.toThrow(
-      'Provider connection timed out',
-    );
+    await rejection;
 
     const endTraceArgs = (mockDeps.tracer.endTrace as jest.Mock).mock
       .calls[0][0];

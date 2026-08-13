@@ -50,11 +50,11 @@ type BenefitsSnapshot = {
  * On a tie the cheaper-to-explain source wins, in the order
  * `subscription` > `rewards` > `default`.
  *
- * The benefits cache is stale-while-revalidate: reads are synchronous against
- * the cached snapshot and a refresh is kicked off opportunistically, so the
- * order-signing path never awaits a benefits request. Nothing is reserved or
- * committed client-side, so backend exhaustion needs no release logic — the
- * next refresh simply stops passing the gate.
+ * The benefits cache is stale-while-revalidate: fee resolution is a pure read
+ * of the cached snapshot, while preview and lifecycle callers refresh it
+ * explicitly. Nothing is reserved or committed client-side, so backend
+ * exhaustion needs no release logic — the next refresh simply stops passing
+ * the gate.
  *
  * Instance-based service with constructor injection of platform dependencies.
  */
@@ -70,12 +70,12 @@ export class RewardsIntegrationService {
    * When the last benefits read finished, successful or not.
    *
    * Separate from `#benefitsSnapshot.fetchedAt`, which only advances on
-   * success: a failing read must still throttle the next opportunistic
-   * refresh, otherwise an outage turns every fee preview into a new request.
+   * success: a failing read must still throttle the next preview refresh,
+   * otherwise an outage turns every fee preview into a new request.
    */
   #lastAttemptAt: number | undefined;
 
-  /** In-flight background refresh, deduped so only one runs at a time. */
+  /** In-flight refresh, deduped so only one runs at a time. */
   #benefitsRefresh: Promise<void> | undefined;
 
   /**
@@ -135,20 +135,16 @@ export class RewardsIntegrationService {
   /**
    * Resolve the MetaMask builder fee across every source and return the lowest.
    *
-   * Never throws and never awaits the subscription benefits read: a failing or
-   * unresolved source simply drops out of the comparison, so the worst case is
-   * the default fee rather than an error or an over-granted waiver.
+   * Never throws and never starts a subscription benefits read: a failing or
+   * unresolved cached source simply drops out of the comparison, so the worst
+   * case is the default fee rather than an error or an over-granted waiver.
    *
    * @returns The winning fee, its source, and the subscription gate outcome.
    */
   async resolveFee(): Promise<PerpsFeeResolution> {
-    // Cached, synchronous, non-blocking — safe on the order-signing path.
-    // Read once up front so any opportunistic refresh starts before the awaited
-    // rewards round trip rather than after it.
-    this.getSubscriptionFeeWaiverStatus();
     const rewardsDiscountBips = await this.#calculateRewardsDiscount();
-    // Re-read: a background refresh may have landed during that await, and the
-    // freshest cached value costs nothing here.
+    // Pure cache read: subscription benefits must never start a network request
+    // while an order is being prepared for signing.
     const subscription = this.getSubscriptionFeeWaiverStatus();
 
     let feeBips = DEFAULT_FEE_BIPS;
@@ -192,9 +188,8 @@ export class RewardsIntegrationService {
   /**
    * Read the subscription fee-waiver gate from the cached benefits snapshot.
    *
-   * Synchronous and side-effect free apart from kicking off an opportunistic
-   * background refresh when the snapshot is missing or past its freshness
-   * window; the returned value always comes from what is already cached.
+   * Synchronous and side-effect free. The returned value always comes from
+   * what is already cached; preview and lifecycle callers own hydration.
    *
    * @returns Whether the waiver applies, why, and the remaining notional.
    */
@@ -206,19 +201,6 @@ export class RewardsIntegrationService {
     const now = Date.now();
     const snapshot = this.#benefitsSnapshot;
     const age = snapshot ? now - snapshot.fetchedAt : Infinity;
-    // Throttled on the last *attempt*, not the last success, so a benefits
-    // outage retries once per freshness window instead of once per caller.
-    const sinceAttempt =
-      this.#lastAttemptAt === undefined ? Infinity : now - this.#lastAttemptAt;
-
-    // Stale-while-revalidate: serve what we have, refresh in the background.
-    if (
-      age >= SUBSCRIPTION_BENEFITS_CACHE.FreshMs &&
-      sinceAttempt >= SUBSCRIPTION_BENEFITS_CACHE.FreshMs
-    ) {
-      this.refreshSubscriptionBenefits().catch(() => undefined);
-    }
-
     if (!snapshot) {
       return { eligible: false, reason: 'not-hydrated' };
     }
@@ -236,8 +218,8 @@ export class RewardsIntegrationService {
    * Refresh the cached subscription benefits snapshot.
    *
    * Deduped: concurrent callers share the in-flight request. Rejections are
-   * logged and swallowed, leaving the previous snapshot in place. Callers on
-   * the order-signing path must not await this.
+   * logged and swallowed, leaving the previous snapshot in place. Preview and
+   * lifecycle callers invoke this outside order submission.
    *
    * @returns A promise that settles when the refresh completes.
    */
@@ -249,6 +231,19 @@ export class RewardsIntegrationService {
 
     if (this.#benefitsRefresh) {
       await this.#benefitsRefresh;
+      return;
+    }
+
+    const now = Date.now();
+    const snapshotAge = this.#benefitsSnapshot
+      ? now - this.#benefitsSnapshot.fetchedAt
+      : Infinity;
+    const sinceAttempt =
+      this.#lastAttemptAt === undefined ? Infinity : now - this.#lastAttemptAt;
+    if (
+      snapshotAge < SUBSCRIPTION_BENEFITS_CACHE.FreshMs ||
+      sinceAttempt < SUBSCRIPTION_BENEFITS_CACHE.FreshMs
+    ) {
       return;
     }
 
@@ -272,8 +267,8 @@ export class RewardsIntegrationService {
    * Call this when the identity behind the benefits changes — sign-out, or a
    * profile switch — since the snapshot carries no profile identity of its own
    * and would otherwise keep answering for the previous profile until the next
-   * successful refresh. The next status read reports `not-hydrated` and starts
-   * a fresh fetch, so the waiver is withheld rather than mis-granted.
+   * successful refresh. The next status read reports `not-hydrated`, so the
+   * waiver is withheld until a preview or lifecycle caller hydrates it.
    */
   invalidateSubscriptionBenefits(): void {
     this.#benefitsSnapshot = undefined;
@@ -294,8 +289,7 @@ export class RewardsIntegrationService {
 
   /**
    * Perform one benefits read and store it, keeping the previous snapshot on
-   * error. Never rejects, so background callers cannot produce an unhandled
-   * rejection.
+   * error. Never rejects, so callers cannot produce an unhandled rejection.
    *
    * @param source - The injected subscription benefits source.
    */

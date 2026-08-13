@@ -416,17 +416,9 @@ describe('RewardsIntegrationService', () => {
       }
     });
 
-    it('does not await the benefits network read on the fee resolution path', async () => {
-      // A benefits read that never settles: if the resolver awaited it, this
-      // test could not complete.
-      let releaseBenefits: (value: unknown) => void = () => undefined;
+    it('does not start a benefits network read on the fee resolution path', async () => {
       const getPerpsBenefits = wireSubscription(
-        jest.fn(
-          async () =>
-            new Promise((resolve) => {
-              releaseBenefits = resolve;
-            }),
-        ),
+        jest.fn().mockResolvedValue(createBenefits()),
       );
       (
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
@@ -440,13 +432,10 @@ describe('RewardsIntegrationService', () => {
         eligible: false,
         reason: 'not-hydrated',
       });
-      // The refresh was kicked off, just never awaited.
-      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
-
-      releaseBenefits(null);
+      expect(getPerpsBenefits).not.toHaveBeenCalled();
     });
 
-    it('serves a stale snapshot while revalidating it in the background', async () => {
+    it('serves a stale snapshot without refreshing on the cache-read path', async () => {
       const getPerpsBenefits = wireSubscription(
         jest.fn().mockResolvedValue(createBenefits()),
       );
@@ -462,13 +451,17 @@ describe('RewardsIntegrationService', () => {
       });
       expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
 
-      // Past it: the stale snapshot is still served, and a refresh is started.
+      // Past it: the stale snapshot is still served without a request.
       jest.setSystemTime(NOW + FRESH_MS + 1);
       expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
         eligible: true,
         reason: 'eligible',
         remainingNotionalUsd: 5000,
       });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Preview/lifecycle hydration owns the refresh explicitly.
+      await service.refreshSubscriptionBenefits();
       expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
     });
 
@@ -583,7 +576,7 @@ describe('RewardsIntegrationService', () => {
       expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
     });
 
-    it('throttles the opportunistic refresh while the benefits read keeps failing', async () => {
+    it('keeps pure cache reads off the network after a failed refresh', async () => {
       // A failing read never advances the snapshot timestamp, so without an
       // attempt-based throttle every caller would start a new request.
       const getPerpsBenefits = wireSubscription(
@@ -602,12 +595,13 @@ describe('RewardsIntegrationService', () => {
       }
       expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
 
-      // Past the window, exactly one retry is allowed through.
+      // Past the window, cache reads still cannot retry on their own.
       jest.setSystemTime(NOW + FRESH_MS + 1);
       service.getSubscriptionFeeWaiverStatus();
       service.getSubscriptionFeeWaiverStatus();
-      await Promise.resolve();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
 
+      await service.refreshSubscriptionBenefits();
       expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
     });
 
@@ -626,7 +620,8 @@ describe('RewardsIntegrationService', () => {
         eligible: false,
         reason: 'not-hydrated',
       });
-      // Invalidation clears the retry throttle too, so the refetch is immediate.
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+      await service.refreshSubscriptionBenefits();
       expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
     });
 
@@ -653,8 +648,7 @@ describe('RewardsIntegrationService', () => {
         eligible: false,
         reason: 'not-hydrated',
       });
-      // The discarded attempt must not throttle the new identity's first fetch.
-      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
     });
 
     it('starts a fresh read when the next caller arrives while a fenced read is still in flight', async () => {
@@ -674,15 +668,16 @@ describe('RewardsIntegrationService', () => {
       const profileARead = service.refreshSubscriptionBenefits();
       service.invalidateSubscriptionBenefits();
 
-      // The documented contract: the next status read starts a fresh fetch.
+      // Status remains a pure read after invalidation.
       expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
         eligible: false,
         reason: 'not-hydrated',
       });
-      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
 
-      // Dedupes onto profile B's read, which is what gives us a handle on it.
+      // Preview/lifecycle hydration starts profile B's independent read.
       const profileBRead = service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
       releases.forEach((release) => release(createBenefits()));
       await Promise.all([profileARead, profileBRead]);
 

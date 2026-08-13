@@ -903,6 +903,10 @@ export type HyperLiquidCredentials = {
   builderAddressTestnet?: string;
   /** Builder fee wallet address for mainnet. Empty/omitted = uses BUILDER_FEE_CONFIG default. */
   builderAddressMainnet?: string;
+  /** Dedicated subscription waiver builder for testnet. */
+  subscriptionBuilderAddressTestnet?: string;
+  /** Dedicated subscription waiver builder for mainnet. */
+  subscriptionBuilderAddressMainnet?: string;
 };
 
 export type MYXCredentials = {
@@ -1584,6 +1588,10 @@ export type PerpsProvider = {
 
   // Fee discount context (optional - for MetaMask reward discounts)
   setUserFeeDiscount?(discountBips: number | undefined): void;
+  // Full fee resolution context, including attribution source.
+  setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
+  /** Approve the dedicated subscription builder outside order submission. */
+  approveSubscriptionBuilderFee?(): Promise<boolean>;
 
   // HIP-3 (Builder-deployed DEXs) operations - optional for backward compatibility
   /**
