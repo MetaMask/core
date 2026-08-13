@@ -31,7 +31,7 @@ import type {
   Subscription,
   PricingResponse,
   ProductPricing,
-  PricingPaymentMethod,
+  PricingCryptoPaymentMethod,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   UpdatePaymentMethodOpts,
@@ -109,7 +109,7 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
   ],
 };
 
-const MOCK_PRICING_PAYMENT_METHOD: PricingPaymentMethod = {
+const MOCK_PRICING_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   type: PAYMENT_TYPES.byCrypto,
   chains: [
     {
@@ -2515,13 +2515,16 @@ describe('SubscriptionController', () => {
               ...MOCK_PRICE_INFO_RESPONSE,
               paymentMethods: [
                 ...MOCK_PRICE_INFO_RESPONSE.paymentMethods.map(
-                  (paymentMethod) => ({
-                    ...paymentMethod,
-                    chains: paymentMethod.chains?.map((chain) => ({
-                      ...chain,
-                      isSponsorshipSupported: false, // <==== Sponsorship not supported
-                    })),
-                  }),
+                  (paymentMethod) =>
+                    paymentMethod.type === PAYMENT_TYPES.byCrypto
+                      ? {
+                          ...paymentMethod,
+                          chains: paymentMethod.chains?.map((chain) => ({
+                            ...chain,
+                            isSponsorshipSupported: false, // <==== Sponsorship not supported
+                          })),
+                        }
+                      : paymentMethod,
                 ),
               ],
             },

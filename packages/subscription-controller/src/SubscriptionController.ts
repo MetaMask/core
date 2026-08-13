@@ -47,7 +47,6 @@ import type {
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   GetSubscriptionsEligibilitiesRequest,
-  PricingPaymentMethod,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
@@ -63,6 +62,7 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
   CancelSubscriptionRequest,
+  PricingCryptoPaymentMethod,
 } from './types.js';
 import type {
   PricingResponse,
@@ -1045,25 +1045,27 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   #findCryptoPaymentMethod(
     productType: ProductType,
     cryptoAuthMethod: CryptoAuthMethod,
-  ): PricingPaymentMethod | undefined {
-    return this.state.pricing?.paymentMethods.find((paymentMethod) => {
-      if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
-        return false;
-      }
-      // Persisted pre-PR pricing is typically `{ type: 'crypto', chains }` with
-      // neither field. Treat omitted values as the legacy meaning (Shield +
-      // erc20_approval), not as wildcards, so Money Account lookups cannot
-      // match Shield's spender/chains.
-      const authMatches =
-        (paymentMethod.cryptoAuthMethod ??
-          CRYPTO_AUTH_METHODS.ERC20_APPROVAL) === cryptoAuthMethod;
-      const productMatches = (
-        paymentMethod.products?.length
-          ? paymentMethod.products
-          : [PRODUCT_TYPES.SHIELD]
-      ).includes(productType);
-      return authMatches && productMatches;
-    });
+  ): PricingCryptoPaymentMethod | undefined {
+    return this.state.pricing?.paymentMethods.find(
+      (paymentMethod): paymentMethod is PricingCryptoPaymentMethod => {
+        if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
+          return false;
+        }
+        // Persisted pre-PR pricing is typically `{ type: 'crypto', chains }` with
+        // neither field. Treat omitted values as the legacy meaning (Shield +
+        // erc20_approval), not as wildcards, so Money Account lookups cannot
+        // match Shield's spender/chains.
+        const authMatches =
+          (paymentMethod.cryptoAuthMethod ??
+            CRYPTO_AUTH_METHODS.ERC20_APPROVAL) === cryptoAuthMethod;
+        const productMatches = (
+          paymentMethod.products?.length
+            ? paymentMethod.products
+            : [PRODUCT_TYPES.SHIELD]
+        ).includes(productType);
+        return authMatches && productMatches;
+      },
+    );
   }
 
   #getChainSupportsSponsorship(

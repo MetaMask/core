@@ -299,7 +299,7 @@ export type ProductPricing = {
   prices: ProductPrice[];
 };
 
-export type TokenPaymentInfo = {
+type TokenPaymentInfoBase = {
   symbol: string;
   address: Hex;
   decimals: number;
@@ -312,18 +312,35 @@ export type TokenPaymentInfo = {
     usd: string;
   };
   /**
-   * Whether the token is a yield-bearing vault share priced via an accountant rate.
-   */
-  isVaultShare?: boolean;
-  /**
-   * Veda accountant address used to value this vault share.
-   */
-  accountantAddress?: Hex;
-  /**
    * Source tokens that can be converted into this settlement token.
    */
   sources?: TokenPaymentInfo[];
 };
+
+/**
+ * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
+ * `accountantAddress` is not present on this variant.
+ */
+export type SpotTokenPaymentInfo = TokenPaymentInfoBase & {
+  isVaultShare?: false;
+};
+
+/**
+ * Yield-bearing vault share priced via an accountant rate.
+ */
+export type VaultTokenPaymentInfo = TokenPaymentInfoBase & {
+  isVaultShare: true;
+  /**
+   * Veda accountant address used to value this vault share.
+   */
+  accountantAddress: Hex;
+};
+
+/**
+ * A settlement token in a pricing chain. Discriminated by `isVaultShare`:
+ * vault shares require `accountantAddress`; spot tokens omit it.
+ */
+export type TokenPaymentInfo = SpotTokenPaymentInfo | VaultTokenPaymentInfo;
 
 export type ChainPaymentInfo = {
   chainId: Hex;
@@ -340,10 +357,19 @@ export type ChainPaymentInfo = {
   isSponsorshipSupported?: boolean;
 };
 
-export type PricingPaymentMethod = {
-  type: PaymentType;
+export type PricingCardPaymentMethod = {
+  type: Extract<PaymentType, 'card'>;
   /**
-   * Crypto authorization method for this payment method row (crypto only).
+   * Products that support this payment method.
+   */
+  products?: ProductType[];
+};
+
+export type PricingCryptoPaymentMethod = {
+  type: Extract<PaymentType, 'crypto'>;
+  /**
+   * Crypto authorization method. Omitted on persisted pre-PR pricing rows;
+   * treat as `erc20_approval` when missing.
    */
   cryptoAuthMethod?: CryptoAuthMethod;
   /**
@@ -352,6 +378,14 @@ export type PricingPaymentMethod = {
   products?: ProductType[];
   chains?: ChainPaymentInfo[];
 };
+
+/**
+ * A pricing payment-method row. Discriminated by `type`: card rows have no
+ * crypto fields; crypto rows may include `cryptoAuthMethod` and `chains`.
+ */
+export type PricingPaymentMethod =
+  | PricingCardPaymentMethod
+  | PricingCryptoPaymentMethod;
 
 export type PricingResponse = {
   products: ProductPricing[];

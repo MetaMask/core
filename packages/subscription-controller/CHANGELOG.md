@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add multi-product and delegation-based crypto subscription types and pricing fields. ([#9866](https://github.com/MetaMask/core/pull/9866))
   - `PRODUCT_TYPES.MONEY_ACCOUNT_PLUS`
   - `CRYPTO_AUTH_METHODS` (`erc20_approval`, `delegation`) and `CryptoAuthMethod`
-  - Optional `PricingPaymentMethod.products` and `PricingPaymentMethod.cryptoAuthMethod`
+  - `PricingCardPaymentMethod` and `PricingCryptoPaymentMethod` variants, with optional `products` and (crypto only) `cryptoAuthMethod`
   - Optional `ChainPaymentInfo.delegateAddress`
-  - Optional `TokenPaymentInfo` vault metadata: `isVaultShare`, `accountantAddress`, `sources`
+  - `SpotTokenPaymentInfo` and `VaultTokenPaymentInfo` variants, with optional `sources` and vault `accountantAddress`
 
 ### Changed
 
+- **BREAKING:** Model `PricingPaymentMethod` as a discriminated union of card vs crypto. `chains` and `cryptoAuthMethod` exist only on the crypto variant; narrow with `type === 'crypto'` before reading them. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Model `TokenPaymentInfo` as a discriminated union of vault vs spot. `accountantAddress` is required when `isVaultShare` is true and is not present on spot tokens; narrow with `isVaultShare === true` before reading `accountantAddress`. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - **BREAKING:** Rename `startShieldSubscriptionWithCard` to `startSubscriptionWithCard`. ([#9866](https://github.com/MetaMask/core/pull/9866))
   - Rename `SubscriptionController.startShieldSubscriptionWithCard` to `startSubscriptionWithCard`.
   - Rename the messenger action `SubscriptionController:startShieldSubscriptionWithCard` to `SubscriptionController:startSubscriptionWithCard`.

@@ -818,6 +818,19 @@ describe('SubscriptionService', () => {
       paymentMethods: [],
     };
 
+    const mockSpotToken = {
+      symbol: 'USDC',
+      address: '0xa9f2867708c727fe250fb0d1fbeb4b4c8e1818e8',
+      decimals: 9,
+      conversionRate: { usd: '1.0' },
+    };
+
+    const mockCryptoChain = {
+      chainId: '0x1',
+      paymentAddress: '0x00000000000000000000000000000000000000a2',
+      tokens: [mockSpotToken],
+    };
+
     it('should fetch pricing successfully', async () => {
       const fetchMock = jest.fn();
       const { service } = createService({ fetchMock });
@@ -829,6 +842,61 @@ describe('SubscriptionService', () => {
       const result = await service.getPricing();
 
       expect(result).toStrictEqual(mockPricingResponse);
+    });
+
+    it('rejects vault share tokens that omit accountantAddress', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            products: [],
+            paymentMethods: [
+              {
+                type: PAYMENT_TYPES.byCrypto,
+                chains: [
+                  {
+                    ...mockCryptoChain,
+                    tokens: [
+                      {
+                        symbol: 'pvmUSD',
+                        address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                        decimals: 6,
+                        isVaultShare: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
+    });
+
+    it('rejects card payment methods that include crypto-only fields', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            products: [],
+            paymentMethods: [
+              {
+                type: PAYMENT_TYPES.byCard,
+                cryptoAuthMethod: 'delegation',
+                chains: [mockCryptoChain],
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
     });
   });
 
