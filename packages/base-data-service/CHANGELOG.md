@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `handleAll`
     - `handleWhen`
 - Export types `DataServiceActions` and `DataServiceEvents` ([#9475](https://github.com/MetaMask/core/pull/9475))
+- Add `executeMutation` to `BaseDataService` to allow for making state-mutating requests ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - These kinds of requests are not cached, unlike queries.
 
 ### Changed
 
