@@ -143,7 +143,15 @@ async function exportMnemonicWalletObject(
     (group, otherGroup) => group.groupIndex - otherGroup.groupIndex,
   );
 
-  // This should never happen, but we check just in case.
+  // Defensive check: group indices must be contiguous starting at 0. This should never happen
+  // in practice since groups are only ever appended, but guards against future regressions
+  // producing a payload that silently fails validation on import.
+  for (let i = 0; i < wallet.groups.length; i++) {
+    if (wallet.groups[i]?.groupIndex !== i) {
+      throw new Error('Found non-contiguous groups in mnemonic wallet');
+    }
+  }
+
   if (includeSecrets) {
     if (mnemonic === undefined) {
       throw new Error(`Failed to export mnemonic for wallet ${wallet.id}`);

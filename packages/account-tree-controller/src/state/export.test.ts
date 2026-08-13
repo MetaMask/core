@@ -428,6 +428,55 @@ describe('exportState', () => {
       expect(groups?.map((group) => group.groupIndex)).toStrictEqual([0, 1, 2]);
     });
 
+    it('throws when mnemonic groups have a gap after sorting', async () => {
+      const group0Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
+      const group2Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 2);
+
+      const walletsWithGap: AccountTreeControllerState['accountTree']['wallets'] =
+        {
+          [MOCK_HD_WALLET_ID]: {
+            id: MOCK_HD_WALLET_ID,
+            type: AccountWalletType.Entropy,
+            status: 'ready',
+            groups: {
+              [group0Id]: {
+                id: group0Id,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-1'],
+                metadata: {
+                  name: 'Account 1',
+                  entropy: { groupIndex: 0 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+              [group2Id]: {
+                id: group2Id,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-3'],
+                metadata: {
+                  name: 'Account 3',
+                  entropy: { groupIndex: 2 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+            },
+            metadata: { name: 'Wallet 1', entropy: { id: 'mock-entropy-id' } },
+          },
+        };
+
+      const { context, mocks } = setup({ wallets: walletsWithGap });
+      mocks.KeyringController.withKeyringV2Unsafe =
+        makeHdKeyringHandler('stable-entropy-id');
+
+      await expect(exportState(context)).rejects.toThrow(
+        'Found non-contiguous groups in mnemonic wallet',
+      );
+    });
+
     it('skips snap and hardware wallets', async () => {
       const snapWalletId = toAccountWalletId(
         AccountWalletType.Snap,
