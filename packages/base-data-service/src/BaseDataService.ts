@@ -23,6 +23,7 @@ import {
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
+  QueryFunctionContext,
   SkipToken,
   WithRequired,
   dehydrate,
@@ -383,16 +384,14 @@ export class BaseDataService<
         getNextPageParam: options.getNextPageParam ?? ((): null => null),
         queryFn: (context) =>
           this.#policy.execute(() =>
-            // Use query-core's context param when it has one (the derived param
-            // during a refetch, or an explicit/`null` `initialPageParam`). Only
-            // when it has none (the very first page) substitute the caller's
-            // explicit `pageParam`, which is how a cold jump fetches a specific
-            // page. The strict `undefined` check (rather than `??`) forwards a
-            // `null` param unchanged.
+            // On a cold jump the caller passes an explicit `pageParam`; fetch
+            // that page, overriding whatever first-page param query-core would
+            // use (which may be a non-`undefined` `initialPageParam`).
+            // Otherwise use query-core's context param, which preserves a
+            // `null` initial page param. Only the fresh path reaches this
+            // wrapper; the cached path below supplies its own query function.
             options.queryFn(
-              context.pageParam === undefined
-                ? { ...context, pageParam }
-                : context,
+              pageParam === undefined ? context : { ...context, pageParam },
             ),
           ),
       });
@@ -412,12 +411,23 @@ export class BaseDataService<
 
     // Override the next/previous param callbacks to return exactly the
     // requested page, so pagination works even when the consumer did not
-    // provide page-param callbacks.
+    // provide page-param callbacks. Also supply a fresh query function that
+    // fetches query-core's derived context param, rather than reusing the one
+    // stored by the fresh path (whose closed-over `pageParam` would otherwise
+    // pin every page to the originally requested one).
     const result = await query.fetch(
       {
         ...query.options,
         getNextPageParam: () => pageParam,
         getPreviousPageParam: () => pageParam,
+        queryFn: (context) =>
+          this.#policy.execute(() =>
+            // query-core types this context with `TPageParam` erased to `never`;
+            // it carries the derived page param at runtime.
+            options.queryFn(
+              context as QueryFunctionContext<TQueryKey, TPageParam>,
+            ),
+          ),
       } as typeof query.options,
       {
         meta: {

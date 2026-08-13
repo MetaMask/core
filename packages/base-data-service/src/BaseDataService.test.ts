@@ -188,6 +188,23 @@ describe('BaseDataService', () => {
     expect(service.pageParamsSeen).toStrictEqual([null]);
   });
 
+  it('applies a cold jump even when an initial page param is set', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    const page = await service.getActivityWithoutCallbacks(TEST_ADDRESS, {
+      initialPageParam: null,
+      page: { after: TRANSACTIONS_PAGE_2_CURSOR },
+    });
+
+    expect(page.data).toHaveLength(3);
+    // The explicit jump target must reach the query function, not the `null`
+    // initial page param.
+    expect(service.pageParamsSeen).toStrictEqual([
+      { after: TRANSACTIONS_PAGE_2_CURSOR },
+    ]);
+  });
+
   it('does not refetch a fresh paginated query', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
