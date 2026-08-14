@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `:{import,export}State` ([#9663](https://github.com/MetaMask/core/pull/9663)), ([#9826](https://github.com/MetaMask/core/pull/9826)), ([#9863](https://github.com/MetaMask/core/pull/9863)), ([#9864](https://github.com/MetaMask/core/pull/9864)), ([#9883](https://github.com/MetaMask/core/pull/9883))
+- **BREAKING:** Add `:{import,export}State` ([#9663](https://github.com/MetaMask/core/pull/9663), [#9826](https://github.com/MetaMask/core/pull/9826), [#9863](https://github.com/MetaMask/core/pull/9863), [#9864](https://github.com/MetaMask/core/pull/9864), [#9883](https://github.com/MetaMask/core/pull/9883))
   - The following actions must be registered on the controller's messenger: `MultichainAccountService:createMultichainAccountWallet`, `KeyringController:with{Controller,KeyringV2,KeyringV2Unsafe}`.
   - This can be used to serialize/deserialize the entire account-tree state (metadata + secrets if needed).
   - The `password` is required whenever secrets are requested.
