@@ -428,7 +428,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       }
 
       const fetchOptions = request.forceUpdate
-        ? { staleTime: 100, gcTime: 100 }
+        ? { staleTime: 0, gcTime: 0 }
         : undefined;
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Revert `AccountsApiDataSource` `forceUpdate` balance fetch cache window from `staleTime`/`gcTime` of `100`ms back to `0`/`0` (undoes [#9591](https://github.com/MetaMask/core/pull/9591)) so forced refreshes truly bypass the TanStack cache instead of reusing a short-lived entry ([#9870](https://github.com/MetaMask/core/pull/9870))
+- Fix Arc native USDC never appearing until the account receives its first deposit, by default-tracking the native asset id (`eip155:5042/slip44:5042`) instead of the `0x3600...` ERC20 identity so `assetsInfo` metadata is seeded up front ([#9869](https://github.com/MetaMask/core/pull/9869))
+
 ## [13.1.3]
 
 ### Changed
@@ -15,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix Arc native USDC never appearing until the account receives its first deposit, by default-tracking the native asset id (`eip155:5042/slip44:5042`) instead of the `0x3600...` ERC20 identity so `assetsInfo` metadata is seeded up front ([#9869](https://github.com/MetaMask/core/pull/9869))
 - Properly filter empty (`''`) selected account group event ([#9825](https://github.com/MetaMask/core/pull/9825))
 
 ## [13.1.2]
