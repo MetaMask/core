@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^13.1.2` to `^13.1.3` ([#9873](https://github.com/MetaMask/core/pull/9873))
+
+## [79.2.0]
+
+### Added
+
+- Export `assetIdsMatch` util to compare assetIds. EVM assetIds are case insensitive ([#9831](https://github.com/MetaMask/core/pull/9831))
+
+### Fixed
+
+- Filter fees by `assetId` when coercing V1 quotes to V2 ([#9831](https://github.com/MetaMask/core/pull/9831))
+
 ## [79.1.0]
 
 ### Added
@@ -1902,7 +1916,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.2.0...HEAD
+[79.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.1.0...@metamask/bridge-controller@79.2.0
 [79.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.0.1...@metamask/bridge-controller@79.1.0
 [79.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.0.0...@metamask/bridge-controller@79.0.1
 [79.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@78.1.0...@metamask/bridge-controller@79.0.0

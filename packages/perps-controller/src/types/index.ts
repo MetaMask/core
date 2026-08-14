@@ -651,6 +651,10 @@ export type PerpsMarketData = {
    * Indicates this market snapshot came from the last known good cache after live fetch failure.
    */
   isStale?: boolean;
+  /** Identifies an atomic Terminal summary whose price/change use mark semantics. */
+  dataSource?: 'terminal-global-snapshot-mark';
+  /** Source-bounded expiry for an atomic Terminal summary. */
+  sourceExpiresAt?: number;
   /**
    * Searchable keywords from Terminal API metadata (e.g., ['defi', 'layer-1'])
    */
@@ -663,6 +667,8 @@ export type PerpsMarketData = {
    * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
    */
   categories?: string[];
+  /** Timestamped hourly price points supplied by the atomic Terminal snapshot. */
+  trend?: [timestampMs: number, price: string][];
   /**
    * Epoch ms when this market was listed on the Terminal backend.
    * Sourced from the Terminal API `listedAt` field.
@@ -897,6 +903,10 @@ export type HyperLiquidCredentials = {
   builderAddressTestnet?: string;
   /** Builder fee wallet address for mainnet. Empty/omitted = uses BUILDER_FEE_CONFIG default. */
   builderAddressMainnet?: string;
+  /** Dedicated subscription waiver builder for testnet. */
+  subscriptionBuilderAddressTestnet?: string;
+  /** Dedicated subscription waiver builder for mainnet. */
+  subscriptionBuilderAddressMainnet?: string;
 };
 
 export type MYXCredentials = {
@@ -991,6 +1001,23 @@ export type GetAccountStateParams = {
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
 };
 
+export type GetUserDataSnapshotParams = {
+  userAddress: string;
+  identity: {
+    provider: 'hyperliquid';
+    network: 'mainnet' | 'testnet';
+    hip3ConfigVersion: number;
+    dexes: string[];
+  };
+};
+
+export type PerpsUserDataSnapshot = {
+  positions: Position[];
+  orders: Order[];
+  accountState: AccountState;
+  identity: GetUserDataSnapshotParams['identity'] & { address: string };
+};
+
 export type GetOrderFillsParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
   user?: Hex; // Optional: user address (defaults to selected account)
@@ -1063,7 +1090,7 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
-  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
+  useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
 };
 
 /**
@@ -1078,7 +1105,7 @@ export type GetMarketDataWithPricesParams = {
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
-  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
+  useTerminalApi?: boolean; // When true, enrich provider data from the legacy Terminal market endpoint.
 };
 
 export type SubscribePricesParams = {
@@ -1226,6 +1253,115 @@ export type FeeCalculationResult = {
     volumeDiscount?: number;
     stakingDiscount?: number;
   };
+
+  /**
+   * Read-only subscription fee-waiver preview, sourced from the same cached
+   * benefits snapshot the fee resolver uses. Present only when the controller
+   * has a subscription source wired; the quoted rates above are not adjusted
+   * from it, so surfacing this never mutates the cap or the cache.
+   */
+  subscription?: PerpsSubscriptionFeeWaiverStatus;
+};
+
+/**
+ * Usage state of the perps fee waiver on a subscription benefits snapshot.
+ */
+export type PerpsSubscriptionUsage = 'available' | 'exhausted';
+
+/**
+ * Subscription benefits as returned by `GET /v1/profiles/{profileId}/benefits`.
+ *
+ * The perps controller never performs this request itself — the client owns the
+ * Profile JWT and injects the read through
+ * {@link PerpsPlatformDependencies.subscription}. Only the fields the perps fee
+ * waiver depends on are modelled here.
+ */
+export type PerpsSubscriptionBenefits = {
+  /** Subscription status; only `active` can pass the eligibility gate. */
+  status: string;
+
+  /** Perps fee waiver entitlement and its remaining allowance. */
+  perpsFeeWaiver?: {
+    /** Whether the plan entitles this profile to the perps fee waiver. */
+    entitled: boolean;
+
+    /** Backend usage state; only `available` can pass the eligibility gate. */
+    usage?: PerpsSubscriptionUsage;
+
+    /**
+     * Set by the backend once the notional cap is crossed. Honored on the next
+     * cache refresh — there is no client-held reservation to release.
+     */
+    exhausted?: boolean;
+
+    /** Notional (USD) still covered by the waiver, for fee previews. */
+    remainingNotionalUsd?: number;
+  };
+};
+
+/**
+ * Why the subscription fee waiver did or did not apply, plus the remaining
+ * allowance for fee previews. Derived purely from the cached benefits snapshot.
+ */
+export type PerpsSubscriptionFeeWaiverStatus = {
+  /** True only when every condition of the eligibility gate passed. */
+  eligible: boolean;
+
+  /**
+   * Gate outcome:
+   * - `eligible` — every condition passed
+   * - `no-source` — no subscription dependency is wired
+   * - `not-hydrated` — nothing cached yet; a refresh was kicked off
+   * - `stale` — the cached snapshot is past the hard-stale ceiling
+   * - `no-subscription` — the read succeeded but reported no subscription at
+   *   all (signed out, or no profile)
+   * - `inactive` — subscription status is not `active`
+   * - `not-entitled` — the plan does not include the perps fee waiver
+   * - `exhausted` — the backend reported the notional cap as spent
+   */
+  reason:
+    | 'eligible'
+    | 'no-source'
+    | 'not-hydrated'
+    | 'stale'
+    | 'no-subscription'
+    | 'inactive'
+    | 'not-entitled'
+    | 'exhausted';
+
+  /** Notional (USD) still covered by the waiver, when the backend reports it. */
+  remainingNotionalUsd?: number;
+};
+
+/**
+ * Fee source that won the unified resolver.
+ *
+ * `rewards` covers both VIP and season discounts: `RewardsController` already
+ * returns the better of the two as a single discount, so the perps controller
+ * treats them as one source rather than re-deriving the split.
+ */
+export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
+
+/**
+ * Outcome of the unified fee resolver.
+ */
+export type PerpsFeeResolution = {
+  /** Winning MetaMask builder fee, in basis points (lowest across sources). */
+  feeBips: number;
+
+  /**
+   * Winning fee expressed as a discount off the default builder fee, in basis
+   * points — the unit providers consume. `undefined` when no source resolved
+   * (e.g. rewards state has not hydrated and no subscription waiver applies),
+   * so callers do not treat it as a definitive "no discount" answer.
+   */
+  discountBips: number | undefined;
+
+  /** Source that produced the winning fee. */
+  source: PerpsFeeSource;
+
+  /** Subscription gate outcome, always populated for observability. */
+  subscription: PerpsSubscriptionFeeWaiverStatus;
 };
 
 export type UpdatePositionTPSLParams = {
@@ -1307,6 +1443,9 @@ export type PerpsProvider = {
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
+  getUserDataSnapshot?(
+    params: GetUserDataSnapshotParams,
+  ): Promise<PerpsUserDataSnapshot>;
   getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]>;
   getMarketDataWithPrices(): Promise<PerpsMarketData[]>;
   withdraw(params: WithdrawParams): Promise<WithdrawResult>; // API operation - stays in provider
@@ -1449,6 +1588,10 @@ export type PerpsProvider = {
 
   // Fee discount context (optional - for MetaMask reward discounts)
   setUserFeeDiscount?(discountBips: number | undefined): void;
+  // Full fee resolution context, including attribution source.
+  setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
+  /** Approve the dedicated subscription builder outside order submission. */
+  approveSubscriptionBuilderFee?(): Promise<boolean>;
 
   // HIP-3 (Builder-deployed DEXs) operations - optional for backward compatibility
   /**
@@ -1896,6 +2039,22 @@ export type PerpsTerminalMarketService = {
   }>;
   clearCache(): void;
   logError(error: unknown, method: string): void;
+  fetchGlobalSnapshot?(
+    request: PerpsGlobalSnapshotRequest,
+  ): Promise<PerpsGlobalSnapshotResult>;
+};
+
+/** Exact identity a client expects from an atomic global Perps snapshot. */
+export type PerpsGlobalSnapshotRequest = {
+  provider: 'hyperliquid';
+  network: 'mainnet' | 'testnet';
+  enabledDexes: string[];
+};
+
+/** Validated snapshot data and its source-bounded expiry. */
+export type PerpsGlobalSnapshotResult = {
+  markets: PerpsMarketData[];
+  expiresAt: number;
 };
 
 /**
@@ -1949,13 +2108,15 @@ export type PerpsPlatformDependencies = {
   };
 
   // === Terminal API (market metadata source) ===
-  /**
-   * Full endpoint URL for the MetaMask Terminal API perpetuals endpoint.
-   * Each client build (dev/uat/prd) injects the correct environment URL
-   * (e.g. `https://terminal.api.cx.metamask.io/v1/perpetuals`).
-   * Never hardcoded in controller code — always provided by the platform.
-   * Optional: only required when Terminal API features (useTerminalApi) are enabled.
-   */
+  terminalApi?: {
+    /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
+    marketDataUrl?: string;
+
+    /** Full endpoint URL for the schema-v2 atomic global Perps snapshot. */
+    globalSnapshotUrl?: string;
+  };
+
+  /** @deprecated Use `terminalApi.marketDataUrl`. */
   terminalApiUrl?: string;
 
   /**
@@ -1983,6 +2144,28 @@ export type PerpsPlatformDependencies = {
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
     ): Promise<number | null>;
+  };
+
+  // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
+  /**
+   * Optional subscription source for the unified fee resolver.
+   *
+   * The client owns the Profile JWT, so it performs
+   * `GET /v1/profiles/{profileId}/benefits` and hands the perps controller the
+   * parsed body. The controller caches the result stale-while-revalidate and
+   * never awaits this call on the order-signing path.
+   *
+   * Omit it entirely on clients that do not ship the subscription waiver; the
+   * resolver then falls back to the rewards and default sources.
+   */
+  subscription?: {
+    /**
+     * Read the current profile's subscription benefits.
+     * Resolve `null` when there is no subscription to report (signed out, no
+     * profile). Rejections are tolerated: the resolver keeps the previous
+     * snapshot and never grants the waiver from a failed read.
+     */
+    getPerpsBenefits(): Promise<PerpsSubscriptionBenefits | null>;
   };
 };
 

@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Added
 
+- **BREAKING:** Add `ordersSideFilter`, `ordersSortField`, and `ordersSortDirection` to the flat `ProLayoutPreferences` object (defaults `'all'`, `'time'`, `'desc'`) so Pro Orders panel side-filter and sort preferences persist independently of Positions across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProOrdersSideFilter`, `ProOrdersSortField`, and `ProOrdersSortDirection` ([#9862](https://github.com/MetaMask/core/pull/9862))
+  - Consumers that construct a full `ProLayoutPreferences` object (instead of using `DEFAULT_PRO_LAYOUT_PREFERENCES`, the getter, or the patch setter) must include the new fields. Persisted state that predates them remains valid at runtime because the getter/selector merge over defaults.
+  - Orders side filter (`all` | `long` | `short`) is independent of `positionsSideFilter`. Orders sort fields are `orderValue` | `size` | `price` | `time`.
+- Add `PERPS_EVENT_PROPERTY.PERPS_MODE` (`perps_mode`) for Lite/Pro interface mode analytics (`'lite' | 'pro'`), distinct from existing `PERPS_EVENT_PROPERTY.MODE` (`mode`) which is search intent (`discovery` / `intent` / `browse`) ([#9819](https://github.com/MetaMask/core/pull/9819))
+- **BREAKING:** Add `positionsSideFilter`, `positionsSortField`, and `positionsSortDirection` to the flat `ProLayoutPreferences` object (defaults `'all'`, `'positionValue'`, `'desc'`) so Pro Positions/Orders panel sort and side-filter preferences persist across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProPositionsSideFilter`, `ProPositionsSortField`, and `ProPositionsSortDirection` ([#9838](https://github.com/MetaMask/core/pull/9838))
+  - Consumers that construct a full `ProLayoutPreferences` object (instead of using `DEFAULT_PRO_LAYOUT_PREFERENCES`, the getter, or the patch setter) must include the new fields. Persisted state that predates them remains valid at runtime because the getter/selector merge over defaults.
 - **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
   - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
   - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id. Its documentation says so; the individual exchange ids are in `childOrderIds`.
@@ -45,14 +53,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Invalid parameters are rejected with a typed `PERPS_ERROR_CODES` value, and nothing invalid is ever signed; see the new error codes entry below for the full list and for which few are decided after a read rather than before any request.
 - Add `twap`, `scale` and `chase` to `PERPS_EVENT_VALUE.ORDER_TYPE`, which dashboards key on and which `TradingService` emits verbatim ([#9832](https://github.com/MetaMask/core/pull/9832))
 - Add the `StrategyOrderType` and `OrdinaryOrderType` types, plus `STRATEGY_ORDER_TYPES`, `isStrategyOrderType`, `SCALE_ORDER_COUNT`, `computeScalePriceLadder`, `splitScaleSizes`, `computeChaseQuotePrice`, `getPriceTick`, `CHASE_ORDER_CONFIG`, and `HYPERLIQUID_TWAP_LIMITS` ([#9832](https://github.com/MetaMask/core/pull/9832))
+- Add an optional schema-v2 Terminal market snapshot path with strict identity, freshness, completeness, unit, and payload validation before falling back to HyperLiquid. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Add `PerpsController.getUserDataSnapshot()` to fetch and cache positions, open orders, and account state as one account- and DEX-scoped result. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Add a subscription fee-waiver source to the MetaMask builder fee, wired through the optional `PerpsPlatformDependencies.subscription.getPerpsBenefits()` dependency, along with the `PerpsSubscriptionBenefits`, `PerpsSubscriptionUsage`, `PerpsSubscriptionFeeWaiverStatus`, `PerpsFeeSource`, and `PerpsFeeResolution` types and the `SUBSCRIPTION_BENEFITS_CACHE` constant ([#9857](https://github.com/MetaMask/core/pull/9857))
+  - `RewardsIntegrationService.resolveFee()` returns the lowest fee across the default, rewards (VIP and season, already collapsed by `RewardsController`), and subscription sources, together with the winning source and the subscription gate outcome. The subscription source contributes `0` bips only when the eligibility gate — `status=active`, `perpsFeeWaiver` entitled, `usage=available`, not exhausted — passes on the cached benefits snapshot.
+  - `RewardsIntegrationService.resolveFee()` and `getSubscriptionFeeWaiverStatus()` are pure cache consumers and never start a subscription request on the order-signing path. `PerpsController.calculateFees()` owns preview hydration through `refreshSubscriptionBenefits()`. A snapshot older than `SUBSCRIPTION_BENEFITS_CACHE.MaxStaleMs` can no longer grant the waiver, and a failed or unreachable refresh falls back to the next-lowest source instead of erroring or over-granting.
+  - Refreshes are throttled on the last read _attempt_ rather than the last success, so a benefits outage retries at most once per `FreshMs` window instead of once per preview.
+  - `PerpsController.invalidateSubscriptionBenefits()` (also exposed as the `PerpsController:invalidateSubscriptionBenefits` messenger action) drops the cached snapshot. Call it on sign-out or a profile switch: the snapshot carries no profile identity, so without it the previous profile's benefits keep answering until the next successful refresh. A read already in flight when it is called is discarded rather than written back, so it cannot repopulate the cache for the previous identity.
+  - Clients that do not wire `subscription` are unaffected: the resolver keeps returning the rewards or default fee.
+- Add `FeeCalculationResult.subscription`, surfacing the subscription waiver's `eligible`, `reason`, and `remainingNotionalUsd` on `PerpsController.calculateFees()` from the same cached benefits snapshot ([#9857](https://github.com/MetaMask/core/pull/9857))
+  - The preview refreshes the benefits cache when needed, but does not adjust the quoted fee rates or mutate the notional cap. The field is omitted entirely when no `subscription` dependency is wired.
 
 ### Changed
 
+- `RewardsIntegrationService.calculateUserFeeDiscount()` now returns the unified resolver's winning discount instead of the rewards discount alone, while preserving `undefined` when no source has resolved. TradingService passes the full `PerpsFeeResolution` to providers, isolates it across concurrent operations, and applies it to flip orders. HyperLiquid uses the configured subscription builder only after account-scoped approval through `PerpsController.approveSubscriptionBuilderFee()`; otherwise it uses the ordinary builder at the standard fee ([#9857](https://github.com/MetaMask/core/pull/9857))
 - `getTriggerExecution` now reports `'limit'` for `scale` and `chase`, which rest limit orders on the book without carrying an `OrderParams.price`, and `'market'` for `twap`, whose suborders cross it ([#9832](https://github.com/MetaMask/core/pull/9832))
   - This is what decides the fee tier and the max order value, so a scale ladder and a chase are no longer quoted at the taker rate or held to the tighter market-order cap. `calculateFees` additionally quotes `chase` at the maker rate regardless of `isMaker`, because a post-only order can only fill as a maker.
   - `isLimitExecutionOrderType` is unchanged: it answers the narrower question of whether `OrderParams.price` carries a real limit price, which for a strategy placement it does not.
 - `TriggerOrderType` is now spelled out as `'stop_market' | 'stop_limit' | 'take_profit_market' | 'take_profit_limit'` instead of being derived as `Exclude<OrderType, 'market' | 'limit'>` ([#9832](https://github.com/MetaMask/core/pull/9832))
   - The resolved type is unchanged for existing consumers. Deriving it meant that any order type added to `OrderType` that was neither `market` nor `limit` was pulled into the trigger union automatically and started demanding a trigger price it had no concept of.
+- Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh. ([#9815](https://github.com/MetaMask/core/pull/9815))
+
+### Fixed
+
+- Prevent `CLIENT_NOT_INITIALIZED` errors during cold-start and reconnection by awaiting in-flight initialization in trading action methods (`placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `deposit`, `withdraw`, etc.) ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Fix compound error string (`CLIENT_NOT_INITIALIZED: <reason>`) breaking i18n translation lookup — now always throws the plain `CLIENT_NOT_INITIALIZED` code ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Recreate all four SDK clients (including `ExchangeClient` and HTTP `InfoClient`) during WebSocket reconnection so `isInitialized()` returns `true` after reconnect ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Bring the HyperLiquid SDK clients up before the provider's first asset-metadata read, so a trading action taken during cold start or after a disconnect waits for the clients instead of failing with `CLIENT_NOT_INITIALIZED` ([#9865](https://github.com/MetaMask/core/pull/9865))
+  - `placeOrder` resolves asset info before it ensures trading readiness, so waiting for controller initialization alone was not enough: the metadata read still hit an uninitialized `InfoClient` and the order failed. Warm reads are unaffected — the cached path returns before the client check.
+- Publish WebSocket-backed SDK clients only after reconnection succeeds, while keeping HTTP-backed metadata and trading clients available during retries ([#9868](https://github.com/MetaMask/core/pull/9868))
 
 ## [11.0.0]
 
@@ -690,7 +720,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...@metamask/perps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@10.0.0...@metamask/perps-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.3.0...@metamask/perps-controller@10.0.0
 [9.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...@metamask/perps-controller@9.3.0

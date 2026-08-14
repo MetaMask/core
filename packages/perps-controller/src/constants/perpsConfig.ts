@@ -385,9 +385,24 @@ export const DATA_LAKE_API_CONFIG = {
 } as const;
 
 /**
+ * Subscription benefits cache (stale-while-revalidate).
+ *
+ * The unified fee resolver never awaits the benefits read, so these bounds are
+ * what decide whether the cached snapshot may grant the perps fee waiver:
+ * - within `FreshMs` the snapshot is served as-is,
+ * - past `FreshMs` it is still served while a background refresh runs,
+ * - past `MaxStaleMs` it is no longer trusted to grant the waiver, and the
+ *   resolver falls back to the next-lowest fee source.
+ */
+export const SUBSCRIPTION_BENEFITS_CACHE = {
+  FreshMs: 60_000, // 1 minute – no refresh triggered
+  MaxStaleMs: 10 * 60 * 1000, // 10 minutes – ceiling for granting the waiver
+} as const;
+
+/**
  * Terminal API configuration.
  * The full endpoint URL is injected at runtime via
- * `PerpsPlatformDependencies.terminalApiUrl` from each client build
+ * `PerpsPlatformDependencies.terminalApi.marketDataUrl` from each client build
  * (dev/uat/prd); only cache settings live here.
  */
 export const TERMINAL_API_CONFIG = {
@@ -487,18 +502,64 @@ export enum PerpsMode {
 }
 
 /**
+ * Side filter for the Pro Positions list (long/short/all).
+ *
+ * Independent of `ordersSideFilter`. Shared across markets via
+ * `proLayoutPreferences.positionsSideFilter`.
+ */
+export type ProPositionsSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Positions list.
+ */
+export type ProPositionsSortField =
+  | 'positionValue'
+  | 'unrealizedPnl'
+  | 'fundingRate';
+
+/**
+ * Sort direction for the Pro Positions list.
+ */
+export type ProPositionsSortDirection = 'asc' | 'desc';
+
+/**
+ * Side filter for the Pro Orders list (long/short/all).
+ *
+ * Independent of `positionsSideFilter`. Shared across markets via
+ * `proLayoutPreferences.ordersSideFilter`.
+ */
+export type ProOrdersSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Orders list.
+ */
+export type ProOrdersSortField = 'orderValue' | 'size' | 'price' | 'time';
+
+/**
+ * Sort direction for the Pro Orders list.
+ */
+export type ProOrdersSortDirection = 'asc' | 'desc';
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
  * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
- * reserved for future container-position UI and are kept here now so no
- * state-shape migration is needed when that UI ships.
+ * reserved for future container-position UI. Positions and Orders each have
+ * their own side filter and sort so they survive market navigation and app
+ * restarts independently.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
   chartExpanded: boolean;
   orderBookPosition: 'left' | 'right';
   orderFormPosition: 'left' | 'right';
+  positionsSideFilter: ProPositionsSideFilter;
+  positionsSortField: ProPositionsSortField;
+  positionsSortDirection: ProPositionsSortDirection;
+  ordersSideFilter: ProOrdersSideFilter;
+  ordersSortField: ProOrdersSortField;
+  ordersSortDirection: ProOrdersSortDirection;
 };
 
 /**
@@ -513,6 +574,12 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   chartExpanded: false,
   orderBookPosition: 'left',
   orderFormPosition: 'right',
+  positionsSideFilter: 'all',
+  positionsSortField: 'positionValue',
+  positionsSortDirection: 'desc',
+  ordersSideFilter: 'all',
+  ordersSortField: 'time',
+  ordersSortDirection: 'desc',
 };
 
 /**

@@ -1813,12 +1813,27 @@ export class AccountTreeController extends BaseController<
   clearState(): void {
     log('Clearing state');
 
+    const previousSelectedAccountGroup = this.state.selectedAccountGroup;
+
     this.update(() => {
       return {
         ...getDefaultAccountTreeControllerState(),
       };
     });
     this.#backupAndSyncService.clearState();
+
+    // Clear in-memory reverse-lookup Maps so stale data is not accessible
+    // between this call and the next init().
+    this.#accountIdToContext.clear();
+    this.#groupIdToWalletId.clear();
+
+    // Notify subscribers that the selected group has been cleared,
+    // mirroring what #setSelectedAccountGroup does on normal transitions.
+    this.messenger.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      '',
+      previousSelectedAccountGroup,
+    );
 
     // So we know we have to call `init` again.
     this.#initialized = false;

@@ -128,6 +128,7 @@ export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.j
 export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
 
 export { sumAmounts } from './utils/number-formatters.js';
+export { assetIdsMatch } from './utils/assets.js';
 
 export {
   validateQuoteStreamComplete,
