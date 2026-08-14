@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `BlockTrackerPollingController` ([#0000](https://github.com/MetaMask/core/pull/0000)) 
+- **BREAKING:** Remove `BlockTrackerPollingController` ([#9882](https://github.com/MetaMask/core/pull/9882)) 
 
 ## [16.0.9]
 
