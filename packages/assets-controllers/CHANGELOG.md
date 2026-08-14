@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [111.1.1]
 
-### Uncategorized
-
-- docs(assets-controllers): add spot-prices example URL for dev verification ([#9878](https://github.com/MetaMask/core/pull/9878))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))

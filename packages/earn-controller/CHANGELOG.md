@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.2.5]
 
-### Uncategorized
-
-- Release/1187.0.0 ([#9823](https://github.com/MetaMask/core/pull/9823))
-- Release 1182.0.0 ([#9798](https://github.com/MetaMask/core/pull/9798))
-
 ### Fixed
 
 - Avoid duplicate `refreshEarnEligibility`/`refreshPooledStakes`/`refreshLendingPositions` calls when `AccountTreeController:selectedAccountGroupChange` fires with an address that was already just refreshed (e.g. immediately after `init()` during startup hydration) ([#9804](https://github.com/MetaMask/core/pull/9804))
