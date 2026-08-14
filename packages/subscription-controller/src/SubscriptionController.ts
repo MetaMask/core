@@ -652,7 +652,6 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param paymentMethod.type - The type of the payment method.
    * @param paymentMethod.paymentTokenAddress - The payment token address.
    * @param paymentMethod.plan - The plan of the payment method.
-   * @param paymentMethod.product - The product of the payment method.
    */
   cacheLastSelectedPaymentMethod(
     product: ProductType,

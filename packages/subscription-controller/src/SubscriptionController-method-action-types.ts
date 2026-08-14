@@ -129,7 +129,6 @@ export type SubscriptionControllerGetBillingPortalUrlAction = {
  * @param paymentMethod.type - The type of the payment method.
  * @param paymentMethod.paymentTokenAddress - The payment token address.
  * @param paymentMethod.plan - The plan of the payment method.
- * @param paymentMethod.product - The product of the payment method.
  */
 export type SubscriptionControllerCacheLastSelectedPaymentMethodAction = {
   type: `SubscriptionController:cacheLastSelectedPaymentMethod`;
