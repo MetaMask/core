@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "13.0.1",
+  "version": "13.0.2",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "Ethereum",
