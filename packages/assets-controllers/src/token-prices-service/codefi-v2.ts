@@ -243,10 +243,10 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
 export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
 
-// Source: https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
 // Price API v3/spot-prices chains only — verify support before adding:
+// Source: https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
 // https://price.api.cx.metamask.io/v2/supportedNetworks
-// https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155:5042/erc20:0x3600000000000000000000000000000000000000&vsCurrency=usd&includeMarketData=true&cacheOnly=false
+// https://price.api.cx.metamask.io/v3/spot-prices?assetIds=<CAIP-ASSET-ID>&vsCurrency=usd
 // Include chain name + native symbol. Keep sorted by chain ID.
 export const SPOT_PRICES_SUPPORT_INFO = {
   '0x1': 'eip155:1/slip44:60', // Ethereum Mainnet - Native symbol: ETH
