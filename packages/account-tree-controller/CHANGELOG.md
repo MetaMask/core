@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `:{import,export}State` ([#9663](https://github.com/MetaMask/core/pull/9663)), ([#9826](https://github.com/MetaMask/core/pull/9826)), ([#9863](https://github.com/MetaMask/core/pull/9863)), ([#9864](https://github.com/MetaMask/core/pull/9864))
+  - This can be used to serialize/deserialize the entire account-tree state (metadata + secrets if needed).
+  - The payload is versionned and hard-coded to version 1 for now.
 - Add `AccountTreeController:initialized` event, emitted at the end of `init()` when the account tree is fully built and ready to consume ([#9880](https://github.com/MetaMask/core/pull/9880))
 - Add `AccountTreeController:uninitialized` event, emitted at the end of `clearState()` when the account tree has been torn down ([#9880](https://github.com/MetaMask/core/pull/9880))
 
