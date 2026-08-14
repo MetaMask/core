@@ -30,6 +30,7 @@ import type {
   UpdatePositionTPSLParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
+  PerpsFeeResolution,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { isLimitExecutionOrderType } from '../utils/orderTypes.js';
@@ -75,6 +76,9 @@ export class TradingService {
    * Set via setControllerDependencies() after construction.
    */
   #controllerDeps: TradingServiceControllerDeps | null = null;
+
+  /** Serializes provider fee context so concurrent orders cannot share it. */
+  #feeContextTail: Promise<void> = Promise.resolve();
 
   /**
    * Create a new TradingService instance
@@ -429,25 +433,35 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
-   * @param options.feeDiscountBips - The fee discount bips value.
+   * @param options.feeResolution - The resolved fee and attribution source.
    * @param options.operation - The operation value.
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
     provider: PerpsProvider;
-    feeDiscountBips?: number;
+    feeResolution?: PerpsFeeResolution;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
-    const { provider, feeDiscountBips, operation } = options;
+    const { provider, feeResolution, operation } = options;
+    const previous = this.#feeContextTail;
+    let release: () => void = () => undefined;
+    this.#feeContextTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
 
     try {
-      // Set discount context in provider for this operation
-      if (feeDiscountBips !== undefined && provider.setUserFeeDiscount) {
-        provider.setUserFeeDiscount(feeDiscountBips);
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(feeResolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(feeResolution?.discountBips);
+      }
+      if (feeResolution) {
         this.#deps.debugLogger.log(
-          'TradingService: Fee discount set in provider',
+          'TradingService: Fee resolution set in provider',
           {
-            feeDiscountBips,
+            feeDiscountBips: feeResolution.discountBips,
+            feeSource: feeResolution.source,
           },
         );
       }
@@ -456,12 +470,15 @@ export class TradingService {
       return await operation();
     } finally {
       // Always clear discount context, even on exception
-      if (provider.setUserFeeDiscount) {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(undefined);
+      } else if (provider.setUserFeeDiscount) {
         provider.setUserFeeDiscount(undefined);
-        this.#deps.debugLogger.log(
-          'TradingService: Fee discount cleared from provider',
-        );
       }
+      this.#deps.debugLogger.log(
+        'TradingService: Fee resolution cleared from provider',
+      );
+      release();
     }
   }
 
@@ -541,11 +558,12 @@ export class TradingService {
       });
 
       // Calculate fee discount at execution time (fresh, secure)
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
-      this.#deps.debugLogger.log('TradingService: Fee discount calculated', {
-        feeDiscountBips,
-        hasDiscount: feeDiscountBips !== undefined,
+      this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
+        feeDiscountBips: feeResolution?.discountBips,
+        feeSource: feeResolution?.source,
+        hasDiscount: feeResolution?.discountBips !== undefined,
       });
 
       this.#deps.debugLogger.log(
@@ -606,7 +624,7 @@ export class TradingService {
       }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.placeOrder(params),
       });
       if (orderSubmissionThresholdTimeoutId !== undefined) {
@@ -1110,7 +1128,9 @@ export class TradingService {
    *
    * @returns The result of the operation.
    */
-  async #calculateFeeDiscountWithMeasurement(): Promise<number | undefined> {
+  async #calculateFeeDiscountWithMeasurement(): Promise<
+    PerpsFeeResolution | undefined
+  > {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
       this.#deps.debugLogger.log(
@@ -1124,8 +1144,7 @@ export class TradingService {
     const orderExecutionFeeDiscountStartTime = this.#deps.performance.now();
 
     // Calculate fee discount using messenger pattern (service handles controller access internally)
-    const discountBips =
-      await rewardsIntegrationService.calculateUserFeeDiscount();
+    const resolution = await rewardsIntegrationService.resolveFee();
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -1140,12 +1159,13 @@ export class TradingService {
     this.#deps.debugLogger.log(
       'TradingService: Fee discount API call completed',
       {
-        discountBips,
+        discountBips: resolution.discountBips,
+        source: resolution.source,
         duration: `${orderExecutionFeeDiscountDuration.toFixed(0)}ms`,
       },
     );
 
-    return discountBips;
+    return resolution;
   }
 
   /**
@@ -1189,12 +1209,12 @@ export class TradingService {
       });
 
       // Calculate fee discount only if required dependencies are available
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.editOrder(params),
       });
 
@@ -1706,12 +1726,12 @@ export class TradingService {
       });
 
       // Calculate fee discount with measurement
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.closePosition(params),
       });
 
@@ -1857,12 +1877,11 @@ export class TradingService {
 
       // Use batch close if provider supports it (provider handles filtering)
       if (provider.closePositions) {
-        const feeDiscountBips =
-          await this.#calculateFeeDiscountWithMeasurement();
+        const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
         operationResult = await this.#withFeeDiscount({
           provider,
-          feeDiscountBips,
+          feeResolution,
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');
@@ -2067,12 +2086,12 @@ export class TradingService {
       });
 
       // Get fee discount from rewards
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.updatePositionTPSL(params),
       });
 
@@ -2372,8 +2391,13 @@ export class TradingService {
         ...this.#buildAttributionProperties(trackingData),
       });
 
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
       // Place flip order (HyperLiquid handles margin transfer automatically)
-      const result = await provider.placeOrder(orderParams);
+      const result = await this.#withFeeDiscount({
+        provider,
+        feeResolution,
+        operation: () => provider.placeOrder(orderParams),
+      });
 
       const completionDuration = this.#deps.performance.now() - startTime;
 

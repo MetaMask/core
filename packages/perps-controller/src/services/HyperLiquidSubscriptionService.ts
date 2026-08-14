@@ -26,7 +26,6 @@ import {
 import type {
   SpotClearinghouseStateResponse,
   HyperLiquidAbstractionMode,
-  UserAbstractionResponse,
 } from '../types/hyperliquid-types.js';
 import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
@@ -105,6 +104,8 @@ export class HyperLiquidSubscriptionService {
 
   // Max market-vs-oracle price deviation before a market is reported untradable
   readonly #priceDeviationLimit: number;
+
+  readonly #discoverEnabledDexs?: () => Promise<string[]>;
 
   #discoveredDexNames: string[] = []; // DEX order for mapping webData3 perpDexStates indices
 
@@ -385,6 +386,7 @@ export class HyperLiquidSubscriptionService {
     allowlistMarkets?: string[],
     blocklistMarkets?: string[],
     priceDeviationLimit?: number,
+    discoverEnabledDexs?: () => Promise<string[]>,
   ) {
     this.#clientService = clientService;
     this.#walletService = walletService;
@@ -396,6 +398,7 @@ export class HyperLiquidSubscriptionService {
     this.#blocklistMarkets = blocklistMarkets ?? [];
     this.#priceDeviationLimit =
       priceDeviationLimit ?? HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
+    this.#discoverEnabledDexs = discoverEnabledDexs;
   }
 
   /**
@@ -642,6 +645,16 @@ export class HyperLiquidSubscriptionService {
       });
     }
 
+    const discovery = this.#discoverEnabledDexs
+      ? this.#discoverEnabledDexs()
+          .then((enabledDexs) => {
+            this.#enabledDexs = enabledDexs;
+            this.#discoveredDexNames = enabledDexs;
+            return undefined;
+          })
+          .catch(() => this.#dexDiscoveryPromise ?? Promise.resolve())
+      : this.#dexDiscoveryPromise;
+
     // Wait with timeout
     let timeoutId: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<void>((_resolve, reject) => {
@@ -652,7 +665,7 @@ export class HyperLiquidSubscriptionService {
     });
 
     try {
-      await Promise.race([this.#dexDiscoveryPromise, timeoutPromise]);
+      await Promise.race([discovery, timeoutPromise]);
     } catch {
       this.#deps.debugLogger.log(
         'DEX discovery wait timed out, proceeding with main DEX only',
@@ -1472,7 +1485,7 @@ export class HyperLiquidSubscriptionService {
       // independent of the spot generation, and the post-fetch path below
       // correctly handles the generation-changed case (seal + re-aggregate
       // instead of overwriting WS spot).
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const lowerUserAddress = userAddress.toLowerCase();
       // Fetch spot state + abstraction mode in parallel — mode decides
       // whether the spot fold applies in addSpotBalanceToAccountState.

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+## [2.0.2]
+
+### Changed
+
 - Fall back to a zero-address ERC-20 CAIP-19 asset id (`eip155:<chainId>/erc20:0x000…000`) in `resolveNativeAssetId` and `getNativeAsset` when an EVM native has no SLIP-44 coin type (previously `undefined`) ([#9833](https://github.com/MetaMask/core/pull/9833))
   - `resolveNativeAssetId` consults chainlist via `getNativeAsset` before that fallback so symbol-less calls stay aligned with `getNativeAsset`
   - Non-EVM chains still return `undefined` when no slip44 entry is found
@@ -126,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.2...HEAD
+[2.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.1...@metamask/client-utils@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.0...@metamask/client-utils@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.6.0...@metamask/client-utils@2.0.0
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@1.5.0...@metamask/client-utils@1.6.0
