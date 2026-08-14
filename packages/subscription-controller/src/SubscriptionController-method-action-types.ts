@@ -93,12 +93,15 @@ export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
  * Delegation-based products (e.g. Money Account) must call
  * `startSubscriptionWithCrypto` instead.
  *
- * @param productType - The subscription product. Typed as
- * `typeof PRODUCT_TYPES.SHIELD`; other products are a type error.
- * @param txMeta - The transaction metadata. Must have type
+ * @param request - The crypto approval request.
+ * @param request.productType - The subscription product. Typed as
+ * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more
+ * product).
+ * @param request.txMeta - The transaction metadata. Must have type
  * `TransactionType.shieldSubscriptionApprove`.
- * @param isSponsored - Whether the transaction is sponsored.
- * @param rewardAccountId - The account ID of the reward subscription to link.
+ * @param request.isSponsored - Whether the transaction is sponsored.
+ * @param request.rewardAccountId - The account ID of the reward subscription
+ * to link.
  * @throws If `productType` is not Shield or `txMeta.type` is not
  * `shieldSubscriptionApprove`.
  * @returns void
@@ -141,11 +144,12 @@ export type SubscriptionControllerGetBillingPortalUrlAction = {
 /**
  * Cache the last selected payment method for a specific product.
  *
- * @param product - The product to cache the payment method for.
- * @param paymentMethod - The payment method to cache.
- * @param paymentMethod.type - The type of the payment method.
- * @param paymentMethod.paymentTokenAddress - The payment token address.
- * @param paymentMethod.plan - The plan of the payment method.
+ * @param request - The request object.
+ * @param request.product - The product to cache the payment method for.
+ * @param request.paymentMethod - The payment method to cache.
+ * @param request.paymentMethod.type - The type of the payment method.
+ * @param request.paymentMethod.paymentTokenAddress - The payment token address.
+ * @param request.paymentMethod.plan - The plan of the payment method.
  */
 export type SubscriptionControllerCacheLastSelectedPaymentMethodAction = {
   type: `SubscriptionController:cacheLastSelectedPaymentMethod`;

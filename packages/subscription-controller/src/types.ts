@@ -1,3 +1,4 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
 /**
@@ -438,6 +439,30 @@ export type GetCryptoApproveTransactionResponse = {
   chainId: Hex;
 };
 
+/**
+ * Request to submit a Shield ERC-20 crypto approval transaction.
+ */
+export type SubmitSubscriptionCryptoApprovalRequest = {
+  /**
+   * The subscription product. Typed as `typeof PRODUCT_TYPES.SHIELD` only at
+   * the moment (future might support more product).
+   */
+  productType: typeof PRODUCT_TYPES.SHIELD;
+  /**
+   * The transaction metadata. Must have type
+   * `TransactionType.shieldSubscriptionApprove`.
+   */
+  txMeta: TransactionMeta;
+  /**
+   * Whether the transaction is sponsored.
+   */
+  isSponsored?: boolean;
+  /**
+   * The account ID of the reward subscription to link.
+   */
+  rewardAccountId?: CaipAccountId;
+};
+
 export const COHORT_NAMES = {
   POST_TX: 'post_tx',
   WALLET_HOME: 'wallet_home',
@@ -630,6 +655,20 @@ export type CachedLastSelectedPaymentMethod = {
    * before this field existed; treat as `erc20_approval` when missing.
    */
   cryptoAuthMethod?: CryptoAuthMethod;
+};
+
+/**
+ * Request to cache the last selected payment method for a product.
+ */
+export type CacheLastSelectedPaymentMethodRequest = {
+  /**
+   * The product to cache the payment method for.
+   */
+  product: ProductType;
+  /**
+   * The payment method to cache.
+   */
+  paymentMethod: CachedLastSelectedPaymentMethod;
 };
 
 /**

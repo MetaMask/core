@@ -6,7 +6,6 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -50,11 +49,13 @@ import type {
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
+  SubmitSubscriptionCryptoApprovalRequest,
   SubmitUserEventRequest,
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
   CachedLastSelectedPaymentMethod,
+  CacheLastSelectedPaymentMethodRequest,
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
   SubscriptionStatus,
@@ -495,22 +496,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Delegation-based products (e.g. Money Account) must call
    * `startSubscriptionWithCrypto` instead.
    *
-   * @param productType - The subscription product. Typed as
-   * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more product).
-   * @param txMeta - The transaction metadata. Must have type
+   * @param request - The crypto approval request.
+   * @param request.productType - The subscription product. Typed as
+   * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more
+   * product).
+   * @param request.txMeta - The transaction metadata. Must have type
    * `TransactionType.shieldSubscriptionApprove`.
-   * @param isSponsored - Whether the transaction is sponsored.
-   * @param rewardAccountId - The account ID of the reward subscription to link.
+   * @param request.isSponsored - Whether the transaction is sponsored.
+   * @param request.rewardAccountId - The account ID of the reward subscription
+   * to link.
    * @throws If `productType` is not Shield or `txMeta.type` is not
    * `shieldSubscriptionApprove`.
    * @returns void
    */
   async submitSubscriptionCryptoApproval(
-    productType: typeof PRODUCT_TYPES.SHIELD,
-    txMeta: TransactionMeta,
-    isSponsored?: boolean,
-    rewardAccountId?: CaipAccountId,
+    request: SubmitSubscriptionCryptoApprovalRequest,
   ): Promise<void> {
+    const { productType, txMeta, isSponsored, rewardAccountId } = request;
     if (
       // Widen for the runtime guard: JS / unsound callers may still pass a
       // non-Shield product.
@@ -687,16 +689,17 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Cache the last selected payment method for a specific product.
    *
-   * @param product - The product to cache the payment method for.
-   * @param paymentMethod - The payment method to cache.
-   * @param paymentMethod.type - The type of the payment method.
-   * @param paymentMethod.paymentTokenAddress - The payment token address.
-   * @param paymentMethod.plan - The plan of the payment method.
+   * @param request - The request object.
+   * @param request.product - The product to cache the payment method for.
+   * @param request.paymentMethod - The payment method to cache.
+   * @param request.paymentMethod.type - The type of the payment method.
+   * @param request.paymentMethod.paymentTokenAddress - The payment token address.
+   * @param request.paymentMethod.plan - The plan of the payment method.
    */
   cacheLastSelectedPaymentMethod(
-    product: ProductType,
-    paymentMethod: CachedLastSelectedPaymentMethod,
+    request: CacheLastSelectedPaymentMethodRequest,
   ): void {
+    const { product, paymentMethod } = request;
     if (
       paymentMethod.type === PAYMENT_TYPES.byCrypto &&
       (!paymentMethod.paymentTokenAddress || !paymentMethod.paymentTokenSymbol)

@@ -25,14 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rename `SubscriptionController.startShieldSubscriptionWithCard` to `startSubscriptionWithCard`.
   - Rename the messenger action `SubscriptionController:startShieldSubscriptionWithCard` to `SubscriptionController:startSubscriptionWithCard`.
   - Rename the exported action type `SubscriptionControllerStartShieldSubscriptionWithCardAction` to `SubscriptionControllerStartSubscriptionWithCardAction`.
-- **BREAKING:** Rename `submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval` and add a required `productType` parameter as the first argument. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Rename `submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval` and take a request object instead of positional arguments. ([#9866](https://github.com/MetaMask/core/pull/9866))
   - Rename `SubscriptionController.submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval`.
   - Rename the messenger action `SubscriptionController:submitShieldSubscriptionCryptoApproval` to `SubscriptionController:submitSubscriptionCryptoApproval`.
   - Rename the exported action type `SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction` to `SubscriptionControllerSubmitSubscriptionCryptoApprovalAction`.
+  - Callers pass `{ productType, txMeta, isSponsored?, rewardAccountId? }` (`SubmitSubscriptionCryptoApprovalRequest`).
   - This handler is Shield ERC-20 approve only. `productType` is typed as `typeof PRODUCT_TYPES.SHIELD` (not `ProductType`); `txMeta.type` must be `TransactionType.shieldSubscriptionApprove`. Other products should use `startSubscriptionWithCrypto`.
 - **BREAKING:** Make `TokenPaymentInfo.conversionRate` optional. Consumers that access `.conversionRate.usd` without optional chaining will fail typecheck. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - **BREAKING:** Change `SubscriptionControllerState.lastSelectedPaymentMethod` from `Record<ProductType, CachedLastSelectedPaymentMethod>` to `Partial<Record<ProductType, CachedLastSelectedPaymentMethod>>`. Product keys may be absent; consumers must handle missing entries. ([#9866](https://github.com/MetaMask/core/pull/9866))
-- **BREAKING:** `SubscriptionController.submitSponsorshipIntents` now throws when the crypto payment method or chain is missing from pricing, instead of returning `false`. Callers that treated missing pricing/chain as "not sponsored" must handle these errors. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** `SubscriptionController.cacheLastSelectedPaymentMethod` now takes a request object instead of positional arguments. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - Callers pass `{ product, paymentMethod }` (`CacheLastSelectedPaymentMethodRequest`).
 - **BREAKING:** Model `StartCryptoSubscriptionRequest` as a discriminated union of ERC-20 approval vs delegation. ([#9866](https://github.com/MetaMask/core/pull/9866))
   - ERC-20: required `rawTransaction`; optional `cryptoAuthMethod: 'erc20_approval'` (the default when omitted).
   - Delegation: required `cryptoAuthMethod: 'delegation'` and `delegationHash`.

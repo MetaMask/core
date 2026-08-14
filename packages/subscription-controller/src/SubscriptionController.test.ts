@@ -3049,10 +3049,12 @@ describe('SubscriptionController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.call(
           'SubscriptionController:cacheLastSelectedPaymentMethod',
-          PRODUCT_TYPES.SHIELD,
           {
-            type: PAYMENT_TYPES.byCard,
-            plan: RECURRING_INTERVALS.month,
+            product: PRODUCT_TYPES.SHIELD,
+            paymentMethod: {
+              type: PAYMENT_TYPES.byCard,
+              plan: RECURRING_INTERVALS.month,
+            },
           },
         );
 
@@ -3082,13 +3084,15 @@ describe('SubscriptionController', () => {
         async ({ controller, rootMessenger }) => {
           rootMessenger.call(
             'SubscriptionController:cacheLastSelectedPaymentMethod',
-            PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
             {
-              type: PAYMENT_TYPES.byCrypto,
-              paymentTokenAddress: '0xmoneytoken',
-              paymentTokenSymbol: 'pvmUSD',
-              plan: RECURRING_INTERVALS.month,
-              cryptoAuthMethod: 'delegation',
+              product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+              paymentMethod: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xmoneytoken',
+                paymentTokenSymbol: 'pvmUSD',
+                plan: RECURRING_INTERVALS.month,
+                cryptoAuthMethod: 'delegation',
+              },
             },
           );
 
@@ -3133,8 +3137,10 @@ describe('SubscriptionController', () => {
 
           rootMessenger.call(
             'SubscriptionController:cacheLastSelectedPaymentMethod',
-            PRODUCT_TYPES.SHIELD,
-            MOCK_CACHED_PAYMENT_METHOD,
+            {
+              product: PRODUCT_TYPES.SHIELD,
+              paymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            },
           );
 
           expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
@@ -3149,11 +3155,13 @@ describe('SubscriptionController', () => {
         expect(() =>
           rootMessenger.call(
             'SubscriptionController:cacheLastSelectedPaymentMethod',
-            PRODUCT_TYPES.SHIELD,
             {
-              type: PAYMENT_TYPES.byCrypto,
-              plan: RECURRING_INTERVALS.month,
-            } as CachedLastSelectedPaymentMethod,
+              product: PRODUCT_TYPES.SHIELD,
+              paymentMethod: {
+                type: PAYMENT_TYPES.byCrypto,
+                plan: RECURRING_INTERVALS.month,
+              } as CachedLastSelectedPaymentMethod,
+            },
           ),
         ).toThrow(
           SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
@@ -3681,7 +3689,7 @@ describe('SubscriptionController', () => {
     it('accepts only Shield as productType at compile time', () => {
       type ProductArg = Parameters<
         SubscriptionController['submitSubscriptionCryptoApproval']
-      >[0];
+      >[0]['productType'];
 
       const shield: ProductArg = PRODUCT_TYPES.SHIELD;
       expect(shield).toBe(PRODUCT_TYPES.SHIELD);
@@ -3737,8 +3745,10 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call(
             'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
+            {
+              productType: PRODUCT_TYPES.SHIELD,
+              txMeta,
+            },
           );
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledTimes(
@@ -3810,8 +3820,10 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call(
             'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
+            {
+              productType: PRODUCT_TYPES.SHIELD,
+              txMeta,
+            },
           );
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
@@ -3860,8 +3872,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
@@ -3919,8 +3933,10 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call(
             'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
+            {
+              productType: PRODUCT_TYPES.SHIELD,
+              txMeta,
+            },
           );
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
@@ -3977,8 +3993,10 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call(
             'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
+            {
+              productType: PRODUCT_TYPES.SHIELD,
+              txMeta,
+            },
           );
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
@@ -4036,10 +4054,13 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call(
             'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
-            false, // isSponsored
-            'eip155:1:0x1234567890123456789012345678901234567890',
+            {
+              productType: PRODUCT_TYPES.SHIELD,
+              txMeta,
+              isSponsored: false,
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
+            },
           );
 
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith({
@@ -4083,8 +4104,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow('Subscription pricing not found');
 
@@ -4116,8 +4139,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.CryptoApprovalRequiresShieldApprove,
@@ -4164,9 +4189,11 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              // @ts-expect-error only Shield is a valid productType
-              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
-              txMeta,
+              {
+                // @ts-expect-error only Shield is a valid productType
+                productType: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                txMeta,
+              },
             ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.CryptoApprovalRequiresShieldApprove,
@@ -4207,8 +4234,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow('Chain ID or raw transaction not found');
 
@@ -4248,8 +4277,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow('Last selected payment method not found');
 
@@ -4296,8 +4327,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.ProductPriceNotFound,
@@ -4348,8 +4381,10 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call(
             'SubscriptionController:submitSubscriptionCryptoApproval',
-            PRODUCT_TYPES.SHIELD,
-            txMeta,
+            {
+              productType: PRODUCT_TYPES.SHIELD,
+              txMeta,
+            },
           );
 
           expect(mockService.updatePaymentMethodCrypto).toHaveBeenCalledTimes(
@@ -4406,8 +4441,10 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
-              PRODUCT_TYPES.SHIELD,
-              txMeta,
+              {
+                productType: PRODUCT_TYPES.SHIELD,
+                txMeta,
+              },
             ),
           ).rejects.toThrow(
             SubscriptionControllerErrorMessage.SubscriptionNotValidForCryptoApproval,
