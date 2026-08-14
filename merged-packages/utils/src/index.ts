@@ -30,6 +30,7 @@ export * from './json';
 export * from './keyring';
 export * from './logging';
 export * from './misc';
+export * from './mnemonic';
 export * from './number';
 export * from './opaque';
 export * from './promise';
