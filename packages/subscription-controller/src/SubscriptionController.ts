@@ -421,6 +421,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Starts a card-paid subscription checkout session for the requested products
    * (e.g. Shield or Money Account Plus).
    *
+   * `isTrialRequested` on the request is ignored and overwritten from pricing
+   * (`trialPeriodDays > 0`) and `trialedProducts`.
+   *
    * @param request - The start subscription request.
    * @returns The checkout session response.
    */
@@ -431,7 +434,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCard',
-      request,
+      {
+        ...request,
+        isTrialRequested: this.#getIsTrialRequested(
+          request.products,
+          request.recurringInterval,
+        ),
+      },
     );
     // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
@@ -444,6 +453,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * creates the subscription immediately, so local state is refreshed
    * afterwards.
    *
+   * `isTrialRequested` on the request is ignored and overwritten from pricing
+   * (`trialPeriodDays > 0`) and `trialedProducts`.
+   *
    * @param request - The start crypto subscription request.
    * @returns The start crypto subscription response.
    */
@@ -453,7 +465,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCrypto',
-      request,
+      {
+        ...request,
+        isTrialRequested: this.#getIsTrialRequested(
+          request.products,
+          request.recurringInterval,
+        ),
+      },
     );
 
     // Crypto start creates the subscription immediately (unlike card checkout).
@@ -517,7 +535,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // get the latest subscriptions state before computing trial eligibility
     await this.getSubscriptions();
     const isTrialRequested = this.#getIsTrialRequested(
-      productType,
+      [productType],
       lastSelectedPaymentMethodForProduct.plan,
     );
     const currentSubscription = this.getSubscriptionByProduct(productType);
@@ -1047,18 +1065,29 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return isSponsorshipSupported && !hasTrialedBefore;
   }
 
+  /**
+   * Whether a trial should be requested for the given products and plan.
+   * True only when every product has `trialPeriodDays > 0` and has not
+   * already been trialed.
+   *
+   * @param products - The products to check.
+   * @param plan - The recurring interval to look up pricing for.
+   * @returns Whether a trial should be requested.
+   */
   #getIsTrialRequested(
-    productType: ProductType,
+    products: ProductType[],
     plan: RecurringInterval,
   ): boolean {
-    if (this.state.trialedProducts.includes(productType)) {
-      return false;
-    }
-    const productPrice = this.#getProductPriceByProductAndPlan(
-      productType,
-      plan,
-    );
-    return productPrice.trialPeriodDays > 0;
+    return products.every((productType) => {
+      if (this.state.trialedProducts.includes(productType)) {
+        return false;
+      }
+      const productPrice = this.#getProductPriceByProductAndPlan(
+        productType,
+        plan,
+      );
+      return productPrice.trialPeriodDays > 0;
+    });
   }
 
   #findCryptoPaymentMethod(
