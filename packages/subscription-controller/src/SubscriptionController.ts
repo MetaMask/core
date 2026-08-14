@@ -1094,26 +1094,85 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     productType: ProductType,
     cryptoAuthMethod: CryptoAuthMethod,
   ): PricingCryptoPaymentMethod | undefined {
-    return this.state.pricing?.paymentMethods.find(
-      (paymentMethod): paymentMethod is PricingCryptoPaymentMethod => {
-        if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
-          return false;
-        }
-        // Persisted pre-PR pricing is typically `{ type: 'crypto', chains }` with
-        // neither field. Treat omitted values as the legacy meaning (Shield +
-        // erc20_approval), not as wildcards, so Money Account lookups cannot
-        // match Shield's spender/chains.
-        const authMatches =
-          (paymentMethod.cryptoAuthMethod ??
-            CRYPTO_AUTH_METHODS.ERC20_APPROVAL) === cryptoAuthMethod;
-        const productMatches = (
-          paymentMethod.products?.length
-            ? paymentMethod.products
-            : [PRODUCT_TYPES.SHIELD]
-        ).includes(productType);
-        return authMatches && productMatches;
-      },
-    );
+    const matches: {
+      method: PricingCryptoPaymentMethod;
+      explicit: boolean;
+    }[] = [];
+
+    for (const paymentMethod of this.state.pricing?.paymentMethods ?? []) {
+      if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
+        continue;
+      }
+
+      const resolved = this.#resolveCryptoPaymentMethodDefaults(paymentMethod);
+      if (!resolved) {
+        continue;
+      }
+
+      if (
+        resolved.cryptoAuthMethod === cryptoAuthMethod &&
+        resolved.products.includes(productType)
+      ) {
+        matches.push({
+          method: paymentMethod,
+          explicit: resolved.explicit,
+        });
+      }
+    }
+
+    if (matches.length === 0) {
+      return undefined;
+    }
+
+    const explicitMatches = matches.filter((match) => match.explicit);
+    const candidates = explicitMatches.length > 0 ? explicitMatches : matches;
+
+    if (candidates.length > 1) {
+      throw new Error('Multiple matching crypto payment methods found');
+    }
+
+    return candidates[0].method;
+  }
+
+  /**
+   * Resolves omitted `products` / `cryptoAuthMethod` on a crypto pricing row.
+   * Legacy Shield + `erc20_approval` defaults apply only when both fields are
+   * absent. If `products` is present, the list must be non-empty and
+   * `cryptoAuthMethod` must be explicit; otherwise the row is ignored.
+   *
+   * @param paymentMethod - The crypto pricing row.
+   * @returns Resolved products and auth method, or `undefined` if the row is
+   * incomplete.
+   */
+  #resolveCryptoPaymentMethodDefaults(
+    paymentMethod: PricingCryptoPaymentMethod,
+  ):
+    | {
+        products: ProductType[];
+        cryptoAuthMethod: CryptoAuthMethod;
+        explicit: boolean;
+      }
+    | undefined {
+    const productsPresent = paymentMethod.products !== undefined;
+    const authPresent = paymentMethod.cryptoAuthMethod !== undefined;
+
+    if (!productsPresent && !authPresent) {
+      return {
+        products: [PRODUCT_TYPES.SHIELD],
+        cryptoAuthMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
+        explicit: false,
+      };
+    }
+
+    if (!paymentMethod.products?.length || !paymentMethod.cryptoAuthMethod) {
+      return undefined;
+    }
+
+    return {
+      products: paymentMethod.products,
+      cryptoAuthMethod: paymentMethod.cryptoAuthMethod,
+      explicit: true,
+    };
   }
 
   /**

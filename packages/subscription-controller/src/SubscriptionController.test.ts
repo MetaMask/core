@@ -1708,7 +1708,9 @@ describe('SubscriptionController', () => {
             SubscriptionControllerErrorMessage.ProductPriceNotFound,
           );
 
-          expect(mockService.startSubscriptionWithCrypto).not.toHaveBeenCalled();
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
         },
       );
     });
@@ -1953,6 +1955,179 @@ describe('SubscriptionController', () => {
               },
             ),
           ).toThrow('Chains payment info not found');
+        },
+      );
+    });
+
+    it('does not default omitted cryptoAuthMethod to erc20_approval when products is set', async () => {
+      const mapProductPrice: ProductPricing = {
+        ...MOCK_PRODUCT_PRICE,
+        name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      };
+      const [legacyShieldChain] = MOCK_PRICING_PAYMENT_METHOD.chains ?? [];
+
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE, mapProductPrice],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+                  chains: [
+                    {
+                      chainId: '0x1',
+                      paymentAddress:
+                        '0x00000000000000000000000000000000000000c0',
+                      tokens: legacyShieldChain.tokens,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'SubscriptionController:getCryptoApproveTransactionParams',
+              {
+                chainId: '0x1',
+                paymentTokenAddress: '0xtoken',
+                productType: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                interval: RECURRING_INTERVALS.month,
+              },
+            ),
+          ).toThrow('Chains payment info not found');
+        },
+      );
+    });
+
+    it('does not treat empty products as Shield', async () => {
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  products: [],
+                  chains: MOCK_PRICING_PAYMENT_METHOD.chains,
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'SubscriptionController:getCryptoApproveTransactionParams',
+              {
+                chainId: '0x1',
+                paymentTokenAddress: '0xtoken',
+                productType: PRODUCT_TYPES.SHIELD,
+                interval: RECURRING_INTERVALS.month,
+              },
+            ),
+          ).toThrow('Chains payment info not found');
+        },
+      );
+    });
+
+    it('prefers an explicit Shield row over a leftover unscoped crypto row', async () => {
+      const leftoverPaymentAddress =
+        '0x00000000000000000000000000000000000000aa';
+      const shieldPaymentAddress = '0x00000000000000000000000000000000000000a2';
+      const [legacyShieldChain] = MOCK_PRICING_PAYMENT_METHOD.chains ?? [];
+
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  chains: [
+                    {
+                      ...legacyShieldChain,
+                      paymentAddress: leftoverPaymentAddress,
+                    },
+                  ],
+                },
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  cryptoAuthMethod: 'erc20_approval',
+                  products: [PRODUCT_TYPES.SHIELD],
+                  chains: MOCK_PRICING_PAYMENT_METHOD.chains,
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          const result = rootMessenger.call(
+            'SubscriptionController:getCryptoApproveTransactionParams',
+            {
+              chainId: '0x1',
+              paymentTokenAddress: '0xtoken',
+              productType: PRODUCT_TYPES.SHIELD,
+              interval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(result.paymentAddress).toBe(shieldPaymentAddress);
+          expect(result.paymentAddress).not.toBe(leftoverPaymentAddress);
+        },
+      );
+    });
+
+    it('throws when multiple equally specific crypto payment methods match', async () => {
+      const [legacyShieldChain] = MOCK_PRICING_PAYMENT_METHOD.chains ?? [];
+
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  cryptoAuthMethod: 'erc20_approval',
+                  products: [PRODUCT_TYPES.SHIELD],
+                  chains: MOCK_PRICING_PAYMENT_METHOD.chains,
+                },
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  cryptoAuthMethod: 'erc20_approval',
+                  products: [PRODUCT_TYPES.SHIELD],
+                  chains: [
+                    {
+                      chainId: '0x1',
+                      paymentAddress:
+                        '0x00000000000000000000000000000000000000bb',
+                      tokens: legacyShieldChain.tokens,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'SubscriptionController:getCryptoApproveTransactionParams',
+              {
+                chainId: '0x1',
+                paymentTokenAddress: '0xtoken',
+                productType: PRODUCT_TYPES.SHIELD,
+                interval: RECURRING_INTERVALS.month,
+              },
+            ),
+          ).toThrow('Multiple matching crypto payment methods found');
         },
       );
     });
@@ -3054,6 +3229,25 @@ describe('SubscriptionController', () => {
               },
             ),
           ).rejects.toThrow('Invalid chain id');
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('throws when pricing is missing instead of treating it as not sponsored', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:submitSponsorshipIntents',
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow('Chains payment info not found');
           expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
         },
       );

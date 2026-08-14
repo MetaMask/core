@@ -368,12 +368,15 @@ export type PricingCardPaymentMethod = {
 export type PricingCryptoPaymentMethod = {
   type: Extract<PaymentType, 'crypto'>;
   /**
-   * Crypto authorization method. Omitted on persisted pre-PR pricing rows;
-   * treat as `erc20_approval` when missing.
+   * Crypto authorization method. Omitted together with `products` on persisted
+   * pre-multi-product pricing rows; those rows are treated as Shield + `erc20_approval`.
+   * If `products` is set, this field must be explicit.
    */
   cryptoAuthMethod?: CryptoAuthMethod;
   /**
-   * Products that support this payment method.
+   * Products that support this payment method. Omitted together with
+   * `cryptoAuthMethod` on persisted pre-multi-product pricing rows (treated as Shield).
+   * If present, must be non-empty and paired with an explicit `cryptoAuthMethod`.
    */
   products?: ProductType[];
   chains?: ChainPaymentInfo[];
