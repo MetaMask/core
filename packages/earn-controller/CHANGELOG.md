@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.5]
+
 ### Uncategorized
 
 - Release/1187.0.0 ([#9823](https://github.com/MetaMask/core/pull/9823))
@@ -502,7 +504,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.5...HEAD
+[12.2.5]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...@metamask/earn-controller@12.2.5
 [12.2.4]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.3...@metamask/earn-controller@12.2.4
 [12.2.3]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.2...@metamask/earn-controller@12.2.3
 [12.2.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.1...@metamask/earn-controller@12.2.2
