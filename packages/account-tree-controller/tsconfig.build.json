@@ -14,5 +14,5 @@
     { "path": "../profile-sync-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"],
-  "exclude": ["./src/state/tests"]
+  "exclude": ["**/*.test.ts", "**/jest.config.ts", "./src/state/tests"]
 }
