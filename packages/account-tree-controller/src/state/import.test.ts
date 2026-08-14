@@ -52,14 +52,14 @@ const MOCK_PRIVATE_KEY_B58_BYTES = encodeBytes(
   new TextEncoder().encode(MOCK_PRIVATE_KEY_B58_STRING),
 );
 
-function makeHdWalletState(): AccountTreeControllerState['accountTree']['wallets'] {
+function makeMnemonicWalletState(): AccountTreeControllerState['accountTree']['wallets'] {
   return makeLocalMnemonicWallet(MOCK_ENTROPY_ID, [
     { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
     { groupIndex: 1, name: 'Account 2', accounts: ['account-2'] },
   ]);
 }
 
-function makeHdWalletStateWithOneGroup(): AccountTreeControllerState['accountTree']['wallets'] {
+function makeMnemonicWalletStateWithOneGroup(): AccountTreeControllerState['accountTree']['wallets'] {
   return makeLocalMnemonicWallet(MOCK_ENTROPY_ID, [
     { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
   ]);
@@ -219,7 +219,7 @@ describe('importState', () => {
 
   describe('mnemonic wallets', () => {
     it('applies metadata to existing groups when the wallet already exists locally', async () => {
-      const { context, mocks } = setup({ wallets: makeHdWalletState() });
+      const { context, mocks } = setup({ wallets: makeMnemonicWalletState() });
       mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
         {
           toEntropySourceId: async () => MOCK_ENTROPY_ID,
@@ -277,7 +277,7 @@ describe('importState', () => {
     });
 
     it('skips import when no local wallet matches and no mnemonic is in the payload', async () => {
-      const { context, mocks } = setup({ wallets: makeHdWalletState() });
+      const { context, mocks } = setup({ wallets: makeMnemonicWalletState() });
       mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
         {
           toEntropySourceId: async () => 'different-entropy-id',
@@ -364,7 +364,7 @@ describe('importState', () => {
       );
       mocks.MultichainAccountService.createMultichainAccountWallet.mockImplementation(
         async () => {
-          walletsRef.current = makeHdWalletState();
+          walletsRef.current = makeMnemonicWalletState();
           return { id: MOCK_HD_WALLET_ID };
         },
       );
@@ -392,7 +392,7 @@ describe('importState', () => {
 
     it('creates missing groups at the end of the payload list', async () => {
       const { context, mocks } = setup({
-        wallets: makeHdWalletStateWithOneGroup(),
+        wallets: makeMnemonicWalletStateWithOneGroup(),
       });
       mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
         {
@@ -423,7 +423,7 @@ describe('importState', () => {
 
     it('applies metadata to a newly created group via the post-creation pass', async () => {
       const { context, mocks, walletsRef } = setup({
-        wallets: makeHdWalletStateWithOneGroup(),
+        wallets: makeMnemonicWalletStateWithOneGroup(),
       });
       mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
         { toEntropySourceId: async () => MOCK_ENTROPY_ID },
@@ -431,7 +431,7 @@ describe('importState', () => {
       mocks.MultichainAccountService.createMultichainAccountGroups.mockImplementation(
         async () => {
           // Simulate group 1 appearing in the wallet tree after creation.
-          walletsRef.current = makeHdWalletState();
+          walletsRef.current = makeMnemonicWalletState();
         },
       );
 
@@ -457,7 +457,7 @@ describe('importState', () => {
 
     it('applies metadata to pre-existing groups even when group creation throws', async () => {
       const { context, mocks } = setup({
-        wallets: makeHdWalletStateWithOneGroup(),
+        wallets: makeMnemonicWalletStateWithOneGroup(),
       });
       mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
         { toEntropySourceId: async () => MOCK_ENTROPY_ID },
