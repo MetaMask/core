@@ -4706,6 +4706,53 @@ describe('AccountTreeController', () => {
       );
       expect(spy).toHaveBeenCalledWith(groupId, hidden);
     });
+
+    it('calls exportState via AccountTreeController:exportState', async () => {
+      const spy = jest.spyOn(AccountTreeController.prototype, 'exportState');
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      await messenger.call('AccountTreeController:exportState');
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('calls importState via AccountTreeController:importState', async () => {
+      const spy = jest
+        .spyOn(AccountTreeController.prototype, 'importState')
+        .mockResolvedValue();
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const mockSnapshot = {} as Parameters<
+        AccountTreeController['importState']
+      >[0];
+      await messenger.call('AccountTreeController:importState', mockSnapshot);
+      expect(spy).toHaveBeenCalledWith(mockSnapshot);
+    });
   });
 
   describe('Event Emissions', () => {
