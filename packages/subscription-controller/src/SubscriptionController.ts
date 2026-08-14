@@ -431,6 +431,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   async startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
+    // get the latest subscriptions state before computing trial eligibility
+    await this.getSubscriptions();
     this.#assertIsUserNotSubscribed({ products: request.products });
 
     const response = await this.messenger.call(
@@ -470,6 +472,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       );
     }
 
+    // get the latest subscriptions state before computing trial eligibility
+    await this.getSubscriptions();
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCrypto',

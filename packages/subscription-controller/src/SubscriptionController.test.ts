@@ -183,6 +183,12 @@ const MOCK_GET_SUBSCRIPTIONS_RESPONSE = {
   trialedProducts: [],
 };
 
+const MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE = {
+  customerId: 'cus_1',
+  subscriptions: [] as Subscription[],
+  trialedProducts: [] as ProductType[],
+};
+
 const MOCK_COHORTS = [
   {
     cohort: 'post_tx',
@@ -952,6 +958,11 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_SUBSCRIPTION],
+            trialedProducts: [],
+          });
           mockService.startSubscriptionWithCard.mockResolvedValue(
             checkoutResponse,
           );
@@ -1238,6 +1249,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
           mockService.startSubscriptionWithCard.mockResolvedValue(
             MOCK_START_SUBSCRIPTION_RESPONSE,
           );
@@ -1269,6 +1283,12 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+
           await expect(
             rootMessenger.call(
               'SubscriptionController:startSubscriptionWithCard',
@@ -1297,6 +1317,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
           const errorMessage = 'Failed to start subscription';
           mockService.startSubscriptionWithCard.mockRejectedValue(
             new SubscriptionServiceError(errorMessage),
@@ -1332,6 +1355,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
           mockService.startSubscriptionWithCard.mockResolvedValue(
             MOCK_START_SUBSCRIPTION_RESPONSE,
           );
@@ -1364,6 +1390,11 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
           mockService.startSubscriptionWithCard.mockResolvedValue(
             MOCK_START_SUBSCRIPTION_RESPONSE,
           );
@@ -1399,6 +1430,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
           mockService.startSubscriptionWithCard.mockResolvedValue(
             MOCK_START_SUBSCRIPTION_RESPONSE,
           );
@@ -1434,6 +1468,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
           mockService.startSubscriptionWithCard.mockResolvedValue(
             MOCK_START_SUBSCRIPTION_RESPONSE,
           );
@@ -1464,6 +1501,10 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
           await expect(
             rootMessenger.call(
               'SubscriptionController:startSubscriptionWithCard',
@@ -1478,6 +1519,82 @@ describe('SubscriptionController', () => {
           );
 
           expect(mockService.startSubscriptionWithCard).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not request a trial when refreshed subscriptions show the product was already trialed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCard',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.SHIELD],
+            isTrialRequested: false,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
+        },
+      );
+    });
+
+    it('requests a trial when refreshed subscriptions show the product has not been trialed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+          });
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCard',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
         },
       );
     });
@@ -1510,9 +1627,9 @@ describe('SubscriptionController', () => {
           };
 
           mockService.startSubscriptionWithCrypto.mockResolvedValue(response);
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           const result = await rootMessenger.call(
             'SubscriptionController:startSubscriptionWithCrypto',
@@ -1523,7 +1640,7 @@ describe('SubscriptionController', () => {
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
             request,
           );
-          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(2);
         },
       );
     });
@@ -1594,11 +1711,16 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_money_account',
             status: SUBSCRIPTION_STATUSES.active,
           });
-          mockService.getSubscriptions.mockResolvedValue({
-            customerId: 'cus_1',
-            subscriptions: [moneyAccountSubscription],
-            trialedProducts: [],
-          });
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue({
+              customerId: 'cus_1',
+              subscriptions: [moneyAccountSubscription],
+              trialedProducts: [],
+            });
 
           const triggerAccessTokenRefreshSpy = jest.spyOn(
             controller,
@@ -1610,7 +1732,7 @@ describe('SubscriptionController', () => {
             request,
           );
 
-          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(2);
           expect(
             rootMessenger.call(
               'SubscriptionController:getSubscriptionByProduct',
@@ -1622,7 +1744,7 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should not refresh subscriptions when crypto start fails', async () => {
+    it('should not refresh subscriptions after a failed crypto start', async () => {
       await withController(
         {
           state: {
@@ -1634,6 +1756,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
           mockService.startSubscriptionWithCrypto.mockRejectedValue(
             new SubscriptionServiceError('Failed to start crypto subscription'),
           );
@@ -1655,7 +1780,7 @@ describe('SubscriptionController', () => {
             ),
           ).rejects.toThrow(SubscriptionServiceError);
 
-          expect(mockService.getSubscriptions).not.toHaveBeenCalled();
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -1674,9 +1799,9 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_crypto_123',
             status: SUBSCRIPTION_STATUSES.active,
           });
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           await rootMessenger.call(
             'SubscriptionController:startSubscriptionWithCrypto',
@@ -1715,9 +1840,13 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_crypto_123',
             status: SUBSCRIPTION_STATUSES.active,
           });
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              customerId: 'cus_1',
+              subscriptions: [],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           await rootMessenger.call(
             'SubscriptionController:startSubscriptionWithCrypto',
@@ -1806,9 +1935,9 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_crypto_123',
             status: SUBSCRIPTION_STATUSES.active,
           });
-          mockService.getSubscriptions.mockResolvedValue(
-            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
-          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           await rootMessenger.call(
             'SubscriptionController:startSubscriptionWithCrypto',
@@ -1833,6 +1962,98 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('does not request a trial when refreshed subscriptions show the product was already trialed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_crypto_123',
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              customerId: 'cus_1',
+              subscriptions: [],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockService.getSubscriptions).toHaveBeenCalled();
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: false,
+            }),
+          );
+        },
+      );
+    });
+
+    it('requests a trial when refreshed subscriptions show the product has not been trialed', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_crypto_123',
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              customerId: 'cus_1',
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockService.getSubscriptions).toHaveBeenCalled();
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: true,
+            }),
+          );
+        },
+      );
+    });
+
     it('should start Money Account crypto subscription while Shield is active', async () => {
       await withController(
         {
@@ -1849,11 +2070,20 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_money_account',
             status: SUBSCRIPTION_STATUSES.active,
           });
-          mockService.getSubscriptions.mockResolvedValue({
-            customerId: 'cus_1',
-            subscriptions: [MOCK_SUBSCRIPTION, MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
-            trialedProducts: [PRODUCT_TYPES.SHIELD],
-          });
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              customerId: 'cus_1',
+              subscriptions: [MOCK_SUBSCRIPTION],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            })
+            .mockResolvedValue({
+              customerId: 'cus_1',
+              subscriptions: [
+                MOCK_SUBSCRIPTION,
+                MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+              ],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            });
 
           await rootMessenger.call(
             'SubscriptionController:startSubscriptionWithCrypto',
@@ -1906,6 +2136,12 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+
           await expect(
             rootMessenger.call(
               'SubscriptionController:startSubscriptionWithCrypto',
@@ -1940,6 +2176,10 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
           await expect(
             rootMessenger.call(
               'SubscriptionController:startSubscriptionWithCrypto',
@@ -3727,6 +3967,10 @@ describe('SubscriptionController', () => {
               subscriptions: [],
               trialedProducts: [],
             })
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
             .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           // Create a shield subscription approval transaction
@@ -3799,6 +4043,10 @@ describe('SubscriptionController', () => {
           });
 
           mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
             .mockResolvedValueOnce({
               subscriptions: [],
               trialedProducts: [],
@@ -3916,6 +4164,10 @@ describe('SubscriptionController', () => {
               subscriptions: [],
               trialedProducts: [PRODUCT_TYPES.SHIELD],
             })
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            })
             .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           const txMeta = {
@@ -3976,6 +4228,10 @@ describe('SubscriptionController', () => {
               subscriptions: [],
               trialedProducts: [PRODUCT_TYPES.SHIELD],
             })
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            })
             .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
 
           const txMeta = {
@@ -4032,6 +4288,10 @@ describe('SubscriptionController', () => {
           });
 
           mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
             .mockResolvedValueOnce({
               subscriptions: [],
               trialedProducts: [],
