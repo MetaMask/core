@@ -1445,6 +1445,31 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should throw error when products array is empty', async () => {
+      await withController(async ({ rootMessenger, mockService }) => {
+        await expect(
+          rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          ),
+        ).rejects.toThrow(
+          SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+        );
+
+        expect(mockService.startSubscriptionWithCrypto).not.toHaveBeenCalled();
+        expect(mockService.getSubscriptions).not.toHaveBeenCalled();
+      });
+    });
+
     it('should refresh subscriptions after a successful Money Account crypto start', async () => {
       const moneyAccountSubscription: Subscription = {
         ...MOCK_SUBSCRIPTION,

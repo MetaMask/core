@@ -758,6 +758,20 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('throws when products array is empty', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+      const request: StartCryptoSubscriptionRequest = {
+        ...MOCK_CRYPTO_REQUEST,
+        products: [],
+      };
+
+      await expect(service.startSubscriptionWithCrypto(request)).rejects.toThrow(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it.each([
       [
         'delegation without delegationHash',

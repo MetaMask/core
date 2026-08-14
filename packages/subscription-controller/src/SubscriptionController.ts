@@ -458,10 +458,17 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param request - The start crypto subscription request.
    * @returns The start crypto subscription response.
+   * @throws If `products` is empty.
    */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
+    if (request.products.length === 0) {
+      throw new Error(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCrypto',

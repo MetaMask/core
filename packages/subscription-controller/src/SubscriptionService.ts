@@ -292,12 +292,19 @@ export class SubscriptionService extends BaseDataService<
    *
    * @param request - The start crypto subscription request.
    * @returns The created subscription response.
+   * @throws If `products` is empty.
    * @throws If the request does not use exactly one of `rawTransaction`
    * (ERC-20 approval) or `delegationHash` (delegation).
    */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
+    if (request.products.length === 0) {
+      throw new SubscriptionServiceError(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
     this.#assertValidCryptoAuthCombo(request);
 
     const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
