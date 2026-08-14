@@ -308,9 +308,7 @@ function syncTransaction({
  * @param transactionData - Transaction data to check.
  * @returns True when the transaction has no quotes but should have some.
  */
-export function isQuoteRetryPending(
-  transactionData: TransactionData,
-): boolean {
+export function isQuoteRetryPending(transactionData: TransactionData): boolean {
   if (transactionData.quotes?.length) {
     return false;
   }
