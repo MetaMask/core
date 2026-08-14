@@ -30,10 +30,6 @@ import { importState } from './import.js';
 import { AccountWalletPrivateKeyEncoding } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
 
-// ---------------------------------------------------------------------------
-// Shared fixtures
-// ---------------------------------------------------------------------------
-
 const MOCK_ENTROPY_ID = 'stable-entropy-id';
 const MOCK_HD_WALLET_ID = toMultichainAccountWalletId(MOCK_ENTROPY_ID);
 const MOCK_HD_GROUP_ID_0 = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
@@ -94,10 +90,6 @@ const MOCK_PRIVATE_KEY_WALLET_STATE: AccountTreeControllerState['accountTree']['
       },
     },
   };
-
-// ---------------------------------------------------------------------------
-// Context factories
-// ---------------------------------------------------------------------------
 
 function makeExportContext(
   wallets: AccountTreeControllerState['accountTree']['wallets'],
@@ -182,10 +174,6 @@ function makeImportContext(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeHdKeyringUnsafeHandler(
   entropySourceId: string,
   mnemonic: Uint8Array | null = null,
@@ -234,10 +222,6 @@ function makeWithControllerMock(keyringV2: unknown): jest.Mock {
     return fn({ keyrings: [], addNewKeyring });
   });
 }
-
-// ---------------------------------------------------------------------------
-// Round-trip tests
-// ---------------------------------------------------------------------------
 
 describe('export -> serialize -> deserialize -> import round-trip', () => {
   describe('mnemonic wallets', () => {
