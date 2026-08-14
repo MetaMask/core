@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides ([#9747](https://github.com/MetaMask/core/pull/9747))
+
 ### Changed
 
-- **BREAKING:** Add `RemoteFeatureFlagController.init` method, which re-evaluates version and threshold selection against `rawRemoteFeatureFlags` already in state and recomputes `remoteFeatureFlags`. This also fixes issues around setting overrides properly. Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides. Clients to this version should delete `rawRemoteFeatureFlags` from persisted state in a migration. Previous versions stripped `metaMetricsIds` before persisting, so re-deriving from those payloads finds no explicit match and falls back to hash-based selection, moving explicitly targeted users off their variant until the next fetch. ([#9816](https://github.com/MetaMask/core/pull/9816))
+- **BREAKING:** Add `RemoteFeatureFlagController.init` method ([#9816](https://github.com/MetaMask/core/pull/9816))
+  - This must be called during initialization to ensure `remoteFeatureFlags` is properly recomputed.
+- **BREAKING:** Stop redacting IDs from `rawRemoteFeatureFlags` ([#9816](https://github.com/MetaMask/core/pull/9816))
+  - Existing `rawRemoteFeatureFlags` properties should be deleted in a migration, so they do not get used for recomputing flags (which would not work properly with a redacted input).
+
+### Fixed
+
+- Restore remote flag value when overrides are removed/cleared ([#9816](https://github.com/MetaMask/core/pull/9816))
+  - Previously the underlying remote value would be removed as well.
 
 ## [5.0.0]
 
