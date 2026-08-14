@@ -212,7 +212,7 @@ describe('remoteFeatureFlagController', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('forwards defaultFeatureFlags to the controller', () => {
+  it('forwards defaultFeatureFlags to the controller', async () => {
     const messenger =
       remoteFeatureFlagController.getMessenger(getRootMessenger());
 
@@ -224,6 +224,8 @@ describe('remoteFeatureFlagController', () => {
         defaultFeatureFlags: { defaultFlag: true },
       },
     });
+
+    await instance.init();
 
     expect(instance.state.remoteFeatureFlags).toStrictEqual({
       defaultFlag: true,
