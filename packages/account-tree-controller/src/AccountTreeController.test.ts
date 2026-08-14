@@ -5377,6 +5377,100 @@ describe('AccountTreeController', () => {
       expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
       expect(expectedGroup.metadata.hidden).toBe(true);
     });
+
+    it('emits initialized after init() completes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.init();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(controller.state);
+    });
+
+    it('emits initialized again after reinit()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      controller.reinit();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(controller.state);
+    });
+
+    it('does NOT emit initialized during clearState()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.clearState();
+
+      expect(initializedListener).not.toHaveBeenCalled();
+    });
+
+    it('emits uninitialized after clearState()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const uninitializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:uninitialized',
+        uninitializedListener,
+      );
+
+      controller.clearState();
+
+      expect(uninitializedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit uninitialized during init()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const uninitializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:uninitialized',
+        uninitializedListener,
+      );
+
+      controller.init();
+
+      expect(uninitializedListener).not.toHaveBeenCalled();
+    });
   });
 
   describe('syncWithUserStorage', () => {

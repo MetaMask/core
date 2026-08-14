@@ -440,8 +440,9 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup,
     );
 
-    log('Initialized!');
     this.#initialized = true;
+    log('Initialized!');
+    this.messenger.publish(`${controllerName}:initialized`, this.state);
   }
 
   /**
@@ -1843,6 +1844,7 @@ export class AccountTreeController extends BaseController<
 
     // So we know we have to call `init` again.
     this.#initialized = false;
+    this.messenger.publish(`${controllerName}:uninitialized`);
   }
 
   /**
