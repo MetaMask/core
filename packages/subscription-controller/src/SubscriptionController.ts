@@ -438,6 +438,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return response;
   }
 
+  /**
+   * Starts a crypto-paid subscription for the requested products
+   * (e.g. Shield or Money Account Plus). Unlike card checkout, this
+   * creates the subscription immediately, so local state is refreshed
+   * afterwards.
+   *
+   * @param request - The start crypto subscription request.
+   * @returns The start crypto subscription response.
+   */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
@@ -446,6 +455,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       'SubscriptionService:startSubscriptionWithCrypto',
       request,
     );
+
+    // Crypto start creates the subscription immediately (unlike card checkout).
+    await this.getSubscriptions();
 
     return response;
   }

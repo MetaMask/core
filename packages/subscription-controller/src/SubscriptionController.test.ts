@@ -1280,6 +1280,9 @@ describe('SubscriptionController', () => {
           };
 
           mockService.startSubscriptionWithCrypto.mockResolvedValue(response);
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
 
           const result = await rootMessenger.call(
             'SubscriptionController:startSubscriptionWithCrypto',
@@ -1290,6 +1293,106 @@ describe('SubscriptionController', () => {
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
             request,
           );
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should refresh subscriptions after a successful Money Account crypto start', async () => {
+      const moneyAccountSubscription: Subscription = {
+        ...MOCK_SUBSCRIPTION,
+        id: 'sub_money_account',
+        products: [
+          {
+            name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            currency: 'usd',
+            unitAmount: 499,
+            unitDecimals: 2,
+          },
+        ],
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          const request: StartCryptoSubscriptionRequest = {
+            products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+            isTrialRequested: false,
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            chainId: '0x8f',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'pvmUSD',
+            cryptoAuthMethod: 'delegation',
+            delegationHash: '0xabc',
+          };
+
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_money_account',
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [moneyAccountSubscription],
+            trialedProducts: [],
+          });
+
+          const triggerAccessTokenRefreshSpy = jest.spyOn(
+            controller,
+            'triggerAccessTokenRefresh',
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            request,
+          );
+
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(
+            rootMessenger.call(
+              'SubscriptionController:getSubscriptionByProduct',
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            ),
+          ).toStrictEqual(moneyAccountSubscription);
+          expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should not refresh subscriptions when crypto start fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockRejectedValue(
+            new SubscriptionServiceError('Failed to start crypto subscription'),
+          );
+
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCrypto',
+              {
+                products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+                isTrialRequested: false,
+                recurringInterval: RECURRING_INTERVALS.month,
+                billingCycles: 12,
+                chainId: '0x8f',
+                payerAddress: '0x0000000000000000000000000000000000000001',
+                tokenSymbol: 'pvmUSD',
+                cryptoAuthMethod: 'delegation',
+                delegationHash: '0xabc',
+              },
+            ),
+          ).rejects.toThrow(SubscriptionServiceError);
+
+          expect(mockService.getSubscriptions).not.toHaveBeenCalled();
         },
       );
     });
