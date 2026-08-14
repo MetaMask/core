@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [75.1.0]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.1` ([#9798](https://github.com/MetaMask/core/pull/9798))
-- Bump `@metamask/bridge-controller` from `^79.0.0` to `^79.0.1` ([#9788](https://github.com/MetaMask/core/pull/9788))
-- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+- Bump `@metamask/bridge-controller` from `^79.0.0` to `^79.2.0` ([#9788](https://github.com/MetaMask/core/pull/9788), [#9827](https://github.com/MetaMask/core/pull/9827), [#9845](https://github.com/MetaMask/core/pull/9845))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+### Fixed
+
+- Include `usd_amount_source` value in QuotesReceived MixPanel event properties ([#9828](https://github.com/MetaMask/core/pull/9828))
+- Include quote's `slippage` value in post-submission MixPanel event properties ([#9786](https://github.com/MetaMask/core/pull/9786))
 
 ## [75.0.0]
 
@@ -1489,7 +1496,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.1.0...HEAD
+[75.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.0.0...@metamask/bridge-status-controller@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.2...@metamask/bridge-status-controller@75.0.0
 [74.6.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.1...@metamask/bridge-status-controller@74.6.2
 [74.6.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.0...@metamask/bridge-status-controller@74.6.1

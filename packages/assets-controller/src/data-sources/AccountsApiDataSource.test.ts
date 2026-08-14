@@ -525,7 +525,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('uses a short-lived TanStack cache window when forceUpdate is true', async () => {
+  it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
     const { controller, apiClient } = await setupController();
 
     await controller.fetch(createDataRequest({ forceUpdate: true }));
@@ -533,7 +533,7 @@ describe('AccountsApiDataSource', () => {
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
-      { staleTime: 100, gcTime: 100 },
+      { staleTime: 0, gcTime: 0 },
     );
 
     controller.destroy();
