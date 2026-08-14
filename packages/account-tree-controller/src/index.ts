@@ -17,6 +17,8 @@ export type {
   AccountTreeControllerAccountGroupCreatedEvent,
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
+  AccountTreeControllerInitializedEvent,
+  AccountTreeControllerUninitializedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types.js';

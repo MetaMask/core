@@ -159,6 +159,27 @@ export type AccountTreeControllerAccountGroupRemovedEvent = {
   payload: [AccountGroupId];
 };
 
+/**
+ * Represents the `AccountTreeController:initialized` event.
+ * This event is emitted when the account tree has been fully built and is
+ * ready to consume. It carries the full controller state at the moment of
+ * initialization so that consumers do not need an extra `getState()` call.
+ */
+export type AccountTreeControllerInitializedEvent = {
+  type: `${typeof controllerName}:initialized`;
+  payload: [AccountTreeControllerState];
+};
+
+/**
+ * Represents the `AccountTreeController:uninitialized` event.
+ * This event is emitted when the account tree has been torn down via
+ * `clearState()`, symmetric to `initialized`.
+ */
+export type AccountTreeControllerUninitializedEvent = {
+  type: `${typeof controllerName}:uninitialized`;
+  payload: [];
+};
+
 export type AllowedEvents =
   | AccountsControllerAccountsAddedEvent
   | AccountsControllerAccountsRemovedEvent
@@ -172,7 +193,9 @@ export type AccountTreeControllerEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | AccountTreeControllerAccountGroupCreatedEvent
   | AccountTreeControllerAccountGroupUpdatedEvent
-  | AccountTreeControllerAccountGroupRemovedEvent;
+  | AccountTreeControllerAccountGroupRemovedEvent
+  | AccountTreeControllerInitializedEvent
+  | AccountTreeControllerUninitializedEvent;
 
 export type AccountTreeControllerMessenger = Messenger<
   typeof controllerName,
