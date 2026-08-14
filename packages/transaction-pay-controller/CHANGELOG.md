@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Read the `stableTokens` remote feature flag in `getStablecoins` instead of `stable-tokens`
+- Read the `stableTokens` remote feature flag in `getStablecoins` instead of `stable-tokens` ([#9885](https://github.com/MetaMask/core/pull/9885))
 
 ## [26.3.0]
 
