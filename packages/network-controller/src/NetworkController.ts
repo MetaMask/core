@@ -8,6 +8,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
+import type {
+  ConfigRegistryControllerStateChangedEvent,
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+} from '@metamask/config-registry-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
@@ -35,8 +39,14 @@ import {
   createSwappableProxy,
 } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
-import type { Hex } from '@metamask/utils';
-import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
+import {
+  add0x,
+  hasProperty,
+  isPlainObject,
+  isStrictHexString,
+  parseCaipChainId,
+} from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
@@ -71,7 +81,10 @@ import type {
   ResolvedNetworkControllerAnalyticsOptions,
 } from './rpc-service-analytics.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
-import { getRpcFailoverMode } from './selectors.js';
+import {
+  getConfigRegistryEvmAutoEnabledChains,
+  getRpcFailoverMode,
+} from './selectors.js';
 import type { RpcFailoverMode } from './selectors.js';
 import { NetworkClientType } from './types.js';
 import type {
@@ -680,7 +693,9 @@ export type NetworkControllerEvents =
 /**
  * All events that {@link NetworkController} calls internally.
  */
-type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
+type AllowedEvents =
+  | RemoteFeatureFlagControllerStateChangeEvent
+  | ConfigRegistryControllerStateChangedEvent;
 
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
@@ -726,7 +741,8 @@ type AllowedActions =
   | ConnectivityControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | AnalyticsControllerGetStateAction
-  | AnalyticsControllerTrackEventAction;
+  | AnalyticsControllerTrackEventAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -1417,6 +1433,12 @@ export class NetworkController extends BaseController<
         this.#updateRpcFailover(rpcFailoverMode);
       },
       getRpcFailoverMode,
+    );
+
+    this.messenger.subscribe(
+      'ConfigRegistryController:stateChanged',
+      (autoEnabledChains) => this.#autoEnableChains(autoEnabledChains),
+      getConfigRegistryEvmAutoEnabledChains,
     );
   }
 
@@ -3132,5 +3154,49 @@ export class NetworkController extends BaseController<
     }
 
     this.#ethQuery = new EthQuery(this.#providerProxy);
+  }
+
+  /**
+   * Enables networks for the given CAIP-2 chain IDs by adding
+   * them to state if they are not already present. Configurations for
+   * these networks are retrieved from ConfigRegistryController.
+   *
+   * @param chainIds - The CAIP-2 chain IDs of the networks to enable.
+   */
+  #autoEnableChains(chainIds: CaipChainId[]): void {
+    for (const chainId of chainIds) {
+      const networkConfiguration = this.messenger.call(
+        'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+        chainId,
+      );
+      const hexChainId = add0x(parseCaipChainId(chainId).reference);
+
+      if (!networkConfiguration || this.getNetworkClientById(hexChainId)) {
+        return;
+      }
+
+      const rpcEndpoint: InfuraRpcEndpoint | AddNetworkCustomRpcEndpointFields =
+        networkConfiguration.rpcProviders.default.type === 'infura'
+          ? {
+              type: RpcEndpointType.Infura,
+              networkClientId: hexChainId,
+              url: networkConfiguration.rpcProviders.default
+                .url as InfuraRpcEndpoint['url'],
+            }
+          : {
+              type: RpcEndpointType.Custom,
+              url: networkConfiguration.rpcProviders.default.url,
+            };
+
+      this.addNetwork({
+        chainId: hexChainId,
+        name: networkConfiguration.name,
+        nativeCurrency: networkConfiguration.assets.native.symbol,
+        rpcEndpoints: [rpcEndpoint],
+        defaultRpcEndpointIndex: 0,
+        blockExplorerUrls: [networkConfiguration.blockExplorerUrls.default],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    }
   }
 }

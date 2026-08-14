@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isAutoEnabled?: boolean` property to `RegistryNetworkConfig.config` ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
 
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))

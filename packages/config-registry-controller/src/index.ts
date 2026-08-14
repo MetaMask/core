@@ -3,6 +3,7 @@ export type {
   ConfigRegistryControllerOptions,
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerMessenger,
 } from './ConfigRegistryController.js';
