@@ -13,5 +13,6 @@
     { "path": "../multichain-account-service/tsconfig.build.json" },
     { "path": "../profile-sync-controller/tsconfig.build.json" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["./src/state/tests"]
 }

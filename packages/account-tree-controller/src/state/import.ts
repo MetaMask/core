@@ -41,7 +41,7 @@ export type ImportContext = {
   /** Sets a group name. Implementations must resolve name conflicts automatically. */
   setAccountGroupName: (groupId: AccountGroupId, name: string) => void;
   setAccountGroupPinned: (groupId: AccountGroupId, pinned: boolean) => void;
-  setAccountGroupHideen: (groupId: AccountGroupId, hidden: boolean) => void;
+  setAccountGroupHidden: (groupId: AccountGroupId, hidden: boolean) => void;
 };
 
 /**
@@ -170,7 +170,7 @@ function setGroupMetadata(
 ): void {
   context.setAccountGroupName(localGroupId, payloadGroupMetadata.name);
   context.setAccountGroupPinned(localGroupId, payloadGroupMetadata.pinned);
-  context.setAccountGroupHideen(localGroupId, payloadGroupMetadata.hidden);
+  context.setAccountGroupHidden(localGroupId, payloadGroupMetadata.hidden);
 }
 
 /**
@@ -256,6 +256,20 @@ async function importMnemonicWallet(
 
   context.setWalletName(localWallet.id, payloadWallet.metadata.name);
 
+  // Apply metadata to groups that are already present locally before attempting
+  // to create missing ones. If createMultichainAccountGroups throws partway
+  // through, these groups would otherwise be left without their payload metadata.
+  const localExistingGroupIds = new Set(Object.keys(localWallet.groups));
+  for (const payloadGroup of payloadWallet.groups) {
+    const localGroupId = toMultichainAccountGroupId(
+      localWallet.id,
+      payloadGroup.groupIndex,
+    );
+    if (localExistingGroupIds.has(localGroupId)) {
+      setGroupMetadata(context, localGroupId, payloadGroup.metadata);
+    }
+  }
+
   for (const range of getRangesFromPayloadGroups(
     localWallet,
     payloadWallet.groups,
@@ -273,12 +287,21 @@ async function importMnemonicWallet(
   // Re-read wallet after groups creation.
   localWallet = findLocalWalletMnemonicFromId(context, localWallet.id);
 
+  // Apply metadata to newly created groups. Skip groups that were already
+  // handled above, and guard against groups that failed to be created so a
+  // partial failure doesn't throw and abort the rest of the snapshot import.
   for (const payloadGroup of payloadWallet.groups) {
     const localGroupId = toMultichainAccountGroupId(
       localWallet.id,
       payloadGroup.groupIndex,
     );
 
+    if (
+      localExistingGroupIds.has(localGroupId) ||
+      !localWallet.groups[localGroupId]
+    ) {
+      continue;
+    }
     setGroupMetadata(context, localGroupId, payloadGroup.metadata);
   }
 }

@@ -143,6 +143,15 @@ async function exportMnemonicWalletObject(
     (group, otherGroup) => group.groupIndex - otherGroup.groupIndex,
   );
 
+  // Defensive check: group indices must be contiguous starting at 0. This should never happen
+  // in practice since groups are only ever appended, but guards against future regressions
+  // producing a payload that silently fails validation on import.
+  for (let i = 0; i < wallet.groups.length; i++) {
+    if (wallet.groups[i]?.groupIndex !== i) {
+      throw new Error('Found non-contiguous groups in mnemonic wallet');
+    }
+  }
+
   // This should never happen, but we check just in case.
   if (includeSecrets) {
     if (mnemonic === undefined) {
@@ -261,7 +270,7 @@ async function exportPrivateKeyWalletObject(
  * @param context - Export context providing state and messenger access.
  * @param options - Export options.
  * @returns A promise that resolves to the built snapshot.
- * @throws If `options.includeSecrets` is `true` and the vault is locked.
+ * @throws If the vault is locked.
  */
 export async function exportState(
   context: ExportContext,
@@ -271,8 +280,8 @@ export async function exportState(
 
   const includeSecrets = options.includeSecrets ?? false;
   const { isUnlocked } = context.messenger.call('KeyringController:getState');
-  if (includeSecrets && !isUnlocked) {
-    throw new Error('Cannot include secrets in export when vault is locked');
+  if (!isUnlocked) {
+    throw new Error('Cannot export account tree when vault is locked');
   }
 
   const idMap = new IdMap();

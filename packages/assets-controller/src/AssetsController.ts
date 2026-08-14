@@ -1103,8 +1103,8 @@ export class AssetsController extends BaseController<
     // Subscribe to account group changes (when user switches between account groups like Account 1 -> Account 2)
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      () => {
-        this.#handleAccountGroupChanged().catch(console.error);
+      (groupId) => {
+        this.#handleAccountGroupChanged(groupId).catch(console.error);
       },
     );
 
@@ -3568,7 +3568,12 @@ export class AssetsController extends BaseController<
   // EVENT HANDLERS
   // ============================================================================
 
-  async #handleAccountGroupChanged(): Promise<void> {
+  async #handleAccountGroupChanged(groupId: string): Promise<void> {
+    // The selected account group can be empty during onboarding or wallet reset.
+    if (!groupId) {
+      return;
+    }
+
     const accounts = this.#getSelectedAccounts();
 
     log('Account group changed', {

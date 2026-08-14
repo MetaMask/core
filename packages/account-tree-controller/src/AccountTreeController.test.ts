@@ -5532,6 +5532,49 @@ describe('AccountTreeController', () => {
         getDefaultAccountTreeControllerState(),
       );
     });
+
+    it('clears in-memory reverse-lookup Maps', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(controller.getAccountContext(MOCK_HD_ACCOUNT_1.id)).toBeDefined();
+      expect(
+        controller.getAccountGroupObject('entropy:mock-keyring-id-1/0'),
+      ).toBeDefined();
+
+      controller.clearState();
+
+      expect(
+        controller.getAccountContext(MOCK_HD_ACCOUNT_1.id),
+      ).toBeUndefined();
+      expect(
+        controller.getAccountGroupObject('entropy:mock-keyring-id-1/0'),
+      ).toBeUndefined();
+    });
+
+    it('publishes selectedAccountGroupChange event with empty group ID', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const previousGroupId = controller.state.selectedAccountGroup;
+      const mockListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        mockListener,
+      );
+
+      controller.clearState();
+
+      expect(mockListener).toHaveBeenCalledWith('', previousGroupId);
+    });
   });
 
   describe('backup and sync config initialization', () => {
