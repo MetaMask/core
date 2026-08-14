@@ -40,6 +40,7 @@ This option provides a visual interface to streamline the release process:
    Common types of dependency issues you might encounter:
    - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
    - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
+   - **Major-version dependents**: If Package B is getting a major bump, include impacted dependents in the same release branch and update their version ranges/changelogs in that release PR
    - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
 
    Unlike the manual workflow where you need to repeatedly edit a YAML file, in the interactive mode you can quickly resolve these issues by checking boxes and selecting version bumps directly in the UI.
@@ -109,6 +110,7 @@ If you prefer more direct control over the release process:
    Common types of dependency issues you might encounter:
    - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
    - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
+   - **Major-version dependents**: If Package B is getting a major bump, include impacted dependents in the same release branch and update their version ranges/changelogs in that release PR
    - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
 
    To address these issues, you will need to reopen the YAML file, modify it by either adding more packages to the release or omitting packages from the release you think are safe, and then re-running `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
