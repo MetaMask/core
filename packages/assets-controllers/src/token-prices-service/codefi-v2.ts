@@ -246,6 +246,7 @@ export const getNativeTokenAddress = (chainId: Hex): Hex =>
 // Source: https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
 // This list is ONLY for chains that are supported by the Price API v3/spot-prices endpoint.
 // Please check that endpoint returns a price for the given assetId before including it in this list.
+// Example: https://price.api.cx.metamask.io/v3/spot-prices?assetIds=eip155:5042/erc20:0x3600000000000000000000000000000000000000&vsCurrency=usd&includeMarketData=true&cacheOnly=false
 // Please include a comment with the name of the chain and the native symbol.
 // Please keep the list sorted by chain ID.
 export const SPOT_PRICES_SUPPORT_INFO = {
