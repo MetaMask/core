@@ -766,7 +766,9 @@ describe('SubscriptionService', () => {
         products: [],
       };
 
-      await expect(service.startSubscriptionWithCrypto(request)).rejects.toThrow(
+      await expect(
+        service.startSubscriptionWithCrypto(request),
+      ).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
       expect(fetchMock).not.toHaveBeenCalled();
