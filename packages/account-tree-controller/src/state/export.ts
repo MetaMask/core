@@ -152,7 +152,6 @@ async function exportMnemonicWalletObject(
     }
   }
 
-  // This should never happen, but we check just in case.
   if (includeSecrets) {
     if (mnemonic === undefined) {
       throw new Error(`Failed to export mnemonic for wallet ${wallet.id}`);

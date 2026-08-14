@@ -295,7 +295,6 @@ async function importMnemonicWallet(
       localWallet.id,
       payloadGroup.groupIndex,
     );
-
     if (
       localExistingGroupIds.has(localGroupId) ||
       !localWallet.groups[localGroupId]
