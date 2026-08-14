@@ -85,6 +85,27 @@ const MOCK_SUBSCRIPTION: Subscription = {
   cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
 };
 
+const MOCK_MONEY_ACCOUNT_SUBSCRIPTION: Subscription = {
+  ...MOCK_SUBSCRIPTION,
+  id: 'sub_money_account',
+  products: [
+    {
+      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      currency: 'usd',
+      unitAmount: 499,
+      unitDecimals: 2,
+    },
+  ],
+  paymentMethod: {
+    type: PAYMENT_TYPES.byCrypto,
+    crypto: {
+      payerAddress: '0x1234567890123456789012345678901234567890',
+      chainId: '0x8f',
+      tokenSymbol: 'pvmUSD',
+    },
+  },
+};
+
 const MOCK_PRODUCT_PRICE: ProductPricing = {
   name: PRODUCT_TYPES.SHIELD,
   prices: [
@@ -107,6 +128,14 @@ const MOCK_PRODUCT_PRICE: ProductPricing = {
       minBillingCyclesForBalance: 1,
     },
   ],
+};
+
+const MOCK_PRODUCT_PRICE_WITHOUT_TRIAL: ProductPricing = {
+  ...MOCK_PRODUCT_PRICE,
+  prices: MOCK_PRODUCT_PRICE.prices.map((price) => ({
+    ...price,
+    trialPeriodDays: 0,
+  })),
 };
 
 const MOCK_MONEY_ACCOUNT_PRODUCT_PRICE: ProductPricing = {
@@ -781,6 +810,46 @@ describe('SubscriptionController', () => {
         },
       );
     });
+
+    it('should fetch and store active Shield and Money Account subscriptions together', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_SUBSCRIPTION, MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
+
+          const result = await rootMessenger.call(
+            'SubscriptionController:getSubscriptions',
+          );
+
+          expect(result).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.trialedProducts).toStrictEqual([
+            PRODUCT_TYPES.SHIELD,
+          ]);
+          expect(
+            rootMessenger.call(
+              'SubscriptionController:getSubscriptionByProduct',
+              PRODUCT_TYPES.SHIELD,
+            ),
+          ).toStrictEqual(MOCK_SUBSCRIPTION);
+          expect(
+            rootMessenger.call(
+              'SubscriptionController:getSubscriptionByProduct',
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            ),
+          ).toStrictEqual(MOCK_MONEY_ACCOUNT_SUBSCRIPTION);
+        },
+      );
+    });
   });
 
   describe('getSubscriptionByProduct', () => {
@@ -815,27 +884,6 @@ describe('SubscriptionController', () => {
   });
 
   describe('multi-product subscriptions', () => {
-    const MOCK_MONEY_ACCOUNT_SUBSCRIPTION: Subscription = {
-      ...MOCK_SUBSCRIPTION,
-      id: 'sub_money_account',
-      products: [
-        {
-          name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
-          currency: 'usd',
-          unitAmount: 499,
-          unitDecimals: 2,
-        },
-      ],
-      paymentMethod: {
-        type: PAYMENT_TYPES.byCrypto,
-        crypto: {
-          payerAddress: '0x1234567890123456789012345678901234567890',
-          chainId: '0x8f',
-          tokenSymbol: 'pvmUSD',
-        },
-      },
-    };
-
     it('should hold active Shield and Money Account subscriptions simultaneously', async () => {
       await withController(
         {
@@ -1373,6 +1421,41 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('does not request a trial when Shield pricing has trialPeriodDays of 0', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE_WITHOUT_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCard',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.SHIELD],
+            isTrialRequested: false,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
+        },
+      );
+    });
+
     it('throws when product pricing is not available', async () => {
       await withController(
         {
@@ -1702,6 +1785,149 @@ describe('SubscriptionController', () => {
               isTrialRequested: false,
             }),
           );
+        },
+      );
+    });
+
+    it('does not request a trial when Shield pricing has trialPeriodDays of 0', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE_WITHOUT_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_crypto_123',
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: false,
+            }),
+          );
+        },
+      );
+    });
+
+    it('should start Money Account crypto subscription while Shield is active', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_money_account',
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_SUBSCRIPTION, MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [PRODUCT_TYPES.SHIELD],
+          });
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              cryptoAuthMethod: 'delegation',
+              isTrialRequested: false,
+            }),
+          );
+          expect(controller.state.subscriptions).toHaveLength(2);
+          expect(
+            rootMessenger.call(
+              'SubscriptionController:getSubscriptionByProduct',
+              PRODUCT_TYPES.SHIELD,
+            ),
+          ).toStrictEqual(MOCK_SUBSCRIPTION);
+          expect(
+            rootMessenger.call(
+              'SubscriptionController:getSubscriptionByProduct',
+              PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            ),
+          ).toStrictEqual(MOCK_MONEY_ACCOUNT_SUBSCRIPTION);
+        },
+      );
+    });
+
+    it('should throw when Money Account is already active', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCrypto',
+              {
+                products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+                isTrialRequested: false,
+                recurringInterval: RECURRING_INTERVALS.month,
+                billingCycles: 12,
+                chainId: '0x8f',
+                payerAddress: '0x0000000000000000000000000000000000000001',
+                tokenSymbol: 'pvmUSD',
+                cryptoAuthMethod: 'delegation',
+                delegationHash: '0xabc',
+              },
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserAlreadySubscribed,
+          );
+
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
         },
       );
     });
@@ -2839,6 +3065,52 @@ describe('SubscriptionController', () => {
       });
     });
 
+    it('should cache Money Account payment method without clobbering Shield', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'SubscriptionController:cacheLastSelectedPaymentMethod',
+            PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            {
+              type: PAYMENT_TYPES.byCrypto,
+              paymentTokenAddress: '0xmoneytoken',
+              paymentTokenSymbol: 'pvmUSD',
+              plan: RECURRING_INTERVALS.month,
+              cryptoAuthMethod: 'delegation',
+            },
+          );
+
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
+              type: PAYMENT_TYPES.byCrypto,
+              paymentTokenAddress: '0xtoken',
+              paymentTokenSymbol: 'USDT',
+              plan: RECURRING_INTERVALS.month,
+            },
+            [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+              type: PAYMENT_TYPES.byCrypto,
+              paymentTokenAddress: '0xmoneytoken',
+              paymentTokenSymbol: 'pvmUSD',
+              plan: RECURRING_INTERVALS.month,
+              cryptoAuthMethod: 'delegation',
+            },
+          });
+        },
+      );
+    });
+
     it('should update the last selected payment method for the same product', async () => {
       await withController(
         {
@@ -3459,6 +3731,132 @@ describe('SubscriptionController', () => {
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledTimes(
             1,
           );
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.SHIELD],
+            isTrialRequested: true,
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            chainId: '0x1',
+            payerAddress: '0x1234567890123456789012345678901234567890',
+            tokenSymbol: 'USDT',
+            rawTransaction: '0x123',
+            cryptoAuthMethod: 'erc20_approval',
+            isSponsored: undefined,
+            useTestClock: undefined,
+            rewardAccountId: undefined,
+          });
+        },
+      );
+    });
+
+    it('should not request trial when Shield pricing has trialPeriodDays of 0', async () => {
+      await withController(
+        {
+          state: {
+            pricing: {
+              products: [MOCK_PRODUCT_PRICE_WITHOUT_TRIAL],
+              paymentMethods: MOCK_PRICE_INFO_RESPONSE.paymentMethods,
+            },
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: 'sub_123',
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              subscriptions: [],
+              trialedProducts: [],
+            })
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await rootMessenger.call(
+            'SubscriptionController:submitSubscriptionCryptoApproval',
+            PRODUCT_TYPES.SHIELD,
+            txMeta,
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: false,
+              cryptoAuthMethod: 'erc20_approval',
+            }),
+          );
+        },
+      );
+    });
+
+    it('should throw when Shield crypto approval is submitted with only Money Account payment method cached', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            trialedProducts: [],
+            subscriptions: [],
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xmoneytoken',
+                paymentTokenSymbol: 'pvmUSD',
+                plan: RECURRING_INTERVALS.month,
+                cryptoAuthMethod: 'delegation',
+              },
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          const txMeta = {
+            ...generateMockTxMeta(),
+            type: TransactionType.shieldSubscriptionApprove,
+            chainId: '0x1' as Hex,
+            rawTx: '0x123',
+            txParams: {
+              data: '0x456',
+              from: '0x1234567890123456789012345678901234567890',
+              to: '0xtoken',
+            },
+            status: TransactionStatus.submitted,
+          };
+
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:submitSubscriptionCryptoApproval',
+              PRODUCT_TYPES.SHIELD,
+              txMeta,
+            ),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.PaymentMethodNotCrypto,
+          );
+
+          expect(
+            mockService.startSubscriptionWithCrypto,
+          ).not.toHaveBeenCalled();
         },
       );
     });
