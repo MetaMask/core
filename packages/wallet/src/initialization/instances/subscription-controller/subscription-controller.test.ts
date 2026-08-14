@@ -1,7 +1,9 @@
 import { Messenger } from '@metamask/messenger';
 import {
+  Env,
   getDefaultSubscriptionControllerState,
   SubscriptionController,
+  SUBSCRIPTION_URL,
 } from '@metamask/subscription-controller';
 
 import { defaultConfigurations } from '../../defaults.js';
@@ -229,15 +231,25 @@ describe('subscriptionController', () => {
       jest.fn(),
     );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(
-      async () =>
-        new globalThis.Response(
+    const fetchFunction = jest.fn(async (url: string) => {
+      if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {
+        return new globalThis.Response(
           JSON.stringify({
             checkoutSessionUrl: 'https://checkout.example.com/session/123',
           }),
           { status: 200 },
-        ),
-    );
+        );
+      }
+
+      return new globalThis.Response(
+        JSON.stringify({
+          customerId: 'cus_1',
+          subscriptions: [],
+          trialedProducts: [],
+        }),
+        { status: 200 },
+      );
+    });
 
     subscriptionService.init({
       state: undefined,
@@ -250,7 +262,29 @@ describe('subscriptionController', () => {
     const controllerMessenger =
       subscriptionController.getMessenger(rootMessenger);
     subscriptionController.init({
-      state: undefined,
+      state: {
+        subscriptions: [],
+        trialedProducts: [],
+        pricing: {
+          products: [
+            {
+              name: 'money_account_plus',
+              prices: [
+                {
+                  interval: 'month',
+                  currency: 'usd',
+                  unitAmount: 499,
+                  unitDecimals: 2,
+                  trialPeriodDays: 0,
+                  minBillingCycles: 12,
+                  minBillingCyclesForBalance: 1,
+                },
+              ],
+            },
+          ],
+          paymentMethods: [],
+        },
+      },
       messenger: controllerMessenger,
       options: {},
     });
@@ -267,6 +301,14 @@ describe('subscriptionController', () => {
     expect(result).toStrictEqual({
       checkoutSessionUrl: 'https://checkout.example.com/session/123',
     });
+    expect(fetchFunction).toHaveBeenCalledWith(
+      SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(fetchFunction).toHaveBeenCalledWith(
+      SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('forwards dual-product initial state to the controller', () => {
