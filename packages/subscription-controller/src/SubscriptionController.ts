@@ -495,7 +495,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Delegation-based products (e.g. Money Account) must call
    * `startSubscriptionWithCrypto` instead.
    *
-   * @param productType - The subscription product. Must be `PRODUCT_TYPES.SHIELD`.
+   * @param productType - The subscription product. Typed as
+   * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more product).
    * @param txMeta - The transaction metadata. Must have type
    * `TransactionType.shieldSubscriptionApprove`.
    * @param isSponsored - Whether the transaction is sponsored.
@@ -505,13 +506,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @returns void
    */
   async submitSubscriptionCryptoApproval(
-    productType: ProductType,
+    productType: typeof PRODUCT_TYPES.SHIELD,
     txMeta: TransactionMeta,
     isSponsored?: boolean,
     rewardAccountId?: CaipAccountId,
   ): Promise<void> {
     if (
-      productType !== PRODUCT_TYPES.SHIELD ||
+      // Widen for the runtime guard: JS / unsound callers may still pass a
+      // non-Shield product.
+      (productType as ProductType) !== PRODUCT_TYPES.SHIELD ||
       txMeta.type !== TransactionType.shieldSubscriptionApprove
     ) {
       throw new Error(

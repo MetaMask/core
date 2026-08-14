@@ -805,16 +805,21 @@ describe('SubscriptionService', () => {
       'rejects %s without posting',
       async (
         _case: string,
-        overrides: Partial<StartCryptoSubscriptionRequest>,
+        overrides: {
+          cryptoAuthMethod?: string;
+          rawTransaction?: string;
+          delegationHash?: string;
+        },
       ) => {
         const fetchMock = jest.fn();
         const { service } = createService({ fetchMock });
         const { rawTransaction: _rawTransaction, ...base } =
           MOCK_CRYPTO_REQUEST;
-        const request: StartCryptoSubscriptionRequest = {
+        // Intentionally invalid combos: runtime still rejects unsound callers.
+        const request = {
           ...base,
           ...overrides,
-        };
+        } as StartCryptoSubscriptionRequest;
 
         await expect(
           service.startSubscriptionWithCrypto(request),

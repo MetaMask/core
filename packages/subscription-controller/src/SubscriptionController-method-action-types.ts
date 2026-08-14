@@ -56,6 +56,9 @@ export type SubscriptionControllerUnCancelSubscriptionAction = {
  * Starts a card-paid subscription checkout session for the requested products
  * (e.g. Shield or Money Account Plus).
  *
+ * `isTrialRequested` on the request is ignored and overwritten from pricing
+ * (`trialPeriodDays > 0`) and `trialedProducts`.
+ *
  * @param request - The start subscription request.
  * @returns The checkout session response.
  */
@@ -64,6 +67,19 @@ export type SubscriptionControllerStartSubscriptionWithCardAction = {
   handler: SubscriptionController['startSubscriptionWithCard'];
 };
 
+/**
+ * Starts a crypto-paid subscription for the requested products
+ * (e.g. Shield or Money Account Plus). Unlike card checkout, this
+ * creates the subscription immediately, so local state is refreshed
+ * afterwards.
+ *
+ * `isTrialRequested` on the request is ignored and overwritten from pricing
+ * (`trialPeriodDays > 0`) and `trialedProducts`.
+ *
+ * @param request - The start crypto subscription request.
+ * @returns The start crypto subscription response.
+ * @throws If `products` is empty.
+ */
 export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
   type: `SubscriptionController:startSubscriptionWithCrypto`;
   handler: SubscriptionController['startSubscriptionWithCrypto'];
@@ -77,7 +93,8 @@ export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
  * Delegation-based products (e.g. Money Account) must call
  * `startSubscriptionWithCrypto` instead.
  *
- * @param productType - The subscription product. Must be `PRODUCT_TYPES.SHIELD`.
+ * @param productType - The subscription product. Typed as
+ * `typeof PRODUCT_TYPES.SHIELD`; other products are a type error.
  * @param txMeta - The transaction metadata. Must have type
  * `TransactionType.shieldSubscriptionApprove`.
  * @param isSponsored - Whether the transaction is sponsored.

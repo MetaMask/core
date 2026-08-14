@@ -3678,6 +3678,19 @@ describe('SubscriptionController', () => {
   });
 
   describe('submitSubscriptionCryptoApproval', () => {
+    it('accepts only Shield as productType at compile time', () => {
+      type ProductArg = Parameters<
+        SubscriptionController['submitSubscriptionCryptoApproval']
+      >[0];
+
+      const shield: ProductArg = PRODUCT_TYPES.SHIELD;
+      expect(shield).toBe(PRODUCT_TYPES.SHIELD);
+
+      // @ts-expect-error only Shield is a valid productType
+      const moneyAccount: ProductArg = PRODUCT_TYPES.MONEY_ACCOUNT_PLUS;
+      expect(moneyAccount).toBe(PRODUCT_TYPES.MONEY_ACCOUNT_PLUS);
+    });
+
     it('should handle subscription crypto approval when shield subscription transaction is submitted', async () => {
       await withController(
         {
@@ -4151,6 +4164,7 @@ describe('SubscriptionController', () => {
           await expect(
             rootMessenger.call(
               'SubscriptionController:submitSubscriptionCryptoApproval',
+              // @ts-expect-error only Shield is a valid productType
               PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
               txMeta,
             ),

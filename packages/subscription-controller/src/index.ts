@@ -44,6 +44,8 @@ export type {
   CancelType,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
+  StartDelegationCryptoSubscriptionRequest,
+  StartErc20CryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionRequest,
   StartSubscriptionResponse,

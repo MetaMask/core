@@ -203,15 +203,7 @@ export type StartSubscriptionResponse = {
   checkoutSessionUrl: string;
 };
 
-/**
- * Request to start a crypto subscription.
- *
- * Auth fields are XOR: provide `rawTransaction` for ERC-20 approval (the
- * default when `cryptoAuthMethod` is omitted), or `delegationHash` with
- * `cryptoAuthMethod: 'delegation'`. Combining or omitting both is rejected at
- * runtime by `startSubscriptionWithCrypto`.
- */
-export type StartCryptoSubscriptionRequest = {
+type StartCryptoSubscriptionRequestBase = {
   products: ProductType[];
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
@@ -222,21 +214,6 @@ export type StartCryptoSubscriptionRequest = {
    * e.g. "USDC"
    */
   tokenSymbol: string;
-  /**
-   * Required for ERC-20 approval subscriptions. Omitted for delegation-based
-   * subscriptions (e.g. Money Account).
-   */
-  rawTransaction?: Hex;
-  /**
-   * Crypto authorization method. Defaults to `CRYPTO_AUTH_METHODS.ERC20_APPROVAL`
-   * when omitted. Use `CRYPTO_AUTH_METHODS.DELEGATION` for products such as
-   * Money Account Plus.
-   */
-  cryptoAuthMethod?: CryptoAuthMethod;
-  /**
-   * Delegation hash from Authenticated User Storage (required for delegation).
-   */
-  delegationHash?: Hex;
   isSponsored?: boolean;
   useTestClock?: boolean;
   /**
@@ -250,6 +227,42 @@ export type StartCryptoSubscriptionRequest = {
    */
   rewardAccountId?: CaipAccountId;
 };
+
+/**
+ * ERC-20 approval crypto subscription request (e.g. Shield).
+ *
+ * `cryptoAuthMethod` defaults to `CRYPTO_AUTH_METHODS.ERC20_APPROVAL` when
+ * omitted.
+ */
+export type StartErc20CryptoSubscriptionRequest =
+  StartCryptoSubscriptionRequestBase & {
+    cryptoAuthMethod?: typeof CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
+    rawTransaction: Hex;
+    delegationHash?: never;
+  };
+
+/**
+ * Delegation-based crypto subscription request (e.g. Money Account Plus).
+ */
+export type StartDelegationCryptoSubscriptionRequest =
+  StartCryptoSubscriptionRequestBase & {
+    cryptoAuthMethod: typeof CRYPTO_AUTH_METHODS.DELEGATION;
+    delegationHash: Hex;
+    rawTransaction?: never;
+  };
+
+/**
+ * Request to start a crypto subscription.
+ *
+ * Discriminated union of ERC-20 approval vs delegation. Provide
+ * `rawTransaction` for ERC-20 approval (the default when `cryptoAuthMethod` is
+ * omitted), or `delegationHash` with `cryptoAuthMethod: 'delegation'`.
+ * Combining or omitting both is a type error, and is also rejected at runtime
+ * by `startSubscriptionWithCrypto`.
+ */
+export type StartCryptoSubscriptionRequest =
+  | StartErc20CryptoSubscriptionRequest
+  | StartDelegationCryptoSubscriptionRequest;
 
 export type StartCryptoSubscriptionResponse = {
   subscriptionId: string;

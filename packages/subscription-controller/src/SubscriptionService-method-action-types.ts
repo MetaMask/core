@@ -55,6 +55,7 @@ export type SubscriptionServiceStartSubscriptionWithCardAction = {
  *
  * @param request - The start crypto subscription request.
  * @returns The created subscription response.
+ * @throws If `products` is empty.
  * @throws If the request does not use exactly one of `rawTransaction`
  * (ERC-20 approval) or `delegationHash` (delegation).
  */
