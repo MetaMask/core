@@ -703,7 +703,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *   recurringInterval: RecurringInterval.Month,
    *   billingCycles: 1,
    * }
-   * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false otherwise
+   * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false if the chain does not support sponsorship or the user has already trialed
+   * @throws If the crypto payment method or chain is missing from pricing
    */
   async submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsMethodParams,
@@ -720,10 +721,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       this.state.lastSelectedPaymentMethod?.[request.products[0]];
     this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
 
+    const cryptoAuthMethod =
+      selectedPaymentMethod.cryptoAuthMethod ??
+      CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
     const isEligibleForTrialedSponsorship =
       this.#getIsEligibleForTrialedSponsorship(
         request.chainId,
         request.products,
+        cryptoAuthMethod,
       );
     if (!isEligibleForTrialedSponsorship) {
       return false;
@@ -1009,15 +1014,18 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param chainId - The chain ID
    * @param products - The products to check eligibility for
+   * @param cryptoAuthMethod - The crypto authorization method of the selected payment method
    * @returns True if the user is eligible for trialed sponsorship, false otherwise
    */
   #getIsEligibleForTrialedSponsorship(
     chainId: Hex,
     products: ProductType[],
+    cryptoAuthMethod: CryptoAuthMethod,
   ): boolean {
     const isSponsorshipSupported = this.#getChainSupportsSponsorship(
       chainId,
       products[0],
+      cryptoAuthMethod,
     );
 
     // verify if the user has trialed the provided products before
@@ -1068,19 +1076,35 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
+  /**
+   * Whether the given chain supports sponsorship for the product and auth method.
+   *
+   * @param chainId - The chain ID
+   * @param productType - The product type
+   * @param cryptoAuthMethod - The crypto authorization method to look up
+   * @returns True if the chain row has sponsorship enabled, false if it is explicitly not sponsored
+   * @throws If the crypto payment method or chain row is missing from pricing
+   */
   #getChainSupportsSponsorship(
     chainId: Hex,
     productType: ProductType,
+    cryptoAuthMethod: CryptoAuthMethod,
   ): boolean {
     const cryptoPaymentInfo = this.#findCryptoPaymentMethod(
       productType,
-      CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
+      cryptoAuthMethod,
     );
+    if (!cryptoPaymentInfo) {
+      throw new Error('Chains payment info not found');
+    }
 
-    const isSponsorshipSupported = cryptoPaymentInfo?.chains?.find(
+    const chainPaymentInfo = cryptoPaymentInfo.chains?.find(
       (chain) => chain.chainId === chainId,
-    )?.isSponsorshipSupported;
-    return Boolean(isSponsorshipSupported);
+    );
+    if (!chainPaymentInfo) {
+      throw new Error('Invalid chain id');
+    }
+    return Boolean(chainPaymentInfo.isSponsorshipSupported);
   }
 
   /**

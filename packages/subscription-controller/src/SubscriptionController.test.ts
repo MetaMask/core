@@ -2541,6 +2541,133 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('looks up sponsorship on the selected crypto auth method, not always erc20_approval', async () => {
+      const moneyAccountPrice: ProductPricing = {
+        ...MOCK_PRODUCT_PRICE,
+        name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      };
+      const moneyAccountRequest: SubmitSponsorshipIntentsMethodParams = {
+        ...MOCK_SUBMISSION_INTENTS_REQUEST,
+        products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+      };
+
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDC',
+                plan: RECURRING_INTERVALS.month,
+                cryptoAuthMethod: 'delegation',
+              },
+            },
+            pricing: {
+              products: [moneyAccountPrice],
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  cryptoAuthMethod: 'erc20_approval',
+                  products: [PRODUCT_TYPES.SHIELD],
+                  chains: [
+                    {
+                      chainId: '0x1',
+                      paymentAddress:
+                        '0x00000000000000000000000000000000000000a2',
+                      isSponsorshipSupported: false,
+                      tokens: [],
+                    },
+                  ],
+                },
+                {
+                  type: PAYMENT_TYPES.byCrypto,
+                  cryptoAuthMethod: 'delegation',
+                  products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+                  chains: [
+                    {
+                      chainId: '0x1',
+                      paymentAddress:
+                        '0x00000000000000000000000000000000000000c0',
+                      isSponsorshipSupported: true,
+                      tokens: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.submitSponsorshipIntents.mockResolvedValue(undefined);
+
+          const isSponsored = await rootMessenger.call(
+            'SubscriptionController:submitSponsorshipIntents',
+            moneyAccountRequest,
+          );
+
+          expect(isSponsored).toBe(true);
+          expect(mockService.submitSponsorshipIntents).toHaveBeenCalledWith({
+            ...moneyAccountRequest,
+            paymentTokenSymbol: 'USDC',
+            billingCycles: 12,
+            recurringInterval: RECURRING_INTERVALS.month,
+          });
+        },
+      );
+    });
+
+    it('throws when the pricing chain row is missing instead of treating it as not sponsored', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:submitSponsorshipIntents',
+              {
+                ...MOCK_SUBMISSION_INTENTS_REQUEST,
+                chainId: '0x89',
+              },
+            ),
+          ).rejects.toThrow('Invalid chain id');
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('throws when the crypto payment method row is missing instead of treating it as not sponsored', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: MOCK_CACHED_PAYMENT_METHOD,
+            pricing: {
+              ...MOCK_PRICE_INFO_RESPONSE,
+              paymentMethods: [
+                {
+                  type: PAYMENT_TYPES.byCard,
+                  products: [PRODUCT_TYPES.SHIELD],
+                },
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          await expect(
+            rootMessenger.call(
+              'SubscriptionController:submitSponsorshipIntents',
+              MOCK_SUBMISSION_INTENTS_REQUEST,
+            ),
+          ).rejects.toThrow('Chains payment info not found');
+          expect(mockService.submitSponsorshipIntents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('should throw error when no cached payment method is found', async () => {
       await withController(async ({ rootMessenger }) => {
         await expect(

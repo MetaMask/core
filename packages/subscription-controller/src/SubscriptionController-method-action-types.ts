@@ -159,7 +159,8 @@ export type SubscriptionControllerClearLastSelectedPaymentMethodAction = {
  * recurringInterval: RecurringInterval.Month,
  * billingCycles: 1,
  * }
- * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false otherwise
+ * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false if the chain does not support sponsorship or the user has already trialed
+ * @throws If the crypto payment method or chain is missing from pricing
  */
 export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   type: `SubscriptionController:submitSponsorshipIntents`;
