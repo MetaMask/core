@@ -16,6 +16,7 @@ import {
   TRANSACTIONS_PAGE_3_CURSOR,
 } from '../tests/mocks.js';
 import { STORAGE_SERVICE_KEY } from './BaseDataService.js';
+import type { DataServiceGranularCacheUpdatedPayload } from './BaseDataService.js';
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
@@ -185,14 +186,54 @@ describe('BaseDataService', () => {
       after: page1.pageInfo.endCursor,
     });
 
-    // The query is stale (zero `staleTime`), so a param-less call rebuilds the
-    // cached pages. That rebuild walks `getNextPageParam`, which this query
-    // does not provide, so the base service must supply a no-op to avoid a
-    // throw.
+    // The query is stale (zero `staleTime`), so a param-less call refetches the
+    // first page and replaces it in place, keeping the pages accumulated after
+    // it.
     mockTransactionsPage1();
     const rebuilt = await service.getActivityByCursor(TEST_ADDRESS);
 
     expect(rebuilt.data).toHaveLength(3);
+  });
+
+  it('replaces a cached page in place instead of duplicating it on a stale refetch', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    // `getActivityByCursor` has a zero `staleTime`, so every call refetches.
+    const page1 = await service.getActivityByCursor(TEST_ADDRESS);
+    await service.getActivityByCursor(TEST_ADDRESS, {
+      after: page1.pageInfo.endCursor,
+    });
+
+    // Refetch page 2. A stale refetch of an already cached page must overwrite
+    // it in place rather than appending a duplicate.
+    mockTransactionsPage2();
+    await service.getActivityByCursor(TEST_ADDRESS, {
+      after: page1.pageInfo.endCursor,
+    });
+
+    const granularEvent = `ExampleDataService:cacheUpdated:${hashKey([
+      'ExampleDataService:getActivityByCursor',
+      TEST_ADDRESS,
+    ])}`;
+    const granularCalls = publishSpy.mock.calls.filter(
+      ([eventType]) => eventType === granularEvent,
+    );
+    const lastPayload = granularCalls[granularCalls.length - 1]?.[1] as
+      | DataServiceGranularCacheUpdatedPayload
+      | undefined;
+    const state =
+      lastPayload && lastPayload.type !== 'removed'
+        ? lastPayload.state
+        : undefined;
+    const data = state?.queries[0]?.state.data as
+      | { pages: unknown[] }
+      | undefined;
+
+    // Two pages accumulated, not three: page 2 was replaced, not duplicated.
+    expect(data?.pages).toHaveLength(2);
   });
 
   it('recovers the first page after a cold jump on refetch', async () => {
