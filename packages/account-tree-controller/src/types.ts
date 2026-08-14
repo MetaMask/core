@@ -16,6 +16,7 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerVerifyPasswordAction,
   KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringV2Action,
   KeyringControllerWithKeyringV2UnsafeAction,
@@ -92,6 +93,7 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
+  | KeyringControllerVerifyPasswordAction
   | SnapControllerGetSnapAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAction

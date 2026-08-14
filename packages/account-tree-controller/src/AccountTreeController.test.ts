@@ -322,6 +322,7 @@ function setup({
     KeyringController: {
       keyrings: KeyringObject[];
       getState: jest.Mock;
+      verifyPassword: jest.Mock;
       withController: jest.Mock;
     };
     AccountsController: {
@@ -346,6 +347,7 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      verifyPassword: jest.fn().mockResolvedValue(undefined),
       withController: jest.fn(),
     },
     AccountsController: {
@@ -447,6 +449,11 @@ function setup({
     messenger.registerActionHandler(
       'KeyringController:getState',
       mocks.KeyringController.getState,
+    );
+
+    messenger.registerActionHandler(
+      'KeyringController:verifyPassword',
+      mocks.KeyringController.verifyPassword,
     );
 
     // Default: call the callback with no existing keyrings so private-key
@@ -6682,8 +6689,64 @@ describe('AccountTreeController', () => {
       ).rejects.toThrow('Cannot export account tree when vault is locked');
 
       await expect(
-        controller.exportState({ includeSecrets: true }),
+        controller.exportState({
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('Cannot export account tree when vault is locked');
+    });
+
+    it('throws when exporting with a wrong password', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      mocks.KeyringController.verifyPassword.mockRejectedValue(
+        new Error('Invalid password'),
+      );
+
+      await expect(
+        controller.exportState({
+          includeSecrets: true,
+          password: 'wrong-password',
+        }),
+      ).rejects.toThrow('Invalid password');
+    });
+
+    it('verifies password before exporting', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              // Must be even-length for encodeMnemonic (uses Uint16Array internally).
+              mnemonic: new Uint8Array([1, 2, 3, 4]),
+            },
+          }),
+      );
+
+      await controller.exportState({
+        includeSecrets: true,
+        password: 'correct-password',
+      });
+
+      expect(mocks.KeyringController.verifyPassword).toHaveBeenCalledWith(
+        'correct-password',
+      );
     });
   });
 });
