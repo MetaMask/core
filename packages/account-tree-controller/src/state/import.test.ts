@@ -5,7 +5,6 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -16,19 +15,15 @@ import type {
 } from '../types.js';
 import type { ImportContext } from './import.js';
 import { importState } from './import.js';
-import {
-  ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
-  AccountWalletPayloadType,
-  AccountWalletPrivateKeyEncoding,
-  toGroupPayloadId,
-  toWalletPayloadId,
-} from './payload.js';
-import type {
-  AccountTreePayload,
-  AccountWalletMnemonicPayload,
-  AccountWalletPrivateKeyPayload,
-} from './payload.js';
+import { AccountWalletPrivateKeyEncoding } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
+import {
+  makeAccountTreePayload,
+  makeLocalKeyringWallet,
+  makeLocalMnemonicWallet,
+  makePayloadMnemonicWallet,
+  makePayloadPrivateKeyWallet,
+} from './tests/helpers.js';
 import { encodeBytes } from './utils.js';
 
 // Valid 20-byte hex addresses for use with getUUIDFromAddressOfNormalAccount.
@@ -44,9 +39,6 @@ const MOCK_PRIVATE_KEY_WALLET_ID = toAccountWalletId(
   AccountWalletType.Keyring,
   KeyringTypes.simple,
 );
-const MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID = toWalletPayloadId(
-  AccountWalletPayloadType.PrivateKey,
-);
 
 const TEST_MNEMONIC = encodeBytes(
   new TextEncoder().encode(
@@ -54,9 +46,6 @@ const TEST_MNEMONIC = encodeBytes(
   ),
 );
 const MOCK_PRIVATE_KEY_HEX_STRING = '0xdeadbeef';
-const MOCK_PRIVATE_KEY_HEX_BYTES = encodeBytes(
-  new TextEncoder().encode(MOCK_PRIVATE_KEY_HEX_STRING),
-);
 
 const MOCK_PRIVATE_KEY_B58_STRING = '5Kb8kLf9z...';
 const MOCK_PRIVATE_KEY_B58_BYTES = encodeBytes(
@@ -64,147 +53,20 @@ const MOCK_PRIVATE_KEY_B58_BYTES = encodeBytes(
 );
 
 function makeHdWalletState(): AccountTreeControllerState['accountTree']['wallets'] {
-  return {
-    [MOCK_HD_WALLET_ID]: {
-      id: MOCK_HD_WALLET_ID,
-      type: AccountWalletType.Entropy,
-      status: 'ready',
-      groups: {
-        [MOCK_HD_GROUP_ID_0]: {
-          id: MOCK_HD_GROUP_ID_0,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: {
-            name: 'Account 1',
-            entropy: { groupIndex: 0 },
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
-        [MOCK_HD_GROUP_ID_1]: {
-          id: MOCK_HD_GROUP_ID_1,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-2'],
-          metadata: {
-            name: 'Account 2',
-            entropy: { groupIndex: 1 },
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
-      },
-      metadata: { name: 'Wallet 1', entropy: { id: MOCK_ENTROPY_ID } },
-    },
-  };
+  return makeLocalMnemonicWallet(MOCK_ENTROPY_ID, [
+    { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
+    { groupIndex: 1, name: 'Account 2', accounts: ['account-2'] },
+  ]);
 }
 
 function makeHdWalletStateWithOneGroup(): AccountTreeControllerState['accountTree']['wallets'] {
-  return {
-    [MOCK_HD_WALLET_ID]: {
-      id: MOCK_HD_WALLET_ID,
-      type: AccountWalletType.Entropy,
-      status: 'ready',
-      groups: {
-        [MOCK_HD_GROUP_ID_0]: {
-          id: MOCK_HD_GROUP_ID_0,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: {
-            name: 'Account 1',
-            entropy: { groupIndex: 0 },
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
-      },
-      metadata: { name: 'Wallet 1', entropy: { id: MOCK_ENTROPY_ID } },
-    },
-  };
+  return makeLocalMnemonicWallet(MOCK_ENTROPY_ID, [
+    { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
+  ]);
 }
 
-type MnemonicGroupSpec = {
-  groupIndex: number;
-  name: string;
-  pinned?: boolean;
-  hidden?: boolean;
-};
-
-function makeMnemonicWallet(
-  entropySourceId: string,
-  walletName: string,
-  groups: MnemonicGroupSpec[],
-  options: { mnemonic?: ReturnType<typeof encodeBytes> } = {},
-): AccountWalletMnemonicPayload {
-  const walletId = toWalletPayloadId(entropySourceId);
-  return {
-    id: walletId,
-    type: AccountWalletPayloadType.Mnemonic,
-    ...(options.mnemonic !== undefined && { value: options.mnemonic }),
-    metadata: { name: walletName },
-    groups: groups.map(
-      ({ groupIndex, name, pinned = false, hidden = false }) => ({
-        id: toGroupPayloadId(walletId, groupIndex),
-        groupIndex,
-        metadata: { name, pinned, hidden },
-      }),
-    ),
-  };
-}
-
-type PrivateKeyGroupValue = {
-  privateKey?: ReturnType<typeof encodeBytes>;
-  encoding?: AccountWalletPrivateKeyEncoding;
-  type?: string;
-};
-
-type PrivateKeyGroupSpec = {
-  address: string;
-  name: string;
-  pinned?: boolean;
-  hidden?: boolean;
-  value?: PrivateKeyGroupValue | null;
-};
-
-function makePrivateKeyWallet(
-  groups: PrivateKeyGroupSpec[],
-): AccountWalletPrivateKeyPayload {
-  return {
-    id: MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID,
-    type: AccountWalletPayloadType.PrivateKey,
-    metadata: { name: 'Imported Accounts' },
-    groups: groups.map(
-      ({ address, name, pinned = false, hidden = false, value }) => {
-        const resolvedValue =
-          value === null
-            ? undefined
-            : {
-                privateKey: value?.privateKey ?? MOCK_PRIVATE_KEY_HEX_BYTES,
-                encoding:
-                  value?.encoding ??
-                  AccountWalletPrivateKeyEncoding.Hexadecimal,
-                ...(value?.type !== undefined && { type: value.type }),
-              };
-        return {
-          id: toGroupPayloadId(MOCK_PRIVATE_KEY_WALLET_PAYLOAD_ID, address),
-          ...(resolvedValue !== undefined && { value: resolvedValue }),
-          metadata: { name, pinned, hidden },
-        };
-      },
-    ),
-  };
-}
-
-function makePayload(
-  ...wallets: (AccountWalletMnemonicPayload | AccountWalletPrivateKeyPayload)[]
-): AccountTreePayload {
-  return { version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION, wallets };
-}
-
-const MNEMONIC_PAYLOAD = makePayload(
-  makeMnemonicWallet(MOCK_ENTROPY_ID, 'My Renamed Wallet', [
+const MNEMONIC_PAYLOAD = makeAccountTreePayload(
+  makePayloadMnemonicWallet(MOCK_ENTROPY_ID, 'My Renamed Wallet', [
     { groupIndex: 0, name: 'Renamed Account 1', pinned: true },
     { groupIndex: 1, name: 'Renamed Account 2', hidden: true },
   ]),
@@ -397,29 +259,19 @@ describe('importState', () => {
     });
 
     it('skips non-mnemonic wallets when searching for a matching entropy source', async () => {
-      const pkWalletId = toAccountWalletId(
-        AccountWalletType.Keyring,
+      const privateKeyOnlyWallets = makeLocalKeyringWallet(
         KeyringTypes.simple,
+        [],
+        'Imported',
       );
-      const pkOnlyWallets: AccountTreeControllerState['accountTree']['wallets'] =
-        {
-          [pkWalletId]: {
-            id: pkWalletId,
-            type: AccountWalletType.Keyring,
-            status: 'ready',
-            groups: {},
-            metadata: {
-              name: 'Imported',
-              keyring: { type: KeyringTypes.simple },
-            },
-          },
-        };
-      const { context, mocks } = setup({ wallets: pkOnlyWallets });
+      const { context, mocks } = setup({ wallets: privateKeyOnlyWallets });
 
       // No mnemonic in payload -> will early-return after not finding the wallet.
       await importSnapshot(
         context,
-        makePayload(makeMnemonicWallet('entropy-only', 'X', [])),
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet('entropy-only', 'X', []),
+        ),
       );
       expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
     });
@@ -434,7 +286,9 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(makeMnemonicWallet('unknown-entropy', 'Unknown', [])),
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet('unknown-entropy', 'Unknown', []),
+        ),
       );
       expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
     });
@@ -455,8 +309,8 @@ describe('importState', () => {
       await expect(
         importSnapshot(
           context,
-          makePayload(
-            makeMnemonicWallet('no-match-entropy', 'Wallet', [], {
+          makeAccountTreePayload(
+            makePayloadMnemonicWallet('no-match-entropy', 'Wallet', [], {
               mnemonic: TEST_MNEMONIC,
             }),
           ),
@@ -479,18 +333,11 @@ describe('importState', () => {
       mocks.MultichainAccountService.createMultichainAccountWallet.mockImplementation(
         async () => {
           // Inject a keyring wallet (not entropy) at the returned ID.
-          walletsRef.current = {
-            [fakeWalletId]: {
-              id: fakeWalletId,
-              type: AccountWalletType.Keyring,
-              status: 'ready',
-              groups: {},
-              metadata: {
-                name: 'Not Mnemonic',
-                keyring: { type: KeyringTypes.simple },
-              },
-            },
-          };
+          walletsRef.current = makeLocalKeyringWallet(
+            KeyringTypes.simple,
+            [],
+            'Not Mnemonic',
+          );
           return { id: fakeWalletId };
         },
       );
@@ -498,8 +345,8 @@ describe('importState', () => {
       await expect(
         importSnapshot(
           context,
-          makePayload(
-            makeMnemonicWallet('no-match', 'Wallet', [], {
+          makeAccountTreePayload(
+            makePayloadMnemonicWallet('no-match', 'Wallet', [], {
               mnemonic: TEST_MNEMONIC,
             }),
           ),
@@ -524,8 +371,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makeMnemonicWallet(
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet(
             'unknown-entropy',
             'My Renamed Wallet',
             [{ groupIndex: 0, name: 'Account 1' }],
@@ -555,8 +402,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makeMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
             { groupIndex: 0, name: 'Account 1' },
             { groupIndex: 1, name: 'Account 2', pinned: true },
           ]),
@@ -590,8 +437,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makeMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
             { groupIndex: 0, name: 'Account 1' },
             { groupIndex: 1, name: 'New Account', pinned: true },
           ]),
@@ -622,8 +469,8 @@ describe('importState', () => {
       await expect(
         importSnapshot(
           context,
-          makePayload(
-            makeMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
+          makeAccountTreePayload(
+            makePayloadMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
               { groupIndex: 0, name: 'Renamed Account 1', pinned: true },
               { groupIndex: 1, name: 'New Account' },
             ]),
@@ -644,42 +491,10 @@ describe('importState', () => {
     });
 
     it('creates missing groups in the middle of the payload list', async () => {
-      const group2Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 2);
-      const stateWithGap: AccountTreeControllerState['accountTree']['wallets'] =
-        {
-          [MOCK_HD_WALLET_ID]: {
-            id: MOCK_HD_WALLET_ID,
-            type: AccountWalletType.Entropy,
-            status: 'ready',
-            groups: {
-              [MOCK_HD_GROUP_ID_0]: {
-                id: MOCK_HD_GROUP_ID_0,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-0'],
-                metadata: {
-                  name: 'Account 0',
-                  entropy: { groupIndex: 0 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-              [group2Id]: {
-                id: group2Id,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-2'],
-                metadata: {
-                  name: 'Account 2',
-                  entropy: { groupIndex: 2 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-            },
-            metadata: { name: 'Wallet 1', entropy: { id: MOCK_ENTROPY_ID } },
-          },
-        };
+      const stateWithGap = makeLocalMnemonicWallet(MOCK_ENTROPY_ID, [
+        { groupIndex: 0, name: 'Account 0', accounts: ['account-0'] },
+        { groupIndex: 2, name: 'Account 2', accounts: ['account-2'] },
+      ]);
 
       const { context, mocks } = setup({ wallets: stateWithGap });
       mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
@@ -690,8 +505,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makeMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet(MOCK_ENTROPY_ID, 'Wallet 1', [
             { groupIndex: 0, name: 'Account 0' },
             { groupIndex: 1, name: 'Account 1 (missing)' },
             { groupIndex: 2, name: 'Account 2' },
@@ -716,28 +531,11 @@ describe('importState', () => {
     mocks.MultichainAccountService.createMultichainAccountWallet.mockImplementation(
       async () => {
         // Wallet is created with only group 0; group 1 from the payload is absent.
-        walletsRef.current = {
-          [MOCK_HD_WALLET_ID]: {
-            id: MOCK_HD_WALLET_ID,
-            type: AccountWalletType.Entropy,
-            status: 'ready',
-            groups: {
-              [MOCK_HD_GROUP_ID_0]: {
-                id: MOCK_HD_GROUP_ID_0,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-1'],
-                metadata: {
-                  name: 'Account 1',
-                  entropy: { groupIndex: 0 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-            },
-            metadata: { name: 'Wallet', entropy: { id: MOCK_ENTROPY_ID } },
-          },
-        };
+        walletsRef.current = makeLocalMnemonicWallet(
+          MOCK_ENTROPY_ID,
+          [{ groupIndex: 0, name: 'Account 1', accounts: ['account-1'] }],
+          'Wallet',
+        );
         return { id: MOCK_HD_WALLET_ID };
       },
     );
@@ -751,8 +549,8 @@ describe('importState', () => {
     expect(
       await importSnapshot(
         context,
-        makePayload(
-          makeMnemonicWallet(
+        makeAccountTreePayload(
+          makePayloadMnemonicWallet(
             'no-match',
             'Wallet',
             [
@@ -779,39 +577,21 @@ describe('importState', () => {
   describe('private-key wallets', () => {
     it('applies metadata to an existing private-key account group', async () => {
       const accountId = getUUIDFromAddressOfNormalAccount(ADDR_A);
-      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_A);
+      const privateKeyGroupId = toAccountGroupId(
+        MOCK_PRIVATE_KEY_WALLET_ID,
+        ADDR_A,
+      );
 
-      const pkWallets: AccountTreeControllerState['accountTree']['wallets'] = {
-        [MOCK_PRIVATE_KEY_WALLET_ID]: {
-          id: MOCK_PRIVATE_KEY_WALLET_ID,
-          type: AccountWalletType.Keyring,
-          status: 'ready',
-          groups: {
-            [pkGroupId]: {
-              id: pkGroupId,
-              type: AccountGroupType.SingleAccount,
-              accounts: [accountId],
-              metadata: {
-                name: 'Imported 1',
-                pinned: false,
-                hidden: false,
-                lastSelected: 0,
-              },
-            },
-          },
-          metadata: {
-            name: 'Imported Accounts',
-            keyring: { type: KeyringTypes.simple },
-          },
-        },
-      };
+      const privateKeyWallets = makeLocalKeyringWallet(KeyringTypes.simple, [
+        { address: ADDR_A, name: 'Imported 1', accounts: [accountId] },
+      ]);
 
-      const { context, mocks } = setup({ wallets: pkWallets });
+      const { context, mocks } = setup({ wallets: privateKeyWallets });
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([
             {
               address: ADDR_A,
               name: 'Renamed Imported',
@@ -826,51 +606,29 @@ describe('importState', () => {
       // user-customisable, so import must never overwrite it.
       expect(mocks.setters.setWalletName).not.toHaveBeenCalled();
       expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
-        pkGroupId,
+        privateKeyGroupId,
         'Renamed Imported',
       );
       expect(mocks.setters.setAccountGroupPinned).toHaveBeenCalledWith(
-        pkGroupId,
+        privateKeyGroupId,
         true,
       );
       expect(mocks.setters.setAccountGroupHidden).toHaveBeenCalledWith(
-        pkGroupId,
+        privateKeyGroupId,
         false,
       );
     });
 
     it('creates a new simple keyring when none exists (onboarding)', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
-      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_B);
 
       const { context, mocks, walletsRef } = setup();
 
       const keyringV2 = {
         createAccounts: jest.fn().mockImplementation(async () => {
-          walletsRef.current = {
-            [MOCK_PRIVATE_KEY_WALLET_ID]: {
-              id: MOCK_PRIVATE_KEY_WALLET_ID,
-              type: AccountWalletType.Keyring,
-              status: 'ready',
-              groups: {
-                [pkGroupId]: {
-                  id: pkGroupId,
-                  type: AccountGroupType.SingleAccount,
-                  accounts: [newAccountId],
-                  metadata: {
-                    name: 'New Import',
-                    pinned: false,
-                    hidden: false,
-                    lastSelected: 0,
-                  },
-                },
-              },
-              metadata: {
-                name: 'Imported Accounts',
-                keyring: { type: KeyringTypes.simple },
-              },
-            },
-          };
+          walletsRef.current = makeLocalKeyringWallet(KeyringTypes.simple, [
+            { address: ADDR_B, name: 'New Import', accounts: [newAccountId] },
+          ]);
           return [{ id: newAccountId }];
         }),
       };
@@ -881,8 +639,10 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([{ address: ADDR_B, name: 'New Import' }]),
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([
+            { address: ADDR_B, name: 'New Import' },
+          ]),
         ),
       );
 
@@ -908,36 +668,14 @@ describe('importState', () => {
 
     it('reuses the existing simple keyring when one is already present', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
-      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_B);
 
       const { context, mocks, walletsRef } = setup();
 
       const keyringV2 = {
         createAccounts: jest.fn().mockImplementation(async () => {
-          walletsRef.current = {
-            [MOCK_PRIVATE_KEY_WALLET_ID]: {
-              id: MOCK_PRIVATE_KEY_WALLET_ID,
-              type: AccountWalletType.Keyring,
-              status: 'ready',
-              groups: {
-                [pkGroupId]: {
-                  id: pkGroupId,
-                  type: AccountGroupType.SingleAccount,
-                  accounts: [newAccountId],
-                  metadata: {
-                    name: 'New Import',
-                    pinned: false,
-                    hidden: false,
-                    lastSelected: 0,
-                  },
-                },
-              },
-              metadata: {
-                name: 'Imported Accounts',
-                keyring: { type: KeyringTypes.simple },
-              },
-            },
-          };
+          walletsRef.current = makeLocalKeyringWallet(KeyringTypes.simple, [
+            { address: ADDR_B, name: 'New Import', accounts: [newAccountId] },
+          ]);
           return [{ id: newAccountId }];
         }),
       };
@@ -948,8 +686,10 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([{ address: ADDR_B, name: 'New Import' }]),
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([
+            { address: ADDR_B, name: 'New Import' },
+          ]),
         ),
       );
 
@@ -975,7 +715,10 @@ describe('importState', () => {
 
     it('imports a private key when the account does not exist locally', async () => {
       const newAccountId = getUUIDFromAddressOfNormalAccount(ADDR_B);
-      const pkGroupId = toAccountGroupId(MOCK_PRIVATE_KEY_WALLET_ID, ADDR_B);
+      const privateKeyGroupId = toAccountGroupId(
+        MOCK_PRIVATE_KEY_WALLET_ID,
+        ADDR_B,
+      );
 
       const { context, mocks, walletsRef } = setup();
 
@@ -983,30 +726,9 @@ describe('importState', () => {
       // new account being returned by createAccounts.
       const keyringV2 = {
         createAccounts: jest.fn().mockImplementation(async () => {
-          walletsRef.current = {
-            [MOCK_PRIVATE_KEY_WALLET_ID]: {
-              id: MOCK_PRIVATE_KEY_WALLET_ID,
-              type: AccountWalletType.Keyring,
-              status: 'ready',
-              groups: {
-                [pkGroupId]: {
-                  id: pkGroupId,
-                  type: AccountGroupType.SingleAccount,
-                  accounts: [newAccountId],
-                  metadata: {
-                    name: 'New Import',
-                    pinned: false,
-                    hidden: false,
-                    lastSelected: 0,
-                  },
-                },
-              },
-              metadata: {
-                name: 'Imported Accounts',
-                keyring: { type: KeyringTypes.simple },
-              },
-            },
-          };
+          walletsRef.current = makeLocalKeyringWallet(KeyringTypes.simple, [
+            { address: ADDR_B, name: 'New Import', accounts: [newAccountId] },
+          ]);
           return [{ id: newAccountId }];
         }),
       };
@@ -1016,8 +738,10 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([{ address: ADDR_B, name: 'New Import' }]),
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([
+            { address: ADDR_B, name: 'New Import' },
+          ]),
         ),
       );
 
@@ -1033,7 +757,7 @@ describe('importState', () => {
         }),
       );
       expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
-        pkGroupId,
+        privateKeyGroupId,
         'New Import',
       );
     });
@@ -1047,8 +771,8 @@ describe('importState', () => {
       await expect(
         importSnapshot(
           context,
-          makePayload(
-            makePrivateKeyWallet([{ address: ADDR_C, name: 'Fail' }]),
+          makeAccountTreePayload(
+            makePayloadPrivateKeyWallet([{ address: ADDR_C, name: 'Fail' }]),
           ),
         ),
       ).rejects.toThrow('Failed to import private key for account');
@@ -1063,8 +787,8 @@ describe('importState', () => {
       await expect(
         importSnapshot(
           context,
-          makePayload(
-            makePrivateKeyWallet([{ address: ADDR_C, name: 'Fail' }]),
+          makeAccountTreePayload(
+            makePayloadPrivateKeyWallet([{ address: ADDR_C, name: 'Fail' }]),
           ),
         ),
       ).rejects.toThrow('Simple keyring has no v2 interface');
@@ -1075,8 +799,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([
             {
               address: ADDR_A,
               name: 'Bitcoin Account',
@@ -1103,8 +827,8 @@ describe('importState', () => {
       await expect(
         importSnapshot(
           context,
-          makePayload(
-            makePrivateKeyWallet([
+          makeAccountTreePayload(
+            makePayloadPrivateKeyWallet([
               {
                 address: ADDR_A,
                 name: 'EVM Account',
@@ -1122,8 +846,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([
             { address: ADDR_C, name: 'Missing', value: null },
           ]),
         ),
@@ -1144,8 +868,8 @@ describe('importState', () => {
 
       await importSnapshot(
         context,
-        makePayload(
-          makePrivateKeyWallet([{ address: ADDR_C, name: 'Orphan' }]),
+        makeAccountTreePayload(
+          makePayloadPrivateKeyWallet([{ address: ADDR_C, name: 'Orphan' }]),
         ),
       );
       expect(mocks.setters.setAccountGroupName).not.toHaveBeenCalled();
