@@ -282,9 +282,9 @@ export async function exportState(
     throw new Error('Cannot export account tree when vault is locked');
   }
 
-  const includeSecrets = options.includeSecrets ?? false;
-
-  if (includeSecrets) {
+  // Use `options` here to let the compiler infer the type of `includeSecrets` based on the
+  // discriminated union.
+  if (options.includeSecrets) {
     // We verify the password here to force consumers to have it in their flow
     // before calling exportState. The password is never stored, so the only
     // way to supply it is to ask the user, ensuring they are prompted upstream
@@ -294,6 +294,8 @@ export async function exportState(
       options.password,
     );
   }
+
+  const includeSecrets = options.includeSecrets ?? false;
 
   const idMap = new IdMap();
   const entries: AccountTreeWalletEntry[] = [];
