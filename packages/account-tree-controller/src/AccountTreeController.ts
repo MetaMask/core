@@ -1920,7 +1920,7 @@ export class AccountTreeController extends BaseController<
           this.setAccountGroupName(id, name, true),
         setAccountGroupPinned: (id, pinned) =>
           this.setAccountGroupPinned(id, pinned),
-        setAccountGroupHideen: (id, hidden) =>
+        setAccountGroupHidden: (id, hidden) =>
           this.setAccountGroupHidden(id, hidden),
       },
       snapshot,

@@ -178,7 +178,7 @@ function makeImportContext(
     setWalletName: jest.fn(),
     setAccountGroupName: jest.fn(),
     setAccountGroupPinned: jest.fn(),
-    setAccountGroupHideen: jest.fn(),
+    setAccountGroupHidden: jest.fn(),
   };
 }
 
