@@ -35,8 +35,10 @@ export function cleanupUnusedMetadata(state: CleanupUnusedMetadataState): void {
     !keptAssetIds.has(assetId.toLowerCase()) && !isNativeAssetId(assetId);
 
   for (const slice of [state.assetsInfo, state.assetsPrice]) {
-    for (const assetId of Object.keys(slice).filter(isUnused)) {
-      delete slice[assetId];
+    for (const assetId of Object.keys(slice)) {
+      if (isUnused(assetId)) {
+        delete slice[assetId];
+      }
     }
   }
 }
