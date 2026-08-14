@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AccountTreeController:initialized` event, emitted at the end of `init()` when the account tree is fully built and ready to consume ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Add `AccountTreeController:uninitialized` event, emitted at the end of `clearState()` when the account tree has been torn down ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `AccountTreeController:initialized` event, emitted at the end of `init()` when the account tree is fully built and ready to consume ([#9880](https://github.com/MetaMask/core/pull/9880))
+- Add `AccountTreeController:uninitialized` event, emitted at the end of `clearState()` when the account tree has been torn down ([#9880](https://github.com/MetaMask/core/pull/9880))
 
 ### Changed
 
