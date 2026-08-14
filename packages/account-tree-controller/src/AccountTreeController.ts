@@ -1881,11 +1881,14 @@ export class AccountTreeController extends BaseController<
   /**
    * Produces a versioned snapshot of the current wallet and group state.
    *
-   * When `options.includeSecrets` is `true` and the vault is unlocked,
-   * mnemonic phrases and private keys are included in the snapshot.
+   * When `options.includeSecrets` is `true`, `options.password` is required
+   * and verified against the vault before any secret is read. Without
+   * `includeSecrets`, only metadata (names, pinned, hidden) is exported and
+   * no password is needed.
    *
    * @param options - Export options.
    * @returns A promise resolving to an `AccountTreeSnapshot`.
+   * @throws If the vault is locked or the password is incorrect.
    */
   async exportState(
     options?: ExportStateOptions,
