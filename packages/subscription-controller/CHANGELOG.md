@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `CRYPTO_AUTH_METHODS` (`erc20_approval`, `delegation`) and `CryptoAuthMethod`
   - `PricingCardPaymentMethod` and `PricingCryptoPaymentMethod` variants, with optional `products` and (crypto only) `cryptoAuthMethod`
   - Optional `ChainPaymentInfo.delegateAddress`
-  - `SpotTokenPaymentInfo` and `VaultTokenPaymentInfo` variants, with optional `sources` and vault `accountantAddress`
+  - `SpotTokenPaymentInfo` and `VaultTokenPaymentInfo` variants, with optional `sources`; vault shares require `accountantAddress`
 
 ### Changed
 
@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This handler is Shield ERC-20 approve only (`productType` must be Shield and `txMeta.type` must be `TransactionType.shieldSubscriptionApprove`); other products should use `startSubscriptionWithCrypto`.
 - **BREAKING:** Make `TokenPaymentInfo.conversionRate` optional. Consumers that access `.conversionRate.usd` without optional chaining will fail typecheck. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - **BREAKING:** Change `SubscriptionControllerState.lastSelectedPaymentMethod` from `Record<ProductType, CachedLastSelectedPaymentMethod>` to `Partial<Record<ProductType, CachedLastSelectedPaymentMethod>>`. Product keys may be absent; consumers must handle missing entries. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** `SubscriptionController.submitSponsorshipIntents` now throws when the crypto payment method or chain is missing from pricing, instead of returning `false`. Callers that treated missing pricing/chain as "not sponsored" must handle these errors. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - Generalize subscription controller flows for multiple products: product-scoped crypto payment-method lookup, and trial requests derived from `trialPeriodDays` plus `trialedProducts`. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - `StartCryptoSubscriptionRequest.rawTransaction` is now optional for delegation-based crypto subscriptions; add optional `cryptoAuthMethod` and `delegationHash` fields. ([#9866](https://github.com/MetaMask/core/pull/9866))
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
