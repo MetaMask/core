@@ -44,6 +44,7 @@ import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analy
 import { BackupAndSyncService } from './backup-and-sync/service/index.js';
 import { isAccountGroupNameUnique } from './group.js';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring.js';
+import { makeLocalMnemonicWallet } from './state/tests/helpers.js';
 import type { AccountTreeControllerState } from './types.js';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
@@ -246,33 +247,13 @@ const MOCK_PREPOPULATED_GROUP_ID = toMultichainAccountGroupId(
 const MOCK_PREPOPULATED_STATE: Partial<AccountTreeControllerState> = {
   selectedAccountGroup: MOCK_PREPOPULATED_GROUP_ID,
   accountTree: {
-    wallets: {
-      [MOCK_PREPOPULATED_WALLET_ID]: {
-        id: MOCK_PREPOPULATED_WALLET_ID,
-        type: AccountWalletType.Entropy,
-        status: 'ready',
-        groups: {
-          [MOCK_PREPOPULATED_GROUP_ID]: {
-            id: MOCK_PREPOPULATED_GROUP_ID,
-            type: AccountGroupType.MultichainAccount,
-            accounts: [MOCK_HD_ACCOUNT_1.id],
-            metadata: {
-              name: 'Account 1',
-              entropy: {
-                groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-              },
-              pinned: false,
-              hidden: false,
-              lastSelected: 0,
-            },
-          },
-        },
-        metadata: {
-          name: 'Wallet 1',
-          entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
-        },
+    wallets: makeLocalMnemonicWallet(MOCK_HD_KEYRING_1.metadata.id, [
+      {
+        groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        name: 'Account 1',
+        accounts: [MOCK_HD_ACCOUNT_1.id],
       },
-    },
+    ]),
   },
 };
 

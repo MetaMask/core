@@ -8,14 +8,7 @@
  * A failure here means the wire format produced by `exportState` cannot be consumed by
  * `importState` without data loss, which is the central correctness property of this package.
  */
-import {
-  AccountWalletType,
-  toAccountGroupId,
-  toAccountWalletId,
-  toMultichainAccountGroupId,
-  toMultichainAccountWalletId,
-} from '@metamask/account-api';
-import { AccountGroupType } from '@metamask/account-api';
+import { toMultichainAccountWalletId } from '@metamask/account-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
@@ -29,67 +22,30 @@ import type { ImportContext } from './import.js';
 import { importState } from './import.js';
 import { AccountWalletPrivateKeyEncoding } from './payload.js';
 import { AccountTreeSnapshot } from './snapshot.js';
+import {
+  makeLocalKeyringWallet,
+  makeLocalMnemonicWallet,
+} from './tests/helpers.js';
 
 const MOCK_ENTROPY_ID = 'stable-entropy-id';
 const MOCK_HD_WALLET_ID = toMultichainAccountWalletId(MOCK_ENTROPY_ID);
-const MOCK_HD_GROUP_ID_0 = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
 const MOCK_HD_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
-  {
-    [MOCK_HD_WALLET_ID]: {
-      id: MOCK_HD_WALLET_ID,
-      type: AccountWalletType.Entropy,
-      status: 'ready',
-      groups: {
-        [MOCK_HD_GROUP_ID_0]: {
-          id: MOCK_HD_GROUP_ID_0,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: {
-            name: 'Account 1',
-            entropy: { groupIndex: 0 },
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
-      },
-      metadata: { name: 'Wallet 1', entropy: { id: MOCK_ENTROPY_ID } },
-    },
-  };
+  makeLocalMnemonicWallet(MOCK_ENTROPY_ID, [
+    { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
+  ]);
 
-const MOCK_PRIVATE_KEY_WALLET_ID = toAccountWalletId(
-  AccountWalletType.Keyring,
-  KeyringTypes.simple,
-);
-const MOCK_PRIVATE_KEY_GROUP_ID = toAccountGroupId(
-  MOCK_PRIVATE_KEY_WALLET_ID,
-  '0xabc',
-);
 const MOCK_PRIVATE_KEY_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
-  {
-    [MOCK_PRIVATE_KEY_WALLET_ID]: {
-      id: MOCK_PRIVATE_KEY_WALLET_ID,
-      type: AccountWalletType.Keyring,
-      status: 'ready',
-      groups: {
-        [MOCK_PRIVATE_KEY_GROUP_ID]: {
-          id: MOCK_PRIVATE_KEY_GROUP_ID,
-          type: AccountGroupType.SingleAccount,
-          accounts: ['account-private-key-1'],
-          metadata: {
-            name: 'Imported 1',
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
+  makeLocalKeyringWallet(
+    KeyringTypes.simple,
+    [
+      {
+        address: '0xabc',
+        name: 'Imported 1',
+        accounts: ['account-private-key-1'],
       },
-      metadata: {
-        name: 'Imported Accounts',
-        keyring: { type: KeyringTypes.simple },
-      },
-    },
-  };
+    ],
+    'Imported Accounts',
+  );
 
 function makeExportContext(
   wallets: AccountTreeControllerState['accountTree']['wallets'],
