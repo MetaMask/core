@@ -555,6 +555,79 @@ describe('importState', () => {
       );
     });
 
+    it('applies metadata to a newly created group via the post-creation pass', async () => {
+      const stateWithOneGroup: AccountTreeControllerState['accountTree']['wallets'] =
+        {
+          [MOCK_HD_WALLET_ID]: {
+            id: MOCK_HD_WALLET_ID,
+            type: AccountWalletType.Entropy,
+            status: 'ready',
+            groups: {
+              [MOCK_HD_GROUP_ID_0]: {
+                id: MOCK_HD_GROUP_ID_0,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-1'],
+                metadata: {
+                  name: 'Account 1',
+                  entropy: { groupIndex: 0 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+            },
+            metadata: { name: 'Wallet 1', entropy: { id: MOCK_ENTROPY_ID } },
+          },
+        };
+
+      const { context, mocks, walletsRef } = setup({
+        wallets: stateWithOneGroup,
+      });
+      mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
+        { toEntropySourceId: async () => MOCK_ENTROPY_ID },
+      );
+      mocks.MultichainAccountService.createMultichainAccountGroups.mockImplementation(
+        async () => {
+          // Simulate group 1 appearing in the wallet tree after creation.
+          walletsRef.current = makeHdWalletState();
+        },
+      );
+
+      const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [
+          {
+            id: MOCK_MNEMONIC_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.Mnemonic,
+            metadata: { name: 'Wallet 1' },
+            groups: [
+              {
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 0),
+                groupIndex: 0,
+                metadata: { name: 'Account 1', pinned: false, hidden: false },
+              },
+              {
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 1),
+                groupIndex: 1,
+                metadata: { name: 'New Account', pinned: true, hidden: false },
+              },
+            ],
+          },
+        ],
+      };
+
+      await importSnapshot(context, payload);
+
+      expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
+        MOCK_HD_GROUP_ID_1,
+        'New Account',
+      );
+      expect(mocks.setters.setAccountGroupPinned).toHaveBeenCalledWith(
+        MOCK_HD_GROUP_ID_1,
+        true,
+      );
+    });
+
     it('applies metadata to pre-existing groups even when group creation throws', async () => {
       const stateWithOneGroup: AccountTreeControllerState['accountTree']['wallets'] =
         {
