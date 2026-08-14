@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 
+### Removed
+
+- **BREAKING:** Remove `BlockTrackerPollingController` ([#0000](https://github.com/MetaMask/core/pull/0000)) 
+
 ## [16.0.9]
 
 ### Changed

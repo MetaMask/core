@@ -537,7 +537,6 @@ linkStyle default opacity:0.5
   phishing_controller --> messenger;
   phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
-  polling_controller --> network_controller;
   polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
