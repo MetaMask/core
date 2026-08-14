@@ -6542,47 +6542,8 @@ describe('AccountTreeController', () => {
       ).toBe(false);
     });
 
-    it('round-trips a snapshot with includeSecrets: false and vault locked', async () => {
-      const { controller, messenger, mocks } = setup({
-        accounts: [MOCK_HD_ACCOUNT_1],
-        keyrings: [MOCK_HD_KEYRING_1],
-      });
-
-      controller.init();
-
-      // Override KeyringController:getState to report a locked vault.
-      mocks.KeyringController.getState.mockReturnValue({
-        isUnlocked: false,
-        keyrings: mocks.KeyringController.keyrings,
-      });
-
-      messenger.registerActionHandler(
-        'KeyringController:withKeyringV2Unsafe',
-        async (
-          _selector: unknown,
-          callback: (ctx: { keyring: unknown }) => unknown,
-        ) =>
-          callback({
-            keyring: {
-              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
-              mnemonic: null,
-            },
-          }),
-      );
-
-      // Export without secrets is allowed even when the vault is locked.
-      const snapshot = await controller.exportState({ includeSecrets: false });
-      const payload = snapshot.serialize();
-
-      // Exported mnemonic wallet has no secret value.
-      expect((payload.wallets[0] as { value?: string }).value).toBeUndefined();
-
-      // Reimport is a no-op for metadata when nothing changed.
-      expect(await controller.importState(snapshot)).toBeUndefined();
-    });
-
-    it('throws when exporting with includeSecrets: true and the vault is locked', async () => {
-      const { controller, messenger, mocks } = setup({
+    it('throws when exporting with a locked vault regardless of includeSecrets', async () => {
+      const { controller, mocks } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
       });
@@ -6594,16 +6555,13 @@ describe('AccountTreeController', () => {
         keyrings: mocks.KeyringController.keyrings,
       });
 
-      messenger.registerActionHandler(
-        'KeyringController:withKeyringV2Unsafe',
-        async () => undefined,
-      );
+      await expect(
+        controller.exportState({ includeSecrets: false }),
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
 
       await expect(
         controller.exportState({ includeSecrets: true }),
-      ).rejects.toThrow(
-        'Cannot include secrets in export when vault is locked',
-      );
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
     });
   });
 });
