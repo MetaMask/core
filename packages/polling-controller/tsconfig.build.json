@@ -10,7 +10,13 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
-      "path": "../network-controller/tsconfig.build.json"
+      "path": "../eth-block-tracker/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
+      "path": "../json-rpc-engine/tsconfig.build.json"
     },
     {
       "path": "../messenger/tsconfig.build.json"

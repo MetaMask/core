@@ -9,7 +9,13 @@
       "path": "../base-controller"
     },
     {
-      "path": "../network-controller"
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../json-rpc-engine"
     },
     {
       "path": "../messenger"
