@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^8.0.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9886](https://github.com/MetaMask/core/pull/9886))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [8.1.1]

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.2.5]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.1` to `^8.0.0` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
 ### Fixed
 
 - Avoid duplicate `refreshEarnEligibility`/`refreshPooledStakes`/`refreshLendingPositions` calls when `AccountTreeController:selectedAccountGroupChange` fires with an address that was already just refreshed (e.g. immediately after `init()` during startup hydration) ([#9804](https://github.com/MetaMask/core/pull/9804))

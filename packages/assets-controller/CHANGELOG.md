@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.1.4]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.1` to `^8.0.0` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/assets-controllers` from `^111.1.0` to `^111.1.1` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
 ### Fixed
 
 - Revert `AccountsApiDataSource` `forceUpdate` balance fetch cache window from `staleTime`/`gcTime` of `100`ms back to `0`/`0` (undoes [#9591](https://github.com/MetaMask/core/pull/9591)) so forced refreshes truly bypass the TanStack cache instead of reusing a short-lived entry ([#9870](https://github.com/MetaMask/core/pull/9870))
