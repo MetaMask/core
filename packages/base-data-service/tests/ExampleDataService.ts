@@ -147,9 +147,9 @@ export class ExampleDataService extends BaseDataService<
           pageInfo.hasPreviousPage
             ? { before: pageInfo.startCursor }
             : undefined,
-        getNextPageParam: ({ pageInfo }) =>
-          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
-        staleTime: inMilliseconds(5, Duration.Minute),
+        // No `staleTime`, so this relies on the client's default. That keeps the
+        // cached pages fresh for the tests (which do not advance timers) and
+        // exercises the default-`staleTime` path in `fetchInfiniteQuery`.
       },
       page,
     );
