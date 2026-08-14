@@ -555,6 +555,82 @@ describe('importState', () => {
       );
     });
 
+    it('applies metadata to pre-existing groups even when group creation throws', async () => {
+      const stateWithOneGroup: AccountTreeControllerState['accountTree']['wallets'] =
+        {
+          [MOCK_HD_WALLET_ID]: {
+            id: MOCK_HD_WALLET_ID,
+            type: AccountWalletType.Entropy,
+            status: 'ready',
+            groups: {
+              [MOCK_HD_GROUP_ID_0]: {
+                id: MOCK_HD_GROUP_ID_0,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-1'],
+                metadata: {
+                  name: 'Account 1',
+                  entropy: { groupIndex: 0 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+            },
+            metadata: { name: 'Wallet 1', entropy: { id: MOCK_ENTROPY_ID } },
+          },
+        };
+
+      const { context, mocks } = setup({ wallets: stateWithOneGroup });
+      mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock(
+        { toEntropySourceId: async () => MOCK_ENTROPY_ID },
+      );
+      mocks.MultichainAccountService.createMultichainAccountGroups.mockRejectedValue(
+        new Error('Snap keyring not ready'),
+      );
+
+      const payload = {
+        version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+        wallets: [
+          {
+            id: MOCK_MNEMONIC_WALLET_PAYLOAD_ID,
+            type: AccountWalletPayloadType.Mnemonic,
+            metadata: { name: 'Wallet 1' },
+            groups: [
+              {
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 0),
+                groupIndex: 0,
+                metadata: {
+                  name: 'Renamed Account 1',
+                  pinned: true,
+                  hidden: false,
+                },
+              },
+              {
+                id: toGroupPayloadId(MOCK_MNEMONIC_WALLET_PAYLOAD_ID, 1),
+                groupIndex: 1,
+                metadata: { name: 'New Account', pinned: false, hidden: false },
+              },
+            ],
+          },
+        ],
+      };
+
+      await expect(importSnapshot(context, payload)).rejects.toThrow(
+        'Snap keyring not ready',
+      );
+
+      // Group 0 already existed locally and must have received its metadata
+      // before the creation loop threw.
+      expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
+        MOCK_HD_GROUP_ID_0,
+        'Renamed Account 1',
+      );
+      expect(mocks.setters.setAccountGroupPinned).toHaveBeenCalledWith(
+        MOCK_HD_GROUP_ID_0,
+        true,
+      );
+    });
+
     it('creates missing groups in the middle of the payload list', async () => {
       const group2Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 2);
       const stateWithGap: AccountTreeControllerState['accountTree']['wallets'] =
@@ -640,6 +716,84 @@ describe('importState', () => {
         expect.objectContaining({ fromGroupIndex: 1, toGroupIndex: 1 }),
       );
     });
+  });
+
+  it('skips metadata for a group absent from the wallet after creation without throwing', async () => {
+    const { context, mocks, walletsRef } = setup();
+
+    mocks.KeyringController.withKeyringV2Unsafe = makeWithKeyringV2UnsafeMock({
+      toEntropySourceId: async () => 'no-match',
+    });
+    mocks.MultichainAccountService.createMultichainAccountWallet.mockImplementation(
+      async () => {
+        // Wallet is created with only group 0; group 1 from the payload is absent.
+        walletsRef.current = {
+          [MOCK_HD_WALLET_ID]: {
+            id: MOCK_HD_WALLET_ID,
+            type: AccountWalletType.Entropy,
+            status: 'ready',
+            groups: {
+              [MOCK_HD_GROUP_ID_0]: {
+                id: MOCK_HD_GROUP_ID_0,
+                type: AccountGroupType.MultichainAccount,
+                accounts: ['account-1'],
+                metadata: {
+                  name: 'Account 1',
+                  entropy: { groupIndex: 0 },
+                  pinned: false,
+                  hidden: false,
+                  lastSelected: 0,
+                },
+              },
+            },
+            metadata: { name: 'Wallet', entropy: { id: MOCK_ENTROPY_ID } },
+          },
+        };
+        return { id: MOCK_HD_WALLET_ID };
+      },
+    );
+    // createMultichainAccountGroups succeeds but leaves the wallet state unchanged
+    // (group 1 is still absent after the call).
+    mocks.MultichainAccountService.createMultichainAccountGroups.mockResolvedValue(
+      undefined,
+    );
+
+    const payload = {
+      version: ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,
+      wallets: [
+        {
+          id: toWalletPayloadId('no-match'),
+          type: AccountWalletPayloadType.Mnemonic,
+          value: TEST_MNEMONIC,
+          metadata: { name: 'Wallet' },
+          groups: [
+            {
+              id: toGroupPayloadId(toWalletPayloadId('no-match'), 0),
+              groupIndex: 0,
+              metadata: { name: 'Account 1', pinned: false, hidden: false },
+            },
+            {
+              id: toGroupPayloadId(toWalletPayloadId('no-match'), 1),
+              groupIndex: 1,
+              metadata: { name: 'Missing Group', pinned: false, hidden: false },
+            },
+          ],
+        },
+      ],
+    };
+
+    // Must not throw even though group 1 is absent from the wallet after creation.
+    expect(await importSnapshot(context, payload)).toBeUndefined();
+    // Group 0 was present and must have received its metadata.
+    expect(mocks.setters.setAccountGroupName).toHaveBeenCalledWith(
+      MOCK_HD_GROUP_ID_0,
+      'Account 1',
+    );
+    // Group 1 was never created, so no metadata should have been applied.
+    expect(mocks.setters.setAccountGroupName).not.toHaveBeenCalledWith(
+      MOCK_HD_GROUP_ID_1,
+      'Missing Group',
+    );
   });
 
   describe('private-key wallets', () => {
