@@ -655,7 +655,7 @@ describe('Feature Flags Utils', () => {
         expect(isRelayValidationEnabled(messenger)).toBe(false);
       });
 
-      it('per-type override true beats enabled=false', () => {
+      it('returns true when per-type override is true and enabled is false', () => {
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
@@ -678,7 +678,7 @@ describe('Feature Flags Utils', () => {
         ).toBe(true);
       });
 
-      it('per-type override false beats enabled=true', () => {
+      it('returns false when per-type override is false and enabled is true', () => {
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
@@ -701,7 +701,7 @@ describe('Feature Flags Utils', () => {
         ).toBe(false);
       });
 
-      it('falls back to enabled for unspecified txType', () => {
+      it('returns enabled value for a txType with no per-type override', () => {
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
@@ -724,7 +724,7 @@ describe('Feature Flags Utils', () => {
         ).toBe(true);
       });
 
-      it('ignores transactionTypes when transactionType is undefined', () => {
+      it('returns enabled value when no transactionType is provided', () => {
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
@@ -745,7 +745,7 @@ describe('Feature Flags Utils', () => {
         expect(isRelayValidationEnabled(messenger)).toBe(true);
       });
 
-      it('defaults to false when object has no enabled', () => {
+      it('returns false when object has no enabled field', () => {
         getRemoteFeatureFlagControllerStateMock.mockReturnValue({
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {

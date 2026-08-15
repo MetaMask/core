@@ -681,6 +681,7 @@ export function isRelayValidationEnabled(
       ? undefined
       : validationEnabled.transactionTypes?.[transactionType];
 
+  // `?? false`: malformed config may omit `enabled` despite the type requiring it
   return typeOverride ?? validationEnabled.enabled ?? false;
 }
 
