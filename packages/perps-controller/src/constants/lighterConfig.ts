@@ -124,6 +124,20 @@ export const LIGHTER_TX_TYPE_CANCEL_ALL_ORDERS = 16;
 
 export const LIGHTER_ORDER_TYPE_LIMIT = 0;
 export const LIGHTER_ORDER_TYPE_MARKET = 1;
+export const LIGHTER_ORDER_TYPE_STOP_LOSS = 2;
+export const LIGHTER_ORDER_TYPE_TAKE_PROFIT = 4;
+
+/** Grouped-orders grouping type: one-cancels-the-other (OCO). */
+export const LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER = 2;
+
+/** L2 transaction type: CreateGroupedOrders (e.g. OCO TP/SL pairs). */
+export const LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS = 28;
+
+/** L2 transaction type: UpdateMargin (isolated margin add/remove). */
+export const LIGHTER_TX_TYPE_UPDATE_MARGIN = 29;
+
+/** L2 transaction type: UpdateLeverage (per-market IMF + margin mode). */
+export const LIGHTER_TX_TYPE_UPDATE_LEVERAGE = 20;
 
 export const LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL = 0;
 export const LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME = 1;

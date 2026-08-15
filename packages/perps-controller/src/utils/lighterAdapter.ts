@@ -19,6 +19,7 @@ import type {
   MarketDataFormatters,
   MarketInfo,
   Order,
+  OrderFill,
   PerpsMarketData,
   Position,
   PriceUpdate,
@@ -28,6 +29,7 @@ import type {
   LighterApiPosition,
   LighterOrderBookDetail,
   LighterOrderBookMeta,
+  LighterRestTrade,
   LighterSubAccount,
   LighterWsMarketStat,
   LighterWsUserStats,
@@ -192,6 +194,35 @@ export function adaptAccountStateFromLighterUserStats(
   };
 }
 
+/**
+ * Transform a Lighter trade (REST `/trades` or WS `account_all_trades`) into
+ * a canonical OrderFill from the perspective of `accountIndex`.
+ *
+ * @param trade - Trade entry (post-camelization).
+ * @param symbol - Market symbol resolved from the market id.
+ * @param accountIndex - The account whose perspective determines the side.
+ * @returns MetaMask Perps API order fill object.
+ */
+export function adaptFillFromLighterTrade(
+  trade: LighterRestTrade,
+  symbol: string,
+  accountIndex: number,
+): OrderFill {
+  const accountIsAsk = trade.askAccountId === accountIndex;
+  return {
+    orderId: String(accountIsAsk ? trade.askId : trade.bidId),
+    symbol,
+    side: accountIsAsk ? 'sell' : 'buy',
+    size: trade.size,
+    price: trade.price,
+    pnl: '0',
+    direction: accountIsAsk ? 'sell' : 'buy',
+    fee: '0',
+    feeToken: 'USDC',
+    timestamp: trade.timestamp,
+  };
+}
+
 // ============================================================================
 // Position Transformation
 // ============================================================================
@@ -334,6 +365,7 @@ export function adaptOrderFromLighter(
     symbol,
     side: order.isAsk ? 'sell' : 'buy',
     orderType: order.type === 'market' ? 'market' : 'limit',
+    isTrigger: !['market', 'limit'].includes(order.type),
     size: order.remainingBaseAmount,
     originalSize: order.initialBaseAmount,
     price: order.price,

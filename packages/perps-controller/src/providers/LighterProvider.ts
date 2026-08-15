@@ -33,8 +33,13 @@ import {
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
+  LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
+  LIGHTER_ORDER_TYPE_STOP_LOSS,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+  LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_MODIFY_ORDER,
+  LIGHTER_TX_TYPE_UPDATE_MARGIN,
   LIGHTER_TX_TYPE_WITHDRAW,
   LIGHTER_USDC_ASSET_INDEX,
   toLighterInteger,
@@ -129,6 +134,7 @@ import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptAccountStateFromLighter,
   adaptAccountStateFromLighterUserStats,
+  adaptFillFromLighterTrade,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
   adaptOrderFromLighter,
@@ -1003,13 +1009,177 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async updatePositionTPSL(
-    _params: UpdatePositionTPSLParams,
+    params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
-    return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+    try {
+      const markets = await this.#ensureMarkets();
+      const market = markets.get(params.symbol);
+      if (!market) {
+        return {
+          success: false,
+          error: `Unknown Lighter market: ${params.symbol}`,
+        };
+      }
+      const positions = await this.getPositions();
+      const position = positions.find(
+        (entry) => entry.symbol === params.symbol,
+      );
+      if (!position) {
+        return {
+          success: false,
+          error: `No open Lighter position for ${params.symbol}`,
+        };
+      }
+      await this.#ensureSignerReady();
+      const accountIndex = await this.#ensureAccountIndex();
+
+      // Replace semantics: drop existing reduce-only trigger orders first.
+      const openOrders = await this.getOpenOrders();
+      for (const order of openOrders) {
+        if (
+          order.symbol === params.symbol &&
+          order.reduceOnly &&
+          (Boolean(order.orderType?.includes('stop')) ||
+            Boolean(order.orderType?.includes('take')) ||
+            order.isTrigger === true)
+        ) {
+          await this.cancelOrder({
+            orderId: order.orderId,
+            symbol: params.symbol,
+          });
+        }
+      }
+      if (!params.takeProfitPrice && !params.stopLossPrice) {
+        return { success: true };
+      }
+
+      const signedSize = parseFloat(position.size);
+      const isLong = signedSize > 0;
+      const coverSize = Math.abs(signedSize);
+      const sizeInt = toLighterInteger(coverSize, market.supportedSizeDecimals);
+      // Closing side is opposite the position; trigger market orders execute
+      // at a protection price 5% beyond the trigger in the taker direction.
+      const isAsk = isLong ? 1 : 0;
+      const buildOrder = (
+        orderType: number,
+        triggerPriceRaw: string,
+        clientOrderIndex: number,
+      ): (string | number)[] => {
+        const trigger = parseFloat(triggerPriceRaw);
+        const execution = isLong ? trigger * 0.95 : trigger * 1.05;
+        return [
+          market.marketId,
+          clientOrderIndex,
+          String(sizeInt),
+          String(toLighterInteger(execution, market.supportedPriceDecimals)),
+          isAsk,
+          orderType,
+          LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+          1,
+          String(toLighterInteger(trigger, market.supportedPriceDecimals)),
+          // Trigger orders rest until fired: use the 28-day default expiry.
+          LIGHTER_ORDER_EXPIRY_NONE,
+        ];
+      };
+
+      const clientBase = Date.now() % 1_000_000_000;
+      const grouped: (string | number)[] = [];
+      let orderCount = 0;
+      if (params.takeProfitPrice) {
+        grouped.push(
+          ...buildOrder(
+            LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+            params.takeProfitPrice,
+            clientBase + 1,
+          ),
+        );
+        orderCount += 1;
+      }
+      if (params.stopLossPrice) {
+        grouped.push(
+          ...buildOrder(
+            LIGHTER_ORDER_TYPE_STOP_LOSS,
+            params.stopLossPrice,
+            clientBase + 2,
+          ),
+        );
+        orderCount += 1;
+      }
+      const nonceResponse = await this.#clientService.getNextNonce(
+        accountIndex,
+        this.#apiKeyIndex,
+      );
+      const groupingType =
+        orderCount === 2 ? LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER : 0;
+      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+        function: '_signCreateGroupedOrders',
+        params: [
+          accountIndex,
+          groupingType,
+          orderCount,
+          ...grouped,
+          nonceResponse.nonce,
+        ],
+      });
+      if (signed.error) {
+        return { success: false, error: signed.error };
+      }
+      const result = await this.#clientService.sendTx(
+        LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+        signed.txInfo,
+      );
+      return { success: true, txHash: result.txHash };
+    } catch (error) {
+      return { success: false, error: ensureError(error).message };
+    }
   }
 
-  async updateMargin(_params: UpdateMarginParams): Promise<MarginResult> {
-    return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+  async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
+    try {
+      const markets = await this.#ensureMarkets();
+      const market = markets.get(params.symbol);
+      if (!market) {
+        return {
+          success: false,
+          error: `Unknown Lighter market: ${params.symbol}`,
+        };
+      }
+      const amount = parseFloat(params.amount);
+      if (!Number.isFinite(amount) || amount === 0) {
+        return {
+          success: false,
+          error: 'updateMargin requires a non-zero amount',
+        };
+      }
+      await this.#ensureSignerReady();
+      const accountIndex = await this.#ensureAccountIndex();
+      const nonceResponse = await this.#clientService.getNextNonce(
+        accountIndex,
+        this.#apiKeyIndex,
+      );
+      // USDC uses 6 decimals; direction 1 adds isolated margin, 0 removes it
+      // (types/txtypes/constants.go: RemoveFromIsolatedMargin=0, Add=1).
+      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+        function: '_signUpdateMargin',
+        params: [
+          accountIndex,
+          market.marketId,
+          Math.round(Math.abs(amount) * 1_000_000),
+          amount > 0 ? 1 : 0,
+          nonceResponse.nonce,
+        ],
+      });
+      if (signed.error) {
+        return { success: false, error: signed.error };
+      }
+      await this.#clientService.sendTx(
+        LIGHTER_TX_TYPE_UPDATE_MARGIN,
+        signed.txInfo,
+      );
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: ensureError(error).message };
+    }
   }
 
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
@@ -1054,14 +1224,36 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async getOrderFills(
-    _params?: GetOrderFillsParams,
+    params?: GetOrderFillsParams,
     _options?: PerpsReadOptions,
   ): Promise<OrderFill[]> {
-    return [];
+    try {
+      const accountIndex = await this.#ensureAccountIndex();
+      const token = await this.#getAuthToken();
+      await this.#ensureMarkets();
+      const response = await this.#clientService.getTrades(
+        accountIndex,
+        token,
+        params?.limit ?? 50,
+      );
+      return (response.trades ?? []).map((trade) =>
+        adaptFillFromLighterTrade(
+          trade,
+          this.#marketsById.get(trade.marketId)?.symbol ??
+            String(trade.marketId),
+          accountIndex,
+        ),
+      );
+    } catch (error) {
+      this.#deps.debugLogger.log('[LighterProvider] getOrderFills failed', {
+        error: String(error),
+      });
+      return [];
+    }
   }
 
-  async getOrFetchFills(_params?: GetOrFetchFillsParams): Promise<OrderFill[]> {
-    return [];
+  async getOrFetchFills(params?: GetOrFetchFillsParams): Promise<OrderFill[]> {
+    return await this.getOrderFills(params);
   }
 
   async getHistoricalPortfolio(
@@ -1077,7 +1269,29 @@ export class LighterProvider implements PerpsProvider {
     _params?: GetFundingParams,
     _options?: PerpsReadOptions,
   ): Promise<Funding[]> {
-    return [];
+    try {
+      const accountIndex = await this.#ensureAccountIndex();
+      const token = await this.#getAuthToken();
+      await this.#ensureMarkets();
+      const response = await this.#clientService.getPositionFundings(
+        accountIndex,
+        token,
+      );
+      return (response.positionFundings ?? []).map((entry) => ({
+        symbol:
+          this.#marketsById.get(entry.marketId)?.symbol ??
+          String(entry.marketId),
+        // `change` is the signed USDC funding flow for the account's side.
+        amountUsd: entry.change,
+        rate: entry.rate,
+        timestamp: entry.timestamp * 1000,
+      }));
+    } catch (error) {
+      this.#deps.debugLogger.log('[LighterProvider] getFunding failed', {
+        error: String(error),
+      });
+      return [];
+    }
   }
 
   async getUserNonFundingLedgerUpdates(_params?: {
