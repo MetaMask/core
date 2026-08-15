@@ -958,11 +958,11 @@ export class LighterProvider implements PerpsProvider {
       if (signed.error) {
         return { success: false, error: signed.error };
       }
-      const result = await this.#clientService.sendTx(
+      await this.#clientService.sendTx(
         LIGHTER_TX_TYPE_MODIFY_ORDER,
         signed.txInfo,
       );
-      return { success: true, orderId: params.orderId, txHash: result.txHash };
+      return { success: true, orderId: String(params.orderId) };
     } catch (error) {
       return { success: false, error: ensureError(error).message };
     }
@@ -1124,11 +1124,11 @@ export class LighterProvider implements PerpsProvider {
       if (signed.error) {
         return { success: false, error: signed.error };
       }
-      const result = await this.#clientService.sendTx(
+      await this.#clientService.sendTx(
         LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
         signed.txInfo,
       );
-      return { success: true, txHash: result.txHash };
+      return { success: true };
     } catch (error) {
       return { success: false, error: ensureError(error).message };
     }
