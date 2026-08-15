@@ -668,7 +668,8 @@ export function isRelayValidationEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const validationEnabled = featureFlags.payStrategies?.relay?.validationEnabled;
+  const validationEnabled =
+    featureFlags.payStrategies?.relay?.validationEnabled;
 
   // Backwards compatibility: boolean or undefined behaves exactly as before.
   if (typeof validationEnabled !== 'object' || validationEnabled === null) {
