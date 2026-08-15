@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** The `payStrategies.relay.validationEnabled` feature flag (in `confirmations_pay_extended`) is now an object `{ default?: boolean; transactionTypes?: { [type in TransactionType]?: boolean } }` instead of a boolean, adding per-`TransactionType` overrides that match nested transactions ([#9888](https://github.com/MetaMask/core/pull/9888))
+
 ### Fixed
 
 - Fix quote simulation for Polymarket Predict withdrawals ([#9891](https://github.com/MetaMask/core/pull/9891))
@@ -15,10 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** The `payStrategies.relay.validationEnabled` feature flag (in `confirmations_pay_extended`) is now an object instead of a boolean ([#9888](https://github.com/MetaMask/core/pull/9888))
-  - The shape is `{ default?: boolean; transactionTypes?: { [type in TransactionType]?: boolean } }`, where `default` toggles validation for all transaction types (omitted = `false`) and a matching `transactionTypes[type]` entry overrides `default` for that specific transaction type.
-  - The previous boolean form is no longer supported; a boolean value of `true` must now be expressed as `{ default: true }`.
-  - Exposes a new `RelayValidationEnabledConfig` type describing the flag shape.
 - Bump `@metamask/assets-controller` from `^13.1.2` to `^13.1.4` ([#9873](https://github.com/MetaMask/core/pull/9873), [#9886](https://github.com/MetaMask/core/pull/9886))
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 - Bump `@metamask/assets-controllers` from `^111.1.0` to `^111.1.1` ([#9886](https://github.com/MetaMask/core/pull/9886))

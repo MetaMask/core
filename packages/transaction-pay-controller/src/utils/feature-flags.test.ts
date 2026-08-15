@@ -1,4 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
@@ -663,7 +664,9 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(
-        isRelayValidationEnabled(messenger, TransactionType.perpsDeposit),
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
       ).toBe(true);
     });
 
@@ -686,7 +689,9 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(
-        isRelayValidationEnabled(messenger, TransactionType.perpsDeposit),
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
       ).toBe(false);
     });
 
@@ -709,11 +714,13 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(
-        isRelayValidationEnabled(messenger, TransactionType.simpleSend),
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+        } as TransactionMeta),
       ).toBe(true);
     });
 
-    it('returns default value when no transactionType is provided', () => {
+    it('returns default value when no transaction is provided', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -732,6 +739,32 @@ describe('Feature Flags Utils', () => {
         },
       });
       expect(isRelayValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('applies a per-type override matched via a nested transaction type', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(
+        isRelayValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+          nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        } as TransactionMeta),
+      ).toBe(true);
     });
   });
 
