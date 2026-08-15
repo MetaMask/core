@@ -33,7 +33,10 @@ import type {
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
   LighterCandlesResponse,
+  LighterPnlResponse,
+  LighterPositionFundingsResponse,
   LighterSendTxResponse,
+  LighterTradesResponse,
 } from '../types/lighter-types.js';
 
 /**
@@ -223,6 +226,67 @@ export class LighterClientService {
   ): Promise<LighterActiveOrdersResponse> {
     return await this.#get<LighterActiveOrdersResponse>(
       `/api/v1/accountActiveOrders?account_index=${accountIndex}&market_id=${marketId}`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch account trade history (auth token required).
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param authToken - Auth token minted by the signer.
+   * @param limit - Max entries (1-100).
+   * @returns Trades payload (newest first).
+   */
+  async getTrades(
+    accountIndex: number,
+    authToken: string,
+    limit = 50,
+  ): Promise<LighterTradesResponse> {
+    return await this.#get<LighterTradesResponse>(
+      `/api/v1/trades?sort_by=timestamp&limit=${limit}&account_index=${accountIndex}&market_type=perp`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch user funding payment history (auth token required).
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param authToken - Auth token minted by the signer.
+   * @param limit - Max entries.
+   * @returns Position fundings payload.
+   */
+  async getPositionFundings(
+    accountIndex: number,
+    authToken: string,
+    limit = 50,
+  ): Promise<LighterPositionFundingsResponse> {
+    return await this.#get<LighterPositionFundingsResponse>(
+      `/api/v1/positionFunding?account_index=${accountIndex}&market_id=255&limit=${limit}&sort_by=timestamp&side=all`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch account PnL history (auth token required).
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param authToken - Auth token minted by the signer.
+   * @param startTimestamp - Range start (ms).
+   * @param endTimestamp - Range end (ms).
+   * @param countBack - Records counted back from range end.
+   * @returns PnL payload.
+   */
+  async getPnl(
+    accountIndex: number,
+    authToken: string,
+    startTimestamp: number,
+    endTimestamp: number,
+    countBack: number,
+  ): Promise<LighterPnlResponse> {
+    return await this.#get<LighterPnlResponse>(
+      `/api/v1/pnl?by=index&value=${accountIndex}&resolution=1d&count_back=${countBack}&start_timestamp=${startTimestamp}&end_timestamp=${endTimestamp}`,
       { authorization: authToken },
     );
   }

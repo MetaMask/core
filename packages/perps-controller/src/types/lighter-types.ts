@@ -430,6 +430,77 @@ export type LighterWsTradesMessage = {
 };
 
 /**
+ * One trade from `GET /api/v1/trades` (post-camelization).
+ */
+export type LighterRestTrade = {
+  tradeId: number;
+  txHash?: string;
+  type: string;
+  marketId: number;
+  size: string;
+  price: string;
+  usdAmount?: string;
+  askId: number;
+  bidId: number;
+  askAccountId: number;
+  bidAccountId: number;
+  isMakerAsk?: boolean;
+  timestamp: number;
+};
+
+/**
+ * Response of `GET /api/v1/trades`.
+ */
+export type LighterTradesResponse = {
+  code: number;
+  message?: string;
+  trades?: LighterRestTrade[];
+};
+
+/**
+ * One entry from `GET /api/v1/positionFunding` (post-camelization).
+ */
+export type LighterPositionFunding = {
+  timestamp: number;
+  marketId: number;
+  fundingId: number;
+  change: string;
+  rate: string;
+  positionSize: string;
+  positionSide: string;
+};
+
+/**
+ * Response of `GET /api/v1/positionFunding`.
+ */
+export type LighterPositionFundingsResponse = {
+  code: number;
+  message?: string;
+  positionFundings?: LighterPositionFunding[];
+};
+
+/**
+ * One record from `GET /api/v1/pnl` (post-camelization).
+ */
+export type LighterPnlRecord = {
+  timestamp: number;
+  tradePnl: number;
+  inflow: number;
+  outflow: number;
+  volume: number;
+};
+
+/**
+ * Response of `GET /api/v1/pnl`.
+ */
+export type LighterPnlResponse = {
+  code: number;
+  message?: string;
+  resolution?: string;
+  pnl?: LighterPnlRecord[];
+};
+
+/**
  * One candle from `GET /api/v1/candles` (compact wire keys: t/o/h/l/c/v).
  */
 export type LighterCandle = {

@@ -1376,6 +1376,324 @@ async function phaseMainnetReads(result: PhaseResult): Promise<void> {
   });
 }
 
+/**
+ * Prove the authenticated history reads: trade fills, user funding payments,
+ * and PnL records for the funded shared account.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseHistoryReads(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const fills = await provider.getOrderFills({ limit: 20 } as never);
+  check(
+    result,
+    'trade history returns fills with sane fields',
+    fills.length > 0 &&
+      fills.every(
+        (fill) =>
+          parseFloat(fill.price) > 0 &&
+          parseFloat(fill.size) > 0 &&
+          (fill.side === 'buy' || fill.side === 'sell'),
+      ),
+    `fills=${fills.length}`,
+  );
+  const funding = await provider.getFunding();
+  check(
+    result,
+    'funding history returns signed USDC flows with rates',
+    funding.length > 0 &&
+      funding.every(
+        (entry) =>
+          Number.isFinite(parseFloat(entry.amountUsd)) &&
+          entry.timestamp > 1_700_000_000_000,
+      ),
+    `fundings=${funding.length}`,
+  );
+  await provider.disconnect();
+  record(result, { fillCount: fills.length, fundingCount: funding.length });
+}
+
+/**
+ * Prove position TP/SL: open a tiny position, attach an OCO TP/SL pair,
+ * verify both trigger orders appear, remove them, and close the position.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseTpsl(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const client = new LighterClientService(buildInfrastructure(), {
+    isTestnet: true,
+  });
+  const meta = (await client.getOrderBooks()).find(
+    (entry) => entry.symbol === MARKET,
+  );
+  const lastPrice =
+    (await client.getOrderBookDetails()).orderBookDetails.find(
+      (entry) => entry.symbol === MARKET,
+    )?.lastTradePrice ?? 0;
+  if (!meta || lastPrice <= 0) {
+    check(result, 'live market metadata available', false);
+    await provider.disconnect();
+    return;
+  }
+  const size = computeLighterMinOrderSize(meta, lastPrice);
+  const startSize = parseFloat(
+    (await provider.getPositions()).find((entry) => entry.symbol === MARKET)
+      ?.size ?? '0',
+  );
+
+  const opened = await provider.placeOrder({
+    symbol: MARKET,
+    isBuy: true,
+    size: String(size),
+    orderType: 'market',
+  });
+  check(result, 'position opens', Boolean(opened.success), opened.error);
+  await poll(
+    'position visible',
+    async () => await provider.getPositions(),
+    (positions) =>
+      Math.abs(
+        parseFloat(
+          positions.find((entry) => entry.symbol === MARKET)?.size ?? '0',
+        ) -
+          startSize -
+          size,
+      ) <
+      size * 0.2,
+    45_000,
+  );
+
+  const tpPrice = Number(
+    (lastPrice * 1.5).toFixed(meta.supportedPriceDecimals),
+  );
+  const slPrice = Number(
+    (lastPrice * 0.5).toFixed(meta.supportedPriceDecimals),
+  );
+  const attached = await provider.updatePositionTPSL({
+    symbol: MARKET,
+    takeProfitPrice: String(tpPrice),
+    stopLossPrice: String(slPrice),
+  });
+  check(
+    result,
+    'OCO TP/SL pair submits',
+    Boolean(attached.success),
+    attached.error,
+  );
+
+  await poll(
+    'both trigger orders visible in open orders',
+    async () => await provider.getOpenOrders(),
+    (orders) =>
+      orders.filter((order) => order.symbol === MARKET && order.isTrigger)
+        .length >= 2,
+    45_000,
+  );
+  check(result, 'TP and SL trigger orders visible', true);
+
+  const removed = await provider.updatePositionTPSL({ symbol: MARKET });
+  check(
+    result,
+    'TP/SL removal succeeds',
+    Boolean(removed.success),
+    removed.error,
+  );
+  await poll(
+    'trigger orders gone',
+    async () => await provider.getOpenOrders(),
+    (orders) =>
+      orders.filter((order) => order.symbol === MARKET && order.isTrigger)
+        .length === 0,
+    45_000,
+  );
+  check(result, 'trigger orders removed', true);
+
+  const closed = await provider.closePosition({
+    symbol: MARKET,
+    size: String(size),
+  });
+  check(
+    result,
+    'cleanup close succeeds',
+    Boolean(closed.success),
+    closed.error,
+  );
+  await poll(
+    'position back to start',
+    async () => await provider.getPositions(),
+    (positions) =>
+      Math.abs(
+        parseFloat(
+          positions.find((entry) => entry.symbol === MARKET)?.size ?? '0',
+        ) - startSize,
+      ) <
+      size * 0.2,
+    45_000,
+  );
+  await provider.disconnect();
+}
+
+/**
+ * Prove margin + leverage at protocol level: switch SOL to isolated 10x via
+ * UpdateLeverage, open a position, add then remove isolated margin via
+ * updateMargin, close, and restore cross 20x.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseMarginLeverage(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+  const client = new LighterClientService(buildInfrastructure(), {
+    isTestnet: true,
+  });
+  const meta = (await client.getOrderBooks()).find(
+    (entry) => entry.symbol === MARKET,
+  );
+  const lastPrice =
+    (await client.getOrderBookDetails()).orderBookDetails.find(
+      (entry) => entry.symbol === MARKET,
+    )?.lastTradePrice ?? 0;
+  if (!meta || lastPrice <= 0) {
+    check(result, 'live market metadata available', false);
+    await provider.disconnect();
+    return;
+  }
+
+  const signLeverage = async (
+    imfHundredths: number,
+    marginMode: number,
+  ): Promise<void> => {
+    const { nonce } = await client.getNextNonce(ACCOUNT_INDEX, API_KEY_INDEX);
+    const signed = await bridge.execute<LighterTxResult>({
+      function: '_signUpdateLeverage',
+      params: [ACCOUNT_INDEX, meta.marketId, imfHundredths, marginMode, nonce],
+    });
+    if (signed.error) {
+      throw new Error(signed.error);
+    }
+    await client.sendTx(20, signed.txInfo);
+  };
+
+  // Ensure the WASM signer client exists before raw bridge calls.
+  await provider.isReadyToTrade();
+  // Isolated 10x → IMF 10% → hundredths = 1000.
+  await signLeverage(1000, 1);
+  check(result, 'UpdateLeverage (isolated 10x) accepted', true);
+
+  const size = computeLighterMinOrderSize(meta, lastPrice);
+  const opened = await provider.placeOrder({
+    symbol: MARKET,
+    isBuy: true,
+    size: String(size),
+    orderType: 'market',
+  });
+  check(
+    result,
+    'isolated position opens',
+    Boolean(opened.success),
+    opened.error,
+  );
+
+  const readPosition = async (): Promise<{
+    imf: string;
+    size: number;
+  } | null> => {
+    const accounts = await client.getAccountByIndex(ACCOUNT_INDEX);
+    const position = accounts.accounts?.[0]?.positions?.find(
+      (entry) => entry.marketId === meta.marketId,
+    );
+    return position
+      ? {
+          imf: position.initialMarginFraction,
+          size: parseFloat(position.position),
+        }
+      : null;
+  };
+  await poll(
+    'position readable with isolated 10x margin fraction',
+    readPosition,
+    (position) => position !== null && parseFloat(position.imf) === 10,
+    45_000,
+  );
+  check(result, 'position shows 10% initial margin fraction (10x)', true);
+
+  const added = await provider.updateMargin({ symbol: MARKET, amount: '2' });
+  check(
+    result,
+    'updateMargin add accepted',
+    Boolean(added.success),
+    added.error,
+  );
+  // Let the margin addition settle before drawing it back down.
+  await new Promise((resolveWait) => setTimeout(resolveWait, 5000));
+  const removedMargin = await provider.updateMargin({
+    symbol: MARKET,
+    amount: '-1',
+  });
+  check(
+    result,
+    'updateMargin remove accepted',
+    Boolean(removedMargin.success),
+    removedMargin.error,
+  );
+
+  const closed = await provider.closePosition({ symbol: MARKET });
+  check(
+    result,
+    'cleanup close succeeds',
+    Boolean(closed.success),
+    closed.error,
+  );
+  await poll(
+    'position flat',
+    readPosition,
+    (position) => position === null || position.size === 0,
+    45_000,
+  );
+  // Restore cross 20x (IMF 5% → 500).
+  await signLeverage(500, 0);
+  check(result, 'leverage restored to cross 20x', true);
+  await provider.disconnect();
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -1430,6 +1748,15 @@ async function main(): Promise<void> {
         break;
       case 'mainnet-reads':
         await phaseMainnetReads(result);
+        break;
+      case 'history-reads':
+        await phaseHistoryReads(result);
+        break;
+      case 'tpsl':
+        await phaseTpsl(result);
+        break;
+      case 'margin-leverage':
+        await phaseMarginLeverage(result);
         break;
       default:
         throw new Error(`Unknown phase: ${PHASE}`);
