@@ -144,6 +144,17 @@ async function personalSigner(message: string): Promise<string> {
   return await viemAccount.signMessage({ message });
 }
 
+/**
+ * Assign summary fields onto the phase result (indirection keeps
+ * require-atomic-updates satisfied for post-await assignments).
+ *
+ * @param target - Phase result accumulator.
+ * @param fields - Summary fields to record.
+ */
+function record(target: PhaseResult, fields: Record<string, unknown>): void {
+  Object.assign(target, fields);
+}
+
 function check(
   result: PhaseResult,
   name: string,
@@ -569,6 +580,802 @@ async function phaseController(result: PhaseResult): Promise<void> {
   await controller.disconnect?.();
 }
 
+/**
+ * Prove the price-stream subscription surface: subscribeToPrices polls the
+ * live testnet REST feed and fans out repeated PriceUpdate cycles.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phasePriceStream(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {},
+  });
+
+  const cycles: { count: number; btcPrice: string | undefined }[] = [];
+  const unsubscribe = provider.subscribeToPrices({
+    symbols: [],
+    callback: (updates) => {
+      cycles.push({
+        count: updates.length,
+        btcPrice: updates.find((update) => update.symbol === 'BTC')?.price,
+      });
+    },
+  });
+
+  // Immediate snapshot + at least two poll cycles (5s interval).
+  const deadline = Date.now() + 20_000;
+  while (cycles.length < 3 && Date.now() < deadline) {
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
+  }
+  unsubscribe();
+  await provider.disconnect();
+
+  check(
+    result,
+    'price stream emitted at least 3 cycles (snapshot + live updates)',
+    cycles.length >= 3,
+    `cycles=${cycles.length}`,
+  );
+  check(
+    result,
+    'every cycle carries live markets',
+    cycles.every((cycle) => cycle.count > 0),
+  );
+  // The first cycle is the full channel snapshot; later cycles are partial
+  // per-market deltas, so BTC is only guaranteed in the snapshot.
+  check(
+    result,
+    'BTC price present and numeric in the snapshot cycle',
+    cycles[0]?.btcPrice !== undefined &&
+      Number.isFinite(parseFloat(cycles[0].btcPrice)) &&
+      parseFloat(cycles[0].btcPrice) > 0,
+    `snapshotBtc=${cycles[0]?.btcPrice}`,
+  );
+  check(
+    result,
+    'every BTC price seen is numeric and positive',
+    cycles.every(
+      (cycle) =>
+        cycle.btcPrice === undefined ||
+        (Number.isFinite(parseFloat(cycle.btcPrice)) &&
+          parseFloat(cycle.btcPrice) > 0),
+    ),
+  );
+  result.priceStreamCycles = cycles.length;
+  result.priceStreamBtcPrices = cycles.map((cycle) => cycle.btcPrice);
+}
+
+/**
+ * Prove the account stream (user_stats WS channel): live collateral and
+ * portfolio value for the configured testnet account.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseAccountStream(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+
+  const emissions: { totalBalance: string; spendableBalance: string }[] = [];
+  const unsubscribe = provider.subscribeToAccount({
+    callback: (account) => {
+      if (account) {
+        emissions.push({
+          totalBalance: account.totalBalance,
+          spendableBalance: account.spendableBalance,
+        });
+      }
+    },
+  });
+
+  const deadline = Date.now() + 20_000;
+  while (emissions.length < 1 && Date.now() < deadline) {
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
+  }
+  unsubscribe();
+  await provider.disconnect();
+
+  check(
+    result,
+    'account stream emitted at least one AccountState',
+    emissions.length >= 1,
+    `emissions=${emissions.length}`,
+  );
+  const first = emissions[0];
+  check(
+    result,
+    'live total balance is numeric and positive',
+    first !== undefined && parseFloat(first.totalBalance) > 0,
+    `totalBalance=${first?.totalBalance}`,
+  );
+  check(
+    result,
+    'live spendable balance is numeric and non-negative',
+    first !== undefined && parseFloat(first.spendableBalance) >= 0,
+    `spendableBalance=${first?.spendableBalance}`,
+  );
+  result.accountEmissions = emissions.length;
+  result.accountFirstEmission = first;
+}
+
+/**
+ * Prove the positions stream (account_all_positions WS channel): the funded
+ * shared testnet account holds live positions the channel must deliver.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phasePositionsStream(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+
+  const snapshots: { count: number; symbols: string[] }[] = [];
+  const unsubscribe = provider.subscribeToPositions({
+    callback: (positions) => {
+      snapshots.push({
+        count: positions.length,
+        symbols: positions.map((position) => position.symbol),
+      });
+    },
+  });
+
+  const deadline = Date.now() + 20_000;
+  while (snapshots.length < 1 && Date.now() < deadline) {
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
+  }
+  // Cross-check against the REST read the recipe already trusts.
+  const restPositions = await provider.getPositions();
+  unsubscribe();
+  await provider.disconnect();
+
+  check(
+    result,
+    'positions stream emitted at least one snapshot',
+    snapshots.length >= 1,
+    `snapshots=${snapshots.length}`,
+  );
+  check(
+    result,
+    'stream snapshot position count matches REST getPositions',
+    snapshots[0]?.count === restPositions.length,
+    `ws=${snapshots[0]?.count} rest=${restPositions.length}`,
+  );
+  result.positionsStreamSnapshots = snapshots;
+  result.positionsRestCount = restPositions.length;
+}
+
+/**
+ * Prove the authenticated orders stream (account_all_orders WS channel):
+ * subscribe, place a real resting order, watch it arrive over the socket,
+ * cancel it, and watch it leave.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseOrdersStream(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const snapshots: string[][] = [];
+  const unsubscribe = provider.subscribeToOrders({
+    callback: (orders) => {
+      snapshots.push(orders.map((order) => order.orderId));
+    },
+  });
+  const waitForStream = async (
+    label: string,
+    predicate: () => boolean,
+  ): Promise<boolean> => {
+    const deadline = Date.now() + 45_000;
+    while (!predicate() && Date.now() < deadline) {
+      await new Promise((resolveSleep) => setTimeout(resolveSleep, 500));
+    }
+    const ok = predicate();
+    check(result, label, ok, `snapshots=${snapshots.length}`);
+    return ok;
+  };
+
+  await waitForStream(
+    'orders stream delivered its snapshot',
+    () => snapshots.length >= 1,
+  );
+
+  const client = new LighterClientService(buildInfrastructure(), {
+    isTestnet: true,
+  });
+  const details = await client.getOrderBookDetails();
+  const lastPrice =
+    details.orderBookDetails.find((entry) => entry.symbol === MARKET)
+      ?.lastTradePrice ?? 0;
+  const meta = (await client.getOrderBooks()).find(
+    (entry) => entry.symbol === MARKET,
+  );
+  if (!meta || lastPrice <= 0) {
+    check(result, 'live market metadata available', false);
+    unsubscribe();
+    await provider.disconnect();
+    return;
+  }
+  const restingPrice = Number(
+    (lastPrice * 0.6).toFixed(Math.max(meta.supportedPriceDecimals, 0)),
+  );
+  const size = computeLighterMinOrderSize(meta, restingPrice);
+  const baselineIds = new Set(snapshots.at(-1) ?? []);
+
+  const placed = await provider.placeOrder({
+    symbol: MARKET,
+    isBuy: true,
+    size: String(size),
+    orderType: 'limit',
+    price: String(restingPrice),
+  });
+  check(result, 'placeOrder succeeds', Boolean(placed.success), placed.error);
+
+  let streamedOrderId: string | null = null;
+  await waitForStream('placed order arrives over the ws stream', () => {
+    const latest = snapshots.at(-1) ?? [];
+    streamedOrderId =
+      latest.find((orderId) => !baselineIds.has(orderId)) ?? null;
+    return streamedOrderId !== null;
+  });
+
+  if (streamedOrderId) {
+    const canceled = await provider.cancelOrder({
+      orderId: streamedOrderId,
+      symbol: MARKET,
+    });
+    check(result, 'cancelOrder succeeds', canceled.success, canceled.error);
+    const canceledId = streamedOrderId;
+    await waitForStream(
+      'canceled order leaves the ws stream',
+      () => !(snapshots.at(-1) ?? []).includes(canceledId),
+    );
+  }
+
+  unsubscribe();
+  await provider.disconnect();
+  record(result, { ordersStreamSnapshots: snapshots.length });
+}
+
+/**
+ * Prove the candles endpoint: live OHLCV history for the target market with
+ * sane values, plus the subscription seed path.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseCandles(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {},
+  });
+
+  const data = await provider.fetchHistoricalCandles({
+    symbol: MARKET,
+    interval: '15m' as never,
+    limit: 50,
+  });
+  check(
+    result,
+    'historical candles returned a non-empty series',
+    data.candles.length > 0,
+    `count=${data.candles.length}`,
+  );
+  const last = data.candles.at(-1);
+  check(
+    result,
+    'last candle has numeric OHLC and close > 0',
+    last !== undefined &&
+      ['open', 'high', 'low', 'close'].every((key) =>
+        Number.isFinite(parseFloat(last[key as keyof typeof last] as string)),
+      ) &&
+      parseFloat(last.close) > 0,
+    `close=${last?.close}`,
+  );
+  check(
+    result,
+    'candles are time-ascending',
+    data.candles.every(
+      (candle, index) =>
+        index === 0 || candle.time >= data.candles[index - 1].time,
+    ),
+  );
+
+  const seeded = await new Promise<number>((resolveSeed) => {
+    const unsubscribe = provider.subscribeToCandles({
+      symbol: MARKET,
+      interval: '15m' as never,
+      callback: (candleData) => {
+        unsubscribe();
+        resolveSeed(candleData.candles.length);
+      },
+    });
+    setTimeout(() => {
+      unsubscribe();
+      resolveSeed(-1);
+    }, 15_000);
+  });
+  check(
+    result,
+    'candle subscription seeds with history',
+    seeded > 0,
+    `seeded=${seeded}`,
+  );
+  await provider.disconnect();
+  record(result, { candleCount: data.candles.length, lastClose: last?.close });
+}
+
+/**
+ * Prove closePosition + the fills stream together: a real market order opens
+ * a tiny position (fill #1 on the account_all_trades stream), closePosition
+ * flattens it (fill #2), and the position list ends without the symbol delta.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseClosePosition(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const fills: { side: string; symbol: string }[] = [];
+  const unsubscribeFills = provider.subscribeToOrderFills({
+    callback: (incoming, isSnapshot) => {
+      if (!isSnapshot) {
+        fills.push(
+          ...incoming.map((fill) => ({ side: fill.side, symbol: fill.symbol })),
+        );
+      }
+    },
+  });
+  // Allow the trades channel to attach before trading.
+  await new Promise((resolveWait) => setTimeout(resolveWait, 3000));
+
+  const startPositions = await provider.getPositions();
+  const startSize = parseFloat(
+    startPositions.find((entry) => entry.symbol === MARKET)?.size ?? '0',
+  );
+
+  const client = new LighterClientService(buildInfrastructure(), {
+    isTestnet: true,
+  });
+  const meta = (await client.getOrderBooks()).find(
+    (entry) => entry.symbol === MARKET,
+  );
+  const lastPrice =
+    (await client.getOrderBookDetails()).orderBookDetails.find(
+      (entry) => entry.symbol === MARKET,
+    )?.lastTradePrice ?? 0;
+  if (!meta || lastPrice <= 0) {
+    check(result, 'live market metadata available', false);
+    unsubscribeFills();
+    await provider.disconnect();
+    return;
+  }
+  const size = computeLighterMinOrderSize(meta, lastPrice);
+
+  const opened = await provider.placeOrder({
+    symbol: MARKET,
+    isBuy: true,
+    size: String(size),
+    orderType: 'market',
+  });
+  check(result, 'market order opens', Boolean(opened.success), opened.error);
+
+  await poll(
+    'position grows by the opened size',
+    async () => await provider.getPositions(),
+    (positions) => {
+      const current = parseFloat(
+        positions.find((entry) => entry.symbol === MARKET)?.size ?? '0',
+      );
+      return Math.abs(current - startSize - size) < size * 0.2;
+    },
+    45_000,
+  );
+  check(result, 'position visible after open', true);
+
+  const closed = await provider.closePosition({
+    symbol: MARKET,
+    size: String(size),
+  });
+  check(
+    result,
+    'closePosition succeeds',
+    Boolean(closed.success),
+    closed.error,
+  );
+
+  await poll(
+    'position returns to the starting size',
+    async () => await provider.getPositions(),
+    (positions) => {
+      const current = parseFloat(
+        positions.find((entry) => entry.symbol === MARKET)?.size ?? '0',
+      );
+      return Math.abs(current - startSize) < size * 0.2;
+    },
+    45_000,
+  );
+  check(result, 'position flat after close', true);
+
+  await poll(
+    'both fills arrive on the account_all_trades stream',
+    async () => fills,
+    (list) => list.length >= 2,
+    30_000,
+  );
+  check(
+    result,
+    'fills stream delivered open+close fills',
+    fills.length >= 2 && fills.every((fill) => fill.symbol === MARKET),
+    `fills=${JSON.stringify(fills)}`,
+  );
+  unsubscribeFills();
+  await provider.disconnect();
+  record(result, { fillCount: fills.length });
+}
+
+/**
+ * Prove the order-book stream: live sorted levels with a sane spread.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseOrderBookStream(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {},
+  });
+
+  const books: { bids: number; asks: number; mid: number; spread: number }[] =
+    [];
+  const unsubscribe = provider.subscribeToOrderBook({
+    symbol: MARKET,
+    levels: 5,
+    callback: (book) => {
+      books.push({
+        bids: book.bids.length,
+        asks: book.asks.length,
+        mid: parseFloat(book.midPrice),
+        spread: parseFloat(book.spread),
+      });
+    },
+  });
+  const deadline = Date.now() + 20_000;
+  while (books.length < 3 && Date.now() < deadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+  }
+  unsubscribe();
+  await provider.disconnect();
+
+  check(
+    result,
+    'order book emitted at least 3 updates',
+    books.length >= 3,
+    `updates=${books.length}`,
+  );
+  const first = books[0];
+  check(
+    result,
+    'book has populated bid and ask sides',
+    first !== undefined && first.bids > 0 && first.asks > 0,
+    `bids=${first?.bids} asks=${first?.asks}`,
+  );
+  check(
+    result,
+    'mid price positive and spread non-negative',
+    first !== undefined && first.mid > 0 && first.spread >= 0,
+    `mid=${first?.mid} spread=${first?.spread}`,
+  );
+  record(result, { orderBookUpdates: books.length });
+}
+
+/**
+ * Prove the live candle stream: seeded history plus at least one WS update.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseCandlesStream(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {},
+  });
+
+  const emissions: number[] = [];
+  const unsubscribe = provider.subscribeToCandles({
+    symbol: MARKET,
+    interval: '1m' as never,
+    callback: (data) => {
+      emissions.push(data.candles.length);
+    },
+  });
+  const deadline = Date.now() + 45_000;
+  while (emissions.length < 2 && Date.now() < deadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+  }
+  unsubscribe();
+  await provider.disconnect();
+
+  check(
+    result,
+    'candle stream seeded and delivered at least one live update',
+    emissions.length >= 2,
+    `emissions=${emissions.length}`,
+  );
+  check(
+    result,
+    'seed carries a full history window',
+    (emissions[0] ?? 0) >= 50,
+    `seedCount=${emissions[0]}`,
+  );
+  record(result, { candleEmissions: emissions.length });
+}
+
+/**
+ * Prove editOrder: reprice a real resting order and verify the new price.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseEditOrder(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const client = new LighterClientService(buildInfrastructure(), {
+    isTestnet: true,
+  });
+  const meta = (await client.getOrderBooks()).find(
+    (entry) => entry.symbol === MARKET,
+  );
+  const lastPrice =
+    (await client.getOrderBookDetails()).orderBookDetails.find(
+      (entry) => entry.symbol === MARKET,
+    )?.lastTradePrice ?? 0;
+  if (!meta || lastPrice <= 0) {
+    check(result, 'live market metadata available', false);
+    await provider.disconnect();
+    return;
+  }
+  const priceDecimals = meta.supportedPriceDecimals;
+  const restingPrice = Number((lastPrice * 0.6).toFixed(priceDecimals));
+  const editedPrice = Number((lastPrice * 0.55).toFixed(priceDecimals));
+  const size = computeLighterMinOrderSize(meta, restingPrice);
+
+  const placed = await provider.placeOrder({
+    symbol: MARKET,
+    isBuy: true,
+    size: String(size),
+    orderType: 'limit',
+    price: String(restingPrice),
+  });
+  check(result, 'resting order placed', Boolean(placed.success), placed.error);
+
+  let orderId: string | null = null;
+  await poll(
+    'resting order visible',
+    async () => await provider.getOpenOrders(),
+    (orders) =>
+      orders.some((order) => {
+        if (
+          order.symbol === MARKET &&
+          Math.abs(parseFloat(order.price) - restingPrice) < 0.01 * restingPrice
+        ) {
+          orderId = order.orderId;
+          return true;
+        }
+        return false;
+      }),
+    45_000,
+  );
+  if (!orderId) {
+    check(result, 'resting order id resolved', false);
+    await provider.disconnect();
+    return;
+  }
+
+  const edited = await provider.editOrder({
+    orderId,
+    newOrder: {
+      symbol: MARKET,
+      isBuy: true,
+      size: String(size),
+      orderType: 'limit',
+      price: String(editedPrice),
+    },
+  });
+  check(result, 'editOrder succeeds', Boolean(edited.success), edited.error);
+
+  let editedOrderId: string | null = null;
+  await poll(
+    'order shows the edited price',
+    async () => await provider.getOpenOrders(),
+    (orders) =>
+      orders.some((order) => {
+        if (
+          order.symbol === MARKET &&
+          Math.abs(parseFloat(order.price) - editedPrice) < 0.01 * editedPrice
+        ) {
+          editedOrderId = order.orderId;
+          return true;
+        }
+        return false;
+      }),
+    45_000,
+  );
+  check(result, 'edited price visible in open orders', editedOrderId !== null);
+
+  if (editedOrderId) {
+    const canceled = await provider.cancelOrder({
+      orderId: editedOrderId,
+      symbol: MARKET,
+    });
+    check(result, 'cleanup cancel succeeds', canceled.success, canceled.error);
+  }
+  await provider.disconnect();
+}
+
+/**
+ * Prove the withdraw SIGNING path only — produces a valid signed L2 withdraw
+ * without submitting it (no funds move on the shared account).
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseWithdrawSign(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const wallet = new LighterWalletService(buildInfrastructure(), {
+    isTestnet: true,
+    personalSigner,
+    l1Address: viemAccount.address,
+  });
+  const seed = await wallet.deriveKeySeedPlain(API_KEY_INDEX);
+  const client = new LighterClientService(buildInfrastructure(), {
+    isTestnet: true,
+  });
+  const { nonce } = await client.getNextNonce(ACCOUNT_INDEX, API_KEY_INDEX);
+  const created = await bridge.execute<LighterCreateClientResult>({
+    function: '_createClient',
+    params: [
+      seed,
+      LIGHTER_TESTNET_CHAIN_ID,
+      ACCOUNT_INDEX,
+      nonce,
+      API_KEY_INDEX,
+    ],
+  });
+  check(
+    result,
+    'signer client created',
+    Boolean(created.success),
+    created.error,
+  );
+
+  const signed = await bridge.execute<LighterTxResult>({
+    function: '_signWithdraw',
+    params: [ACCOUNT_INDEX, 1, 0, '1000000', nonce],
+  });
+  check(
+    result,
+    'withdraw transaction signs (1 USDC, NOT submitted)',
+    !signed.error &&
+      typeof signed.txInfo === 'string' &&
+      signed.txInfo.length > 0,
+    signed.error,
+  );
+  record(result, { withdrawTxInfoLength: signed.txInfo?.length });
+}
+
+/**
+ * Prove mainnet read paths: full market catalog, live WS prices, candles.
+ * Read-only — no account, no writes.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseMainnetReads(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: false,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {},
+  });
+
+  const markets = await provider.getMarkets();
+  check(
+    result,
+    'mainnet serves a large active perp catalog (>=100 markets)',
+    markets.length >= 100,
+    `markets=${markets.length}`,
+  );
+
+  const cycles: number[] = [];
+  const unsubscribe = provider.subscribeToPrices({
+    symbols: [],
+    callback: (updates) => {
+      cycles.push(updates.length);
+    },
+  });
+  const deadline = Date.now() + 20_000;
+  while (cycles.length < 3 && Date.now() < deadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+  }
+  unsubscribe();
+  check(
+    result,
+    'mainnet WS price stream delivers snapshot + live updates',
+    cycles.length >= 3,
+    `cycles=${cycles.length}`,
+  );
+  check(
+    result,
+    'mainnet snapshot covers the catalog',
+    (cycles[0] ?? 0) >= 100,
+    `snapshotSize=${cycles[0]}`,
+  );
+
+  const candles = await provider.fetchHistoricalCandles({
+    symbol: 'BTC',
+    interval: '15m' as never,
+    limit: 30,
+  });
+  check(
+    result,
+    'mainnet candles return live history',
+    candles.candles.length >= 20 &&
+      parseFloat(candles.candles.at(-1)?.close ?? '0') > 0,
+    `count=${candles.candles.length} close=${candles.candles.at(-1)?.close}`,
+  );
+  await provider.disconnect();
+  record(result, {
+    mainnetMarkets: markets.length,
+    mainnetSnapshotSize: cycles[0],
+  });
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -590,6 +1397,39 @@ async function main(): Promise<void> {
         break;
       case 'controller':
         await phaseController(result);
+        break;
+      case 'price-stream':
+        await phasePriceStream(result);
+        break;
+      case 'account-stream':
+        await phaseAccountStream(result);
+        break;
+      case 'positions-stream':
+        await phasePositionsStream(result);
+        break;
+      case 'orders-stream':
+        await phaseOrdersStream(result);
+        break;
+      case 'candles':
+        await phaseCandles(result);
+        break;
+      case 'close-position':
+        await phaseClosePosition(result);
+        break;
+      case 'order-book-stream':
+        await phaseOrderBookStream(result);
+        break;
+      case 'candles-stream':
+        await phaseCandlesStream(result);
+        break;
+      case 'edit-order':
+        await phaseEditOrder(result);
+        break;
+      case 'withdraw-sign':
+        await phaseWithdrawSign(result);
+        break;
+      case 'mainnet-reads':
+        await phaseMainnetReads(result);
         break;
       default:
         throw new Error(`Unknown phase: ${PHASE}`);

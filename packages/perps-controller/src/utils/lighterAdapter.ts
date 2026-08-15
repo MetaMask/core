@@ -21,6 +21,7 @@ import type {
   Order,
   PerpsMarketData,
   Position,
+  PriceUpdate,
 } from '../types/index.js';
 import type {
   LighterApiOrder,
@@ -28,6 +29,8 @@ import type {
   LighterOrderBookDetail,
   LighterOrderBookMeta,
   LighterSubAccount,
+  LighterWsMarketStat,
+  LighterWsUserStats,
 } from '../types/lighter-types.js';
 
 /**
@@ -104,6 +107,88 @@ export function adaptMarketDataFromLighter(
     change24hPercent: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
     volume: formatters.formatVolume(detail.dailyQuoteTokenVolume ?? 0),
     openInterest: formatters.formatVolume(detail.openInterest ?? 0),
+  };
+}
+
+/**
+ * Transform a Lighter order book detail into a canonical PriceUpdate for
+ * price-stream subscribers (REST polling stands in for a WS feed in the POC).
+ *
+ * @param detail - Market stats from `GET /api/v1/orderBookDetails`.
+ * @param timestamp - Update timestamp (injected for determinism in tests).
+ * @returns MetaMask Perps API price update object.
+ */
+export function adaptPriceUpdateFromLighter(
+  detail: LighterOrderBookDetail,
+  timestamp: number,
+): PriceUpdate {
+  return {
+    symbol: detail.symbol,
+    price: String(detail.lastTradePrice ?? 0),
+    timestamp,
+    percentChange24h: String(detail.dailyPriceChange ?? 0),
+    volume24h: detail.dailyQuoteTokenVolume ?? 0,
+    openInterest: detail.openInterest ?? 0,
+    isTradable: detail.status === 'active',
+  };
+}
+
+/**
+ * Transform a `market_stats` WebSocket entry into a canonical PriceUpdate.
+ * Richer than the REST fallback: carries mid/bid/ask, mark price, and funding.
+ *
+ * @param stat - Market stats entry from the `market_stats/all` WS channel.
+ * @param timestamp - Update timestamp (injected for determinism in tests).
+ * @returns MetaMask Perps API price update object.
+ */
+export function adaptPriceUpdateFromLighterWsStat(
+  stat: LighterWsMarketStat,
+  timestamp: number,
+): PriceUpdate {
+  const bestBid = parseFloat(stat.bestBidPrice);
+  const bestAsk = parseFloat(stat.bestAskPrice);
+  const spread =
+    Number.isFinite(bestBid) && Number.isFinite(bestAsk)
+      ? String(bestAsk - bestBid)
+      : undefined;
+  return {
+    symbol: stat.symbol,
+    price: stat.midPrice,
+    timestamp,
+    percentChange24h: String(stat.dailyPriceChange ?? 0),
+    bestBid: stat.bestBidPrice,
+    bestAsk: stat.bestAskPrice,
+    spread,
+    markPrice: stat.markPrice,
+    funding: parseFloat(stat.currentFundingRate ?? stat.fundingRate ?? '0'),
+    openInterest: parseFloat(stat.openInterest ?? '0'),
+    volume24h: stat.dailyQuoteTokenVolume ?? 0,
+    isTradable: true,
+  };
+}
+
+/**
+ * Transform a `user_stats` WebSocket stats block into canonical AccountState.
+ *
+ * @param stats - Stats block from the `user_stats/{account_index}` channel.
+ * @returns MetaMask Perps API account state object.
+ */
+export function adaptAccountStateFromLighterUserStats(
+  stats: LighterWsUserStats,
+): AccountState {
+  const collateral = parseFloat(stats.collateral || '0');
+  const available = parseFloat(stats.availableBalance || '0');
+  const portfolioValue = parseFloat(stats.portfolioValue || '0');
+  return {
+    totalBalance: String(portfolioValue),
+    spendableBalance: String(available),
+    withdrawableBalance: String(available),
+    marginUsed: String(Math.max(collateral - available, 0)),
+    unrealizedPnl: String(portfolioValue - collateral),
+    returnOnEquity:
+      collateral > 0
+        ? String(((portfolioValue - collateral) / collateral) * 100)
+        : '0',
   };
 }
 

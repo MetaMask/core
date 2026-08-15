@@ -298,6 +298,162 @@ export type LighterSendTxResponse = {
 };
 
 /**
+ * One market entry from the `market_stats/all` WebSocket channel
+ * (`subscribed/market_stats` snapshot and `update/market_stats` deltas),
+ * after snake→camel conversion at the socket boundary.
+ */
+export type LighterWsMarketStat = {
+  symbol: string;
+  marketId: number;
+  indexPrice: string;
+  markPrice: string;
+  midPrice: string;
+  bestAskPrice: string;
+  bestBidPrice: string;
+  lastTradePrice: string;
+  openInterest: string;
+  fundingRate: string;
+  currentFundingRate?: string;
+  dailyQuoteTokenVolume: number;
+  dailyPriceChange: number;
+};
+
+/**
+ * Envelope of a `market_stats` WebSocket message (post-camelization).
+ */
+export type LighterWsMarketStatsMessage = {
+  type: string;
+  channel?: string;
+  timestamp?: number;
+  marketStats?: Record<string, LighterWsMarketStat>;
+};
+
+/**
+ * Stats block of a `user_stats/{account_index}` WebSocket message
+ * (post-camelization). Live-verified against testnet account 28.
+ */
+export type LighterWsUserStats = {
+  collateral: string;
+  portfolioValue: string;
+  leverage: string;
+  availableBalance: string;
+  marginUsage: string;
+  buyingPower: string;
+};
+
+/**
+ * Generic account-channel WebSocket envelope (post-camelization):
+ * `user_stats` carries `stats`, `account_all_positions` carries `positions`
+ * (same field shape as the REST account payload), `account_all_orders`
+ * carries `orders` keyed by market id.
+ */
+export type LighterWsAccountMessage = {
+  type: string;
+  channel?: string;
+  timestamp?: number;
+  stats?: LighterWsUserStats;
+  positions?: Record<string, LighterApiPosition>;
+  orders?: Record<string, LighterApiOrder[]>;
+};
+
+/**
+ * Minimal structural WebSocket surface the Lighter stream manager uses.
+ * Structural (rather than the DOM/Node `WebSocket` type) so platforms and
+ * tests can supply any compatible implementation.
+ */
+export type LighterWebSocketLike = {
+  readyState: number;
+  send(data: string): void;
+  close(): void;
+  onopen: (() => void) | null;
+  onmessage: ((event: { data: unknown }) => void) | null;
+  onclose: (() => void) | null;
+  onerror: (() => void) | null;
+};
+
+/**
+ * Constructor for {@link LighterWebSocketLike} transports.
+ */
+export type LighterWebSocketCtor = new (url: string) => LighterWebSocketLike;
+
+/**
+ * `order_book/{market_id}` WebSocket payload (post-camelization).
+ * `subscribed/*` carries a full snapshot; `update/*` carries deltas where
+ * `size: "0.000"` removes a level.
+ */
+export type LighterWsOrderBookMessage = {
+  type: string;
+  channel?: string;
+  timestamp?: number;
+  orderBook?: {
+    bids?: { price: string; size: string }[];
+    asks?: { price: string; size: string }[];
+  };
+};
+
+/**
+ * `candle/{market_id}/{resolution}` WebSocket payload (post-camelization,
+ * candle entries keep the compact t/o/h/l/c/v wire keys).
+ */
+export type LighterWsCandleMessage = {
+  type: string;
+  channel?: string;
+  timestamp?: number;
+  candles?: LighterCandle[];
+};
+
+/**
+ * One trade entry from the `account_all_trades/{account_index}` channel
+ * (post-camelization).
+ */
+export type LighterWsTrade = {
+  tradeId: number;
+  marketId: number;
+  size: string;
+  price: string;
+  askId: number;
+  bidId: number;
+  askAccountId: number;
+  bidAccountId: number;
+  isMakerAsk: boolean;
+  timestamp: number;
+};
+
+/**
+ * `account_all_trades/{account_index}` WebSocket payload (post-camelization).
+ */
+export type LighterWsTradesMessage = {
+  type: string;
+  channel?: string;
+  timestamp?: number;
+  trades?: Record<string, LighterWsTrade[]>;
+};
+
+/**
+ * One candle from `GET /api/v1/candles` (compact wire keys: t/o/h/l/c/v).
+ */
+export type LighterCandle = {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+/**
+ * Response of `GET /api/v1/candles`.
+ */
+export type LighterCandlesResponse = {
+  code: number;
+  message?: string;
+  /** Resolution echo (e.g. `15m`). */
+  r?: string;
+  /** Ascending candle series. */
+  c?: LighterCandle[];
+};
+
+/**
  * One order from `GET /api/v1/accountActiveOrders`.
  */
 export type LighterApiOrder = {
