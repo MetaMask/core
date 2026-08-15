@@ -62,6 +62,53 @@ export function getLighterHttpEndpoint(network: LighterNetwork): string {
   return LIGHTER_ENDPOINTS[network].http;
 }
 
+/**
+ * Get the WebSocket stream endpoint for a network.
+ *
+ * @param network - The Lighter network environment (mainnet or testnet).
+ * @returns The WebSocket stream URL for the specified network.
+ */
+export function getLighterWsEndpoint(network: LighterNetwork): string {
+  return LIGHTER_ENDPOINTS[network].ws;
+}
+
+/** L2 transaction type: Withdraw (funds exit to L1). */
+export const LIGHTER_TX_TYPE_WITHDRAW = 13;
+
+/** L2 transaction type: ModifyOrder (reprice/resize a resting order). */
+export const LIGHTER_TX_TYPE_MODIFY_ORDER = 17;
+
+/** USDC collateral asset index on zkLighter (asset indexing starts at 1). */
+export const LIGHTER_USDC_ASSET_INDEX = 1;
+
+/**
+ * Candle resolutions Lighter serves natively (subset of CandlePeriod values).
+ */
+export const LIGHTER_SUPPORTED_RESOLUTIONS: ReadonlySet<string> = new Set([
+  '1m',
+  '5m',
+  '15m',
+  '30m',
+  '1h',
+  '4h',
+  '12h',
+  '1d',
+]);
+
+/**
+ * Millisecond span per supported resolution (range computation for candles).
+ */
+export const LIGHTER_RESOLUTION_MS: Record<string, number> = {
+  '1m': 60_000,
+  '5m': 300_000,
+  '15m': 900_000,
+  '30m': 1_800_000,
+  '1h': 3_600_000,
+  '4h': 14_400_000,
+  '12h': 43_200_000,
+  '1d': 86_400_000,
+};
+
 // ============================================================================
 // L2 Transaction Types (types/txtypes/constants.go)
 // ============================================================================

@@ -4,10 +4,17 @@ import { LighterWalletService } from '../../../src/services/LighterWalletService
 import type {
   LighterSignerBridge,
   LighterWasmCall,
+  LighterWebSocketCtor,
+  LighterWebSocketLike,
 } from '../../../src/types/lighter-types.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/services/LighterClientService');
+jest.mock('../../../src/services/LighterClientService', () => ({
+  ...jest.requireActual('../../../src/services/LighterClientService'),
+  // Only the service class is doubled; convertKeysToCamelCase stays real so
+  // the WebSocket message router operates on faithfully camelized payloads.
+  LighterClientService: jest.fn(),
+}));
 jest.mock('../../../src/services/LighterWalletService');
 
 const MockedClientService = LighterClientService as jest.MockedClass<
@@ -124,17 +131,22 @@ type MockClientInstance = {
  * @param options - Overrides.
  * @param options.withBridge - Attach the mock WASM bridge.
  * @param options.registeredKey - Pubkey the mocked apikeys endpoint reports.
+ * @param options.webSocketCtor - Transport override (null = REST polling).
  * @returns Provider and its collaborators.
  */
 function buildProvider(
-  options: { withBridge?: boolean; registeredKey?: string } = {},
+  options: {
+    withBridge?: boolean;
+    registeredKey?: string;
+    webSocketCtor?: LighterWebSocketCtor | null;
+  } = {},
 ): {
   provider: LighterProvider;
   clientInstance: MockClientInstance;
   bridge: LighterSignerBridge;
   calls: LighterWasmCall[];
 } {
-  const { withBridge = true, registeredKey } = options;
+  const { withBridge = true, registeredKey, webSocketCtor } = options;
   const clientInstance = {
     network: 'testnet',
     getOrderBooks: jest.fn().mockResolvedValue([BTC_MARKET]),
@@ -222,6 +234,8 @@ function buildProvider(
     isTestnet: true,
     platformDependencies: createMockInfrastructure(),
     lighterAuthConfig: { accountIndex: 28, apiKeyIndex: 7 },
+    // Tests default to the REST-polling transport; the WS suite injects a fake.
+    webSocketCtor: webSocketCtor ?? null,
     ...(withBridge ? { signerBridge: bridge } : {}),
   });
 
@@ -510,6 +524,273 @@ describe('LighterProvider', () => {
         symbol: 'NOPE',
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('price streaming', () => {
+    class FakeWebSocket implements LighterWebSocketLike {
+      static instances: FakeWebSocket[] = [];
+
+      readyState = 0;
+
+      sent: string[] = [];
+
+      onopen: (() => void) | null = null;
+
+      onmessage: ((event: { data: unknown }) => void) | null = null;
+
+      onclose: (() => void) | null = null;
+
+      onerror: (() => void) | null = null;
+
+      url: string;
+
+      constructor(url: string) {
+        this.url = url;
+        FakeWebSocket.instances.push(this);
+      }
+
+      send = (data: string): void => {
+        this.sent.push(data);
+      };
+
+      close = (): void => {
+        this.readyState = 3;
+        this.onclose?.();
+      };
+
+      open = (): void => {
+        this.readyState = 1;
+        this.onopen?.();
+      };
+
+      receive = (message: unknown): void => {
+        this.onmessage?.({ data: JSON.stringify(message) });
+      };
+    }
+
+    const fakeCtor = FakeWebSocket as unknown as LighterWebSocketCtor;
+
+    beforeEach(() => {
+      FakeWebSocket.instances = [];
+    });
+
+    const wsStat = (
+      symbol: string,
+      marketId: number,
+      midPrice: string,
+    ): Record<string, unknown> => ({
+      symbol,
+      market_id: marketId,
+      index_price: midPrice,
+      mark_price: midPrice,
+      mid_price: midPrice,
+      best_ask_price: midPrice,
+      best_bid_price: midPrice,
+      last_trade_price: midPrice,
+      open_interest: '1000',
+      open_interest_limit: '100000',
+      funding_rate: '0.0012',
+      daily_quote_token_volume: 5,
+      daily_price_change: 0.5,
+    });
+
+    it('subscribes to market_stats/all and dispatches snapshot + updates', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+      const callback = jest.fn();
+      const unsubscribe = provider.subscribeToPrices({
+        symbols: [],
+        callback,
+      });
+
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+      );
+
+      socket.receive({
+        type: 'subscribed/market_stats',
+        channel: 'market_stats:all',
+        market_stats: { '1': wsStat('BTC', 1, '63000.5') },
+        timestamp: 123,
+      });
+      expect(callback).toHaveBeenCalledWith([
+        expect.objectContaining({
+          symbol: 'BTC',
+          price: '63000.5',
+          markPrice: '63000.5',
+          timestamp: 123,
+        }),
+      ]);
+
+      socket.receive({
+        type: 'update/market_stats',
+        channel: 'market_stats:all',
+        market_stats: { '2': wsStat('SOL', 2, '75.1') },
+        timestamp: 456,
+      });
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ symbol: 'SOL', price: '75.1' }),
+      ]);
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it('replays the merged snapshot to late subscribers with symbol filters', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+      const unsubscribeFirst = provider.subscribeToPrices({
+        symbols: [],
+        callback: jest.fn(),
+      });
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      socket.receive({
+        type: 'subscribed/market_stats',
+        market_stats: { '1': wsStat('BTC', 1, '63000.5') },
+      });
+      // A later delta must not evict BTC from the replay cache.
+      socket.receive({
+        type: 'update/market_stats',
+        market_stats: { '2': wsStat('SOL', 2, '75.1') },
+      });
+
+      const late = jest.fn();
+      const unsubscribeLate = provider.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: late,
+      });
+      expect(late).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC' }),
+      ]);
+      unsubscribeFirst();
+      unsubscribeLate();
+      await provider.disconnect();
+    });
+
+    it('streams user_stats and account_all_positions into their subscribers', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: 'a'.repeat(80),
+      });
+      const accountCallback = jest.fn();
+      const positionsCallback = jest.fn();
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: positionsCallback,
+      });
+      // Let account-channel setup resolve (account index + auth token).
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'user_stats/28' }),
+      );
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({
+          type: 'subscribe',
+          channel: 'account_all_positions/28',
+        }),
+      );
+
+      socket.receive({
+        type: 'subscribed/user_stats',
+        channel: 'user_stats:28',
+        stats: {
+          collateral: '10000',
+          portfolio_value: '11000',
+          leverage: '2',
+          available_balance: '6000',
+          margin_usage: '40',
+          buying_power: '0',
+        },
+      });
+      expect(accountCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          totalBalance: '11000',
+          spendableBalance: '6000',
+          marginUsed: '4000',
+          unrealizedPnl: '1000',
+        }),
+      );
+
+      socket.receive({
+        type: 'subscribed/account_all_positions',
+        channel: 'account_all_positions:28',
+        positions: {
+          '1': {
+            market_id: 1,
+            symbol: 'BTC',
+            initial_margin_fraction: '5.00',
+            open_order_count: 0,
+            sign: -1,
+            position: '0.5',
+            avg_entry_price: '60000',
+            position_value: '30000',
+            unrealized_pnl: '100',
+            realized_pnl: '0',
+            liquidation_price: '90000',
+          },
+        },
+      });
+      expect(positionsCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', size: '-0.5' }),
+      ]);
+      unsubscribeAccount();
+      unsubscribePositions();
+      await provider.disconnect();
+    });
+
+    it('tears down the socket when the last subscriber unsubscribes', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+      const unsubscribe = provider.subscribeToPrices({
+        symbols: [],
+        callback: jest.fn(),
+      });
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      unsubscribe();
+      expect(socket.readyState).toBe(3);
+      await provider.disconnect();
+    });
+
+    it('falls back to REST polling when no WebSocket implementation exists', async () => {
+      jest.useFakeTimers();
+      try {
+        const { provider, clientInstance } = buildProvider({
+          webSocketCtor: null,
+        });
+        const callback = jest.fn();
+        const unsubscribe = provider.subscribeToPrices({
+          symbols: [],
+          callback,
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(callback).toHaveBeenCalledWith([
+          expect.objectContaining({ symbol: 'BTC', price: '100000' }),
+        ]);
+
+        await jest.advanceTimersByTimeAsync(10_500);
+        expect(
+          clientInstance.getOrderBookDetails.mock.calls.length,
+        ).toBeGreaterThanOrEqual(3);
+
+        unsubscribe();
+        const callsAfter = clientInstance.getOrderBookDetails.mock.calls.length;
+        await jest.advanceTimersByTimeAsync(20_000);
+        expect(clientInstance.getOrderBookDetails.mock.calls).toHaveLength(
+          callsAfter,
+        );
+        await provider.disconnect();
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

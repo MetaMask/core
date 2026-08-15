@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export `LighterCredentials`, `LighterSignerBridge`, `LighterWasmCall`, `LighterAuthConfig`, `LighterPersonalSigner`, `LighterNetwork` types and `lighterConfig` constants (chain ids, endpoints, key-derivation message helpers, integerization utilities).
   - Add optional `lighterSignerBridge` to `PerpsPlatformDependencies` so clients can supply a transport for the Lighter Go/WASM signer (mobile: off-screen WebView bridge; headless: in-process WASM). Without it the Lighter provider is read-only.
   - Add `KeyringController:signPersonalMessage` to the allowed messenger actions (type-only) for Lighter venue-key registration via EIP-191.
+  - Live data over the shared Lighter WebSocket: price stream (`market_stats/all`), account (`user_stats`), positions (`account_all_positions`), authenticated orders (`account_all_orders`), fills (`account_all_trades`), per-market order book and live candles, with REST-polling fallback when no `WebSocket` implementation exists (`LighterWebSocketCtor` injection seam).
+  - Trading surface: `closePosition` (reduce-only IOC market order with protection price), `editOrder` (ModifyOrder signing), `withdraw` (signed L2 withdraw), and `fetchHistoricalCandles` via `/api/v1/candles`.
 
 ## [13.1.0]
 

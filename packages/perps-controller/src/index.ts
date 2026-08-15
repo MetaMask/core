@@ -501,6 +501,8 @@ export {
 export type {
   LighterNetwork,
   LighterSignerBridge,
+  LighterWebSocketCtor,
+  LighterWebSocketLike,
   LighterWasmCall,
   LighterAuthConfig,
   LighterPersonalSigner,

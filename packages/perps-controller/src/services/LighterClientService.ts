@@ -32,6 +32,7 @@ import type {
   LighterOrderBookMeta,
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
+  LighterCandlesResponse,
   LighterSendTxResponse,
 } from '../types/lighter-types.js';
 
@@ -227,6 +228,28 @@ export class LighterClientService {
   }
 
   /**
+   * Fetch an OHLCV candle series for a market.
+   *
+   * @param marketId - Numeric Lighter market id.
+   * @param resolution - Candle resolution (e.g. `1m`, `15m`, `1h`, `1d`).
+   * @param startTimestamp - Range start (ms).
+   * @param endTimestamp - Range end (ms).
+   * @param countBack - Number of candles counted back from the range end.
+   * @returns Candle series payload.
+   */
+  async getCandles(
+    marketId: number,
+    resolution: string,
+    startTimestamp: number,
+    endTimestamp: number,
+    countBack: number,
+  ): Promise<LighterCandlesResponse> {
+    return await this.#get<LighterCandlesResponse>(
+      `/api/v1/candles?market_id=${marketId}&resolution=${resolution}&start_timestamp=${startTimestamp}&end_timestamp=${endTimestamp}&count_back=${countBack}`,
+    );
+  }
+
+  /**
    * Submit a signed L2 transaction.
    *
    * @param txType - L2 transaction type code (see lighterConfig).
@@ -250,17 +273,17 @@ export class LighterClientService {
     return response;
   }
 
-  async #get<Result extends { code: number; message?: string }>(
+  readonly #get = async <Result extends { code: number; message?: string }>(
     path: string,
     headers?: Record<string, string>,
-  ): Promise<Result> {
+  ): Promise<Result> => {
     return await this.#request<Result>(path, { method: 'GET', headers });
-  }
+  };
 
-  async #request<Result extends { code: number; message?: string }>(
+  readonly #request = async <Result extends { code: number; message?: string }>(
     path: string,
     init: { method: string; headers?: Record<string, string>; body?: string },
-  ): Promise<Result> {
+  ): Promise<Result> => {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -302,5 +325,5 @@ export class LighterClientService {
     } finally {
       clearTimeout(timeout);
     }
-  }
+  };
 }

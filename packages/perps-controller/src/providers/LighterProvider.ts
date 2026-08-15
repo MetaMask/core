@@ -15,9 +15,12 @@
 
 import type { CaipAccountId } from '@metamask/utils';
 
+import type { CandlePeriod } from '../constants/chartConfig.js';
 import {
   computeLighterMinOrderSize,
   getLighterChainId,
+  LIGHTER_RESOLUTION_MS,
+  LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MAX_LEVERAGE,
   LIGHTER_NO_TRIGGER_PRICE,
@@ -25,20 +28,30 @@ import {
   LIGHTER_ORDER_TYPE_LIMIT,
   LIGHTER_ORDER_TYPE_MARKET,
   LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME,
+  getLighterWsEndpoint,
+  LIGHTER_PRICE_POLLING_INTERVAL_MS,
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
   LIGHTER_TX_TYPE_CREATE_ORDER,
+  LIGHTER_TX_TYPE_MODIFY_ORDER,
+  LIGHTER_TX_TYPE_WITHDRAW,
+  LIGHTER_USDC_ASSET_INDEX,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
-import { LighterClientService } from '../services/LighterClientService.js';
+import {
+  convertKeysToCamelCase,
+  LighterClientService,
+} from '../services/LighterClientService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
+  CandleData,
+  CandleStick,
   BatchCancelOrdersParams,
   CancelOrderParams,
   CancelOrderResult,
@@ -85,6 +98,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  PriceUpdate,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -102,14 +116,25 @@ import type {
   LighterSignChangePubKeyResult,
   LighterSignerBridge,
   LighterTxResult,
+  LighterWebSocketCtor,
+  LighterWebSocketLike,
+  LighterWsAccountMessage,
+  LighterWsCandleMessage,
+  LighterWsOrderBookMessage,
+  LighterWsTradesMessage,
+  LighterWsMarketStat,
+  LighterWsMarketStatsMessage,
 } from '../types/lighter-types.js';
 import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptAccountStateFromLighter,
+  adaptAccountStateFromLighterUserStats,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
   adaptOrderFromLighter,
   adaptPositionFromLighter,
+  adaptPriceUpdateFromLighter,
+  adaptPriceUpdateFromLighterWsStat,
 } from '../utils/lighterAdapter.js';
 
 // ============================================================================
@@ -168,6 +193,65 @@ export class LighterProvider implements PerpsProvider {
   /** Resolved Lighter account index (after ensureAccount()). */
   #accountIndex: number | null = null;
 
+  /** Active price-stream subscribers (REST polling fan-out). */
+  readonly #priceSubscribers: Set<SubscribePricesParams> = new Set();
+
+  #pricePollTimer: ReturnType<typeof setInterval> | null = null;
+
+  #priceWs: LighterWebSocketLike | null = null;
+
+  /** Monotonic poll counter — surfaced in debug logs so e2e can assert liveness. */
+  #pricePollCycle = 0;
+
+  /** Injectable WebSocket constructor (null → REST polling fallback). */
+  readonly #webSocketCtor: LighterWebSocketCtor | null;
+
+  /** Channels the shared socket should be subscribed to (subscribe payloads). */
+  readonly #wsWantedChannels: Map<string, { auth?: string }> = new Map();
+
+  #wsKeepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
+  #wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Merged latest price per symbol, replayed to late price subscribers. */
+  readonly #lastPriceBySymbol: Map<string, PriceUpdate> = new Map();
+
+  /** Merged live position state from account_all_positions (keyed marketId). */
+  readonly #wsPositions: Map<number, Position> = new Map();
+
+  /** Merged live open orders from account_all_orders (keyed orderId). */
+  readonly #wsOrders: Map<string, Order> = new Map();
+
+  readonly #oiCapSubscribers: Set<SubscribeOICapsParams> = new Set();
+
+  readonly #accountSubscribers: Set<SubscribeAccountParams> = new Set();
+
+  readonly #positionSubscribers: Set<SubscribePositionsParams> = new Set();
+
+  readonly #orderSubscribers: Set<SubscribeOrdersParams> = new Set();
+
+  readonly #fillSubscribers: Set<SubscribeOrderFillsParams> = new Set();
+
+  /** Order-book subscribers keyed by market id. */
+  readonly #orderBookSubscribers: Map<number, Set<SubscribeOrderBookParams>> =
+    new Map();
+
+  /** Live order-book level state per market (price → size). */
+  readonly #orderBookState: Map<
+    number,
+    { bids: Map<string, string>; asks: Map<string, string> }
+  > = new Map();
+
+  /** Candle subscribers keyed by `marketId:resolution`. */
+  readonly #candleSubscribers: Map<string, Set<SubscribeCandlesParams>> =
+    new Map();
+
+  /** Cached candle series per `marketId:resolution` (keyed by open time). */
+  readonly #candleSeries: Map<string, Map<number, CandleStick>> = new Map();
+
+  /** Dedup for the async account-channel setup. */
+  #accountChannelsPromise: Promise<void> | null = null;
+
   /** Derived venue public key hex, set after the signer client is created. */
   #venuePublicKey: string | null = null;
 
@@ -183,11 +267,21 @@ export class LighterProvider implements PerpsProvider {
     messenger?: PerpsControllerMessenger;
     lighterAuthConfig?: LighterAuthConfig;
     signerBridge?: LighterSignerBridge;
+    webSocketCtor?: LighterWebSocketCtor | null;
   }) {
     this.#deps = options.platformDependencies;
     this.#isTestnet = options.isTestnet ?? true;
     this.#messenger = options.messenger ?? null;
     this.#signerBridge = options.signerBridge ?? null;
+    const globalWebSocket = Reflect.get(globalThis, 'WebSocket') as
+      | LighterWebSocketCtor
+      | undefined;
+    const defaultWebSocketCtor =
+      typeof globalWebSocket === 'function' ? globalWebSocket : null;
+    this.#webSocketCtor =
+      options.webSocketCtor === undefined
+        ? defaultWebSocketCtor
+        : options.webSocketCtor;
     this.#apiKeyIndex =
       options.lighterAuthConfig?.apiKeyIndex ?? LIGHTER_DEFAULT_API_KEY_INDEX;
     this.#configuredAccountIndex = options.lighterAuthConfig?.accountIndex;
@@ -215,13 +309,13 @@ export class LighterProvider implements PerpsProvider {
   // Error Context Helper
   // ============================================================================
 
-  #getErrorContext(
+  readonly #getErrorContext = (
     method: string,
     extra?: Record<string, unknown>,
   ): {
     tags?: Record<string, string | number>;
     context?: { name: string; data: Record<string, unknown> };
-  } {
+  } => {
     return {
       tags: {
         feature: PERPS_CONSTANTS.FeatureName,
@@ -236,7 +330,7 @@ export class LighterProvider implements PerpsProvider {
         },
       },
     };
-  }
+  };
 
   // ============================================================================
   // Initialization & Lifecycle
@@ -271,6 +365,12 @@ export class LighterProvider implements PerpsProvider {
   async disconnect(): Promise<DisconnectResult> {
     this.#signerReadyPromise = null;
     this.#authToken = null;
+    this.#teardownStream();
+    this.#priceSubscribers.clear();
+    this.#oiCapSubscribers.clear();
+    this.#accountSubscribers.clear();
+    this.#positionSubscribers.clear();
+    this.#orderSubscribers.clear();
     return { success: true };
   }
 
@@ -322,19 +422,19 @@ export class LighterProvider implements PerpsProvider {
   // Signer session
   // ============================================================================
 
-  #getSignerBridge(): LighterSignerBridge {
+  readonly #getSignerBridge = (): LighterSignerBridge => {
     if (!this.#signerBridge) {
       throw new Error(LIGHTER_SIGNER_UNAVAILABLE_ERROR);
     }
     return this.#signerBridge;
-  }
+  };
 
   /**
    * Resolve the Lighter account index for the current user.
    *
    * @returns The account index.
    */
-  async #ensureAccountIndex(): Promise<number> {
+  readonly #ensureAccountIndex = async (): Promise<number> => {
     if (this.#accountIndex !== null) {
       return this.#accountIndex;
     }
@@ -349,7 +449,7 @@ export class LighterProvider implements PerpsProvider {
     );
     this.#accountIndex = master.index;
     return this.#accountIndex;
-  }
+  };
 
   /**
    * Create the WASM signer client and register the venue key if the
@@ -357,7 +457,7 @@ export class LighterProvider implements PerpsProvider {
    *
    * @returns Resolves when the signer session is ready.
    */
-  async #ensureSignerReady(): Promise<void> {
+  readonly #ensureSignerReady = async (): Promise<void> => {
     if (this.#signerReadyPromise) {
       return await this.#signerReadyPromise;
     }
@@ -366,9 +466,9 @@ export class LighterProvider implements PerpsProvider {
       throw error;
     });
     return await this.#signerReadyPromise;
-  }
+  };
 
-  async #setupSigner(): Promise<void> {
+  readonly #setupSigner = async (): Promise<void> => {
     const bridge = this.#getSignerBridge();
     const accountIndex = await this.#ensureAccountIndex();
     const chainId = getLighterChainId(this.#clientService.network);
@@ -404,9 +504,11 @@ export class LighterProvider implements PerpsProvider {
     if (!registered) {
       await this.#registerVenueKey(accountIndex, created.body);
     }
-  }
+  };
 
-  async #isVenueKeyRegistered(accountIndex: number): Promise<boolean> {
+  readonly #isVenueKeyRegistered = async (
+    accountIndex: number,
+  ): Promise<boolean> => {
     try {
       const response = await this.#clientService.getApiKeys(
         accountIndex,
@@ -420,12 +522,12 @@ export class LighterProvider implements PerpsProvider {
     } catch {
       return false;
     }
-  }
+  };
 
-  async #registerVenueKey(
+  readonly #registerVenueKey = async (
     accountIndex: number,
     changePubKeyBody: string,
-  ): Promise<void> {
+  ): Promise<void> => {
     const bridge = this.#getSignerBridge();
     // The ChangePubKey plaintext from _createClient embeds the nonce used at
     // client creation; sign it with the user's L1 account (EIP-191).
@@ -456,14 +558,14 @@ export class LighterProvider implements PerpsProvider {
       apiKeyIndex: this.#apiKeyIndex,
       txHash: result.txHash,
     });
-  }
+  };
 
   /**
    * Mint (or reuse) an auth token for authenticated REST reads.
    *
    * @returns Auth token string.
    */
-  async #getAuthToken(): Promise<string> {
+  readonly #getAuthToken = async (): Promise<string> => {
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (this.#authToken && this.#authToken.deadline - nowSeconds > 60) {
       return this.#authToken.token;
@@ -482,14 +584,16 @@ export class LighterProvider implements PerpsProvider {
     }
     this.#authToken = { token: token.token, deadline: token.deadline };
     return token.token;
-  }
+  };
 
-  async #ensureMarkets(): Promise<Map<string, LighterOrderBookMeta>> {
+  readonly #ensureMarkets = async (): Promise<
+    Map<string, LighterOrderBookMeta>
+  > => {
     if (this.#marketsBySymbol.size === 0) {
       await this.initialize();
     }
     return this.#marketsBySymbol;
-  }
+  };
 
   // ============================================================================
   // Market Data Operations (Public Reads)
@@ -657,9 +761,25 @@ export class LighterProvider implements PerpsProvider {
         return { success: false, error: 'Limit order requires a price' };
       }
 
-      const price = parseFloat(
-        params.price ?? String(params.currentPrice ?? 0),
-      );
+      let price = parseFloat(params.price ?? String(params.currentPrice ?? 0));
+      if (params.orderType === 'market') {
+        // Lighter market orders are IOC orders with a protection price: use
+        // the last trade price bounded by 5% slippage in the taker direction.
+        if (!(price > 0)) {
+          const details = await this.#clientService.getOrderBookDetails();
+          price =
+            details.orderBookDetails.find(
+              (entry) => entry.symbol === params.symbol,
+            )?.lastTradePrice ?? 0;
+        }
+        price = params.isBuy ? price * 1.05 : price * 0.95;
+      }
+      if (!(price > 0)) {
+        return {
+          success: false,
+          error: 'Unable to resolve an execution price for the order',
+        };
+      }
       const requestedSize = parseFloat(params.size);
       const minSize = computeLighterMinOrderSize(market, price);
       const size = Math.max(requestedSize, minSize);
@@ -690,7 +810,9 @@ export class LighterProvider implements PerpsProvider {
             : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
           params.reduceOnly ? 1 : 0,
           String(LIGHTER_NO_TRIGGER_PRICE),
-          LIGHTER_ORDER_EXPIRY_NONE,
+          // GTT orders auto-expire in 28 days (signer sentinel -1); IOC
+          // orders must carry a zero expiry.
+          params.orderType === 'limit' ? LIGHTER_ORDER_EXPIRY_NONE : 0,
           nonceResponse.nonce,
         ],
       });
@@ -791,8 +913,53 @@ export class LighterProvider implements PerpsProvider {
   // Trading Operations (POC: stubbed)
   // ============================================================================
 
-  async editOrder(_params: EditOrderParams): Promise<OrderResult> {
-    return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+  async editOrder(params: EditOrderParams): Promise<OrderResult> {
+    try {
+      const markets = await this.#ensureMarkets();
+      const market = markets.get(params.newOrder.symbol);
+      if (!market) {
+        return {
+          success: false,
+          error: `Unknown Lighter market: ${params.newOrder.symbol}`,
+        };
+      }
+      const price = parseFloat(params.newOrder.price ?? '0');
+      const size = parseFloat(params.newOrder.size);
+      if (!(price > 0) || !(size > 0)) {
+        return {
+          success: false,
+          error: 'editOrder requires a positive price and size',
+        };
+      }
+      await this.#ensureSignerReady();
+      const accountIndex = await this.#ensureAccountIndex();
+      const nonceResponse = await this.#clientService.getNextNonce(
+        accountIndex,
+        this.#apiKeyIndex,
+      );
+      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+        function: '_signModifyOrder',
+        params: [
+          accountIndex,
+          market.marketId,
+          String(params.orderId),
+          toLighterInteger(size, market.supportedSizeDecimals),
+          toLighterInteger(price, market.supportedPriceDecimals),
+          LIGHTER_NO_TRIGGER_PRICE,
+          nonceResponse.nonce,
+        ],
+      });
+      if (signed.error) {
+        return { success: false, error: signed.error };
+      }
+      const result = await this.#clientService.sendTx(
+        LIGHTER_TX_TYPE_MODIFY_ORDER,
+        signed.txInfo,
+      );
+      return { success: true, orderId: params.orderId, txHash: result.txHash };
+    } catch (error) {
+      return { success: false, error: ensureError(error).message };
+    }
   }
 
   async cancelOrders(
@@ -801,8 +968,32 @@ export class LighterProvider implements PerpsProvider {
     return { success: false, successCount: 0, failureCount: 0, results: [] };
   }
 
-  async closePosition(_params: ClosePositionParams): Promise<OrderResult> {
-    return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+  async closePosition(params: ClosePositionParams): Promise<OrderResult> {
+    try {
+      const positions = await this.getPositions();
+      const position = positions.find(
+        (entry) => entry.symbol === params.symbol,
+      );
+      if (!position) {
+        return {
+          success: false,
+          error: `No open Lighter position for ${params.symbol}`,
+        };
+      }
+      const signedSize = parseFloat(position.size);
+      const closeSize = params.size ?? String(Math.abs(signedSize));
+      // Reduce-only market order on the opposite side flattens the position.
+      return await this.placeOrder({
+        symbol: params.symbol,
+        isBuy: signedSize < 0,
+        size: closeSize,
+        orderType: 'market',
+        reduceOnly: true,
+        currentPrice: params.currentPrice,
+      });
+    } catch (error) {
+      return { success: false, error: ensureError(error).message };
+    }
   }
 
   async closePositions(
@@ -821,8 +1012,41 @@ export class LighterProvider implements PerpsProvider {
     return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
   }
 
-  async withdraw(_params: WithdrawParams): Promise<WithdrawResult> {
-    return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+  async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
+    try {
+      const amount = parseFloat(params.amount);
+      if (!(amount > 0)) {
+        return { success: false, error: 'withdraw requires a positive amount' };
+      }
+      await this.#ensureSignerReady();
+      const accountIndex = await this.#ensureAccountIndex();
+      const nonceResponse = await this.#clientService.getNextNonce(
+        accountIndex,
+        this.#apiKeyIndex,
+      );
+      // USDC uses 6 decimals on zkLighter.
+      const assetAmount = String(Math.round(amount * 1_000_000));
+      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+        function: '_signWithdraw',
+        params: [
+          accountIndex,
+          LIGHTER_USDC_ASSET_INDEX,
+          0,
+          assetAmount,
+          nonceResponse.nonce,
+        ],
+      });
+      if (signed.error) {
+        return { success: false, error: signed.error };
+      }
+      const result = await this.#clientService.sendTx(
+        LIGHTER_TX_TYPE_WITHDRAW,
+        signed.txInfo,
+      );
+      return { success: true, txHash: result.txHash };
+    } catch (error) {
+      return { success: false, error: ensureError(error).message };
+    }
   }
 
   // ============================================================================
@@ -939,69 +1163,747 @@ export class LighterProvider implements PerpsProvider {
   }
 
   // ============================================================================
-  // Subscriptions (POC: immediate empty snapshots, no live streams)
+  // Subscriptions (POC: REST polling stands in for a WS feed; prices are live,
+  // the remaining channels emit empty snapshots)
   // ============================================================================
 
   subscribeToPrices(params: SubscribePricesParams): () => void {
-    setTimeout(() => params.callback([]), 0);
+    this.#priceSubscribers.add(params);
+    if (this.#lastPriceBySymbol.size > 0) {
+      this.#deliverPrices(params, [...this.#lastPriceBySymbol.values()]);
+    }
+    this.#requestChannel('market_stats/all');
+    this.#ensureStream();
     return () => {
-      /* noop */
-    };
-  }
-
-  subscribeToPositions(params: SubscribePositionsParams): () => void {
-    setTimeout(() => params.callback([]), 0);
-    return () => {
-      /* noop */
-    };
-  }
-
-  subscribeToOrderFills(params: SubscribeOrderFillsParams): () => void {
-    setTimeout(() => params.callback([]), 0);
-    return () => {
-      /* noop */
-    };
-  }
-
-  subscribeToOrders(params: SubscribeOrdersParams): () => void {
-    setTimeout(() => params.callback([]), 0);
-    return () => {
-      /* noop */
-    };
-  }
-
-  subscribeToAccount(params: SubscribeAccountParams): () => void {
-    setTimeout(() => params.callback(EMPTY_ACCOUNT_STATE), 0);
-    return () => {
-      /* noop */
+      this.#priceSubscribers.delete(params);
+      this.#releaseChannelIfUnused();
     };
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
-    setTimeout(() => params.callback([]), 0);
+    this.#oiCapSubscribers.add(params);
+    this.#requestChannel('market_stats/all');
+    this.#ensureStream();
     return () => {
-      /* noop */
+      this.#oiCapSubscribers.delete(params);
+      this.#releaseChannelIfUnused();
     };
   }
+
+  subscribeToAccount(params: SubscribeAccountParams): () => void {
+    this.#accountSubscribers.add(params);
+    this.#ensureAccountChannels();
+    return () => {
+      this.#accountSubscribers.delete(params);
+      this.#releaseChannelIfUnused();
+    };
+  }
+
+  subscribeToPositions(params: SubscribePositionsParams): () => void {
+    this.#positionSubscribers.add(params);
+    if (this.#wsPositions.size > 0) {
+      params.callback([...this.#wsPositions.values()]);
+    }
+    this.#ensureAccountChannels();
+    return () => {
+      this.#positionSubscribers.delete(params);
+      this.#releaseChannelIfUnused();
+    };
+  }
+
+  subscribeToOrders(params: SubscribeOrdersParams): () => void {
+    this.#orderSubscribers.add(params);
+    if (this.#wsOrders.size > 0) {
+      params.callback([...this.#wsOrders.values()]);
+    }
+    this.#ensureAccountChannels();
+    return () => {
+      this.#orderSubscribers.delete(params);
+      this.#releaseChannelIfUnused();
+    };
+  }
+
+  subscribeToOrderFills(params: SubscribeOrderFillsParams): () => void {
+    this.#fillSubscribers.add(params);
+    this.#ensureAccountChannels();
+    return () => {
+      this.#fillSubscribers.delete(params);
+      this.#releaseChannelIfUnused();
+    };
+  }
+
+  // ============================================================================
+  // Shared WebSocket stream manager (market_stats / user_stats /
+  // account_all_positions / account_all_orders), REST polling fallback for
+  // prices when no WebSocket implementation is available.
+  // ============================================================================
+
+  /**
+   * Resolve the Lighter account index and request the account-scoped
+   * channels; without a Lighter account the account-ish subscribers get one
+   * empty emission (graceful degradation, matching REST reads).
+   */
+  readonly #ensureAccountChannels = (): void => {
+    if (this.#accountChannelsPromise) {
+      this.#ensureStream();
+      return;
+    }
+    this.#accountChannelsPromise = (async (): Promise<void> => {
+      try {
+        const accountIndex = await this.#ensureAccountIndex();
+        this.#requestChannel(`user_stats/${accountIndex}`);
+        this.#requestChannel(`account_all_positions/${accountIndex}`);
+        this.#requestChannel(`account_all_trades/${accountIndex}`);
+        try {
+          const auth = await this.#getAuthToken();
+          this.#requestChannel(`account_all_orders/${accountIndex}`, auth);
+        } catch (error) {
+          this.#deps.debugLogger.log(
+            '[LighterProvider] orders channel skipped (no auth token)',
+            { error: String(error) },
+          );
+          this.#emitToOrderSubscribers([]);
+        }
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          '[LighterProvider] account channels unavailable',
+          { error: String(error) },
+        );
+        for (const subscriber of this.#accountSubscribers) {
+          subscriber.callback(EMPTY_ACCOUNT_STATE);
+        }
+        for (const subscriber of this.#positionSubscribers) {
+          subscriber.callback([]);
+        }
+        this.#emitToOrderSubscribers([]);
+      }
+    })();
+    this.#ensureStream();
+  };
+
+  readonly #hasAnySubscriber = (): boolean => {
+    return (
+      this.#priceSubscribers.size > 0 ||
+      this.#oiCapSubscribers.size > 0 ||
+      this.#accountSubscribers.size > 0 ||
+      this.#positionSubscribers.size > 0 ||
+      this.#orderSubscribers.size > 0 ||
+      this.#fillSubscribers.size > 0 ||
+      [...this.#orderBookSubscribers.values()].some(
+        (subscribers) => subscribers.size > 0,
+      ) ||
+      [...this.#candleSubscribers.values()].some(
+        (subscribers) => subscribers.size > 0,
+      )
+    );
+  };
+
+  readonly #requestChannel = (channel: string, auth?: string): void => {
+    if (this.#wsWantedChannels.has(channel)) {
+      return;
+    }
+    this.#wsWantedChannels.set(channel, { auth });
+    if (this.#priceWs && this.#priceWs.readyState === 1) {
+      this.#sendSubscribe(channel, auth);
+    }
+  };
+
+  readonly #sendSubscribe = (channel: string, auth?: string): void => {
+    this.#priceWs?.send(
+      JSON.stringify(
+        auth
+          ? { type: 'subscribe', channel, auth }
+          : { type: 'subscribe', channel },
+      ),
+    );
+  };
+
+  readonly #releaseChannelIfUnused = (): void => {
+    if (!this.#hasAnySubscriber()) {
+      this.#teardownStream();
+    }
+  };
+
+  readonly #ensureStream = (): void => {
+    if (this.#priceWs || this.#pricePollTimer) {
+      return;
+    }
+    if (this.#webSocketCtor) {
+      this.#connectWs();
+    } else {
+      this.#startPricePolling();
+    }
+  };
+
+  readonly #connectWs = (): void => {
+    if (!this.#webSocketCtor) {
+      return;
+    }
+    const url = getLighterWsEndpoint(this.#isTestnet ? 'testnet' : 'mainnet');
+    const WebSocketCtor = this.#webSocketCtor;
+    const ws = new WebSocketCtor(url);
+    this.#priceWs = ws;
+
+    ws.onopen = (): void => {
+      for (const [channel, meta] of this.#wsWantedChannels) {
+        this.#sendSubscribe(channel, meta.auth);
+      }
+      // The server closes idle sockets; any frame under 2 minutes keeps it up.
+      this.#wsKeepaliveTimer ??= setInterval(() => {
+        try {
+          ws.send(JSON.stringify({ type: 'ping' }));
+        } catch {
+          // Socket closing; onclose handles recovery.
+        }
+      }, 60_000);
+      this.#deps.debugLogger.log(
+        '[LighterProvider] price stream connected (ws)',
+        { url, channels: [...this.#wsWantedChannels.keys()] },
+      );
+    };
+
+    ws.onmessage = (event: { data: unknown }): void => {
+      this.#handleWsMessage(String(event.data));
+    };
+
+    ws.onclose = (): void => {
+      if (this.#priceWs !== ws) {
+        return;
+      }
+      this.#priceWs = null;
+      this.#clearKeepalive();
+      if (this.#hasAnySubscriber()) {
+        this.#deps.debugLogger.log(
+          '[LighterProvider] price stream closed; reconnecting in 5s',
+        );
+        this.#wsReconnectTimer = setTimeout((): void => {
+          this.#wsReconnectTimer = null;
+          this.#ensureStream();
+        }, 5_000);
+      }
+    };
+
+    ws.onerror = (): void => {
+      this.#deps.debugLogger.log('[LighterProvider] price stream ws error');
+    };
+  };
+
+  readonly #handleWsMessage = (raw: string): void => {
+    let message: LighterWsMarketStatsMessage & LighterWsAccountMessage;
+    try {
+      message = convertKeysToCamelCase(JSON.parse(raw)) as typeof message;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] price stream message parse failed',
+        { error: String(error) },
+      );
+      return;
+    }
+    const type = message.type ?? '';
+    if (type.includes('market_stats') && message.marketStats) {
+      const timestamp = message.timestamp ?? Date.now();
+      const updates = Object.values(message.marketStats).map((stat) =>
+        adaptPriceUpdateFromLighterWsStat(stat, timestamp),
+      );
+      this.#dispatchPriceUpdates(updates, 'ws');
+      this.#dispatchOICaps(Object.values(message.marketStats));
+      return;
+    }
+    if (type.includes('user_stats') && message.stats) {
+      const accountState = adaptAccountStateFromLighterUserStats(message.stats);
+      for (const subscriber of this.#accountSubscribers) {
+        try {
+          subscriber.callback(accountState);
+        } catch (error) {
+          this.#logSubscriberError('account', error);
+        }
+      }
+      return;
+    }
+    if (type.includes('account_all_positions') && message.positions) {
+      const isSnapshot = type.startsWith('subscribed');
+      if (isSnapshot) {
+        this.#wsPositions.clear();
+      }
+      for (const [marketId, position] of Object.entries(message.positions)) {
+        const adapted = adaptPositionFromLighter(position);
+        if (parseFloat(adapted.size) === 0) {
+          this.#wsPositions.delete(Number(marketId));
+        } else {
+          this.#wsPositions.set(Number(marketId), adapted);
+        }
+      }
+      const positions = [...this.#wsPositions.values()];
+      for (const subscriber of this.#positionSubscribers) {
+        try {
+          subscriber.callback(positions);
+        } catch (error) {
+          this.#logSubscriberError('positions', error);
+        }
+      }
+      return;
+    }
+    if (type.includes('order_book')) {
+      this.#handleOrderBookMessage(type, message as LighterWsOrderBookMessage);
+      return;
+    }
+    if (type.includes('candle')) {
+      this.#handleCandleMessage(message as LighterWsCandleMessage);
+      return;
+    }
+    if (type.includes('account_all_trades')) {
+      this.#handleTradesMessage(message as LighterWsTradesMessage);
+      return;
+    }
+    if (type.includes('account_all_orders') && message.orders) {
+      const isSnapshot = type.startsWith('subscribed');
+      if (isSnapshot) {
+        this.#wsOrders.clear();
+      }
+      for (const marketOrders of Object.values(message.orders)) {
+        for (const order of marketOrders) {
+          const adapted = adaptOrderFromLighter(
+            order,
+            this.#marketsById.get(order.marketIndex)?.symbol ??
+              String(order.marketIndex),
+          );
+          const isOpen =
+            adapted.status === 'queued' || adapted.status === 'open';
+          if (isOpen) {
+            this.#wsOrders.set(adapted.orderId, adapted);
+          } else {
+            this.#wsOrders.delete(adapted.orderId);
+          }
+        }
+      }
+      this.#emitToOrderSubscribers([...this.#wsOrders.values()]);
+    }
+  };
+
+  /**
+   * Apply an order_book snapshot/delta and fan the assembled book out.
+   *
+   * @param type - Message type (subscribed = full snapshot, update = delta).
+   * @param message - Camelized order_book payload.
+   */
+  readonly #handleOrderBookMessage = (
+    type: string,
+    message: LighterWsOrderBookMessage,
+  ): void => {
+    const channel = message.channel ?? '';
+    const marketId = Number(channel.split(':')[1] ?? Number.NaN);
+    if (!Number.isFinite(marketId) || !message.orderBook) {
+      return;
+    }
+    let state = this.#orderBookState.get(marketId);
+    if (!state || type.startsWith('subscribed')) {
+      state = { bids: new Map(), asks: new Map() };
+      this.#orderBookState.set(marketId, state);
+    }
+    for (const side of ['bids', 'asks'] as const) {
+      for (const level of message.orderBook[side] ?? []) {
+        if (parseFloat(level.size) === 0) {
+          state[side].delete(level.price);
+        } else {
+          state[side].set(level.price, level.size);
+        }
+      }
+    }
+    const subscribers = this.#orderBookSubscribers.get(marketId);
+    if (!subscribers || subscribers.size === 0) {
+      return;
+    }
+    for (const subscriber of subscribers) {
+      const levels = subscriber.levels ?? 10;
+      const bids = [...state.bids.entries()]
+        .sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]))
+        .slice(0, levels)
+        .map(([price, size]) => ({ price, size }));
+      const asks = [...state.asks.entries()]
+        .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+        .slice(0, levels)
+        .map(([price, size]) => ({ price, size }));
+      const bestBid = parseFloat(bids[0]?.price ?? '0');
+      const bestAsk = parseFloat(asks[0]?.price ?? '0');
+      const mid = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : 0;
+      try {
+        subscriber.callback({
+          bids,
+          asks,
+          spread: String(bestAsk - bestBid),
+          spreadPercentage:
+            mid > 0 ? String(((bestAsk - bestBid) / mid) * 100) : '0',
+          midPrice: String(mid),
+        } as never);
+      } catch (error) {
+        this.#logSubscriberError('orderBook', error);
+      }
+    }
+  };
+
+  /**
+   * Merge live candle updates into the cached series and fan out.
+   *
+   * @param message - Camelized candle payload.
+   */
+  readonly #handleCandleMessage = (message: LighterWsCandleMessage): void => {
+    const channel = message.channel ?? '';
+    const [, marketIdRaw, resolution] = channel.split(':');
+    const key = `${marketIdRaw}:${resolution}`;
+    const series = this.#candleSeries.get(key);
+    const subscribers = this.#candleSubscribers.get(key);
+    if (!series || !subscribers || subscribers.size === 0) {
+      return;
+    }
+    for (const candle of message.candles ?? []) {
+      series.set(candle.t, {
+        time: candle.t,
+        open: String(candle.o),
+        high: String(candle.h),
+        low: String(candle.l),
+        close: String(candle.c),
+        volume: String(candle.v),
+      });
+    }
+    const candles = [...series.values()].sort((a, b) => a.time - b.time);
+    for (const subscriber of subscribers) {
+      try {
+        subscriber.callback({
+          symbol: subscriber.symbol,
+          interval: subscriber.interval,
+          candles,
+        });
+      } catch (error) {
+        this.#logSubscriberError('candles', error);
+      }
+    }
+  };
+
+  /**
+   * Adapt live account trades into OrderFill emissions.
+   *
+   * @param message - Camelized account_all_trades payload.
+   */
+  readonly #handleTradesMessage = (message: LighterWsTradesMessage): void => {
+    if (this.#fillSubscribers.size === 0) {
+      return;
+    }
+    const isSnapshot = (message.type ?? '').startsWith('subscribed');
+    const fills: OrderFill[] = [];
+    for (const marketTrades of Object.values(message.trades ?? {})) {
+      for (const trade of marketTrades) {
+        const symbol =
+          this.#marketsById.get(trade.marketId)?.symbol ??
+          String(trade.marketId);
+        const accountIsAsk = trade.askAccountId === this.#accountIndex;
+        fills.push({
+          orderId: String(accountIsAsk ? trade.askId : trade.bidId),
+          symbol,
+          side: accountIsAsk ? 'sell' : 'buy',
+          size: trade.size,
+          price: trade.price,
+          pnl: '0',
+          direction: accountIsAsk ? 'sell' : 'buy',
+          fee: '0',
+          feeToken: 'USDC',
+          timestamp: trade.timestamp,
+        });
+      }
+    }
+    if (fills.length === 0 && !isSnapshot) {
+      return;
+    }
+    for (const subscriber of this.#fillSubscribers) {
+      try {
+        subscriber.callback(fills, isSnapshot);
+      } catch (error) {
+        this.#logSubscriberError('fills', error);
+      }
+    }
+  };
+
+  readonly #dispatchOICaps = (stats: LighterWsMarketStat[]): void => {
+    if (this.#oiCapSubscribers.size === 0) {
+      return;
+    }
+    const capped = stats
+      .filter((stat) => {
+        const openInterest = parseFloat(stat.openInterest ?? '0');
+        const limit = parseFloat(
+          (stat as { openInterestLimit?: string }).openInterestLimit ?? '0',
+        );
+        return limit > 0 && openInterest >= limit;
+      })
+      .map((stat) => stat.symbol);
+    for (const subscriber of this.#oiCapSubscribers) {
+      try {
+        subscriber.callback(capped);
+      } catch (error) {
+        this.#logSubscriberError('oiCaps', error);
+      }
+    }
+  };
+
+  readonly #emitToOrderSubscribers = (orders: Order[]): void => {
+    for (const subscriber of this.#orderSubscribers) {
+      try {
+        subscriber.callback(orders);
+      } catch (error) {
+        this.#logSubscriberError('orders', error);
+      }
+    }
+  };
+
+  readonly #logSubscriberError = (channel: string, error: unknown): void => {
+    this.#deps.debugLogger.log(
+      `[LighterProvider] ${channel} subscriber callback failed`,
+      { error: String(error) },
+    );
+  };
+
+  readonly #startPricePolling = (): void => {
+    if (this.#pricePollTimer) {
+      return;
+    }
+    const poll = (): void => {
+      this.#emitPolledPrices().catch((error: unknown) => {
+        this.#deps.debugLogger.log('[LighterProvider] price poll failed', {
+          error: String(error),
+        });
+      });
+    };
+    poll();
+    this.#pricePollTimer = setInterval(poll, LIGHTER_PRICE_POLLING_INTERVAL_MS);
+  };
+
+  /**
+   * REST fallback: fetch market stats once and fan them out.
+   */
+  readonly #emitPolledPrices = async (): Promise<void> => {
+    if (this.#priceSubscribers.size === 0) {
+      return;
+    }
+    const response = await this.#clientService.getOrderBookDetails();
+    const timestamp = Date.now();
+    const updates = (response.orderBookDetails ?? []).map((detail) =>
+      adaptPriceUpdateFromLighter(detail, timestamp),
+    );
+    this.#dispatchPriceUpdates(updates, 'poll');
+  };
+
+  /**
+   * Fan price updates out to every subscriber, honoring symbol filters.
+   *
+   * @param updates - Adapted price updates for this cycle.
+   * @param transport - Which transport produced the cycle (ws or poll).
+   */
+  readonly #dispatchPriceUpdates = (
+    updates: PriceUpdate[],
+    transport: string,
+  ): void => {
+    if (updates.length === 0) {
+      return;
+    }
+    for (const update of updates) {
+      this.#lastPriceBySymbol.set(update.symbol, update);
+    }
+    this.#pricePollCycle += 1;
+    this.#deps.debugLogger.log(
+      `[LighterProvider] price stream cycle=${this.#pricePollCycle} transport=${transport} updates=${updates.length}`,
+    );
+    for (const subscriber of this.#priceSubscribers) {
+      this.#deliverPrices(subscriber, updates);
+    }
+  };
+
+  readonly #deliverPrices = (
+    subscriber: SubscribePricesParams,
+    updates: PriceUpdate[],
+  ): void => {
+    const filtered =
+      subscriber.symbols.length > 0
+        ? updates.filter((update) => subscriber.symbols.includes(update.symbol))
+        : updates;
+    if (filtered.length === 0) {
+      return;
+    }
+    try {
+      subscriber.callback(filtered);
+    } catch (error) {
+      this.#logSubscriberError('prices', error);
+    }
+  };
+
+  readonly #clearKeepalive = (): void => {
+    if (this.#wsKeepaliveTimer) {
+      clearInterval(this.#wsKeepaliveTimer);
+      this.#wsKeepaliveTimer = null;
+    }
+  };
+
+  readonly #teardownStream = (): void => {
+    if (this.#pricePollTimer) {
+      clearInterval(this.#pricePollTimer);
+      this.#pricePollTimer = null;
+    }
+    if (this.#wsReconnectTimer) {
+      clearTimeout(this.#wsReconnectTimer);
+      this.#wsReconnectTimer = null;
+    }
+    this.#clearKeepalive();
+    this.#wsWantedChannels.clear();
+    this.#accountChannelsPromise = null;
+    this.#wsPositions.clear();
+    this.#wsOrders.clear();
+    this.#orderBookState.clear();
+    this.#candleSeries.clear();
+    this.#lastPriceBySymbol.clear();
+    if (this.#priceWs) {
+      const ws = this.#priceWs;
+      this.#priceWs = null;
+      try {
+        ws.close();
+      } catch {
+        // Socket may already be closed.
+      }
+    }
+  };
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
-    setTimeout(
-      () =>
-        params.callback({
+    let released = false;
+    let seriesKey: string | null = null;
+    const resolution = LIGHTER_SUPPORTED_RESOLUTIONS.has(params.interval)
+      ? params.interval
+      : '15m';
+    this.#ensureMarkets()
+      .then(async (markets) => {
+        const market = markets.get(params.symbol);
+        if (!market || released) {
+          return undefined;
+        }
+        seriesKey = `${market.marketId}:${resolution}`;
+        // Seed with history so charts render immediately, then let the WS
+        // candle channel keep the series live.
+        const seeded = await this.fetchHistoricalCandles({
           symbol: params.symbol,
           interval: params.interval,
-          candles: [],
-        }),
-      0,
-    );
+          limit: 120,
+        });
+        if (released) {
+          return undefined;
+        }
+        const series = new Map<number, CandleStick>();
+        for (const candle of seeded.candles) {
+          series.set(candle.time, candle);
+        }
+        this.#candleSeries.set(seriesKey, series);
+        let subscribers = this.#candleSubscribers.get(seriesKey);
+        if (!subscribers) {
+          subscribers = new Set();
+          this.#candleSubscribers.set(seriesKey, subscribers);
+        }
+        subscribers.add(params);
+        params.callback(seeded);
+        this.#requestChannel(`candle/${market.marketId}/${resolution}`);
+        this.#ensureStream();
+        return undefined;
+      })
+      .catch((error: unknown) => {
+        this.#deps.debugLogger.log('[LighterProvider] candle seed failed', {
+          error: String(error),
+        });
+      });
     return () => {
-      /* noop */
+      released = true;
+      if (seriesKey !== null) {
+        this.#candleSubscribers.get(seriesKey)?.delete(params);
+      }
+      this.#releaseChannelIfUnused();
     };
   }
 
-  subscribeToOrderBook(_params: SubscribeOrderBookParams): () => void {
+  readonly fetchHistoricalCandles = async (options: {
+    symbol: string;
+    interval: CandlePeriod;
+    limit?: number;
+    endTime?: number;
+  }): Promise<CandleData> => {
+    const empty: CandleData = {
+      symbol: options.symbol,
+      interval: options.interval,
+      candles: [],
+    };
+    try {
+      const markets = await this.#ensureMarkets();
+      const market = markets.get(options.symbol);
+      if (!market) {
+        return empty;
+      }
+      const resolution = LIGHTER_SUPPORTED_RESOLUTIONS.has(options.interval)
+        ? options.interval
+        : '15m';
+      const intervalMs =
+        LIGHTER_RESOLUTION_MS[resolution] ?? LIGHTER_RESOLUTION_MS['15m'];
+      const limit = options.limit ?? 120;
+      const endTimestamp = options.endTime ?? Date.now();
+      const startTimestamp = endTimestamp - intervalMs * limit;
+      const response = await this.#clientService.getCandles(
+        market.marketId,
+        resolution,
+        startTimestamp,
+        endTimestamp,
+        limit,
+      );
+      return {
+        symbol: options.symbol,
+        interval: options.interval,
+        candles: (response.c ?? []).map((candle) => ({
+          time: candle.t,
+          open: String(candle.o),
+          high: String(candle.h),
+          low: String(candle.l),
+          close: String(candle.c),
+          volume: String(candle.v),
+        })),
+      };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] fetchHistoricalCandles failed',
+        { error: String(error) },
+      );
+      return empty;
+    }
+  };
+
+  subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
+    let released = false;
+    let marketId: number | null = null;
+    this.#ensureMarkets()
+      .then((markets) => {
+        const market = markets.get(params.symbol);
+        if (!market || released) {
+          return undefined;
+        }
+        marketId = market.marketId;
+        let subscribers = this.#orderBookSubscribers.get(marketId);
+        if (!subscribers) {
+          subscribers = new Set();
+          this.#orderBookSubscribers.set(marketId, subscribers);
+        }
+        subscribers.add(params);
+        this.#requestChannel(`order_book/${marketId}`);
+        this.#ensureStream();
+        return undefined;
+      })
+      .catch((error: unknown) => {
+        params.onError?.(ensureError(error));
+      });
     return () => {
-      /* noop */
+      released = true;
+      if (marketId !== null) {
+        this.#orderBookSubscribers.get(marketId)?.delete(params);
+      }
+      this.#releaseChannelIfUnused();
     };
   }
 
