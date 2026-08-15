@@ -19,7 +19,10 @@
     "dist/",
     "!dist/providers/MYXProvider*",
     "!dist/services/MYXClientService*",
-    "!dist/services/MYXWalletService*"
+    "!dist/services/MYXWalletService*",
+    "!dist/providers/LighterProvider*",
+    "!dist/services/LighterClientService*",
+    "!dist/services/LighterWalletService*"
   ],
   "sideEffects": false,
   "main": "./dist/index.cjs",

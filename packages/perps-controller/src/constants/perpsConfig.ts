@@ -656,6 +656,8 @@ export const PROVIDER_CONFIG = {
   DefaultProvider: 'hyperliquid' as const,
   /** Force MYX to testnet only (mainnet credentials not yet available) */
   MYX_TESTNET_ONLY: false,
+  /** Force Lighter to testnet only (POC — no mainnet write path yet) */
+  LIGHTER_TESTNET_ONLY: true,
 } as const;
 
 // Disk-backed cold-start cache keys and throttle interval.
@@ -704,9 +706,11 @@ export function buildProviderCacheKey(
   providerId: string,
   isTestnet: boolean,
 ): string {
-  const effectiveTestnet =
-    providerId === 'myx'
-      ? PROVIDER_CONFIG.MYX_TESTNET_ONLY || isTestnet
-      : isTestnet;
+  let effectiveTestnet = isTestnet;
+  if (providerId === 'myx') {
+    effectiveTestnet = PROVIDER_CONFIG.MYX_TESTNET_ONLY || isTestnet;
+  } else if (providerId === 'lighter') {
+    effectiveTestnet = PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || isTestnet;
+  }
   return `${providerId}:${effectiveTestnet ? 'testnet' : 'mainnet'}`;
 }

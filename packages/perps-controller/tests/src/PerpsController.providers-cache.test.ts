@@ -380,6 +380,16 @@ class TestablePerpsController extends PerpsController {
   public testHandleMYXImportError(error: unknown) {
     this.handleMYXImportError(error);
   }
+
+  public testRegisterLighterProvider(
+    LighterProvider: new (opts: Record<string, unknown>) => PerpsProvider,
+  ) {
+    this.registerLighterProvider(LighterProvider as never);
+  }
+
+  public testHandleLighterImportError(error: unknown) {
+    this.handleLighterImportError(error);
+  }
 }
 
 describe('PerpsController', () => {
@@ -844,6 +854,46 @@ describe('PerpsController', () => {
       controller.testRegisterMYXProvider(undefined);
 
       expect(controller.testGetProviders().has('myx')).toBe(false);
+    });
+
+    it('registerLighterProvider registers the provider and forwards the platform signer bridge', () => {
+      // Arrange — the client (mobile WebView / headless WASM) supplies the
+      // bridge through platform dependencies; the controller must forward it.
+      const mockBridge = { execute: jest.fn() };
+      mockInfrastructure.lighterSignerBridge = mockBridge;
+      const mockLighterInstance = createMockHyperLiquidProvider();
+      const MockLighterConstructor = jest.fn(() => mockLighterInstance);
+
+      // Act
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      // Assert
+      const providers = controller.testGetProviders();
+      expect(providers.get('lighter')).toBe(mockLighterInstance);
+      expect(MockLighterConstructor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // LIGHTER_TESTNET_ONLY forces testnet in the POC
+          isTestnet: true,
+          signerBridge: mockBridge,
+        }),
+      );
+    });
+
+    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
+      const moduleError = Object.assign(
+        new Error('Cannot find module ./providers/LighterProvider'),
+        { code: 'MODULE_NOT_FOUND' },
+      );
+
+      controller.testHandleLighterImportError(moduleError);
+
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Lighter provider module not available, skipping registration',
+      );
     });
 
     it('handleMYXImportError logs debug for MODULE_NOT_FOUND errors', () => {

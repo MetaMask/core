@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add experimental Lighter perps venue support (proof of concept, disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889))
+  - `PerpsProviderType` gains `'lighter'`; enablement via `providerCredentials.lighter.enabled` or the `perpsLighterProviderEnabled` remote feature flag. The provider implementation is excluded from the published artifact (same pattern as MYX); clients that do not ship it skip registration silently.
+  - Export `LighterCredentials`, `LighterSignerBridge`, `LighterWasmCall`, `LighterAuthConfig`, `LighterPersonalSigner`, `LighterNetwork` types and `lighterConfig` constants (chain ids, endpoints, key-derivation message helpers, integerization utilities).
+  - Add optional `lighterSignerBridge` to `PerpsPlatformDependencies` so clients can supply a transport for the Lighter Go/WASM signer (mobile: off-screen WebView bridge; headless: in-process WASM). Without it the Lighter provider is read-only.
+  - Add `KeyringController:signPersonalMessage` to the allowed messenger actions (type-only) for Lighter venue-key registration via EIP-191.
+
 ## [13.1.0]
 
 ### Added
@@ -84,7 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Target market and user preload measurements to their named traces, and omit wallet addresses from user-preload trace data ([#9906](https://github.com/MetaMask/core/pull/9906))
-
 ## [12.0.0]
 
 ### Added
