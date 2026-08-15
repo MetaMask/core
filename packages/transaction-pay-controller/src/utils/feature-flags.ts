@@ -186,12 +186,17 @@ export type PayStrategiesConfigRaw = {
   };
 };
 
+export type RelayValidationEnabledConfig = {
+  enabled: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
-      validationEnabled?: boolean;
+      validationEnabled?: boolean | RelayValidationEnabledConfig;
     };
     server?: {
       enabled?: boolean;
@@ -637,23 +642,46 @@ export function isRelayExecuteEnabled(
 }
 
 /**
- * Whether Relay quote validation is enabled.
+ * Whether Relay quote validation is enabled for a given transaction type.
  *
  * Acts as an emergency kill switch: when disabled (default), Relay quotes are
  * surfaced without being simulated/validated.
  *
+ * Accepts two forms for the `payStrategies.relay.validationEnabled` flag:
+ * - **Boolean** (backwards compatible): behaves exactly as before.
+ * - **Object** `{ enabled: boolean; transactionTypes?: { [type]?: boolean } }`:
+ *   `enabled` mirrors the old boolean toggle; a matching `transactionTypes[txType]`
+ *   entry overrides `enabled` for that specific transaction type.
+ *
  * @param messenger - Controller messenger.
+ * @param transactionType - Optional transaction type. When provided and the
+ * object form is used, a per-type override takes precedence over `enabled`.
  * @returns True if Relay quote validation is enabled.
  */
 export function isRelayValidationEnabled(
   messenger: TransactionPayControllerMessenger,
+  transactionType?: TransactionType,
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags =
     (state.remoteFeatureFlags?.confirmations_pay_extended as
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
-  return featureFlags.payStrategies?.relay?.validationEnabled ?? false;
+
+  const validationEnabled = featureFlags.payStrategies?.relay?.validationEnabled;
+
+  // Backwards compatibility: boolean or undefined behaves exactly as before.
+  if (typeof validationEnabled !== 'object' || validationEnabled === null) {
+    return validationEnabled ?? false;
+  }
+
+  // Object form: per-type override wins over the global `enabled` toggle.
+  const typeOverride =
+    transactionType === undefined
+      ? undefined
+      : validationEnabled.transactionTypes?.[transactionType];
+
+  return typeOverride ?? validationEnabled.enabled ?? false;
 }
 
 /**

@@ -972,4 +972,59 @@ describe('validateRelayQuotes', () => {
     expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
   });
+
+  it('skips validation when object form per-type override is false', async () => {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_pay_extended: {
+          payStrategies: {
+            relay: {
+              validationEnabled: {
+                enabled: true,
+                transactionTypes: { simpleSend: false },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [buildQuote()],
+      transaction: { ...TRANSACTION_MOCK, type: 'simpleSend' as never },
+    });
+
+    expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('runs validation when object form per-type override is true and enabled is false', async () => {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_pay_extended: {
+          payStrategies: {
+            relay: {
+              validationEnabled: {
+                enabled: false,
+                transactionTypes: { simpleSend: true },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [buildQuote()],
+      transaction: { ...TRANSACTION_MOCK, type: 'simpleSend' as never },
+    });
+
+    expect(validateQuoteExecutionMock).toHaveBeenCalled();
+  });
 });

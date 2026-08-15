@@ -43,7 +43,7 @@ export type ValidateRelayQuotesRequest = {
 export async function validateRelayQuotes(
   request: ValidateRelayQuotesRequest,
 ): Promise<void> {
-  if (!isRelayValidationEnabled(request.messenger)) {
+  if (!isRelayValidationEnabled(request.messenger, request.transaction.type)) {
     return;
   }
 
