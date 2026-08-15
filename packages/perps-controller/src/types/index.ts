@@ -7,6 +7,7 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
   OrderType,
@@ -920,9 +921,20 @@ export type MYXCredentials = {
   brokerAddressMainnet?: string;
 };
 
+export type LighterCredentials = {
+  /** Whether Lighter provider is enabled via local env var. */
+  enabled?: boolean;
+  /** Lighter account index override (testnet tooling). */
+  accountIndexTestnet?: number;
+  accountIndexMainnet?: number;
+  /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
+  apiKeyIndex?: number;
+};
+
 export type PerpsProviderCredentials = {
   hyperliquid?: HyperLiquidCredentials;
   myx?: MYXCredentials;
+  lighter?: LighterCredentials;
 };
 
 export type PriceUpdate = {
@@ -1622,7 +1634,7 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx';
+export type PerpsProviderType = 'hyperliquid' | 'myx' | 'lighter';
 
 /**
  * Active provider mode for PerpsController state.
@@ -2079,6 +2091,13 @@ export type PerpsPlatformDependencies = {
 
   // === Platform Services (mobile/extension specific) ===
   streamManager: PerpsStreamManager;
+
+  /**
+   * Transport for the Lighter Go/WASM signer, provided by the client
+   * (mobile: off-screen WebView bridge; headless: in-process WASM).
+   * Optional — without it the Lighter provider is read-only.
+   */
+  lighterSignerBridge?: LighterSignerBridge;
 
   // === Feature Flags (platform-specific version gating) ===
   featureFlags: {

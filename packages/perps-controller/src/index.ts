@@ -453,6 +453,29 @@ export {
   MYX_EXECUTION_FEE_TOKEN,
 } from './constants/index.js';
 export {
+  LIGHTER_MAINNET_CHAIN_ID,
+  LIGHTER_TESTNET_CHAIN_ID,
+  getLighterChainId,
+  LIGHTER_ENDPOINTS,
+  getLighterHttpEndpoint,
+  LIGHTER_DEFAULT_API_KEY_INDEX,
+  LIGHTER_KEY_DERIVATION_MESSAGE_TEMPLATE,
+  buildLighterKeyDerivationMessage,
+  LIGHTER_HTTP_TIMEOUT_MS,
+  LIGHTER_PRICE_POLLING_INTERVAL_MS,
+  LIGHTER_MAX_LEVERAGE,
+  toLighterInteger,
+  fromLighterInteger,
+  computeLighterMinOrderSize,
+} from './constants/index.js';
+export type {
+  LighterNetwork,
+  LighterSignerBridge,
+  LighterWasmCall,
+  LighterAuthConfig,
+  LighterPersonalSigner,
+} from './types/lighter-types.js';
+export {
   PERPS_CONSTANTS,
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
