@@ -187,7 +187,7 @@ export type PayStrategiesConfigRaw = {
 };
 
 export type RelayValidationEnabledConfig = {
-  enabled: boolean;
+  default?: boolean;
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
@@ -196,7 +196,7 @@ type FeatureFlagsExtendedRaw = {
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
-      validationEnabled?: boolean | RelayValidationEnabledConfig;
+      validationEnabled?: RelayValidationEnabledConfig;
     };
     server?: {
       enabled?: boolean;
@@ -647,15 +647,15 @@ export function isRelayExecuteEnabled(
  * Acts as an emergency kill switch: when disabled (default), Relay quotes are
  * surfaced without being simulated/validated.
  *
- * Accepts two forms for the `payStrategies.relay.validationEnabled` flag:
- * - **Boolean** (backwards compatible): behaves exactly as before.
- * - **Object** `{ enabled: boolean; transactionTypes?: { [type]?: boolean } }`:
- *   `enabled` mirrors the old boolean toggle; a matching `transactionTypes[txType]`
- *   entry overrides `enabled` for that specific transaction type.
+ * Configured via the `payStrategies.relay.validationEnabled` flag, an object
+ * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * `default` is the base toggle applied to all transaction types (omitted =
+ * `false`); a matching `transactionTypes[txType]` entry overrides `default` for
+ * that specific transaction type.
  *
  * @param messenger - Controller messenger.
- * @param transactionType - Optional transaction type. When provided and the
- * object form is used, a per-type override takes precedence over `enabled`.
+ * @param transactionType - Optional transaction type. When provided, a per-type
+ * override takes precedence over `default`.
  * @returns True if Relay quote validation is enabled.
  */
 export function isRelayValidationEnabled(
@@ -671,19 +671,14 @@ export function isRelayValidationEnabled(
   const validationEnabled =
     featureFlags.payStrategies?.relay?.validationEnabled;
 
-  // Backwards compatibility: boolean or undefined behaves exactly as before.
-  if (typeof validationEnabled !== 'object' || validationEnabled === null) {
-    return validationEnabled ?? false;
-  }
-
-  // Object form: per-type override wins over the global `enabled` toggle.
+  // A per-type override wins over the global `default` toggle.
   const typeOverride =
     transactionType === undefined
       ? undefined
-      : validationEnabled.transactionTypes?.[transactionType];
+      : validationEnabled?.transactionTypes?.[transactionType];
 
-  // `?? false`: malformed config may omit `enabled` despite the type requiring it
-  return typeOverride ?? validationEnabled.enabled ?? false;
+  // `?? false`: `default` is optional, so an omitted config disables validation.
+  return typeOverride ?? validationEnabled?.default ?? false;
 }
 
 /**

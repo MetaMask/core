@@ -149,7 +149,7 @@ describe('validateRelayQuotes', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay_extended: {
-          payStrategies: { relay: { validationEnabled: true } },
+          payStrategies: { relay: { validationEnabled: { default: true } } },
         },
       },
     });
@@ -587,7 +587,9 @@ describe('validateRelayQuotes', () => {
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
             confirmations_pay_extended: {
-              payStrategies: { relay: { validationEnabled: true } },
+              payStrategies: {
+                relay: { validationEnabled: { default: true } },
+              },
             },
             confirmations_eip_7702: {
               contracts: {
@@ -973,7 +975,7 @@ describe('validateRelayQuotes', () => {
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
   });
 
-  it('skips validation when object form per-type override is false', async () => {
+  it('skips validation when per-type override is false', async () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
@@ -981,7 +983,7 @@ describe('validateRelayQuotes', () => {
           payStrategies: {
             relay: {
               validationEnabled: {
-                enabled: true,
+                default: true,
                 transactionTypes: { simpleSend: false },
               },
             },
@@ -1000,7 +1002,7 @@ describe('validateRelayQuotes', () => {
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
   });
 
-  it('runs validation when object form per-type override is true and enabled is false', async () => {
+  it('runs validation when per-type override is true and default is false', async () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
@@ -1008,7 +1010,7 @@ describe('validateRelayQuotes', () => {
           payStrategies: {
             relay: {
               validationEnabled: {
-                enabled: false,
+                default: false,
                 transactionTypes: { simpleSend: true },
               },
             },

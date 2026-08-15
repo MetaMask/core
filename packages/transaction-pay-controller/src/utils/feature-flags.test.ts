@@ -602,163 +602,136 @@ describe('Feature Flags Utils', () => {
       expect(isRelayValidationEnabled(messenger)).toBe(false);
     });
 
-    it('returns true when validationEnabled is true', () => {
+    it('returns true when default is true', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay_extended: {
-            payStrategies: { relay: { validationEnabled: true } },
+            payStrategies: {
+              relay: { validationEnabled: { default: true } },
+            },
           },
         },
       });
       expect(isRelayValidationEnabled(messenger)).toBe(true);
     });
 
-    it('returns false when validationEnabled is false', () => {
+    it('returns false when default is false', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay_extended: {
-            payStrategies: { relay: { validationEnabled: false } },
+            payStrategies: {
+              relay: { validationEnabled: { default: false } },
+            },
           },
         },
       });
       expect(isRelayValidationEnabled(messenger)).toBe(false);
     });
 
-    describe('object form', () => {
-      it('returns enabled when no transactionTypes set', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                relay: { validationEnabled: { enabled: true } },
-              },
+    it('returns false when default is omitted', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: {} },
             },
           },
-        });
-        expect(isRelayValidationEnabled(messenger)).toBe(true);
+        },
       });
+      expect(isRelayValidationEnabled(messenger)).toBe(false);
+    });
 
-      it('returns enabled=false when no transactionTypes set', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                relay: { validationEnabled: { enabled: false } },
-              },
-            },
-          },
-        });
-        expect(isRelayValidationEnabled(messenger)).toBe(false);
-      });
-
-      it('returns true when per-type override is true and enabled is false', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                relay: {
-                  validationEnabled: {
-                    enabled: false,
-                    transactionTypes: {
-                      [TransactionType.perpsDeposit]: true,
-                    },
+    it('returns true when per-type override is true and default is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
                   },
                 },
               },
             },
           },
-        });
-        expect(
-          isRelayValidationEnabled(messenger, TransactionType.perpsDeposit),
-        ).toBe(true);
+        },
       });
+      expect(
+        isRelayValidationEnabled(messenger, TransactionType.perpsDeposit),
+      ).toBe(true);
+    });
 
-      it('returns false when per-type override is false and enabled is true', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                relay: {
-                  validationEnabled: {
-                    enabled: true,
-                    transactionTypes: {
-                      [TransactionType.perpsDeposit]: false,
-                    },
+    it('returns false when per-type override is false and default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
                   },
                 },
               },
             },
           },
-        });
-        expect(
-          isRelayValidationEnabled(messenger, TransactionType.perpsDeposit),
-        ).toBe(false);
+        },
       });
+      expect(
+        isRelayValidationEnabled(messenger, TransactionType.perpsDeposit),
+      ).toBe(false);
+    });
 
-      it('returns enabled value for a txType with no per-type override', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                relay: {
-                  validationEnabled: {
-                    enabled: true,
-                    transactionTypes: {
-                      [TransactionType.perpsDeposit]: false,
-                    },
+    it('returns default value for a txType with no per-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
                   },
                 },
               },
             },
           },
-        });
-        expect(
-          isRelayValidationEnabled(messenger, TransactionType.simpleSend),
-        ).toBe(true);
+        },
       });
+      expect(
+        isRelayValidationEnabled(messenger, TransactionType.simpleSend),
+      ).toBe(true);
+    });
 
-      it('returns enabled value when no transactionType is provided', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                relay: {
-                  validationEnabled: {
-                    enabled: true,
-                    transactionTypes: {
-                      [TransactionType.perpsDeposit]: false,
-                    },
+    it('returns default value when no transactionType is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: {
+                validationEnabled: {
+                  default: true,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: false,
                   },
                 },
               },
             },
           },
-        });
-        expect(isRelayValidationEnabled(messenger)).toBe(true);
+        },
       });
-
-      it('returns false when object has no enabled field', () => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay_extended: {
-              payStrategies: {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                relay: { validationEnabled: {} as any },
-              },
-            },
-          },
-        });
-        expect(isRelayValidationEnabled(messenger)).toBe(false);
-      });
+      expect(isRelayValidationEnabled(messenger)).toBe(true);
     });
   });
 
