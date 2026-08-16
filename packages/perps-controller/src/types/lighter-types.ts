@@ -310,6 +310,22 @@ export type LighterNextNonceResponse = {
 };
 
 /**
+ * Response of `GET /api/v1/tx?by=hash&value=...` (EnrichedTx). Only the
+ * identity fields the settlement reconciler verifies are typed; a
+ * successful exact-hash match proves the signed payload reached the
+ * sequencer.
+ */
+export type LighterTxLookupResponse = {
+  code: number;
+  message?: string;
+  hash?: string;
+  accountIndex?: number;
+  apiKeyIndex?: number;
+  nonce?: number;
+  status?: number | string;
+};
+
+/**
  * Response of `POST /api/v1/sendTx`.
  */
 export type LighterSendTxResponse = {

@@ -46,7 +46,6 @@ import {
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   LIGHTER_USDC_ASSET_INDEX,
   LIGHTER_DATA_INTEGRITY_PREFIX,
-  LIGHTER_HTTP_TIMEOUT_MS,
   LIGHTER_MARGIN_METADATA_TTL_MS,
   parseLighterStrictDecimal,
   toLighterInteger,
@@ -119,6 +118,7 @@ import type {
 import type {
   LighterApiOrder,
   LighterAuthConfig,
+  LighterTxLookupResponse,
   LighterCreateAuthTokenResult,
   LighterCreateClientResult,
   LighterOrderBookMeta,
@@ -209,6 +209,23 @@ type TpslCreateAttempt = {
   outcome: 'unknown' | 'accepted';
   /** Created client ids (nonempty). */
   clientIds: number[];
+  /** The signed transaction hash (known BEFORE submission). */
+  txHash: string;
+  /**
+   * Signed payload expiry (ms). After this instant (+ clock slack) the
+   * sequencer can no longer accept the payload, so a not-found hash is
+   * authoritatively never-landed.
+   */
+  expiresAt: number;
+  /** What this create IS: the replacement, or a restore of the old set. */
+  role: 'replacement' | 'restore';
+  /**
+   * For role 'restore' only: the prior trigger (by original orderId in
+   * `priorTriggers`) this attempt restores. With multiple prior triggers
+   * and a crash mid-restore, recovery uses this to restore exactly the
+   * remaining intents — never duplicating or omitting one.
+   */
+  priorOrderId?: string;
 };
 
 type TpslCancelAttempt = {
@@ -217,10 +234,98 @@ type TpslCancelAttempt = {
   outcome: 'unknown' | 'accepted';
   /** The cancelled order id. */
   orderId: string;
+  txHash: string;
+  expiresAt: number;
+  /** Whether this cancels OLD protection or rolls back a failed leg. */
+  role: 'stale' | 'rollback';
 };
 
 /** A recorded TP/SL venue mutation attempt (discriminated by kind). */
 type TpslAttempt = TpslCreateAttempt | TpslCancelAttempt;
+
+/**
+ * The wire intent of a PRIOR trigger, persisted before it is cancelled so
+ * a crash-then-terminal-failure can still RESTORE the old protection.
+ */
+type TpslPriorTrigger = {
+  orderId: string;
+  side: 'buy' | 'sell';
+  triggerOrderType: 'take_profit_market' | 'stop_market';
+  /** Execution (protection) price. */
+  price: string;
+  /** User-facing trigger level. */
+  triggerPrice: string;
+  remainingSize: string;
+};
+
+/**
+ * Durable transition state: 'creating' means the old protection is still
+ * untouched (a failed replacement needs at most a rollback of surviving
+ * legs); 'cancelling' means old cancels are underway/done (a failed
+ * replacement requires a RESTORE from priorTriggers).
+ */
+type TpslJournalState = {
+  attempts: TpslAttempt[];
+  recordedAt: number;
+  /**
+   * 'creating': old protection untouched (failure needs at most a
+   * rollback of surviving replacement legs). 'cancelling': old cancels
+   * underway/done (a fully-failed replacement needs a RESTORE).
+   * 'restoring': restore creates underway — their ids must never be
+   * mistaken for the failed replacement.
+   */
+  phase: 'creating' | 'cancelling' | 'restoring';
+  priorTriggers: TpslPriorTrigger[];
+};
+
+/**
+ * Clock slack added to a signed payload's ExpiredAt before a not-found
+ * transaction hash is declared never-landed.
+ */
+const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
+
+/**
+ * Extract the signed txHash and ExpiredAt from a bridge signing result,
+ * failing CLOSED: without them the settlement journal cannot resolve a
+ * lost response authoritatively, so the mutation must not be submitted.
+ *
+ * @param signed - Bridge signing result.
+ * @param signed.txHash - Signed transaction hash (hex).
+ * @param signed.txInfo - Signed wire payload JSON (carries ExpiredAt).
+ * @returns The transaction hash and expiry (ms).
+ */
+const requireSignedTxIdentity = (signed: {
+  txHash?: string;
+  txInfo?: string;
+}): { txHash: string; expiresAt: number } => {
+  const { txHash } = signed;
+  if (
+    typeof txHash !== 'string' ||
+    !/^(0x)?[0-9a-fA-F]{8,128}$/u.test(txHash)
+  ) {
+    throw new Error(
+      'Lighter signing result carries no usable txHash; refusing to submit an unreconcilable mutation',
+    );
+  }
+  let expiresAt: unknown;
+  try {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    expiresAt = (JSON.parse(signed.txInfo ?? '') as { ExpiredAt?: unknown })
+      .ExpiredAt;
+  } catch {
+    expiresAt = undefined;
+  }
+  if (
+    typeof expiresAt !== 'number' ||
+    !Number.isSafeInteger(expiresAt) ||
+    expiresAt <= 0
+  ) {
+    throw new Error(
+      'Lighter signing result carries no usable ExpiredAt; refusing to submit an unreconcilable mutation',
+    );
+  }
+  return { txHash, expiresAt };
+};
 
 /** Delay between TP/SL settlement visibility polls. */
 const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
@@ -854,24 +959,8 @@ export class LighterProvider implements PerpsProvider {
    * on the venue's REST book, per symbol. While an entry exists, further
    * TP/SL mutations for that symbol must reconcile it first.
    */
-  readonly #tpslUnsettled = new Map<
-    string,
-    { attempts: TpslAttempt[]; recordedAt: number }
-  >();
+  readonly #tpslUnsettled = new Map<string, TpslJournalState>();
 
-  /**
-   * Reconcile a PRIOR transition's expectation before any new mutation.
-   * Only created ids can cause duplicates from a stale snapshot, so they
-   * must be accounted for (active or terminal). Cancelled ids are safe in
-   * either state: still-active targets reappear in the fresh snapshot and
-   * are re-cancelled.
-   *
-   * @param readActiveRaw - Strict raw active-orders reader.
-   * @param readInactiveRaw - Strict raw inactive-orders reader.
-   * @param entry - The recorded expectation.
-   * @returns 'resolved' when safe to proceed; 'unresolved' when an
-   * ACCEPTED mutation is still not visible.
-   */
   /**
    * Durable TP/SL journal key (network + address + accountIndex + symbol
    * scoped): the in-memory map alone cannot survive app/WebView/provider
@@ -884,15 +973,16 @@ export class LighterProvider implements PerpsProvider {
     `lighterTpslJournal:${this.#isTestnet ? 'testnet' : 'mainnet'}:${settlementKey}`;
 
   /**
-   * Load and strictly validate a persisted journal entry. Malformed disk
-   * data is dropped (never trusted into signing decisions).
+   * Load and strictly validate a persisted journal entry. Malformed or
+   * unsupported disk data BLOCKS protection changes (fail closed) — it is
+   * never trusted into signing decisions nor silently dropped.
    *
    * @param settlementKey - Settlement identity.
    * @returns The validated entry, or null.
    */
   readonly #loadTpslJournal = async (
     settlementKey: string,
-  ): Promise<{ attempts: TpslAttempt[]; recordedAt: number } | null> => {
+  ): Promise<TpslJournalState | null> => {
     const key = this.#tpslJournalKey(settlementKey);
     // FAIL CLOSED on read failure and on corruption: turning either into
     // "no entry" would erase exactly the uncertainty this journal exists
@@ -912,6 +1002,9 @@ export class LighterProvider implements PerpsProvider {
     let parsed: {
       version?: unknown;
       recordedAt?: unknown;
+      apiKeyIndex?: unknown;
+      phase?: unknown;
+      priorTriggers?: unknown;
       attempts?: unknown;
     };
     try {
@@ -930,6 +1023,10 @@ export class LighterProvider implements PerpsProvider {
       typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
     const isOrderIdString = (value: unknown): boolean =>
       typeof value === 'string' && /^\d{1,20}$/u.test(value);
+    const isTxHash = (value: unknown): boolean =>
+      typeof value === 'string' && /^(0x)?[0-9a-fA-F]{8,128}$/u.test(value);
+    const isExpiry = (value: unknown): boolean =>
+      typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
     const isAttempt = (value: unknown): value is TpslAttempt => {
       if (typeof value !== 'object' || value === null) {
         return false;
@@ -937,13 +1034,21 @@ export class LighterProvider implements PerpsProvider {
       const attempt = value as Record<string, unknown>;
       if (
         !isNonce(attempt.nonce) ||
-        (attempt.outcome !== 'unknown' && attempt.outcome !== 'accepted')
+        (attempt.outcome !== 'unknown' && attempt.outcome !== 'accepted') ||
+        !isTxHash(attempt.txHash) ||
+        !isExpiry(attempt.expiresAt)
       ) {
         return false;
       }
       if (attempt.kind === 'create') {
         return (
           attempt.orderId === undefined &&
+          (attempt.role === 'replacement' || attempt.role === 'restore') &&
+          // priorOrderId durably keys WHICH prior intent a restore leg
+          // restores; REQUIRED on restores, forbidden on replacements.
+          (attempt.role === 'restore'
+            ? isOrderIdString(attempt.priorOrderId)
+            : attempt.priorOrderId === undefined) &&
           Array.isArray(attempt.clientIds) &&
           attempt.clientIds.length >= 1 &&
           attempt.clientIds.length <= 2 &&
@@ -953,29 +1058,89 @@ export class LighterProvider implements PerpsProvider {
       }
       if (attempt.kind === 'cancel') {
         return (
-          attempt.clientIds === undefined && isOrderIdString(attempt.orderId)
+          attempt.clientIds === undefined &&
+          (attempt.role === 'stale' || attempt.role === 'rollback') &&
+          isOrderIdString(attempt.orderId)
         );
       }
       return false;
     };
+    // Recovery SIGNS from these values: they must be strict, finite and
+    // strictly positive before they can reach the wire.
+    const isPositiveDecimalString = (value: unknown): boolean => {
+      if (typeof value !== 'string') {
+        return false;
+      }
+      const numeric = parseStrictDecimal(value);
+      return numeric !== null && Number.isFinite(numeric) && numeric > 0;
+    };
+    const isPriorTrigger = (value: unknown): value is TpslPriorTrigger => {
+      if (typeof value !== 'object' || value === null) {
+        return false;
+      }
+      const trigger = value as Record<string, unknown>;
+      return (
+        isOrderIdString(trigger.orderId) &&
+        (trigger.side === 'buy' || trigger.side === 'sell') &&
+        (trigger.triggerOrderType === 'take_profit_market' ||
+          trigger.triggerOrderType === 'stop_market') &&
+        isPositiveDecimalString(trigger.price) &&
+        isPositiveDecimalString(trigger.triggerPrice) &&
+        isPositiveDecimalString(trigger.remainingSize)
+      );
+    };
+    // Version 1 lacked the phase/priorTriggers/role transition state the
+    // recovery machine needs — it CANNOT be interpreted safely. Fail
+    // closed explicitly (never silently cleared, never read as v2).
+    if (parsed.version === 1) {
+      throw new Error(
+        `Lighter TP/SL journal for ${settlementKey} uses unsupported schema version 1; refusing protection changes until it is resolved`,
+      );
+    }
     if (
-      parsed.version === 1 &&
+      parsed.version === 2 &&
       typeof parsed.recordedAt === 'number' &&
       Number.isSafeInteger(parsed.recordedAt) &&
       parsed.recordedAt >= 0 &&
+      // The journal is bound to ONE api-key slot: nonces are per slot.
+      parsed.apiKeyIndex === this.#apiKeyIndex &&
+      (parsed.phase === 'creating' ||
+        parsed.phase === 'cancelling' ||
+        parsed.phase === 'restoring') &&
+      Array.isArray(parsed.priorTriggers) &&
+      parsed.priorTriggers.length <= 4 &&
+      parsed.priorTriggers.every(isPriorTrigger) &&
+      new Set(parsed.priorTriggers.map((trigger) => trigger.orderId)).size ===
+        parsed.priorTriggers.length &&
       Array.isArray(parsed.attempts) &&
       // An EMPTY journal is malformed — empty-but-shape-valid would be
       // accepted and silently cleared.
       parsed.attempts.length >= 1 &&
       parsed.attempts.length <= 40 &&
       parsed.attempts.every(isAttempt) &&
-      new Set((parsed.attempts).map((entry) => entry.nonce))
-        .size === parsed.attempts.length
+      new Set(parsed.attempts.map((entry) => entry.nonce)).size ===
+        parsed.attempts.length
     ) {
-      return {
-        attempts: parsed.attempts,
-        recordedAt: parsed.recordedAt,
-      };
+      const { attempts } = parsed;
+      const { priorTriggers } = parsed;
+      // Every restore leg must link to a persisted prior intent — an
+      // unlinked restore could sign a duplicate or orphan a prior one.
+      const restoresLinked = attempts.every(
+        (attempt) =>
+          attempt.kind !== 'create' ||
+          attempt.role !== 'restore' ||
+          priorTriggers.some(
+            (trigger) => trigger.orderId === attempt.priorOrderId,
+          ),
+      );
+      if (restoresLinked) {
+        return {
+          attempts,
+          recordedAt: parsed.recordedAt,
+          phase: parsed.phase,
+          priorTriggers,
+        };
+      }
     }
     throw new Error(
       `Lighter TP/SL journal for ${settlementKey} is malformed; refusing protection changes until it is resolved`,
@@ -983,29 +1148,625 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Resolve a settlement obligation everywhere (memory + disk).
+   * Durable index of settlement keys with pending journals.
+   *
+   * @returns The disk-cache key of the index.
+   */
+  readonly #tpslJournalIndexKey = (): string =>
+    `lighterTpslJournalIndex:${this.#isTestnet ? 'testnet' : 'mainnet'}`;
+
+  /**
+   * Read the durable journal index (strictly validated; failures fail
+   * closed by throwing).
+   *
+   * @returns The list of settlement keys with pending journals.
+   */
+  readonly #readTpslJournalIndex = async (): Promise<string[]> => {
+    const raw = await this.#deps.diskCache.getItem(this.#tpslJournalIndexKey());
+    if (raw === null) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.length <= 64 &&
+        parsed.every((entry) => typeof entry === 'string')
+      ) {
+        return parsed;
+      }
+    } catch {
+      // fall through
+    }
+    throw new Error('Lighter TP/SL journal index is corrupt');
+  };
+
+  /**
+   * Persist a journal entry durably and ensure the index lists its key so
+   * restart recovery can enumerate pending obligations without waiting
+   * for the next mutation.
+   *
+   * @param settlementKey - Settlement identity.
+   * @param journal - The journal entry.
+   */
+  readonly #persistTpslJournal = async (
+    settlementKey: string,
+    journal: TpslJournalState,
+  ): Promise<void> => {
+    // INDEX-FIRST: a dangling index entry (no journal behind it) is
+    // safely prunable by recovery, whereas compensating a failed index
+    // write by removing the journal could erase an EXISTING authoritative
+    // journal holding already-accepted attempts. Any failure here aborts
+    // BEFORE the next submission with every older obligation intact.
+    const index = await this.#readTpslJournalIndex();
+    if (!index.includes(settlementKey)) {
+      if (index.length >= 64) {
+        // NEVER evict a live obligation: fail the mutation before
+        // submission instead.
+        throw new Error(
+          'Lighter TP/SL journal index is full; refusing further protection changes until pending obligations resolve',
+        );
+      }
+      await this.#deps.diskCache.setItem(
+        this.#tpslJournalIndexKey(),
+        JSON.stringify([...index, settlementKey]),
+      );
+    }
+    await this.#deps.diskCache.setItem(
+      this.#tpslJournalKey(settlementKey),
+      JSON.stringify({
+        version: 2,
+        recordedAt: journal.recordedAt,
+        apiKeyIndex: this.#apiKeyIndex,
+        phase: journal.phase,
+        priorTriggers: journal.priorTriggers,
+        attempts: journal.attempts,
+      }),
+    );
+  };
+
+  /**
+   * Resolve a settlement obligation everywhere. Disk removal failures
+   * PROPAGATE and the in-memory entry is retained: silently dropping only
+   * the memory copy would leave a stale durable obligation to wedge a
+   * later session.
    *
    * @param settlementKey - Settlement identity.
    */
   readonly #clearTpslJournal = async (settlementKey: string): Promise<void> => {
+    await this.#deps.diskCache.removeItem(this.#tpslJournalKey(settlementKey));
+    const index = await this.#readTpslJournalIndex().catch(() => null);
+    if (index?.includes(settlementKey)) {
+      await this.#deps.diskCache
+        .setItem(
+          this.#tpslJournalIndexKey(),
+          JSON.stringify(index.filter((entry) => entry !== settlementKey)),
+        )
+        .catch(() => undefined);
+    }
     this.#tpslUnsettled.delete(settlementKey);
-    await this.#deps.diskCache
-      .removeItem(this.#tpslJournalKey(settlementKey))
-      .catch(() => undefined);
   };
 
+  /**
+   * Targeted, cached, active-first inactive-history reader shared by the
+   * mutation transition and recovery: terminal rows are immutable so they
+   * cache across polls; page 1 per call; the deep cursor walk runs at
+   * most ONCE per reader and stops when every target id is found.
+   *
+   * @param accountIndex - Captured account index.
+   * @param authToken - Captured auth token.
+   * @param generation - Captured session generation (fenced per read).
+   * @param marketId - Market to scope inactive-history requests to.
+   * @returns The reader closure.
+   */
+  readonly #makeInactiveReader = (
+    accountIndex: number,
+    authToken: string,
+    generation: number,
+    marketId: number,
+  ): ((targetClientIds: number[]) => Promise<LighterApiOrder[]>) => {
+    const terminalCache = new Map<string, LighterApiOrder>();
+    let deepTraversalDone = false;
+    return async (targetClientIds: number[]): Promise<LighterApiOrder[]> => {
+      this.#assertSession(generation);
+      const targets = targetClientIds.map(String);
+      const missing = (): boolean =>
+        targets.some((id) => !terminalCache.has(id));
+      const ingest = (orders: LighterApiOrder[]): void => {
+        for (const order of orders) {
+          if (order.ownerAccountIndex === accountIndex) {
+            terminalCache.set(String(order.clientOrderIndex), order);
+          }
+        }
+      };
+      const firstPage = await this.#clientService.getInactiveOrders(
+        accountIndex,
+        authToken,
+        100,
+        undefined,
+        marketId,
+      );
+      this.#assertSession(generation);
+      ingest(firstPage.orders);
+      if (missing() && !deepTraversalDone) {
+        deepTraversalDone = true;
+        let cursor = firstPage.nextCursor;
+        for (let page = 0; page < 9 && cursor && missing(); page += 1) {
+          const response = await this.#clientService.getInactiveOrders(
+            accountIndex,
+            authToken,
+            100,
+            cursor,
+            marketId,
+          );
+          this.#assertSession(generation);
+          ingest(response.orders);
+          cursor = response.nextCursor;
+        }
+      }
+      return [...terminalCache.values()];
+    };
+  };
+
+  /** Session generation whose journal recovery fully resolved. */
+  #tpslRecoveryGeneration = -1;
+
+  /** In-flight journal recovery (deduplicates concurrent triggers). */
+  #tpslRecoveryInFlight: Promise<void> | null = null;
+
+  /**
+   * Detached, deduplicated recovery kick. Wired into signer setup AND the
+   * public read paths: a recovery that returned unresolved (e.g. REST
+   * visibility lag) must get another chance later in the SAME session,
+   * not only at the next signer setup.
+   */
+  /** A kick arrived while a (possibly stale) recovery was in flight. */
+  #tpslRecoveryKickPending = false;
+
+  readonly #kickTpslRecovery = (): void => {
+    if (this.#tpslRecoveryGeneration === this.#sessionGeneration) {
+      return;
+    }
+    if (this.#tpslRecoveryInFlight) {
+      // A stale-generation recovery may be finishing: remember this kick
+      // so the CURRENT generation's journals are not silently skipped.
+      this.#tpslRecoveryKickPending = true;
+      return;
+    }
+    setTimeout(() => {
+      this.#recoverPendingTpslJournals().catch((error) => {
+        this.#deps.debugLogger.log(
+          '[LighterProvider] TP/SL journal recovery failed',
+          { error: String(error) },
+        );
+      });
+    }, 0);
+  };
+
+  /**
+   * Enumerate durable journal-index entries for the CURRENT identity and
+   * recover each: reconcile, complete an interrupted replacement's stale
+   * cancels when its created protection is live, then clear. Bounded and
+   * deduplicated per session generation; unresolved entries stay for the
+   * next attempt.
+   */
+  readonly #recoverPendingTpslJournals = async (): Promise<void> => {
+    const generation = this.#sessionGeneration;
+    if (this.#tpslRecoveryGeneration === generation) {
+      return;
+    }
+    if (this.#tpslRecoveryInFlight) {
+      await this.#tpslRecoveryInFlight;
+      return;
+    }
+    this.#tpslRecoveryInFlight = (async (): Promise<void> => {
+      try {
+        // Index corruption/read failure PROPAGATES (logged by the hook):
+        // silently treating it as empty would disable recovery entirely.
+        const index = await this.#readTpslJournalIndex();
+        if (index.length === 0) {
+          this.#tpslRecoveryGeneration = generation;
+          return;
+        }
+        const address = this.#boundAddress;
+        if (!address) {
+          return;
+        }
+        const accountIndex = await this.#ensureAccountIndex();
+        this.#assertSession(generation);
+        const prefix = `${address}:${accountIndex}:${this.#apiKeyIndex}:`;
+        let allResolved = true;
+        for (const settlementKey of index) {
+          if (!settlementKey.startsWith(prefix)) {
+            continue;
+          }
+          const resolved = await this.#recoverTpslSymbol(
+            settlementKey.slice(prefix.length),
+            settlementKey,
+            generation,
+            accountIndex,
+          ).catch((error) => {
+            // Surface the exact cause (corruption, transport, session
+            // fence) — the entry stays retryable, but never silently.
+            this.#deps.debugLogger.log(
+              '[LighterProvider] TP/SL journal entry recovery failed',
+              { settlementKey, error: String(error) },
+            );
+            return false;
+          });
+          if (!resolved) {
+            allResolved = false;
+          }
+        }
+        // Marked complete ONLY when everything resolved: unresolved or
+        // errored entries stay retryable within this session.
+        if (allResolved) {
+          this.#tpslRecoveryGeneration = generation;
+        }
+      } finally {
+        this.#tpslRecoveryInFlight = null;
+        if (this.#tpslRecoveryKickPending) {
+          this.#tpslRecoveryKickPending = false;
+          this.#kickTpslRecovery();
+        }
+      }
+    })();
+    await this.#tpslRecoveryInFlight;
+  };
+
+  /**
+   * Recover one pending TP/SL journal without any new protection intent.
+   *
+   * @param symbol - Market symbol from the settlement key.
+   * @param settlementKey - Full settlement identity.
+   * @param generation - Captured session generation.
+   * @param accountIndex - Captured account index.
+   * @returns True when the obligation fully resolved (journal cleared);
+   * false when it remains pending and must be retried.
+   */
+  readonly #recoverTpslSymbol = async (
+    symbol: string,
+    settlementKey: string,
+    generation: number,
+    accountIndex: number,
+  ): Promise<boolean> => {
+    const journalEntry = await this.#loadTpslJournal(settlementKey);
+    if (!journalEntry) {
+      // Stale index entry with no journal behind it: prune.
+      await this.#clearTpslJournal(settlementKey).catch(() => undefined);
+      return true;
+    }
+    const markets = await this.#ensureMarkets();
+    const market = markets.get(symbol);
+    if (!market) {
+      return false;
+    }
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    const authToken = await this.#getAuthToken();
+    this.#assertSession(generation);
+    return await this.#withVenueWriteLock(
+      accountIndex,
+      async (nextNonce, submit): Promise<boolean> => {
+        const readActiveRaw = async (): Promise<LighterApiOrder[]> => {
+          this.#assertSession(generation);
+          const response = await this.#clientService.getActiveOrders(
+            accountIndex,
+            authToken,
+          );
+          this.#assertSession(generation);
+          return response.orders;
+        };
+        const readInactiveFor = this.#makeInactiveReader(
+          accountIndex,
+          authToken,
+          generation,
+          market.marketId,
+        );
+        const reconciled = await this.#reconcilePriorTpsl(
+          readActiveRaw,
+          readInactiveFor,
+          accountIndex,
+          journalEntry,
+        );
+        if (reconciled === 'unresolved') {
+          return false;
+        }
+        const persistEntry = async (): Promise<void> => {
+          this.#tpslUnsettled.set(settlementKey, journalEntry);
+          await this.#persistTpslJournal(settlementKey, journalEntry);
+        };
+        // Same journalled cancel discipline as the live transition.
+        const submitRecoveryCancel = async (
+          orderId: string,
+          role: 'stale' | 'rollback',
+        ): Promise<void> => {
+          if (role === 'stale') {
+            journalEntry.phase = 'cancelling';
+          }
+          const cancelNonce = await nextNonce();
+          const signedCancel =
+            await this.#getSignerBridge().execute<LighterTxResult>({
+              function: '_signCancelOrder',
+              params: [accountIndex, market.marketId, orderId, cancelNonce],
+            });
+          if (signedCancel.error) {
+            throw new Error(
+              `Failed to cancel trigger order ${orderId}: ${signedCancel.error}`,
+            );
+          }
+          const cancelIdentity = requireSignedTxIdentity(signedCancel);
+          const cancelAttempt: TpslCancelAttempt = {
+            kind: 'cancel',
+            nonce: cancelNonce,
+            outcome: 'unknown',
+            orderId,
+            txHash: cancelIdentity.txHash,
+            expiresAt: cancelIdentity.expiresAt,
+            role,
+          };
+          journalEntry.attempts.push(cancelAttempt);
+          await persistEntry();
+          await submit(
+            LIGHTER_TX_TYPE_CANCEL_ORDER,
+            signedCancel.txInfo,
+            () => {
+              cancelAttempt.outcome = 'accepted';
+            },
+          );
+        };
+        // Restore one prior intent from its durably persisted wire
+        // payload; `priorOrderId` durably keys WHICH intent this restores.
+        const submitRecoveryRestore = async (
+          prior: TpslPriorTrigger,
+        ): Promise<number> => {
+          journalEntry.phase = 'restoring';
+          const wireType =
+            prior.triggerOrderType === 'take_profit_market'
+              ? LIGHTER_ORDER_TYPE_TAKE_PROFIT
+              : LIGHTER_ORDER_TYPE_STOP_LOSS;
+          const [restoreClientId] = this.#allocateClientOrderIndexes(1);
+          const restoreNonce = await nextNonce();
+          const signedRestore =
+            await this.#getSignerBridge().execute<LighterTxResult>({
+              function: '_signCreateOrder',
+              params: [
+                accountIndex,
+                market.marketId,
+                restoreClientId,
+                String(
+                  toSignerWireInteger(
+                    parseStrictDecimal(prior.remainingSize) ?? Number.NaN,
+                    market.supportedSizeDecimals,
+                  ),
+                ),
+                String(
+                  toSignerWirePriceInteger(
+                    parseStrictDecimal(prior.price) ?? Number.NaN,
+                    market.supportedPriceDecimals,
+                  ),
+                ),
+                prior.side === 'sell' ? 1 : 0,
+                wireType,
+                LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+                1,
+                String(
+                  toSignerWirePriceInteger(
+                    parseStrictDecimal(prior.triggerPrice) ?? Number.NaN,
+                    market.supportedPriceDecimals,
+                  ),
+                ),
+                LIGHTER_ORDER_EXPIRY_NONE,
+                restoreNonce,
+              ],
+            });
+          if (signedRestore.error) {
+            throw new Error(
+              `Failed to restore previous protection: ${signedRestore.error}`,
+            );
+          }
+          const restoreIdentity = requireSignedTxIdentity(signedRestore);
+          const restoreAttempt: TpslCreateAttempt = {
+            kind: 'create',
+            nonce: restoreNonce,
+            outcome: 'unknown',
+            clientIds: [restoreClientId],
+            txHash: restoreIdentity.txHash,
+            expiresAt: restoreIdentity.expiresAt,
+            role: 'restore',
+            priorOrderId: prior.orderId,
+          };
+          journalEntry.attempts.push(restoreAttempt);
+          await persistEntry();
+          await submit(
+            LIGHTER_TX_TYPE_CREATE_ORDER,
+            signedRestore.txInfo,
+            () => {
+              restoreAttempt.outcome = 'accepted';
+            },
+          );
+          return restoreClientId;
+        };
+        // Classify every journalled create leg on the books (reconcile
+        // proved each attempt either landed or never can).
+        const replacementIds = journalEntry.attempts
+          .filter(
+            (attempt): attempt is TpslCreateAttempt =>
+              attempt.kind === 'create' && attempt.role === 'replacement',
+          )
+          .flatMap((attempt) => attempt.clientIds);
+        const restoreAttempts = journalEntry.attempts.filter(
+          (attempt): attempt is TpslCreateAttempt =>
+            attempt.kind === 'create' && attempt.role === 'restore',
+        );
+        const allCreateIds = [
+          ...replacementIds,
+          ...restoreAttempts.flatMap((attempt) => attempt.clientIds),
+        ];
+        const rawActive = await readActiveRaw();
+        const missingFromActive = allCreateIds.filter(
+          (clientId) =>
+            !rawActive.some(
+              (order) => String(order.clientOrderIndex) === String(clientId),
+            ),
+        );
+        const rawInactive =
+          missingFromActive.length > 0
+            ? await readInactiveFor(missingFromActive)
+            : [];
+        const stateOf = (clientId: number): 'active' | 'success' | 'failed' => {
+          if (
+            rawActive.some(
+              (order) => String(order.clientOrderIndex) === String(clientId),
+            )
+          ) {
+            return 'active';
+          }
+          const terminal = rawInactive.find(
+            (order) => String(order.clientOrderIndex) === String(clientId),
+          );
+          if (!terminal) {
+            // Reconcile proved never-landed: same outcome as failed.
+            return 'failed';
+          }
+          const status = terminal.status.toLowerCase();
+          const fullyExecuted =
+            (status === 'filled' || status === 'executed') &&
+            parseStrictDecimal(terminal.remainingBaseAmount) === 0;
+          return fullyExecuted ? 'success' : 'failed';
+        };
+        const replacementStates = replacementIds.map(stateOf);
+        const anySuccess = replacementStates.includes('success');
+        const anyActive = replacementStates.includes('active');
+        const anyFailed = replacementStates.includes('failed');
+        const priorActive = (prior: TpslPriorTrigger): boolean =>
+          rawActive.some((order) => String(order.orderIndex) === prior.orderId);
+        const cancelledOrderIds: string[] = [];
+        const createdClientIds: number[] = [];
+        const cancelPriorLeftovers = async (): Promise<void> => {
+          // The replacement must STAY proven while the old protection is
+          // removed: keep its live ids in the final expectation so a leg
+          // terminal-failing DURING these cancels (the phase race) fails
+          // this pass instead of clearing the journal naked.
+          for (const clientId of replacementIds) {
+            if (stateOf(clientId) === 'active') {
+              createdClientIds.push(clientId);
+            }
+          }
+          for (const prior of journalEntry.priorTriggers) {
+            if (priorActive(prior)) {
+              await submitRecoveryCancel(prior.orderId, 'stale');
+              cancelledOrderIds.push(prior.orderId);
+            }
+          }
+        };
+        if (journalEntry.phase === 'creating') {
+          // Old protection untouched. Nothing landed / everything failed
+          // → the old set is still the only intent: just clear.
+          if (replacementIds.length > 0 && (anySuccess || anyActive)) {
+            if (!anySuccess && anyFailed) {
+              // Partial OCO: roll surviving legs back so the OLD
+              // protection remains authoritative.
+              for (const clientId of replacementIds) {
+                const survivor = rawActive.find(
+                  (order) =>
+                    String(order.clientOrderIndex) === String(clientId),
+                );
+                if (survivor) {
+                  await submitRecoveryCancel(
+                    String(survivor.orderIndex),
+                    'rollback',
+                  );
+                  cancelledOrderIds.push(String(survivor.orderIndex));
+                }
+              }
+            } else {
+              // Replacement in force (or executed): finish the swap.
+              await cancelPriorLeftovers();
+            }
+          }
+        } else if (journalEntry.phase === 'cancelling') {
+          if (anySuccess || anyActive) {
+            // Replacement won — finish cancelling the old protection.
+            await cancelPriorLeftovers();
+          } else {
+            // Replacement fully failed AFTER old cancels began: RESTORE
+            // every prior intent whose original order is gone.
+            for (const prior of journalEntry.priorTriggers) {
+              if (!priorActive(prior)) {
+                createdClientIds.push(await submitRecoveryRestore(prior));
+              }
+            }
+          }
+        } else {
+          // 'restoring': each prior intent must be covered — original
+          // still active, or a restore leg (keyed by priorOrderId)
+          // landed. Re-create exactly the missing ones.
+          for (const prior of journalEntry.priorTriggers) {
+            const restoredCovered = restoreAttempts.some(
+              (attempt) =>
+                attempt.priorOrderId === prior.orderId &&
+                attempt.clientIds.every(
+                  (clientId) => stateOf(clientId) !== 'failed',
+                ),
+            );
+            if (!priorActive(prior) && !restoredCovered) {
+              createdClientIds.push(await submitRecoveryRestore(prior));
+            }
+          }
+        }
+        if (cancelledOrderIds.length > 0 || createdClientIds.length > 0) {
+          const settled = await this.#awaitTpslVisibility(
+            readActiveRaw,
+            readInactiveFor,
+            { createdClientIds, cancelledOrderIds },
+          );
+          // ONLY a fully-settled pass may clear. 'created-terminal-failed'
+          // (a rejected restore, or a replacement dying during the old
+          // cancels) retains the journal so the next pass restores or
+          // retries — clearing here would leave the position naked.
+          if (settled.outcome !== 'settled') {
+            return false;
+          }
+        }
+        await this.#clearTpslJournal(settlementKey);
+        return true;
+      },
+      generation,
+    );
+  };
+
+  /**
+   * Reconcile a PRIOR transition's expectation before any new mutation.
+   * Only created ids can cause duplicates from a stale snapshot, so they
+   * must be accounted for (active or terminal). Cancelled ids are safe in
+   * either state: still-active targets reappear in the fresh snapshot and
+   * are re-cancelled.
+   *
+   * @param readActiveRaw - Strict raw active-orders reader.
+   * @param readInactive - Targeted inactive-history reader (cached, bounded).
+   * @param accountIndex - Captured account index.
+   * @param entry - The recorded expectation.
+   * @param entry.attempts - Journalled per-attempt submissions.
+   * @param entry.recordedAt - When the journal was recorded (ms).
+   * @returns 'resolved' when safe to proceed; 'unresolved' when an
+   * ACCEPTED mutation is still not visible.
+   */
   readonly #reconcilePriorTpsl = async (
     readActiveRaw: () => Promise<LighterApiOrder[]>,
-    readInactiveRaw: () => Promise<LighterApiOrder[]>,
-    readNextNonce: () => Promise<number>,
+    readInactive: (targetClientIds: number[]) => Promise<LighterApiOrder[]>,
+    accountIndex: number,
     entry: { attempts: TpslAttempt[]; recordedAt: number },
   ): Promise<'resolved' | 'unresolved'> => {
-    // Per-attempt reconciliation. A create is resolved when all its ids
-    // are active/terminal; a cancel when its target left the active book.
-    // Books are polled for the FULL bound before any nonce-based discard:
-    // a response-lost request can still consume its nonce during the poll
-    // window, so classifying up front could clear-and-retry before the
-    // original lands.
+    // Per-attempt reconciliation, authoritative and never time-guessed:
+    // 1. Books first — a create is resolved when its ids are all
+    //    active/terminal, a cancel when its target left the active book.
+    // 2. Otherwise the EXACT signed tx hash is looked up: a strict match
+    //    (hash + account + api key slot + nonce) proves the payload
+    //    reached the sequencer, so absence from the books can only be
+    //    visibility lag (keep blocking). A venue-confirmed not-found is
+    //    only never-landed once the signed ExpiredAt (+ clock slack) has
+    //    passed — the sequencer cannot accept an expired payload.
     const satisfiedOnBooks = (
       attempt: TpslAttempt,
       rawActive: LighterApiOrder[],
@@ -1030,7 +1791,27 @@ export class LighterProvider implements PerpsProvider {
     let unsatisfied: TpslAttempt[] = entry.attempts;
     for (let poll = 0; poll < LIGHTER_TPSL_SETTLE_ATTEMPTS; poll += 1) {
       const rawActive = await readActiveRaw();
-      const rawInactive = needInactive ? await readInactiveRaw() : [];
+      // ACTIVE-FIRST (see #awaitTpslVisibility): inactive history is only
+      // consulted for create ids not already visible active.
+      const createIdsMissingFromActive = needInactive
+        ? entry.attempts
+            .filter(
+              (attempt): attempt is TpslCreateAttempt =>
+                attempt.kind === 'create',
+            )
+            .flatMap((attempt) => attempt.clientIds)
+            .filter(
+              (clientId) =>
+                !rawActive.some(
+                  (order) =>
+                    String(order.clientOrderIndex) === String(clientId),
+                ),
+            )
+        : [];
+      const rawInactive =
+        createIdsMissingFromActive.length > 0
+          ? await readInactive(createIdsMissingFromActive)
+          : [];
       unsatisfied = entry.attempts.filter(
         (attempt) => !satisfiedOnBooks(attempt, rawActive, rawInactive),
       );
@@ -1041,34 +1822,44 @@ export class LighterProvider implements PerpsProvider {
         setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
       );
     }
-    // Bound exhausted: classify the REMAINING attempts via TWO stable
-    // nonce reads — an in-flight consumption between reads means the
-    // venue is still moving and nothing may be discarded yet.
-    const nonceFirstRead = await readNextNonce();
-    await new Promise((resolve) =>
-      setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
-    );
-    const nonceSecondRead = await readNextNonce();
-    if (nonceFirstRead !== nonceSecondRead) {
-      return 'unresolved';
+    for (const attempt of unsatisfied) {
+      let lookedUp: LighterTxLookupResponse | null;
+      try {
+        lookedUp = await this.#clientService.getTx(attempt.txHash);
+      } catch {
+        // Lookup failure is AMBIGUOUS, never evidence of non-acceptance.
+        return 'unresolved';
+      }
+      if (lookedUp !== null) {
+        // The exact signed hash exists at the venue: with a matching
+        // identity (hash + account + api key slot + nonce) the payload
+        // provably reached the sequencer, so absence from the books is
+        // visibility lag — keep blocking. A NON-matching payload under
+        // this hash is treated identically (fail closed), but logged:
+        // it should be impossible and points at a signer/venue defect.
+        const matchesIdentity =
+          typeof lookedUp.hash === 'string' &&
+          lookedUp.hash.toLowerCase().replace(/^0x/u, '') ===
+            attempt.txHash.toLowerCase().replace(/^0x/u, '') &&
+          lookedUp.accountIndex === accountIndex &&
+          lookedUp.apiKeyIndex === this.#apiKeyIndex &&
+          lookedUp.nonce === attempt.nonce;
+        if (!matchesIdentity) {
+          this.#deps.debugLogger.log(
+            '[LighterProvider] TP/SL tx lookup identity mismatch; failing closed',
+            { txHash: attempt.txHash },
+          );
+        }
+        return 'unresolved';
+      }
+      // Venue-confirmed not-found: only never-landed once the signed
+      // payload can no longer be accepted.
+      if (Date.now() <= attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS) {
+        return 'unresolved';
+      }
+      // Expired and venue-confirmed absent: authoritatively never landed.
     }
-    // recordedAt GRACE: an immediately network-rejected request can still
-    // be in flight server-side; unknown-unconsumed attempts may only be
-    // discarded once the journal is older than the HTTP timeout plus the
-    // full settlement window (and the stable-read interval).
-    const discardGraceMs =
-      LIGHTER_HTTP_TIMEOUT_MS +
-      LIGHTER_TPSL_SETTLE_ATTEMPTS * LIGHTER_TPSL_SETTLE_POLL_MS +
-      LIGHTER_TPSL_SETTLE_POLL_MS;
-    if (Date.now() - entry.recordedAt < discardGraceMs) {
-      return 'unresolved';
-    }
-    return unsatisfied.every(
-      (attempt) =>
-        attempt.outcome === 'unknown' && nonceSecondRead <= attempt.nonce,
-    )
-      ? 'resolved'
-      : 'unresolved';
+    return 'resolved';
   };
 
   /**
@@ -1083,7 +1874,7 @@ export class LighterProvider implements PerpsProvider {
    * permanently block the symbol.
    *
    * @param readActiveRaw - Strict raw active-orders reader (session-fenced).
-   * @param readInactiveRaw - Strict raw inactive-orders reader.
+   * @param readInactive - Targeted inactive-history reader (cached, bounded).
    * @param expectation - Ids the venue must account for.
    * @param expectation.createdClientIds - Client ids that must be active
    * or terminal.
@@ -1099,11 +1890,15 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #awaitTpslVisibility = async (
     readActiveRaw: () => Promise<LighterApiOrder[]>,
-    readInactiveRaw: () => Promise<LighterApiOrder[]>,
+    readInactive: (targetClientIds: number[]) => Promise<LighterApiOrder[]>,
     expectation: { createdClientIds: number[]; cancelledOrderIds: string[] },
   ): Promise<
     | { outcome: 'settled'; executedCreated: boolean }
-    | { outcome: 'created-terminal-failed' }
+    | {
+        outcome: 'created-terminal-failed';
+        /** New legs still resting ACTIVE despite a failed sibling. */
+        survivingActiveClientIds: number[];
+      }
     | { outcome: 'timeout' }
   > => {
     for (
@@ -1112,46 +1907,72 @@ export class LighterProvider implements PerpsProvider {
       attempt += 1
     ) {
       const rawActive = await readActiveRaw();
+      // ACTIVE-FIRST: only ids not already proven active need the
+      // high-weight inactive-history lookup; a normal freshly-active
+      // replacement performs ZERO inactive requests.
+      const missingFromActive = expectation.createdClientIds.filter(
+        (clientId) =>
+          !rawActive.some(
+            (order) => String(order.clientOrderIndex) === String(clientId),
+          ),
+      );
       const rawInactive =
-        expectation.createdClientIds.length > 0 ? await readInactiveRaw() : [];
-      // Per-id classification. Success statuses are WHITELISTED
-      // (filled/executed); cancel/reject/expire/fail/error are failures;
-      // an UNKNOWN terminal status fails CLOSED (never silently treated
-      // as an execution).
-      const classifications = expectation.createdClientIds.map((clientId) => {
+        missingFromActive.length > 0
+          ? await readInactive(missingFromActive)
+          : [];
+      // Per-id classification. Success is EXACT-whitelisted
+      // ('filled'/'executed') AND requires a strictly ZERO remaining size
+      // (a 'filled' row with remainder is not a proven execution);
+      // everything else terminal — including unknown statuses — fails
+      // CLOSED.
+      const classified = expectation.createdClientIds.map((clientId) => {
         if (
           rawActive.some(
             (order) => String(order.clientOrderIndex) === String(clientId),
           )
         ) {
-          return 'active';
+          return { clientId, state: 'active' as const };
         }
         const terminal = rawInactive.find(
           (order) => String(order.clientOrderIndex) === String(clientId),
         );
         if (!terminal) {
-          return 'missing';
+          return { clientId, state: 'missing' as const };
         }
-        if (/fill|execut/iu.test(terminal.status)) {
-          return 'success';
-        }
-        return 'failed';
+        const status = terminal.status.toLowerCase();
+        // STRICT remaining parse: a prefix-parsed '0oops' must never
+        // count as a proven zero remainder.
+        const fullyExecuted =
+          (status === 'filled' || status === 'executed') &&
+          parseStrictDecimal(terminal.remainingBaseAmount) === 0;
+        return {
+          clientId,
+          state: fullyExecuted ? ('success' as const) : ('failed' as const),
+        };
       });
-      const createdAccounted = !classifications.includes('missing');
+      const createdAccounted = !classified.some(
+        (entry) => entry.state === 'missing',
+      );
       const cancelledGone = expectation.cancelledOrderIds.every(
         (orderId) =>
           !rawActive.some((order) => String(order.orderIndex) === orderId),
       );
       if (createdAccounted && cancelledGone) {
-        // OCO aggregation: one leg filling auto-cancels its sibling, so
-        // ANY success terminal makes the overall outcome an EXECUTION,
-        // not a replacement failure. Only all-failed (no success) is a
-        // terminal failure.
-        if (classifications.includes('success')) {
+        // OCO aggregation: one leg fully filling auto-cancels its sibling,
+        // so ANY proven execution makes the overall outcome an EXECUTION.
+        // Only failed-without-success is a terminal failure — reported
+        // WITH any legs still active so the caller can roll back or keep
+        // them explicitly.
+        if (classified.some((entry) => entry.state === 'success')) {
           return { outcome: 'settled', executedCreated: true };
         }
-        if (classifications.includes('failed')) {
-          return { outcome: 'created-terminal-failed' };
+        if (classified.some((entry) => entry.state === 'failed')) {
+          return {
+            outcome: 'created-terminal-failed',
+            survivingActiveClientIds: classified
+              .filter((entry) => entry.state === 'active')
+              .map((entry) => entry.clientId),
+          };
         }
         return { outcome: 'settled', executedCreated: false };
       }
@@ -1162,12 +1983,6 @@ export class LighterProvider implements PerpsProvider {
     return { outcome: 'timeout' };
   };
 
-  /**
-   * Create the WASM signer client and register the venue key if the
-   * account's key slot does not hold it yet. Deduplicated.
-   *
-   * @returns Resolves when the signer session is ready.
-   */
   /**
    * Throws when the session generation moved past the captured one — used
    * after every await in account-bound async work so a delayed account-A
@@ -1226,6 +2041,12 @@ export class LighterProvider implements PerpsProvider {
     // reselect of the same account must still reconcile its pending ids.
   };
 
+  /**
+   * Create the WASM signer client and register the venue key if the
+   * account's key slot does not hold it yet. Deduplicated.
+   *
+   * @returns Resolves when the signer session is ready.
+   */
   readonly #ensureSignerReady = async (): Promise<void> => {
     this.#ensureSessionBinding();
     if (this.#signerReadyPromise) {
@@ -1296,6 +2117,11 @@ export class LighterProvider implements PerpsProvider {
       },
       generation,
     );
+    // AUTOMATIC bounded recovery: pending TP/SL journals must be
+    // reconciled at startup/reconnect, not only when the next mutation
+    // happens to run. Detached so it awaits THIS setup's resolved promise
+    // instead of deadlocking on it.
+    this.#kickTpslRecovery();
   };
 
   readonly #isVenueKeyRegistered = async (
@@ -1436,6 +2262,14 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<Result> => {
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
+      // Section-local monotonic nonce reservation: the venue's nextNonce
+      // endpoint can LAG accepted submissions, so a section issuing
+      // multiple transactions (e.g. two cancels) could otherwise be
+      // handed the same nonce twice. The floor advances only after an
+      // OBSERVED acceptance (a signing failure must not burn a nonce the
+      // venue still expects).
+      let sectionNonceFloor: number | null = null;
+      let lastIssuedNonce: number | null = null;
       const nextNonce = async (): Promise<number> => {
         // Re-fenced on every fetch AND after it resolves: the account can
         // switch between the section's own await points, not only while it
@@ -1446,7 +2280,12 @@ export class LighterProvider implements PerpsProvider {
           this.#apiKeyIndex,
         );
         this.#assertSession(generationAtIntent);
-        return nonceResponse.nonce;
+        const issued =
+          sectionNonceFloor === null
+            ? nonceResponse.nonce
+            : Math.max(nonceResponse.nonce, sectionNonceFloor);
+        lastIssuedNonce = issued;
+        return issued;
       };
       const submit = async (
         txType: number,
@@ -1457,6 +2296,11 @@ export class LighterProvider implements PerpsProvider {
         // happened while SIGNING must abort before submission.
         this.#assertSession(generationAtIntent);
         const response = await this.#clientService.sendTx(txType, txInfo);
+        // Acceptance observed: the next nonce this section issues must be
+        // beyond the one just consumed even if the endpoint still lags.
+        if (lastIssuedNonce !== null) {
+          sectionNonceFloor = lastIssuedNonce + 1;
+        }
         // Acceptance bookkeeping runs SYNCHRONOUSLY before the post-fence:
         // a switch during network submission must cancel the operation,
         // never the record of an already-accepted venue mutation.
@@ -1708,6 +2552,8 @@ export class LighterProvider implements PerpsProvider {
   };
 
   async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
+    // Public reads re-kick pending journal recovery (deduped, detached).
+    this.#kickTpslRecovery();
     try {
       return await this.#readOpenOrdersStrict();
     } catch (caughtError) {
@@ -2421,6 +3267,7 @@ export class LighterProvider implements PerpsProvider {
         Boolean(params.takeProfitPrice) || Boolean(params.stopLossPrice);
       let groupedPayload: (string | number)[] | null = null;
       let createdClientIds: number[] = [];
+      let createdIdsNeedingFinalCheck: number[] = [];
       let groupedOrderCount = 0;
       let groupedType = 0;
       if (wantsReplacement) {
@@ -2535,7 +3382,9 @@ export class LighterProvider implements PerpsProvider {
       // account can never consume (or be blocked by) this account's ids,
       // while a same-account bridge reset or switch-away-and-back retains
       // the reconciliation obligation.
-      const settlementKey = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:${params.symbol}`;
+      // Includes the API KEY SLOT: nonces are per key slot, so a journal
+      // recorded under one slot must never be reconciled under another.
+      const settlementKey = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:${this.#apiKeyIndex}:${params.symbol}`;
 
       // The ENTIRE snapshot -> create -> cancel lifecycle runs as ONE
       // serialized transition on the account's write chain. Two concurrent
@@ -2561,36 +3410,19 @@ export class LighterProvider implements PerpsProvider {
             this.#assertSession(generationAtIntent);
             return response.orders;
           };
-          const readInactiveRaw = async (): Promise<LighterApiOrder[]> => {
-            this.#assertSession(generationAtIntent);
-            // Max page size (100): a truncated default page must not make
-            // a recent terminal order look missing. Rows are additionally
-            // filtered to THIS account.
-            const response = await this.#clientService.getInactiveOrders(
-              accountIndex,
-              authToken,
-              100,
-            );
-            this.#assertSession(generationAtIntent);
-            return response.orders.filter(
-              (order) => order.ownerAccountIndex === accountIndex,
-            );
-          };
+          // Shared targeted inactive reader (cached, active-first callers,
+          // one bounded deep cursor walk per section, market-scoped).
+          const readInactiveFor = this.#makeInactiveReader(
+            accountIndex,
+            authToken,
+            generationAtIntent,
+            market.marketId,
+          );
 
           // VENUE LINEARIZABILITY: if a previous TP/SL transition's
           // settlement never became visible, refuse further mutation until
           // the venue reflects it — mutating from a stale snapshot could
           // duplicate or strip protection.
-          const readNextNonce = async (): Promise<number> => {
-            this.#assertSession(generationAtIntent);
-            const response = await this.#clientService.getNextNonce(
-              accountIndex,
-              this.#apiKeyIndex,
-            );
-            this.#assertSession(generationAtIntent);
-            return response.nonce;
-          };
-
           // Pending obligations survive provider death via the durable
           // journal: lazily reload before any same-account mutation.
           const unsettled =
@@ -2599,8 +3431,8 @@ export class LighterProvider implements PerpsProvider {
           if (unsettled) {
             const reconciled = await this.#reconcilePriorTpsl(
               readActiveRaw,
-              readInactiveRaw,
-              readNextNonce,
+              readInactiveFor,
+              accountIndex,
               unsettled,
             );
             if (reconciled === 'unresolved') {
@@ -2632,29 +3464,153 @@ export class LighterProvider implements PerpsProvider {
                 Boolean(order.orderType?.includes('take')) ||
                 order.isTrigger === true),
           );
-
           // Per-attempt mutation journal, persisted incrementally.
           // RESPONSE-LOSS safety: every attempt is recorded UNKNOWN with
           // its own venue nonce BEFORE submission (the venue may commit
           // even when the response is lost), flips to accepted inside
           // onAccepted (pre-fence), and reconciliation disambiguates each
-          // attempt individually via books + nonce.
-          const journal: { attempts: TpslAttempt[]; recordedAt: number } = {
+          // attempt individually via books + nonce. The PRIOR triggers'
+          // wire intents ride along so a crash can still restore/rollback.
+          const journal: TpslJournalState = {
             attempts: [],
             recordedAt: Date.now(),
+            phase: 'creating',
+            priorTriggers: staleTriggers.map((order) => ({
+              orderId: order.orderId,
+              side: order.side,
+              triggerOrderType:
+                order.triggerOrderType === 'take_profit_market' ||
+                order.triggerOrderType === 'take_profit_limit'
+                  ? ('take_profit_market' as const)
+                  : ('stop_market' as const),
+              price: order.price,
+              triggerPrice: order.triggerPrice ?? order.price,
+              remainingSize: order.remainingSize,
+            })),
           };
           const persistJournal = async (): Promise<void> => {
-            // recordedAt advances with every durable append: the discard
-            // grace must measure from the LATEST attempt.
             journal.recordedAt = Date.now();
-            await this.#deps.diskCache.setItem(
-              this.#tpslJournalKey(settlementKey),
-              JSON.stringify({
-                version: 1,
-                recordedAt: journal.recordedAt,
-                attempts: journal.attempts,
-              }),
+            await this.#persistTpslJournal(settlementKey, journal);
+          };
+          // Sign+journal+submit one tracked cancel (stale protection or a
+          // rollback of a surviving replacement leg).
+          const submitTrackedCancel = async (
+            orderId: string,
+            role: 'stale' | 'rollback',
+          ): Promise<void> => {
+            if (role === 'stale') {
+              // Durable phase transition BEFORE the old protection is
+              // touched: a crash from here on may require a RESTORE.
+              journal.phase = 'cancelling';
+            }
+            const cancelNonce = await nextNonce();
+            const signedCancel =
+              await this.#getSignerBridge().execute<LighterTxResult>({
+                function: '_signCancelOrder',
+                params: [accountIndex, market.marketId, orderId, cancelNonce],
+              });
+            if (signedCancel.error) {
+              throw new Error(
+                `Failed to cancel trigger order ${orderId}: ${signedCancel.error}`,
+              );
+            }
+            const cancelIdentity = requireSignedTxIdentity(signedCancel);
+            const cancelAttempt: TpslCancelAttempt = {
+              kind: 'cancel',
+              nonce: cancelNonce,
+              outcome: 'unknown',
+              orderId,
+              txHash: cancelIdentity.txHash,
+              expiresAt: cancelIdentity.expiresAt,
+              role,
+            };
+            journal.attempts.push(cancelAttempt);
+            this.#tpslUnsettled.set(settlementKey, journal);
+            await persistJournal();
+            await submit(
+              LIGHTER_TX_TYPE_CANCEL_ORDER,
+              signedCancel.txInfo,
+              () => {
+                cancelAttempt.outcome = 'accepted';
+              },
             );
+          };
+          // Sign+journal+submit a RESTORE create rebuilding a previously
+          // cancelled trigger from its adapted order data.
+          const restoredClientIds: number[] = [];
+          const submitTrackedRestoreCreate = async (
+            stale: Order,
+          ): Promise<void> => {
+            // Durable transition: restore create ids must never be
+            // mistaken for the failed replacement after a crash.
+            journal.phase = 'restoring';
+            const wireType =
+              stale.triggerOrderType === 'take_profit_market'
+                ? LIGHTER_ORDER_TYPE_TAKE_PROFIT
+                : LIGHTER_ORDER_TYPE_STOP_LOSS;
+            const [restoreClientId] = this.#allocateClientOrderIndexes(1);
+            const restoreNonce = await nextNonce();
+            const signedRestore =
+              await this.#getSignerBridge().execute<LighterTxResult>({
+                function: '_signCreateOrder',
+                params: [
+                  accountIndex,
+                  market.marketId,
+                  restoreClientId,
+                  String(
+                    toSignerWireInteger(
+                      parseStrictDecimal(stale.remainingSize) ?? Number.NaN,
+                      market.supportedSizeDecimals,
+                    ),
+                  ),
+                  String(
+                    toSignerWirePriceInteger(
+                      parseStrictDecimal(stale.price) ?? Number.NaN,
+                      market.supportedPriceDecimals,
+                    ),
+                  ),
+                  stale.side === 'sell' ? 1 : 0,
+                  wireType,
+                  LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+                  1,
+                  String(
+                    toSignerWirePriceInteger(
+                      parseStrictDecimal(stale.triggerPrice ?? '') ??
+                        Number.NaN,
+                      market.supportedPriceDecimals,
+                    ),
+                  ),
+                  LIGHTER_ORDER_EXPIRY_NONE,
+                  restoreNonce,
+                ],
+              });
+            if (signedRestore.error) {
+              throw new Error(
+                `Failed to restore previous protection: ${signedRestore.error}`,
+              );
+            }
+            const restoreIdentity = requireSignedTxIdentity(signedRestore);
+            const restoreAttempt: TpslCreateAttempt = {
+              kind: 'create',
+              nonce: restoreNonce,
+              outcome: 'unknown',
+              clientIds: [restoreClientId],
+              txHash: restoreIdentity.txHash,
+              expiresAt: restoreIdentity.expiresAt,
+              role: 'restore',
+              priorOrderId: stale.orderId,
+            };
+            journal.attempts.push(restoreAttempt);
+            this.#tpslUnsettled.set(settlementKey, journal);
+            await persistJournal();
+            await submit(
+              LIGHTER_TX_TYPE_CREATE_ORDER,
+              signedRestore.txInfo,
+              () => {
+                restoreAttempt.outcome = 'accepted';
+              },
+            );
+            restoredClientIds.push(restoreClientId);
           };
 
           // CREATE FIRST, cancel after: if signing or submission of the
@@ -2691,12 +3647,18 @@ export class LighterProvider implements PerpsProvider {
             // UNKNOWN recorded BEFORE the wire — in memory AND durably
             // (awaited): a transport failure after venue commit, or
             // provider/process death, must still leave a reconciliation
-            // obligation. A failed durable write aborts the mutation.
+            // obligation resolvable by EXACT tx hash. A failed durable
+            // write, or a signing result without hash/expiry, aborts the
+            // mutation before submission.
+            const createIdentity = requireSignedTxIdentity(signed);
             const createAttempt: TpslCreateAttempt = {
               kind: 'create',
               nonce: createNonce,
               outcome: 'unknown',
               clientIds: [...createdClientIds],
+              txHash: createIdentity.txHash,
+              expiresAt: createIdentity.expiresAt,
+              role: 'replacement',
             };
             journal.attempts.push(createAttempt);
             this.#tpslUnsettled.set(settlementKey, journal);
@@ -2720,7 +3682,7 @@ export class LighterProvider implements PerpsProvider {
             // afterwards.
             const createVisibility = await this.#awaitTpslVisibility(
               readActiveRaw,
-              readInactiveRaw,
+              readInactiveFor,
               {
                 createdClientIds,
                 cancelledOrderIds: [],
@@ -2732,14 +3694,49 @@ export class LighterProvider implements PerpsProvider {
               );
             }
             if (createVisibility.outcome === 'created-terminal-failed') {
-              // The replacement never became active: existing protection
-              // is left untouched, and the obligation resolves so the
-              // user can retry.
+              // The replacement (or one OCO leg) failed before the old
+              // protection was touched. ROLL BACK any leg still resting
+              // active so the venue returns to exactly the prior
+              // protection, then resolve the obligation for a retry.
+              if (createVisibility.survivingActiveClientIds.length > 0) {
+                const activeNow = await readActiveRaw();
+                const survivorOrderIds: string[] = [];
+                for (const clientId of createVisibility.survivingActiveClientIds) {
+                  const survivor = activeNow.find(
+                    (order) =>
+                      String(order.clientOrderIndex) === String(clientId),
+                  );
+                  if (survivor) {
+                    survivorOrderIds.push(String(survivor.orderIndex));
+                    await submitTrackedCancel(
+                      String(survivor.orderIndex),
+                      'rollback',
+                    );
+                  }
+                }
+                const rollback = await this.#awaitTpslVisibility(
+                  readActiveRaw,
+                  readInactiveFor,
+                  { createdClientIds: [], cancelledOrderIds: survivorOrderIds },
+                );
+                if (rollback.outcome === 'timeout') {
+                  throw new Error(
+                    `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+                  );
+                }
+              }
               await this.#clearTpslJournal(settlementKey);
               throw new Error(
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
               );
             }
+            // Barrier-proved TERMINAL success is immutable: skip those ids
+            // in the final settlement check (no duplicate high-weight
+            // inactive read); active-at-barrier ids are still re-verified
+            // there (they can terminal-fail before the cancels settle).
+            createdIdsNeedingFinalCheck = createVisibility.executedCreated
+              ? []
+              : createdClientIds;
             if (createVisibility.executedCreated) {
               // The trigger EXECUTED before activation was observed (an
               // immediate/crossed TP/SL): not a failure — the position may
@@ -2753,40 +3750,7 @@ export class LighterProvider implements PerpsProvider {
           }
 
           for (const order of staleTriggers) {
-            const cancelNonce = await nextNonce();
-            const signedCancel =
-              await this.#getSignerBridge().execute<LighterTxResult>({
-                function: '_signCancelOrder',
-                params: [
-                  accountIndex,
-                  market.marketId,
-                  order.orderId,
-                  cancelNonce,
-                ],
-              });
-            if (signedCancel.error) {
-              throw new Error(
-                wantsReplacement
-                  ? `Replacement protection was created but stale trigger order ${order.orderId} could not be cancelled: ${signedCancel.error}`
-                  : `Failed to remove trigger order ${order.orderId}: ${signedCancel.error}`,
-              );
-            }
-            const cancelAttempt: TpslCancelAttempt = {
-              kind: 'cancel',
-              nonce: cancelNonce,
-              outcome: 'unknown',
-              orderId: order.orderId,
-            };
-            journal.attempts.push(cancelAttempt);
-            this.#tpslUnsettled.set(settlementKey, journal);
-            await persistJournal();
-            await submit(
-              LIGHTER_TX_TYPE_CANCEL_ORDER,
-              signedCancel.txInfo,
-              () => {
-                cancelAttempt.outcome = 'accepted';
-              },
-            );
+            await submitTrackedCancel(order.orderId, 'stale');
           }
 
           // Await authoritative visibility of the CANCELS before releasing
@@ -2795,14 +3759,11 @@ export class LighterProvider implements PerpsProvider {
           if (journal.attempts.length > 0) {
             const settled = await this.#awaitTpslVisibility(
               readActiveRaw,
-              readInactiveRaw,
+              readInactiveFor,
               {
-                createdClientIds: journal.attempts
-                  .filter(
-                    (attempt): attempt is TpslCreateAttempt =>
-                      attempt.kind === 'create',
-                  )
-                  .flatMap((attempt) => attempt.clientIds),
+                // Barrier-proved terminal successes are immutable and
+                // excluded; active-at-barrier ids are re-verified.
+                createdClientIds: createdIdsNeedingFinalCheck,
                 cancelledOrderIds: journal.attempts
                   .filter(
                     (attempt): attempt is TpslCancelAttempt =>
@@ -2818,12 +3779,38 @@ export class LighterProvider implements PerpsProvider {
             }
             if (settled.outcome === 'created-terminal-failed') {
               // Active at the phase barrier but venue-cancelled/rejected
-              // before the cancels settled: the terminal state is
-              // AUTHORITATIVE (journal may clear) but the replacement
-              // protection is NOT in place — never report success.
+              // AFTER the old protection was already cancelled. Never
+              // report success — and never leave the position naked.
+              if (settled.survivingActiveClientIds.length > 0) {
+                // One OCO leg survives: it is the only protection left —
+                // keep it and report the partial failure explicitly.
+                await this.#clearTpslJournal(settlementKey);
+                this.#assertSession(generationAtIntent);
+                throw new Error(
+                  `Lighter replacement TP/SL for ${params.symbol}: one protection leg was rejected by the venue after activation; the surviving leg remains active`,
+                );
+              }
+              // Fully failed: RESTORE the previous protection from the
+              // snapshotted stale triggers so the position is not naked.
+              for (const stale of staleTriggers) {
+                await submitTrackedRestoreCreate(stale);
+              }
+              const restoreVisibility = await this.#awaitTpslVisibility(
+                readActiveRaw,
+                readInactiveFor,
+                { createdClientIds: restoredClientIds, cancelledOrderIds: [] },
+              );
+              if (restoreVisibility.outcome !== 'settled') {
+                // Journal retained (restore attempts recorded): the next
+                // transition must reconcile before further mutation.
+                throw new Error(
+                  `Lighter replacement TP/SL for ${params.symbol} failed after activation and restoring the previous protection is not yet confirmed; further protection changes are blocked until the venue reflects it`,
+                );
+              }
               await this.#clearTpslJournal(settlementKey);
+              this.#assertSession(generationAtIntent);
               throw new Error(
-                `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after activation; protection is NOT in place — retry if desired`,
+                `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after activation; the previous protection was restored`,
               );
             }
             await this.#clearTpslJournal(settlementKey);

@@ -29,6 +29,7 @@ import type {
   LighterApiKeysResponse,
   LighterNetwork,
   LighterNextNonceResponse,
+  LighterTxLookupResponse,
   LighterOrderBookMeta,
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
@@ -216,6 +217,32 @@ export class LighterClientService {
   }
 
   /**
+   * Look up a transaction by its exact hash (`GET /api/v1/tx`). Used to
+   * resolve submission-acceptance ambiguity authoritatively: an exact-hash
+   * match proves the signed payload reached the sequencer.
+   *
+   * Contract: a venue-confirmed "transaction not found" (API error code
+   * 21500) resolves to NULL; transport failures and every other API error
+   * RETHROW — they are ambiguity, never evidence of non-acceptance.
+   *
+   * @param txHash - The signed transaction hash.
+   * @returns The venue's transaction payload, or null when the venue
+   * confirms the hash is unknown.
+   */
+  async getTx(txHash: string): Promise<LighterTxLookupResponse | null> {
+    try {
+      return await this.#get<LighterTxLookupResponse>(
+        `/api/v1/tx?by=hash&value=${encodeURIComponent(txHash)}`,
+      );
+    } catch (error) {
+      if (error instanceof LighterApiError && error.code === 21500) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Fetch active (open) orders for an account.
    *
    * @param accountIndex - The Lighter account index.
@@ -241,15 +268,22 @@ export class LighterClientService {
    * @param accountIndex - The Lighter account index.
    * @param authToken - Auth token minted by the signer.
    * @param limit - Max entries (1-100).
+   * @param cursor - Pagination cursor from a previous page's `nextCursor`.
+   * @param marketId - Optional market filter (official `market_id` query
+   * param) — sharply bounds history scans to one symbol.
    * @returns Inactive orders payload.
    */
   async getInactiveOrders(
     accountIndex: number,
     authToken: string,
     limit = 50,
+    cursor?: string,
+    marketId?: number,
   ): Promise<LighterInactiveOrdersResponse> {
     return await this.#get<LighterInactiveOrdersResponse>(
-      `/api/v1/accountInactiveOrders?account_index=${accountIndex}&limit=${limit}`,
+      `/api/v1/accountInactiveOrders?account_index=${accountIndex}&limit=${limit}${
+        cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`
+      }${marketId === undefined ? '' : `&market_id=${marketId}`}`,
       { authorization: authToken },
     );
   }
