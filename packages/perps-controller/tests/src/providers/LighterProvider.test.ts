@@ -1534,6 +1534,46 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('UpdateLeverage signing contract', () => {
+    it('signs exactly [accountIndex, marketId, imfHundredths, marginMode, nonce]', async () => {
+      // Regression: a patch artifact once injected a 6th argument before
+      // the nonce, shifting it and mis-signing every leverage-changing
+      // placement.
+      const { provider, bridge } = buildProvider();
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_signUpdateLeverage') {
+            return { txInfo: '{"updateLeverage":true}' };
+          }
+          return realImplementation(call);
+        },
+      );
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        leverage: 10,
+      });
+      expect(result.success).toBe(true);
+      const leverageCall = (bridge.execute as jest.Mock).mock.calls.find(
+        ([call]: [LighterWasmCall]) => call.function === '_signUpdateLeverage',
+      )?.[0] as LighterWasmCall;
+      expect(leverageCall).toBeDefined();
+      expect(leverageCall.params).toHaveLength(5);
+      expect(leverageCall.params[0]).toBe(28);
+      expect(leverageCall.params[1]).toBe(1);
+      expect(leverageCall.params[2]).toBe(1000);
+      expect(leverageCall.params[3]).toBe(0);
+      // Fifth param is the nonce from the shared write lock.
+      expect(leverageCall.params[4]).toBe(42);
+    });
+  });
+
   describe('client order index allocation', () => {
     it('parallel same-millisecond placements get unique increasing ids', async () => {
       const { provider, calls } = buildProvider();
@@ -1779,6 +1819,137 @@ describe('LighterProvider', () => {
       expect(exactExecution.success).toBe(true);
     });
 
+    it('validates limit closes at the caller price and rejects 0/NaN prices', async () => {
+      const { provider } = buildProvider();
+      for (const price of ['0', 'abc']) {
+        const result = await provider.validateClosePosition({
+          symbol: 'BTC',
+          orderType: 'limit',
+          price,
+        });
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain('Invalid limit price');
+      }
+    });
+
+    it('sizes market close validation at the FRESH venue price, not a stale snapshot', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.001' }],
+          },
+        ],
+      });
+      // Caller claims price 1 (which would make 0.0005 pass the $10 min);
+      // the fresh venue price is 100000, where 0.0005 BTC = $50 > min but
+      // 0.00005 = $5 < min. Validation must use the fresh price.
+      const result = await provider.validateClosePosition({
+        symbol: 'BTC',
+        size: '0.00005',
+        currentPrice: 1,
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('below the Lighter minimum');
+    });
+
+    it('preserves subscriber state when channel setup hits a capability gate', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
+      });
+      // The bound wallet resolves to a Premium account.
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [{ ...ACCOUNT, accountType: 1 }],
+      });
+      getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      StreamFakeWebSocket.instances = [];
+      const accountCallback = jest.fn();
+      const ordersCallback = jest.fn();
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: ordersCallback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // Capability gates are not "no data": no false-empty emissions.
+      expect(accountCallback).not.toHaveBeenCalled();
+      expect(ordersCallback).not.toHaveBeenCalled();
+      unsubscribeAccount();
+      unsubscribeOrders();
+    });
+
+    it('withholds a fills snapshot containing unsupported (nonzero-fee) fills', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [ACCOUNT],
+      });
+      getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      StreamFakeWebSocket.instances = [];
+      const fillsCallback = jest.fn();
+      const unsubscribe = provider.subscribeToOrderFills({
+        callback: fillsCallback,
+      });
+      await provider.getAccountState();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fillsCallback.mockClear();
+      // Snapshot with one supported and one unsupported (nonzero-fee) fill:
+      // emitting the partial remainder would overwrite valid history.
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'subscribed/account_all_trades',
+          channel: 'account_all_trades:28',
+          trades: {
+            '1': [
+              {
+                trade_id: 1,
+                market_id: 1,
+                size: '0.001',
+                price: '90000',
+                ask_id: 1,
+                bid_id: 2,
+                ask_account_id: 28,
+                bid_account_id: 7,
+                is_maker_ask: false,
+                timestamp: 1700000000000,
+              },
+              {
+                trade_id: 2,
+                market_id: 1,
+                size: '0.001',
+                price: '90000',
+                ask_id: 3,
+                bid_id: 4,
+                ask_account_id: 28,
+                bid_account_id: 7,
+                is_maker_ask: false,
+                timestamp: 1700000001000,
+                taker_fee: 45000,
+              },
+            ],
+          },
+        }),
+      });
+      expect(fillsCallback).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
     it('validateClosePosition rejects a close with no open position', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue({
@@ -2022,6 +2193,54 @@ describe('LighterProvider', () => {
       expect(
         lastSocket.sent.some((frame) => frame.includes('user_stats/28')),
       ).toBe(true);
+      unsubscribe();
+    });
+
+    it("an aborted setup auth failure never blanks the new session's order subscribers", async () => {
+      const { provider, clientInstance, getUserAddressMock, bridge } =
+        buildProvider({
+          webSocketCtor: fakeStreamCtor,
+          configuredAccountIndex: null,
+        });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      StreamFakeWebSocket.instances = [];
+      const ordersCallback = jest.fn();
+      // Stall then FAIL account A's auth-token mint.
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      let failAuthA: () => void = () => undefined;
+      let stallOnce = true;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_createAuthToken' && stallOnce) {
+            stallOnce = false;
+            await new Promise<void>((_resolve, reject) => {
+              failAuthA = (): void => reject(new Error('auth backend down'));
+            });
+          }
+          return realImplementation(call);
+        },
+      );
+      const unsubscribe = provider.subscribeToOrders({
+        callback: ordersCallback,
+      });
+      await provider.getAccountState(); // bind under A; channel setup stalls at auth
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // Switch to B; its own setup runs with working auth.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      ordersCallback.mockClear();
+      // A's stalled auth finally FAILS: its inner catch must not blank B.
+      failAuthA();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(ordersCallback).not.toHaveBeenCalledWith([], expect.anything());
+      expect(ordersCallback).not.toHaveBeenCalledWith([]);
       unsubscribe();
     });
 

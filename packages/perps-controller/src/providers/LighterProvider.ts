@@ -892,12 +892,17 @@ export class LighterProvider implements PerpsProvider {
   #lastClientOrderIndex = 0;
 
   /**
-   * Per-instance lane (0-99) mixed into every issued id so two provider
-   * instances created in the same millisecond (e.g. a fast provider
-   * recreation, or two devices on the same account) do not collide. The
-   * controller holds ONE LighterProvider per session, so within an app the
-   * allocator is effectively a singleton; the lane is defense in depth for
-   * the cross-instance cases, not a substitute for that scoping.
+   * Per-instance lane (0-99) mixed into every issued id.
+   *
+   * SCOPE OF THE GUARANTEE, stated precisely: uniqueness is primarily
+   * provided by the controller holding ONE LighterProvider per session —
+   * within that scope the allocator is monotonic and collision-free. The
+   * random lane only REDUCES the residual cross-instance risk (fast
+   * recreation, or two devices trading the same account in the same
+   * millisecond) to a 1-in-100 chance per simultaneous pair; it does NOT
+   * eliminate it. A wider lane cannot fit: uint48 leaves ~×160 headroom
+   * over Date.now(), so 100 lanes is the available budget. This residual
+   * risk is accepted and documented rather than claimed away.
    */
   readonly #clientOrderLane = Math.floor(Math.random() * 100);
 
@@ -1490,12 +1495,13 @@ export class LighterProvider implements PerpsProvider {
             const signedLeverage =
               await this.#getSignerBridge().execute<LighterTxResult>({
                 function: '_signUpdateLeverage',
+                // Contract: [accountIndex, marketId, imfHundredths,
+                // marginMode, nonce] — exactly five params.
                 params: [
                   accountIndex,
                   market.marketId,
                   leverageImfHundredths,
                   LIGHTER_MARGIN_MODE_CROSS,
-                  LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
                   await nextNonce(),
                 ],
               });
@@ -2355,10 +2361,22 @@ export class LighterProvider implements PerpsProvider {
         error: `No open Lighter position for ${params.symbol}`,
       };
     }
-    let referencePrice = parseFloat(
-      params.price ?? String(params.currentPrice ?? 0),
-    );
-    if (!(referencePrice > 0)) {
+    // Order-type-specific pricing, matching execution exactly: a LIMIT
+    // close is sized at the caller's price (which must be a finite
+    // positive number — never silently replaced by a live price the
+    // execution path would not use); a MARKET close always sizes at the
+    // FRESH venue price, exactly like placement, regardless of any
+    // caller-provided snapshot.
+    let referencePrice: number;
+    if ((params.orderType ?? 'market') === 'limit') {
+      referencePrice = parseFloat(params.price ?? '');
+      if (!Number.isFinite(referencePrice) || !(referencePrice > 0)) {
+        return {
+          isValid: false,
+          error: `Invalid limit price ${params.price}: must be a positive number`,
+        };
+      }
+    } else {
       const details = await this.#clientService.getOrderBookDetails();
       referencePrice =
         details.orderBookDetails.find((entry) => entry.symbol === params.symbol)
@@ -2621,7 +2639,12 @@ export class LighterProvider implements PerpsProvider {
             '[LighterProvider] orders channel skipped (no auth token)',
             { error: String(error) },
           );
-          this.#emitToOrderSubscribers([]);
+          // Only the CURRENT session may blank the order subscribers: an
+          // auth failure from an aborted previous-account setup must not
+          // overwrite the new account's live orders with [].
+          if (generation === this.#sessionGeneration) {
+            this.#emitToOrderSubscribers([]);
+          }
         }
       } catch (error) {
         this.#deps.debugLogger.log(
@@ -2632,6 +2655,13 @@ export class LighterProvider implements PerpsProvider {
         // previous-account setup must not overwrite the new account's data
         // with empty emissions.
         if (generation !== this.#sessionGeneration) {
+          return;
+        }
+        // Capability gates (Premium/unverified tier, cross-owner config)
+        // are not "no data": emitting empty state for them would present
+        // false emptiness where reads surface an explicit error. Preserve
+        // whatever the subscribers last saw and only log.
+        if (this.#isUnsupportedCapabilityError(error)) {
           return;
         }
         for (const subscriber of this.#accountSubscribers) {
@@ -3025,6 +3055,7 @@ export class LighterProvider implements PerpsProvider {
     }
     const isSnapshot = (message.type ?? '').startsWith('subscribed');
     const fills: OrderFill[] = [];
+    let droppedUnsupportedFill = false;
     for (const marketTrades of Object.values(message.trades ?? {})) {
       for (const trade of marketTrades) {
         const symbol =
@@ -3032,14 +3063,14 @@ export class LighterProvider implements PerpsProvider {
           String(trade.marketId);
         // One adapter serves REST history and the live stream so pnl,
         // fees, and direction vocabulary can never diverge between them.
-        // A capability-refused fill (unverified nonzero fee) is dropped
-        // with a log instead of crashing the event handler — but is never
-        // rendered with a false zero fee.
+        // A capability-refused fill (unverified nonzero fee) must never be
+        // rendered with a false zero fee, nor crash the event handler.
         try {
           fills.push(
             adaptFillFromLighterTrade(trade, symbol, this.#accountIndex ?? -1),
           );
         } catch (error) {
+          droppedUnsupportedFill = true;
           this.#deps.debugLogger.log(
             '[LighterProvider] dropped unsupported fill from stream',
             { tradeId: trade.tradeId, error: String(error) },
@@ -3048,6 +3079,16 @@ export class LighterProvider implements PerpsProvider {
       }
     }
     if (fills.length === 0 && !isSnapshot) {
+      return;
+    }
+    // A snapshot that lost fills to a capability refusal is PARTIAL:
+    // emitting it would overwrite valid cached history with false
+    // emptiness. Preserve what subscribers already have; REST reads
+    // surface the capability error explicitly.
+    if (isSnapshot && droppedUnsupportedFill) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] withholding partial fills snapshot (unsupported fills present)',
+      );
       return;
     }
     for (const subscriber of this.#fillSubscribers) {
