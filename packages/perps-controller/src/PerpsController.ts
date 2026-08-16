@@ -1147,7 +1147,10 @@ export class PerpsController extends BaseController<
    * Check if the Lighter provider is enabled.
    *
    * Local override (`providerCredentials.lighter.enabled`) wins; otherwise
-   * the remote `perpsLighterProviderEnabled` feature flag decides.
+   * the remote `perpsLighterProviderEnabled` feature flag decides — but only
+   * for clients that wired the venue signer bridge. A remote flag must not
+   * be able to register a trading provider the client never mounted a
+   * signer for (the gates would otherwise split between core and client).
    *
    * @returns True if the condition is met.
    */
@@ -1156,6 +1159,9 @@ export class PerpsController extends BaseController<
 
     if (lighter?.enabled) {
       return true;
+    }
+    if (!lighter?.signerBridge) {
+      return false;
     }
 
     try {

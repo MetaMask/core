@@ -137,6 +137,7 @@ type MockClientInstance = {
  * @param options.registeredKey - Pubkey the mocked apikeys endpoint reports.
  * @param options.webSocketCtor - Transport override (null = REST polling).
  * @param options.isTestnet - Network the provider targets (defaults to testnet).
+ * @param options.configuredAccountIndex - Account index override; null forces resolution via accountsByL1Address.
  * @returns Provider and its collaborators.
  */
 function buildProvider(
@@ -145,18 +146,22 @@ function buildProvider(
     registeredKey?: string;
     webSocketCtor?: LighterWebSocketCtor | null;
     isTestnet?: boolean;
+    /** Pass null to force account resolution through accountsByL1Address. */
+    configuredAccountIndex?: number | null;
   } = {},
 ): {
   provider: LighterProvider;
   clientInstance: MockClientInstance;
   bridge: LighterSignerBridge;
   calls: LighterWasmCall[];
+  getUserAddressMock: jest.Mock;
 } {
   const {
     withBridge = true,
     registeredKey,
     webSocketCtor,
     isTestnet = true,
+    configuredAccountIndex = 28,
   } = options;
   const clientInstance = {
     network: 'testnet',
@@ -292,12 +297,13 @@ function buildProvider(
   MockedClientService.mockImplementation(
     () => clientInstance as unknown as LighterClientService,
   );
+  const getUserAddressMock = jest
+    .fn()
+    .mockReturnValue('0x8D7f03FdE1A626223364E592740a233b72395235');
   MockedWalletService.mockImplementation(
     () =>
       ({
-        getUserAddress: jest
-          .fn()
-          .mockReturnValue('0x8D7f03FdE1A626223364E592740a233b72395235'),
+        getUserAddress: getUserAddressMock,
         deriveKeySeedPlain: jest.fn().mockResolvedValue('ab'.repeat(32)),
         signPersonalMessage: jest
           .fn()
@@ -310,14 +316,59 @@ function buildProvider(
   const provider = new LighterProvider({
     isTestnet,
     platformDependencies: createMockInfrastructure(),
-    lighterAuthConfig: { accountIndex: 28, apiKeyIndex: 7 },
+    lighterAuthConfig: {
+      ...(configuredAccountIndex === null
+        ? {}
+        : { accountIndex: configuredAccountIndex }),
+      apiKeyIndex: 7,
+    },
     // Tests default to the REST-polling transport; the WS suite injects a fake.
     webSocketCtor: webSocketCtor ?? null,
     ...(withBridge ? { signerBridge: bridge } : {}),
   });
 
-  return { provider, clientInstance, bridge, calls };
+  return { provider, clientInstance, bridge, calls, getUserAddressMock };
 }
+
+/** Module-scope WS fake for suites outside the price-streaming describe. */
+class StreamFakeWebSocket implements LighterWebSocketLike {
+  static instances: StreamFakeWebSocket[] = [];
+
+  readyState = 0;
+
+  sent: string[] = [];
+
+  onopen: (() => void) | null = null;
+
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+
+  onclose: (() => void) | null = null;
+
+  onerror: (() => void) | null = null;
+
+  url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    StreamFakeWebSocket.instances.push(this);
+  }
+
+  send = (data: string): void => {
+    this.sent.push(data);
+  };
+
+  close = (): void => {
+    this.readyState = 3;
+    this.onclose?.();
+  };
+
+  open = (): void => {
+    this.readyState = 1;
+    this.onopen?.();
+  };
+}
+
+const fakeStreamCtor = StreamFakeWebSocket as unknown as LighterWebSocketCtor;
 
 describe('LighterProvider', () => {
   beforeEach(() => {
@@ -952,6 +1003,90 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('session binding', () => {
+    it('does not let a stale account lookup poison the session after an account switch', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      const accountA = { ...ACCOUNT, index: 28 };
+      const accountB = { ...ACCOUNT, index: 900 };
+      // Account A's lookup is slow; B's resolves immediately.
+      let resolveLookupA: (value: unknown) => void = () => undefined;
+      clientInstance.getAccountsByL1Address
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveLookupA = resolve;
+            }),
+        )
+        .mockResolvedValue({
+          code: 200,
+          l1Address: '0xbbbb',
+          subAccounts: [accountB],
+        });
+
+      // Start a read under account A (lookup hangs in flight).
+      const readUnderA = provider.getAccountState();
+      // Wallet switches to account B; a new read rebinds the session and
+      // resolves B's index.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      // A's lookup finally resolves — it must NOT overwrite B's session.
+      resolveLookupA({
+        code: 200,
+        l1Address: accountA.l1Address,
+        subAccounts: [accountA],
+      });
+      await readUnderA;
+
+      const accountReads = clientInstance.getAccountByIndex.mock.calls.map(
+        (call) => call[0],
+      );
+      expect(accountReads).not.toContain(28);
+      expect(accountReads).toContain(900);
+    });
+
+    it('rebuilds stream channels for existing subscribers after an account switch', async () => {
+      const { provider, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+      });
+      StreamFakeWebSocket.instances = [];
+      const unsubscribePrices = provider.subscribeToPrices({
+        symbols: [],
+        callback: jest.fn(),
+      });
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: jest.fn(),
+      });
+      StreamFakeWebSocket.instances[0].open();
+      await new Promise((resolve) => process.nextTick(resolve));
+      expect(StreamFakeWebSocket.instances[0].sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+      );
+
+      // Wallet switches accounts; any session-bound call triggers rebind.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      // A replacement socket must exist and re-subscribe the channels the
+      // surviving subscribers imply — for the NEW account.
+      const replacement =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      expect(StreamFakeWebSocket.instances.length).toBeGreaterThan(1);
+      replacement.open();
+      await new Promise((resolve) => process.nextTick(resolve));
+      await new Promise((resolve) => process.nextTick(resolve));
+      expect(replacement.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+      );
+      expect(
+        replacement.sent.some((frame) => frame.includes('user_stats/')),
+      ).toBe(true);
+
+      unsubscribePrices();
+      unsubscribeAccount();
+    });
+  });
+
   describe('history and routes', () => {
     it('getOrders merges open orders with the historical lifecycle', async () => {
       const { provider, clientInstance } = buildProvider();
@@ -1071,13 +1206,32 @@ describe('LighterProvider', () => {
       });
     });
 
-    it('returns coarse calculations', async () => {
+    it('derives estimates instead of returning false zeros', async () => {
       const { provider } = buildProvider();
+      // Maintenance fraction: half the initial margin at max leverage.
+      expect(
+        await provider.calculateMaintenanceMargin({} as never),
+      ).toBeCloseTo(1 / (2 * 50));
+      // Standard cross approximation: long 10x from 100 → 100*(1-0.1+0.01).
+      expect(
+        parseFloat(
+          await provider.calculateLiquidationPrice({
+            entryPrice: 100,
+            leverage: 10,
+            direction: 'long',
+          }),
+        ),
+      ).toBeCloseTo(91);
       expect(await provider.calculateLiquidationPrice({} as never)).toBe('0');
-      expect(await provider.calculateMaintenanceMargin({} as never)).toBe(0);
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
-      const fees = await provider.calculateFees({} as never);
-      expect(fees.protocolFeeRate).toBe(0);
+      // Fee rates come from the venue's per-market metadata (currently 0).
+      const fees = await provider.calculateFees({
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '100',
+      });
+      expect(fees.protocolFeeRate).toBe(parseFloat(BTC_MARKET.takerFee));
+      expect(fees.feeAmount).toBe(100 * parseFloat(BTC_MARKET.takerFee));
     });
 
     it('returns immediate empty snapshots from subscriptions', async () => {
