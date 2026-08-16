@@ -1699,6 +1699,60 @@ async function phaseTpsl(result: PhaseResult): Promise<void> {
   );
   check(result, 'TP and SL trigger orders visible', true);
 
+  // REPLACEMENT while triggers exist: proves the venue accepts creating
+  // the new reduce-only protection BEFORE the old triggers are cancelled
+  // (create-first ordering), and that the old pair is cancelled after.
+  const replacementTpPrice = Number(
+    (lastPrice * 1.6).toFixed(meta.supportedPriceDecimals),
+  );
+  const replacementSlPrice = Number(
+    (lastPrice * 0.4).toFixed(meta.supportedPriceDecimals),
+  );
+  const replaced = await provider.updatePositionTPSL({
+    symbol: MARKET,
+    takeProfitPrice: String(replacementTpPrice),
+    stopLossPrice: String(replacementSlPrice),
+  });
+  check(
+    result,
+    'TP/SL replacement (create-before-cancel) submits',
+    Boolean(replaced.success),
+    replaced.error,
+  );
+  // Trigger orders report the ±5% protection execution price in `price`;
+  // the user-facing TP/SL level is `triggerPrice` — assert on that.
+  const triggerNear = (
+    order: { triggerPrice?: string },
+    target: number,
+  ): boolean =>
+    order.triggerPrice !== undefined &&
+    Math.abs(parseFloat(order.triggerPrice) - target) < lastPrice * 0.01;
+  await poll(
+    'replacement settles to exactly the new TP+SL pair with the old pair gone',
+    async () => await provider.getOpenOrders(),
+    (orders) => {
+      const triggers = orders.filter(
+        (order) => order.symbol === MARKET && order.isTrigger,
+      );
+      // Strict: BOTH replacement trigger levels present, BOTH old levels
+      // absent, and nothing else — "two triggers + some new TP" could
+      // false-pass as new TP + old SL after a partial cancellation.
+      return (
+        triggers.length === 2 &&
+        triggers.some((order) => triggerNear(order, replacementTpPrice)) &&
+        triggers.some((order) => triggerNear(order, replacementSlPrice)) &&
+        !triggers.some((order) => triggerNear(order, tpPrice)) &&
+        !triggers.some((order) => triggerNear(order, slPrice))
+      );
+    },
+    90_000,
+  );
+  check(
+    result,
+    'both old triggers cancelled after both replacements created',
+    true,
+  );
+
   const removed = await provider.updatePositionTPSL({ symbol: MARKET });
   check(
     result,
@@ -1715,6 +1769,73 @@ async function phaseTpsl(result: PhaseResult): Promise<void> {
     45_000,
   );
   check(result, 'trigger orders removed', true);
+
+  // SINGLE-trigger contract: a lone SL must submit as an ordinary
+  // CreateOrder trigger (the venue rejects CreateGroupedOrders with
+  // grouping type 0), and a single->single replacement must land on the
+  // new trigger with the old one gone.
+  const singleSlPrice = Number(
+    (lastPrice * 0.45).toFixed(meta.supportedPriceDecimals),
+  );
+  const singleAttached = await provider.updatePositionTPSL({
+    symbol: MARKET,
+    stopLossPrice: String(singleSlPrice),
+  });
+  check(
+    result,
+    'single SL submits as ordinary trigger order',
+    Boolean(singleAttached.success),
+    singleAttached.error,
+  );
+  await poll(
+    'single SL trigger visible at its trigger level',
+    async () => await provider.getOpenOrders(),
+    (orders) => {
+      const triggers = orders.filter(
+        (order) => order.symbol === MARKET && order.isTrigger,
+      );
+      return triggers.length === 1 && triggerNear(triggers[0], singleSlPrice);
+    },
+    45_000,
+  );
+  const singleTpPrice = Number(
+    (lastPrice * 1.55).toFixed(meta.supportedPriceDecimals),
+  );
+  const singleReplaced = await provider.updatePositionTPSL({
+    symbol: MARKET,
+    takeProfitPrice: String(singleTpPrice),
+  });
+  check(
+    result,
+    'single TP replaces single SL (create-before-cancel)',
+    Boolean(singleReplaced.success),
+    singleReplaced.error,
+  );
+  await poll(
+    'single replacement settles to exactly the new TP with the old SL gone',
+    async () => await provider.getOpenOrders(),
+    (orders) => {
+      const triggers = orders.filter(
+        (order) => order.symbol === MARKET && order.isTrigger,
+      );
+      // count===1 alone could false-pass as the OLD SL surviving a failed
+      // create/cancel pair; the sole trigger must be the NEW TP level.
+      return (
+        triggers.length === 1 &&
+        triggerNear(triggers[0], singleTpPrice) &&
+        !triggerNear(triggers[0], singleSlPrice)
+      );
+    },
+    90_000,
+  );
+  check(result, 'single-trigger replacement settled on the new TP', true);
+  const singleRemoved = await provider.updatePositionTPSL({ symbol: MARKET });
+  check(
+    result,
+    'single trigger removal succeeds',
+    Boolean(singleRemoved.success),
+    singleRemoved.error,
+  );
 
   const closed = await provider.closePosition({
     symbol: MARKET,

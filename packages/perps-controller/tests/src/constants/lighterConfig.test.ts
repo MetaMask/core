@@ -108,11 +108,13 @@ describe('lighterConfig', () => {
       );
     });
 
-    it('throws on positive values that round to wire zero', () => {
-      // Sub-tick intent: positive in human units, zero on the wire — the
-      // venue would receive a zero price/size/amount.
-      expect(() => toLighterInteger(0.04, 1)).toThrow('rounds to zero');
-      expect(() => toLighterInteger(1e-9, 5)).toThrow('rounds to zero');
+    it('returns zero/negative results as-is (positivity policy lives in the signer wrapper)', () => {
+      // Generic converter contract: range-checked but sign-agnostic. The
+      // provider's internal signer-wire wrapper enforces positive intent.
+      expect(toLighterInteger(0.04, 1)).toBe(0);
+      expect(toLighterInteger(1e-9, 5)).toBe(0);
+      // Math.round rounds -.5 toward +Infinity.
+      expect(toLighterInteger(-187.25, 1)).toBe(-1872);
     });
 
     it('round-trips wire integers back to human values', () => {

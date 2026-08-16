@@ -148,17 +148,54 @@ import {
 // Constants
 // ============================================================================
 
+/** Full-string decimal/scientific literal (optional sign and exponent). */
+const STRICT_DECIMAL_PATTERN =
+  /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
+
+/**
+ * Parse a caller-supplied numeric string STRICTLY: the entire trimmed
+ * string must be a decimal/scientific literal. parseFloat prefix-parses,
+ * so '10USD' or '0.001BTC' would silently become signed intent.
+ *
+ * @param value - Raw string from params.
+ * @returns The parsed number, or null when the string is not a pure
+ * numeric literal.
+ */
+const parseStrictDecimal = (value: string): number | null => {
+  const trimmed = value.trim();
+  return STRICT_DECIMAL_PATTERN.test(trimmed) ? parseFloat(trimmed) : null;
+};
+
 /**
  * Parse caller-supplied numeric intent, accepting only finite positive
- * values: parseFloat accepts 'Infinity', and a bare > 0 check lets it
- * through to integerization/signing.
+ * values from a strictly numeric string.
  *
  * @param value - Raw numeric string from params.
- * @returns The parsed number, or null when non-finite or non-positive.
+ * @returns The parsed number, or null when malformed, non-finite or
+ * non-positive.
  */
 const parseFinitePositive = (value: string): number | null => {
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  const parsed = parseStrictDecimal(value);
+  return parsed !== null && Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : null;
+};
+
+/**
+ * Integerize a SIGNER-BOUND value: the scaled result must be a positive
+ * safe wire integer. The positive-intent policy lives here, not in the
+ * generic public converter.
+ *
+ * @param value - Human-units value.
+ * @param decimals - Market/asset decimals.
+ * @returns The positive wire integer.
+ */
+const toSignerWireInteger = (value: number, decimals: number): number => {
+  const scaled = toLighterInteger(value, decimals);
+  if (scaled < 1) {
+    throw new Error(`Value ${value} rounds to zero at ${decimals} decimals`);
+  }
+  return scaled;
 };
 
 /**
@@ -1445,7 +1482,16 @@ export class LighterProvider implements PerpsProvider {
         return { success: false, error: 'Limit order requires a price' };
       }
       if (params.leverage !== undefined) {
-        const maxLeverage = await this.getMaxLeverage(params.symbol);
+        // Authoritative metadata REQUIRED: the display fallback (global
+        // 50x) must never approve leverage for a market whose published
+        // bound is unavailable.
+        const maxLeverage = await this.#requireMarketMaxLeverage(params.symbol);
+        if (maxLeverage === null) {
+          return {
+            success: false,
+            error: `Cannot validate leverage for ${params.symbol}: venue margin metadata unavailable`,
+          };
+        }
         if (params.leverage > maxLeverage) {
           return {
             success: false,
@@ -1464,9 +1510,23 @@ export class LighterProvider implements PerpsProvider {
       // a protection price offset by the slippage tolerance. They are kept
       // separate so usdAmount sizing is never distorted by the protection
       // offset.
-      let referencePrice = parseFloat(
-        params.price ?? String(params.currentPrice ?? 0),
-      );
+      let referencePrice: number;
+      if (params.orderType === 'limit') {
+        // STRICT full-string parse: '90000USD' prefix-parses under
+        // parseFloat and must never become signed intent.
+        const parsedLimitPrice = parseFinitePositive(params.price ?? '');
+        if (parsedLimitPrice === null) {
+          return {
+            success: false,
+            error: `Invalid limit price ${params.price}: must be a positive number`,
+          };
+        }
+        referencePrice = parsedLimitPrice;
+      } else {
+        referencePrice = parseFloat(
+          params.price ?? String(params.currentPrice ?? 0),
+        );
+      }
       let executionPrice = referencePrice;
       if (params.orderType === 'market') {
         const resolved = await this.#resolveMarketReferencePrice(
@@ -1542,15 +1602,19 @@ export class LighterProvider implements PerpsProvider {
 
       // Wire-format integerization runs BEFORE signer setup: overflow and
       // sub-tick rejections throw here, still with zero bridge calls.
-      const priceInt = toLighterInteger(
+      const priceInt = toSignerWireInteger(
         executionPrice,
         market.supportedPriceDecimals,
       );
-      const sizeInt = toLighterInteger(size, market.supportedSizeDecimals);
+      const sizeInt = toSignerWireInteger(size, market.supportedSizeDecimals);
 
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
 
       // Intent validated — only now do signer and account setup run.
+      // Re-fence FIRST: the preflight awaited public/account reads during
+      // which the wallet may have switched, and a stale intent must never
+      // create or register the new account's venue key.
+      this.#assertSession(generationAtIntent);
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
@@ -1933,148 +1997,196 @@ export class LighterProvider implements PerpsProvider {
         };
       }
 
-      // Prevalidate the REPLACEMENT protection before any signer setup or
-      // cancellation: parsing/integerization failures discovered after the
-      // existing triggers are dropped would leave the position naked.
-      // Both the trigger and its ±5% execution price must be finite,
-      // positive, and representable (non-zero) on the wire.
-      const positionIsLong = parseFloat(position.size) > 0;
-      for (const [label, raw] of [
-        ['takeProfitPrice', params.takeProfitPrice],
-        ['stopLossPrice', params.stopLossPrice],
-      ] as const) {
-        if (!raw) {
-          continue;
-        }
-        const trigger = parseFinitePositive(raw);
-        if (trigger === null) {
+      // FULL local preflight: construct the entire deterministic
+      // replacement payload BEFORE signer setup, the open-orders read and
+      // any cancellation. Everything that can fail locally — venue
+      // position-size parsing/integerization, trigger/execution price
+      // parsing/integerization, bounded client-id allocation — must fail
+      // while the existing protection is still in place.
+      const wantsReplacement =
+        Boolean(params.takeProfitPrice) || Boolean(params.stopLossPrice);
+      let groupedPayload: (string | number)[] | null = null;
+      let groupedOrderCount = 0;
+      let groupedType = 0;
+      if (wantsReplacement) {
+        // getPositions does not validate venue sizes; a non-finite or
+        // sub-tick size must abort here, not after the cancels.
+        const signedSize = parseFloat(position.size);
+        if (!Number.isFinite(signedSize) || signedSize === 0) {
           return {
             success: false,
-            error: `Invalid ${label} ${raw}: must be a positive number`,
+            error: `Invalid live position size ${position.size} for ${params.symbol}`,
           };
         }
-        const execution = positionIsLong ? trigger * 0.95 : trigger * 1.05;
-        toLighterInteger(trigger, market.supportedPriceDecimals);
-        toLighterInteger(execution, market.supportedPriceDecimals);
+        const isLong = signedSize > 0;
+        const coverSize = Math.abs(signedSize);
+        const sizeInt = toSignerWireInteger(
+          coverSize,
+          market.supportedSizeDecimals,
+        );
+        // Closing side is opposite the position; trigger market orders
+        // execute at a protection price 5% beyond the trigger in the taker
+        // direction.
+        const isAsk = isLong ? 1 : 0;
+        const orderIntents: {
+          orderType: number;
+          raw: string;
+          label: string;
+        }[] = [];
+        if (params.takeProfitPrice) {
+          orderIntents.push({
+            orderType: LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+            raw: params.takeProfitPrice,
+            label: 'takeProfitPrice',
+          });
+        }
+        if (params.stopLossPrice) {
+          orderIntents.push({
+            orderType: LIGHTER_ORDER_TYPE_STOP_LOSS,
+            raw: params.stopLossPrice,
+            label: 'stopLossPrice',
+          });
+        }
+        const validatedOrders: {
+          orderType: number;
+          execInt: number;
+          triggerInt: number;
+        }[] = [];
+        for (const intent of orderIntents) {
+          const trigger = parseFinitePositive(intent.raw);
+          if (trigger === null) {
+            return {
+              success: false,
+              error: `Invalid ${intent.label} ${intent.raw}: must be a positive number`,
+            };
+          }
+          const execution = isLong ? trigger * 0.95 : trigger * 1.05;
+          validatedOrders.push({
+            orderType: intent.orderType,
+            execInt: toSignerWireInteger(
+              execution,
+              market.supportedPriceDecimals,
+            ),
+            triggerInt: toSignerWireInteger(
+              trigger,
+              market.supportedPriceDecimals,
+            ),
+          });
+        }
+        // Only the ids actually required: allocation attempts are bounded
+        // and a degenerate RNG must exhaust BEFORE any cancellation.
+        const clientOrderIds = this.#allocateClientOrderIndexes(
+          validatedOrders.length,
+        );
+        // VENUE CONTRACT (proven live: 'GroupingType is not valid'):
+        // CreateGroupedOrders only accepts grouping types 1/2/3 and OCO
+        // requires two siblings, so a SINGLE TP or SL must be an ordinary
+        // CreateOrder trigger; grouped OCO is reserved for both together.
+        groupedPayload = validatedOrders.flatMap((entry, index) => [
+          market.marketId,
+          clientOrderIds[index],
+          String(sizeInt),
+          String(entry.execInt),
+          isAsk,
+          entry.orderType,
+          LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+          1,
+          String(entry.triggerInt),
+          // Trigger orders rest until fired: the signer expands the -1
+          // sentinel to the 28-day default expiry.
+          LIGHTER_ORDER_EXPIRY_NONE,
+        ]);
+        groupedOrderCount = validatedOrders.length;
+        groupedType =
+          groupedOrderCount === 2 ? LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER : 0;
       }
 
+      // Re-fence BEFORE signer setup: the preflight awaited public reads
+      // during which the wallet may have switched, and a stale intent must
+      // never create or register the new account's venue key.
+      this.#assertSession(generationAtIntent);
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
 
-      // Replace semantics: drop existing reduce-only trigger orders first.
+      // Snapshot the existing reduce-only triggers BEFORE creating the
+      // replacement so only pre-existing protection is cancelled below.
       // The nested cancels inherit THIS operation's generation: after an
       // account switch they abort instead of cancelling the new account's
       // orders from a list read under the old one.
       const openOrders = await this.getOpenOrders();
       this.#assertSession(generationAtIntent);
-      for (const order of openOrders) {
-        if (
+      const staleTriggers = openOrders.filter(
+        (order) =>
           order.symbol === params.symbol &&
           order.reduceOnly &&
           (Boolean(order.orderType?.includes('stop')) ||
             Boolean(order.orderType?.includes('take')) ||
-            order.isTrigger === true)
-        ) {
-          const cancelled = await this.cancelOrder(
-            {
-              orderId: order.orderId,
-              symbol: params.symbol,
-            },
-            generationAtIntent,
-          );
-          if (!cancelled.success) {
-            return {
-              success: false,
-              error: `Failed to replace existing trigger order ${order.orderId}: ${cancelled.error ?? 'unknown'}`,
-            };
-          }
+            order.isTrigger === true),
+      );
+
+      // CREATE FIRST, cancel after: if signing or submission of the new
+      // protection fails, the old triggers were never touched and the
+      // position is never left naked. The temporary overlap is safe —
+      // both sets are reduce-only and clamp to the position. Only the
+      // account index and nonce are late-bound into the preflight payload.
+      if (wantsReplacement && groupedPayload !== null) {
+        const payload = groupedPayload;
+        const isSingleTrigger = groupedOrderCount === 1;
+        await this.#withVenueNonce(
+          accountIndex,
+          async (nonce, submit) => {
+            // A lone trigger is an ordinary CreateOrder (same wire layout);
+            // only a TP+SL pair uses the grouped OCO transaction.
+            const signed =
+              await this.#getSignerBridge().execute<LighterTxResult>(
+                isSingleTrigger
+                  ? {
+                      function: '_signCreateOrder',
+                      params: [accountIndex, ...payload, nonce],
+                    }
+                  : {
+                      function: '_signCreateGroupedOrders',
+                      params: [
+                        accountIndex,
+                        groupedType,
+                        groupedOrderCount,
+                        ...payload,
+                        nonce,
+                      ],
+                    },
+              );
+            if (signed.error) {
+              throw new Error(signed.error);
+            }
+            return await submit(
+              isSingleTrigger
+                ? LIGHTER_TX_TYPE_CREATE_ORDER
+                : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+              signed.txInfo,
+            );
+          },
+          generationAtIntent,
+        );
+      }
+
+      for (const order of staleTriggers) {
+        const cancelled = await this.cancelOrder(
+          {
+            orderId: order.orderId,
+            symbol: params.symbol,
+          },
+          generationAtIntent,
+        );
+        if (!cancelled.success) {
+          return {
+            success: false,
+            error: wantsReplacement
+              ? `Replacement protection was created but stale trigger order ${order.orderId} could not be cancelled: ${cancelled.error ?? 'unknown'}`
+              : `Failed to remove trigger order ${order.orderId}: ${cancelled.error ?? 'unknown'}`,
+          };
         }
       }
-      if (!params.takeProfitPrice && !params.stopLossPrice) {
-        return { success: true };
-      }
-
-      const signedSize = parseFloat(position.size);
-      const isLong = signedSize > 0;
-      const coverSize = Math.abs(signedSize);
-      const sizeInt = toLighterInteger(coverSize, market.supportedSizeDecimals);
-      // Closing side is opposite the position; trigger market orders execute
-      // at a protection price 5% beyond the trigger in the taker direction.
-      const isAsk = isLong ? 1 : 0;
-      const buildOrder = (
-        orderType: number,
-        triggerPriceRaw: string,
-        clientOrderIndex: number,
-      ): (string | number)[] => {
-        const trigger = parseFloat(triggerPriceRaw);
-        const execution = isLong ? trigger * 0.95 : trigger * 1.05;
-        return [
-          market.marketId,
-          clientOrderIndex,
-          String(sizeInt),
-          String(toLighterInteger(execution, market.supportedPriceDecimals)),
-          isAsk,
-          orderType,
-          LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
-          1,
-          String(toLighterInteger(trigger, market.supportedPriceDecimals)),
-          // Trigger orders rest until fired: use the 28-day default expiry.
-          LIGHTER_ORDER_EXPIRY_NONE,
-        ];
-      };
-
-      const [takeProfitIndex, stopLossIndex] =
-        this.#allocateClientOrderIndexes(2);
-      const grouped: (string | number)[] = [];
-      let orderCount = 0;
-      if (params.takeProfitPrice) {
-        grouped.push(
-          ...buildOrder(
-            LIGHTER_ORDER_TYPE_TAKE_PROFIT,
-            params.takeProfitPrice,
-            takeProfitIndex,
-          ),
-        );
-        orderCount += 1;
-      }
-      if (params.stopLossPrice) {
-        grouped.push(
-          ...buildOrder(
-            LIGHTER_ORDER_TYPE_STOP_LOSS,
-            params.stopLossPrice,
-            stopLossIndex,
-          ),
-        );
-        orderCount += 1;
-      }
-      const groupingType =
-        orderCount === 2 ? LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER : 0;
-      await this.#withVenueNonce(
-        accountIndex,
-        async (nonce, submit) => {
-          const signed = await this.#getSignerBridge().execute<LighterTxResult>(
-            {
-              function: '_signCreateGroupedOrders',
-              params: [
-                accountIndex,
-                groupingType,
-                orderCount,
-                ...grouped,
-                nonce,
-              ],
-            },
-          );
-          if (signed.error) {
-            throw new Error(signed.error);
-          }
-          return await submit(
-            LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
-            signed.txInfo,
-          );
-        },
-        generationAtIntent,
-      );
       return { success: true };
     } catch (error) {
       const wrappedError = ensureError(
@@ -2104,7 +2216,9 @@ export class LighterProvider implements PerpsProvider {
           error: `Unknown Lighter market: ${params.symbol}`,
         };
       }
-      const amount = parseFloat(params.amount);
+      // Strict full-string parse: '5USD' must not prefix-parse into
+      // signed intent. Signed values are meaningful here (add/remove).
+      const amount = parseStrictDecimal(params.amount) ?? Number.NaN;
       if (!Number.isFinite(amount) || amount === 0) {
         return {
           success: false,
@@ -2114,7 +2228,10 @@ export class LighterProvider implements PerpsProvider {
       // USDC uses 6 decimals. Integerize BEFORE signer setup so a huge
       // finite amount fails closed with zero bridge calls instead of
       // raw-scaling to an unsafe integer inside signer params.
-      const marginAmountInt = toLighterInteger(Math.abs(amount), 6);
+      const marginAmountInt = toSignerWireInteger(Math.abs(amount), 6);
+      // Re-fence before signer setup: the market lookup above awaited, and
+      // a stale intent must never initialize the new account's signer.
+      this.#assertSession(generationAtIntent);
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       // USDC uses 6 decimals; direction 1 adds isolated margin, 0 removes it
@@ -2160,10 +2277,23 @@ export class LighterProvider implements PerpsProvider {
       if (amount === null) {
         return { success: false, error: 'withdraw requires a positive amount' };
       }
+      // Enforce the advertised route minimum: getWithdrawalRoutes reports
+      // minWithdrawUsdc, and signing below it would either burn a nonce on
+      // a venue rejection or strand dust.
+      const minWithdraw = parseFloat(
+        LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet']
+          .minWithdrawUsdc,
+      );
+      if (amount < minWithdraw) {
+        return {
+          success: false,
+          error: `Withdrawal amount ${params.amount} is below the Lighter minimum of ${minWithdraw} USDC`,
+        };
+      }
       // USDC uses 6 decimals on zkLighter. Integerize BEFORE signer setup:
       // overflow/sub-tick amounts fail closed with zero bridge calls,
       // matching validateWithdrawal exactly.
-      const assetAmount = String(toLighterInteger(amount, 6));
+      const assetAmount = String(toSignerWireInteger(amount, 6));
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       const result = await this.#withVenueNonce(
@@ -2456,12 +2586,12 @@ export class LighterProvider implements PerpsProvider {
       return { isValid: false, error: 'Limit order requires a price' };
     }
     if (params.orderType === 'limit' && params.price !== undefined) {
-      const limitPrice = parseFloat(params.price);
-      // Finite parity with placement, LIMIT ONLY: 'Infinity' passes a bare
-      // > 0 check but placement refuses to integerize/sign it. Market
-      // placement ignores params.price entirely (fresh venue price), so
-      // rejecting it here would fail orders placement accepts.
-      if (!Number.isFinite(limitPrice) || !(limitPrice > 0)) {
+      // Strict finite parity with placement, LIMIT ONLY: 'Infinity' and
+      // prefix-numeric strings ('90000USD') both parse under a bare
+      // parseFloat check but placement refuses them. Market placement
+      // ignores params.price entirely (fresh venue price), so rejecting
+      // it here would fail orders placement accepts.
+      if (parseFinitePositive(params.price) === null) {
         return {
           isValid: false,
           error: `Invalid limit price ${params.price}: must be a positive number`,
@@ -2496,7 +2626,14 @@ export class LighterProvider implements PerpsProvider {
       };
     }
     if (params.leverage !== undefined) {
-      const maxLeverage = await this.getMaxLeverage(params.symbol);
+      // Same authoritative-metadata requirement as placement.
+      const maxLeverage = await this.#requireMarketMaxLeverage(params.symbol);
+      if (maxLeverage === null) {
+        return {
+          isValid: false,
+          error: `Cannot validate leverage for ${params.symbol}: venue margin metadata unavailable`,
+        };
+      }
       if (params.leverage > maxLeverage) {
         return {
           isValid: false,
@@ -2564,8 +2701,8 @@ export class LighterProvider implements PerpsProvider {
       // error here so validation never approves an order the signer path
       // refuses (a safe reference can still overflow after +5%).
       try {
-        toLighterInteger(requestedSize, market.supportedSizeDecimals);
-        toLighterInteger(executionPrice, market.supportedPriceDecimals);
+        toSignerWireInteger(requestedSize, market.supportedSizeDecimals);
+        toSignerWireInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
           isValid: false,
@@ -2614,13 +2751,14 @@ export class LighterProvider implements PerpsProvider {
     let referencePrice: number;
     let executionPrice: number;
     if ((params.orderType ?? 'market') === 'limit') {
-      referencePrice = parseFloat(params.price ?? '');
-      if (!Number.isFinite(referencePrice) || !(referencePrice > 0)) {
+      const parsedLimitPrice = parseFinitePositive(params.price ?? '');
+      if (parsedLimitPrice === null) {
         return {
           isValid: false,
           error: `Invalid limit price ${params.price}: must be a positive number`,
         };
       }
+      referencePrice = parsedLimitPrice;
       executionPrice = referencePrice;
     } else {
       const slippageFraction =
@@ -2660,8 +2798,8 @@ export class LighterProvider implements PerpsProvider {
       // Wire-format parity with the placement path closePosition uses:
       // the EXECUTION price is what gets integerized and signed.
       try {
-        toLighterInteger(requestedSize, market.supportedSizeDecimals);
-        toLighterInteger(executionPrice, market.supportedPriceDecimals);
+        toSignerWireInteger(requestedSize, market.supportedSizeDecimals);
+        toSignerWireInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
           isValid: false,
@@ -2676,13 +2814,24 @@ export class LighterProvider implements PerpsProvider {
   async validateWithdrawal(
     params: WithdrawParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const amount = parseFloat(params.amount ?? '');
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const amount = parseFinitePositive(params.amount ?? '');
+    if (amount === null) {
       return { isValid: false, error: 'Withdrawal amount must be positive' };
+    }
+    // Advertised route-minimum parity with withdraw.
+    const minWithdraw = parseFloat(
+      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet']
+        .minWithdrawUsdc,
+    );
+    if (amount < minWithdraw) {
+      return {
+        isValid: false,
+        error: `Withdrawal amount ${params.amount} is below the Lighter minimum of ${minWithdraw} USDC`,
+      };
     }
     // Scaled wire-range parity with withdraw's own integerization.
     try {
-      toLighterInteger(amount, 6);
+      toSignerWireInteger(amount, 6);
     } catch (error) {
       return {
         isValid: false,
@@ -2753,6 +2902,31 @@ export class LighterProvider implements PerpsProvider {
     return minInitial && minInitial > 0
       ? Math.floor(10_000 / minInitial)
       : LIGHTER_MAX_LEVERAGE;
+  };
+
+  /**
+   * Authoritative per-market max leverage for TRADING validation: unlike
+   * getMaxLeverage (which may fall back to the global constant for
+   * display), this returns null when the venue's margin metadata is
+   * missing or unreadable so leverage validation fails CLOSED — the 50x
+   * fallback must never approve 26x for what may be a 25x market.
+   *
+   * @param symbol - Market symbol.
+   * @returns The published max leverage, or null when unavailable.
+   */
+  readonly #requireMarketMaxLeverage = async (
+    symbol: string,
+  ): Promise<number | null> => {
+    try {
+      await this.#ensureMarketMargins();
+    } catch {
+      return null;
+    }
+    const minInitial = this.#marginBySymbol.get(symbol)?.minInitial;
+    if (typeof minInitial !== 'number' || !(minInitial > 0)) {
+      return null;
+    }
+    return Math.floor(10_000 / minInitial);
   };
 
   readonly #ensureMarketMargins = async (): Promise<void> => {

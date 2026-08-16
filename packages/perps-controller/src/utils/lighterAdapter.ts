@@ -485,15 +485,24 @@ export function adaptOrderFromLighter(
   const remaining = parseFloat(order.remainingBaseAmount);
   const filled = Math.max(original - remaining, 0);
 
+  const isTrigger = !['market', 'limit'].includes(order.type);
+  const triggerPrice =
+    order.triggerPrice !== undefined && parseFloat(order.triggerPrice) > 0
+      ? order.triggerPrice
+      : undefined;
+
   return {
     orderId: String(order.orderIndex),
     symbol,
     side: order.isAsk ? 'sell' : 'buy',
     orderType: order.type === 'market' ? 'market' : 'limit',
-    isTrigger: !['market', 'limit'].includes(order.type),
+    isTrigger,
     size: order.remainingBaseAmount,
     originalSize: order.initialBaseAmount,
+    // On trigger orders `price` is the ±5% protection EXECUTION price;
+    // the user-facing TP/SL level is `triggerPrice`.
     price: order.price,
+    ...(triggerPrice === undefined ? {} : { triggerPrice }),
     filledSize: String(filled),
     remainingSize: order.remainingBaseAmount,
     status: adaptOrderStatus(order.status),
