@@ -142,6 +142,36 @@ describe('lighterAdapter', () => {
       }
     });
 
+    it('rejects negative magnitudes and malformed signs at the adaptation boundary', () => {
+      // Documented representation: NONNEGATIVE magnitude + sign exactly
+      // ±1. '-0.1' with sign 1 would flip the canonical direction, so a
+      // close/TPSL would act OPPOSITE the real position; sign 0/2/'1'
+      // would be silently coerced by a > 0 ternary.
+      expect(() =>
+        adaptPositionFromLighter({ ...position, position: '-0.1', sign: 1 }),
+      ).toThrow('Invalid Lighter venue data');
+      for (const badSign of [0, 2, -2, '1', null, undefined]) {
+        expect(() =>
+          adaptPositionFromLighter({
+            ...position,
+            sign: badSign as number,
+          }),
+        ).toThrow('Invalid Lighter venue data');
+      }
+      // The documented contract holds for FLAT positions too: sign must
+      // still be exactly ±1 (zero magnitudes are filtered downstream).
+      expect(() =>
+        adaptPositionFromLighter({
+          ...position,
+          position: '0',
+          sign: 0 as number,
+        }),
+      ).toThrow('Invalid Lighter venue data');
+      expect(
+        adaptPositionFromLighter({ ...position, position: '0', sign: 1 }).size,
+      ).toBe('0');
+    });
+
     it('maps a long position', () => {
       const adapted = adaptPositionFromLighter(position);
       expect(adapted.symbol).toBe('BTC');
