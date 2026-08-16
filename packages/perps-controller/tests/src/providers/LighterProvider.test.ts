@@ -1477,6 +1477,613 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('account-type gate', () => {
+    it('refuses Premium (nonzero-fee) accounts across the account surface', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [{ ...ACCOUNT, accountType: 1 }],
+      });
+      const state = await provider.getAccountState();
+      // The gate cancels resolution; graceful empty state, never Premium
+      // data with silently-zeroed fees.
+      expect(state.totalBalance).toBe('0');
+      const ready = await provider.isReadyToTrade();
+      expect(ready.ready).toBe(false);
+      expect(ready.error).toContain('Premium');
+    });
+
+    it('verifies a configured account index is Standard before using it', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, accountType: 1 }],
+      });
+      const ready = await provider.isReadyToTrade();
+      expect(ready.ready).toBe(false);
+      expect(ready.error).toContain('Premium');
+    });
+
+    it('fails closed when the account type cannot be verified', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [],
+      });
+      const ready = await provider.isReadyToTrade();
+      expect(ready.ready).toBe(false);
+      expect(ready.error).toContain('could not be verified');
+    });
+
+    it('gates calculateFees for non-Standard accounts', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, accountType: 1 }],
+      });
+      await expect(
+        provider.calculateFees({
+          orderType: 'market',
+          symbol: 'BTC',
+          amount: '100',
+        }),
+      ).rejects.toThrow('Premium');
+    });
+  });
+
+  describe('client order index allocation', () => {
+    it('parallel same-millisecond placements get unique increasing ids', async () => {
+      const { provider, calls } = buildProvider();
+      const frozen = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(frozen);
+      try {
+        const results = await Promise.all([
+          provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.001',
+            orderType: 'limit',
+            price: '90000',
+          }),
+          provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.001',
+            orderType: 'limit',
+            price: '90001',
+          }),
+          provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.001',
+            orderType: 'limit',
+            price: '90002',
+          }),
+        ]);
+        for (const result of results) {
+          expect(result.success).toBe(true);
+        }
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2] as number);
+        expect(ids).toHaveLength(3);
+        expect(new Set(ids).size).toBe(3);
+        expect(ids[1]).toBeGreaterThan(ids[0]);
+        expect(ids[2]).toBeGreaterThan(ids[1]);
+        // Seeded at the frozen clock, no 1e9 modulo truncation.
+        expect(ids[0]).toBeGreaterThanOrEqual(frozen);
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it('grouped TP/SL reserves ids that cannot collide with a same-ms placement', async () => {
+      const { provider, calls } = buildProvider();
+      const frozen = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(frozen);
+      try {
+        await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+          stopLossPrice: '80000',
+        });
+        const orderId = calls.find(
+          (call) => call.function === '_signCreateOrder',
+        )?.params[2] as number;
+        const groupedCall = calls.find(
+          (call) => call.function === '_signCreateGroupedOrders',
+        );
+        expect(groupedCall).toBeDefined();
+        // Grouped params embed both trigger orders; collect their client
+        // ids (numeric params greater than the frozen seed) and assert all
+        // three ids issued this millisecond are distinct.
+        const groupedIds = (groupedCall?.params ?? []).filter(
+          (value): value is number =>
+            typeof value === 'number' && value >= frozen,
+        );
+        const allIds = [orderId, ...groupedIds];
+        expect(allIds.length).toBeGreaterThanOrEqual(3);
+        expect(new Set(allIds).size).toBe(allIds.length);
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+  });
+
+  describe('full-close precision and validate/execute parity', () => {
+    const dustPosition = (
+      position: string,
+    ): { code: number; accounts: (typeof ACCOUNT)[] } => ({
+      code: 200,
+      accounts: [
+        {
+          ...ACCOUNT,
+          positions: [{ ...ACCOUNT.positions[0], position }],
+        },
+      ],
+    });
+
+    it('a deliberate 99% partial dust close is rejected, never bumped to 100%', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue(
+        dustPosition('0.0001'),
+      );
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.000099',
+        orderType: 'market',
+        reduceOnly: true,
+        currentPrice: 90000,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('below the Lighter minimum');
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('an exact-size dust close still bumps to the venue minimum', async () => {
+      const { provider, calls, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue(
+        dustPosition('0.0001'),
+      );
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.0001',
+        orderType: 'market',
+        reduceOnly: true,
+        currentPrice: 90000,
+      });
+      expect(result.success).toBe(true);
+      const orderCall = calls.find(
+        (call) => call.function === '_signCreateOrder',
+      );
+      expect(orderCall?.params[3]).toBe('20');
+    });
+
+    it('validateOrder matches placement: an isFullClose lie without reduceOnly is invalid', async () => {
+      const { provider } = buildProvider();
+      const result = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.00001',
+        orderType: 'market',
+        isFullClose: true,
+        currentPrice: 90000,
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('below the Lighter minimum');
+    });
+
+    it('validateOrder approves a live-verified reduce-only full close like placement', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue(
+        dustPosition('0.00001'),
+      );
+      const result = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.00001',
+        orderType: 'market',
+        reduceOnly: true,
+        currentPrice: 90000,
+      });
+      expect(result).toStrictEqual({ isValid: true });
+    });
+
+    it('validateClosePosition rejects the shapes closePosition refuses', async () => {
+      const { provider } = buildProvider();
+      expect(
+        await provider.validateClosePosition({
+          symbol: 'BTC',
+          orderType: 'limit',
+        }),
+      ).toMatchObject({
+        isValid: false,
+        error: 'Limit close requires a price',
+      });
+      expect(
+        (
+          await provider.validateClosePosition({
+            symbol: 'BTC',
+            usdAmount: '-5',
+          })
+        ).isValid,
+      ).toBe(false);
+      expect(
+        (
+          await provider.validateClosePosition({
+            symbol: 'BTC',
+            size: '0',
+          })
+        ).isValid,
+      ).toBe(false);
+      expect(
+        await provider.validateClosePosition({ symbol: 'BTC' }),
+      ).toStrictEqual({ isValid: true });
+    });
+  });
+
+  describe('round-4 session races', () => {
+    const accountB = { ...ACCOUNT, index: 900 };
+    const perAddressLookup =
+      () =>
+      (
+        address: string,
+      ): Promise<{
+        code: number;
+        l1Address: string;
+        subAccounts: (typeof ACCOUNT)[];
+      }> =>
+        Promise.resolve(
+          address.toLowerCase() === '0xbbbb'
+            ? { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] }
+            : {
+                code: 200,
+                l1Address: ACCOUNT.l1Address,
+                subAccounts: [ACCOUNT],
+              },
+        );
+
+    it('a delayed getAccountState response never surfaces as the new account', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      await provider.getAccountState(); // bind under A
+      let releaseResponse: (value: unknown) => void = () => undefined;
+      clientInstance.getAccountByIndex.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseResponse = resolve;
+          }),
+      );
+      const delayedRead = provider.getAccountState();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // External switch: nothing else observes it before the response lands.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      releaseResponse({ code: 200, accounts: [ACCOUNT] });
+      const result = await delayedRead;
+      // Cancelled → empty state, never account A's balances.
+      expect(result.totalBalance).toBe('0');
+    });
+
+    it('getOpenOrders returns nothing when the account switches between index and token', async () => {
+      const { provider, clientInstance, getUserAddressMock, bridge } =
+        buildProvider({ configuredAccountIndex: null });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      await provider.getAccountState(); // bind under A
+      // Stall the auth-token mint (the step between index and token use).
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      let releaseToken: () => void = () => undefined;
+      let stallOnce = true;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_createAuthToken' && stallOnce) {
+            stallOnce = false;
+            await new Promise<void>((resolve) => {
+              releaseToken = resolve;
+            });
+          }
+          return realImplementation(call);
+        },
+      );
+      const readUnderA = provider.getOpenOrders();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      releaseToken();
+      const orders = await readUnderA;
+      expect(orders).toStrictEqual([]);
+      // The A index + fresh token pairing never reached the venue.
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
+    });
+
+    it("getOrders never merges one account's history with another's open orders", async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      await provider.getAccountState(); // bind under A
+      // Historical leg resolves under A; the OPEN leg stalls and the wallet
+      // switches while it is in flight.
+      let releaseOpen: (value: unknown) => void = () => undefined;
+      clientInstance.getActiveOrders.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseOpen = resolve;
+          }),
+      );
+      const mergedRead = provider.getOrders();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      releaseOpen({ code: 200, orders: [] });
+      const orders = await mergedRead;
+      // The merge is refused outright — no A-historical leakage.
+      expect(orders).toStrictEqual([]);
+    });
+
+    it('a paused write never signs after ALL accounts are deselected', async () => {
+      const { provider, clientInstance, getUserAddressMock, calls } =
+        buildProvider({ configuredAccountIndex: null });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      const warmed = await provider.isReadyToTrade();
+      expect(warmed.ready).toBe(true);
+      // Warming registered the venue key; only post-deselection sends count.
+      clientInstance.sendTx.mockClear();
+      let releaseNonce: (value: unknown) => void = () => undefined;
+      let nonceRequested: () => void = () => undefined;
+      const noncePaused = new Promise<void>((resolve) => {
+        nonceRequested = resolve;
+      });
+      clientInstance.getNextNonce.mockImplementationOnce(() => {
+        nonceRequested();
+        return new Promise((resolve) => {
+          releaseNonce = resolve;
+        });
+      });
+      const writeUnderA = provider.cancelOrder({
+        orderId: '555',
+        symbol: 'BTC',
+      });
+      await noncePaused;
+      // All accounts deselected while the write is paused at its nonce.
+      getUserAddressMock.mockImplementation(() => {
+        throw new Error('NO_ACCOUNT_SELECTED');
+      });
+      releaseNonce({ code: 200, nonce: 42 });
+      const result = await writeUnderA;
+      expect(result.success).toBe(false);
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('a paused write never submits after provider disconnect', async () => {
+      const { provider, clientInstance, calls } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      const warmed = await provider.isReadyToTrade();
+      expect(warmed.ready).toBe(true);
+      clientInstance.sendTx.mockClear();
+      let releaseNonce: (value: unknown) => void = () => undefined;
+      let nonceRequested: () => void = () => undefined;
+      const noncePaused = new Promise<void>((resolve) => {
+        nonceRequested = resolve;
+      });
+      clientInstance.getNextNonce.mockImplementationOnce(() => {
+        nonceRequested();
+        return new Promise((resolve) => {
+          releaseNonce = resolve;
+        });
+      });
+      const writeUnderA = provider.cancelOrder({
+        orderId: '555',
+        symbol: 'BTC',
+      });
+      await noncePaused;
+      // The provider is disconnected (e.g. venue switch) mid-write.
+      await provider.disconnect();
+      releaseNonce({ code: 200, nonce: 42 });
+      const result = await writeUnderA;
+      expect(result.success).toBe(false);
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('a configured account index without a bound wallet requests no user channels', async () => {
+      const { provider, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: 28,
+      });
+      // No wallet account selected at mount time.
+      getUserAddressMock.mockImplementation(() => {
+        throw new Error('NO_ACCOUNT_SELECTED');
+      });
+      StreamFakeWebSocket.instances = [];
+      const unsubscribe = provider.subscribeToAccount({ callback: jest.fn() });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socket = StreamFakeWebSocket.instances[0];
+      socket?.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // The configured index alone must never subscribe user channels.
+      expect(
+        (socket?.sent ?? []).some((frame) => frame.includes('user_stats/')),
+      ).toBe(false);
+
+      // A wallet account is then selected: channels for IT are requested.
+      getUserAddressMock.mockImplementation(() => '0xbbbb');
+      await provider.getAccountState().catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const lastSocket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      lastSocket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(
+        lastSocket.sent.some((frame) => frame.includes('user_stats/28')),
+      ).toBe(true);
+      unsubscribe();
+    });
+
+    it('a deferred onopen auth continuation never reinserts a stale channel after a switch', async () => {
+      const { provider, clientInstance, getUserAddressMock, bridge } =
+        buildProvider({
+          webSocketCtor: fakeStreamCtor,
+          configuredAccountIndex: null,
+        });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      StreamFakeWebSocket.instances = [];
+      // Orders subscription wants the authenticated channel.
+      const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socketA =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      // The channel setup cached a fresh (+600s) token; expire it so socket
+      // A's onopen genuinely enters the deferred re-mint branch.
+      // Restored in the finally below so a failed assertion cannot poison
+      // later tests with a frozen clock.
+      const nowSpy = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(Date.now() + 700_000);
+      try {
+        const realImplementation = (
+          bridge.execute as jest.Mock
+        ).getMockImplementation() as (
+          call: LighterWasmCall,
+        ) => Promise<unknown>;
+        let stallNext = true;
+        let releaseToken: () => void = () => undefined;
+        let stallEntered: () => void = () => undefined;
+        const refreshEntered = new Promise<void>((resolve) => {
+          stallEntered = resolve;
+        });
+        (bridge.execute as jest.Mock).mockImplementation(
+          async (call: LighterWasmCall) => {
+            if (call.function === '_createAuthToken' && stallNext) {
+              stallNext = false;
+              stallEntered();
+              await new Promise<void>((resolve) => {
+                releaseToken = resolve;
+              });
+            }
+            return realImplementation(call);
+          },
+        );
+        socketA.open();
+        // The deferred re-mint MUST have started, or this test proves nothing.
+        await refreshEntered;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // Switch to B: rebind replaces the socket and the channel set.
+        getUserAddressMock.mockReturnValue('0xbbbb');
+        await provider.getAccountState();
+        const socketB =
+          StreamFakeWebSocket.instances[
+            StreamFakeWebSocket.instances.length - 1
+          ];
+        expect(socketB).not.toBe(socketA);
+        socketB.open();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const framesBefore = socketB.sent.length;
+        // The stale continuation resolves AFTER the switch.
+        releaseToken();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // No account-A channel was sent on B's socket by the stale continuation.
+        const framesAfter = socketB.sent.slice(framesBefore);
+        expect(
+          framesAfter.some((frame) => frame.includes('account_all_orders/28')),
+        ).toBe(false);
+        expect(
+          socketB.sent.some((frame) => frame.includes('account_all_orders/28')),
+        ).toBe(false);
+        // The deferred mint really ran exactly once through the stall.
+        expect(stallNext).toBe(false);
+      } finally {
+        nowSpy.mockRestore();
+      }
+      unsubscribe();
+    });
+  });
+
+  describe('validateOrder usd sizing', () => {
+    it('validates a USD-sized order through the min-size calculation', async () => {
+      // Regression: this path read `usdAmount` outside its declaring block
+      // (a runtime ReferenceError under plain TS) — a valid usdAmount with
+      // a positive reference price must reach the min-size check and pass.
+      const { provider } = buildProvider();
+      const result = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0',
+        usdAmount: '5000',
+        orderType: 'limit',
+        price: '100000',
+      });
+      expect(result).toStrictEqual({ isValid: true });
+    });
+
+    it('rejects a USD-sized order below the venue minimum', async () => {
+      const { provider } = buildProvider();
+      const result = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0',
+        // $5 at $100k → 0.00005 BTC, below min base 0.0002.
+        usdAmount: '5',
+        orderType: 'limit',
+        price: '100000',
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('below the Lighter minimum');
+    });
+
+    it('rejects an invalid usdAmount before any sizing math', async () => {
+      const { provider } = buildProvider();
+      const result = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '1',
+        usdAmount: '-5',
+        orderType: 'limit',
+        price: '100000',
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('Invalid usdAmount');
+    });
+  });
+
   describe('closePosition semantics', () => {
     it('routes a limit close with the requested price, not a market order', async () => {
       const { provider, calls } = buildProvider();
@@ -1622,10 +2229,11 @@ describe('LighterProvider', () => {
       expect(optionalBatch.closePositions).toBeUndefined();
     });
 
-    it('returns a zeroed historical portfolio', async () => {
+    it('gates the historical portfolio instead of returning false zeros', async () => {
       const { provider } = buildProvider();
-      const portfolio = await provider.getHistoricalPortfolio();
-      expect(portfolio.accountValue1dAgo).toBe('0');
+      await expect(provider.getHistoricalPortfolio()).rejects.toThrow(
+        'unavailable',
+      );
     });
 
     it('validates only simple limit/market orders', async () => {

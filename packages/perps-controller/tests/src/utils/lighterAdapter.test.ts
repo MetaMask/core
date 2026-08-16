@@ -301,7 +301,7 @@ describe('lighterAdapter', () => {
       expect(bare.direction).toBe('Sell');
     });
 
-    it('a zero-pnl partial reduce without sign change stays Open (ambiguous default)', () => {
+    it('a nonzero-pnl partial reduce without sign change is a close', () => {
       const partial = adaptFillFromLighterTrade(
         {
           ...REAL_TRADE,
@@ -313,29 +313,93 @@ describe('lighterAdapter', () => {
         'SOL',
         28,
       );
-      // Nonzero pnl on a partial → it reduced the position.
       expect(partial.direction).toBe('Close Long');
+      expect(partial.startPosition).toBe('0.133');
     });
 
-    it('treats integer venue fees as unavailable until a unit is proven', () => {
-      // The official model types fees as StrictInt with no documented
-      // unit/scale, and no nonzero payload exists to verify one against —
-      // an unverified conversion would display wrong dollar amounts.
-      const withIntFees = {
-        ...REAL_TRADE,
-        takerFee: 45000,
-        makerFee: 15000,
-      };
-      expect(adaptFillFromLighterTrade(withIntFees, 'SOL', 28).fee).toBe('0');
-      expect(adaptFillFromLighterTrade(withIntFees, 'SOL', 7).fee).toBe('0');
-      // Decimal strings pass through defensively.
+    it('an exactly break-even partial without sign change falls back to side-only', () => {
+      // Zero pnl + no sign change is genuinely ambiguous from this payload
+      // (break-even partial close and an add both fit) — never assert Open
+      // without evidence.
+      const ambiguous = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          size: '0.050',
+          takerPositionSizeBefore: '0.133',
+          takerPositionSignChanged: false,
+          askAccountPnl: '0',
+        },
+        'SOL',
+        28,
+      );
+      expect(ambiguous.direction).toBe('Sell');
+      expect(ambiguous.startPosition).toBeUndefined();
+    });
+
+    it('flips carry a SIGNED startPosition for post-flip sizing', () => {
+      // Long 0.133 flipped by selling 0.300 → Long > Short, start +0.133.
+      const longToShort = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          size: '0.300',
+          takerPositionSizeBefore: '0.133',
+          takerPositionSignChanged: true,
+        },
+        'SOL',
+        28,
+      );
+      expect(longToShort.direction).toBe('Long > Short');
+      expect(longToShort.startPosition).toBe('0.133');
+
+      // Short 0.133 flipped by buying 0.300 → Short > Long, start -0.133.
+      const shortToLong = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          isMakerAsk: true,
+          bidAccountId: 28,
+          askAccountId: 7,
+          size: '0.300',
+          takerPositionSizeBefore: '0.133',
+          takerPositionSignChanged: true,
+          bidAccountPnl: '0.7',
+        },
+        'SOL',
+        28,
+      );
+      expect(shortToLong.direction).toBe('Short > Long');
+      expect(shortToLong.startPosition).toBe('-0.133');
+    });
+
+    it('refuses nonzero fees loudly instead of coercing them to zero', () => {
+      // Standard accounts pay zero fees (the provider gates Premium); a
+      // present nonzero fee has an unverified wire unit and silently
+      // showing $0 would be financially false.
+      for (const takerFee of [45000, '45000', '0.0450'] as const) {
+        expect(() =>
+          adaptFillFromLighterTrade({ ...REAL_TRADE, takerFee }, 'SOL', 28),
+        ).toThrow('fee unit is unverified');
+      }
+      // Explicit zeros (any representation) are venue truth.
       expect(
         adaptFillFromLighterTrade(
-          { ...REAL_TRADE, takerFee: '0.0450' },
+          { ...REAL_TRADE, takerFee: 0, makerFee: '0.0000' },
           'SOL',
           28,
         ).fee,
-      ).toBe('0.0450');
+      ).toBe('0');
+    });
+
+    it('keeps a Standard fill whose Premium counterparty paid the fee', () => {
+      // Account 28 is the taker; the MAKER (counterparty) fee being nonzero
+      // must not drop our valid zero-fee fill.
+      const counterpartyFee = {
+        ...REAL_TRADE,
+        takerFee: 0,
+        makerFee: 45000,
+      };
+      const fill = adaptFillFromLighterTrade(counterpartyFee, 'SOL', 28);
+      expect(fill.fee).toBe('0');
+      expect(fill.direction).toBe('Close Long');
     });
   });
 
