@@ -90,6 +90,24 @@ describe('lighterConfig', () => {
       expect(toLighterInteger(100000, 1)).toBe(1000000);
     });
 
+    it('throws on values that overflow the safe-integer wire format', () => {
+      // 1e300 * 10^5 = 1e305: finite, but stringifies as '1e+305' in
+      // signer params instead of an integer.
+      expect(() => toLighterInteger(1e300, 5)).toThrow(
+        "outside Lighter's integer range",
+      );
+      expect(() => toLighterInteger(Infinity, 1)).toThrow(
+        "outside Lighter's integer range",
+      );
+      expect(() => toLighterInteger(NaN, 1)).toThrow(
+        "outside Lighter's integer range",
+      );
+      // The largest representable value (MAX_SAFE_INTEGER) still passes.
+      expect(toLighterInteger(90071992547409.9, 2)).toBe(
+        Number.MAX_SAFE_INTEGER,
+      );
+    });
+
     it('round-trips wire integers back to human values', () => {
       expect(fromLighterInteger(5000, 5)).toBe(0.05);
       expect(fromLighterInteger(1873, 1)).toBe(187.3);

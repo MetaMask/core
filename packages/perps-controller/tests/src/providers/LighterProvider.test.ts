@@ -1574,6 +1574,160 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('round-9 finite-positive intent parity', () => {
+    it('rejects non-finite size, usdAmount, and leverage in validateOrder and placeOrder before any signer call', async () => {
+      const { provider, calls } = buildProvider();
+      // parseFloat('Infinity') === Infinity and Infinity > 0, so bare
+      // positivity checks pass: leverage Infinity becomes IMF
+      // Math.round(10000/Infinity) = 0 and reaches _signUpdateLeverage;
+      // infinite size/USD integerizes to 'Infinity' inside
+      // _signCreateOrder params.
+      const cases = [
+        { overrides: { size: 'Infinity' }, error: 'Order size must be' },
+        { overrides: { size: 'NaN' }, error: 'Order size must be' },
+        {
+          overrides: { size: '0.001', usdAmount: 'Infinity' },
+          error: 'Invalid usdAmount',
+        },
+        {
+          overrides: { size: '0.001', usdAmount: 'NaN' },
+          error: 'Invalid usdAmount',
+        },
+        {
+          overrides: { size: '0.001', leverage: Infinity },
+          error: 'Invalid leverage',
+        },
+        {
+          overrides: { size: '0.001', leverage: Number.NaN },
+          error: 'Invalid leverage',
+        },
+      ];
+      for (const testCase of cases) {
+        const request = {
+          symbol: 'BTC',
+          isBuy: true,
+          orderType: 'limit' as const,
+          price: '90000',
+          ...testCase.overrides,
+        };
+        const validation = await provider.validateOrder(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain(testCase.error);
+        const placement = await provider.placeOrder(request);
+        expect(placement.success).toBe(false);
+        expect(placement.error).toContain(testCase.error);
+      }
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+      expect(
+        calls.filter((call) => call.function === '_signUpdateLeverage'),
+      ).toHaveLength(0);
+    });
+
+    it('rejects non-finite close size and usdAmount in validateClosePosition and closePosition before any signer call', async () => {
+      const { provider, calls } = buildProvider();
+      // Pre-fix, validateClosePosition silently fell back from a
+      // non-finite usdAmount to the held size (approving), while
+      // closePosition forwarded the infinite USD into placement — a
+      // validator/execution split on real money.
+      const cases = [
+        { overrides: { size: 'Infinity' }, error: 'Order size must be' },
+        { overrides: { size: 'NaN' }, error: 'Order size must be' },
+        {
+          overrides: { usdAmount: 'Infinity' },
+          error: 'Invalid usdAmount',
+        },
+        { overrides: { usdAmount: 'NaN' }, error: 'Invalid usdAmount' },
+      ];
+      for (const testCase of cases) {
+        const request = {
+          symbol: 'BTC',
+          currentPrice: 100000,
+          ...testCase.overrides,
+        };
+        const validation = await provider.validateClosePosition(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain(testCase.error);
+        const execution = await provider.closePosition(request);
+        expect(execution.success).toBe(false);
+        expect(execution.error).toContain(testCase.error);
+      }
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('fails closed when finite intent cannot be represented as venue wire integers', async () => {
+      const { provider, calls } = buildProvider();
+      // Finite alone is insufficient: 1e300 * 10^decimals overflows the
+      // safe-integer wire format (stringifying as '1e+305') before signing.
+      const cases = [
+        { overrides: { size: '1e300' } },
+        { overrides: { size: '0.001', usdAmount: '1e300' } },
+        { overrides: { size: '0.001', price: '1e300' } },
+      ];
+      for (const testCase of cases) {
+        const request = {
+          symbol: 'BTC',
+          isBuy: true,
+          orderType: 'limit' as const,
+          price: '90000',
+          ...testCase.overrides,
+        };
+        const validation = await provider.validateOrder(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain('integer range');
+        const placement = await provider.placeOrder(request);
+        expect(placement.success).toBe(false);
+        expect(placement.error).toContain('integer range');
+      }
+      // Close-path parity for an unrepresentable explicit size.
+      const closeValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+        size: '1e300',
+        currentPrice: 100000,
+      });
+      expect(closeValidation.isValid).toBe(false);
+      expect(closeValidation.error).toContain('integer range');
+      const closeExecution = await provider.closePosition({
+        symbol: 'BTC',
+        size: '1e300',
+        currentPrice: 100000,
+      });
+      expect(closeExecution.success).toBe(false);
+      expect(closeExecution.error).toContain('integer range');
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('rejects finite leverage that derives a zero venue margin fraction', async () => {
+      const { provider, calls } = buildProvider();
+      // Math.round(10000/1e6) === 0: an IMF of zero must never be signed.
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit' as const,
+        price: '90000',
+        leverage: 1e6,
+      };
+      const validation = await provider.validateOrder(request);
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('Invalid leverage');
+      const placement = await provider.placeOrder(request);
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain('Invalid leverage');
+      expect(
+        calls.filter((call) => call.function === '_signUpdateLeverage'),
+      ).toHaveLength(0);
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+  });
+
   describe('round-8 market validation parity', () => {
     it('sizes market validateOrder at the FRESH venue price, ignoring the caller price', async () => {
       const { provider, clientInstance, calls } = buildProvider();

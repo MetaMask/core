@@ -148,6 +148,41 @@ import {
 // Constants
 // ============================================================================
 
+/**
+ * Parse caller-supplied numeric intent, accepting only finite positive
+ * values: parseFloat accepts 'Infinity', and a bare > 0 check lets it
+ * through to integerization/signing.
+ *
+ * @param value - Raw numeric string from params.
+ * @returns The parsed number, or null when non-finite or non-positive.
+ */
+const parseFinitePositive = (value: string): number | null => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+/**
+ * Validate caller leverage intent against what Lighter can represent.
+ *
+ * @param leverage - Requested leverage, if any.
+ * @returns The exact rejection message, or null when acceptable.
+ */
+const lighterLeverageError = (leverage: number | undefined): string | null => {
+  if (leverage === undefined) {
+    return null;
+  }
+  if (!Number.isFinite(leverage) || !(leverage > 0)) {
+    return `Invalid leverage ${leverage}: must be a positive number`;
+  }
+  // UpdateLeverage signs an initial margin fraction in hundredths of a
+  // percent; a huge finite leverage rounds it to zero, which must never
+  // reach the signer.
+  if (Math.round(10_000 / leverage) < 1) {
+    return `Invalid leverage ${leverage}: exceeds the maximum representable Lighter leverage`;
+  }
+  return null;
+};
+
 const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
 const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
 const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
@@ -1357,11 +1392,9 @@ export class LighterProvider implements PerpsProvider {
           error: 'Lighter placement does not support post-only (ALO) yet',
         };
       }
-      if (params.leverage !== undefined && !(params.leverage > 0)) {
-        return {
-          success: false,
-          error: `Invalid leverage ${params.leverage}: must be a positive number`,
-        };
+      const leverageError = lighterLeverageError(params.leverage);
+      if (leverageError) {
+        return { success: false, error: leverageError };
       }
       // Bind the write to the wallet account it was INITIATED under; if the
       // wallet switches before the queued critical section runs, it aborts.
@@ -1431,10 +1464,14 @@ export class LighterProvider implements PerpsProvider {
       // to the size field.
       let requestedSize: number;
       if (params.usdAmount === undefined) {
-        requestedSize = parseFloat(params.size);
+        const parsedSize = parseFinitePositive(params.size);
+        if (parsedSize === null) {
+          return { success: false, error: 'Order size must be positive' };
+        }
+        requestedSize = parsedSize;
       } else {
-        const usdAmount = parseFloat(params.usdAmount);
-        if (!(usdAmount > 0)) {
+        const usdAmount = parseFinitePositive(params.usdAmount);
+        if (usdAmount === null) {
           return {
             success: false,
             error: `Invalid usdAmount ${params.usdAmount}: must be a positive number`,
@@ -1722,15 +1759,21 @@ export class LighterProvider implements PerpsProvider {
     if (closeOrderType === 'limit' && !params.price) {
       return 'Limit close requires a price';
     }
-    if (params.usdAmount !== undefined && !(parseFloat(params.usdAmount) > 0)) {
+    if (
+      params.usdAmount !== undefined &&
+      parseFinitePositive(params.usdAmount) === null
+    ) {
+      // Finite REQUIRED: a non-finite usdAmount must never fall back to
+      // held-size validation while execution forwards the infinite USD
+      // into placement.
       return `Invalid usdAmount ${params.usdAmount}: must be a positive number`;
     }
     // closePosition forwards an explicit size to placement, which rejects
-    // non-positive values; validation must match.
+    // non-finite or non-positive values; validation must match.
     if (
       params.usdAmount === undefined &&
       params.size !== undefined &&
-      !(parseFloat(params.size) > 0)
+      parseFinitePositive(params.size) === null
     ) {
       return 'Order size must be positive';
     }
@@ -2347,24 +2390,23 @@ export class LighterProvider implements PerpsProvider {
         };
       }
     }
-    if (params.leverage !== undefined && !(params.leverage > 0)) {
-      return {
-        isValid: false,
-        error: `Invalid leverage ${params.leverage}: must be a positive number`,
-      };
+    const leverageError = lighterLeverageError(params.leverage);
+    if (leverageError) {
+      return { isValid: false, error: leverageError };
     }
     let usdAmount: number | undefined;
     if (params.usdAmount !== undefined) {
-      usdAmount = parseFloat(params.usdAmount);
-      if (!(usdAmount > 0)) {
+      const parsedUsd = parseFinitePositive(params.usdAmount);
+      if (parsedUsd === null) {
         return {
           isValid: false,
           error: `Invalid usdAmount ${params.usdAmount}: must be a positive number`,
         };
       }
+      usdAmount = parsedUsd;
     }
     const hasUsdSizing = usdAmount !== undefined;
-    if (!hasUsdSizing && !(parseFloat(params.size) > 0)) {
+    if (!hasUsdSizing && parseFinitePositive(params.size) === null) {
       return { isValid: false, error: 'Order size must be positive' };
     }
     const markets = await this.#ensureMarkets();
@@ -2419,6 +2461,19 @@ export class LighterProvider implements PerpsProvider {
             error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
           };
         }
+      }
+      // Wire-format parity: placement integerizes size and price and
+      // toLighterInteger throws on safe-integer overflow there; surface
+      // the identical error here so validation never approves an order
+      // the signer path refuses.
+      try {
+        toLighterInteger(requestedSize, market.supportedSizeDecimals);
+        toLighterInteger(referencePrice, market.supportedPriceDecimals);
+      } catch (error) {
+        return {
+          isValid: false,
+          error: ensureError(error, 'LighterProvider.validateOrder').message,
+        };
       }
     }
     return { isValid: true };
@@ -2495,6 +2550,17 @@ export class LighterProvider implements PerpsProvider {
         return {
           isValid: false,
           error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
+        };
+      }
+      // Wire-format parity with the placement path closePosition uses.
+      try {
+        toLighterInteger(requestedSize, market.supportedSizeDecimals);
+        toLighterInteger(referencePrice, market.supportedPriceDecimals);
+      } catch (error) {
+        return {
+          isValid: false,
+          error: ensureError(error, 'LighterProvider.validateClosePosition')
+            .message,
         };
       }
     }
