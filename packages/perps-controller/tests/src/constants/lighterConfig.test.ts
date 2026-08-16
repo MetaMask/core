@@ -11,6 +11,7 @@ import {
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
   LIGHTER_TX_TYPE_CREATE_ORDER,
+  parseLighterStrictDecimal,
   toLighterInteger,
 } from '../../../src/constants/lighterConfig.js';
 
@@ -106,6 +107,22 @@ describe('lighterConfig', () => {
       expect(toLighterInteger(90071992547409.9, 2)).toBe(
         Number.MAX_SAFE_INTEGER,
       );
+    });
+
+    it('strict decimal parsing tolerates unvalidated runtime types and flags prefix-numerics', () => {
+      // Venue REST is type-cast without runtime validation: missing/null/
+      // numeric values must yield null for callers' explicit error paths,
+      // never a TypeError that generic catches misread as a fetch failure.
+      expect(parseLighterStrictDecimal(undefined)).toBeNull();
+      expect(parseLighterStrictDecimal(null)).toBeNull();
+      expect(parseLighterStrictDecimal(0.5)).toBeNull();
+      expect(parseLighterStrictDecimal('0.1oops')).toBeNull();
+      expect(parseLighterStrictDecimal('')).toBeNull();
+      expect(parseLighterStrictDecimal(' 0.5 ')).toBe(0.5);
+      expect(parseLighterStrictDecimal('-1.5e2')).toBe(-150);
+      // Overflow exponent parses to Infinity: finiteness is the CALLER's
+      // check, and every caller performs it.
+      expect(parseLighterStrictDecimal('1e999')).toBe(Infinity);
     });
 
     it('returns zero/negative results as-is (positivity policy lives in the signer wrapper)', () => {

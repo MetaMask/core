@@ -117,6 +117,31 @@ describe('lighterAdapter', () => {
       liquidationPrice: '80000',
     };
 
+    it('rejects malformed numeric position sizes at the adaptation boundary', () => {
+      // The REST layer type-casts JSON without runtime validation; a
+      // prefix-parsed '0.1oops' would become a canonical '0.1' that TP/SL
+      // cover-sizing then signs. Runtime-cast cases (undefined/null/number)
+      // and overflow exponents must ALL surface the data-integrity prefix,
+      // never a generic TypeError that reads swallow into false-empty.
+      const badSizes: unknown[] = [
+        '0.1oops',
+        'oops',
+        '',
+        undefined,
+        null,
+        0.1,
+        '1e999',
+      ];
+      for (const badSize of badSizes) {
+        expect(() =>
+          adaptPositionFromLighter({
+            ...position,
+            position: badSize as string,
+          }),
+        ).toThrow('Invalid Lighter venue data');
+      }
+    });
+
     it('maps a long position', () => {
       const adapted = adaptPositionFromLighter(position);
       expect(adapted.symbol).toBe('BTC');
@@ -475,6 +500,48 @@ describe('lighterAdapter', () => {
       expect(adapted.isTrigger).toBe(true);
       expect(adapted.price).toBe('107.265');
       expect(adapted.triggerPrice).toBe('112.911');
+    });
+
+    it('maps semantic trigger order types instead of generic limit', () => {
+      const cases = [
+        {
+          type: 'take-profit',
+          orderType: 'market',
+          triggerOrderType: 'take_profit_market',
+          detailed: 'Take Profit Market',
+        },
+        {
+          type: 'stop-loss',
+          orderType: 'market',
+          triggerOrderType: 'stop_market',
+          detailed: 'Stop Market',
+        },
+        {
+          type: 'take-profit-limit',
+          orderType: 'limit',
+          triggerOrderType: 'take_profit_limit',
+          detailed: 'Take Profit Limit',
+        },
+        {
+          type: 'stop-loss-limit',
+          orderType: 'limit',
+          triggerOrderType: 'stop_limit',
+          detailed: 'Stop Limit',
+        },
+      ] as const;
+      for (const testCase of cases) {
+        const adapted = adaptOrderFromLighter(
+          { ...order, type: testCase.type, triggerPrice: '110000' },
+          'BTC',
+        );
+        expect(adapted.orderType).toBe(testCase.orderType);
+        expect(adapted.triggerOrderType).toBe(testCase.triggerOrderType);
+        expect(adapted.detailedOrderType).toBe(testCase.detailed);
+      }
+      // Plain orders stay untyped.
+      const plain = adaptOrderFromLighter(order, 'BTC');
+      expect(plain.triggerOrderType).toBeUndefined();
+      expect(plain.detailedOrderType).toBeUndefined();
     });
 
     it('omits triggerPrice on non-trigger orders and zero venue values', () => {
