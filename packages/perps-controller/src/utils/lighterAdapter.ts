@@ -208,6 +208,54 @@ export function adaptAccountStateFromLighterUserStats(
  * @param accountIndex - The account whose perspective determines the side.
  * @returns MetaMask Perps API order fill object.
  */
+/**
+ * Derive the lifecycle direction of a fill from the venue's
+ * position-before context, in the vocabulary client transforms consume
+ * (`Open Long`, `Close Short`, `Long > Short`, ...).
+ *
+ * The venue reports the side's ABSOLUTE position size before the trade and
+ * whether its sign changed. Combined with the trade side that is enough:
+ * buying reduces shorts and opens longs; selling reduces longs and opens
+ * shorts. A partial fill with no sign change is disambiguated by realized
+ * pnl (closing realizes pnl, opening does not). Without position context
+ * the side-only `Buy`/`Sell` vocabulary is used.
+ *
+ * @param context - Trade side, size, and position-before data.
+ * @param context.isBuy - Whether our side bought.
+ * @param context.size - Trade size (base units, absolute).
+ * @param context.positionBefore - Our side's absolute position size before.
+ * @param context.signChanged - Whether our side's position sign changed.
+ * @param context.pnl - Realized pnl for our side.
+ * @returns Client-facing direction string.
+ */
+export function deriveLighterFillDirection(context: {
+  isBuy: boolean;
+  size: number;
+  positionBefore: number;
+  signChanged: boolean | undefined;
+  pnl: number;
+}): string {
+  const { isBuy, size, positionBefore, signChanged, pnl } = context;
+  if (!Number.isFinite(positionBefore) || signChanged === undefined) {
+    return isBuy ? 'Buy' : 'Sell';
+  }
+  if (positionBefore === 0) {
+    return isBuy ? 'Open Long' : 'Open Short';
+  }
+  if (signChanged) {
+    // Crossed past zero → flipped; landed exactly on zero → full close.
+    if (size > positionBefore * 1.000001) {
+      return isBuy ? 'Short > Long' : 'Long > Short';
+    }
+    return isBuy ? 'Close Short' : 'Close Long';
+  }
+  // Partial fill on an existing position: realized pnl means it reduced.
+  if (pnl !== 0) {
+    return isBuy ? 'Close Short' : 'Close Long';
+  }
+  return isBuy ? 'Open Long' : 'Open Short';
+}
+
 export function adaptFillFromLighterTrade(
   trade: LighterRestTrade | LighterWsTrade,
   symbol: string,
@@ -220,10 +268,30 @@ export function adaptFillFromLighterTrade(
     trade.isMakerAsk === undefined
       ? undefined
       : accountIsAsk === trade.isMakerAsk;
-  const fee =
-    accountIsMaker === undefined
-      ? '0'
-      : ((accountIsMaker ? trade.makerFee : trade.takerFee) ?? '0');
+  let rawFee: number | string | undefined;
+  if (accountIsMaker !== undefined) {
+    rawFee = accountIsMaker ? trade.makerFee : trade.takerFee;
+  }
+  // The official model types fees as StrictInt but documents no unit or
+  // scale, and the venue currently reports zero fees — so there is no
+  // captured nonzero payload to verify a conversion against. An unverified
+  // scale would display wrong dollar amounts; integer fees are therefore
+  // treated as unavailable (0) until a real nonzero sample proves the
+  // unit. Decimal strings pass through as-is.
+  let fee = '0';
+  if (typeof rawFee === 'string' && parseFloat(rawFee) !== 0) {
+    fee = rawFee;
+  }
+  const pnl = (accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl) ?? '0';
+  const isBuy = !accountIsAsk;
+  const positionBefore = parseFloat(
+    (accountIsMaker
+      ? trade.makerPositionSizeBefore
+      : trade.takerPositionSizeBefore) ?? '',
+  );
+  const signChanged = accountIsMaker
+    ? trade.makerPositionSignChanged
+    : trade.takerPositionSignChanged;
   return {
     orderId: String(accountIsAsk ? trade.askId : trade.bidId),
     symbol,
@@ -231,11 +299,14 @@ export function adaptFillFromLighterTrade(
     size: trade.size,
     price: trade.price,
     // The venue reports realized pnl per side of the trade.
-    pnl: (accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl) ?? '0',
-    // Client transforms recognize the capitalized Buy/Sell direction
-    // vocabulary (open/close attribution needs signed position context the
-    // trade payload does not carry).
-    direction: accountIsAsk ? 'Sell' : 'Buy',
+    pnl,
+    direction: deriveLighterFillDirection({
+      isBuy,
+      size: parseFloat(trade.size),
+      positionBefore,
+      signChanged,
+      pnl: parseFloat(pnl),
+    }),
     fee,
     feeToken: 'USDC',
     timestamp: trade.timestamp,

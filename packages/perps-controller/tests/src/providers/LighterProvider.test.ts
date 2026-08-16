@@ -1163,55 +1163,15 @@ describe('LighterProvider', () => {
   });
 
   describe('session races (reviewer scenarios)', () => {
-    it("a deferred account-A signer setup cannot overwrite account B's session", async () => {
-      const { provider, clientInstance, getUserAddressMock, calls } =
-        buildProvider({ configuredAccountIndex: null });
-      const accountB = { ...ACCOUNT, index: 900 };
-      // A's account lookup stalls; everything else is instant.
-      let releaseLookupA: (value: unknown) => void = () => undefined;
-      clientInstance.getAccountsByL1Address
-        .mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              releaseLookupA = resolve;
-            }),
-        )
-        .mockResolvedValue({
-          code: 200,
-          l1Address: '0xbbbb',
-          subAccounts: [accountB],
+    it('a stalled account-A _createClient aborts and account B ends as the actual signer', async () => {
+      // Serialized design: A's setup enters the lock and stalls INSIDE
+      // _createClient; B's setup must remain pending behind the lock; on
+      // release, A aborts (generation fence) and only then B creates.
+      const { provider, clientInstance, getUserAddressMock, calls, bridge } =
+        buildProvider({
+          configuredAccountIndex: null,
+          registeredKey: '9c'.repeat(40),
         });
-
-      const setupUnderA = provider.isReadyToTrade();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      // Switch to B and fully initialize B's signer.
-      getUserAddressMock.mockReturnValue('0xbbbb');
-      const readyB = await provider.isReadyToTrade();
-      expect(readyB.ready).toBe(true);
-      const createClientCallsAfterB = calls.filter(
-        (call) => call.function === '_createClient',
-      ).length;
-
-      // A's stalled lookup finally resolves.
-      releaseLookupA({
-        code: 200,
-        l1Address: ACCOUNT.l1Address,
-        subAccounts: [ACCOUNT],
-      });
-      const readyA = await setupUnderA;
-      // A's setup must have aborted: no extra _createClient clobbered B's
-      // WASM client, and B's session still reports ready.
-      expect(readyA.ready).toBe(false);
-      expect(
-        calls.filter((call) => call.function === '_createClient'),
-      ).toHaveLength(createClientCallsAfterB);
-      const readyBAgain = await provider.isReadyToTrade();
-      expect(readyBAgain.ready).toBe(true);
-    });
-
-    it('an account-A write paused inside the lock never signs after B initializes', async () => {
-      const { provider, clientInstance, getUserAddressMock, calls } =
-        buildProvider({ configuredAccountIndex: null });
       const accountB = { ...ACCOUNT, index: 900 };
       clientInstance.getAccountsByL1Address.mockImplementation(
         (address: string) =>
@@ -1225,13 +1185,95 @@ describe('LighterProvider', () => {
                 },
           ),
       );
-      // Pause A's write INSIDE the critical section, at its nonce fetch.
+      // Capture the ORIGINAL implementation, not the mock reference —
+      // delegating to the mock itself would recurse forever.
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      let releaseCreateA: () => void = () => undefined;
+      let createARequested: () => void = () => undefined;
+      const createAPaused = new Promise<void>((resolve) => {
+        createARequested = resolve;
+      });
+      let stalledOnce = false;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_createClient' && !stalledOnce) {
+            stalledOnce = true;
+            createARequested();
+            await new Promise<void>((resolve) => {
+              releaseCreateA = resolve;
+            });
+          }
+          return realImplementation(call);
+        },
+      );
+
+      const setupUnderA = provider.isReadyToTrade();
+      await createAPaused;
+      // Switch to B and start B's setup: it must queue behind A's lock.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      let setupBSettled = false;
+      const setupUnderB = provider.isReadyToTrade().then((result) => {
+        setupBSettled = true;
+        return result;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setupBSettled).toBe(false);
+      // The recorded `calls` list only captures delegated (completed)
+      // executions; count issued creates on the wrapper itself.
+      const issuedCreates = (bridge.execute as jest.Mock).mock.calls.filter(
+        ([call]: [LighterWasmCall]) => call.function === '_createClient',
+      );
+      expect(issuedCreates).toHaveLength(1);
+
+      // Release A: it aborts at the post-createClient fence; B then runs.
+      releaseCreateA();
+      const readyA = await setupUnderA;
+      const readyB = await setupUnderB;
+      expect(readyA.ready).toBe(false);
+      expect(readyB.ready).toBe(true);
+      const createCalls = calls.filter(
+        (call) => call.function === '_createClient',
+      );
+      // Exactly two creates, and the LAST client created belongs to B — B
+      // is the actual signer left in the bridge.
+      expect(createCalls).toHaveLength(2);
+      expect(createCalls[1].params[2]).toBe(900);
+      // A never registered or submitted anything.
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('an account-A write paused inside the lock never signs after B initializes', async () => {
+      const { provider, clientInstance, getUserAddressMock, calls } =
+        buildProvider({
+          configuredAccountIndex: null,
+          registeredKey: '9c'.repeat(40),
+        });
+      const accountB = { ...ACCOUNT, index: 900 };
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        (address: string) =>
+          Promise.resolve(
+            address.toLowerCase() === '0xbbbb'
+              ? { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] }
+              : {
+                  code: 200,
+                  l1Address: ACCOUNT.l1Address,
+                  subAccounts: [ACCOUNT],
+                },
+          ),
+      );
+      // Warm A's signer FIRST so the deferred nonce below is definitively
+      // the cancel write's nonce, not signer setup's.
+      const warmed = await provider.isReadyToTrade();
+      expect(warmed.ready).toBe(true);
       let releaseNonce: (value: unknown) => void = () => undefined;
       let nonceRequested: () => void = () => undefined;
       const noncePaused = new Promise<void>((resolve) => {
         nonceRequested = resolve;
       });
-      clientInstance.getNextNonce.mockImplementation(() => {
+      clientInstance.getNextNonce.mockImplementationOnce(() => {
         nonceRequested();
         return new Promise((resolve) => {
           releaseNonce = resolve;
@@ -1242,22 +1284,30 @@ describe('LighterProvider', () => {
         symbol: 'BTC',
       });
       await noncePaused;
-      // While A is paused: switch to B (rebind via a read).
+      // While A's write holds the lock: switch to B and start B's signer
+      // setup — it must QUEUE behind A's critical section.
       getUserAddressMock.mockReturnValue('0xbbbb');
       await provider.getAccountState();
-      clientInstance.getNextNonce.mockResolvedValue({ code: 200, nonce: 43 });
+      let setupBSettled = false;
+      const setupUnderB = provider.isReadyToTrade().then((result) => {
+        setupBSettled = true;
+        return result;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setupBSettled).toBe(false);
+
       releaseNonce({ code: 200, nonce: 42 });
       const result = await writeUnderA;
       expect(result.success).toBe(false);
       expect(result.error).toContain('switched accounts');
-      // Nothing was signed or submitted for A.
+      // A's cancel never signed or submitted.
       expect(
         calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(0);
-      expect(clientInstance.sendTx).not.toHaveBeenCalledWith(
-        15,
-        expect.anything(),
-      );
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      // B's signer completes once the lock frees.
+      const readyB = await setupUnderB;
+      expect(readyB.ready).toBe(true);
     });
 
     it('ignores frames from the pre-switch WebSocket after a rebind', async () => {
@@ -1610,21 +1660,20 @@ describe('LighterProvider', () => {
 
     it('derives estimates instead of returning false zeros', async () => {
       const { provider } = buildProvider();
-      // Maintenance fraction: half the initial margin at max leverage.
+      // Maintenance fraction: venue fallback (no margin data mocked).
       expect(
         await provider.calculateMaintenanceMargin({} as never),
       ).toBeCloseTo(1 / (2 * 50));
-      // Standard cross approximation: long 10x from 100 → 100*(1-0.1+0.01).
-      expect(
-        parseFloat(
-          await provider.calculateLiquidationPrice({
-            entryPrice: 100,
-            leverage: 10,
-            direction: 'long',
-          }),
-        ),
-      ).toBeCloseTo(91);
-      expect(await provider.calculateLiquidationPrice({} as never)).toBe('0');
+      // The liquidation preview is capability-gated: Lighter cross-margin
+      // liquidation needs account-level inputs, so a plausible per-position
+      // number would be wrong. Clients render their explicit fallback.
+      await expect(
+        provider.calculateLiquidationPrice({
+          entryPrice: 100,
+          leverage: 10,
+          direction: 'long',
+        }),
+      ).rejects.toThrow('unavailable');
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       // Fee rates come from the venue's per-market metadata (currently 0).
       const fees = await provider.calculateFees({

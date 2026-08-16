@@ -441,9 +441,13 @@ export type LighterWsTrade = {
   /** Realized pnl per side — same wire shape as the REST trade payload. */
   askAccountPnl?: string;
   bidAccountPnl?: string;
-  /** Fees, present when nonzero (venue docs); hundredths conventions apply. */
-  takerFee?: string;
-  makerFee?: string;
+  /** Fees, present when nonzero; integers are USDC base units (6 dp). */
+  takerFee?: number | string;
+  makerFee?: number | string;
+  takerPositionSizeBefore?: string;
+  makerPositionSizeBefore?: string;
+  takerPositionSignChanged?: boolean;
+  makerPositionSignChanged?: boolean;
 };
 
 /**
@@ -477,9 +481,19 @@ export type LighterRestTrade = {
   askAccountPnl?: string;
   /** Realized pnl for the bid-side account, signed USDC. */
   bidAccountPnl?: string;
-  /** Taker/maker fees, present when nonzero (venue docs). */
-  takerFee?: string;
-  makerFee?: string;
+  /**
+   * Taker/maker fees, present when nonzero (venue docs). The official
+   * model types them as integers (USDC base units, 6 decimals); a decimal
+   * string is tolerated defensively.
+   */
+  takerFee?: number | string;
+  makerFee?: number | string;
+  /** Position size (absolute) of each side before the trade executed. */
+  takerPositionSizeBefore?: string;
+  makerPositionSizeBefore?: string;
+  /** Whether the side's position sign changed (crossed or left zero). */
+  takerPositionSignChanged?: boolean;
+  makerPositionSignChanged?: boolean;
 };
 
 /**

@@ -211,44 +211,131 @@ describe('lighterAdapter', () => {
       isMakerAsk: false,
       timestamp: 1786878754951,
       askAccountPnl: '-0.012901',
+      takerPositionSizeBefore: '0.133',
+      takerPositionSignChanged: true,
+      makerPositionSizeBefore: '0.000',
+      makerPositionSignChanged: true,
     };
 
-    it('adapts the real venue payload with per-side pnl and Buy/Sell direction', () => {
+    it('adapts the real venue payload: a taker sell of the full position is Close Long', () => {
       const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
       expect(fill).toMatchObject({
         orderId: '844424944383120',
         symbol: 'SOL',
         side: 'sell',
-        direction: 'Sell',
+        // Position before 0.133, sold 0.133, sign changed → closed a long.
+        direction: 'Close Long',
         size: '0.133',
         price: '75.180',
         pnl: '-0.012901',
-        // Account 28 was the taker (isMakerAsk false, account is ask); no
-        // fee fields in the payload → venue-true zero.
+        // No fee fields in the payload → venue-true zero.
         fee: '0',
         feeToken: 'USDC',
         timestamp: 1786878754951,
       });
     });
 
-    it('adapts the counterparty perspective with Buy direction and its own pnl default', () => {
+    it('adapts the counterparty: a buy from a flat position is Open Long', () => {
       const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 7);
       expect(fill.side).toBe('buy');
-      expect(fill.direction).toBe('Buy');
+      expect(fill.direction).toBe('Open Long');
       expect(fill.orderId).toBe('1125899892620735');
       expect(fill.pnl).toBe('0');
     });
 
-    it('applies the side-appropriate fee when the venue includes fees', () => {
-      const withFees = {
+    it('derives buy-close, sell-open, flip, and side-only fallbacks', () => {
+      // Buy that flattens a short: before 0.5, bought 0.5, sign changed.
+      const buyClose = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          isMakerAsk: true,
+          bidAccountId: 28,
+          askAccountId: 7,
+          takerPositionSizeBefore: '0.5',
+          takerPositionSignChanged: true,
+          size: '0.5',
+          bidAccountPnl: '1.25',
+        },
+        'SOL',
+        28,
+      );
+      expect(buyClose.direction).toBe('Close Short');
+      expect(buyClose.pnl).toBe('1.25');
+
+      // Sell from flat opens a short even with zero pnl.
+      const sellOpen = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          takerPositionSizeBefore: '0.000',
+          takerPositionSignChanged: true,
+          askAccountPnl: '0',
+        },
+        'SOL',
+        28,
+      );
+      expect(sellOpen.direction).toBe('Open Short');
+
+      // Selling more than the long flips it.
+      const flip = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          size: '0.300',
+          takerPositionSizeBefore: '0.133',
+          takerPositionSignChanged: true,
+        },
+        'SOL',
+        28,
+      );
+      expect(flip.direction).toBe('Long > Short');
+
+      // Without position-before context: side-only vocabulary.
+      const bare = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          takerPositionSizeBefore: undefined,
+          takerPositionSignChanged: undefined,
+        },
+        'SOL',
+        28,
+      );
+      expect(bare.direction).toBe('Sell');
+    });
+
+    it('a zero-pnl partial reduce without sign change stays Open (ambiguous default)', () => {
+      const partial = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          size: '0.050',
+          takerPositionSizeBefore: '0.133',
+          takerPositionSignChanged: false,
+          askAccountPnl: '0.5',
+        },
+        'SOL',
+        28,
+      );
+      // Nonzero pnl on a partial → it reduced the position.
+      expect(partial.direction).toBe('Close Long');
+    });
+
+    it('treats integer venue fees as unavailable until a unit is proven', () => {
+      // The official model types fees as StrictInt with no documented
+      // unit/scale, and no nonzero payload exists to verify one against —
+      // an unverified conversion would display wrong dollar amounts.
+      const withIntFees = {
         ...REAL_TRADE,
-        takerFee: '0.0450',
-        makerFee: '0.0150',
+        takerFee: 45000,
+        makerFee: 15000,
       };
-      // Account 28 = ask, isMakerAsk false → taker.
-      expect(adaptFillFromLighterTrade(withFees, 'SOL', 28).fee).toBe('0.0450');
-      // Account 7 = bid → maker in this trade.
-      expect(adaptFillFromLighterTrade(withFees, 'SOL', 7).fee).toBe('0.0150');
+      expect(adaptFillFromLighterTrade(withIntFees, 'SOL', 28).fee).toBe('0');
+      expect(adaptFillFromLighterTrade(withIntFees, 'SOL', 7).fee).toBe('0');
+      // Decimal strings pass through defensively.
+      expect(
+        adaptFillFromLighterTrade(
+          { ...REAL_TRADE, takerFee: '0.0450' },
+          'SOL',
+          28,
+        ).fee,
+      ).toBe('0.0450');
     });
   });
 
