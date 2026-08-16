@@ -641,6 +641,24 @@ export class LighterProvider implements PerpsProvider {
         'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
       );
     }
+    // The generation only advances when some provider call rebinds; also
+    // notice a wallet switch nothing has observed yet.
+    try {
+      const address = this.#walletService.getUserAddress().toLowerCase();
+      if (this.#boundAddress !== null && this.#boundAddress !== address) {
+        throw new Error(
+          'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith('Operation cancelled')
+      ) {
+        throw error;
+      }
+      // No account selected — the caller's own resolution surfaces it.
+    }
   };
 
   readonly #ensureSignerReady = async (): Promise<void> => {
@@ -668,45 +686,51 @@ export class LighterProvider implements PerpsProvider {
     const accountIndex = await this.#ensureAccountIndex();
     this.#assertSession(generation);
     const chainId = getLighterChainId(this.#clientService.network);
-    const seed = await this.#walletService.deriveKeySeedPlain(
-      this.#apiKeyIndex,
-    );
-    this.#assertSession(generation);
-    const nonceResponse = await this.#clientService.getNextNonce(
+    // The WASM client is a singleton inside the bridge host and the venue
+    // key registration is a nonce-consuming write. Both therefore run
+    // INSIDE the venue write lock: a stale previous-account setup aborts at
+    // the lock's fence before it can touch the bridge, and no other
+    // account's setup or write can interleave with this critical section.
+    await this.#withVenueWriteLock(
       accountIndex,
-      this.#apiKeyIndex,
-    );
-    // The WASM client is a singleton inside the bridge host: a stale
-    // _createClient from a previous account would clobber the client the
-    // current session just created. Fence immediately before the call.
-    this.#assertSession(generation);
-    const created = await bridge.execute<LighterCreateClientResult>({
-      function: '_createClient',
-      params: [
-        seed,
-        chainId,
-        accountIndex,
-        nonceResponse.nonce,
-        this.#apiKeyIndex,
-      ],
-    });
-    if (created.error || !created.success) {
-      throw new Error(
-        `Lighter signer client creation failed: ${created.error ?? 'unknown'}`,
-      );
-    }
-    this.#assertSession(generation);
-    this.#venuePublicKey = created.pk;
+      async (nextNonce, submit) => {
+        const seed = await this.#walletService.deriveKeySeedPlain(
+          this.#apiKeyIndex,
+        );
+        this.#assertSession(generation);
+        const nonce = await nextNonce();
+        this.#assertSession(generation);
+        const created = await bridge.execute<LighterCreateClientResult>({
+          function: '_createClient',
+          params: [seed, chainId, accountIndex, nonce, this.#apiKeyIndex],
+        });
+        if (created.error || !created.success) {
+          throw new Error(
+            `Lighter signer client creation failed: ${created.error ?? 'unknown'}`,
+          );
+        }
+        this.#assertSession(generation);
+        this.#venuePublicKey = created.pk;
 
-    // Register the venue key when the slot does not hold it yet. Only the
-    // plaintext body leaves this scope — `created.prv` (the venue private
-    // key) must stay inside the signer bridge boundary and never be logged.
-    const registered = await this.#isVenueKeyRegistered(accountIndex);
-    this.#assertSession(generation);
-    if (!registered) {
-      await this.#registerVenueKey(accountIndex, created.body);
-      this.#assertSession(generation);
-    }
+        // Register the venue key when the slot does not hold it yet. Only
+        // the plaintext body leaves this scope — `created.prv` (the venue
+        // private key) must stay inside the signer bridge boundary and
+        // never be logged.
+        const registered = await this.#isVenueKeyRegistered(accountIndex);
+        this.#assertSession(generation);
+        if (!registered) {
+          await this.#registerVenueKey(
+            accountIndex,
+            created.body,
+            generation,
+            nextNonce,
+            submit,
+          );
+          this.#assertSession(generation);
+        }
+      },
+      generation,
+    );
   };
 
   readonly #isVenueKeyRegistered = async (
@@ -730,32 +754,29 @@ export class LighterProvider implements PerpsProvider {
   readonly #registerVenueKey = async (
     accountIndex: number,
     changePubKeyBody: string,
+    generation: number,
+    nextNonce: () => Promise<number>,
+    submit: (txType: number, txInfo: string) => Promise<LighterSendTxResponse>,
   ): Promise<void> => {
     const bridge = this.#getSignerBridge();
     // The ChangePubKey plaintext from _createClient embeds the nonce used at
-    // client creation; sign it with the user's L1 account (EIP-191).
+    // client creation; sign it with the user's L1 account (EIP-191). Every
+    // await is fenced and the submission goes through the lock's fenced
+    // submit — a stale registration can never reach the venue.
     const l1Signature =
       await this.#walletService.signPersonalMessage(changePubKeyBody);
-    const nonceResponse = await this.#clientService.getNextNonce(
-      accountIndex,
-      this.#apiKeyIndex,
-    );
+    this.#assertSession(generation);
+    const nonce = await nextNonce();
+    this.#assertSession(generation);
     const signed = await bridge.execute<LighterSignChangePubKeyResult>({
       function: '_signChangePubKey',
-      params: [
-        accountIndex,
-        l1Signature,
-        nonceResponse.nonce,
-        this.#apiKeyIndex,
-      ],
+      params: [accountIndex, l1Signature, nonce, this.#apiKeyIndex],
     });
     if (signed.error) {
       throw new Error(`Lighter ChangePubKey signing failed: ${signed.error}`);
     }
-    const result = await this.#clientService.sendTx(
-      LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
-      signed.txInfo,
-    );
+    this.#assertSession(generation);
+    const result = await submit(LIGHTER_TX_TYPE_CHANGE_PUB_KEY, signed.txInfo);
     this.#deps.debugLogger.log('[LighterProvider] Venue key registered', {
       accountIndex,
       apiKeyIndex: this.#apiKeyIndex,
@@ -804,13 +825,15 @@ export class LighterProvider implements PerpsProvider {
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
       const nextNonce = async (): Promise<number> => {
-        // Re-fenced on every fetch: the account can switch between the
-        // section's own await points, not only while it sat in the queue.
+        // Re-fenced on every fetch AND after it resolves: the account can
+        // switch between the section's own await points, not only while it
+        // sat in the queue.
         this.#assertSession(generationAtIntent);
         const nonceResponse = await this.#clientService.getNextNonce(
           accountIndex,
           this.#apiKeyIndex,
         );
+        this.#assertSession(generationAtIntent);
         return nonceResponse.nonce;
       };
       const submit = async (
@@ -951,6 +974,9 @@ export class LighterProvider implements PerpsProvider {
 
   async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
     try {
+      // Per-market max leverage comes from the margin cache; warm it so
+      // known markets never fall back to the global constant.
+      await this.#ensureMarketMargins().catch(() => undefined);
       const accountIndex = await this.#ensureAccountIndex();
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
@@ -1101,7 +1127,7 @@ export class LighterProvider implements PerpsProvider {
     params: OrderParams,
   ): Promise<number | null> => {
     const requested = params.leverage;
-    if (!requested || requested <= 0) {
+    if (requested === undefined) {
       return null;
     }
     // Venue state decides, never the caller's possibly-stale
@@ -1145,6 +1171,12 @@ export class LighterProvider implements PerpsProvider {
         return {
           success: false,
           error: 'Lighter placement does not support post-only (ALO) yet',
+        };
+      }
+      if (params.leverage !== undefined && !(params.leverage > 0)) {
+        return {
+          success: false,
+          error: `Invalid leverage ${params.leverage}: must be a positive number`,
         };
       }
       // Bind the write to the wallet account it was INITIATED under; if the
@@ -2016,8 +2048,23 @@ export class LighterProvider implements PerpsProvider {
     if (params.orderType === 'limit' && !params.price) {
       return { isValid: false, error: 'Limit order requires a price' };
     }
-    const usdAmount = parseFloat(params.usdAmount ?? '');
-    const hasUsdSizing = Number.isFinite(usdAmount) && usdAmount > 0;
+    if (params.leverage !== undefined && !(params.leverage > 0)) {
+      return {
+        isValid: false,
+        error: `Invalid leverage ${params.leverage}: must be a positive number`,
+      };
+    }
+    let hasUsdSizing = false;
+    if (params.usdAmount !== undefined) {
+      const usdAmount = parseFloat(params.usdAmount);
+      if (!(usdAmount > 0)) {
+        return {
+          isValid: false,
+          error: `Invalid usdAmount ${params.usdAmount}: must be a positive number`,
+        };
+      }
+      hasUsdSizing = true;
+    }
     if (!hasUsdSizing && !(parseFloat(params.size) > 0)) {
       return { isValid: false, error: 'Order size must be positive' };
     }
@@ -2075,25 +2122,18 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async calculateLiquidationPrice(
-    params: LiquidationPriceParams,
+    _params: LiquidationPriceParams,
   ): Promise<string> {
-    // SINGLE-POSITION PREVIEW ONLY. Lighter cross liquidation depends on
-    // total account value and the aggregate maintenance requirement across
-    // all positions; this standard per-position approximation (with the
-    // venue's per-market maintenance fraction) is a sizing preview, not the
-    // venue formula. Live positions carry the venue's own liquidationPrice
-    // — always prefer that for display.
-    const { entryPrice, leverage, direction } = params;
-    if (!(entryPrice > 0) || !(leverage > 0)) {
-      return '0';
-    }
-    const maintenanceFraction = await this.calculateMaintenanceMargin({
-      asset: params.asset ?? '',
-    });
-    const sideFactor = direction === 'long' ? 1 : -1;
-    const liquidationPrice =
-      entryPrice * (1 - sideFactor * (1 / leverage - maintenanceFraction));
-    return liquidationPrice > 0 ? liquidationPrice.toFixed(6) : '0';
+    // Capability-gated: Lighter cross-margin liquidation depends on total
+    // account value and the aggregate maintenance requirement across all
+    // positions — inputs this preview does not have. A plausible-looking
+    // per-position estimate would feed stop-loss warnings with a wrong
+    // number, so the calculation reports unavailable and clients render
+    // their explicit fallback. Live positions carry the venue's own
+    // liquidationPrice.
+    throw new Error(
+      'Liquidation price preview is unavailable for Lighter: cross-margin liquidation depends on total account value and aggregate maintenance requirements',
+    );
   }
 
   async calculateMaintenanceMargin(
@@ -2279,6 +2319,8 @@ export class LighterProvider implements PerpsProvider {
     const generation = this.#sessionGeneration;
     this.#accountChannelsPromise = (async (): Promise<void> => {
       try {
+        // Warm the margin cache before any WS position frame is adapted.
+        await this.#ensureMarketMargins().catch(() => undefined);
         const accountIndex = await this.#ensureAccountIndex();
         if (generation !== this.#sessionGeneration) {
           // The wallet switched accounts while resolving; the rebind's own
