@@ -367,13 +367,25 @@ export function adaptPositionFromLighter(
   // Venue-input integrity boundary: the REST layer type-casts JSON without
   // runtime validation, and a prefix-parsed '0.1oops' would become a
   // canonical '0.1' that TP/SL cover-sizing and close paths then SIGN.
+  // The documented representation is a NONNEGATIVE magnitude with sign
+  // exactly 1 or -1: a negative magnitude with sign 1 would flip the
+  // canonical direction and make close/TPSL act opposite the real
+  // position; sign 0/2/'1' would be silently coerced by a > 0 ternary.
   const magnitude = parseLighterStrictDecimal(position.position);
-  if (magnitude === null || !Number.isFinite(magnitude)) {
+  if (magnitude === null || !Number.isFinite(magnitude) || magnitude < 0) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${position.position}' for ${position.symbol}`,
     );
   }
-  const size = magnitude * (position.sign > 0 ? 1 : -1);
+  // The documented contract is sign EXACTLY 1 or -1, including for flat
+  // positions (zero magnitudes are filtered downstream); anything else is
+  // malformed venue data, never something to coerce.
+  if (position.sign !== 1 && position.sign !== -1) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} position sign '${String(position.sign)}' for ${position.symbol}`,
+    );
+  }
+  const size = magnitude * position.sign;
   const positionValue = parseFloat(position.positionValue);
   const marginFraction = parseFloat(position.initialMarginFraction);
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).

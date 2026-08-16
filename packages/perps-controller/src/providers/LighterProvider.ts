@@ -116,6 +116,7 @@ import type {
   WithdrawResult,
 } from '../types/index.js';
 import type {
+  LighterApiOrder,
   LighterAuthConfig,
   LighterCreateAuthTokenResult,
   LighterCreateClientResult,
@@ -193,6 +194,12 @@ const toSignerWireInteger = (value: number, decimals: number): number => {
 
 /** The pinned signer casts price fields to uint32. */
 const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
+
+/** Delay between TP/SL settlement visibility polls. */
+const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
+
+/** Bounded attempts for TP/SL settlement visibility. */
+const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
 
 /**
  * Integerize a signer-bound PRICE (order price / trigger price): the
@@ -669,6 +676,9 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = null;
     this.#signerReadyPromise = null;
     this.#authToken = null;
+    // #tpslUnsettled is NOT cleared: entries are keyed by
+    // address+accountIndex+symbol, so B never consumes A's pending ids and
+    // switching back to A retains its reconciliation obligation.
     this.#teardownStream();
     this.#rebuildStreamForSubscribers();
     this.#deps.debugLogger.log(
@@ -813,6 +823,56 @@ export class LighterProvider implements PerpsProvider {
     String(error).includes(LIGHTER_DATA_INTEGRITY_PREFIX);
 
   /**
+   * TP/SL settlement expectations that timed out before becoming visible
+   * on the venue's REST book, per symbol. While an entry exists, further
+   * TP/SL mutations for that symbol must reconcile it first.
+   */
+  readonly #tpslUnsettled = new Map<
+    string,
+    { createdClientIds: number[]; cancelledOrderIds: string[] }
+  >();
+
+  /**
+   * Bounded poll until the venue's active-order book reflects a TP/SL
+   * transition: every created client id visible, every cancelled order id
+   * absent.
+   *
+   * @param readActiveRaw - Strict raw active-orders reader (session-fenced).
+   * @param expectation - Ids the book must (not) contain.
+   * @param expectation.createdClientIds - Client ids that must be visible.
+   * @param expectation.cancelledOrderIds - Order ids that must be gone.
+   * @returns True when visible within the bound, false on timeout.
+   */
+  readonly #awaitTpslVisibility = async (
+    readActiveRaw: () => Promise<LighterApiOrder[]>,
+    expectation: { createdClientIds: number[]; cancelledOrderIds: string[] },
+  ): Promise<boolean> => {
+    for (
+      let attempt = 0;
+      attempt < LIGHTER_TPSL_SETTLE_ATTEMPTS;
+      attempt += 1
+    ) {
+      const rawOrders = await readActiveRaw();
+      const createdVisible = expectation.createdClientIds.every((clientId) =>
+        rawOrders.some(
+          (order) => String(order.clientOrderIndex) === String(clientId),
+        ),
+      );
+      const cancelledGone = expectation.cancelledOrderIds.every(
+        (orderId) =>
+          !rawOrders.some((order) => String(order.orderIndex) === orderId),
+      );
+      if (createdVisible && cancelledGone) {
+        return true;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
+      );
+    }
+    return false;
+  };
+
+  /**
    * Create the WASM signer client and register the venue key if the
    * account's key slot does not hold it yet. Deduplicated.
    *
@@ -872,6 +932,8 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = null;
     this.#signerReadyPromise = null;
     this.#authToken = null;
+    // #tpslUnsettled survives (address+accountIndex+symbol keyed): a
+    // reselect of the same account must still reconcile its pending ids.
   };
 
   readonly #ensureSignerReady = async (): Promise<void> => {
@@ -1077,6 +1139,7 @@ export class LighterProvider implements PerpsProvider {
       submit: (
         txType: number,
         txInfo: string,
+        onAccepted?: () => void,
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
@@ -1098,11 +1161,20 @@ export class LighterProvider implements PerpsProvider {
       const submit = async (
         txType: number,
         txInfo: string,
+        onAccepted?: () => void,
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
         // happened while SIGNING must abort before submission.
         this.#assertSession(generationAtIntent);
-        return await this.#clientService.sendTx(txType, txInfo);
+        const response = await this.#clientService.sendTx(txType, txInfo);
+        // Acceptance bookkeeping runs SYNCHRONOUSLY before the post-fence:
+        // a switch during network submission must cancel the operation,
+        // never the record of an already-accepted venue mutation.
+        onAccepted?.();
+        // And after: a switch DURING network submission must not let the
+        // operation report success under the new account's session.
+        this.#assertSession(generationAtIntent);
+        return response;
       };
       return await section(nextNonce, submit);
     };
@@ -1121,6 +1193,7 @@ export class LighterProvider implements PerpsProvider {
       submit: (
         txType: number,
         txInfo: string,
+        onAccepted?: () => void,
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
@@ -2057,6 +2130,7 @@ export class LighterProvider implements PerpsProvider {
       const wantsReplacement =
         Boolean(params.takeProfitPrice) || Boolean(params.stopLossPrice);
       let groupedPayload: (string | number)[] | null = null;
+      let createdClientIds: number[] = [];
       let groupedOrderCount = 0;
       let groupedType = 0;
       if (wantsReplacement) {
@@ -2129,6 +2203,7 @@ export class LighterProvider implements PerpsProvider {
         const clientOrderIds = this.#allocateClientOrderIndexes(
           validatedOrders.length,
         );
+        createdClientIds = clientOrderIds;
         // VENUE CONTRACT (proven live: 'GroupingType is not valid'):
         // CreateGroupedOrders only accepts grouping types 1/2/3 and OCO
         // requires two siblings, so a SINGLE TP or SL must be an ordinary
@@ -2159,6 +2234,18 @@ export class LighterProvider implements PerpsProvider {
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
+      // Pre-mint the auth token OUTSIDE the write lock: #getAuthToken can
+      // trigger signer setup, and signer setup queues on the write chain —
+      // calling any setup-capable helper from inside the held section
+      // would self-deadlock after a bridge reset or unobserved switch.
+      const authToken = await this.#getAuthToken();
+      this.#assertSession(generationAtIntent);
+      // Settlement identity: pending expectations are keyed by the
+      // captured normalized address + account index + symbol so another
+      // account can never consume (or be blocked by) this account's ids,
+      // while a same-account bridge reset or switch-away-and-back retains
+      // the reconciliation obligation.
+      const settlementKey = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:${params.symbol}`;
 
       // The ENTIRE snapshot -> create -> cancel lifecycle runs as ONE
       // serialized transition on the account's write chain. Two concurrent
@@ -2171,12 +2258,46 @@ export class LighterProvider implements PerpsProvider {
       await this.#withVenueWriteLock(
         accountIndex,
         async (nextNonce, submit) => {
-          // STRICT snapshot inside the transition: an active-orders read
-          // that swallowed a REST failure to [] would make remove "succeed"
-          // cancelling nothing, and replace "succeed" while the old
-          // triggers remain live.
-          const openOrders = await this.#readOpenOrdersStrict();
-          this.#assertSession(generationAtIntent);
+          // STRICT direct read with the CAPTURED account/auth/generation:
+          // a swallowed [] would make remove "succeed" cancelling nothing;
+          // a setup-capable helper here could self-deadlock (see auth
+          // pre-mint above). Session fences on every read.
+          const readActiveRaw = async (): Promise<LighterApiOrder[]> => {
+            this.#assertSession(generationAtIntent);
+            const response = await this.#clientService.getActiveOrders(
+              accountIndex,
+              authToken,
+            );
+            this.#assertSession(generationAtIntent);
+            return response.orders;
+          };
+
+          // VENUE LINEARIZABILITY: if a previous TP/SL transition's
+          // settlement never became visible, refuse further mutation until
+          // the venue reflects it — mutating from a stale snapshot could
+          // duplicate or strip protection.
+          const unsettled = this.#tpslUnsettled.get(settlementKey);
+          if (unsettled) {
+            const reconciled = await this.#awaitTpslVisibility(
+              readActiveRaw,
+              unsettled,
+            );
+            if (!reconciled) {
+              throw new Error(
+                `Lighter TP/SL settlement for ${params.symbol} is unresolved; refusing further protection changes until the venue reflects the previous update`,
+              );
+            }
+            this.#tpslUnsettled.delete(settlementKey);
+          }
+
+          const rawOrders = await readActiveRaw();
+          const openOrders = rawOrders.map((order) =>
+            adaptOrderFromLighter(
+              order,
+              this.#marketsById.get(order.marketIndex)?.symbol ??
+                String(order.marketIndex),
+            ),
+          );
           const staleTriggers = openOrders.filter(
             (order) =>
               order.symbol === params.symbol &&
@@ -2185,6 +2306,15 @@ export class LighterProvider implements PerpsProvider {
                 Boolean(order.orderType?.includes('take')) ||
                 order.isTrigger === true),
           );
+
+          // Accepted-mutation bookkeeping, persisted incrementally so any
+          // later failure leaves an accurate reconciliation obligation.
+          // A stable const object keeps the per-cancel onAccepted closures
+          // free of loop-unsafe let references.
+          const expectation: {
+            createdClientIds: number[];
+            cancelledOrderIds: string[];
+          } = { createdClientIds: [], cancelledOrderIds: [] };
 
           // CREATE FIRST, cancel after: if signing or submission of the
           // new protection fails, the old triggers were never touched and
@@ -2216,11 +2346,19 @@ export class LighterProvider implements PerpsProvider {
             if (signed.error) {
               throw new Error(signed.error);
             }
+            // Recorded via onAccepted — synchronously after sendTx
+            // resolves and BEFORE the post-submit session fence, so even a
+            // switch DURING network submission leaves the accepted
+            // mutation's reconciliation obligation in place.
             await submit(
               isSingleTrigger
                 ? LIGHTER_TX_TYPE_CREATE_ORDER
                 : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
               signed.txInfo,
+              () => {
+                expectation.createdClientIds.push(...createdClientIds);
+                this.#tpslUnsettled.set(settlementKey, expectation);
+              },
             );
           }
 
@@ -2242,7 +2380,38 @@ export class LighterProvider implements PerpsProvider {
                   : `Failed to remove trigger order ${order.orderId}: ${signedCancel.error}`,
               );
             }
-            await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signedCancel.txInfo);
+            // Append each ACCEPTED cancel inside onAccepted (pre-fence).
+            await submit(
+              LIGHTER_TX_TYPE_CANCEL_ORDER,
+              signedCancel.txInfo,
+              () => {
+                expectation.cancelledOrderIds.push(order.orderId);
+                this.#tpslUnsettled.set(settlementKey, expectation);
+              },
+            );
+          }
+
+          // Await authoritative visibility BEFORE releasing the lock: an
+          // accepted sendTx is not immediately reflected by REST, and the
+          // next queued transition would otherwise snapshot a stale book
+          // and duplicate or strip protection. Bounded; the expectation
+          // stays recorded on timeout so the NEXT transition reconciles
+          // before mutating, and is deleted only after authoritative
+          // visibility.
+          if (
+            expectation.createdClientIds.length > 0 ||
+            expectation.cancelledOrderIds.length > 0
+          ) {
+            const settled = await this.#awaitTpslVisibility(
+              readActiveRaw,
+              expectation,
+            );
+            if (!settled) {
+              throw new Error(
+                `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+              );
+            }
+            this.#tpslUnsettled.delete(settlementKey);
           }
         },
         generationAtIntent,
@@ -2744,10 +2913,24 @@ export class LighterProvider implements PerpsProvider {
       if (requestedSize < minSize) {
         // EXACTLY the placement rule: only reduce-only orders may bump to
         // the venue minimum, and only when the live position verifies a
-        // full close; isFullClose remains an untrusted hint.
-        const verifiedFullClose = params.reduceOnly
-          ? await this.#isVerifiedFullClose(params.symbol, requestedSize)
-          : false;
+        // full close; isFullClose remains an untrusted hint. The live read
+        // can THROW (capability gates, venue-data integrity): a validator
+        // must resolve to an explicit invalid result, never reject.
+        let verifiedFullClose = false;
+        if (params.reduceOnly) {
+          try {
+            verifiedFullClose = await this.#isVerifiedFullClose(
+              params.symbol,
+              requestedSize,
+            );
+          } catch (error) {
+            return {
+              isValid: false,
+              error: ensureError(error, 'LighterProvider.validateOrder')
+                .message,
+            };
+          }
+        }
         if (!verifiedFullClose) {
           return {
             isValid: false,
@@ -3003,39 +3186,54 @@ export class LighterProvider implements PerpsProvider {
   /** When the margin-metadata cache was last refreshed (0 = never). */
   #marginFetchedAt = 0;
 
+  /** In-flight authoritative margin refresh, shared by the stale epoch. */
+  #marginRefreshInFlight: Promise<void> | null = null;
+
   readonly #ensureMarketMargins = async (): Promise<void> => {
     // TTL refresh: metadata cached once for the whole session would keep
     // validating leverage against a stale (possibly higher) max. On
     // expiry the fetch re-runs; if it fails, the throw propagates and
     // #requireMarketMaxLeverage fails CLOSED for explicit leverage while
     // display callers keep their catch+fallback behavior.
-    const now = Date.now();
     if (
       this.#marginBySymbol.size > 0 &&
-      now - this.#marginFetchedAt < LIGHTER_MARGIN_METADATA_TTL_MS
+      Date.now() - this.#marginFetchedAt < LIGHTER_MARGIN_METADATA_TTL_MS
     ) {
       return;
     }
-    const details = await this.#clientService.getOrderBookDetails();
-    // Atomic replacement: set()-ing into the old map would let a symbol
-    // REMOVED from fresh metadata keep its stale cap forever. Build the
-    // fresh map completely, then swap; the timestamp only advances on
-    // success.
-    const fresh = new Map<
-      string,
-      { minInitial?: number; maintenance?: number }
-    >();
-    for (const detail of details.orderBookDetails) {
-      fresh.set(detail.symbol, {
-        minInitial: detail.minInitialMarginFraction,
-        maintenance: detail.maintenanceMarginFraction,
-      });
+    // ONE authoritative request per stale epoch: overlapping independent
+    // fetches can resolve out of order, letting a DELAYED older payload
+    // overwrite a fresher cap for a full TTL. A rejection propagates to
+    // every waiter of this epoch (fail closed) and clears the in-flight
+    // slot in finally so a later call can retry.
+    if (!this.#marginRefreshInFlight) {
+      this.#marginRefreshInFlight = (async (): Promise<void> => {
+        try {
+          const details = await this.#clientService.getOrderBookDetails();
+          // Atomic replacement: set()-ing into the old map would let a
+          // symbol REMOVED from fresh metadata keep its stale cap forever.
+          // The timestamp only advances on success.
+          const fresh = new Map<
+            string,
+            { minInitial?: number; maintenance?: number }
+          >();
+          for (const detail of details.orderBookDetails) {
+            fresh.set(detail.symbol, {
+              minInitial: detail.minInitialMarginFraction,
+              maintenance: detail.maintenanceMarginFraction,
+            });
+          }
+          this.#marginBySymbol.clear();
+          for (const [symbol, entry] of fresh) {
+            this.#marginBySymbol.set(symbol, entry);
+          }
+          this.#marginFetchedAt = Date.now();
+        } finally {
+          this.#marginRefreshInFlight = null;
+        }
+      })();
     }
-    this.#marginBySymbol.clear();
-    for (const [symbol, entry] of fresh) {
-      this.#marginBySymbol.set(symbol, entry);
-    }
-    this.#marginFetchedAt = now;
+    await this.#marginRefreshInFlight;
   };
 
   async getMaxLeverage(asset: string): Promise<number> {
