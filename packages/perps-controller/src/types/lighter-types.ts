@@ -438,6 +438,12 @@ export type LighterWsTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
+  /** Realized pnl per side — same wire shape as the REST trade payload. */
+  askAccountPnl?: string;
+  bidAccountPnl?: string;
+  /** Fees, present when nonzero (venue docs); hundredths conventions apply. */
+  takerFee?: string;
+  makerFee?: string;
 };
 
 /**
@@ -471,6 +477,9 @@ export type LighterRestTrade = {
   askAccountPnl?: string;
   /** Realized pnl for the bid-side account, signed USDC. */
   bidAccountPnl?: string;
+  /** Taker/maker fees, present when nonzero (venue docs). */
+  takerFee?: string;
+  makerFee?: string;
 };
 
 /**

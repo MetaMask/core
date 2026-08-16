@@ -30,6 +30,7 @@ import type {
   LighterOrderBookDetail,
   LighterOrderBookMeta,
   LighterRestTrade,
+  LighterWsTrade,
   LighterSubAccount,
   LighterWsMarketStat,
   LighterWsUserStats,
@@ -98,10 +99,14 @@ export function adaptMarketDataFromLighter(
   const changeAbs =
     changePercent === 0 ? 0 : (price * changePercent) / (100 + changePercent);
 
+  const maxLeverage =
+    detail.minInitialMarginFraction && detail.minInitialMarginFraction > 0
+      ? Math.floor(10_000 / detail.minInitialMarginFraction)
+      : LIGHTER_MAX_LEVERAGE;
   return {
     symbol: detail.symbol,
     name: detail.symbol,
-    maxLeverage: `${LIGHTER_MAX_LEVERAGE}x`,
+    maxLeverage: `${maxLeverage}x`,
     price: formatters.formatPerpsFiat(price, {
       ranges: formatters.priceRangesUniversal,
     }),
@@ -204,11 +209,21 @@ export function adaptAccountStateFromLighterUserStats(
  * @returns MetaMask Perps API order fill object.
  */
 export function adaptFillFromLighterTrade(
-  trade: LighterRestTrade,
+  trade: LighterRestTrade | LighterWsTrade,
   symbol: string,
   accountIndex: number,
 ): OrderFill {
   const accountIsAsk = trade.askAccountId === accountIndex;
+  // Our side's role decides which fee applies; the venue includes the fee
+  // fields only when nonzero (zero is the current standard-account truth).
+  const accountIsMaker =
+    trade.isMakerAsk === undefined
+      ? undefined
+      : accountIsAsk === trade.isMakerAsk;
+  const fee =
+    accountIsMaker === undefined
+      ? '0'
+      : ((accountIsMaker ? trade.makerFee : trade.takerFee) ?? '0');
   return {
     orderId: String(accountIsAsk ? trade.askId : trade.bidId),
     symbol,
@@ -221,9 +236,7 @@ export function adaptFillFromLighterTrade(
     // vocabulary (open/close attribution needs signed position context the
     // trade payload does not carry).
     direction: accountIsAsk ? 'Sell' : 'Buy',
-    // Lighter standard accounts currently charge zero trading fees; the
-    // trade payload carries no fee field to adapt.
-    fee: '0',
+    fee,
     feeToken: 'USDC',
     timestamp: trade.timestamp,
   };
@@ -237,10 +250,12 @@ export function adaptFillFromLighterTrade(
  * Transform a Lighter account position into canonical Position.
  *
  * @param position - Position entry from an account payload.
+ * @param maxLeverage - Per-market max leverage (venue margin fractions).
  * @returns MetaMask Perps API position object.
  */
 export function adaptPositionFromLighter(
   position: LighterApiPosition,
+  maxLeverage: number = LIGHTER_MAX_LEVERAGE,
 ): Position {
   const size = parseFloat(position.position) * (position.sign > 0 ? 1 : -1);
   const positionValue = parseFloat(position.positionValue);
@@ -268,7 +283,7 @@ export function adaptPositionFromLighter(
       isNaN(liquidationPrice) || liquidationPrice === 0
         ? null
         : position.liquidationPrice,
-    maxLeverage: LIGHTER_MAX_LEVERAGE,
+    maxLeverage,
     returnOnEquity:
       marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
     cumulativeFunding: {
