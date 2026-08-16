@@ -510,19 +510,62 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('bumps the size up to the market minimum', async () => {
+    it('rejects sizes below the market minimum instead of silently bumping', async () => {
       const { provider, calls } = buildProvider();
-      await provider.placeOrder({
+      const result = await provider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
         size: '0.00001',
         orderType: 'limit',
         price: '90000',
       });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('below the Lighter minimum');
+      expect(
+        calls.find((call) => call.function === '_signCreateOrder'),
+      ).toBeUndefined();
+    });
+
+    it('rejects non-positive sizes and attached TP/SL', async () => {
+      const { provider } = buildProvider();
+      const negative = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '-1',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(negative.success).toBe(false);
+      expect(negative.error).toContain('positive');
+
+      const withTpsl = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        takeProfitPrice: '100000',
+      });
+      expect(withTpsl.success).toBe(false);
+      expect(withTpsl.error).toContain('updatePositionTPSL');
+    });
+
+    it('still allows a dust-sized full close through the reduce-only path', async () => {
+      const { provider, calls } = buildProvider();
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.00001',
+        orderType: 'market',
+        reduceOnly: true,
+        isFullClose: true,
+        currentPrice: 90000,
+      });
+      expect(result.success).toBe(true);
+      // The venue minimum still applies to the signed order size.
       const orderCall = calls.find(
         (call) => call.function === '_signCreateOrder',
       );
-      // min size at $90k = max(0.0002, 10/90000≈0.000112) = 0.0002 → 20.
       expect(orderCall?.params[3]).toBe('20');
     });
 
@@ -987,8 +1030,9 @@ describe('LighterProvider', () => {
       }
       // Batch operations are deliberately absent (optional interface
       // members) so the controller falls back to per-item calls.
-      expect(provider.cancelOrders).toBeUndefined();
-      expect(provider.closePositions).toBeUndefined();
+      const optionalBatch = provider as unknown as Record<string, unknown>;
+      expect(optionalBatch.cancelOrders).toBeUndefined();
+      expect(optionalBatch.closePositions).toBeUndefined();
     });
 
     it('returns a zeroed historical portfolio', async () => {

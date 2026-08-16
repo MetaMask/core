@@ -1,5 +1,9 @@
 #!/bin/bash
 # Build the Lighter Go/WASM signer from source (elliottech/lighter-go@web-wasm)
+#
+# Pinned provenance: the signer builds from an exact reviewed commit of the
+# web-wasm branch, never its moving HEAD. Override with LIGHTER_GO_REF only
+# to intentionally evaluate a newer upstream.
 # and stage it, with Go's wasm_exec.js runtime, into a cache directory.
 #
 # Also computes an informational reproducibility check: sha256 of the locally
@@ -10,6 +14,8 @@
 # Usage: build-wasm.sh [--out DIR]
 # Output: DIR/main.wasm, DIR/wasm_exec.js, DIR/manifest.json
 set -euo pipefail
+
+LIGHTER_GO_REF="${LIGHTER_GO_REF:-05a2bbcbbc3db2de7941313fd6524e5744ee5336}"
 
 OUT_DIR="temp/lighter-wasm"
 while [ $# -gt 0 ]; do
@@ -25,10 +31,11 @@ mkdir -p "$OUT_DIR"
 REPO_DIR="$OUT_DIR/lighter-go"
 
 if [ -d "$REPO_DIR/.git" ]; then
-  git -C "$REPO_DIR" fetch --depth 1 origin web-wasm
+  git -C "$REPO_DIR" fetch --depth 1 origin "$LIGHTER_GO_REF"
   git -C "$REPO_DIR" checkout -q FETCH_HEAD
 else
-  git clone --depth 1 --branch web-wasm https://github.com/elliottech/lighter-go.git "$REPO_DIR"
+  git clone https://github.com/elliottech/lighter-go.git "$REPO_DIR"
+  git -C "$REPO_DIR" checkout -q "$LIGHTER_GO_REF"
 fi
 UPSTREAM_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD)"
 

@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add experimental Lighter perps venue support (proof of concept, disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889))
-  - `PerpsProviderType` gains `'lighter'`; enablement via `providerCredentials.lighter.enabled` or the `perpsLighterProviderEnabled` remote feature flag. The provider implementation is excluded from the published artifact (same pattern as MYX); clients that do not ship it skip registration silently.
-  - Export `LighterCredentials`, `LighterSignerBridge`, `LighterWasmCall`, `LighterAuthConfig`, `LighterPersonalSigner`, `LighterNetwork` types and `lighterConfig` constants (chain ids, endpoints, key-derivation message helpers, integerization utilities).
-  - Add optional `lighterSignerBridge` to `PerpsPlatformDependencies` so clients can supply a transport for the Lighter Go/WASM signer (mobile: off-screen WebView bridge; headless: in-process WASM). Without it the Lighter provider is read-only.
+- Add Lighter perps venue support (disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889))
+  - `PerpsProviderType` gains `'lighter'`; enablement via `providerCredentials.lighter.enabled` or the `perpsLighterProviderEnabled` remote feature flag. The provider ships in the published artifact and follows the controller's global network toggle (testnet chain id 300 / mainnet 304).
+  - Export `LighterCredentials`, `LighterSignerBridge`, `LighterWasmCall`, `LighterAuthConfig`, `LighterPersonalSigner`, `LighterNetwork` types and `lighterConfig` constants (chain ids, endpoints, bridge contracts, key-derivation message helpers, integerization utilities).
+  - Clients supply the Lighter Go/WASM signer transport via `providerCredentials.lighter.signerBridge` (mobile: off-screen WebView bridge; headless: in-process WASM). Without it the Lighter provider is read-only.
   - Add `KeyringController:signPersonalMessage` to the allowed messenger actions (type-only) for Lighter venue-key registration via EIP-191.
-  - Live data over the shared Lighter WebSocket: price stream (`market_stats/all`), account (`user_stats`), positions (`account_all_positions`), authenticated orders (`account_all_orders`), fills (`account_all_trades`), per-market order book and live candles, with REST-polling fallback when no `WebSocket` implementation exists (`LighterWebSocketCtor` injection seam).
-  - Trading surface: `closePosition` (reduce-only IOC market order with protection price), `editOrder` (ModifyOrder signing), `withdraw` (signed L2 withdraw), and `fetchHistoricalCandles` via `/api/v1/candles`.
+  - Live data over the shared Lighter WebSocket: price stream (`market_stats/all`), account (`user_stats`), positions (`account_all_positions`), authenticated orders (`account_all_orders`), fills (`account_all_trades`), per-market order book and live candles, with REST-polling fallback when no `WebSocket` implementation exists (`LighterWebSocketCtor` injection seam), plus `subscribeToConnectionState`/`reconnect` connection management.
+  - Trading surface: order placement with venue-level leverage application, `closePosition` (reduce-only IOC market order with protection price), OCO TP/SL via grouped trigger orders (`updatePositionTPSL`), isolated margin add/remove (`updateMargin`), `withdraw` (signed L2 withdraw), and `fetchHistoricalCandles` via `/api/v1/candles`. Venue writes are serialized through a per-provider nonce queue and the session is re-bound automatically when the selected wallet account changes.
+  - History and routes: `getOrders` (historical lifecycle), `getOrderFills`, `getFunding`, `getUserHistory`, `getUserNonFundingLedgerUpdates`, and USDC bridge `getDepositRoutes`/`getWithdrawalRoutes`.
+  - `editOrder` deliberately returns an error: the venue currently accepts but does not apply ModifyOrder; cancel and re-place instead.
 
 ## [13.1.0]
 
