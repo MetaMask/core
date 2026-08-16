@@ -33,10 +33,14 @@ import type {
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
   LighterCandlesResponse,
+  LighterDepositHistoryResponse,
+  LighterInactiveOrdersResponse,
   LighterPnlResponse,
   LighterPositionFundingsResponse,
   LighterSendTxResponse,
   LighterTradesResponse,
+  LighterTransferHistoryResponse,
+  LighterWithdrawHistoryResponse,
 } from '../types/lighter-types.js';
 
 /**
@@ -226,6 +230,80 @@ export class LighterClientService {
   ): Promise<LighterActiveOrdersResponse> {
     return await this.#get<LighterActiveOrdersResponse>(
       `/api/v1/accountActiveOrders?account_index=${accountIndex}&market_id=${marketId}`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch historical (inactive) orders: filled and canceled lifecycle
+   * states, newest first (auth token required).
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param authToken - Auth token minted by the signer.
+   * @param limit - Max entries (1-100).
+   * @returns Inactive orders payload.
+   */
+  async getInactiveOrders(
+    accountIndex: number,
+    authToken: string,
+    limit = 50,
+  ): Promise<LighterInactiveOrdersResponse> {
+    return await this.#get<LighterInactiveOrdersResponse>(
+      `/api/v1/accountInactiveOrders?account_index=${accountIndex}&limit=${limit}`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch L1→L2 deposit history (auth token required). The venue requires
+   * both the account index and its L1 address on this endpoint.
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param l1Address - The account's L1 address.
+   * @param authToken - Auth token minted by the signer.
+   * @returns Deposit history payload (newest first, cursor-paged).
+   */
+  async getDepositHistory(
+    accountIndex: number,
+    l1Address: string,
+    authToken: string,
+  ): Promise<LighterDepositHistoryResponse> {
+    return await this.#get<LighterDepositHistoryResponse>(
+      `/api/v1/deposit/history?account_index=${accountIndex}&l1_address=${l1Address}`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch L2→L1 withdrawal history (auth token required).
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param authToken - Auth token minted by the signer.
+   * @returns Withdrawal history payload (newest first, cursor-paged).
+   */
+  async getWithdrawHistory(
+    accountIndex: number,
+    authToken: string,
+  ): Promise<LighterWithdrawHistoryResponse> {
+    return await this.#get<LighterWithdrawHistoryResponse>(
+      `/api/v1/withdraw/history?account_index=${accountIndex}`,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch L2 transfer history (auth token required).
+   *
+   * @param accountIndex - The Lighter account index.
+   * @param authToken - Auth token minted by the signer.
+   * @returns Transfer history payload (newest first, cursor-paged).
+   */
+  async getTransferHistory(
+    accountIndex: number,
+    authToken: string,
+  ): Promise<LighterTransferHistoryResponse> {
+    return await this.#get<LighterTransferHistoryResponse>(
+      `/api/v1/transfer/history?account_index=${accountIndex}`,
       { authorization: authToken },
     );
   }

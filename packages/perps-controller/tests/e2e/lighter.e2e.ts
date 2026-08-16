@@ -30,7 +30,10 @@ import {
   LIGHTER_TESTNET_CHAIN_ID,
 } from '../../src/constants/lighterConfig.js';
 import { LighterProvider } from '../../src/providers/LighterProvider.js';
-import { LighterClientService } from '../../src/services/LighterClientService.js';
+import {
+  convertKeysToCamelCase,
+  LighterClientService,
+} from '../../src/services/LighterClientService.js';
 import { LighterWalletService } from '../../src/services/LighterWalletService.js';
 import type { PerpsPlatformDependencies } from '../../src/types/index.js';
 import type {
@@ -1427,6 +1430,184 @@ async function phaseHistoryReads(result: PhaseResult): Promise<void> {
 }
 
 /**
+ * Prove the parity history surface: historical order lifecycle, user
+ * deposit/withdrawal history, the non-funding ledger, and the bridge
+ * routes cross-checked against the venue's live layer1BasicInfo.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseParityHistory(result: PhaseResult): Promise<void> {
+  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    signerBridge: bridge,
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const orders = await provider.getOrders();
+  const historical = orders.filter((order) => order.status !== 'open');
+  check(
+    result,
+    'getOrders surfaces historical lifecycle (filled/canceled states)',
+    orders.length > 0 && historical.length > 0,
+    `orders=${orders.length} historical=${historical.length}`,
+  );
+
+  const history = await provider.getUserHistory();
+  check(
+    result,
+    'getUserHistory returns deposits and withdrawals, newest first',
+    history.some((item) => item.type === 'deposit') &&
+      history.some((item) => item.type === 'withdrawal') &&
+      history.every(
+        (item, index) =>
+          index === 0 || history[index - 1].timestamp >= item.timestamp,
+      ),
+    `items=${history.length}`,
+  );
+
+  const ledger = await provider.getUserNonFundingLedgerUpdates();
+  check(
+    result,
+    'non-funding ledger merges deposits/withdrawals/transfers with signed flows',
+    ledger.length > 0 &&
+      ledger.some((update) => update.delta.type.startsWith('transfer')) &&
+      ledger.some((update) => (update.delta.usdc ?? '').startsWith('-')),
+    `updates=${ledger.length}`,
+  );
+
+  const [depositRoute] = provider.getDepositRoutes();
+  const [withdrawalRoute] = provider.getWithdrawalRoutes();
+  const live = convertKeysToCamelCase(
+    await (
+      await fetch('https://testnet.zklighter.elliot.ai/api/v1/layer1BasicInfo')
+    ).json(),
+  ) as {
+    contractAddresses: { name: string; address: string }[];
+  };
+  const liveBridge = live.contractAddresses.find(
+    (entry) => entry.name === 'ZkLighterContract',
+  )?.address;
+  check(
+    result,
+    'deposit/withdrawal routes match the venue-reported L1 bridge contract',
+    Boolean(depositRoute) &&
+      Boolean(withdrawalRoute) &&
+      depositRoute.contractAddress.toLowerCase() ===
+        (liveBridge ?? '').toLowerCase() &&
+      withdrawalRoute.contractAddress === depositRoute.contractAddress &&
+      depositRoute.assetId.includes('erc20:'),
+    `route=${depositRoute?.contractAddress} live=${liveBridge}`,
+  );
+  await provider.disconnect();
+  record(result, {
+    orderCount: orders.length,
+    historicalCount: historical.length,
+    historyCount: history.length,
+    ledgerCount: ledger.length,
+    bridgeContract: depositRoute?.contractAddress,
+  });
+}
+
+/**
+ * Prove the connection-state surface over the real venue WebSocket:
+ * subscribe → connecting→connected transitions, live reads of the state,
+ * a manual reconnect() cycle that resumes price flow, and teardown.
+ *
+ * @param result - Phase result accumulator.
+ */
+async function phaseConnectionState(result: PhaseResult): Promise<void> {
+  const provider = new LighterProvider({
+    isTestnet: true,
+    platformDependencies: buildInfrastructure(),
+    lighterAuthConfig: {
+      accountIndex: ACCOUNT_INDEX,
+      apiKeyIndex: API_KEY_INDEX,
+      l1Address: viemAccount.address,
+      personalSigner,
+    },
+  });
+  await provider.initialize();
+
+  const transitions: string[] = [];
+  const unsubscribeState = provider.subscribeToConnectionState(
+    (state, attempt) => {
+      transitions.push(`${state}:${attempt}`);
+    },
+  );
+
+  // Held for the whole phase so one-shot waiters below never drop the last
+  // subscriber (which would tear the stream down between checks).
+  const releaseHold = provider.subscribeToPrices({
+    symbols: [MARKET],
+    callback: () => undefined,
+  });
+
+  const waitForPrice = (): Promise<void> =>
+    new Promise((resolvePrice, rejectPrice) => {
+      const timer = setTimeout(
+        () => rejectPrice(new Error('no price update within 30s')),
+        30_000,
+      );
+      const unsubscribePrices = provider.subscribeToPrices({
+        symbols: [MARKET],
+        callback: (updates) => {
+          if (updates.length > 0) {
+            clearTimeout(timer);
+            unsubscribePrices();
+            resolvePrice();
+          }
+        },
+      });
+    });
+
+  await waitForPrice();
+  check(
+    result,
+    'stream reports connecting → connected on subscribe',
+    transitions.some((entry) => entry.startsWith('connecting')) &&
+      transitions.some((entry) => entry.startsWith('connected')),
+    transitions.join(','),
+  );
+  check(
+    result,
+    'getWebSocketConnectionState reads connected while streaming',
+    provider.getWebSocketConnectionState() === 'connected',
+    provider.getWebSocketConnectionState(),
+  );
+
+  const before = transitions.length;
+  await provider.reconnect();
+  await waitForPrice();
+  const afterReconnect = transitions.slice(before);
+  check(
+    result,
+    'manual reconnect cycles disconnected → connected and price flow resumes',
+    afterReconnect.some((entry) => entry.startsWith('disconnected')) &&
+      afterReconnect.some((entry) => entry.startsWith('connected')),
+    afterReconnect.join(','),
+  );
+
+  unsubscribeState();
+  releaseHold();
+  await provider.disconnect();
+  check(
+    result,
+    'disconnect tears the stream down to disconnected',
+    provider.getWebSocketConnectionState() === 'disconnected',
+    provider.getWebSocketConnectionState(),
+  );
+  record(result, { transitions });
+}
+
+/**
  * Prove position TP/SL: open a tiny position, attach an OCO TP/SL pair,
  * verify both trigger orders appear, remove them, and close the position.
  *
@@ -1751,6 +1932,12 @@ async function main(): Promise<void> {
         break;
       case 'history-reads':
         await phaseHistoryReads(result);
+        break;
+      case 'parity-history':
+        await phaseParityHistory(result);
+        break;
+      case 'connection-state':
+        await phaseConnectionState(result);
         break;
       case 'tpsl':
         await phaseTpsl(result);
