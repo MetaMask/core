@@ -1575,88 +1575,155 @@ describe('LighterProvider', () => {
   });
 
   describe('client order index allocation', () => {
-    it('parallel same-millisecond placements get unique increasing ids', async () => {
+    it('parallel placements draw unique random uint48 ids within venue bounds', async () => {
       const { provider, calls } = buildProvider();
-      const frozen = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(frozen);
-      try {
-        const results = await Promise.all([
-          provider.placeOrder({
-            symbol: 'BTC',
-            isBuy: true,
-            size: '0.001',
-            orderType: 'limit',
-            price: '90000',
-          }),
-          provider.placeOrder({
-            symbol: 'BTC',
-            isBuy: true,
-            size: '0.001',
-            orderType: 'limit',
-            price: '90001',
-          }),
-          provider.placeOrder({
-            symbol: 'BTC',
-            isBuy: true,
-            size: '0.001',
-            orderType: 'limit',
-            price: '90002',
-          }),
-        ]);
-        for (const result of results) {
-          expect(result.success).toBe(true);
-        }
-        const ids = calls
-          .filter((call) => call.function === '_signCreateOrder')
-          .map((call) => call.params[2] as number);
-        expect(ids).toHaveLength(3);
-        expect(new Set(ids).size).toBe(3);
-        expect(ids[1]).toBeGreaterThan(ids[0]);
-        expect(ids[2]).toBeGreaterThan(ids[1]);
-        // Seeded at the frozen clock, no 1e9 modulo truncation.
-        expect(ids[0]).toBeGreaterThanOrEqual(frozen);
-      } finally {
-        nowSpy.mockRestore();
+      const results = await Promise.all([
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        }),
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90001',
+        }),
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90002',
+        }),
+      ]);
+      for (const result of results) {
+        expect(result.success).toBe(true);
+      }
+      const ids = calls
+        .filter((call) => call.function === '_signCreateOrder')
+        .map((call) => call.params[2] as number);
+      expect(ids).toHaveLength(3);
+      expect(new Set(ids).size).toBe(3);
+      for (const id of ids) {
+        expect(Number.isSafeInteger(id)).toBe(true);
+        expect(id).toBeGreaterThan(0);
+        expect(id).toBeLessThan(2 ** 48);
       }
     });
 
-    it('grouped TP/SL reserves ids that cannot collide with a same-ms placement', async () => {
+    it('a colliding random draw is retried until the id is unique', async () => {
       const { provider, calls } = buildProvider();
-      const frozen = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(frozen);
+      // Two 24-bit draws per candidate. Force the second placement's first
+      // candidate to collide with the first placement's id, then verify the
+      // allocator retries with a fresh draw instead of reusing the id.
+      // jest.spyOn falls through to the real Math.random once the queued
+      // values are exhausted, so the retry loop cannot spin forever even if
+      // this sequence is wrong.
+      const randomSpy = jest
+        .spyOn(Math, 'random')
+        .mockReturnValueOnce(0.5)
+        .mockReturnValueOnce(0.5)
+        .mockReturnValueOnce(0.5)
+        .mockReturnValueOnce(0.5)
+        .mockReturnValueOnce(0.25)
+        .mockReturnValueOnce(0.25);
       try {
-        await provider.placeOrder({
+        const first = await provider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
           size: '0.001',
           orderType: 'limit',
           price: '90000',
         });
-        await provider.updatePositionTPSL({
+        const second = await provider.placeOrder({
           symbol: 'BTC',
-          takeProfitPrice: '110000',
-          stopLossPrice: '80000',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90001',
         });
-        const orderId = calls.find(
-          (call) => call.function === '_signCreateOrder',
-        )?.params[2] as number;
-        const groupedCall = calls.find(
-          (call) => call.function === '_signCreateGroupedOrders',
-        );
-        expect(groupedCall).toBeDefined();
-        // Grouped params embed both trigger orders; collect their client
-        // ids (numeric params greater than the frozen seed) and assert all
-        // three ids issued this millisecond are distinct.
-        const groupedIds = (groupedCall?.params ?? []).filter(
-          (value): value is number =>
-            typeof value === 'number' && value >= frozen,
-        );
-        const allIds = [orderId, ...groupedIds];
-        expect(allIds.length).toBeGreaterThanOrEqual(3);
-        expect(new Set(allIds).size).toBe(allIds.length);
+        expect(first.success).toBe(true);
+        expect(second.success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2] as number);
+        const half = Math.floor(0.5 * 2 ** 24);
+        const quarter = Math.floor(0.25 * 2 ** 24);
+        expect(ids).toStrictEqual([
+          half * 2 ** 24 + half,
+          quarter * 2 ** 24 + quarter,
+        ]);
+        // Six draws prove the colliding candidate was rejected and redrawn.
+        expect(randomSpy).toHaveBeenCalledTimes(6);
       } finally {
-        nowSpy.mockRestore();
+        randomSpy.mockRestore();
       }
+    });
+
+    it('a zero draw is rejected and redrawn, never issued as a client id', async () => {
+      const { provider, calls } = buildProvider();
+      const randomSpy = jest
+        .spyOn(Math, 'random')
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(0.75)
+        .mockReturnValueOnce(0.75);
+      try {
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+        expect(result.success).toBe(true);
+        const ids = calls
+          .filter((call) => call.function === '_signCreateOrder')
+          .map((call) => call.params[2] as number);
+        const threeQuarters = Math.floor(0.75 * 2 ** 24);
+        expect(ids).toStrictEqual([threeQuarters * 2 ** 24 + threeQuarters]);
+        expect(randomSpy).toHaveBeenCalledTimes(4);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('grouped TP/SL ids are unique against each other and prior placements', async () => {
+      const { provider, calls } = buildProvider();
+      await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+        stopLossPrice: '80000',
+      });
+      const orderId = calls.find((call) => call.function === '_signCreateOrder')
+        ?.params[2] as number;
+      const groupedCall = calls.find(
+        (call) => call.function === '_signCreateGroupedOrders',
+      );
+      expect(groupedCall).toBeDefined();
+      // Grouped params: [accountIndex, groupingType, orderCount, ...orders,
+      // nonce] where each order is 10 elements with the client id at offset 1.
+      const groupedParams = groupedCall?.params as (string | number)[];
+      const takeProfitId = groupedParams[4] as number;
+      const stopLossId = groupedParams[14] as number;
+      const allIds = [orderId, takeProfitId, stopLossId];
+      for (const id of allIds) {
+        expect(Number.isSafeInteger(id)).toBe(true);
+        expect(id).toBeGreaterThan(0);
+        expect(id).toBeLessThan(2 ** 48);
+      }
+      expect(new Set(allIds).size).toBe(3);
     });
   });
 
@@ -1843,16 +1910,146 @@ describe('LighterProvider', () => {
           },
         ],
       });
-      // Caller claims price 1 (which would make 0.0005 pass the $10 min);
-      // the fresh venue price is 100000, where 0.0005 BTC = $50 > min but
-      // 0.00005 = $5 < min. Validation must use the fresh price.
+      // Discriminating stale price: at the caller's HIGH snapshot of
+      // 1,000,000 the close of 0.00005 BTC = $50, which stale-price
+      // validation would APPROVE. At the fresh venue price of 100,000 it is
+      // $5 — below the $10 minimum — so fresh-price validation rejects.
       const result = await provider.validateClosePosition({
         symbol: 'BTC',
         size: '0.00005',
-        currentPrice: 1,
+        currentPrice: 1_000_000,
       });
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('below the Lighter minimum');
+      // Execution parity: the same request fails the same way.
+      const execution = await provider.closePosition({
+        symbol: 'BTC',
+        size: '0.00005',
+        currentPrice: 1_000_000,
+      });
+      expect(execution.success).toBe(false);
+      expect(execution.error).toContain('below the Lighter minimum');
+    });
+
+    it('fails market close validation closed when the fresh venue price is missing or zero', async () => {
+      for (const orderBookDetails of [
+        [],
+        [{ symbol: 'BTC', lastTradePrice: 0 }],
+      ]) {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], position: '0.001' }],
+            },
+          ],
+        });
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails,
+        });
+        const result = await provider.validateClosePosition({
+          symbol: 'BTC',
+          size: '0.0005',
+          currentPrice: 100000,
+        });
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain('No live venue price available');
+        // Execution parity: closePosition refuses with the same error.
+        const execution = await provider.closePosition({
+          symbol: 'BTC',
+          size: '0.0005',
+          currentPrice: 100000,
+        });
+        expect(execution.success).toBe(false);
+        expect(execution.error).toContain('No live venue price available');
+      }
+    });
+
+    it('rejects a market close when the fresh price drifted beyond tolerance, in validation and execution', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.001' }],
+          },
+        ],
+      });
+      // Sized at 90,000 but the fresh venue price is 100,000: ~11.1% move
+      // against a 5% default tolerance. Size $50 at the fresh price, so
+      // ONLY the drift check can be the rejection.
+      const request = {
+        symbol: 'BTC',
+        size: '0.0005',
+        currentPrice: 90000,
+        priceAtCalculation: 90000,
+      };
+      const result = await provider.validateClosePosition(request);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('slippage tolerance since sizing');
+      const execution = await provider.closePosition(request);
+      expect(execution.success).toBe(false);
+      expect(execution.error).toContain('slippage tolerance since sizing');
+    });
+
+    it("rejects an 'Infinity' limit price in validators and placement alike", async () => {
+      const { provider, calls } = buildProvider();
+      // parseFloat('Infinity') === Infinity, which passes a bare > 0 check;
+      // all three surfaces must refuse it before integerization/signing.
+      const closeValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+        orderType: 'limit',
+        price: 'Infinity',
+      });
+      expect(closeValidation.isValid).toBe(false);
+      expect(closeValidation.error).toContain('Invalid limit price');
+      const orderValidation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: 'Infinity',
+      });
+      expect(orderValidation.isValid).toBe(false);
+      expect(orderValidation.error).toContain('Invalid limit price');
+      const placement = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: 'Infinity',
+      });
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain(
+        'Unable to resolve a finite execution price',
+      );
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+      // Parity in the OTHER direction: a MARKET order ignores params.price
+      // (placement sizes at the fresh venue price), so an irrelevant
+      // 'Infinity' must not fail validation for an order placement accepts.
+      const marketValidation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'market',
+        price: 'Infinity',
+      });
+      expect(marketValidation.isValid).toBe(true);
+      const marketPlacement = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'market',
+        price: 'Infinity',
+        currentPrice: 100000,
+      });
+      expect(marketPlacement.success).toBe(true);
     });
 
     it('preserves subscriber state when channel setup hits a capability gate', async () => {
