@@ -874,8 +874,9 @@ describe('PerpsController', () => {
       expect(providers.get('lighter')).toBe(mockLighterInstance);
       expect(MockLighterConstructor).toHaveBeenCalledWith(
         expect.objectContaining({
-          // LIGHTER_TESTNET_ONLY forces testnet in the POC
-          isTestnet: true,
+          // Lighter follows the controller's global network (mainnet default);
+          // mainnet writes are blocked inside LighterProvider instead.
+          isTestnet: false,
           signerBridge: mockBridge,
         }),
       );
