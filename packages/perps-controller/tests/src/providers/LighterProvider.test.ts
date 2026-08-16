@@ -1588,6 +1588,424 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('round-12 venue integrity and serialized TP/SL lifecycle', () => {
+    type RawTriggerOrder = {
+      orderIndex: number;
+      clientOrderIndex: number;
+      marketIndex: number;
+      ownerAccountIndex: number;
+      initialBaseAmount: string;
+      remainingBaseAmount: string;
+      price: string;
+      isAsk: boolean;
+      type: string;
+      timeInForce: string;
+      reduceOnly: number;
+      status: string;
+      orderExpiry: number;
+      timestamp: number;
+      triggerPrice: string;
+    };
+    /**
+     * Stateful fake venue trigger book: creations observed at the bridge
+     * add triggers, cancels remove them, and getActiveOrders always
+     * reflects the current state — so interleaving outcomes are decided by
+     * actual call order, not static mocks.
+     *
+     * @param clientInstance - Mock client service instance.
+     * @param bridge - Mock signer bridge.
+     * @returns The live raw trigger table and a seeding helper.
+     */
+    const setupTriggerVenue = (
+      clientInstance: MockClientInstance,
+      bridge: LighterSignerBridge,
+    ): {
+      rawTriggers: RawTriggerOrder[];
+      seedTrigger: (type: string, triggerPrice: string) => number;
+      events: string[];
+      armCreateGate: () => Promise<void>;
+      releaseCreateGate: () => void;
+    } => {
+      let nextIndex = 9000;
+      const rawTriggers: RawTriggerOrder[] = [];
+      const buildRawTrigger = (
+        orderIndex: number,
+        type: string,
+        triggerPrice: string,
+      ): RawTriggerOrder => ({
+        orderIndex,
+        clientOrderIndex: orderIndex,
+        marketIndex: 1,
+        ownerAccountIndex: 28,
+        initialBaseAmount: '0.001',
+        remainingBaseAmount: '0.001',
+        price: '80000',
+        isAsk: true,
+        type,
+        timeInForce: 'immediate-or-cancel',
+        reduceOnly: 1,
+        status: 'open',
+        orderExpiry: 0,
+        timestamp: 1700000000000,
+        triggerPrice,
+      });
+      const seedTrigger = (type: string, triggerPrice: string): number => {
+        const orderIndex = nextIndex;
+        nextIndex += 1;
+        rawTriggers.push(buildRawTrigger(orderIndex, type, triggerPrice));
+        return orderIndex;
+      };
+      // Deterministic interleaving instrumentation: reads are counted, and
+      // the FIRST trigger creation can be stalled mid-transition (after its
+      // snapshot, at signing). Under full-transition exclusion a concurrent
+      // call CANNOT read while the first is stalled — it is queued behind
+      // the write chain; unserialized code reaches getActiveOrders during
+      // the stall and double-snapshots pre-mutation state.
+      const events: string[] = [];
+      clientInstance.getActiveOrders.mockImplementation(async () => {
+        events.push('read');
+        return { code: 200, orders: [...rawTriggers] };
+      });
+      let pendingCreateGate: Promise<void> | null = null;
+      let releaseCreateGate = (): void => undefined;
+      let signalGateEntered = (): void => undefined;
+      const gateEntered = new Promise<void>((resolve) => {
+        signalGateEntered = resolve;
+      });
+      const armCreateGate = (): Promise<void> => {
+        pendingCreateGate = new Promise<void>((resolve) => {
+          releaseCreateGate = resolve;
+        });
+        return gateEntered;
+      };
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          const wireParams = call.params as (string | number)[];
+          if (
+            call.function === '_signCreateOrder' &&
+            (wireParams[6] === 2 || wireParams[6] === 4)
+          ) {
+            if (pendingCreateGate) {
+              const gate = pendingCreateGate;
+              pendingCreateGate = null;
+              events.push('create-stalled');
+              signalGateEntered();
+              await gate;
+            }
+            events.push('create');
+            seedTrigger(
+              wireParams[6] === 4 ? 'take-profit' : 'stop-loss',
+              String(Number(wireParams[9]) / 10),
+            );
+          }
+          if (call.function === '_signCreateGroupedOrders') {
+            const count = Number(wireParams[2]);
+            for (let index = 0; index < count; index++) {
+              const base = 3 + index * 10;
+              seedTrigger(
+                wireParams[base + 5] === 4 ? 'take-profit' : 'stop-loss',
+                String(Number(wireParams[base + 8]) / 10),
+              );
+            }
+          }
+          if (call.function === '_signCancelOrder') {
+            events.push('cancel');
+            const at = rawTriggers.findIndex(
+              (entry) => String(entry.orderIndex) === String(wireParams[2]),
+            );
+            if (at >= 0) {
+              rawTriggers.splice(at, 1);
+            }
+          }
+          return realImplementation(call);
+        },
+      );
+      return {
+        rawTriggers,
+        seedTrigger,
+        events,
+        armCreateGate,
+        releaseCreateGate: () => releaseCreateGate(),
+      };
+    };
+
+    it("a malformed venue position size ('0.1oops') fails closed with an explicit error and zero signer mutation", async () => {
+      const { provider, calls, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.1oops' }],
+          },
+        ],
+      });
+      // Reads surface an explicit data error — never a silently-coerced
+      // '0.1' or a silent empty list that can preserve stale views.
+      await expect(provider.getPositions()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+      const tpsl = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      expect(tpsl.success).toBe(false);
+      expect(tpsl.error).toContain('Invalid Lighter venue data');
+      const close = await provider.closePosition({
+        symbol: 'BTC',
+        currentPrice: 100000,
+      });
+      expect(close.success).toBe(false);
+      expect(close.error).toContain('Invalid Lighter venue data');
+      const closeValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+        currentPrice: 100000,
+      });
+      expect(closeValidation.isValid).toBe(false);
+      expect(closeValidation.error).toContain('Invalid Lighter venue data');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('two concurrent replacements serialize: the second cannot snapshot while the first transition is mid-flight', async () => {
+      const { provider, calls, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // Stall the FIRST replacement inside its transition: snapshot done,
+      // creation signing held.
+      // Deterministic pre-lock signal: the second call's preflight ends
+      // with its getPositions account read — wait for that, then flush a
+      // macrotask, instead of asserting against a sleep.
+      let accountReads = 0;
+      let signalSecondPreflight = (): void => undefined;
+      const secondPreflightDone = new Promise<void>((resolve) => {
+        signalSecondPreflight = resolve;
+      });
+      const realGetAccount =
+        clientInstance.getAccountByIndex.getMockImplementation() as () => Promise<unknown>;
+      clientInstance.getAccountByIndex.mockImplementation(async () => {
+        const result = await realGetAccount();
+        accountReads += 1;
+        if (accountReads >= 2) {
+          signalSecondPreflight();
+        }
+        return result;
+      });
+      const gateEntered = venue.armCreateGate();
+      const firstPromise = provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      await gateEntered;
+      const secondPromise = provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      await secondPreflightDone;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // FULL-TRANSITION EXCLUSION: the second call has provably finished
+      // its pre-lock preflight, yet while the first is stalled mid-create
+      // it must NOT have reached getActiveOrders — unserialized code reads
+      // here and double-snapshots the seed trigger.
+      expect(venue.events.filter((event) => event === 'read')).toHaveLength(1);
+      venue.releaseCreateGate();
+      const [first, second] = await Promise.all([firstPromise, secondPromise]);
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      // Serial outcome: the second snapshots the first's fresh trigger and
+      // cancels it — exactly ONE protection set remains, with the second
+      // read strictly after the first transition's cancel.
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('86000');
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(2);
+      const secondReadAt = venue.events.indexOf(
+        'read',
+        venue.events.indexOf('read') + 1,
+      );
+      const firstCancelAt = venue.events.indexOf('cancel');
+      expect(secondReadAt).toBeGreaterThan(firstCancelAt);
+    });
+
+    it('replacement vs concurrent remove serializes: the remove sees and clears the fresh protection', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      let accountReads = 0;
+      let signalSecondPreflight = (): void => undefined;
+      const secondPreflightDone = new Promise<void>((resolve) => {
+        signalSecondPreflight = resolve;
+      });
+      const realGetAccount =
+        clientInstance.getAccountByIndex.getMockImplementation() as () => Promise<unknown>;
+      clientInstance.getAccountByIndex.mockImplementation(async () => {
+        const result = await realGetAccount();
+        accountReads += 1;
+        if (accountReads >= 2) {
+          signalSecondPreflight();
+        }
+        return result;
+      });
+      const gateEntered = venue.armCreateGate();
+      const replacePromise = provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      await gateEntered;
+      const removePromise = provider.updatePositionTPSL({ symbol: 'BTC' });
+      await secondPreflightDone;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // The remove has provably passed its pre-lock preflight, yet must
+      // NOT snapshot while the replacement is mid-flight — a stale
+      // snapshot would cancel only the seed and "successfully" remove
+      // nothing of the fresh protection.
+      expect(venue.events.filter((event) => event === 'read')).toHaveLength(1);
+      venue.releaseCreateGate();
+      const [replaced, removed] = await Promise.all([
+        replacePromise,
+        removePromise,
+      ]);
+      expect(replaced.success).toBe(true);
+      expect(removed.success).toBe(true);
+      // Serial outcome: replace lands 85000 (seed cancelled), then remove
+      // snapshots the fresh trigger and clears it.
+      expect(venue.rawTriggers).toHaveLength(0);
+    });
+
+    it('an active-orders REST failure rejects remove AND replace with zero mutation calls', async () => {
+      const { provider, calls, clientInstance } = buildProvider();
+      clientInstance.getActiveOrders.mockRejectedValue(
+        new Error('active orders REST down'),
+      );
+      const removed = await provider.updatePositionTPSL({ symbol: 'BTC' });
+      expect(removed.success).toBe(false);
+      expect(removed.error).toContain('active orders REST down');
+      const replaced = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      expect(replaced.success).toBe(false);
+      expect(replaced.error).toContain('active orders REST down');
+      // A swallowed [] would have let remove "succeed" cancelling nothing
+      // and replace "succeed" with the old triggers still live.
+      expect(
+        calls.filter((call) =>
+          [
+            '_signCreateOrder',
+            '_signCreateGroupedOrders',
+            '_signCancelOrder',
+          ].includes(call.function),
+        ),
+      ).toHaveLength(0);
+    });
+
+    it('rejects unsupported partial TP/SL sizes before any read or mutation', async () => {
+      const { provider, calls } = buildProvider();
+      // The venue path always wires the FULL position size; silently
+      // ignoring a partial size would close the whole position.
+      const takeProfit = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+        takeProfitSize: '0.0005',
+      });
+      expect(takeProfit.success).toBe(false);
+      expect(takeProfit.error).toContain('partial');
+      const stopLoss = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '80000',
+        stopLossSize: '0.0005',
+      });
+      expect(stopLoss.success).toBe(false);
+      expect(stopLoss.error).toContain('partial');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('rejects prices that overflow the signer uint32 wire cast, in validators, placement and TP/SL', async () => {
+      const { provider, calls } = buildProvider();
+      // 429496729.7 at 1 price decimal scales to 4,294,967,297 — a safe JS
+      // integer that the pinned lighter-go signer wraps to 1 via uint32().
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit' as const,
+        price: '429496729.7',
+      };
+      const validation = await provider.validateOrder(request);
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('uint32');
+      const placement = await provider.placeOrder(request);
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain('uint32');
+      const tpsl = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '429496729.7',
+      });
+      expect(tpsl.success).toBe(false);
+      expect(tpsl.error).toContain('uint32');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('refreshes the authoritative margin cache after TTL and fails closed on removed/failed metadata', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const baseNow = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(baseNow);
+      try {
+        const request = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit' as const,
+          price: '90000',
+          leverage: 40,
+        };
+        // Default metadata: minInitial 200 -> 50x. 40x validates.
+        expect((await provider.validateOrder(request)).isValid).toBe(true);
+        // Venue tightens to 400 -> 25x; within TTL the cache still says 50x.
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              symbol: 'BTC',
+              lastTradePrice: 100000,
+              minInitialMarginFraction: 400,
+              maintenanceMarginFraction: 240,
+            },
+          ],
+        });
+        expect((await provider.validateOrder(request)).isValid).toBe(true);
+        // TTL expiry forces an authoritative refresh: 40x now overlimit.
+        nowSpy.mockReturnValue(baseNow + 61_000);
+        const refreshed = await provider.validateOrder(request);
+        expect(refreshed.isValid).toBe(false);
+        expect(refreshed.error).toContain('25');
+        // Row removed from fresh metadata: stale cap must not survive the
+        // atomic cache replacement.
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [{ symbol: 'ETH', lastTradePrice: 3000 }],
+        });
+        nowSpy.mockReturnValue(baseNow + 122_000);
+        const removedRow = await provider.validateOrder(request);
+        expect(removedRow.isValid).toBe(false);
+        expect(removedRow.error).toContain('margin metadata');
+        // Fetch failure after expiry: fail closed, never the stale cap.
+        clientInstance.getOrderBookDetails.mockRejectedValue(
+          new Error('metadata endpoint down'),
+        );
+        nowSpy.mockReturnValue(baseNow + 183_000);
+        const failedFetch = await provider.validateOrder(request);
+        expect(failedFetch.isValid).toBe(false);
+        expect(failedFetch.error).toContain('margin metadata');
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+  });
+
   describe('round-11 TP/SL local preflight', () => {
     it('malformed live position sizes abort TP/SL replacement before any cancellation or signer call', async () => {
       const { provider, calls, clientInstance } = buildProvider();
@@ -2029,11 +2447,12 @@ describe('LighterProvider', () => {
 
     it('safe-checks the slippage-adjusted EXECUTION price a market buy signs, not just the reference', async () => {
       const { provider, clientInstance, calls } = buildProvider();
-      // priceDecimals=1: reference 900719925474099 -> wire 9007199254740990
-      // (safe, = MAX_SAFE_INTEGER - 1), but a BUY signs +5% protection:
-      // 9457559217478040 wire, unsafe. Reference-only validation approves
-      // what placement refuses.
-      const reference = 900719925474099;
+      // priceDecimals=1: reference 415,000,000 wires to 4.15e9 (within the
+      // signer's uint32 price cast), but a BUY signs +5% protection:
+      // 4,357,500,000 wire — ABOVE uint32, which the pinned signer would
+      // silently wrap. Reference-only validation approves what placement
+      // refuses.
+      const reference = 415_000_000;
       clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
         orderBookDetails: [{ symbol: 'BTC', lastTradePrice: reference }],
@@ -2046,10 +2465,10 @@ describe('LighterProvider', () => {
       };
       const buyValidation = await provider.validateOrder(buyRequest);
       expect(buyValidation.isValid).toBe(false);
-      expect(buyValidation.error).toContain('integer range');
+      expect(buyValidation.error).toContain('uint32');
       const buyPlacement = await provider.placeOrder(buyRequest);
       expect(buyPlacement.success).toBe(false);
-      expect(buyPlacement.error).toContain('integer range');
+      expect(buyPlacement.error).toContain('uint32');
       // Invalid intent exits before signer/account setup: ZERO bridge calls.
       expect(calls).toHaveLength(0);
       // Discriminating counterpart: a SELL protects at -5% (safe wire), so
@@ -2063,7 +2482,7 @@ describe('LighterProvider', () => {
 
     it('safe-checks the buy-to-close execution price when closing a short', async () => {
       const { provider, clientInstance, calls } = buildProvider();
-      const reference = 900719925474099;
+      const reference = 415_000_000;
       clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
         orderBookDetails: [{ symbol: 'BTC', lastTradePrice: reference }],
@@ -2083,12 +2502,12 @@ describe('LighterProvider', () => {
         symbol: 'BTC',
       });
       expect(shortCloseValidation.isValid).toBe(false);
-      expect(shortCloseValidation.error).toContain('integer range');
+      expect(shortCloseValidation.error).toContain('uint32');
       const shortCloseExecution = await provider.closePosition({
         symbol: 'BTC',
       });
       expect(shortCloseExecution.success).toBe(false);
-      expect(shortCloseExecution.error).toContain('integer range');
+      expect(shortCloseExecution.error).toContain('uint32');
       // Invalid intent exits before signer/account setup: ZERO bridge calls.
       expect(calls).toHaveLength(0);
       // A LONG close SELLS at -5% (safe wire): both surfaces accept.

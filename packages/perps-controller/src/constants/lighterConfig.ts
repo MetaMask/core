@@ -216,6 +216,53 @@ export const LIGHTER_PRICE_POLLING_INTERVAL_MS = 5000;
  */
 export const LIGHTER_MAX_LEVERAGE = 50;
 
+/**
+ * TTL for the authoritative per-market margin-metadata cache used by
+ * explicit leverage validation. Without expiry, metadata fetched once
+ * (e.g. an older, higher max) would keep validating later-overlimit
+ * leverage for the whole session; the venue cap remains the final
+ * enforcement either way.
+ */
+export const LIGHTER_MARGIN_METADATA_TTL_MS = 60_000;
+
+/**
+ * Prefix marking venue-data integrity failures (malformed numeric fields
+ * in venue payloads). These must fail closed and surface — never degrade
+ * into silently-coerced values or empty reads.
+ */
+export const LIGHTER_DATA_INTEGRITY_PREFIX = 'Invalid Lighter venue data:';
+
+/** Full-string decimal/scientific literal (optional sign and exponent). */
+const LIGHTER_STRICT_DECIMAL_PATTERN =
+  /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
+
+/**
+ * Parse a numeric string STRICTLY: the entire trimmed string must be a
+ * decimal/scientific literal. parseFloat prefix-parses, so '0.1oops'
+ * would silently become 0.1.
+ *
+ * Accepts unknown because venue REST payloads are type-cast without
+ * runtime validation: a missing/null/numeric field must yield null (for
+ * the caller's explicit error path), never a TypeError that generic
+ * catches misclassify as an ordinary read failure.
+ *
+ * Note: '1e999' matches the literal pattern and parses to Infinity —
+ * callers own the finiteness check.
+ *
+ * @param value - Raw value from params or a venue payload.
+ * @returns The parsed number, or null when the value is not a string
+ * containing a pure numeric literal.
+ */
+export function parseLighterStrictDecimal(value: unknown): number | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return LIGHTER_STRICT_DECIMAL_PATTERN.test(trimmed)
+    ? parseFloat(trimmed)
+    : null;
+}
+
 // ============================================================================
 // Size / price integerization
 // ============================================================================

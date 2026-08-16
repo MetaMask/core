@@ -45,6 +45,9 @@ import {
   LIGHTER_MARGIN_MODE_CROSS,
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   LIGHTER_USDC_ASSET_INDEX,
+  LIGHTER_DATA_INTEGRITY_PREFIX,
+  LIGHTER_MARGIN_METADATA_TTL_MS,
+  parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
@@ -149,22 +152,12 @@ import {
 // ============================================================================
 
 /** Full-string decimal/scientific literal (optional sign and exponent). */
-const STRICT_DECIMAL_PATTERN =
-  /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
-
 /**
- * Parse a caller-supplied numeric string STRICTLY: the entire trimmed
- * string must be a decimal/scientific literal. parseFloat prefix-parses,
- * so '10USD' or '0.001BTC' would silently become signed intent.
- *
- * @param value - Raw string from params.
- * @returns The parsed number, or null when the string is not a pure
- * numeric literal.
+ * Strict full-string numeric parsing shared with the adaptation boundary
+ * (see lighterConfig.parseLighterStrictDecimal): '10USD' or '0.001BTC'
+ * would prefix-parse into signed intent under bare parseFloat.
  */
-const parseStrictDecimal = (value: string): number | null => {
-  const trimmed = value.trim();
-  return STRICT_DECIMAL_PATTERN.test(trimmed) ? parseFloat(trimmed) : null;
-};
+const parseStrictDecimal = parseLighterStrictDecimal;
 
 /**
  * Parse caller-supplied numeric intent, accepting only finite positive
@@ -194,6 +187,29 @@ const toSignerWireInteger = (value: number, decimals: number): number => {
   const scaled = toLighterInteger(value, decimals);
   if (scaled < 1) {
     throw new Error(`Value ${value} rounds to zero at ${decimals} decimals`);
+  }
+  return scaled;
+};
+
+/** The pinned signer casts price fields to uint32. */
+const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
+
+/**
+ * Integerize a signer-bound PRICE (order price / trigger price): the
+ * pinned lighter-go signer casts these to uint32 (web-wasm/main.go), so a
+ * safe-integer above 2^32-1 silently WRAPS (e.g. 429496729.7 at 1 decimal
+ * scales to 4,294,967,297 and wires as 1).
+ *
+ * @param value - Human-units price.
+ * @param decimals - Market price decimals.
+ * @returns The positive uint32 wire integer.
+ */
+const toSignerWirePriceInteger = (value: number, decimals: number): number => {
+  const scaled = toSignerWireInteger(value, decimals);
+  if (scaled > LIGHTER_MAX_WIRE_PRICE) {
+    throw new Error(
+      `Price ${value} exceeds Lighter's uint32 wire range at ${decimals} decimals`,
+    );
   }
   return scaled;
 };
@@ -793,6 +809,9 @@ export class LighterProvider implements PerpsProvider {
   readonly #isUnsupportedCapabilityError = (error: unknown): boolean =>
     String(error).includes(LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX);
 
+  readonly #isDataIntegrityError = (error: unknown): boolean =>
+    String(error).includes(LIGHTER_DATA_INTEGRITY_PREFIX);
+
   /**
    * Create the WASM signer client and register the venue key if the
    * account's key slot does not hold it yet. Deduplicated.
@@ -1230,17 +1249,24 @@ export class LighterProvider implements PerpsProvider {
       if (!account?.positions) {
         return [];
       }
+      // Adapt BEFORE filtering: the adapter strict-validates raw numeric
+      // sizes, and a prefix-parsing filter would silently drop (or keep)
+      // malformed entries like '0oops' before validation could fire.
       return account.positions
-        .filter((position) => parseFloat(position.position) !== 0)
         .map((position) =>
           adaptPositionFromLighter(
             position,
             this.#maxLeverageForMarketId(position.marketId),
           ),
-        );
+        )
+        .filter((position) => parseFloat(position.size) !== 0);
     } catch (caughtError) {
-      if (this.#isUnsupportedCapabilityError(caughtError)) {
-        // Capability gates must surface, never degrade into empty state.
+      if (
+        this.#isUnsupportedCapabilityError(caughtError) ||
+        this.#isDataIntegrityError(caughtError)
+      ) {
+        // Capability gates and venue-data integrity failures must surface,
+        // never degrade into empty state that can preserve stale views.
         throw caughtError;
       }
       const wrappedError = ensureError(
@@ -1289,27 +1315,38 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * STRICT active-orders read: any REST/auth failure THROWS. Mutation
+   * flows (TP/SL replacement/removal) must use this — treating a swallowed
+   * [] as authoritative would let them "succeed" while cancelling nothing.
+   *
+   * @returns Adapted open orders.
+   */
+  readonly #readOpenOrdersStrict = async (): Promise<Order[]> => {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    const authToken = await this.#getAuthToken();
+    // The index and the token must belong to the SAME session — never
+    // pair the previous account's index with the new account's token.
+    this.#assertSession(generation);
+    const response = await this.#clientService.getActiveOrders(
+      accountIndex,
+      authToken,
+    );
+    this.#assertSession(generation);
+    return response.orders.map((order) =>
+      adaptOrderFromLighter(
+        order,
+        this.#marketsById.get(order.marketIndex)?.symbol ??
+          String(order.marketIndex),
+      ),
+    );
+  };
+
   async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
     try {
-      this.#ensureSessionBinding();
-      const generation = this.#sessionGeneration;
-      const accountIndex = await this.#ensureAccountIndex();
-      const authToken = await this.#getAuthToken();
-      // The index and the token must belong to the SAME session — never
-      // pair the previous account's index with the new account's token.
-      this.#assertSession(generation);
-      const response = await this.#clientService.getActiveOrders(
-        accountIndex,
-        authToken,
-      );
-      this.#assertSession(generation);
-      return response.orders.map((order) =>
-        adaptOrderFromLighter(
-          order,
-          this.#marketsById.get(order.marketIndex)?.symbol ??
-            String(order.marketIndex),
-        ),
-      );
+      return await this.#readOpenOrdersStrict();
     } catch (caughtError) {
       if (this.#isUnsupportedCapabilityError(caughtError)) {
         // Capability gates must surface, never degrade into empty state.
@@ -1602,7 +1639,7 @@ export class LighterProvider implements PerpsProvider {
 
       // Wire-format integerization runs BEFORE signer setup: overflow and
       // sub-tick rejections throw here, still with zero bridge calls.
-      const priceInt = toSignerWireInteger(
+      const priceInt = toSignerWirePriceInteger(
         executionPrice,
         market.supportedPriceDecimals,
       );
@@ -1976,6 +2013,20 @@ export class LighterProvider implements PerpsProvider {
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
     try {
+      // Partial TP/SL sizes are NOT wired to this venue path: it always
+      // covers the full position. Silently ignoring a requested partial
+      // size would close the entire position when the trigger fires, so
+      // the request is refused before any read, signer setup or mutation.
+      if (
+        params.takeProfitSize !== undefined ||
+        params.stopLossSize !== undefined
+      ) {
+        return {
+          success: false,
+          error:
+            'Lighter TP/SL covers the full position: partial takeProfitSize/stopLossSize are not supported',
+        };
+      }
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
       const markets = await this.#ensureMarkets();
@@ -2063,11 +2114,11 @@ export class LighterProvider implements PerpsProvider {
           const execution = isLong ? trigger * 0.95 : trigger * 1.05;
           validatedOrders.push({
             orderType: intent.orderType,
-            execInt: toSignerWireInteger(
+            execInt: toSignerWirePriceInteger(
               execution,
               market.supportedPriceDecimals,
             ),
-            triggerInt: toSignerWireInteger(
+            triggerInt: toSignerWirePriceInteger(
               trigger,
               market.supportedPriceDecimals,
             ),
@@ -2109,41 +2160,47 @@ export class LighterProvider implements PerpsProvider {
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
 
-      // Snapshot the existing reduce-only triggers BEFORE creating the
-      // replacement so only pre-existing protection is cancelled below.
-      // The nested cancels inherit THIS operation's generation: after an
-      // account switch they abort instead of cancelling the new account's
-      // orders from a list read under the old one.
-      const openOrders = await this.getOpenOrders();
-      this.#assertSession(generationAtIntent);
-      const staleTriggers = openOrders.filter(
-        (order) =>
-          order.symbol === params.symbol &&
-          order.reduceOnly &&
-          (Boolean(order.orderType?.includes('stop')) ||
-            Boolean(order.orderType?.includes('take')) ||
-            order.isTrigger === true),
-      );
+      // The ENTIRE snapshot -> create -> cancel lifecycle runs as ONE
+      // serialized transition on the account's write chain. Two concurrent
+      // replacements would otherwise both snapshot the same old trigger,
+      // each create a new set, and each cancel only the original — leaving
+      // both protection sets live; a concurrent remove could miss a
+      // just-created replacement. Cancels are INLINED (not this.cancelOrder)
+      // so no nested lock acquisition can deadlock; nonce serialization is
+      // preserved because every nonce comes from this section's nextNonce.
+      await this.#withVenueWriteLock(
+        accountIndex,
+        async (nextNonce, submit) => {
+          // STRICT snapshot inside the transition: an active-orders read
+          // that swallowed a REST failure to [] would make remove "succeed"
+          // cancelling nothing, and replace "succeed" while the old
+          // triggers remain live.
+          const openOrders = await this.#readOpenOrdersStrict();
+          this.#assertSession(generationAtIntent);
+          const staleTriggers = openOrders.filter(
+            (order) =>
+              order.symbol === params.symbol &&
+              order.reduceOnly &&
+              (Boolean(order.orderType?.includes('stop')) ||
+                Boolean(order.orderType?.includes('take')) ||
+                order.isTrigger === true),
+          );
 
-      // CREATE FIRST, cancel after: if signing or submission of the new
-      // protection fails, the old triggers were never touched and the
-      // position is never left naked. The temporary overlap is safe —
-      // both sets are reduce-only and clamp to the position. Only the
-      // account index and nonce are late-bound into the preflight payload.
-      if (wantsReplacement && groupedPayload !== null) {
-        const payload = groupedPayload;
-        const isSingleTrigger = groupedOrderCount === 1;
-        await this.#withVenueNonce(
-          accountIndex,
-          async (nonce, submit) => {
-            // A lone trigger is an ordinary CreateOrder (same wire layout);
-            // only a TP+SL pair uses the grouped OCO transaction.
+          // CREATE FIRST, cancel after: if signing or submission of the
+          // new protection fails, the old triggers were never touched and
+          // the position is never left naked. The temporary overlap is
+          // safe — both sets are reduce-only and clamp to the position.
+          if (wantsReplacement && groupedPayload !== null) {
+            const payload = groupedPayload;
+            const isSingleTrigger = groupedOrderCount === 1;
+            // A lone trigger is an ordinary CreateOrder (same wire
+            // layout); only a TP+SL pair uses the grouped OCO transaction.
             const signed =
               await this.#getSignerBridge().execute<LighterTxResult>(
                 isSingleTrigger
                   ? {
                       function: '_signCreateOrder',
-                      params: [accountIndex, ...payload, nonce],
+                      params: [accountIndex, ...payload, await nextNonce()],
                     }
                   : {
                       function: '_signCreateGroupedOrders',
@@ -2152,41 +2209,44 @@ export class LighterProvider implements PerpsProvider {
                         groupedType,
                         groupedOrderCount,
                         ...payload,
-                        nonce,
+                        await nextNonce(),
                       ],
                     },
               );
             if (signed.error) {
               throw new Error(signed.error);
             }
-            return await submit(
+            await submit(
               isSingleTrigger
                 ? LIGHTER_TX_TYPE_CREATE_ORDER
                 : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
               signed.txInfo,
             );
-          },
-          generationAtIntent,
-        );
-      }
+          }
 
-      for (const order of staleTriggers) {
-        const cancelled = await this.cancelOrder(
-          {
-            orderId: order.orderId,
-            symbol: params.symbol,
-          },
-          generationAtIntent,
-        );
-        if (!cancelled.success) {
-          return {
-            success: false,
-            error: wantsReplacement
-              ? `Replacement protection was created but stale trigger order ${order.orderId} could not be cancelled: ${cancelled.error ?? 'unknown'}`
-              : `Failed to remove trigger order ${order.orderId}: ${cancelled.error ?? 'unknown'}`,
-          };
-        }
-      }
+          for (const order of staleTriggers) {
+            const signedCancel =
+              await this.#getSignerBridge().execute<LighterTxResult>({
+                function: '_signCancelOrder',
+                params: [
+                  accountIndex,
+                  market.marketId,
+                  order.orderId,
+                  await nextNonce(),
+                ],
+              });
+            if (signedCancel.error) {
+              throw new Error(
+                wantsReplacement
+                  ? `Replacement protection was created but stale trigger order ${order.orderId} could not be cancelled: ${signedCancel.error}`
+                  : `Failed to remove trigger order ${order.orderId}: ${signedCancel.error}`,
+              );
+            }
+            await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signedCancel.txInfo);
+          }
+        },
+        generationAtIntent,
+      );
       return { success: true };
     } catch (error) {
       const wrappedError = ensureError(
@@ -2702,7 +2762,7 @@ export class LighterProvider implements PerpsProvider {
       // refuses (a safe reference can still overflow after +5%).
       try {
         toSignerWireInteger(requestedSize, market.supportedSizeDecimals);
-        toSignerWireInteger(executionPrice, market.supportedPriceDecimals);
+        toSignerWirePriceInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
           isValid: false,
@@ -2731,7 +2791,18 @@ export class LighterProvider implements PerpsProvider {
     }
     // Live sizing parity with closePosition→placeOrder: a validator that
     // approves a close the execution path rejects is worse than none.
-    const positions = await this.getPositions();
+    // Capability and data-integrity errors from the read surface as an
+    // explicit invalid result, never an exception or a silent empty.
+    let positions: Position[];
+    try {
+      positions = await this.getPositions();
+    } catch (error) {
+      return {
+        isValid: false,
+        error: ensureError(error, 'LighterProvider.validateClosePosition')
+          .message,
+      };
+    }
     const signedHeld = parseFloat(
       positions.find((entry) => entry.symbol === params.symbol)?.size ?? '0',
     );
@@ -2799,7 +2870,7 @@ export class LighterProvider implements PerpsProvider {
       // the EXECUTION price is what gets integerized and signed.
       try {
         toSignerWireInteger(requestedSize, market.supportedSizeDecimals);
-        toSignerWireInteger(executionPrice, market.supportedPriceDecimals);
+        toSignerWirePriceInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
           isValid: false,
@@ -2929,17 +3000,42 @@ export class LighterProvider implements PerpsProvider {
     return Math.floor(10_000 / minInitial);
   };
 
+  /** When the margin-metadata cache was last refreshed (0 = never). */
+  #marginFetchedAt = 0;
+
   readonly #ensureMarketMargins = async (): Promise<void> => {
-    if (this.#marginBySymbol.size > 0) {
+    // TTL refresh: metadata cached once for the whole session would keep
+    // validating leverage against a stale (possibly higher) max. On
+    // expiry the fetch re-runs; if it fails, the throw propagates and
+    // #requireMarketMaxLeverage fails CLOSED for explicit leverage while
+    // display callers keep their catch+fallback behavior.
+    const now = Date.now();
+    if (
+      this.#marginBySymbol.size > 0 &&
+      now - this.#marginFetchedAt < LIGHTER_MARGIN_METADATA_TTL_MS
+    ) {
       return;
     }
     const details = await this.#clientService.getOrderBookDetails();
+    // Atomic replacement: set()-ing into the old map would let a symbol
+    // REMOVED from fresh metadata keep its stale cap forever. Build the
+    // fresh map completely, then swap; the timestamp only advances on
+    // success.
+    const fresh = new Map<
+      string,
+      { minInitial?: number; maintenance?: number }
+    >();
     for (const detail of details.orderBookDetails) {
-      this.#marginBySymbol.set(detail.symbol, {
+      fresh.set(detail.symbol, {
         minInitial: detail.minInitialMarginFraction,
         maintenance: detail.maintenanceMarginFraction,
       });
     }
+    this.#marginBySymbol.clear();
+    for (const [symbol, entry] of fresh) {
+      this.#marginBySymbol.set(symbol, entry);
+    }
+    this.#marginFetchedAt = now;
   };
 
   async getMaxLeverage(asset: string): Promise<number> {

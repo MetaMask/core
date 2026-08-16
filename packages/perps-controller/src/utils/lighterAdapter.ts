@@ -14,8 +14,10 @@
  */
 
 import {
+  LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_MAX_LEVERAGE,
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
+  parseLighterStrictDecimal,
 } from '../constants/lighterConfig.js';
 import type {
   AccountState,
@@ -26,6 +28,7 @@ import type {
   PerpsMarketData,
   Position,
   PriceUpdate,
+  TriggerOrderType,
 } from '../types/index.js';
 import type {
   LighterApiOrder,
@@ -361,7 +364,16 @@ export function adaptPositionFromLighter(
   position: LighterApiPosition,
   maxLeverage: number = LIGHTER_MAX_LEVERAGE,
 ): Position {
-  const size = parseFloat(position.position) * (position.sign > 0 ? 1 : -1);
+  // Venue-input integrity boundary: the REST layer type-casts JSON without
+  // runtime validation, and a prefix-parsed '0.1oops' would become a
+  // canonical '0.1' that TP/SL cover-sizing and close paths then SIGN.
+  const magnitude = parseLighterStrictDecimal(position.position);
+  if (magnitude === null || !Number.isFinite(magnitude)) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${position.position}' for ${position.symbol}`,
+    );
+  }
+  const size = magnitude * (position.sign > 0 ? 1 : -1);
   const positionValue = parseFloat(position.positionValue);
   const marginFraction = parseFloat(position.initialMarginFraction);
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).
@@ -490,12 +502,52 @@ export function adaptOrderFromLighter(
     order.triggerPrice !== undefined && parseFloat(order.triggerPrice) > 0
       ? order.triggerPrice
       : undefined;
+  // Semantic trigger typing: without it, a TP/SL renders as a generic
+  // Limit order in clients. Venue trigger orders execute market-on-trigger
+  // (IOC with a protection price), the -limit variants rest at a price.
+  const triggerTypeMeta: Record<
+    string,
+    {
+      orderType: 'market' | 'limit';
+      triggerOrderType: TriggerOrderType;
+      detailed: string;
+    }
+  > = {
+    'take-profit': {
+      orderType: 'market',
+      triggerOrderType: 'take_profit_market',
+      detailed: 'Take Profit Market',
+    },
+    'stop-loss': {
+      orderType: 'market',
+      triggerOrderType: 'stop_market',
+      detailed: 'Stop Market',
+    },
+    'take-profit-limit': {
+      orderType: 'limit',
+      triggerOrderType: 'take_profit_limit',
+      detailed: 'Take Profit Limit',
+    },
+    'stop-loss-limit': {
+      orderType: 'limit',
+      triggerOrderType: 'stop_limit',
+      detailed: 'Stop Limit',
+    },
+  };
+  const triggerMeta = triggerTypeMeta[order.type];
 
   return {
     orderId: String(order.orderIndex),
     symbol,
     side: order.isAsk ? 'sell' : 'buy',
-    orderType: order.type === 'market' ? 'market' : 'limit',
+    orderType:
+      triggerMeta?.orderType ?? (order.type === 'market' ? 'market' : 'limit'),
+    ...(triggerMeta
+      ? {
+          triggerOrderType: triggerMeta.triggerOrderType,
+          detailedOrderType: triggerMeta.detailed,
+        }
+      : {}),
     isTrigger,
     size: order.remainingBaseAmount,
     originalSize: order.initialBaseAmount,
