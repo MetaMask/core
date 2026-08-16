@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Stop storing `accessToken` in the seedless vault. The access token is kept in memory only and is refreshed from `refreshToken` when missing or near expiry, including while the vault is locked.
-- `getIsUserAuthenticated` no longer requires `accessToken` in state; a present `revokeToken` plus social-auth details is sufficient.
-- `rotateRefreshToken` now revokes the previous refresh token immediately after a successful rotation. The old pair is queued in `pendingToBeRevokedTokens` only if revocation fails.
+- Stop storing `accessToken` in the seedless vault. The access token is kept in memory only and is refreshed from `refreshToken` when missing or near expiry, including while the vault is locked. ([#9890](https://github.com/MetaMask/core/pull/9890))
+- `getIsUserAuthenticated` no longer requires `accessToken` in state; a present `revokeToken` plus social-auth details is sufficient. ([#9890](https://github.com/MetaMask/core/pull/9890))
+- `rotateRefreshToken` now revokes the previous refresh token immediately after a successful rotation. The old pair is queued in `pendingToBeRevokedTokens` only if revocation fails. ([#9890](https://github.com/MetaMask/core/pull/9890))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [10.1.1]
