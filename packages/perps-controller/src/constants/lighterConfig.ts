@@ -230,7 +230,16 @@ export const LIGHTER_MAX_LEVERAGE = 50;
  * @returns Integer wire value (e.g. 0.05 @ 5 decimals -> 5000).
  */
 export function toLighterInteger(value: number, decimals: number): number {
-  return Math.round(value * 10 ** decimals);
+  const scaled = Math.round(value * 10 ** decimals);
+  // Fail closed on wire-format overflow: a huge-but-finite value scales to
+  // an unsafe integer (or Infinity) and would stringify as '1e+305' inside
+  // signer params.
+  if (!Number.isSafeInteger(scaled)) {
+    throw new Error(
+      `Value ${value} is outside Lighter's integer range at ${decimals} decimals`,
+    );
+  }
+  return scaled;
 }
 
 /**
