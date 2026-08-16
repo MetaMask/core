@@ -249,11 +249,14 @@ export function deriveLighterFillDirection(context: {
     }
     return isBuy ? 'Close Short' : 'Close Long';
   }
-  // Partial fill on an existing position: realized pnl means it reduced.
+  // Partial fill on an existing position: realized pnl proves it reduced.
   if (pnl !== 0) {
     return isBuy ? 'Close Short' : 'Close Long';
   }
-  return isBuy ? 'Open Long' : 'Open Short';
+  // Zero-pnl partial with no sign change is genuinely ambiguous from this
+  // payload (a break-even partial close and an add both fit): fall back to
+  // the side-only vocabulary instead of asserting Open without evidence.
+  return isBuy ? 'Buy' : 'Sell';
 }
 
 export function adaptFillFromLighterTrade(
@@ -268,20 +271,24 @@ export function adaptFillFromLighterTrade(
     trade.isMakerAsk === undefined
       ? undefined
       : accountIsAsk === trade.isMakerAsk;
-  let rawFee: number | string | undefined;
+  // Standard accounts (the only supported type — the provider gates
+  // Premium at account resolution) pay zero fees, so zero is venue truth.
+  // A PRESENT nonzero fee ON OUR SIDE contradicts that gate and its wire
+  // unit is unverified: refusing loudly beats silently coercing a real fee
+  // to $0. The counterparty's fee is irrelevant — a Standard user trading
+  // against a Premium account must keep their valid fill.
+  let ourFee: number | string | undefined;
   if (accountIsMaker !== undefined) {
-    rawFee = accountIsMaker ? trade.makerFee : trade.takerFee;
+    ourFee = accountIsMaker ? trade.makerFee : trade.takerFee;
   }
-  // The official model types fees as StrictInt but documents no unit or
-  // scale, and the venue currently reports zero fees — so there is no
-  // captured nonzero payload to verify a conversion against. An unverified
-  // scale would display wrong dollar amounts; integer fees are therefore
-  // treated as unavailable (0) until a real nonzero sample proves the
-  // unit. Decimal strings pass through as-is.
-  let fee = '0';
-  if (typeof rawFee === 'string' && parseFloat(rawFee) !== 0) {
-    fee = rawFee;
+  const ourFeeNumeric =
+    typeof ourFee === 'number' ? ourFee : parseFloat(ourFee ?? '0');
+  if (Number.isFinite(ourFeeNumeric) && ourFeeNumeric !== 0) {
+    throw new Error(
+      `Unsupported nonzero Lighter fee in trade ${trade.tradeId}: fee unit is unverified`,
+    );
   }
+  const fee = '0';
   const pnl = (accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl) ?? '0';
   const isBuy = !accountIsAsk;
   const positionBefore = parseFloat(
@@ -292,6 +299,24 @@ export function adaptFillFromLighterTrade(
   const signChanged = accountIsMaker
     ? trade.makerPositionSignChanged
     : trade.takerPositionSignChanged;
+  const direction = deriveLighterFillDirection({
+    isBuy,
+    size: parseFloat(trade.size),
+    positionBefore,
+    signChanged,
+    pnl: parseFloat(pnl),
+  });
+  // Signed pre-trade position, derivable whenever the direction proved the
+  // orientation: closing/flipping a long means it was +before, a short
+  // -before; opens start from zero. Clients size flip displays from this.
+  let startPosition: string | undefined;
+  if (direction.startsWith('Open')) {
+    startPosition = '0';
+  } else if (direction === 'Close Long' || direction === 'Long > Short') {
+    startPosition = String(positionBefore);
+  } else if (direction === 'Close Short' || direction === 'Short > Long') {
+    startPosition = String(-positionBefore);
+  }
   return {
     orderId: String(accountIsAsk ? trade.askId : trade.bidId),
     symbol,
@@ -300,13 +325,8 @@ export function adaptFillFromLighterTrade(
     price: trade.price,
     // The venue reports realized pnl per side of the trade.
     pnl,
-    direction: deriveLighterFillDirection({
-      isBuy,
-      size: parseFloat(trade.size),
-      positionBefore,
-      signChanged,
-      pnl: parseFloat(pnl),
-    }),
+    direction,
+    ...(startPosition === undefined ? {} : { startPosition }),
     fee,
     feeToken: 'USDC',
     timestamp: trade.timestamp,

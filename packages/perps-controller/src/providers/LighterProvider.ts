@@ -407,8 +407,10 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async disconnect(): Promise<DisconnectResult> {
-    this.#signerReadyPromise = null;
-    this.#authToken = null;
+    // A disconnect (provider switch, shutdown) invalidates the whole
+    // session: an in-flight write paused inside the lock must fail its
+    // fences instead of submitting after the provider was torn down.
+    this.#invalidateSessionState();
     this.#teardownStream();
     this.#priceSubscribers.clear();
     this.#oiCapSubscribers.clear();
@@ -523,8 +525,13 @@ export class LighterProvider implements PerpsProvider {
     try {
       address = this.#walletService.getUserAddress().toLowerCase();
     } catch {
-      // No account selected — the caller's own address resolution surfaces
-      // the error with better context.
+      if (this.#boundAddress !== null) {
+        // All accounts deselected while a session existed: invalidate so
+        // nothing in flight can still act for the old account.
+        this.#invalidateSessionState();
+        this.#teardownStream();
+      }
+      // The caller's own address resolution surfaces the error.
       return;
     }
     if (this.#boundAddress === address) {
@@ -533,6 +540,11 @@ export class LighterProvider implements PerpsProvider {
     const hadPreviousBinding = this.#boundAddress !== null;
     this.#boundAddress = address;
     if (!hadPreviousBinding) {
+      // First binding (or first after a deselection): surviving
+      // subscribers may be sitting on an empty channel set.
+      if (this.#hasAnySubscriber() && this.#wsWantedChannels.size === 0) {
+        this.#rebuildStreamForSubscribers();
+      }
       return;
     }
     // Invalidate in-flight async resolutions started under the previous
@@ -598,16 +610,29 @@ export class LighterProvider implements PerpsProvider {
       return this.#accountIndex;
     }
     if (this.#configuredAccountIndex !== undefined) {
+      // Even a configured index must be a Standard (0-fee) account: Premium
+      // fee semantics are unverified and would render financially false
+      // history (see #assertStandardAccount).
+      const generationAtCheck = this.#sessionGeneration;
+      const configured = await this.#clientService.getAccountByIndex(
+        this.#configuredAccountIndex,
+      );
+      this.#ensureSessionBinding();
+      if (generationAtCheck !== this.#sessionGeneration) {
+        return await this.#ensureAccountIndex();
+      }
+      this.#assertStandardAccount(configured.accounts[0]?.accountType);
       this.#accountIndex = this.#configuredAccountIndex;
       return this.#accountIndex;
     }
     const generation = this.#sessionGeneration;
     const address = this.#walletService.getUserAddress();
     const response = await this.#clientService.getAccountsByL1Address(address);
+    // Re-run the binding so an EXTERNAL switch nothing else observed also
+    // advances the generation, then compare: caching after any switch
+    // would poison the new session with the old account. Retry instead.
+    this.#ensureSessionBinding();
     if (generation !== this.#sessionGeneration) {
-      // The wallet switched accounts while this lookup was in flight;
-      // caching would poison the new session with the old account. Retry
-      // against the current binding.
       return await this.#ensureAccountIndex();
     }
     if (!response.subAccounts?.length) {
@@ -618,8 +643,32 @@ export class LighterProvider implements PerpsProvider {
     const master = response.subAccounts.reduce((min, account) =>
       account.index < min.index ? account : min,
     );
+    this.#assertStandardAccount(master.accountType);
     this.#accountIndex = master.index;
     return this.#accountIndex;
+  };
+
+  /**
+   * Capability gate: only Standard (0-fee) Lighter accounts are supported.
+   * Premium accounts pay nonzero maker/taker fees whose wire unit is
+   * unverified — serving their history would show financially false zero
+   * fees, so the whole account-bound surface refuses instead.
+   *
+   * @param accountType - Venue account type code (0 = Standard).
+   */
+  readonly #assertStandardAccount = (accountType: number | undefined): void => {
+    // Fail closed: only a PROVEN Standard (type 0) account passes. A
+    // missing account/type is not evidence of Standard.
+    if (accountType === undefined) {
+      throw new Error(
+        'Lighter account type could not be verified (account not found); refusing to assume a Standard account',
+      );
+    }
+    if (accountType !== 0) {
+      throw new Error(
+        'Lighter Premium accounts are not supported yet: their fee semantics are unverified and history would be financially incorrect',
+      );
+    }
   };
 
   /**
@@ -642,23 +691,46 @@ export class LighterProvider implements PerpsProvider {
       );
     }
     // The generation only advances when some provider call rebinds; also
-    // notice a wallet switch nothing has observed yet.
-    try {
-      const address = this.#walletService.getUserAddress().toLowerCase();
-      if (this.#boundAddress !== null && this.#boundAddress !== address) {
-        throw new Error(
-          'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
-        );
-      }
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.startsWith('Operation cancelled')
-      ) {
-        throw error;
-      }
-      // No account selected — the caller's own resolution surfaces it.
+    // notice a wallet switch nothing has observed yet. Account-bound work
+    // must never run without a binding: every legitimate flow (including
+    // headless l1Address and configured-index setups) binds first, so a
+    // null binding here means the wallet was deselected — fail closed even
+    // when a configured account index could still resolve.
+    if (this.#boundAddress === null) {
+      throw new Error(
+        'Operation cancelled: no wallet account is bound to the venue session',
+      );
     }
+    let address: string | null = null;
+    try {
+      address = this.#walletService.getUserAddress().toLowerCase();
+    } catch {
+      address = null;
+    }
+    if (address !== this.#boundAddress) {
+      if (address === null) {
+        // Deselected: nothing to rebind to yet.
+        this.#invalidateSessionState();
+        this.#teardownStream();
+      } else {
+        // Unobserved switch: rebind properly (invalidates caches and
+        // rebuilds stream channels for the new account) before cancelling
+        // the stale operation.
+        this.#ensureSessionBinding();
+      }
+      throw new Error(
+        'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+      );
+    }
+  };
+
+  /** Drop every cache derived from the previously bound account. */
+  readonly #invalidateSessionState = (): void => {
+    this.#sessionGeneration += 1;
+    this.#boundAddress = null;
+    this.#accountIndex = null;
+    this.#signerReadyPromise = null;
+    this.#authToken = null;
   };
 
   readonly #ensureSignerReady = async (): Promise<void> => {
@@ -792,6 +864,27 @@ export class LighterProvider implements PerpsProvider {
   /** Tail of the serialized venue-write chain (see #withVenueNonce). */
   #writeChain: Promise<void> = Promise.resolve();
 
+  /** Highest client order index issued so far (see allocator below). */
+  #lastClientOrderIndex = 0;
+
+  /**
+   * Atomically reserve strictly-increasing client order indexes.
+   *
+   * The venue requires client_order_index to be UNIQUE ACROSS ALL MARKETS
+   * (official Get Started docs). A bare Date.now() collides for parallel
+   * placements in the same millisecond, and any modulo wraps eventually —
+   * this allocator is synchronous (no interleaving between reads of the
+   * counter) and monotonic (Date.now seed, never reissuing an id).
+   *
+   * @param count - How many consecutive ids to reserve.
+   * @returns The reserved ids, ascending.
+   */
+  readonly #allocateClientOrderIndexes = (count: number): number[] => {
+    const base = Math.max(Date.now(), this.#lastClientOrderIndex + 1);
+    this.#lastClientOrderIndex = base + count - 1;
+    return Array.from({ length: count }, (_unused, offset) => base + offset);
+  };
+
   /**
    * Serialize a nonce-consuming venue write.
    *
@@ -891,9 +984,12 @@ export class LighterProvider implements PerpsProvider {
         `Lighter auth token creation failed: ${token.error ?? 'unknown'}`,
       );
     }
+    // Rebind first so an unobserved external switch during the bridge call
+    // advances the generation, then compare: a token minted under a binding
+    // that no longer exists must never be cached — re-mint under the new
+    // captured session instead.
+    this.#ensureSessionBinding();
     if (generation !== this.#sessionGeneration) {
-      // Minted under a binding that no longer exists — do not cache it;
-      // re-mint against the current session.
       return await this.#getAuthToken();
     }
     this.#authToken = { token: token.token, deadline: token.deadline };
@@ -974,12 +1070,15 @@ export class LighterProvider implements PerpsProvider {
 
   async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       // Per-market max leverage comes from the margin cache; warm it so
       // known markets never fall back to the global constant.
       await this.#ensureMarketMargins().catch(() => undefined);
       const accountIndex = await this.#ensureAccountIndex();
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
+      this.#assertSession(generation);
       const account = response.accounts[0];
       if (!account?.positions) {
         return [];
@@ -1009,9 +1108,14 @@ export class LighterProvider implements PerpsProvider {
     _params?: GetAccountStateParams,
   ): Promise<AccountState> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
+      // A delayed response for the previous account must never surface as
+      // the current account's state.
+      this.#assertSession(generation);
       const account = response.accounts[0];
       if (!account) {
         return EMPTY_ACCOUNT_STATE;
@@ -1032,12 +1136,18 @@ export class LighterProvider implements PerpsProvider {
 
   async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const authToken = await this.#getAuthToken();
+      // The index and the token must belong to the SAME session — never
+      // pair the previous account's index with the new account's token.
+      this.#assertSession(generation);
       const response = await this.#clientService.getActiveOrders(
         accountIndex,
         authToken,
       );
+      this.#assertSession(generation);
       return response.orders.map((order) =>
         adaptOrderFromLighter(
           order,
@@ -1063,13 +1173,19 @@ export class LighterProvider implements PerpsProvider {
     _options?: PerpsReadOptions,
   ): Promise<Order[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const authToken = await this.#getAuthToken();
+      this.#assertSession(generation);
       await this.#ensureMarkets();
       const response = await this.#clientService.getInactiveOrders(
         accountIndex,
         authToken,
       );
+      // Both legs (historical + open) must come from one session — a
+      // switch mid-way would merge account A's history with B's orders.
+      this.#assertSession(generation);
       const historical = (response.orders ?? []).map((order) =>
         adaptOrderFromLighter(
           order,
@@ -1079,6 +1195,9 @@ export class LighterProvider implements PerpsProvider {
       );
       // Full lifecycle: open orders first, then the historical states.
       const open = await this.getOpenOrders(params);
+      // getOpenOrders swallows its own cancellation into []; the merge must
+      // still refuse to pair A's history with B's session.
+      this.#assertSession(generation);
       return [...open, ...historical];
     } catch (caughtError) {
       const wrappedError = ensureError(
@@ -1284,17 +1403,9 @@ export class LighterProvider implements PerpsProvider {
         // extra exposure results and dust positions stay closable. The
         // isFullClose flag is a hint, never trusted — a partial close
         // bumped to the minimum would close more than the caller asked.
-        let verifiedFullClose = false;
-        if (params.reduceOnly) {
-          const positions = await this.getPositions();
-          const held = Math.abs(
-            parseFloat(
-              positions.find((entry) => entry.symbol === params.symbol)?.size ??
-                '0',
-            ),
-          );
-          verifiedFullClose = held > 0 && requestedSize >= held * 0.99;
-        }
+        const verifiedFullClose = params.reduceOnly
+          ? await this.#isVerifiedFullClose(params.symbol, requestedSize)
+          : false;
         if (!verifiedFullClose) {
           return {
             success: false,
@@ -1311,7 +1422,7 @@ export class LighterProvider implements PerpsProvider {
         market.supportedPriceDecimals,
       );
       const sizeInt = toLighterInteger(size, market.supportedSizeDecimals);
-      const clientOrderIndex = Date.now() % 1_000_000_000;
+      const [clientOrderIndex] = this.#allocateClientOrderIndexes(1);
 
       // Leverage update and order placement share ONE lock acquisition so a
       // concurrent write can never interleave between the caller's leverage
@@ -1472,6 +1583,63 @@ export class LighterProvider implements PerpsProvider {
     };
   }
 
+  /**
+   * Validate the shape of a close request (shared by validateClosePosition
+   * and closePosition so validation can never approve a close the
+   * execution path refuses).
+   *
+   * @param params - Close request.
+   * @returns Error message, or null when the shape is acceptable.
+   */
+  readonly #validateCloseShape = (
+    params: ClosePositionParams,
+  ): string | null => {
+    const closeOrderType = params.orderType ?? 'market';
+    if (closeOrderType !== 'market' && closeOrderType !== 'limit') {
+      return `Lighter cannot close with a ${closeOrderType} order; use market or limit`;
+    }
+    if (closeOrderType === 'limit' && !params.price) {
+      return 'Limit close requires a price';
+    }
+    if (params.usdAmount !== undefined && !(parseFloat(params.usdAmount) > 0)) {
+      return `Invalid usdAmount ${params.usdAmount}: must be a positive number`;
+    }
+    // closePosition forwards an explicit size to placement, which rejects
+    // non-positive values; validation must match.
+    if (
+      params.usdAmount === undefined &&
+      params.size !== undefined &&
+      !(parseFloat(params.size) > 0)
+    ) {
+      return 'Order size must be positive';
+    }
+    return null;
+  };
+
+  /**
+   * Live check whether a below-minimum reduce-only request is actually a
+   * full close of the held position (shared by placement and validation).
+   *
+   * @param symbol - Market symbol.
+   * @param requestedSize - Requested base size.
+   * @returns True when the live position verifies a full close.
+   */
+  readonly #isVerifiedFullClose = async (
+    symbol: string,
+    requestedSize: number,
+  ): Promise<boolean> => {
+    const positions = await this.getPositions();
+    const held = Math.abs(
+      parseFloat(
+        positions.find((entry) => entry.symbol === symbol)?.size ?? '0',
+      ),
+    );
+    // Exact match (float epsilon only): closePosition forwards the precise
+    // live size, and anything less is a deliberate partial that a min-size
+    // bump would silently over-close.
+    return held > 0 && requestedSize >= held * (1 - 1e-9);
+  };
+
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
     try {
       // One intent identity from the position read through the final write:
@@ -1480,14 +1648,9 @@ export class LighterProvider implements PerpsProvider {
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
       const closeOrderType = params.orderType ?? 'market';
-      if (closeOrderType !== 'market' && closeOrderType !== 'limit') {
-        return {
-          success: false,
-          error: `Lighter cannot close with a ${closeOrderType} order; use market or limit`,
-        };
-      }
-      if (closeOrderType === 'limit' && !params.price) {
-        return { success: false, error: 'Limit close requires a price' };
+      const shapeError = this.#validateCloseShape(params);
+      if (shapeError) {
+        return { success: false, error: shapeError };
       }
       const positions = await this.getPositions();
       this.#assertSession(generationAtIntent);
@@ -1625,7 +1788,8 @@ export class LighterProvider implements PerpsProvider {
         ];
       };
 
-      const clientBase = Date.now() % 1_000_000_000;
+      const [takeProfitIndex, stopLossIndex] =
+        this.#allocateClientOrderIndexes(2);
       const grouped: (string | number)[] = [];
       let orderCount = 0;
       if (params.takeProfitPrice) {
@@ -1633,7 +1797,7 @@ export class LighterProvider implements PerpsProvider {
           ...buildOrder(
             LIGHTER_ORDER_TYPE_TAKE_PROFIT,
             params.takeProfitPrice,
-            clientBase + 1,
+            takeProfitIndex,
           ),
         );
         orderCount += 1;
@@ -1643,7 +1807,7 @@ export class LighterProvider implements PerpsProvider {
           ...buildOrder(
             LIGHTER_ORDER_TYPE_STOP_LOSS,
             params.stopLossPrice,
-            clientBase + 2,
+            stopLossIndex,
           ),
         );
         orderCount += 1;
@@ -1802,6 +1966,8 @@ export class LighterProvider implements PerpsProvider {
     _options?: PerpsReadOptions,
   ): Promise<OrderFill[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const token = await this.#getAuthToken();
       await this.#ensureMarkets();
@@ -1810,6 +1976,7 @@ export class LighterProvider implements PerpsProvider {
         token,
         params?.limit ?? 50,
       );
+      this.#assertSession(generation);
       return (response.trades ?? []).map((trade) =>
         adaptFillFromLighterTrade(
           trade,
@@ -1833,41 +2000,14 @@ export class LighterProvider implements PerpsProvider {
   async getHistoricalPortfolio(
     _params?: GetHistoricalPortfolioParams,
   ): Promise<HistoricalPortfolioResult> {
-    try {
-      const accountIndex = await this.#ensureAccountIndex();
-      const token = await this.#getAuthToken();
-      const now = Date.now();
-      const response = await this.#clientService.getPnl(
-        accountIndex,
-        token,
-        now - 2 * 24 * 60 * 60 * 1000,
-        now,
-        2,
-      );
-      const dayAgo = now - 24 * 60 * 60 * 1000;
-      // The venue reports flows per bucket, not account value; reconstruct
-      // the value a day ago from the current balance minus the last day's
-      // trading pnl and net transfers.
-      const lastDayDelta = (response.pnl ?? [])
-        .filter((bucket) => bucket.timestamp >= dayAgo)
-        .reduce(
-          (sum, bucket) =>
-            sum + bucket.tradePnl + bucket.inflow - bucket.outflow,
-          0,
-        );
-      const accountState = await this.getAccountState();
-      const currentValue = parseFloat(accountState.totalBalance || '0');
-      return {
-        accountValue1dAgo: String(currentValue - lastDayDelta),
-        timestamp: now,
-      };
-    } catch (error) {
-      this.#deps.debugLogger.log(
-        '[LighterProvider] getHistoricalPortfolio failed',
-        { error: String(error) },
-      );
-      return { accountValue1dAgo: '0', timestamp: Date.now() };
-    }
+    // Capability-gated: the venue's PnLEntry carries trade, pool, spot, and
+    // staking flows; reconstructing account value from the trade flows
+    // alone is materially wrong for accounts using the other routes, and
+    // no captured payload proves the full-flow semantics. Reporting a
+    // plausible number would show false daily history — fail explicitly.
+    throw new Error(
+      'Historical portfolio is unavailable for Lighter: account-value reconstruction requires pool/spot/staking flow semantics that are not yet verified against the venue',
+    );
   }
 
   async getFunding(
@@ -1875,6 +2015,8 @@ export class LighterProvider implements PerpsProvider {
     _options?: PerpsReadOptions,
   ): Promise<Funding[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const token = await this.#getAuthToken();
       await this.#ensureMarkets();
@@ -1882,6 +2024,7 @@ export class LighterProvider implements PerpsProvider {
         accountIndex,
         token,
       );
+      this.#assertSession(generation);
       return (response.positionFundings ?? []).map((entry) => ({
         symbol:
           this.#marketsById.get(entry.marketId)?.symbol ??
@@ -1905,6 +2048,8 @@ export class LighterProvider implements PerpsProvider {
     endTime?: number;
   }): Promise<RawLedgerUpdate[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const authToken = await this.#getAuthToken();
       const l1Address = this.#walletService.getUserAddress();
@@ -1941,6 +2086,7 @@ export class LighterProvider implements PerpsProvider {
         })),
       ].sort((first, second) => second.time - first.time);
       const { startTime, endTime } = params ?? {};
+      this.#assertSession(generation);
       return updates.filter(
         (update) =>
           (startTime === undefined || update.time >= startTime) &&
@@ -1961,6 +2107,8 @@ export class LighterProvider implements PerpsProvider {
     endTime?: number;
   }): Promise<UserHistoryItem[]> {
     try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const authToken = await this.#getAuthToken();
       const l1Address = this.#walletService.getUserAddress();
@@ -2001,6 +2149,7 @@ export class LighterProvider implements PerpsProvider {
         })),
       ].sort((first, second) => second.timestamp - first.timestamp);
       const { startTime, endTime } = params ?? {};
+      this.#assertSession(generation);
       return items.filter(
         (item) =>
           (startTime === undefined || item.timestamp >= startTime) &&
@@ -2054,17 +2203,17 @@ export class LighterProvider implements PerpsProvider {
         error: `Invalid leverage ${params.leverage}: must be a positive number`,
       };
     }
-    let hasUsdSizing = false;
+    let usdAmount: number | undefined;
     if (params.usdAmount !== undefined) {
-      const usdAmount = parseFloat(params.usdAmount);
+      usdAmount = parseFloat(params.usdAmount);
       if (!(usdAmount > 0)) {
         return {
           isValid: false,
           error: `Invalid usdAmount ${params.usdAmount}: must be a positive number`,
         };
       }
-      hasUsdSizing = true;
     }
+    const hasUsdSizing = usdAmount !== undefined;
     if (!hasUsdSizing && !(parseFloat(params.size) > 0)) {
       return { isValid: false, error: 'Order size must be positive' };
     }
@@ -2079,16 +2228,25 @@ export class LighterProvider implements PerpsProvider {
     const referencePrice = parseFloat(
       params.price ?? String(params.currentPrice ?? 0),
     );
-    if (referencePrice > 0 && !params.reduceOnly && !params.isFullClose) {
-      const requestedSize = hasUsdSizing
-        ? usdAmount / referencePrice
-        : parseFloat(params.size);
+    if (referencePrice > 0) {
+      const requestedSize =
+        usdAmount === undefined
+          ? parseFloat(params.size)
+          : usdAmount / referencePrice;
       const minSize = computeLighterMinOrderSize(market, referencePrice);
       if (requestedSize < minSize) {
-        return {
-          isValid: false,
-          error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
-        };
+        // EXACTLY the placement rule: only reduce-only orders may bump to
+        // the venue minimum, and only when the live position verifies a
+        // full close; isFullClose remains an untrusted hint.
+        const verifiedFullClose = params.reduceOnly
+          ? await this.#isVerifiedFullClose(params.symbol, requestedSize)
+          : false;
+        if (!verifiedFullClose) {
+          return {
+            isValid: false,
+            error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
+          };
+        }
       }
     }
     return { isValid: true };
@@ -2097,6 +2255,11 @@ export class LighterProvider implements PerpsProvider {
   async validateClosePosition(
     params: ClosePositionParams,
   ): Promise<{ isValid: boolean; error?: string }> {
+    // Same shape rules the execution path enforces.
+    const shapeError = this.#validateCloseShape(params);
+    if (shapeError) {
+      return { isValid: false, error: shapeError };
+    }
     const markets = await this.#ensureMarkets();
     if (!markets.has(params.symbol)) {
       return {
@@ -2214,6 +2377,10 @@ export class LighterProvider implements PerpsProvider {
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
+    // The market metadata's zero fee is only true for Standard accounts —
+    // resolve and gate the account tier first so a Premium account can
+    // never be quoted a false zero (throws for Premium/unverified).
+    await this.#ensureAccountIndex();
     // Sourced from the venue's own per-market metadata rather than assumed:
     // Lighter standard accounts currently report 0 maker/taker fees.
     const markets = await this.#ensureMarkets();
@@ -2317,24 +2484,26 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     const generation = this.#sessionGeneration;
-    this.#accountChannelsPromise = (async (): Promise<void> => {
+    let channelsRequested = false;
+    const setupPromise = (async (): Promise<void> => {
       try {
         // Warm the margin cache before any WS position frame is adapted.
         await this.#ensureMarketMargins().catch(() => undefined);
         const accountIndex = await this.#ensureAccountIndex();
-        if (generation !== this.#sessionGeneration) {
-          // The wallet switched accounts while resolving; the rebind's own
-          // rebuild requests the channels for the new session.
-          return;
-        }
+        // Address-aware: an EXTERNAL switch during the lookup (with no other
+        // provider call to advance the generation) must also stop these
+        // channels from being requested for the old account. The rebind
+        // inside the binding call triggers its own rebuild for the new one.
+        // Fails closed when no wallet account is bound — a configured
+        // account index alone must never subscribe user channels.
+        this.#assertSession(generation);
         this.#requestChannel(`user_stats/${accountIndex}`);
         this.#requestChannel(`account_all_positions/${accountIndex}`);
         this.#requestChannel(`account_all_trades/${accountIndex}`);
+        channelsRequested = true;
         try {
           const auth = await this.#getAuthToken();
-          if (generation !== this.#sessionGeneration) {
-            return;
-          }
+          this.#assertSession(generation);
           this.#requestChannel(`account_all_orders/${accountIndex}`, auth);
         } catch (error) {
           this.#deps.debugLogger.log(
@@ -2357,6 +2526,21 @@ export class LighterProvider implements PerpsProvider {
         this.#emitToOrderSubscribers([]);
       }
     })();
+    this.#accountChannelsPromise = setupPromise;
+    // A setup that never requested channels (no wallet account yet, or an
+    // aborted switch) must not satisfy future ensure calls — clear it so
+    // the next bind retries, without clobbering a newer session's promise.
+    setupPromise
+      .then(() => {
+        if (
+          !channelsRequested &&
+          this.#accountChannelsPromise === setupPromise
+        ) {
+          this.#accountChannelsPromise = null;
+        }
+        return undefined;
+      })
+      .catch(() => undefined);
     this.#ensureStream();
   };
 
@@ -2425,6 +2609,11 @@ export class LighterProvider implements PerpsProvider {
     this.#setConnectionState(WebSocketConnectionState.Connecting);
 
     ws.onopen = (): void => {
+      // A replaced socket's late onopen must not touch the current stream.
+      if (this.#priceWs !== ws) {
+        return;
+      }
+      const generationAtOpen = this.#sessionGeneration;
       this.#wsReconnectAttempts = 0;
       this.#setConnectionState(WebSocketConnectionState.Connected);
       for (const [channel, meta] of this.#wsWantedChannels) {
@@ -2434,6 +2623,16 @@ export class LighterProvider implements PerpsProvider {
           // time. #getAuthToken reuses the cached token while it is fresh.
           this.#getAuthToken()
             .then((freshToken) => {
+              // The async continuation may resolve after an account switch
+              // replaced the socket or the channel set: never reinsert a
+              // stale channel or pair it with the new session's token.
+              if (
+                this.#priceWs !== ws ||
+                generationAtOpen !== this.#sessionGeneration ||
+                !this.#wsWantedChannels.has(channel)
+              ) {
+                return undefined;
+              }
               this.#wsWantedChannels.set(channel, { auth: freshToken });
               this.#sendSubscribe(channel, freshToken);
               return undefined;

@@ -441,7 +441,7 @@ export type LighterWsTrade = {
   /** Realized pnl per side — same wire shape as the REST trade payload. */
   askAccountPnl?: string;
   bidAccountPnl?: string;
-  /** Fees, present when nonzero; integers are USDC base units (6 dp). */
+  /** Fees, present when nonzero; unit unproven — see LighterRestTrade. */
   takerFee?: number | string;
   makerFee?: number | string;
   takerPositionSizeBefore?: string;
@@ -482,9 +482,9 @@ export type LighterRestTrade = {
   /** Realized pnl for the bid-side account, signed USDC. */
   bidAccountPnl?: string;
   /**
-   * Taker/maker fees, present when nonzero (venue docs). The official
-   * model types them as integers (USDC base units, 6 decimals); a decimal
-   * string is tolerated defensively.
+   * Taker/maker fees, present when nonzero. The official model types them
+   * as StrictInt with NO documented unit or scale; until a captured
+   * nonzero payload proves one, adapters must treat these as unavailable.
    */
   takerFee?: number | string;
   makerFee?: number | string;
