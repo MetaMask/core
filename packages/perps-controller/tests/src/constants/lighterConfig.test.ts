@@ -108,6 +108,13 @@ describe('lighterConfig', () => {
       );
     });
 
+    it('throws on positive values that round to wire zero', () => {
+      // Sub-tick intent: positive in human units, zero on the wire — the
+      // venue would receive a zero price/size/amount.
+      expect(() => toLighterInteger(0.04, 1)).toThrow('rounds to zero');
+      expect(() => toLighterInteger(1e-9, 5)).toThrow('rounds to zero');
+    });
+
     it('round-trips wire integers back to human values', () => {
       expect(fromLighterInteger(5000, 5)).toBe(0.05);
       expect(fromLighterInteger(1873, 1)).toBe(187.3);
