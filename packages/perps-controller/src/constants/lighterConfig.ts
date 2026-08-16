@@ -239,11 +239,9 @@ export function toLighterInteger(value: number, decimals: number): number {
       `Value ${value} is outside Lighter's integer range at ${decimals} decimals`,
     );
   }
-  // Every signer-bound price/size/amount requires positive intent; a
-  // positive sub-tick value would silently become zero on the wire.
-  if (scaled < 1) {
-    throw new Error(`Value ${value} rounds to zero at ${decimals} decimals`);
-  }
+  // NOTE: this is a generic converter — zero and negative results are
+  // valid here. Positive-intent policy for signer-bound values lives in
+  // the provider's internal wire wrapper.
   return scaled;
 }
 

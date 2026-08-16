@@ -456,6 +456,35 @@ describe('lighterAdapter', () => {
       expect(adapted.side).toBe('sell');
     });
 
+    it('maps the trigger LEVEL separately from the execution price on trigger orders', () => {
+      // Live venue payload: `price` on a take-profit is the ±5% protection
+      // EXECUTION price (107.265), while the user's TP level is
+      // `triggerPrice` (112.911). Confusing them shows the wrong number in
+      // every TP/SL surface.
+      const adapted = adaptOrderFromLighter(
+        {
+          ...order,
+          type: 'take-profit',
+          isAsk: true,
+          reduceOnly: 1,
+          price: '107.265',
+          triggerPrice: '112.911',
+        },
+        'SOL',
+      );
+      expect(adapted.isTrigger).toBe(true);
+      expect(adapted.price).toBe('107.265');
+      expect(adapted.triggerPrice).toBe('112.911');
+    });
+
+    it('omits triggerPrice on non-trigger orders and zero venue values', () => {
+      expect(adaptOrderFromLighter(order, 'BTC').triggerPrice).toBeUndefined();
+      expect(
+        adaptOrderFromLighter({ ...order, triggerPrice: '0' }, 'BTC')
+          .triggerPrice,
+      ).toBeUndefined();
+    });
+
     it('normalizes canceled statuses', () => {
       const adapted = adaptOrderFromLighter(
         { ...order, status: 'canceled-post-only' },

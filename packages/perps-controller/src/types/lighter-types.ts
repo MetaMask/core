@@ -590,6 +590,11 @@ export type LighterApiOrder = {
   status: string;
   orderExpiry: number;
   timestamp: number;
+  /**
+   * Trigger level for stop-loss/take-profit orders. Note `price` on a
+   * trigger order is the ±5% protection EXECUTION price, not this level.
+   */
+  triggerPrice?: string;
 };
 
 /**

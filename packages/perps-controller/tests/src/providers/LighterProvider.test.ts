@@ -105,6 +105,11 @@ function createMockBridge(): {
             txInfo: '{"updateLeverage":true}',
             txHash: '0xleveragehash',
           } as Result;
+        case '_signCreateGroupedOrders':
+          return {
+            txInfo: '{"createGroupedOrders":true}',
+            txHash: '0xgroupedhash',
+          } as Result;
         case '_createAuthToken':
           return {
             token: 'auth-token',
@@ -185,6 +190,10 @@ function buildProvider(
           dailyPriceChange: 1,
           openInterest: 1000000,
           dailyChart: {},
+          // Authoritative margin metadata (strict leverage gate): 200
+          // hundredths of a percent -> 50x max leverage.
+          minInitialMarginFraction: 200,
+          maintenanceMarginFraction: 120,
         },
       ],
     }),
@@ -1579,6 +1588,323 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('round-11 TP/SL local preflight', () => {
+    it('malformed live position sizes abort TP/SL replacement before any cancellation or signer call', async () => {
+      const { provider, calls, clientInstance } = buildProvider();
+      // getPositions does not reject these; integerizing the cover size
+      // after the existing triggers were cancelled would strip protection
+      // and then fail locally.
+      for (const badSize of ['Infinity', 'NaN', '1e-9']) {
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: [{ ...ACCOUNT.positions[0], position: badSize }],
+            },
+          ],
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+      }
+      // Zero bridge calls: no signer setup, no cancels, no grouped signing.
+      expect(calls).toHaveLength(0);
+    });
+
+    it('degenerate randomness aborts TP/SL replacement before any cancellation', async () => {
+      const { provider, calls } = buildProvider();
+      // The bounded allocator throws after 100 attempts per id; that
+      // exhaustion must land BEFORE signer setup and cancels.
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+          stopLossPrice: '80000',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('client order id');
+        expect(calls).toHaveLength(0);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('a wallet switch during public preflight aborts before any signer setup', async () => {
+      const { provider, calls, clientInstance, getUserAddressMock } =
+        buildProvider();
+      // Stall the fresh-price read; the wallet switches A→B while placeOrder
+      // is parked in its PUBLIC preflight. Signer setup afterwards would
+      // create/register B's venue key for A's stale intent.
+      let releasePrice = (): void => undefined;
+      const priceGate = new Promise<void>((resolve) => {
+        releasePrice = resolve;
+      });
+      const details = {
+        code: 200,
+        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: 100000 }],
+      };
+      clientInstance.getOrderBookDetails.mockImplementation(async () => {
+        await priceGate;
+        return details;
+      });
+      const placement = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'market',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      getUserAddressMock.mockReturnValue(`0x${'b'.repeat(40)}`);
+      releasePrice();
+      const result = await placement;
+      expect(result.success).toBe(false);
+      // Zero bridge calls: no _createClient / personal_sign / key
+      // registration for account B under A's intent.
+      expect(calls).toHaveLength(0);
+    });
+
+    it('fails leverage validation closed when venue margin metadata is unavailable', async () => {
+      // Metadata row present but WITHOUT margin fractions: the global 50x
+      // fallback must not validate 26x for what may be a 25x market.
+      const missingRow = buildProvider();
+      missingRow.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: 100000 }],
+      });
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit' as const,
+        price: '90000',
+        leverage: 26,
+      };
+      const missingValidation =
+        await missingRow.provider.validateOrder(request);
+      expect(missingValidation.isValid).toBe(false);
+      expect(missingValidation.error).toContain('margin metadata');
+      const missingPlacement = await missingRow.provider.placeOrder(request);
+      expect(missingPlacement.success).toBe(false);
+      expect(missingPlacement.error).toContain('margin metadata');
+      expect(missingRow.calls).toHaveLength(0);
+      // Metadata endpoint failing outright: same fail-closed behavior.
+      const failing = buildProvider();
+      failing.clientInstance.getOrderBookDetails.mockRejectedValue(
+        new Error('venue metadata unavailable'),
+      );
+      const failingValidation = await failing.provider.validateOrder(request);
+      expect(failingValidation.isValid).toBe(false);
+      const failingPlacement = await failing.provider.placeOrder(request);
+      expect(failingPlacement.success).toBe(false);
+      expect(failing.calls).toHaveLength(0);
+    });
+
+    it("rejects prefix-numeric strings like '10USD' across every money surface, with zero bridge calls", async () => {
+      const { provider, calls } = buildProvider();
+      // parseFloat prefix-parses these into plausible numbers; strict
+      // full-string parsing must refuse them everywhere.
+      const orderCases = [
+        { overrides: { size: '0.001BTC' }, error: 'Order size must be' },
+        {
+          overrides: { size: '0.001', usdAmount: '10USD' },
+          error: 'Invalid usdAmount',
+        },
+        {
+          overrides: { size: '0.001', price: '90000USD' },
+          error: 'Invalid limit price',
+        },
+      ];
+      for (const testCase of orderCases) {
+        const request = {
+          symbol: 'BTC',
+          isBuy: true,
+          orderType: 'limit' as const,
+          price: '90000',
+          ...testCase.overrides,
+        };
+        const validation = await provider.validateOrder(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain(testCase.error);
+        const placement = await provider.placeOrder(request);
+        expect(placement.success).toBe(false);
+        expect(placement.error).toContain(testCase.error);
+      }
+      const closeValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+        size: '0.001BTC',
+        currentPrice: 100000,
+      });
+      expect(closeValidation.isValid).toBe(false);
+      const closeExecution = await provider.closePosition({
+        symbol: 'BTC',
+        size: '0.001BTC',
+        currentPrice: 100000,
+      });
+      expect(closeExecution.success).toBe(false);
+      const withdrawValidation = await provider.validateWithdrawal({
+        amount: '5USD',
+      });
+      expect(withdrawValidation.isValid).toBe(false);
+      const withdrawExecution = await provider.withdraw({ amount: '5USD' });
+      expect(withdrawExecution.success).toBe(false);
+      const marginExecution = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '5USD',
+      });
+      expect(marginExecution.success).toBe(false);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('enforces the advertised withdrawal minimum in validation and execution', async () => {
+      const { provider, calls } = buildProvider();
+      // Route advertises minWithdrawUsdc '1'; 0.000001 USDC integerizes to
+      // wire 1 and previously signed.
+      const validation = await provider.validateWithdrawal({
+        amount: '0.000001',
+      });
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('below the Lighter minimum');
+      const execution = await provider.withdraw({ amount: '0.000001' });
+      expect(execution.success).toBe(false);
+      expect(execution.error).toContain('below the Lighter minimum');
+      expect(calls).toHaveLength(0);
+      // Exactly at the minimum is accepted.
+      const atMin = await provider.validateWithdrawal({ amount: '1' });
+      expect(atMin.isValid).toBe(true);
+    });
+
+    it('creates the replacement protection BEFORE cancelling the snapshotted old triggers', async () => {
+      const { provider, calls, clientInstance } = buildProvider();
+      clientInstance.getActiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [
+          {
+            orderIndex: 777,
+            clientOrderIndex: 2,
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.001',
+            remainingBaseAmount: '0.001',
+            price: '80000',
+            isAsk: true,
+            type: 'stop-loss',
+            timeInForce: 'immediate-or-cancel',
+            reduceOnly: 1,
+            status: 'open',
+            orderExpiry: 0,
+            timestamp: 1700000000000,
+          },
+        ],
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      // A lone SL is an ordinary CreateOrder trigger (venue rejects
+      // grouped type 0), created BEFORE the old trigger is cancelled.
+      const createAt = calls.findIndex(
+        (call) => call.function === '_signCreateOrder',
+      );
+      const cancelAt = calls.findIndex(
+        (call) => call.function === '_signCancelOrder',
+      );
+      expect(createAt).toBeGreaterThanOrEqual(0);
+      expect(cancelAt).toBeGreaterThanOrEqual(0);
+      // Create-first: a signing/submission failure can no longer strip
+      // protection that was already cancelled.
+      expect(createAt).toBeLessThan(cancelAt);
+    });
+
+    it('keeps the old protection untouched when creating the replacement fails', async () => {
+      const { provider, calls, bridge, clientInstance } = buildProvider();
+      clientInstance.getActiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [
+          {
+            orderIndex: 778,
+            clientOrderIndex: 3,
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.001',
+            remainingBaseAmount: '0.001',
+            price: '80000',
+            isAsk: true,
+            type: 'stop-loss',
+            timeInForce: 'immediate-or-cancel',
+            reduceOnly: 1,
+            status: 'open',
+            orderExpiry: 0,
+            timestamp: 1700000000000,
+          },
+        ],
+      });
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_signCreateOrder') {
+            return { error: 'venue rejected replacement trigger' };
+          }
+          return realImplementation(call);
+        },
+      );
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('venue rejected replacement trigger');
+      // The snapshotted old trigger was NEVER cancelled: protection stays.
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('a single trigger replacement reserves exactly one client id', async () => {
+      const { provider, calls } = buildProvider();
+      const randomSpy = jest.spyOn(Math, 'random');
+      try {
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.success).toBe(true);
+        // One uint48 id = exactly two 24-bit draws; reserving an unused
+        // second id would waste allocator budget for no order.
+        expect(randomSpy).toHaveBeenCalledTimes(2);
+        // A lone TP is an ordinary CreateOrder trigger — the venue rejects
+        // CreateGroupedOrders with grouping type 0 ('GroupingType is not
+        // valid'), and OCO requires two siblings.
+        expect(
+          calls.filter((call) => call.function === '_signCreateGroupedOrders'),
+        ).toHaveLength(0);
+        const createCall = calls.find(
+          (call) => call.function === '_signCreateOrder',
+        );
+        expect(createCall).toBeDefined();
+        // params: [accountIndex, marketId, clientOrderIndex, size, price,
+        // isAsk, orderType, timeInForce, reduceOnly, triggerPrice, expiry,
+        // nonce]
+        const orderParams = createCall?.params as (string | number)[];
+        expect(orderParams[6]).toBe(4); // take-profit wire type
+        expect(orderParams[7]).toBe(0); // immediate-or-cancel
+        expect(orderParams[8]).toBe(1); // reduce-only
+        expect(Number(orderParams[9])).toBeGreaterThan(0); // trigger price
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+  });
+
   describe('round-9 finite-positive intent parity', () => {
     it('rejects non-finite size, usdAmount, and leverage in validateOrder and placeOrder before any signer call', async () => {
       const { provider, calls } = buildProvider();
@@ -2523,9 +2849,9 @@ describe('LighterProvider', () => {
         price: 'Infinity',
       });
       expect(placement.success).toBe(false);
-      expect(placement.error).toContain(
-        'Unable to resolve a finite execution price',
-      );
+      // Strict-parse parity: placement now rejects with the SAME message
+      // as the validators.
+      expect(placement.error).toContain('Invalid limit price');
       expect(
         calls.filter((call) => call.function === '_signCreateOrder'),
       ).toHaveLength(0);
