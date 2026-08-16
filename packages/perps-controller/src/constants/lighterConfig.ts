@@ -300,3 +300,11 @@ export const LIGHTER_BRIDGE_CONFIG = {
 /** UpdateLeverage margin-mode codes (types/txtypes constants). */
 export const LIGHTER_MARGIN_MODE_CROSS = 0;
 export const LIGHTER_MARGIN_MODE_ISOLATED = 1;
+
+/**
+ * Marker prefix for capability-gate errors (unsupported account tier /
+ * unverified fee semantics). Callers use it to surface these explicitly
+ * instead of degrading them into empty state.
+ */
+export const LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX =
+  'Unsupported Lighter capability:';

@@ -43,6 +43,7 @@ import {
   LIGHTER_TX_TYPE_UPDATE_MARGIN,
   LIGHTER_TX_TYPE_WITHDRAW,
   LIGHTER_MARGIN_MODE_CROSS,
+  LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   LIGHTER_USDC_ASSET_INDEX,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
@@ -606,13 +607,16 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #ensureAccountIndex = async (): Promise<number> => {
     this.#ensureSessionBinding();
+    // Account-bound work requires a bound wallet — including the cached
+    // fast path and the configured-index path.
+    this.#assertSession(this.#sessionGeneration);
     if (this.#accountIndex !== null) {
       return this.#accountIndex;
     }
     if (this.#configuredAccountIndex !== undefined) {
-      // Even a configured index must be a Standard (0-fee) account: Premium
-      // fee semantics are unverified and would render financially false
-      // history (see #assertStandardAccount).
+      // A configured index must be a Standard (0-fee) account AND owned by
+      // the bound wallet address: a signed-in wallet must never read or
+      // trade another owner's account just because an env var names it.
       const generationAtCheck = this.#sessionGeneration;
       const configured = await this.#clientService.getAccountByIndex(
         this.#configuredAccountIndex,
@@ -621,7 +625,16 @@ export class LighterProvider implements PerpsProvider {
       if (generationAtCheck !== this.#sessionGeneration) {
         return await this.#ensureAccountIndex();
       }
-      this.#assertStandardAccount(configured.accounts[0]?.accountType);
+      const configuredAccount = configured.accounts[0];
+      this.#assertStandardAccount(configuredAccount?.accountType);
+      const ownerAddress = configuredAccount?.l1Address?.toLowerCase();
+      if (!ownerAddress || ownerAddress !== this.#boundAddress) {
+        // Capability-prefixed so read catches SURFACE it instead of
+        // degrading a cross-owner misconfiguration into empty state.
+        throw new Error(
+          `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} configured account ${this.#configuredAccountIndex} is not owned by the selected wallet address`,
+        );
+      }
       this.#accountIndex = this.#configuredAccountIndex;
       return this.#accountIndex;
     }
@@ -661,15 +674,26 @@ export class LighterProvider implements PerpsProvider {
     // missing account/type is not evidence of Standard.
     if (accountType === undefined) {
       throw new Error(
-        'Lighter account type could not be verified (account not found); refusing to assume a Standard account',
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} account type could not be verified (account not found); refusing to assume a Standard account`,
       );
     }
     if (accountType !== 0) {
       throw new Error(
-        'Lighter Premium accounts are not supported yet: their fee semantics are unverified and history would be financially incorrect',
+        `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} Premium accounts are not supported yet: their fee semantics are unverified and history would be financially incorrect`,
       );
     }
   };
+
+  /**
+   * Whether an error is an explicit capability gate (unsupported account
+   * tier / unverified fee semantics). These must SURFACE to callers —
+   * swallowing them into empty state would present false data.
+   *
+   * @param error - Caught error.
+   * @returns True for capability-gate errors.
+   */
+  readonly #isUnsupportedCapabilityError = (error: unknown): boolean =>
+    String(error).includes(LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX);
 
   /**
    * Create the WASM signer client and register the venue key if the
@@ -868,21 +892,37 @@ export class LighterProvider implements PerpsProvider {
   #lastClientOrderIndex = 0;
 
   /**
+   * Per-instance lane (0-99) mixed into every issued id so two provider
+   * instances created in the same millisecond (e.g. a fast provider
+   * recreation, or two devices on the same account) do not collide. The
+   * controller holds ONE LighterProvider per session, so within an app the
+   * allocator is effectively a singleton; the lane is defense in depth for
+   * the cross-instance cases, not a substitute for that scoping.
+   */
+  readonly #clientOrderLane = Math.floor(Math.random() * 100);
+
+  /**
    * Atomically reserve strictly-increasing client order indexes.
    *
    * The venue requires client_order_index to be UNIQUE ACROSS ALL MARKETS
-   * (official Get Started docs). A bare Date.now() collides for parallel
-   * placements in the same millisecond, and any modulo wraps eventually —
-   * this allocator is synchronous (no interleaving between reads of the
-   * counter) and monotonic (Date.now seed, never reissuing an id).
+   * for the account (official Get Started docs). A bare Date.now()
+   * collides for parallel placements in the same millisecond, and any
+   * modulo wraps eventually — this allocator is synchronous (no
+   * interleaving between counter reads), monotonic (never reissues), and
+   * lane-separated across instances. Ids are Date.now()*100 + lane,
+   * stepping by 100: bounded by uint48 (2^48 ≈ 2.8e14) until ~2059.
    *
-   * @param count - How many consecutive ids to reserve.
+   * @param count - How many ids to reserve.
    * @returns The reserved ids, ascending.
    */
   readonly #allocateClientOrderIndexes = (count: number): number[] => {
-    const base = Math.max(Date.now(), this.#lastClientOrderIndex + 1);
-    this.#lastClientOrderIndex = base + count - 1;
-    return Array.from({ length: count }, (_unused, offset) => base + offset);
+    const seed = Date.now() * 100 + this.#clientOrderLane;
+    const base = Math.max(seed, this.#lastClientOrderIndex + 100);
+    this.#lastClientOrderIndex = base + (count - 1) * 100;
+    return Array.from(
+      { length: count },
+      (_unused, offset) => base + offset * 100,
+    );
   };
 
   /**
@@ -1092,6 +1132,10 @@ export class LighterProvider implements PerpsProvider {
           ),
         );
     } catch (caughtError) {
+      if (this.#isUnsupportedCapabilityError(caughtError)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw caughtError;
+      }
       const wrappedError = ensureError(
         caughtError,
         'LighterProvider.getPositions',
@@ -1122,6 +1166,10 @@ export class LighterProvider implements PerpsProvider {
       }
       return adaptAccountStateFromLighter(account);
     } catch (caughtError) {
+      if (this.#isUnsupportedCapabilityError(caughtError)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw caughtError;
+      }
       const wrappedError = ensureError(
         caughtError,
         'LighterProvider.getAccountState',
@@ -1156,6 +1204,10 @@ export class LighterProvider implements PerpsProvider {
         ),
       );
     } catch (caughtError) {
+      if (this.#isUnsupportedCapabilityError(caughtError)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw caughtError;
+      }
       const wrappedError = ensureError(
         caughtError,
         'LighterProvider.getOpenOrders',
@@ -1200,6 +1252,10 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       return [...open, ...historical];
     } catch (caughtError) {
+      if (this.#isUnsupportedCapabilityError(caughtError)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw caughtError;
+      }
       const wrappedError = ensureError(
         caughtError,
         'LighterProvider.getOrders',
@@ -1439,6 +1495,7 @@ export class LighterProvider implements PerpsProvider {
                   market.marketId,
                   leverageImfHundredths,
                   LIGHTER_MARGIN_MODE_CROSS,
+                  LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
                   await nextNonce(),
                 ],
               });
@@ -1986,6 +2043,10 @@ export class LighterProvider implements PerpsProvider {
         ),
       );
     } catch (error) {
+      if (this.#isUnsupportedCapabilityError(error)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw error;
+      }
       this.#deps.debugLogger.log('[LighterProvider] getOrderFills failed', {
         error: String(error),
       });
@@ -2035,6 +2096,10 @@ export class LighterProvider implements PerpsProvider {
         timestamp: entry.timestamp * 1000,
       }));
     } catch (error) {
+      if (this.#isUnsupportedCapabilityError(error)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw error;
+      }
       this.#deps.debugLogger.log('[LighterProvider] getFunding failed', {
         error: String(error),
       });
@@ -2093,6 +2158,10 @@ export class LighterProvider implements PerpsProvider {
           (endTime === undefined || update.time <= endTime),
       );
     } catch (error) {
+      if (this.#isUnsupportedCapabilityError(error)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw error;
+      }
       this.#deps.debugLogger.log(
         '[LighterProvider] getUserNonFundingLedgerUpdates failed',
         { error: String(error) },
@@ -2156,6 +2225,10 @@ export class LighterProvider implements PerpsProvider {
           (endTime === undefined || item.timestamp <= endTime),
       );
     } catch (error) {
+      if (this.#isUnsupportedCapabilityError(error)) {
+        // Capability gates must surface, never degrade into empty state.
+        throw error;
+      }
       this.#deps.debugLogger.log('[LighterProvider] getUserHistory failed', {
         error: String(error),
       });
@@ -2261,11 +2334,49 @@ export class LighterProvider implements PerpsProvider {
       return { isValid: false, error: shapeError };
     }
     const markets = await this.#ensureMarkets();
-    if (!markets.has(params.symbol)) {
+    const market = markets.get(params.symbol);
+    if (!market) {
       return {
         isValid: false,
         error: `Unknown Lighter market ${params.symbol}`,
       };
+    }
+    // Live sizing parity with closePosition→placeOrder: a validator that
+    // approves a close the execution path rejects is worse than none.
+    const positions = await this.getPositions();
+    const held = Math.abs(
+      parseFloat(
+        positions.find((entry) => entry.symbol === params.symbol)?.size ?? '0',
+      ),
+    );
+    if (held === 0) {
+      return {
+        isValid: false,
+        error: `No open Lighter position for ${params.symbol}`,
+      };
+    }
+    let referencePrice = parseFloat(
+      params.price ?? String(params.currentPrice ?? 0),
+    );
+    if (!(referencePrice > 0)) {
+      const details = await this.#clientService.getOrderBookDetails();
+      referencePrice =
+        details.orderBookDetails.find((entry) => entry.symbol === params.symbol)
+          ?.lastTradePrice ?? 0;
+    }
+    if (referencePrice > 0) {
+      const usdAmount = parseFloat(params.usdAmount ?? '');
+      const requestedSize =
+        Number.isFinite(usdAmount) && usdAmount > 0
+          ? usdAmount / referencePrice
+          : parseFloat(params.size ?? String(held));
+      const minSize = computeLighterMinOrderSize(market, referencePrice);
+      if (requestedSize < minSize && !(requestedSize >= held * (1 - 1e-9))) {
+        return {
+          isValid: false,
+          error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
+        };
+      }
     }
     return { isValid: true };
   }
@@ -2517,6 +2628,12 @@ export class LighterProvider implements PerpsProvider {
           '[LighterProvider] account channels unavailable',
           { error: String(error) },
         );
+        // Only the CURRENT session may blank the subscribers: an aborted
+        // previous-account setup must not overwrite the new account's data
+        // with empty emissions.
+        if (generation !== this.#sessionGeneration) {
+          return;
+        }
         for (const subscriber of this.#accountSubscribers) {
           subscriber.callback(EMPTY_ACCOUNT_STATE);
         }
@@ -2609,7 +2726,9 @@ export class LighterProvider implements PerpsProvider {
     this.#setConnectionState(WebSocketConnectionState.Connecting);
 
     ws.onopen = (): void => {
-      // A replaced socket's late onopen must not touch the current stream.
+      // Observe any external switch first, then drop if this socket was
+      // replaced (by that rebind or an earlier one).
+      this.#ensureSessionBinding();
       if (this.#priceWs !== ws) {
         return;
       }
@@ -2665,6 +2784,10 @@ export class LighterProvider implements PerpsProvider {
     };
 
     ws.onmessage = (event: { data: unknown }): void => {
+      // Re-run the live binding first: an EXTERNAL account switch that no
+      // provider call has observed yet must tear this socket down (the
+      // rebind replaces it) before any frame routes into current UI.
+      this.#ensureSessionBinding();
       // Frames from a socket that was replaced (account rebind, reconnect)
       // must never reach the router — they carry the previous session's data.
       if (this.#priceWs !== ws) {
@@ -2909,9 +3032,19 @@ export class LighterProvider implements PerpsProvider {
           String(trade.marketId);
         // One adapter serves REST history and the live stream so pnl,
         // fees, and direction vocabulary can never diverge between them.
-        fills.push(
-          adaptFillFromLighterTrade(trade, symbol, this.#accountIndex ?? -1),
-        );
+        // A capability-refused fill (unverified nonzero fee) is dropped
+        // with a log instead of crashing the event handler — but is never
+        // rendered with a false zero fee.
+        try {
+          fills.push(
+            adaptFillFromLighterTrade(trade, symbol, this.#accountIndex ?? -1),
+          );
+        } catch (error) {
+          this.#deps.debugLogger.log(
+            '[LighterProvider] dropped unsupported fill from stream',
+            { tradeId: trade.tradeId, error: String(error) },
+          );
+        }
       }
     }
     if (fills.length === 0 && !isSnapshot) {

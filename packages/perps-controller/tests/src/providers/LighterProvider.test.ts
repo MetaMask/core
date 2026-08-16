@@ -1326,9 +1326,11 @@ describe('LighterProvider', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       const staleSocket = StreamFakeWebSocket.instances[0];
       staleSocket.open();
-      // Rebind to another account: the socket is replaced.
+      // Rebind to another account: the socket is replaced. (The read
+      // itself now rejects — 0xbbbb does not own configured account 28 —
+      // but the rebind happens at entry, which is all this test needs.)
       getUserAddressMock.mockReturnValue('0xbbbb');
-      await provider.getAccountState();
+      await provider.getAccountState().catch(() => undefined);
       callback.mockClear();
       // A late frame from the OLD socket must not reach subscribers.
       staleSocket.onmessage?.({
@@ -1487,10 +1489,8 @@ describe('LighterProvider', () => {
         l1Address: ACCOUNT.l1Address,
         subAccounts: [{ ...ACCOUNT, accountType: 1 }],
       });
-      const state = await provider.getAccountState();
-      // The gate cancels resolution; graceful empty state, never Premium
-      // data with silently-zeroed fees.
-      expect(state.totalBalance).toBe('0');
+      // Capability gates SURFACE: no plausible empty state that hides why.
+      await expect(provider.getAccountState()).rejects.toThrow('Premium');
       const ready = await provider.isReadyToTrade();
       expect(ready.ready).toBe(false);
       expect(ready.error).toContain('Premium');
@@ -1734,6 +1734,61 @@ describe('LighterProvider', () => {
         await provider.validateClosePosition({ symbol: 'BTC' }),
       ).toStrictEqual({ isValid: true });
     });
+
+    it('validateClosePosition agrees with execution on live sizing', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const dust = {
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.0001' }],
+          },
+        ],
+      };
+      clientInstance.getAccountByIndex.mockResolvedValue(dust);
+      // Explicit below-min PARTIAL: both validator and execution reject.
+      const partialValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+        size: '0.000099',
+        currentPrice: 90000,
+      });
+      expect(partialValidation.isValid).toBe(false);
+      expect(partialValidation.error).toContain('below the Lighter minimum');
+      const partialExecution = await provider.closePosition({
+        symbol: 'BTC',
+        size: '0.000099',
+        currentPrice: 90000,
+      });
+      expect(partialExecution.success).toBe(false);
+      // Exact dust full close: both approve.
+      expect(
+        (
+          await provider.validateClosePosition({
+            symbol: 'BTC',
+            size: '0.0001',
+            currentPrice: 90000,
+          })
+        ).isValid,
+      ).toBe(true);
+      const exactExecution = await provider.closePosition({
+        symbol: 'BTC',
+        size: '0.0001',
+        currentPrice: 90000,
+      });
+      expect(exactExecution.success).toBe(true);
+    });
+
+    it('validateClosePosition rejects a close with no open position', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, positions: [] }],
+      });
+      const result = await provider.validateClosePosition({ symbol: 'BTC' });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('No open Lighter position');
+    });
   });
 
   describe('round-4 session races', () => {
@@ -1938,9 +1993,25 @@ describe('LighterProvider', () => {
         (socket?.sent ?? []).some((frame) => frame.includes('user_stats/')),
       ).toBe(false);
 
-      // A wallet account is then selected: channels for IT are requested.
+      // A NON-OWNER wallet is then selected: the configured account (owned
+      // by 0x8d7f…) must be rejected, never subscribed for wallet 0xbbbb.
       getUserAddressMock.mockImplementation(() => '0xbbbb');
-      await provider.getAccountState().catch(() => undefined);
+      await expect(provider.getAccountState()).rejects.toThrow(
+        'not owned by the selected wallet',
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socketsAfterMismatch = StreamFakeWebSocket.instances.map(
+        (instance) => instance.sent,
+      );
+      expect(
+        socketsAfterMismatch
+          .flat()
+          .some((frame) => frame.includes('user_stats/')),
+      ).toBe(false);
+
+      // The OWNER wallet is selected: channels for the account appear.
+      getUserAddressMock.mockImplementation(() => ACCOUNT.l1Address);
+      await provider.getAccountState();
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
       const lastSocket =
@@ -1951,6 +2022,45 @@ describe('LighterProvider', () => {
       expect(
         lastSocket.sent.some((frame) => frame.includes('user_stats/28')),
       ).toBe(true);
+      unsubscribe();
+    });
+
+    it('routes no account frame after an unobserved external switch', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      StreamFakeWebSocket.instances = [];
+      const accountCallback = jest.fn();
+      const unsubscribe = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      await provider.getAccountState(); // bind under A
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socketA =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socketA.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      accountCallback.mockClear();
+      // EXTERNAL switch: no provider call observes it before the frame.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      socketA.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/user_stats',
+          channel: 'user_stats:28',
+          stats: { portfolio_value: '9999', available_balance: '9999' },
+        }),
+      });
+      // The frame itself is the first observer: it must be dropped, and
+      // the rebind replaces the socket for account B.
+      expect(accountCallback).not.toHaveBeenCalled();
+      const socketB =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      expect(socketB).not.toBe(socketA);
       unsubscribe();
     });
 

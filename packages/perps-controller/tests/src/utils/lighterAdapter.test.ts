@@ -389,6 +389,20 @@ describe('lighterAdapter', () => {
       ).toBe('0');
     });
 
+    it('falls back to neutral vocabulary when isMakerAsk is absent', () => {
+      // Without isMakerAsk our maker/taker role is unknown: deriving
+      // lifecycle from the wrong side's position context would misattribute
+      // opens/closes, so the fill stays side-only with no startPosition.
+      const roleless = {
+        ...REAL_TRADE,
+        isMakerAsk: undefined,
+      };
+      const fill = adaptFillFromLighterTrade(roleless, 'SOL', 28);
+      expect(fill.direction).toBe('Sell');
+      expect(fill.startPosition).toBeUndefined();
+      expect(fill.fee).toBe('0');
+    });
+
     it('keeps a Standard fill whose Premium counterparty paid the fee', () => {
       // Account 28 is the taker; the MAKER (counterparty) fee being nonzero
       // must not drop our valid zero-fee fill.

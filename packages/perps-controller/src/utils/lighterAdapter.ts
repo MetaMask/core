@@ -13,7 +13,10 @@
  * - USDC collateral, single margin mode per account in the POC (cross).
  */
 
-import { LIGHTER_MAX_LEVERAGE } from '../constants/lighterConfig.js';
+import {
+  LIGHTER_MAX_LEVERAGE,
+  LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
+} from '../constants/lighterConfig.js';
 import type {
   AccountState,
   MarketDataFormatters,
@@ -285,20 +288,27 @@ export function adaptFillFromLighterTrade(
     typeof ourFee === 'number' ? ourFee : parseFloat(ourFee ?? '0');
   if (Number.isFinite(ourFeeNumeric) && ourFeeNumeric !== 0) {
     throw new Error(
-      `Unsupported nonzero Lighter fee in trade ${trade.tradeId}: fee unit is unverified`,
+      `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} nonzero fee in trade ${trade.tradeId}: fee unit is unverified`,
     );
   }
   const fee = '0';
   const pnl = (accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl) ?? '0';
   const isBuy = !accountIsAsk;
-  const positionBefore = parseFloat(
-    (accountIsMaker
-      ? trade.makerPositionSizeBefore
-      : trade.takerPositionSizeBefore) ?? '',
-  );
-  const signChanged = accountIsMaker
-    ? trade.makerPositionSignChanged
-    : trade.takerPositionSignChanged;
+  // Without isMakerAsk our maker/taker role is unknown — never guess which
+  // side's position context applies; fall back to the neutral side-only
+  // vocabulary instead of deriving lifecycle from the wrong side.
+  let positionBefore = NaN;
+  let signChanged: boolean | undefined;
+  if (accountIsMaker !== undefined) {
+    positionBefore = parseFloat(
+      (accountIsMaker
+        ? trade.makerPositionSizeBefore
+        : trade.takerPositionSizeBefore) ?? '',
+    );
+    signChanged = accountIsMaker
+      ? trade.makerPositionSignChanged
+      : trade.takerPositionSignChanged;
+  }
   const direction = deriveLighterFillDirection({
     isBuy,
     size: parseFloat(trade.size),
@@ -330,6 +340,9 @@ export function adaptFillFromLighterTrade(
     fee,
     feeToken: 'USDC',
     timestamp: trade.timestamp,
+    // Lets clients apply venue-specific presentation rules (e.g. the
+    // ambiguous side-only vocabulary) without guessing the source.
+    providerId: 'lighter',
   };
 }
 
