@@ -552,3 +552,86 @@ export type LighterActiveOrdersResponse = {
   message?: string;
   orders: LighterApiOrder[];
 };
+
+/**
+ * Response of `GET /api/v1/accountInactiveOrders` (historical order
+ * lifecycle: filled / canceled orders, newest first, cursor-paged).
+ */
+export type LighterInactiveOrdersResponse = {
+  code: number;
+  message?: string;
+  nextCursor?: string;
+  orders: LighterApiOrder[];
+};
+
+/**
+ * One entry of `GET /api/v1/deposit/history` (camelized).
+ */
+export type LighterDepositHistoryItem = {
+  id: string;
+  assetId: number;
+  amount: string;
+  timestamp: number;
+  status: string;
+  l1TxHash: string;
+};
+
+/**
+ * Response of `GET /api/v1/deposit/history`.
+ */
+export type LighterDepositHistoryResponse = {
+  code: number;
+  message?: string;
+  deposits: LighterDepositHistoryItem[];
+  cursor?: string;
+};
+
+/**
+ * One entry of `GET /api/v1/withdraw/history` (camelized).
+ */
+export type LighterWithdrawHistoryItem = {
+  id: string;
+  assetId: number;
+  amount: string;
+  timestamp: number;
+  status: string;
+  type: string;
+  l1TxHash: string;
+};
+
+/**
+ * Response of `GET /api/v1/withdraw/history`.
+ */
+export type LighterWithdrawHistoryResponse = {
+  code: number;
+  message?: string;
+  withdraws: LighterWithdrawHistoryItem[];
+  cursor?: string;
+};
+
+/**
+ * One entry of `GET /api/v1/transfer/history` (camelized).
+ */
+export type LighterTransferHistoryItem = {
+  id: string;
+  assetId: number;
+  amount: string;
+  fee: string;
+  timestamp: number;
+  type: string;
+  fromL1Address: string;
+  toL1Address: string;
+  fromAccountIndex: number;
+  toAccountIndex: number;
+  txHash: string;
+};
+
+/**
+ * Response of `GET /api/v1/transfer/history`.
+ */
+export type LighterTransferHistoryResponse = {
+  code: number;
+  message?: string;
+  transfers: LighterTransferHistoryItem[];
+  cursor?: string;
+};

@@ -31,6 +31,7 @@ import {
   getLighterWsEndpoint,
   LIGHTER_PRICE_POLLING_INTERVAL_MS,
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+  LIGHTER_BRIDGE_CONFIG,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
   LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
@@ -216,6 +217,31 @@ export class LighterProvider implements PerpsProvider {
   readonly #wsWantedChannels: Map<string, { auth?: string }> = new Map();
 
   #wsKeepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Live WS connection state, mirrored to subscribed listeners. */
+  #connectionState: WebSocketConnectionState =
+    WebSocketConnectionState.Disconnected;
+
+  /** Consecutive reconnect attempts since the last successful open. */
+  #wsReconnectAttempts = 0;
+
+  readonly #connectionListeners = new Set<
+    (state: WebSocketConnectionState, reconnectionAttempt: number) => void
+  >();
+
+  readonly #setConnectionState = (state: WebSocketConnectionState): void => {
+    if (this.#connectionState === state) {
+      return;
+    }
+    this.#connectionState = state;
+    for (const listener of this.#connectionListeners) {
+      try {
+        listener(state, this.#wsReconnectAttempts);
+      } catch (error) {
+        this.#logSubscriberError('connection-state', error);
+      }
+    }
+  };
 
   #wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -731,11 +757,38 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async getOrders(
-    _params?: GetOrdersParams,
+    params?: GetOrdersParams,
     _options?: PerpsReadOptions,
   ): Promise<Order[]> {
-    // POC: only currently-open orders are surfaced (no historical lifecycle).
-    return await this.getOpenOrders(_params);
+    try {
+      const accountIndex = await this.#ensureAccountIndex();
+      const authToken = await this.#getAuthToken();
+      await this.#ensureMarkets();
+      const response = await this.#clientService.getInactiveOrders(
+        accountIndex,
+        authToken,
+      );
+      const historical = (response.orders ?? []).map((order) =>
+        adaptOrderFromLighter(
+          order,
+          this.#marketsById.get(order.marketIndex)?.symbol ??
+            String(order.marketIndex),
+        ),
+      );
+      // Full lifecycle: open orders first, then the historical states.
+      const open = await this.getOpenOrders(params);
+      return [...open, ...historical];
+    } catch (caughtError) {
+      const wrappedError = ensureError(
+        caughtError,
+        'LighterProvider.getOrders',
+      );
+      this.#deps.debugLogger.log('[LighterProvider] getOrders failed', {
+        error: String(wrappedError),
+        ...this.#getErrorContext('getOrders'),
+      });
+      return [];
+    }
   }
 
   async getCurrentAccountId(): Promise<CaipAccountId> {
@@ -1294,20 +1347,119 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
-  async getUserNonFundingLedgerUpdates(_params?: {
+  async getUserNonFundingLedgerUpdates(params?: {
     accountId?: string;
     startTime?: number;
     endTime?: number;
   }): Promise<RawLedgerUpdate[]> {
-    return [];
+    try {
+      const accountIndex = await this.#ensureAccountIndex();
+      const authToken = await this.#getAuthToken();
+      const l1Address = this.#walletService.getUserAddress();
+      const [deposits, withdraws, transfers] = await Promise.all([
+        this.#clientService.getDepositHistory(
+          accountIndex,
+          l1Address,
+          authToken,
+        ),
+        this.#clientService.getWithdrawHistory(accountIndex, authToken),
+        this.#clientService.getTransferHistory(accountIndex, authToken),
+      ]);
+      const updates: RawLedgerUpdate[] = [
+        ...(deposits.deposits ?? []).map((entry) => ({
+          hash: entry.l1TxHash,
+          time: entry.timestamp,
+          delta: { type: 'deposit', usdc: entry.amount },
+        })),
+        ...(withdraws.withdraws ?? []).map((entry) => ({
+          hash: entry.l1TxHash,
+          time: entry.timestamp,
+          delta: { type: 'withdraw', usdc: `-${entry.amount}` },
+        })),
+        ...(transfers.transfers ?? []).map((entry) => ({
+          hash: entry.txHash,
+          time: entry.timestamp,
+          delta: {
+            // Venue types are L2TransferInflow / L2TransferOutflow.
+            type: entry.type.includes('Outflow') ? 'transferOut' : 'transferIn',
+            usdc: entry.type.includes('Outflow')
+              ? `-${entry.amount}`
+              : entry.amount,
+          },
+        })),
+      ].sort((first, second) => second.time - first.time);
+      const { startTime, endTime } = params ?? {};
+      return updates.filter(
+        (update) =>
+          (startTime === undefined || update.time >= startTime) &&
+          (endTime === undefined || update.time <= endTime),
+      );
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] getUserNonFundingLedgerUpdates failed',
+        { error: String(error) },
+      );
+      return [];
+    }
   }
 
-  async getUserHistory(_params?: {
+  async getUserHistory(params?: {
     accountId?: CaipAccountId;
     startTime?: number;
     endTime?: number;
   }): Promise<UserHistoryItem[]> {
-    return [];
+    try {
+      const accountIndex = await this.#ensureAccountIndex();
+      const authToken = await this.#getAuthToken();
+      const l1Address = this.#walletService.getUserAddress();
+      const [deposits, withdraws] = await Promise.all([
+        this.#clientService.getDepositHistory(
+          accountIndex,
+          l1Address,
+          authToken,
+        ),
+        this.#clientService.getWithdrawHistory(accountIndex, authToken),
+      ]);
+      const toStatus = (venueStatus: string): UserHistoryItem['status'] => {
+        if (venueStatus === 'completed') {
+          return 'completed';
+        }
+        return venueStatus === 'failed' ? 'failed' : 'pending';
+      };
+      const items: UserHistoryItem[] = [
+        ...(deposits.deposits ?? []).map((entry) => ({
+          id: `deposit-${entry.id}`,
+          timestamp: entry.timestamp,
+          type: 'deposit' as const,
+          amount: entry.amount,
+          asset: 'USDC',
+          txHash: entry.l1TxHash,
+          status: toStatus(entry.status),
+          details: { source: 'lighter' },
+        })),
+        ...(withdraws.withdraws ?? []).map((entry) => ({
+          id: `withdrawal-${entry.id}`,
+          timestamp: entry.timestamp,
+          type: 'withdrawal' as const,
+          amount: entry.amount,
+          asset: 'USDC',
+          txHash: entry.l1TxHash,
+          status: toStatus(entry.status),
+          details: { source: 'lighter' },
+        })),
+      ].sort((first, second) => second.timestamp - first.timestamp);
+      const { startTime, endTime } = params ?? {};
+      return items.filter(
+        (item) =>
+          (startTime === undefined || item.timestamp >= startTime) &&
+          (endTime === undefined || item.timestamp <= endTime),
+      );
+    } catch (error) {
+      this.#deps.debugLogger.log('[LighterProvider] getUserHistory failed', {
+        error: String(error),
+      });
+      return [];
+    }
   }
 
   // ============================================================================
@@ -1557,8 +1709,11 @@ export class LighterProvider implements PerpsProvider {
     const WebSocketCtor = this.#webSocketCtor;
     const ws = new WebSocketCtor(url);
     this.#priceWs = ws;
+    this.#setConnectionState(WebSocketConnectionState.Connecting);
 
     ws.onopen = (): void => {
+      this.#wsReconnectAttempts = 0;
+      this.#setConnectionState(WebSocketConnectionState.Connected);
       for (const [channel, meta] of this.#wsWantedChannels) {
         this.#sendSubscribe(channel, meta.auth);
       }
@@ -1586,10 +1741,12 @@ export class LighterProvider implements PerpsProvider {
       }
       this.#priceWs = null;
       this.#clearKeepalive();
+      this.#setConnectionState(WebSocketConnectionState.Disconnected);
       if (this.#hasAnySubscriber()) {
         this.#deps.debugLogger.log(
           '[LighterProvider] price stream closed; reconnecting in 5s',
         );
+        this.#wsReconnectAttempts += 1;
         this.#wsReconnectTimer = setTimeout((): void => {
           this.#wsReconnectTimer = null;
           this.#ensureStream();
@@ -1981,6 +2138,7 @@ export class LighterProvider implements PerpsProvider {
         // Socket may already be closed.
       }
     }
+    this.#setConnectionState(WebSocketConnectionState.Disconnected);
   };
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
@@ -2126,19 +2284,86 @@ export class LighterProvider implements PerpsProvider {
   }
 
   getWebSocketConnectionState(): WebSocketConnectionState {
-    return WebSocketConnectionState.Connected;
+    // REST-polling transport has no socket to report on; treat an active
+    // poll loop as connected so callers don't tear down live subscriptions.
+    if (!this.#webSocketCtor) {
+      return WebSocketConnectionState.Connected;
+    }
+    return this.#connectionState;
+  }
+
+  subscribeToConnectionState(
+    listener: (
+      state: WebSocketConnectionState,
+      reconnectionAttempt: number,
+    ) => void,
+  ): () => void {
+    this.#connectionListeners.add(listener);
+    listener(this.getWebSocketConnectionState(), this.#wsReconnectAttempts);
+    return (): void => {
+      this.#connectionListeners.delete(listener);
+    };
+  }
+
+  async reconnect(): Promise<void> {
+    const ws = this.#priceWs;
+    if (ws) {
+      // Detach first so the onclose handler's 5s backoff never races the
+      // immediate reconnect below.
+      this.#priceWs = null;
+      this.#clearKeepalive();
+      try {
+        ws.close();
+      } catch {
+        // Socket may already be closed.
+      }
+      this.#setConnectionState(WebSocketConnectionState.Disconnected);
+    }
+    if (this.#wsReconnectTimer) {
+      clearTimeout(this.#wsReconnectTimer);
+      this.#wsReconnectTimer = null;
+    }
+    if (this.#hasAnySubscriber()) {
+      this.#ensureStream();
+    }
   }
 
   // ============================================================================
-  // Asset Routes (POC: stubbed)
+  // Asset Routes
   // ============================================================================
 
+  /**
+   * The venue's USDC bridge route for the active network, in AssetRoute
+   * shape. Facts sourced live from `layer1BasicInfo` + venue docs (see
+   * LIGHTER_BRIDGE_CONFIG).
+   *
+   * @param minAmount - Which venue minimum applies (deposit vs withdrawal).
+   * @returns Single-element route list.
+   */
+  readonly #bridgeRoute = (minAmount: string): AssetRoute[] => {
+    const bridge =
+      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet'];
+    return [
+      {
+        assetId:
+          `${bridge.chainId}/erc20:${bridge.usdcContract}/default` as AssetRoute['assetId'],
+        chainId: bridge.chainId as AssetRoute['chainId'],
+        contractAddress: bridge.bridgeContract as AssetRoute['contractAddress'],
+        constraints: { minAmount },
+      },
+    ];
+  };
+
   getDepositRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
-    return [];
+    const bridge =
+      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet'];
+    return this.#bridgeRoute(bridge.minDepositUsdc);
   }
 
   getWithdrawalRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
-    return [];
+    const bridge =
+      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet'];
+    return this.#bridgeRoute(bridge.minWithdrawUsdc);
   }
 
   // ============================================================================

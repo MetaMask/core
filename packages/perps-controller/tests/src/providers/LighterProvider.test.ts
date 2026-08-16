@@ -122,6 +122,10 @@ type MockClientInstance = {
   getApiKeys: jest.Mock;
   getNextNonce: jest.Mock;
   getActiveOrders: jest.Mock;
+  getInactiveOrders: jest.Mock;
+  getDepositHistory: jest.Mock;
+  getWithdrawHistory: jest.Mock;
+  getTransferHistory: jest.Mock;
   sendTx: jest.Mock;
 };
 
@@ -214,6 +218,72 @@ function buildProvider(
           status: 'open',
           orderExpiry: 0,
           timestamp: 1700000000000,
+        },
+      ],
+    }),
+    getInactiveOrders: jest.fn().mockResolvedValue({
+      code: 200,
+      orders: [
+        {
+          orderIndex: 777,
+          clientOrderIndex: 2,
+          marketIndex: 1,
+          ownerAccountIndex: 28,
+          initialBaseAmount: '0.002',
+          remainingBaseAmount: '0.000',
+          price: '95000',
+          isAsk: true,
+          type: 'market',
+          timeInForce: 'immediate-or-cancel',
+          reduceOnly: 0,
+          status: 'filled',
+          orderExpiry: 0,
+          timestamp: 1700000001000,
+        },
+      ],
+    }),
+    getDepositHistory: jest.fn().mockResolvedValue({
+      code: 200,
+      deposits: [
+        {
+          id: '1',
+          assetId: 3,
+          amount: '10000.000000',
+          timestamp: 1700000002000,
+          status: 'completed',
+          l1TxHash: '0xdep',
+        },
+      ],
+    }),
+    getWithdrawHistory: jest.fn().mockResolvedValue({
+      code: 200,
+      withdraws: [
+        {
+          id: '2',
+          assetId: 3,
+          amount: '1.000000',
+          timestamp: 1700000003000,
+          status: 'claimable',
+          type: 'secure',
+          l1TxHash: '0xwit',
+        },
+      ],
+    }),
+    getTransferHistory: jest.fn().mockResolvedValue({
+      code: 200,
+      transfers: [
+        {
+          id: '3',
+          assetId: 3,
+          amount: '100.000000',
+          fee: '0.000000',
+          timestamp: 1700000004000,
+          type: 'L2TransferOutflow',
+          fromL1Address: ACCOUNT.l1Address,
+          toL1Address: ACCOUNT.l1Address,
+          fromAccountIndex: 28,
+          toAccountIndex: 999,
+          txHash: '0xtra',
         },
       ],
     }),
@@ -398,13 +468,6 @@ describe('LighterProvider', () => {
         28,
         'auth-token',
       );
-    });
-
-    it('routes getOrders to open orders in the POC', async () => {
-      const { provider } = buildProvider();
-      await provider.initialize();
-      const orders = await provider.getOrders();
-      expect(orders).toHaveLength(1);
     });
 
     it('builds a CAIP account id from the L1 address', async () => {
@@ -773,6 +836,44 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('reports connection-state transitions and supports manual reconnect', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeCtor });
+      const transitions: string[] = [];
+      const unsubscribeState = provider.subscribeToConnectionState((state) => {
+        transitions.push(state);
+      });
+      expect(transitions).toStrictEqual(['disconnected']);
+
+      const unsubscribe = provider.subscribeToPrices({
+        symbols: [],
+        callback: jest.fn(),
+      });
+      FakeWebSocket.instances[0].open();
+      expect(transitions).toStrictEqual([
+        'disconnected',
+        'connecting',
+        'connected',
+      ]);
+      expect(provider.getWebSocketConnectionState()).toBe('connected');
+
+      await provider.reconnect();
+      expect(FakeWebSocket.instances).toHaveLength(2);
+      FakeWebSocket.instances[1].open();
+      expect(transitions.slice(3)).toStrictEqual([
+        'disconnected',
+        'connecting',
+        'connected',
+      ]);
+      // The replacement socket re-subscribes the wanted channels.
+      expect(FakeWebSocket.instances[1].sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+      );
+
+      unsubscribeState();
+      unsubscribe();
+      expect(provider.getWebSocketConnectionState()).toBe('disconnected');
+    });
+
     it('falls back to REST polling when no WebSocket implementation exists', async () => {
       jest.useFakeTimers();
       try {
@@ -808,6 +909,69 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('history and routes', () => {
+    it('getOrders merges open orders with the historical lifecycle', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const orders = await provider.getOrders();
+      expect(clientInstance.getInactiveOrders).toHaveBeenCalled();
+      expect(orders.map((order) => order.status)).toStrictEqual([
+        'open',
+        'filled',
+      ]);
+    });
+
+    it('getUserHistory maps deposits and withdrawals with venue statuses', async () => {
+      const { provider } = buildProvider();
+      const history = await provider.getUserHistory();
+      expect(history).toHaveLength(2);
+      expect(history[0]).toMatchObject({
+        type: 'withdrawal',
+        amount: '1.000000',
+        status: 'pending',
+        asset: 'USDC',
+      });
+      expect(history[1]).toMatchObject({
+        type: 'deposit',
+        amount: '10000.000000',
+        status: 'completed',
+      });
+    });
+
+    it('getUserNonFundingLedgerUpdates merges signed flows newest first', async () => {
+      const { provider } = buildProvider();
+      const updates = await provider.getUserNonFundingLedgerUpdates();
+      expect(updates.map((update) => update.delta.type)).toStrictEqual([
+        'transferOut',
+        'withdraw',
+        'deposit',
+      ]);
+      expect(updates[0].delta.usdc).toBe('-100.000000');
+      expect(updates[1].delta.usdc).toBe('-1.000000');
+      expect(updates[2].delta.usdc).toBe('10000.000000');
+    });
+
+    it('exposes the venue bridge route per network', () => {
+      const { provider } = buildProvider();
+      const [testnetRoute] = provider.getDepositRoutes();
+      expect(testnetRoute.contractAddress).toBe(
+        '0xe034801BC49cCDC79FB683022dA0591C86077261',
+      );
+      expect(testnetRoute.constraints?.minAmount).toBe('1');
+
+      const { provider: mainnetProvider } = buildProvider({
+        isTestnet: false,
+      });
+      const [mainnetRoute] = mainnetProvider.getWithdrawalRoutes();
+      expect(mainnetRoute.chainId).toBe('eip155:1');
+      expect(mainnetRoute.contractAddress).toBe(
+        '0x3B4D794a66304F130a4Db8F2551B0070dfCf5ca7',
+      );
+      expect(mainnetRoute.assetId).toContain(
+        'erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      );
+    });
+  });
+
   describe('stubs', () => {
     it('returns not-supported results for unimplemented writes', async () => {
       const { provider } = buildProvider();
@@ -830,13 +994,8 @@ describe('LighterProvider', () => {
       }
     });
 
-    it('returns empty history results', async () => {
+    it('returns a zeroed historical portfolio', async () => {
       const { provider } = buildProvider();
-      expect(await provider.getOrderFills()).toStrictEqual([]);
-      expect(await provider.getOrFetchFills()).toStrictEqual([]);
-      expect(await provider.getFunding()).toStrictEqual([]);
-      expect(await provider.getUserNonFundingLedgerUpdates()).toStrictEqual([]);
-      expect(await provider.getUserHistory()).toStrictEqual([]);
       const portfolio = await provider.getHistoricalPortfolio();
       expect(portfolio.accountValue1dAgo).toBe('0');
     });
@@ -905,10 +1064,8 @@ describe('LighterProvider', () => {
       expect(() => provider.setLiveDataConfig({})).not.toThrow();
     });
 
-    it('returns empty asset routes and an explorer URL', () => {
+    it('returns an explorer URL', () => {
       const { provider } = buildProvider();
-      expect(provider.getDepositRoutes()).toStrictEqual([]);
-      expect(provider.getWithdrawalRoutes()).toStrictEqual([]);
       expect(provider.getBlockExplorerUrl('0xabc')).toContain('/address/0xabc');
       expect(provider.getBlockExplorerUrl()).toMatch(/^https:/u);
     });

@@ -269,3 +269,30 @@ export function computeLighterMinOrderSize(
   const units = Math.ceil(raw / step - 1e-9);
   return Number((units * step).toFixed(market.supportedSizeDecimals));
 }
+
+/**
+ * L1 bridge facts per network, as reported live by
+ * `GET /api/v1/layer1BasicInfo` (contract addresses) and the venue docs
+ * (minimums). Mainnet settles against Ethereum L1; testnet runs on a
+ * venue-hosted devnet L1 (chain id 123456), so its route is informational.
+ */
+export const LIGHTER_BRIDGE_CONFIG = {
+  mainnet: {
+    /** CAIP-2 chain the bridge contract lives on (Ethereum mainnet). */
+    chainId: 'eip155:1',
+    /** ZkLighter L1 contract (deposits via `deposit`, selector 0x8a857083). */
+    bridgeContract: '0x3B4D794a66304F130a4Db8F2551B0070dfCf5ca7',
+    /** Canonical Ethereum USDC. */
+    usdcContract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    /** Venue-documented USDC minimums. */
+    minDepositUsdc: '1',
+    minWithdrawUsdc: '1',
+  },
+  testnet: {
+    chainId: 'eip155:123456',
+    bridgeContract: '0xe034801BC49cCDC79FB683022dA0591C86077261',
+    usdcContract: '0x57382a12EC72eBb1e717b7BB76c78CdDAfE3A396',
+    minDepositUsdc: '1',
+    minWithdrawUsdc: '1',
+  },
+} as const;
