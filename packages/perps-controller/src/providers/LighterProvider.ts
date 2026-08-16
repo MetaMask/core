@@ -117,6 +117,7 @@ import type {
   LighterCreateClientResult,
   LighterOrderBookMeta,
   LighterSignChangePubKeyResult,
+  LighterSendTxResponse,
   LighterSignerBridge,
   LighterWasmCall,
   LighterTxResult,
@@ -499,6 +500,9 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #invalidateSignerSession = (): void => {
+    // Advancing the generation aborts any in-flight setup/write that was
+    // started against the now-dead WASM client.
+    this.#sessionGeneration += 1;
     this.#signerReadyPromise = null;
     this.#authToken = null;
     this.#deps.debugLogger.log(
@@ -624,30 +628,58 @@ export class LighterProvider implements PerpsProvider {
    *
    * @returns Resolves when the signer session is ready.
    */
+  /**
+   * Throws when the session generation moved past the captured one — used
+   * after every await in account-bound async work so a delayed account-A
+   * step can never mutate account-B's session.
+   *
+   * @param generation - Generation captured when the work started.
+   */
+  readonly #assertSession = (generation: number): void => {
+    if (generation !== this.#sessionGeneration) {
+      throw new Error(
+        'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
+      );
+    }
+  };
+
   readonly #ensureSignerReady = async (): Promise<void> => {
     this.#ensureSessionBinding();
     if (this.#signerReadyPromise) {
       return await this.#signerReadyPromise;
     }
-    this.#signerReadyPromise = this.#setupSigner().catch((error) => {
-      this.#signerReadyPromise = null;
+    const generation = this.#sessionGeneration;
+    const setupPromise = this.#setupSigner(generation);
+    this.#signerReadyPromise = setupPromise;
+    try {
+      return await setupPromise;
+    } catch (error) {
+      // Only clear the promise WE installed — a newer session may already
+      // have replaced it, and an old rejection must not tear that down.
+      if (this.#signerReadyPromise === setupPromise) {
+        this.#signerReadyPromise = null;
+      }
       throw error;
-    });
-    return await this.#signerReadyPromise;
+    }
   };
 
-  readonly #setupSigner = async (): Promise<void> => {
+  readonly #setupSigner = async (generation: number): Promise<void> => {
     const bridge = this.#getSignerBridge();
     const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
     const chainId = getLighterChainId(this.#clientService.network);
     const seed = await this.#walletService.deriveKeySeedPlain(
       this.#apiKeyIndex,
     );
+    this.#assertSession(generation);
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
       this.#apiKeyIndex,
     );
-
+    // The WASM client is a singleton inside the bridge host: a stale
+    // _createClient from a previous account would clobber the client the
+    // current session just created. Fence immediately before the call.
+    this.#assertSession(generation);
     const created = await bridge.execute<LighterCreateClientResult>({
       function: '_createClient',
       params: [
@@ -663,14 +695,17 @@ export class LighterProvider implements PerpsProvider {
         `Lighter signer client creation failed: ${created.error ?? 'unknown'}`,
       );
     }
+    this.#assertSession(generation);
     this.#venuePublicKey = created.pk;
 
     // Register the venue key when the slot does not hold it yet. Only the
     // plaintext body leaves this scope — `created.prv` (the venue private
     // key) must stay inside the signer bridge boundary and never be logged.
     const registered = await this.#isVenueKeyRegistered(accountIndex);
+    this.#assertSession(generation);
     if (!registered) {
       await this.#registerVenueKey(accountIndex, created.body);
+      this.#assertSession(generation);
     }
   };
 
@@ -757,23 +792,37 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #withVenueWriteLock = async <Result>(
     accountIndex: number,
-    section: (nextNonce: () => Promise<number>) => Promise<Result>,
+    section: (
+      nextNonce: () => Promise<number>,
+      submit: (
+        txType: number,
+        txInfo: string,
+      ) => Promise<LighterSendTxResponse>,
+    ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
   ): Promise<Result> => {
     const criticalSection = async (): Promise<Result> => {
-      if (generationAtIntent !== this.#sessionGeneration) {
-        throw new Error(
-          'Operation cancelled: the wallet switched accounts while this write was queued',
-        );
-      }
+      this.#assertSession(generationAtIntent);
       const nextNonce = async (): Promise<number> => {
+        // Re-fenced on every fetch: the account can switch between the
+        // section's own await points, not only while it sat in the queue.
+        this.#assertSession(generationAtIntent);
         const nonceResponse = await this.#clientService.getNextNonce(
           accountIndex,
           this.#apiKeyIndex,
         );
         return nonceResponse.nonce;
       };
-      return await section(nextNonce);
+      const submit = async (
+        txType: number,
+        txInfo: string,
+      ): Promise<LighterSendTxResponse> => {
+        // Last fence before anything reaches the venue: a switch that
+        // happened while SIGNING must abort before submission.
+        this.#assertSession(generationAtIntent);
+        return await this.#clientService.sendTx(txType, txInfo);
+      };
+      return await section(nextNonce, submit);
     };
     const run = this.#writeChain.then(criticalSection, criticalSection);
     this.#writeChain = run.then(
@@ -785,12 +834,18 @@ export class LighterProvider implements PerpsProvider {
 
   readonly #withVenueNonce = async <Result>(
     accountIndex: number,
-    operation: (nonce: number) => Promise<Result>,
+    operation: (
+      nonce: number,
+      submit: (
+        txType: number,
+        txInfo: string,
+      ) => Promise<LighterSendTxResponse>,
+    ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
   ): Promise<Result> =>
     await this.#withVenueWriteLock(
       accountIndex,
-      async (nextNonce) => operation(await nextNonce()),
+      async (nextNonce, submit) => operation(await nextNonce(), submit),
       generationAtIntent,
     );
 
@@ -905,7 +960,12 @@ export class LighterProvider implements PerpsProvider {
       }
       return account.positions
         .filter((position) => parseFloat(position.position) !== 0)
-        .map(adaptPositionFromLighter);
+        .map((position) =>
+          adaptPositionFromLighter(
+            position,
+            this.#maxLeverageForMarketId(position.marketId),
+          ),
+        );
     } catch (caughtError) {
       const wrappedError = ensureError(
         caughtError,
@@ -1041,13 +1101,11 @@ export class LighterProvider implements PerpsProvider {
     params: OrderParams,
   ): Promise<number | null> => {
     const requested = params.leverage;
-    if (
-      !requested ||
-      requested <= 0 ||
-      requested === params.existingPositionLeverage
-    ) {
+    if (!requested || requested <= 0) {
       return null;
     }
+    // Venue state decides, never the caller's possibly-stale
+    // existingPositionLeverage snapshot.
     const positions = await this.getPositions();
     const held = positions.find(
       (position) => position.symbol === params.symbol,
@@ -1066,7 +1124,10 @@ export class LighterProvider implements PerpsProvider {
     return Math.round(10_000 / requested);
   };
 
-  async placeOrder(params: OrderParams): Promise<OrderResult> {
+  async placeOrder(
+    params: OrderParams,
+    inheritedGeneration?: number,
+  ): Promise<OrderResult> {
     try {
       if (params.orderType !== 'limit' && params.orderType !== 'market') {
         return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
@@ -1088,8 +1149,11 @@ export class LighterProvider implements PerpsProvider {
       }
       // Bind the write to the wallet account it was INITIATED under; if the
       // wallet switches before the queued critical section runs, it aborts.
+      // A composite caller (closePosition) passes ITS generation so the
+      // whole read-then-write sequence shares one intent identity.
       this.#ensureSessionBinding();
-      const generationAtIntent = this.#sessionGeneration;
+      const generationAtIntent = inheritedGeneration ?? this.#sessionGeneration;
+      this.#assertSession(generationAtIntent);
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       const markets = await this.#ensureMarkets();
@@ -1127,9 +1191,15 @@ export class LighterProvider implements PerpsProvider {
           details.orderBookDetails.find(
             (entry) => entry.symbol === params.symbol,
           )?.lastTradePrice ?? 0;
-        if (freshPrice > 0) {
-          referencePrice = freshPrice;
+        if (!(freshPrice > 0)) {
+          // Fail closed: falling back to the caller's snapshot would let the
+          // drift check compare that snapshot to itself.
+          return {
+            success: false,
+            error: `No live venue price available for ${params.symbol}; refusing to size a market order`,
+          };
         }
+        referencePrice = freshPrice;
         // Honor the caller's sizing snapshot: refuse instead of executing
         // at a live price that drifted past their slippage tolerance.
         if (
@@ -1156,11 +1226,22 @@ export class LighterProvider implements PerpsProvider {
         };
       }
       // USD is the source of truth when provided (hybrid sizing contract),
-      // converted at the reference price — not the protection price.
-      const requestedSize =
-        params.usdAmount !== undefined && parseFloat(params.usdAmount) > 0
-          ? parseFloat(params.usdAmount) / referencePrice
-          : parseFloat(params.size);
+      // converted at the reference price — not the protection price. A
+      // provided-but-invalid usdAmount is an error, never a silent fallback
+      // to the size field.
+      let requestedSize: number;
+      if (params.usdAmount === undefined) {
+        requestedSize = parseFloat(params.size);
+      } else {
+        const usdAmount = parseFloat(params.usdAmount);
+        if (!(usdAmount > 0)) {
+          return {
+            success: false,
+            error: `Invalid usdAmount ${params.usdAmount}: must be a positive number`,
+          };
+        }
+        requestedSize = usdAmount / referencePrice;
+      }
       if (!(requestedSize > 0)) {
         return { success: false, error: 'Order size must be positive' };
       }
@@ -1205,7 +1286,7 @@ export class LighterProvider implements PerpsProvider {
       // intent and the order that depends on it.
       const result = await this.#withVenueWriteLock(
         accountIndex,
-        async (nextNonce) => {
+        async (nextNonce, submit) => {
           if (leverageImfHundredths !== null) {
             const signedLeverage =
               await this.#getSignerBridge().execute<LighterTxResult>({
@@ -1223,7 +1304,7 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter leverage update failed: ${signedLeverage.error}`,
               );
             }
-            await this.#clientService.sendTx(
+            await submit(
               LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
               signedLeverage.txInfo,
             );
@@ -1258,10 +1339,7 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(`Lighter order signing failed: ${signed.error}`);
           }
-          return await this.#clientService.sendTx(
-            LIGHTER_TX_TYPE_CREATE_ORDER,
-            signed.txInfo,
-          );
+          return await submit(LIGHTER_TX_TYPE_CREATE_ORDER, signed.txInfo);
         },
         generationAtIntent,
       );
@@ -1291,10 +1369,14 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
-  async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+  async cancelOrder(
+    params: CancelOrderParams,
+    inheritedGeneration?: number,
+  ): Promise<CancelOrderResult> {
     try {
       this.#ensureSessionBinding();
-      const generationAtIntent = this.#sessionGeneration;
+      const generationAtIntent = inheritedGeneration ?? this.#sessionGeneration;
+      this.#assertSession(generationAtIntent);
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       const markets = await this.#ensureMarkets();
@@ -1308,7 +1390,7 @@ export class LighterProvider implements PerpsProvider {
 
       await this.#withVenueNonce(
         accountIndex,
-        async (nonce) => {
+        async (nonce, submit) => {
           const signed = await this.#getSignerBridge().execute<LighterTxResult>(
             {
               function: '_signCancelOrder',
@@ -1318,10 +1400,7 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(`Lighter cancel signing failed: ${signed.error}`);
           }
-          return await this.#clientService.sendTx(
-            LIGHTER_TX_TYPE_CANCEL_ORDER,
-            signed.txInfo,
-          );
+          return await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signed.txInfo);
         },
         generationAtIntent,
       );
@@ -1363,7 +1442,23 @@ export class LighterProvider implements PerpsProvider {
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
     try {
+      // One intent identity from the position read through the final write:
+      // an account switch mid-sequence aborts instead of trading the new
+      // account with sizing derived from the old one.
+      this.#ensureSessionBinding();
+      const generationAtIntent = this.#sessionGeneration;
+      const closeOrderType = params.orderType ?? 'market';
+      if (closeOrderType !== 'market' && closeOrderType !== 'limit') {
+        return {
+          success: false,
+          error: `Lighter cannot close with a ${closeOrderType} order; use market or limit`,
+        };
+      }
+      if (closeOrderType === 'limit' && !params.price) {
+        return { success: false, error: 'Limit close requires a price' };
+      }
       const positions = await this.getPositions();
+      this.#assertSession(generationAtIntent);
       const position = positions.find(
         (entry) => entry.symbol === params.symbol,
       );
@@ -1374,19 +1469,30 @@ export class LighterProvider implements PerpsProvider {
         };
       }
       const signedSize = parseFloat(position.size);
+      const explicitSizing =
+        params.size !== undefined || params.usdAmount !== undefined;
       const closeSize = params.size ?? String(Math.abs(signedSize));
-      // Reduce-only market order on the opposite side flattens the position.
-      return await this.placeOrder({
-        symbol: params.symbol,
-        isBuy: signedSize < 0,
-        size: closeSize,
-        orderType: 'market',
-        reduceOnly: true,
-        // A full close must never be rejected by the minimum-notional check
-        // even when the residual position is dust.
-        isFullClose: params.size === undefined,
-        currentPrice: params.currentPrice,
-      });
+      // Reduce-only order on the opposite side; the caller's full sizing
+      // and protection intent (usdAmount, slippage, price snapshot, limit
+      // price) rides through the placement path unchanged.
+      return await this.placeOrder(
+        {
+          symbol: params.symbol,
+          isBuy: signedSize < 0,
+          size: closeSize,
+          usdAmount: params.usdAmount,
+          orderType: closeOrderType,
+          price: params.price,
+          reduceOnly: true,
+          // Without explicit sizing this is a full close and must never be
+          // rejected by the minimum-notional check on a dust position.
+          isFullClose: !explicitSizing,
+          currentPrice: params.currentPrice,
+          priceAtCalculation: params.priceAtCalculation,
+          maxSlippageBps: params.maxSlippageBps,
+        },
+        generationAtIntent,
+      );
     } catch (error) {
       const wrappedError = ensureError(error, 'LighterProvider.closePosition');
       this.#deps.debugLogger.log('[LighterProvider] closePosition failed', {
@@ -1423,9 +1529,14 @@ export class LighterProvider implements PerpsProvider {
       }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
+      this.#assertSession(generationAtIntent);
 
       // Replace semantics: drop existing reduce-only trigger orders first.
+      // The nested cancels inherit THIS operation's generation: after an
+      // account switch they abort instead of cancelling the new account's
+      // orders from a list read under the old one.
       const openOrders = await this.getOpenOrders();
+      this.#assertSession(generationAtIntent);
       for (const order of openOrders) {
         if (
           order.symbol === params.symbol &&
@@ -1434,10 +1545,19 @@ export class LighterProvider implements PerpsProvider {
             Boolean(order.orderType?.includes('take')) ||
             order.isTrigger === true)
         ) {
-          await this.cancelOrder({
-            orderId: order.orderId,
-            symbol: params.symbol,
-          });
+          const cancelled = await this.cancelOrder(
+            {
+              orderId: order.orderId,
+              symbol: params.symbol,
+            },
+            generationAtIntent,
+          );
+          if (!cancelled.success) {
+            return {
+              success: false,
+              error: `Failed to replace existing trigger order ${order.orderId}: ${cancelled.error ?? 'unknown'}`,
+            };
+          }
         }
       }
       if (!params.takeProfitPrice && !params.stopLossPrice) {
@@ -1500,7 +1620,7 @@ export class LighterProvider implements PerpsProvider {
         orderCount === 2 ? LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER : 0;
       await this.#withVenueNonce(
         accountIndex,
-        async (nonce) => {
+        async (nonce, submit) => {
           const signed = await this.#getSignerBridge().execute<LighterTxResult>(
             {
               function: '_signCreateGroupedOrders',
@@ -1516,7 +1636,7 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(signed.error);
           }
-          return await this.#clientService.sendTx(
+          return await submit(
             LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
             signed.txInfo,
           );
@@ -1565,7 +1685,7 @@ export class LighterProvider implements PerpsProvider {
       // (types/txtypes/constants.go: RemoveFromIsolatedMargin=0, Add=1).
       await this.#withVenueNonce(
         accountIndex,
-        async (nonce) => {
+        async (nonce, submit) => {
           const signed = await this.#getSignerBridge().execute<LighterTxResult>(
             {
               function: '_signUpdateMargin',
@@ -1581,10 +1701,7 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(signed.error);
           }
-          return await this.#clientService.sendTx(
-            LIGHTER_TX_TYPE_UPDATE_MARGIN,
-            signed.txInfo,
-          );
+          return await submit(LIGHTER_TX_TYPE_UPDATE_MARGIN, signed.txInfo);
         },
         generationAtIntent,
       );
@@ -1613,7 +1730,7 @@ export class LighterProvider implements PerpsProvider {
       const assetAmount = String(Math.round(amount * 1_000_000));
       const result = await this.#withVenueNonce(
         accountIndex,
-        async (nonce) => {
+        async (nonce, submit) => {
           const signed = await this.#getSignerBridge().execute<LighterTxResult>(
             {
               function: '_signWithdraw',
@@ -1629,10 +1746,7 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(signed.error);
           }
-          return await this.#clientService.sendTx(
-            LIGHTER_TX_TYPE_WITHDRAW,
-            signed.txInfo,
-          );
+          return await submit(LIGHTER_TX_TYPE_WITHDRAW, signed.txInfo);
         },
         generationAtIntent,
       );
@@ -1963,10 +2077,12 @@ export class LighterProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    // Pre-trade estimate using the standard cross-margin approximation with
-    // maintenance fraction = 1 / (2 * maxLeverage) — the same convention the
-    // HyperLiquid provider uses. Live positions carry the venue's own
-    // liquidationPrice; this is only for sizing previews.
+    // SINGLE-POSITION PREVIEW ONLY. Lighter cross liquidation depends on
+    // total account value and the aggregate maintenance requirement across
+    // all positions; this standard per-position approximation (with the
+    // venue's per-market maintenance fraction) is a sizing preview, not the
+    // venue formula. Live positions carry the venue's own liquidationPrice
+    // — always prefer that for display.
     const { entryPrice, leverage, direction } = params;
     if (!(entryPrice > 0) || !(leverage > 0)) {
       return '0';
@@ -2006,6 +2122,23 @@ export class LighterProvider implements PerpsProvider {
     string,
     { minInitial?: number; maintenance?: number }
   > = new Map();
+
+  /**
+   * Synchronous best-effort per-market max leverage from the margin cache
+   * (populated by #ensureMarketMargins); the constant covers cache misses.
+   *
+   * @param marketId - Numeric Lighter market id.
+   * @returns Max leverage for the market.
+   */
+  readonly #maxLeverageForMarketId = (marketId: number): number => {
+    const symbol = this.#marketsById.get(marketId)?.symbol;
+    const minInitial = symbol
+      ? this.#marginBySymbol.get(symbol)?.minInitial
+      : undefined;
+    return minInitial && minInitial > 0
+      ? Math.floor(10_000 / minInitial)
+      : LIGHTER_MAX_LEVERAGE;
+  };
 
   readonly #ensureMarketMargins = async (): Promise<void> => {
     if (this.#marginBySymbol.size > 0) {
@@ -2291,6 +2424,11 @@ export class LighterProvider implements PerpsProvider {
     };
 
     ws.onmessage = (event: { data: unknown }): void => {
+      // Frames from a socket that was replaced (account rebind, reconnect)
+      // must never reach the router — they carry the previous session's data.
+      if (this.#priceWs !== ws) {
+        return;
+      }
       this.#handleWsMessage(String(event.data));
     };
 
@@ -2356,7 +2494,10 @@ export class LighterProvider implements PerpsProvider {
         this.#wsPositions.clear();
       }
       for (const [marketId, position] of Object.entries(message.positions)) {
-        const adapted = adaptPositionFromLighter(position);
+        const adapted = adaptPositionFromLighter(
+          position,
+          this.#maxLeverageForMarketId(position.marketId),
+        );
         if (parseFloat(adapted.size) === 0) {
           this.#wsPositions.delete(Number(marketId));
         } else {
@@ -2525,19 +2666,11 @@ export class LighterProvider implements PerpsProvider {
         const symbol =
           this.#marketsById.get(trade.marketId)?.symbol ??
           String(trade.marketId);
-        const accountIsAsk = trade.askAccountId === this.#accountIndex;
-        fills.push({
-          orderId: String(accountIsAsk ? trade.askId : trade.bidId),
-          symbol,
-          side: accountIsAsk ? 'sell' : 'buy',
-          size: trade.size,
-          price: trade.price,
-          pnl: '0',
-          direction: accountIsAsk ? 'sell' : 'buy',
-          fee: '0',
-          feeToken: 'USDC',
-          timestamp: trade.timestamp,
-        });
+        // One adapter serves REST history and the live stream so pnl,
+        // fees, and direction vocabulary can never diverge between them.
+        fills.push(
+          adaptFillFromLighterTrade(trade, symbol, this.#accountIndex ?? -1),
+        );
       }
     }
     if (fills.length === 0 && !isSnapshot) {

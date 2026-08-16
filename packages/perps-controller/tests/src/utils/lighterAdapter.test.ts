@@ -7,6 +7,7 @@ import type {
   LighterSubAccount,
 } from '../../../src/types/lighter-types.js';
 import {
+  adaptFillFromLighterTrade,
   adaptAccountStateFromLighter,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
@@ -187,6 +188,67 @@ describe('lighterAdapter', () => {
       });
       expect(state.unrealizedPnl).toBe('0');
       expect(state.totalBalance).toBe('10000');
+    });
+  });
+
+  describe('adaptFillFromLighterTrade', () => {
+    // Captured verbatim from GET /api/v1/trades on testnet account 28
+    // (2026-08-16, camelized) — the fixture the REST and WebSocket fill
+    // paths must both adapt identically.
+    const REAL_TRADE = {
+      tradeId: 9509524,
+      txHash:
+        '32e18fe51086d7496a29a8e6d5cf2e66056a1f6f1ee1c7e67214b8f5b607e35d720a7aa65850e9b1',
+      type: 'trade',
+      marketId: 2,
+      size: '0.133',
+      price: '75.180',
+      usdAmount: '9.998940',
+      askId: 844424944383120,
+      bidId: 1125899892620735,
+      askAccountId: 28,
+      bidAccountId: 7,
+      isMakerAsk: false,
+      timestamp: 1786878754951,
+      askAccountPnl: '-0.012901',
+    };
+
+    it('adapts the real venue payload with per-side pnl and Buy/Sell direction', () => {
+      const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
+      expect(fill).toMatchObject({
+        orderId: '844424944383120',
+        symbol: 'SOL',
+        side: 'sell',
+        direction: 'Sell',
+        size: '0.133',
+        price: '75.180',
+        pnl: '-0.012901',
+        // Account 28 was the taker (isMakerAsk false, account is ask); no
+        // fee fields in the payload → venue-true zero.
+        fee: '0',
+        feeToken: 'USDC',
+        timestamp: 1786878754951,
+      });
+    });
+
+    it('adapts the counterparty perspective with Buy direction and its own pnl default', () => {
+      const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 7);
+      expect(fill.side).toBe('buy');
+      expect(fill.direction).toBe('Buy');
+      expect(fill.orderId).toBe('1125899892620735');
+      expect(fill.pnl).toBe('0');
+    });
+
+    it('applies the side-appropriate fee when the venue includes fees', () => {
+      const withFees = {
+        ...REAL_TRADE,
+        takerFee: '0.0450',
+        makerFee: '0.0150',
+      };
+      // Account 28 = ask, isMakerAsk false → taker.
+      expect(adaptFillFromLighterTrade(withFees, 'SOL', 28).fee).toBe('0.0450');
+      // Account 7 = bid → maker in this trade.
+      expect(adaptFillFromLighterTrade(withFees, 'SOL', 7).fee).toBe('0.0150');
     });
   });
 

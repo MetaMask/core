@@ -1162,6 +1162,333 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('session races (reviewer scenarios)', () => {
+    it("a deferred account-A signer setup cannot overwrite account B's session", async () => {
+      const { provider, clientInstance, getUserAddressMock, calls } =
+        buildProvider({ configuredAccountIndex: null });
+      const accountB = { ...ACCOUNT, index: 900 };
+      // A's account lookup stalls; everything else is instant.
+      let releaseLookupA: (value: unknown) => void = () => undefined;
+      clientInstance.getAccountsByL1Address
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              releaseLookupA = resolve;
+            }),
+        )
+        .mockResolvedValue({
+          code: 200,
+          l1Address: '0xbbbb',
+          subAccounts: [accountB],
+        });
+
+      const setupUnderA = provider.isReadyToTrade();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // Switch to B and fully initialize B's signer.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      const readyB = await provider.isReadyToTrade();
+      expect(readyB.ready).toBe(true);
+      const createClientCallsAfterB = calls.filter(
+        (call) => call.function === '_createClient',
+      ).length;
+
+      // A's stalled lookup finally resolves.
+      releaseLookupA({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [ACCOUNT],
+      });
+      const readyA = await setupUnderA;
+      // A's setup must have aborted: no extra _createClient clobbered B's
+      // WASM client, and B's session still reports ready.
+      expect(readyA.ready).toBe(false);
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(createClientCallsAfterB);
+      const readyBAgain = await provider.isReadyToTrade();
+      expect(readyBAgain.ready).toBe(true);
+    });
+
+    it('an account-A write paused inside the lock never signs after B initializes', async () => {
+      const { provider, clientInstance, getUserAddressMock, calls } =
+        buildProvider({ configuredAccountIndex: null });
+      const accountB = { ...ACCOUNT, index: 900 };
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        (address: string) =>
+          Promise.resolve(
+            address.toLowerCase() === '0xbbbb'
+              ? { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] }
+              : {
+                  code: 200,
+                  l1Address: ACCOUNT.l1Address,
+                  subAccounts: [ACCOUNT],
+                },
+          ),
+      );
+      // Pause A's write INSIDE the critical section, at its nonce fetch.
+      let releaseNonce: (value: unknown) => void = () => undefined;
+      let nonceRequested: () => void = () => undefined;
+      const noncePaused = new Promise<void>((resolve) => {
+        nonceRequested = resolve;
+      });
+      clientInstance.getNextNonce.mockImplementation(() => {
+        nonceRequested();
+        return new Promise((resolve) => {
+          releaseNonce = resolve;
+        });
+      });
+      const writeUnderA = provider.cancelOrder({
+        orderId: '555',
+        symbol: 'BTC',
+      });
+      await noncePaused;
+      // While A is paused: switch to B (rebind via a read).
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      clientInstance.getNextNonce.mockResolvedValue({ code: 200, nonce: 43 });
+      releaseNonce({ code: 200, nonce: 42 });
+      const result = await writeUnderA;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('switched accounts');
+      // Nothing was signed or submitted for A.
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalledWith(
+        15,
+        expect.anything(),
+      );
+    });
+
+    it('ignores frames from the pre-switch WebSocket after a rebind', async () => {
+      const { provider, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+      });
+      StreamFakeWebSocket.instances = [];
+      const callback = jest.fn();
+      const unsubscribe = provider.subscribeToPrices({
+        symbols: [],
+        callback,
+      });
+      // Bind the session under account A first — without a previous binding
+      // an account call merely binds, it does not rebuild anything.
+      await provider.getAccountState();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const staleSocket = StreamFakeWebSocket.instances[0];
+      staleSocket.open();
+      // Rebind to another account: the socket is replaced.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      callback.mockClear();
+      // A late frame from the OLD socket must not reach subscribers.
+      staleSocket.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/market_stats',
+          channel: 'market_stats:all',
+          market_stats: {
+            '1': {
+              symbol: 'BTC',
+              market_id: 1,
+              index_price: '1',
+              mark_price: '1',
+              mid_price: '1',
+              last_trade_price: '1',
+            },
+          },
+        }),
+      });
+      expect(callback).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
+    it('closePosition aborts before trading when the account switches after the position read', async () => {
+      const { provider, clientInstance, getUserAddressMock, calls } =
+        buildProvider({ configuredAccountIndex: null });
+      const accountB = { ...ACCOUNT, index: 900 };
+      // Stall the position read (getAccountByIndex) under A.
+      let releasePositions: (value: unknown) => void = () => undefined;
+      clientInstance.getAccountByIndex
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              releasePositions = resolve;
+            }),
+        )
+        .mockResolvedValue({ code: 200, accounts: [accountB] });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        (address: string) =>
+          Promise.resolve(
+            address.toLowerCase() === '0xbbbb'
+              ? { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] }
+              : {
+                  code: 200,
+                  l1Address: ACCOUNT.l1Address,
+                  subAccounts: [ACCOUNT],
+                },
+          ),
+      );
+      const closeUnderA = provider.closePosition({ symbol: 'BTC' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      releasePositions({ code: 200, accounts: [ACCOUNT] });
+      const result = await closeUnderA;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('switched accounts');
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('updatePositionTPSL cancels nothing when the account switches mid-sequence', async () => {
+      const { provider, clientInstance, getUserAddressMock, calls } =
+        buildProvider({ configuredAccountIndex: null });
+      const accountB = { ...ACCOUNT, index: 900 };
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        (address: string) =>
+          Promise.resolve(
+            address.toLowerCase() === '0xbbbb'
+              ? { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] }
+              : {
+                  code: 200,
+                  l1Address: ACCOUNT.l1Address,
+                  subAccounts: [ACCOUNT],
+                },
+          ),
+      );
+      // A reduce-only trigger order exists so the replace path would cancel.
+      clientInstance.getActiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [
+          {
+            orderIndex: 999,
+            clientOrderIndex: 9,
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.1',
+            remainingBaseAmount: '0.1',
+            price: '80000',
+            isAsk: true,
+            type: 'stop_loss',
+            timeInForce: 'immediate-or-cancel',
+            reduceOnly: 1,
+            status: 'open',
+            orderExpiry: 0,
+            timestamp: 1700000000000,
+          },
+        ],
+      });
+      // Stall the open-orders read; switch while it is in flight.
+      let releaseOrders: (value: unknown) => void = () => undefined;
+      clientInstance.getActiveOrders.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseOrders = resolve;
+          }),
+      );
+      const tpslUnderA = provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      releaseOrders({
+        code: 200,
+        orders: [
+          {
+            orderIndex: 999,
+            clientOrderIndex: 9,
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.1',
+            remainingBaseAmount: '0.1',
+            price: '80000',
+            isAsk: true,
+            type: 'stop_loss',
+            timeInForce: 'immediate-or-cancel',
+            reduceOnly: 1,
+            status: 'open',
+            orderExpiry: 0,
+            timestamp: 1700000000000,
+          },
+        ],
+      });
+      const result = await tpslUnderA;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('switched accounts');
+      // No cancel and no grouped order ever reached signing.
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(
+        calls.filter((call) => call.function === '_signCreateGroupedOrders'),
+      ).toHaveLength(0);
+    });
+  });
+
+  describe('closePosition semantics', () => {
+    it('routes a limit close with the requested price, not a market order', async () => {
+      const { provider, calls } = buildProvider();
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        size: '0.05',
+        orderType: 'limit',
+        price: '120000',
+      });
+      expect(result.success).toBe(true);
+      const orderCall = calls.find(
+        (call) => call.function === '_signCreateOrder',
+      );
+      // Limit type (0), GTT, and the requested price scaled by decimals.
+      expect(orderCall?.params[6]).toBe(0);
+      expect(orderCall?.params[4]).toBe('1200000');
+      expect(orderCall?.params[8]).toBe(1);
+    });
+
+    it('rejects a limit close without a price', async () => {
+      const { provider } = buildProvider();
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'limit',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('requires a price');
+    });
+
+    it('honors usdAmount sizing and slippage on a market close', async () => {
+      const { provider, calls } = buildProvider();
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        usdAmount: '5000',
+        maxSlippageBps: 100,
+        priceAtCalculation: 100000,
+      });
+      expect(result.success).toBe(true);
+      const orderCall = calls.find(
+        (call) => call.function === '_signCreateOrder',
+      );
+      // usdAmount / fresh reference (100000) = 0.05 → sized at reference,
+      // not at the protection price.
+      expect(orderCall?.params[3]).toBe('5000');
+      // Sell-side protection price offset by 1% (100 bps): 99000.
+      expect(orderCall?.params[4]).toBe('990000');
+    });
+
+    it('refuses drifted market closes beyond the slippage tolerance', async () => {
+      const { provider } = buildProvider();
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        usdAmount: '5000',
+        maxSlippageBps: 100,
+        // Fresh venue price is 100000; a 90000 snapshot is >1% away.
+        priceAtCalculation: 90000,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('slippage tolerance');
+    });
+  });
+
   describe('history and routes', () => {
     it('getOrders merges open orders with the historical lifecycle', async () => {
       const { provider, clientInstance } = buildProvider();
