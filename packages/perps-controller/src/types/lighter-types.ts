@@ -83,8 +83,12 @@ export type LighterCreateClientResult = {
   success: boolean;
   /** Venue public key, hex (80 chars / 40 bytes, Schnorr over ECgFp5). */
   pk: string;
-  /** Venue private key, hex. Held only inside the signer boundary. */
-  prv: string;
+  /**
+   * Venue private key, hex. Present only when the signer host runs
+   * in-process (headless Node); the mobile WebView redacts it before the
+   * result crosses the bridge. Never persist, forward, or log it.
+   */
+  prv?: string;
   pubKeySuccess: boolean;
   /**
    * ChangePubKey plaintext body to be signed with EIP-191 `personal_sign`

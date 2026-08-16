@@ -39,9 +39,10 @@ import {
   LIGHTER_ORDER_TYPE_TAKE_PROFIT,
   LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
   LIGHTER_TX_TYPE_CREATE_ORDER,
-  LIGHTER_TX_TYPE_MODIFY_ORDER,
+  LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
   LIGHTER_TX_TYPE_UPDATE_MARGIN,
   LIGHTER_TX_TYPE_WITHDRAW,
+  LIGHTER_MARGIN_MODE_CROSS,
   LIGHTER_USDC_ASSET_INDEX,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
@@ -117,6 +118,7 @@ import type {
   LighterOrderBookMeta,
   LighterSignChangePubKeyResult,
   LighterSignerBridge,
+  LighterWasmCall,
   LighterTxResult,
   LighterWebSocketCtor,
   LighterWebSocketLike,
@@ -195,6 +197,9 @@ export class LighterProvider implements PerpsProvider {
 
   /** Resolved Lighter account index (after ensureAccount()). */
   #accountIndex: number | null = null;
+
+  /** L1 address the current venue session (index/signer/auth) is bound to. */
+  #boundAddress: string | null = null;
 
   /** Active price-stream subscribers (REST polling fan-out). */
   readonly #priceSubscribers: Set<SubscribePricesParams> = new Set();
@@ -457,7 +462,73 @@ export class LighterProvider implements PerpsProvider {
     if (!this.#signerBridge) {
       throw new Error(LIGHTER_SIGNER_UNAVAILABLE_ERROR);
     }
-    return this.#signerBridge;
+    const bridge = this.#signerBridge;
+    // The WASM client lives inside the bridge host (mobile: a WebView that
+    // can reload and lose it). When the venue signer reports a missing
+    // client, drop the cached session so the next call re-runs setup
+    // instead of failing forever against a resolved-but-dead session.
+    return {
+      execute: async <Result>(call: LighterWasmCall): Promise<Result> => {
+        try {
+          const result = await bridge.execute<Result>(call);
+          const error = (result as { error?: string } | null)?.error;
+          if (error && /client is not created/iu.test(error)) {
+            this.#invalidateSignerSession();
+          }
+          return result;
+        } catch (error) {
+          if (/client is not created/iu.test(String(error))) {
+            this.#invalidateSignerSession();
+          }
+          throw error;
+        }
+      },
+    };
+  };
+
+  readonly #invalidateSignerSession = (): void => {
+    this.#signerReadyPromise = null;
+    this.#authToken = null;
+    this.#deps.debugLogger.log(
+      '[LighterProvider] signer session invalidated (client lost); will re-setup on next call',
+    );
+  };
+
+  /**
+   * Bind the venue session to the currently selected wallet address.
+   *
+   * Everything downstream — account index, venue signer, auth token, and
+   * the account-scoped stream channels — is derived from one L1 address.
+   * When the wallet switches accounts, all of it must be dropped
+   * atomically or reads/writes would keep targeting the previous account.
+   */
+  readonly #ensureSessionBinding = (): void => {
+    let address: string;
+    try {
+      address = this.#walletService.getUserAddress().toLowerCase();
+    } catch {
+      // No account selected — the caller's own address resolution surfaces
+      // the error with better context.
+      return;
+    }
+    if (this.#boundAddress === address) {
+      return;
+    }
+    const hadPreviousBinding = this.#boundAddress !== null;
+    this.#boundAddress = address;
+    if (!hadPreviousBinding) {
+      return;
+    }
+    this.#accountIndex = null;
+    this.#signerReadyPromise = null;
+    this.#authToken = null;
+    this.#teardownStream();
+    if (this.#hasAnySubscriber()) {
+      this.#ensureStream();
+    }
+    this.#deps.debugLogger.log(
+      '[LighterProvider] session rebound to new wallet account',
+    );
   };
 
   /**
@@ -466,6 +537,7 @@ export class LighterProvider implements PerpsProvider {
    * @returns The account index.
    */
   readonly #ensureAccountIndex = async (): Promise<number> => {
+    this.#ensureSessionBinding();
     if (this.#accountIndex !== null) {
       return this.#accountIndex;
     }
@@ -494,6 +566,7 @@ export class LighterProvider implements PerpsProvider {
    * @returns Resolves when the signer session is ready.
    */
   readonly #ensureSignerReady = async (): Promise<void> => {
+    this.#ensureSessionBinding();
     if (this.#signerReadyPromise) {
       return await this.#signerReadyPromise;
     }
@@ -601,7 +674,43 @@ export class LighterProvider implements PerpsProvider {
    *
    * @returns Auth token string.
    */
+  /** Tail of the serialized venue-write chain (see #withVenueNonce). */
+  #writeChain: Promise<void> = Promise.resolve();
+
+  /**
+   * Serialize a nonce-consuming venue write.
+   *
+   * Lighter nonces are strictly ordered per key slot; two interleaved
+   * fetch→submit pairs (e.g. the controller's per-item batch fallbacks
+   * running concurrently) would sign with the same nonce and get one
+   * rejection. Every write acquires the chain, fetches a fresh nonce
+   * inside it, and submits before the next write's fetch runs.
+   *
+   * @param accountIndex - Account whose key-slot nonce is consumed.
+   * @param operation - Sign+submit critical section receiving the nonce.
+   * @returns The operation's result.
+   */
+  readonly #withVenueNonce = async <Result>(
+    accountIndex: number,
+    operation: (nonce: number) => Promise<Result>,
+  ): Promise<Result> => {
+    const criticalSection = async (): Promise<Result> => {
+      const nonceResponse = await this.#clientService.getNextNonce(
+        accountIndex,
+        this.#apiKeyIndex,
+      );
+      return await operation(nonceResponse.nonce);
+    };
+    const run = this.#writeChain.then(criticalSection, criticalSection);
+    this.#writeChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await run;
+  };
+
   readonly #getAuthToken = async (): Promise<string> => {
+    this.#ensureSessionBinding();
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (this.#authToken && this.#authToken.deadline - nowSeconds > 60) {
       return this.#authToken.token;
@@ -805,10 +914,87 @@ export class LighterProvider implements PerpsProvider {
   // Trading Operations (POC: limit/market place + cancel)
   // ============================================================================
 
+  /**
+   * Apply the leverage the caller requested with the order.
+   *
+   * Lighter models leverage as a per-market account setting (UpdateLeverage,
+   * tx 20; initial margin fraction in hundredths of a percent), not an order
+   * field. The venue rejects the update while a position or resting order
+   * exists on the market, so in that case the request is skipped with a log
+   * (matching the already-set leverage is not an error).
+   *
+   * @param accountIndex - Lighter account index.
+   * @param market - Market metadata for the order being placed.
+   * @param params - The original order params carrying `leverage`.
+   */
+  readonly #applyRequestedLeverage = async (
+    accountIndex: number,
+    market: LighterOrderBookMeta,
+    params: OrderParams,
+  ): Promise<void> => {
+    const requested = params.leverage;
+    if (
+      !requested ||
+      requested <= 0 ||
+      requested === params.existingPositionLeverage
+    ) {
+      return;
+    }
+    const [positions, openOrders] = await Promise.all([
+      this.getPositions(),
+      this.getOpenOrders(),
+    ]);
+    const marketBusy =
+      positions.some((position) => position.symbol === params.symbol) ||
+      openOrders.some((order) => order.symbol === params.symbol);
+    if (marketBusy) {
+      this.#deps.debugLogger.log(
+        '[LighterProvider] leverage change skipped: market has a position or resting order',
+        { symbol: params.symbol, requested },
+      );
+      return;
+    }
+    const imfHundredths = Math.round(10_000 / requested);
+    await this.#withVenueNonce(accountIndex, async (nonce) => {
+      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+        function: '_signUpdateLeverage',
+        params: [
+          accountIndex,
+          market.marketId,
+          imfHundredths,
+          LIGHTER_MARGIN_MODE_CROSS,
+          nonce,
+        ],
+      });
+      if (signed.error) {
+        throw new Error(`Lighter leverage update failed: ${signed.error}`);
+      }
+      return await this.#clientService.sendTx(
+        LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
+        signed.txInfo,
+      );
+    });
+  };
+
   async placeOrder(params: OrderParams): Promise<OrderResult> {
     try {
       if (params.orderType !== 'limit' && params.orderType !== 'market') {
         return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+      }
+      // User intent is never silently dropped: fields this venue path does
+      // not execute are rejected so the caller can adapt, not surprised.
+      if (params.takeProfitPrice || params.stopLossPrice) {
+        return {
+          success: false,
+          error:
+            'Lighter does not support TP/SL attached at placement; place the order, then call updatePositionTPSL',
+        };
+      }
+      if (params.timeInForce === 'ALO') {
+        return {
+          success: false,
+          error: 'Lighter placement does not support post-only (ALO) yet',
+        };
       }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
@@ -844,52 +1030,65 @@ export class LighterProvider implements PerpsProvider {
         };
       }
       const requestedSize = parseFloat(params.size);
+      if (!(requestedSize > 0)) {
+        return { success: false, error: 'Order size must be positive' };
+      }
       const minSize = computeLighterMinOrderSize(market, price);
+      // Reduce-only (incl. full closes) may be bumped to the venue minimum:
+      // the venue clamps execution to the position, so no extra exposure can
+      // result. Position-increasing orders must never be silently resized.
+      if (
+        requestedSize < minSize &&
+        !params.isFullClose &&
+        !params.reduceOnly
+      ) {
+        return {
+          success: false,
+          error: `Order size ${params.size} is below the Lighter minimum of ${minSize} ${params.symbol}`,
+        };
+      }
       const size = Math.max(requestedSize, minSize);
+
+      await this.#applyRequestedLeverage(accountIndex, market, params);
 
       const priceInt = toLighterInteger(price, market.supportedPriceDecimals);
       const sizeInt = toLighterInteger(size, market.supportedSizeDecimals);
       const clientOrderIndex = Date.now() % 1_000_000_000;
 
-      const nonceResponse = await this.#clientService.getNextNonce(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
-
-      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
-        function: '_signCreateOrder',
-        params: [
-          accountIndex,
-          market.marketId,
-          clientOrderIndex,
-          String(sizeInt),
-          String(priceInt),
-          params.isBuy ? 0 : 1,
-          params.orderType === 'limit'
-            ? LIGHTER_ORDER_TYPE_LIMIT
-            : LIGHTER_ORDER_TYPE_MARKET,
-          params.orderType === 'limit'
-            ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
-            : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
-          params.reduceOnly ? 1 : 0,
-          String(LIGHTER_NO_TRIGGER_PRICE),
-          // GTT orders auto-expire in 28 days (signer sentinel -1); IOC
-          // orders must carry a zero expiry.
-          params.orderType === 'limit' ? LIGHTER_ORDER_EXPIRY_NONE : 0,
-          nonceResponse.nonce,
-        ],
+      const result = await this.#withVenueNonce(accountIndex, async (nonce) => {
+        const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+          function: '_signCreateOrder',
+          params: [
+            accountIndex,
+            market.marketId,
+            clientOrderIndex,
+            String(sizeInt),
+            String(priceInt),
+            params.isBuy ? 0 : 1,
+            params.orderType === 'limit'
+              ? LIGHTER_ORDER_TYPE_LIMIT
+              : LIGHTER_ORDER_TYPE_MARKET,
+            params.orderType === 'limit' && params.timeInForce !== 'IOC'
+              ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
+              : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+            params.reduceOnly ? 1 : 0,
+            String(LIGHTER_NO_TRIGGER_PRICE),
+            // GTT orders auto-expire in 28 days (signer sentinel -1); IOC
+            // orders must carry a zero expiry.
+            params.orderType === 'limit' && params.timeInForce !== 'IOC'
+              ? LIGHTER_ORDER_EXPIRY_NONE
+              : 0,
+            nonce,
+          ],
+        });
+        if (signed.error) {
+          throw new Error(`Lighter order signing failed: ${signed.error}`);
+        }
+        return await this.#clientService.sendTx(
+          LIGHTER_TX_TYPE_CREATE_ORDER,
+          signed.txInfo,
+        );
       });
-      if (signed.error) {
-        return {
-          success: false,
-          error: `Lighter order signing failed: ${signed.error}`,
-        };
-      }
-
-      const result = await this.#clientService.sendTx(
-        LIGHTER_TX_TYPE_CREATE_ORDER,
-        signed.txInfo,
-      );
 
       this.#deps.debugLogger.log('[LighterProvider] Order placed', {
         symbol: params.symbol,
@@ -929,30 +1128,19 @@ export class LighterProvider implements PerpsProvider {
         };
       }
 
-      const nonceResponse = await this.#clientService.getNextNonce(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
-      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
-        function: '_signCancelOrder',
-        params: [
-          accountIndex,
-          market.marketId,
-          params.orderId,
-          nonceResponse.nonce,
-        ],
+      await this.#withVenueNonce(accountIndex, async (nonce) => {
+        const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+          function: '_signCancelOrder',
+          params: [accountIndex, market.marketId, params.orderId, nonce],
+        });
+        if (signed.error) {
+          throw new Error(`Lighter cancel signing failed: ${signed.error}`);
+        }
+        return await this.#clientService.sendTx(
+          LIGHTER_TX_TYPE_CANCEL_ORDER,
+          signed.txInfo,
+        );
       });
-      if (signed.error) {
-        return {
-          success: false,
-          error: `Lighter cancel signing failed: ${signed.error}`,
-        };
-      }
-
-      await this.#clientService.sendTx(
-        LIGHTER_TX_TYPE_CANCEL_ORDER,
-        signed.txInfo,
-      );
 
       return {
         success: true,
@@ -976,58 +1164,17 @@ export class LighterProvider implements PerpsProvider {
   // Trading Operations (POC: stubbed)
   // ============================================================================
 
-  async editOrder(params: EditOrderParams): Promise<OrderResult> {
-    try {
-      const markets = await this.#ensureMarkets();
-      const market = markets.get(params.newOrder.symbol);
-      if (!market) {
-        return {
-          success: false,
-          error: `Unknown Lighter market: ${params.newOrder.symbol}`,
-        };
-      }
-      const price = parseFloat(params.newOrder.price ?? '0');
-      const size = parseFloat(params.newOrder.size);
-      if (!(price > 0) || !(size > 0)) {
-        return {
-          success: false,
-          error: 'editOrder requires a positive price and size',
-        };
-      }
-      await this.#ensureSignerReady();
-      const accountIndex = await this.#ensureAccountIndex();
-      const nonceResponse = await this.#clientService.getNextNonce(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
-      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
-        function: '_signModifyOrder',
-        params: [
-          accountIndex,
-          market.marketId,
-          String(params.orderId),
-          toLighterInteger(size, market.supportedSizeDecimals),
-          toLighterInteger(price, market.supportedPriceDecimals),
-          LIGHTER_NO_TRIGGER_PRICE,
-          nonceResponse.nonce,
-        ],
-      });
-      if (signed.error) {
-        return { success: false, error: signed.error };
-      }
-      await this.#clientService.sendTx(
-        LIGHTER_TX_TYPE_MODIFY_ORDER,
-        signed.txInfo,
-      );
-      return { success: true, orderId: String(params.orderId) };
-    } catch (error) {
-      const wrappedError = ensureError(error, 'LighterProvider.editOrder');
-      this.#deps.debugLogger.log('[LighterProvider] editOrder failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('editOrder'),
-      });
-      return { success: false, error: wrappedError.message };
-    }
+  async editOrder(_params: EditOrderParams): Promise<OrderResult> {
+    // ModifyOrder (tx 17) is accepted by the venue's sendTx but the resting
+    // order keeps its original price — an execution no-op we have raised
+    // with Lighter. Reporting success here would misrepresent user intent,
+    // so the operation refuses until the venue behavior is resolved.
+    // Callers can cancel + re-place instead.
+    return {
+      success: false,
+      error:
+        'Lighter order editing is unavailable: the venue currently accepts but does not apply ModifyOrder. Cancel and re-place the order instead.',
+    };
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
@@ -1051,6 +1198,9 @@ export class LighterProvider implements PerpsProvider {
         size: closeSize,
         orderType: 'market',
         reduceOnly: true,
+        // A full close must never be rejected by the minimum-notional check
+        // even when the residual position is dust.
+        isFullClose: params.size === undefined,
         currentPrice: params.currentPrice,
       });
     } catch (error) {
@@ -1160,29 +1310,21 @@ export class LighterProvider implements PerpsProvider {
         );
         orderCount += 1;
       }
-      const nonceResponse = await this.#clientService.getNextNonce(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
       const groupingType =
         orderCount === 2 ? LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER : 0;
-      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
-        function: '_signCreateGroupedOrders',
-        params: [
-          accountIndex,
-          groupingType,
-          orderCount,
-          ...grouped,
-          nonceResponse.nonce,
-        ],
+      await this.#withVenueNonce(accountIndex, async (nonce) => {
+        const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+          function: '_signCreateGroupedOrders',
+          params: [accountIndex, groupingType, orderCount, ...grouped, nonce],
+        });
+        if (signed.error) {
+          throw new Error(signed.error);
+        }
+        return await this.#clientService.sendTx(
+          LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+          signed.txInfo,
+        );
       });
-      if (signed.error) {
-        return { success: false, error: signed.error };
-      }
-      await this.#clientService.sendTx(
-        LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
-        signed.txInfo,
-      );
       return { success: true };
     } catch (error) {
       const wrappedError = ensureError(
@@ -1219,29 +1361,27 @@ export class LighterProvider implements PerpsProvider {
       }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
-      const nonceResponse = await this.#clientService.getNextNonce(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
       // USDC uses 6 decimals; direction 1 adds isolated margin, 0 removes it
       // (types/txtypes/constants.go: RemoveFromIsolatedMargin=0, Add=1).
-      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
-        function: '_signUpdateMargin',
-        params: [
-          accountIndex,
-          market.marketId,
-          Math.round(Math.abs(amount) * 1_000_000),
-          amount > 0 ? 1 : 0,
-          nonceResponse.nonce,
-        ],
+      await this.#withVenueNonce(accountIndex, async (nonce) => {
+        const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+          function: '_signUpdateMargin',
+          params: [
+            accountIndex,
+            market.marketId,
+            Math.round(Math.abs(amount) * 1_000_000),
+            amount > 0 ? 1 : 0,
+            nonce,
+          ],
+        });
+        if (signed.error) {
+          throw new Error(signed.error);
+        }
+        return await this.#clientService.sendTx(
+          LIGHTER_TX_TYPE_UPDATE_MARGIN,
+          signed.txInfo,
+        );
       });
-      if (signed.error) {
-        return { success: false, error: signed.error };
-      }
-      await this.#clientService.sendTx(
-        LIGHTER_TX_TYPE_UPDATE_MARGIN,
-        signed.txInfo,
-      );
       return { success: true };
     } catch (error) {
       const wrappedError = ensureError(error, 'LighterProvider.updateMargin');
@@ -1261,29 +1401,27 @@ export class LighterProvider implements PerpsProvider {
       }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
-      const nonceResponse = await this.#clientService.getNextNonce(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
       // USDC uses 6 decimals on zkLighter.
       const assetAmount = String(Math.round(amount * 1_000_000));
-      const signed = await this.#getSignerBridge().execute<LighterTxResult>({
-        function: '_signWithdraw',
-        params: [
-          accountIndex,
-          LIGHTER_USDC_ASSET_INDEX,
-          0,
-          assetAmount,
-          nonceResponse.nonce,
-        ],
+      const result = await this.#withVenueNonce(accountIndex, async (nonce) => {
+        const signed = await this.#getSignerBridge().execute<LighterTxResult>({
+          function: '_signWithdraw',
+          params: [
+            accountIndex,
+            LIGHTER_USDC_ASSET_INDEX,
+            0,
+            assetAmount,
+            nonce,
+          ],
+        });
+        if (signed.error) {
+          throw new Error(signed.error);
+        }
+        return await this.#clientService.sendTx(
+          LIGHTER_TX_TYPE_WITHDRAW,
+          signed.txInfo,
+        );
       });
-      if (signed.error) {
-        return { success: false, error: signed.error };
-      }
-      const result = await this.#clientService.sendTx(
-        LIGHTER_TX_TYPE_WITHDRAW,
-        signed.txInfo,
-      );
       return { success: true, txHash: result.txHash };
     } catch (error) {
       const wrappedError = ensureError(error, 'LighterProvider.withdraw');
@@ -1749,7 +1887,25 @@ export class LighterProvider implements PerpsProvider {
       this.#wsReconnectAttempts = 0;
       this.#setConnectionState(WebSocketConnectionState.Connected);
       for (const [channel, meta] of this.#wsWantedChannels) {
-        this.#sendSubscribe(channel, meta.auth);
+        if (meta.auth) {
+          // Auth tokens are short-lived; a reconnect after the deadline must
+          // re-mint instead of replaying the token captured at subscribe
+          // time. #getAuthToken reuses the cached token while it is fresh.
+          this.#getAuthToken()
+            .then((freshToken) => {
+              this.#wsWantedChannels.set(channel, { auth: freshToken });
+              this.#sendSubscribe(channel, freshToken);
+              return undefined;
+            })
+            .catch((error) => {
+              this.#deps.debugLogger.log(
+                '[LighterProvider] auth channel resubscribe failed',
+                { channel, error: String(error) },
+              );
+            });
+        } else {
+          this.#sendSubscribe(channel, meta.auth);
+        }
       }
       // The server closes idle sockets; any frame under 2 minutes keeps it up.
       // Unconditional replacement: `??=` would keep a timer bound to a dead

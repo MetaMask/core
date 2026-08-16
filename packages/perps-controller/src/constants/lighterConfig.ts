@@ -296,3 +296,7 @@ export const LIGHTER_BRIDGE_CONFIG = {
     minWithdrawUsdc: '1',
   },
 } as const;
+
+/** UpdateLeverage margin-mode codes (types/txtypes constants). */
+export const LIGHTER_MARGIN_MODE_CROSS = 0;
+export const LIGHTER_MARGIN_MODE_ISOLATED = 1;
