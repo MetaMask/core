@@ -1574,7 +1574,142 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('round-8 market validation parity', () => {
+    it('sizes market validateOrder at the FRESH venue price, ignoring the caller price', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      // Fresh venue price 40,000: min size = max(0.0002 base, $10/40,000 =
+      // 0.00025) = 0.00025. The caller's Infinity price would give min size
+      // 0.0002 (quote minimum vanishes), so 0.0002 discriminates: caller
+      // price approves, fresh price rejects.
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: 40000 }],
+      });
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.0002',
+        orderType: 'market' as const,
+        price: 'Infinity',
+      };
+      const validation = await provider.validateOrder(request);
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('below the Lighter minimum');
+      const placement = await provider.placeOrder(request);
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain('below the Lighter minimum');
+      expect(
+        calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('rejects a non-finite or non-positive price snapshot before drift math, in validation and execution', async () => {
+      const { provider } = buildProvider();
+      // Infinity produces NaN drift (bypasses protection); NaN and 0 were
+      // silently skipped. All must fail closed now.
+      for (const snapshot of [Infinity, NaN, 0, -100]) {
+        const request = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'market' as const,
+          currentPrice: 100000,
+          priceAtCalculation: snapshot,
+        };
+        const validation = await provider.validateOrder(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain('Invalid price snapshot');
+        const placement = await provider.placeOrder(request);
+        expect(placement.success).toBe(false);
+        expect(placement.error).toContain('Invalid price snapshot');
+        const closeValidation = await provider.validateClosePosition({
+          symbol: 'BTC',
+          currentPrice: 100000,
+          priceAtCalculation: snapshot,
+        });
+        expect(closeValidation.isValid).toBe(false);
+        expect(closeValidation.error).toContain('Invalid price snapshot');
+      }
+    });
+
+    it('rejects out-of-range slippage tolerance consistently across validators and placement', async () => {
+      const { provider } = buildProvider();
+      // 10,000 bps on a sell derives a zero protection price: placement
+      // rejects, so validation must too — and both with the same reason.
+      for (const maxSlippageBps of [10_000, -100, Number.NaN]) {
+        const request = {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.001',
+          orderType: 'market' as const,
+          currentPrice: 100000,
+          maxSlippageBps,
+        };
+        const validation = await provider.validateOrder(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain('Invalid slippage tolerance');
+        const placement = await provider.placeOrder(request);
+        expect(placement.success).toBe(false);
+        expect(placement.error).toContain('Invalid slippage tolerance');
+        const closeValidation = await provider.validateClosePosition({
+          symbol: 'BTC',
+          maxSlippageBps,
+        });
+        expect(closeValidation.isValid).toBe(false);
+        expect(closeValidation.error).toContain('Invalid slippage tolerance');
+      }
+    });
+  });
+
   describe('client order index allocation', () => {
+    it('a perpetually colliding or zero draw exhausts with a clear error instead of hanging', async () => {
+      const { provider, calls } = buildProvider();
+      // Perpetual zero: every candidate is rejected, so a bounded allocator
+      // must throw instead of spinning. The mock never falls through.
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const zeroResult = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+        expect(zeroResult.success).toBe(false);
+        expect(zeroResult.error).toContain('client order id');
+        const zeroDraws = randomSpy.mock.calls.length;
+        expect(zeroDraws).toBeGreaterThan(0);
+        expect(zeroDraws).toBeLessThanOrEqual(200);
+
+        // Perpetual collision: one id issues at 0.5, then every later
+        // candidate collides with it forever.
+        randomSpy.mockClear();
+        randomSpy.mockReturnValue(0.5);
+        const first = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+        expect(first.success).toBe(true);
+        const second = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90001',
+        });
+        expect(second.success).toBe(false);
+        expect(second.error).toContain('client order id');
+        expect(
+          calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('parallel placements draw unique random uint48 ids within venue bounds', async () => {
       const { provider, calls } = buildProvider();
       const results = await Promise.all([

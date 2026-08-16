@@ -909,7 +909,19 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #allocateClientOrderIndexes = (count: number): number[] => {
     const ids: number[] = [];
+    // Bounded: a degenerate randomness source (or an absurdly full
+    // collision set) must surface as an error, never a synchronous spin.
+    // 100 attempts per id makes accidental exhaustion unreachable in
+    // practice (collision odds per draw stay astronomically small).
+    let attempts = 0;
+    const maxAttempts = count * 100;
     while (ids.length < count) {
+      if (attempts >= maxAttempts) {
+        throw new Error(
+          `Unable to allocate a unique Lighter client order id after ${maxAttempts} attempts`,
+        );
+      }
+      attempts += 1;
       const high = Math.floor(Math.random() * 2 ** 24);
       const low = Math.floor(Math.random() * 2 ** 24);
       const candidate = high * 2 ** 24 + low;
@@ -1640,6 +1652,29 @@ export class LighterProvider implements PerpsProvider {
     | { referencePrice: number; error: null }
     | { referencePrice: null; error: string }
   > => {
+    // Numeric intent validates fail-closed BEFORE any drift math. A
+    // non-finite/non-positive snapshot makes the drift comparison NaN
+    // (silently bypassing protection), and a tolerance at or above 100%
+    // derives a zero-or-negative protection price on sells.
+    if (
+      !Number.isFinite(slippageFraction) ||
+      slippageFraction < 0 ||
+      slippageFraction >= 1
+    ) {
+      return {
+        referencePrice: null,
+        error: `Invalid slippage tolerance ${slippageFraction * 10_000} bps: must be at least 0 and below 10000`,
+      };
+    }
+    if (
+      priceAtCalculation !== undefined &&
+      (!Number.isFinite(priceAtCalculation) || !(priceAtCalculation > 0))
+    ) {
+      return {
+        referencePrice: null,
+        error: `Invalid price snapshot ${priceAtCalculation}: must be a positive finite number`,
+      };
+    }
     // Always a FRESH venue price: the caller's currentPrice is the same
     // snapshot as priceAtCalculation, and a drift check that compares a
     // snapshot to itself would never fire.
@@ -2340,9 +2375,31 @@ export class LighterProvider implements PerpsProvider {
         error: `Unknown Lighter market: ${params.symbol}`,
       };
     }
-    const referencePrice = parseFloat(
-      params.price ?? String(params.currentPrice ?? 0),
-    );
+    // Reference-price parity with placement: a MARKET order sizes at the
+    // FRESH venue price through the SAME resolver (fail-closed missing
+    // price, snapshot and slippage intent validation, drift) — the
+    // caller's price/currentPrice is never trusted for min-size. A LIMIT
+    // order sizes at the caller's (finite-validated) price.
+    let referencePrice: number;
+    if (params.orderType === 'market') {
+      const slippageFraction =
+        params.maxSlippageBps === undefined
+          ? (params.slippage ?? 0.05)
+          : params.maxSlippageBps / 10_000;
+      const resolved = await this.#resolveMarketReferencePrice(
+        params.symbol,
+        slippageFraction,
+        params.priceAtCalculation,
+      );
+      if (resolved.error !== null) {
+        return { isValid: false, error: resolved.error };
+      }
+      referencePrice = resolved.referencePrice;
+    } else {
+      referencePrice = parseFloat(
+        params.price ?? String(params.currentPrice ?? 0),
+      );
+    }
     if (referencePrice > 0) {
       const requestedSize =
         usdAmount === undefined
