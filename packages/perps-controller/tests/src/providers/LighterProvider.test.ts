@@ -158,6 +158,7 @@ type MockClientInstance = {
  * @param options.webSocketCtor - Transport override (null = REST polling).
  * @param options.isTestnet - Network the provider targets (defaults to testnet).
  * @param options.configuredAccountIndex - Account index override; null forces resolution via accountsByL1Address.
+ * @param options.platformDependencies - Shared platform deps (e.g. durable diskCache across simulated lifetimes).
  * @returns Provider and its collaborators.
  */
 function buildProvider(
@@ -168,6 +169,11 @@ function buildProvider(
     isTestnet?: boolean;
     /** Pass null to force account resolution through accountsByL1Address. */
     configuredAccountIndex?: number | null;
+    /**
+     * Shared platform dependencies (e.g. a durable diskCache across
+     * simulated provider lifetimes).
+     */
+    platformDependencies?: ReturnType<typeof createMockInfrastructure>;
   } = {},
 ): {
   provider: LighterProvider;
@@ -183,6 +189,7 @@ function buildProvider(
     webSocketCtor,
     isTestnet = true,
     configuredAccountIndex = 28,
+    platformDependencies = createMockInfrastructure(),
   } = options;
   const clientInstance = {
     network: 'testnet',
@@ -340,7 +347,7 @@ function buildProvider(
   const { bridge, calls, fireReset } = createMockBridge();
   const provider = new LighterProvider({
     isTestnet,
-    platformDependencies: createMockInfrastructure(),
+    platformDependencies,
     lighterAuthConfig: {
       ...(configuredAccountIndex === null
         ? {}
@@ -1644,6 +1651,17 @@ describe('LighterProvider', () => {
     releaseCreateGate: () => void;
     setRestLag: (reads: number) => void;
     stagedCancels: string[];
+    rawInactive: RawTriggerOrder[];
+    setCreateTerminal: (
+      mode: 'none' | 'filled' | 'canceled' | 'oco-mixed',
+    ) => void;
+    failResponseOnce: (txType: number) => void;
+    failBeforeCommitOnce: (txType: number) => void;
+    getVenueNonce: () => number;
+    setVenueNonce: (nonce: number) => void;
+    getNextIndex: () => number;
+    setNextIndex: (index: number) => void;
+    primeLag: (view: RawTriggerOrder[], reads: number) => void;
   } => {
     let nextIndex = 9000;
     const rawTriggers: RawTriggerOrder[] = [];
@@ -1690,6 +1708,10 @@ describe('LighterProvider', () => {
     const setRestLag = (reads: number): void => {
       restLag = reads;
     };
+    const primeLag = (view: RawTriggerOrder[], reads: number): void => {
+      laggedView = [...view];
+      lagRemaining = reads;
+    };
     clientInstance.getActiveOrders.mockImplementation(async () => {
       events.push('read');
       if (lagRemaining > 0) {
@@ -1711,32 +1733,97 @@ describe('LighterProvider', () => {
         lagRemaining = restLag;
       }
     };
+    // Inactive/terminal book + terminal mode: an immediate/crossed trigger
+    // never rests active and lands directly in inactive history.
+    const rawInactive: RawTriggerOrder[] = [];
+    let createTerminalMode: 'none' | 'filled' | 'canceled' | 'oco-mixed' =
+      'none';
+    const setCreateTerminal = (
+      mode: 'none' | 'filled' | 'canceled' | 'oco-mixed',
+    ): void => {
+      createTerminalMode = mode;
+    };
+    clientInstance.getInactiveOrders.mockImplementation(async () => ({
+      code: 200,
+      orders: [...rawInactive],
+    }));
+    // Authoritative venue nonce: consumed on each ACCEPTED submission.
+    let venueNonce = 42;
+    clientInstance.getNextNonce.mockImplementation(async () => ({
+      code: 200,
+      nonce: venueNonce,
+    }));
+    // One-shot transport failure AFTER venue commit (response loss).
+    const failAfterCommit = new Set<number>();
+    const failResponseOnce = (txType: number): void => {
+      failAfterCommit.add(txType);
+    };
+    // One-shot transport failure BEFORE the venue sees the submission:
+    // the staged payload is dropped (it never reached the venue), so a
+    // later retry can never accidentally commit the stale payload.
+    const failBeforeCommit = new Set<number>();
+    const failBeforeCommitOnce = (txType: number): void => {
+      failBeforeCommit.add(txType);
+    };
     const realSendTx = clientInstance.sendTx.getMockImplementation() as (
       txType: number,
       txInfo: string,
     ) => Promise<unknown>;
+    // Drop a submission's staged payload when it never reached acceptance —
+    // otherwise a later retry would accidentally commit the OLD staged
+    // mutation and make failure tests lie.
+    const dropStaged = (txType: number): void => {
+      if (txType === 14 || txType === 28) {
+        stagedCreates.shift();
+      }
+      if (txType === 15) {
+        stagedCancels.shift();
+      }
+    };
     clientInstance.sendTx.mockImplementation(
       async (txType: number, txInfo: string) => {
+        if (failBeforeCommit.has(txType)) {
+          failBeforeCommit.delete(txType);
+          dropStaged(txType);
+          throw new Error('network unreachable');
+        }
         // ACCEPTANCE timing: apply staged mutations only after the venue
         // resolves 200 — a rejected/failed submission must not mutate,
         // matching the provider's onAccepted boundary.
-        const response = (await realSendTx(txType, txInfo)) as {
-          code?: number;
-        };
+        let response: { code?: number };
+        try {
+          response = (await realSendTx(txType, txInfo)) as { code?: number };
+        } catch (error) {
+          dropStaged(txType);
+          throw error;
+        }
         if (response?.code !== 200) {
+          dropStaged(txType);
           return response;
         }
+        venueNonce += 1;
         if (txType === 14 || txType === 28) {
           beginLag();
           const creates = stagedCreates.shift() ?? [];
-          for (const create of creates) {
+          creates.forEach((create, createIndexInBatch) => {
             const orderIndex = nextIndex;
             nextIndex += 1;
-            rawTriggers.push({
+            const row = {
               ...buildRawTrigger(orderIndex, create.type, create.triggerPrice),
               clientOrderIndex: create.clientOrderIndex,
-            });
-          }
+            };
+            if (createTerminalMode === 'none') {
+              rawTriggers.push(row);
+            } else if (createTerminalMode === 'oco-mixed') {
+              // One OCO leg fills; the venue auto-cancels its sibling.
+              rawInactive.push({
+                ...row,
+                status: createIndexInBatch === 0 ? 'filled' : 'canceled',
+              });
+            } else {
+              rawInactive.push({ ...row, status: createTerminalMode });
+            }
+          });
         }
         if (txType === 15) {
           beginLag();
@@ -1747,6 +1834,10 @@ describe('LighterProvider', () => {
           if (at >= 0) {
             rawTriggers.splice(at, 1);
           }
+        }
+        if (failAfterCommit.has(txType)) {
+          failAfterCommit.delete(txType);
+          throw new Error('transport failure after venue commit');
         }
         return response;
       },
@@ -1818,6 +1909,19 @@ describe('LighterProvider', () => {
       releaseCreateGate: () => releaseCreateGate(),
       setRestLag,
       stagedCancels,
+      rawInactive,
+      setCreateTerminal,
+      failResponseOnce,
+      failBeforeCommitOnce,
+      getVenueNonce: () => venueNonce,
+      setVenueNonce: (nonce: number): void => {
+        venueNonce = nonce;
+      },
+      getNextIndex: () => nextIndex,
+      setNextIndex: (index: number): void => {
+        nextIndex = index;
+      },
+      primeLag,
     };
   };
 
@@ -1912,12 +2016,18 @@ describe('LighterProvider', () => {
       expect(
         calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(2);
-      const secondReadAt = venue.events.indexOf(
-        'read',
-        venue.events.indexOf('read') + 1,
+      // The second op's create happened strictly after the first op's
+      // cancel (full-transition exclusion; both ops' own barrier reads
+      // sit between).
+      const cancelEvents = venue.events.filter(
+        (event) => event === 'cancel' || event === 'create',
       );
-      const firstCancelAt = venue.events.indexOf('cancel');
-      expect(secondReadAt).toBeGreaterThan(firstCancelAt);
+      expect(cancelEvents).toStrictEqual([
+        'create',
+        'cancel',
+        'create',
+        'cancel',
+      ]);
     });
 
     it('replacement vs concurrent remove serializes: the remove sees and clears the fresh protection', async () => {
@@ -2322,8 +2432,292 @@ describe('LighterProvider', () => {
       });
       expect(first.success).toBe(false);
       expect(first.error).toContain('cancel submission failed');
-      // The accepted create was recorded (onAccepted): the retry
-      // reconciles it first, then completes the replacement serially.
+      // An IMMEDIATE retry stays blocked: the lost cancel is inside its
+      // discard grace (the original request could still be in flight).
+      const immediate = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(immediate.success).toBe(false);
+      expect(immediate.error).toContain('unresolved');
+      // Once aged past the grace with a stable unconsumed nonce, the
+      // never-landed cancel is discarded and the retry reconciles the
+      // accepted create, then completes the replacement serially.
+      const realNow = Date.now();
+      const nowSpy = jest
+        .spyOn(Date, 'now')
+        .mockImplementation(() => realNow + 13_000);
+      try {
+        const second = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '86000',
+        });
+        expect(second.error).toBeUndefined();
+        expect(second.success).toBe(true);
+      } finally {
+        nowSpy.mockRestore();
+      }
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('86000');
+    });
+
+    it('a replacement that goes terminal-cancelled BEFORE activation leaves the old protection untouched', async () => {
+      const { provider, calls, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // The accepted create lands directly in inactive as 'canceled'.
+      venue.setCreateTerminal('canceled');
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('before becoming active');
+      expect(result.error).toContain('left untouched');
+      // PHASE BARRIER: the old trigger was never cancelled.
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('80000');
+      expect(
+        calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      // The obligation cleared (terminal is authoritative): a retry with
+      // normal venue behavior succeeds.
+      venue.setCreateTerminal('none');
+      const retry = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(retry.error).toBeUndefined();
+      expect(retry.success).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('86000');
+    });
+
+    it('a replacement that EXECUTES before activation is observed is not treated as a failure', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // Immediate/crossed trigger: fills before it can be observed active.
+      venue.setCreateTerminal('filled');
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      // Stale reduce-only leftovers still cleaned up.
+      expect(venue.rawTriggers).toHaveLength(0);
+    });
+
+    it('response loss AFTER venue commit reconciles the HIDDEN create on retry without duplicating protection', async () => {
+      const { provider, calls, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // The create commits venue-side but the 200 never arrives, AND the
+      // commit lags REST: a journal-less retry would snapshot the lagged
+      // book, miss 85000, and leave 85000+86000 live.
+      venue.setRestLag(3);
+      venue.failResponseOnce(14);
+      const first = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(first.success).toBe(false);
+      expect(first.error).toContain('transport failure after venue commit');
+      const mutationCallsBefore = calls.filter((call) =>
+        [
+          '_signCreateOrder',
+          '_signCreateGroupedOrders',
+          '_signCancelOrder',
+        ].includes(call.function),
+      ).length;
+      // The retry's journal reconciliation polls consume the lag and
+      // observe the hidden create BEFORE any new signer mutation.
+      const second = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(second.error).toBeUndefined();
+      expect(second.success).toBe(true);
+      expect(
+        calls.filter((call) =>
+          [
+            '_signCreateOrder',
+            '_signCreateGroupedOrders',
+            '_signCancelOrder',
+          ].includes(call.function),
+        ).length,
+      ).toBeGreaterThan(mutationCallsBefore);
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('86000');
+    });
+
+    it('response loss BEFORE venue commit does not permanently wedge retries', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // Warm signer setup first (key registration consumes a nonce) so the
+      // pre/post comparison isolates the failed CREATE submission.
+      await provider.getOpenOrders();
+      const nonceBefore = venue.getVenueNonce();
+      const triggersBefore = venue.rawTriggers.length;
+      // Transport rejects before the venue ever sees the create; the
+      // staged payload is dropped inside the venue helper so a retry can
+      // never accidentally commit the stale 85000.
+      venue.failBeforeCommitOnce(14);
+      const first = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(first.success).toBe(false);
+      expect(first.error).toContain('network unreachable');
+      // Venue truly untouched before the retry.
+      expect(venue.getVenueNonce()).toBe(nonceBefore);
+      expect(venue.rawTriggers).toHaveLength(triggersBefore);
+      // Immediate retry: blocked inside the discard grace.
+      const immediate = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(immediate.success).toBe(false);
+      expect(immediate.error).toContain('unresolved');
+      // Aged + stable unconsumed nonce: concluded never-landed; retry runs
+      // and commits ONLY 86000 — never the dropped stale 85000 payload.
+      const realNow = Date.now();
+      const nowSpy = jest
+        .spyOn(Date, 'now')
+        .mockImplementation(() => realNow + 13_000);
+      try {
+        const retry = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '86000',
+        });
+        expect(retry.error).toBeUndefined();
+        expect(retry.success).toBe(true);
+      } finally {
+        nowSpy.mockRestore();
+      }
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('86000');
+      expect(
+        venue.rawInactive.some((row) => row.triggerPrice === '85000'),
+      ).toBe(false);
+    });
+
+    it('a provider recreation after committed-but-unacknowledged create recovers via the durable journal', async () => {
+      // Shared durable disk across two provider "lifetimes".
+      const disk = new Map<string, string>();
+      const sharedInfrastructure = createMockInfrastructure();
+      (sharedInfrastructure.diskCache.getItem as jest.Mock).mockImplementation(
+        async (key: string) => disk.get(key) ?? null,
+      );
+      (sharedInfrastructure.diskCache.setItem as jest.Mock).mockImplementation(
+        async (key: string, value: string) => {
+          disk.set(key, value);
+        },
+      );
+      (
+        sharedInfrastructure.diskCache.removeItem as jest.Mock
+      ).mockImplementation(async (key: string) => {
+        disk.delete(key);
+      });
+      const first = buildProvider({
+        platformDependencies: sharedInfrastructure,
+      });
+      const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
+      venueA.seedTrigger('stop-loss', '80000');
+      // Commit-then-lose the create response, then "kill" the provider.
+      venueA.failResponseOnce(14);
+      const attempt = await first.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(attempt.success).toBe(false);
+      expect(disk.size).toBe(1);
+      // NEW provider lifetime: same wallet, same disk, same venue state
+      // INCLUDING the consumed nonce — but REST hides the committed
+      // create from the first reconciliation window entirely.
+      const second = buildProvider({
+        platformDependencies: sharedInfrastructure,
+      });
+      const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
+      // Authoritative venue continuity: nonce AND order-index allocator.
+      venueB.setVenueNonce(venueA.getVenueNonce());
+      venueB.setNextIndex(venueA.getNextIndex());
+      const committedView: typeof venueB.rawTriggers = [];
+      for (const row of venueA.rawTriggers) {
+        venueB.rawTriggers.push({ ...row });
+        if (row.triggerPrice === '80000') {
+          committedView.push({ ...row });
+        }
+      }
+      // Phase 1: the committed 85000 stays hidden beyond the whole
+      // reconciliation window; its nonce IS consumed, so the fresh
+      // provider must stay blocked with ZERO mutation calls.
+      venueB.primeLag(committedView, 50);
+      const blocked = await second.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toContain('unresolved');
+      expect(
+        second.calls.filter((call) =>
+          [
+            '_signCreateOrder',
+            '_signCreateGroupedOrders',
+            '_signCancelOrder',
+          ].includes(call.function),
+        ),
+      ).toHaveLength(0);
+      // Phase 2: the venue reveals the committed state; the retry
+      // reconciles the journal and proceeds serially.
+      venueB.primeLag(venueB.rawTriggers, 0);
+      const result = await second.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      // WITHOUT the durable journal the fresh instance would snapshot the
+      // lagged book, miss the committed 85000, and leave a duplicate.
+      expect(venueB.rawTriggers).toHaveLength(1);
+      expect(venueB.rawTriggers[0].triggerPrice).toBe('86000');
+    });
+
+    it('two stale cancels with one response lost + delayed REST reconcile to the serial state', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('take-profit', '110000');
+      venue.seedTrigger('stop-loss', '80000');
+      // The SECOND cancel commits venue-side but its response is lost, and
+      // REST lags the commit.
+      venue.setRestLag(2);
+      let cancelSubmissions = 0;
+      const venueSendTx = clientInstance.sendTx.getMockImplementation() as (
+        txType: number,
+        txInfo: string,
+      ) => Promise<unknown>;
+      clientInstance.sendTx.mockImplementation(
+        async (txType: number, txInfo: string) => {
+          if (txType === 15) {
+            cancelSubmissions += 1;
+            if (cancelSubmissions === 2) {
+              await venueSendTx(txType, txInfo);
+              throw new Error('transport failure after venue commit');
+            }
+          }
+          return await venueSendTx(txType, txInfo);
+        },
+      );
+      const first = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(first.success).toBe(false);
+      // Retry: the journal reconciles the accepted create + accepted
+      // cancel #1 + committed-unknown cancel #2 through the lag, then
+      // completes serially.
       const second = await provider.updatePositionTPSL({
         symbol: 'BTC',
         stopLossPrice: '86000',
@@ -2332,6 +2726,267 @@ describe('LighterProvider', () => {
       expect(second.success).toBe(true);
       expect(venue.rawTriggers).toHaveLength(1);
       expect(venue.rawTriggers[0].triggerPrice).toBe('86000');
+    });
+
+    it('an OCO pair where one leg fills and the sibling terminal-cancels is an EXECUTION, not a failure', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.setCreateTerminal('oco-mixed');
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+        stopLossPrice: '80000',
+      });
+      // Aggregated: any success terminal dominates — this is an immediate
+      // execution outcome, not a replacement failure.
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+      expect(venue.rawInactive).toHaveLength(2);
+    });
+
+    it('a replacement active at the phase barrier that terminal-fails before final settlement is an explicit failure', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // After the barrier observes the create ACTIVE, the venue cancels it
+      // before the final settlement poll.
+      let readsSeen = 0;
+      const realActive =
+        clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
+      clientInstance.getActiveOrders.mockImplementation(async () => {
+        readsSeen += 1;
+        // Reads: 1 = snapshot, 2 = phase barrier, 3+ = final settlement.
+        if (readsSeen === 3) {
+          const at = venue.rawTriggers.findIndex(
+            (row) => row.triggerPrice === '85000',
+          );
+          if (at >= 0) {
+            const [row] = venue.rawTriggers.splice(at, 1);
+            venue.rawInactive.push({ ...row, status: 'canceled' });
+          }
+        }
+        return await realActive();
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('after activation');
+      expect(result.error).toContain('NOT in place');
+      // Terminal is authoritative: journal cleared, retry runs.
+      const retry = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(retry.error).toBeUndefined();
+      expect(retry.success).toBe(true);
+    });
+
+    it('journal disk failures and corrupt entries block with zero venue mutation', async () => {
+      // getItem rejection.
+      const infraReadFail = createMockInfrastructure();
+      (infraReadFail.diskCache.getItem as jest.Mock).mockRejectedValue(
+        new Error('disk unavailable'),
+      );
+      const readFailBuilt = buildProvider({
+        platformDependencies: infraReadFail,
+      });
+      const readFailVenue = setupTriggerVenue(
+        readFailBuilt.clientInstance,
+        readFailBuilt.bridge,
+      );
+      const readFailResult = await readFailBuilt.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      expect(readFailResult.success).toBe(false);
+      expect(readFailResult.error).toContain('journal read failed');
+      expect(readFailVenue.rawTriggers).toHaveLength(0);
+      // Corrupt persisted JSON: blocked and NOT auto-removed.
+      const infraCorrupt = createMockInfrastructure();
+      (infraCorrupt.diskCache.getItem as jest.Mock).mockResolvedValue(
+        '{not json',
+      );
+      const corruptBuilt = buildProvider({
+        platformDependencies: infraCorrupt,
+      });
+      const corruptVenue = setupTriggerVenue(
+        corruptBuilt.clientInstance,
+        corruptBuilt.bridge,
+      );
+      const corruptResult = await corruptBuilt.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      expect(corruptResult.success).toBe(false);
+      expect(corruptResult.error).toContain('corrupt');
+      expect(infraCorrupt.diskCache.removeItem).not.toHaveBeenCalled();
+      expect(corruptVenue.rawTriggers).toHaveLength(0);
+      // Malformed-but-JSON entry (empty attempts): blocked.
+      const infraMalformed = createMockInfrastructure();
+      (infraMalformed.diskCache.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify({ version: 1, recordedAt: 5, attempts: [] }),
+      );
+      const malformedBuilt = buildProvider({
+        platformDependencies: infraMalformed,
+      });
+      const malformedVenue = setupTriggerVenue(
+        malformedBuilt.clientInstance,
+        malformedBuilt.bridge,
+      );
+      const malformedResult = await malformedBuilt.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      expect(malformedResult.success).toBe(false);
+      expect(malformedResult.error).toContain('malformed');
+      expect(malformedVenue.rawTriggers).toHaveLength(0);
+      // Pre-send setItem failure: the mutation aborts BEFORE submission.
+      const infraWriteFail = createMockInfrastructure();
+      (infraWriteFail.diskCache.setItem as jest.Mock).mockRejectedValue(
+        new Error('disk write refused'),
+      );
+      const writeFailBuilt = buildProvider({
+        platformDependencies: infraWriteFail,
+      });
+      const writeFailVenue = setupTriggerVenue(
+        writeFailBuilt.clientInstance,
+        writeFailBuilt.bridge,
+      );
+      const writeFailResult = await writeFailBuilt.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+      });
+      expect(writeFailResult.success).toBe(false);
+      expect(writeFailResult.error).toContain('disk write refused');
+      expect(writeFailVenue.rawTriggers).toHaveLength(0);
+      // No order mutation ever reached the venue (signer-key registration
+      // is the only submission).
+      expect(
+        (writeFailBuilt.clientInstance.sendTx).mock.calls.filter(
+          ([txType]) => txType === 14 || txType === 28 || txType === 15,
+        ),
+      ).toHaveLength(0);
+    });
+
+    it('a nonce advancing between the two stable reads keeps reconciliation blocked even when aged', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      venue.failBeforeCommitOnce(14);
+      const first = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(first.success).toBe(false);
+      // Venue nonce keeps MOVING between the stable reads (some other
+      // writer is active): even an aged unknown attempt must stay blocked.
+      let bump = 0;
+      clientInstance.getNextNonce.mockImplementation(async () => {
+        bump += 1;
+        return { code: 200, nonce: venue.getVenueNonce() + bump };
+      });
+      const realNow = Date.now();
+      const nowSpy = jest
+        .spyOn(Date, 'now')
+        .mockImplementation(() => realNow + 13_000);
+      try {
+        const retry = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '86000',
+        });
+        expect(retry.success).toBe(false);
+        expect(retry.error).toContain('unresolved');
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it('a wallet switch during the final journal clear fails the stale operation explicitly', async () => {
+      const infra = createMockInfrastructure();
+      let releaseRemove = (): void => undefined;
+      let signalRemoveEntered = (): void => undefined;
+      const removeEntered = new Promise<void>((resolve) => {
+        signalRemoveEntered = resolve;
+      });
+      const removeGate = new Promise<void>((resolve) => {
+        releaseRemove = resolve;
+      });
+      (infra.diskCache.removeItem as jest.Mock).mockImplementation(async () => {
+        signalRemoveEntered();
+        await removeGate;
+      });
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      const pending = built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      await removeEntered;
+      built.getUserAddressMock.mockReturnValue(`0x${'b'.repeat(40)}`);
+      releaseRemove();
+      const result = await pending;
+      // The venue mutation may well have settled, but the STALE operation
+      // must report the switch, never success under B.
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('switched accounts');
+    });
+
+    it('validator failures from markets, margin metadata, and fresh price all resolve invalid', async () => {
+      // Markets read failure.
+      const markets = buildProvider();
+      markets.clientInstance.getOrderBooks.mockRejectedValue(
+        new Error('orderBooks endpoint down'),
+      );
+      const marketsOrder = await markets.provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(marketsOrder.isValid).toBe(false);
+      // The markets read failure surfaces as an explicit invalid result
+      // (the provider's market cache degrades to unknown-market).
+      expect(marketsOrder.error).toContain('BTC');
+      const marketsClose = await markets.provider.validateClosePosition({
+        symbol: 'BTC',
+        currentPrice: 100000,
+      });
+      expect(marketsClose.isValid).toBe(false);
+      // Margin metadata failure with explicit leverage.
+      const margins = buildProvider();
+      margins.clientInstance.getOrderBookDetails.mockRejectedValue(
+        new Error('metadata endpoint down'),
+      );
+      const marginsResult = await margins.provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        leverage: 10,
+      });
+      expect(marginsResult.isValid).toBe(false);
+      expect(marginsResult.error).toContain('margin metadata');
+      // Fresh-price failure on a market order.
+      const price = buildProvider();
+      price.clientInstance.getOrderBookDetails.mockRejectedValue(
+        new Error('price endpoint down'),
+      );
+      const priceResult = await price.provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'market',
+      });
+      expect(priceResult.isValid).toBe(false);
+      const priceClose = await price.provider.validateClosePosition({
+        symbol: 'BTC',
+      });
+      expect(priceClose.isValid).toBe(false);
     });
 
     it('a bridge reset racing the auth mint completes bounded — never the old in-lock self-deadlock', async () => {
@@ -2356,12 +3011,15 @@ describe('LighterProvider', () => {
           return realImplementation(call);
         },
       );
+      // Bounded race with a CLEARED timer: an uncancelled 6 s timeout
+      // would keep the suite's event loop open after the test finishes.
+      let hangTimer: ReturnType<typeof setTimeout> | undefined;
       const outcome = await Promise.race([
         provider.updatePositionTPSL({ symbol: 'BTC', stopLossPrice: '85000' }),
-        new Promise<'hang'>((resolve) =>
-          setTimeout(() => resolve('hang'), 6000),
-        ),
-      ]);
+        new Promise<'hang'>((resolve) => {
+          hangTimer = setTimeout(() => resolve('hang'), 6000);
+        }),
+      ]).finally(() => clearTimeout(hangTimer));
       // Bounded completion (success after re-setup, or a prompt explicit
       // rejection) — never a hang.
       expect(outcome).not.toBe('hang');
