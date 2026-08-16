@@ -175,13 +175,39 @@ const lighterLeverageError = (leverage: number | undefined): string | null => {
     return `Invalid leverage ${leverage}: must be a positive number`;
   }
   // UpdateLeverage signs an initial margin fraction in hundredths of a
-  // percent; a huge finite leverage rounds it to zero, which must never
-  // reach the signer.
-  if (Math.round(10_000 / leverage) < 1) {
-    return `Invalid leverage ${leverage}: exceeds the maximum representable Lighter leverage`;
+  // percent. The derived IMF must itself be a positive safe integer within
+  // the venue's fraction range: huge finite leverage rounds it to zero,
+  // tiny finite leverage (Number.MIN_VALUE) overflows the division to
+  // Infinity, and sub-1x leverage exceeds a 100% margin fraction.
+  const imfHundredths = Math.round(10_000 / leverage);
+  if (
+    !Number.isSafeInteger(imfHundredths) ||
+    imfHundredths < 1 ||
+    imfHundredths > 10_000
+  ) {
+    return `Invalid leverage ${leverage}: outside Lighter's representable leverage range`;
   }
   return null;
 };
+
+/**
+ * Derive the protection/execution price a market order signs from its
+ * reference price — shared by placement and both validators so wire-range
+ * checks always inspect the exact value the signer receives.
+ *
+ * @param referencePrice - Fresh venue reference price.
+ * @param isBuy - Order side; buys protect above, sells below.
+ * @param slippageFraction - Slippage tolerance (validated < 1).
+ * @returns The slippage-adjusted execution price.
+ */
+const deriveLighterExecutionPrice = (
+  referencePrice: number,
+  isBuy: boolean,
+  slippageFraction: number,
+): number =>
+  isBuy
+    ? referencePrice * (1 + slippageFraction)
+    : referencePrice * (1 - slippageFraction);
 
 const LIGHTER_NOT_SUPPORTED_ERROR = 'Lighter operation not yet supported';
 const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
@@ -1403,8 +1429,10 @@ export class LighterProvider implements PerpsProvider {
       this.#ensureSessionBinding();
       const generationAtIntent = inheritedGeneration ?? this.#sessionGeneration;
       this.#assertSession(generationAtIntent);
-      await this.#ensureSignerReady();
-      const accountIndex = await this.#ensureAccountIndex();
+      // All intent validation below uses PUBLIC market data only; signer
+      // and account setup are deferred until it passes so invalid intent
+      // causes zero bridge calls (no client creation or key registration
+      // side effects).
       const markets = await this.#ensureMarkets();
       const market = markets.get(params.symbol);
       if (!market) {
@@ -1415,6 +1443,15 @@ export class LighterProvider implements PerpsProvider {
       }
       if (params.orderType === 'limit' && !params.price) {
         return { success: false, error: 'Limit order requires a price' };
+      }
+      if (params.leverage !== undefined) {
+        const maxLeverage = await this.getMaxLeverage(params.symbol);
+        if (params.leverage > maxLeverage) {
+          return {
+            success: false,
+            error: `Invalid leverage ${params.leverage}: exceeds the ${params.symbol} maximum of ${maxLeverage}x`,
+          };
+        }
       }
 
       // Slippage tolerance: caller basis points win, then the deprecated
@@ -1441,9 +1478,11 @@ export class LighterProvider implements PerpsProvider {
           return { success: false, error: resolved.error };
         }
         referencePrice = resolved.referencePrice;
-        executionPrice = params.isBuy
-          ? referencePrice * (1 + slippageFraction)
-          : referencePrice * (1 - slippageFraction);
+        executionPrice = deriveLighterExecutionPrice(
+          referencePrice,
+          params.isBuy,
+          slippageFraction,
+        );
       }
       // Finite AND positive: 'Infinity' passes a bare > 0 check but would
       // corrupt integerization/signing downstream.
@@ -1501,13 +1540,20 @@ export class LighterProvider implements PerpsProvider {
       }
       const size = Math.max(requestedSize, minSize);
 
-      const leverageImfHundredths = await this.#resolveLeverageIntent(params);
-
+      // Wire-format integerization runs BEFORE signer setup: overflow and
+      // sub-tick rejections throw here, still with zero bridge calls.
       const priceInt = toLighterInteger(
         executionPrice,
         market.supportedPriceDecimals,
       );
       const sizeInt = toLighterInteger(size, market.supportedSizeDecimals);
+
+      const leverageImfHundredths = await this.#resolveLeverageIntent(params);
+
+      // Intent validated — only now do signer and account setup run.
+      await this.#ensureSignerReady();
+      const accountIndex = await this.#ensureAccountIndex();
+      this.#assertSession(generationAtIntent);
       const [clientOrderIndex] = this.#allocateClientOrderIndexes(1);
 
       // Leverage update and order placement share ONE lock acquisition so a
@@ -1886,6 +1932,32 @@ export class LighterProvider implements PerpsProvider {
           error: `No open Lighter position for ${params.symbol}`,
         };
       }
+
+      // Prevalidate the REPLACEMENT protection before any signer setup or
+      // cancellation: parsing/integerization failures discovered after the
+      // existing triggers are dropped would leave the position naked.
+      // Both the trigger and its ±5% execution price must be finite,
+      // positive, and representable (non-zero) on the wire.
+      const positionIsLong = parseFloat(position.size) > 0;
+      for (const [label, raw] of [
+        ['takeProfitPrice', params.takeProfitPrice],
+        ['stopLossPrice', params.stopLossPrice],
+      ] as const) {
+        if (!raw) {
+          continue;
+        }
+        const trigger = parseFinitePositive(raw);
+        if (trigger === null) {
+          return {
+            success: false,
+            error: `Invalid ${label} ${raw}: must be a positive number`,
+          };
+        }
+        const execution = positionIsLong ? trigger * 0.95 : trigger * 1.05;
+        toLighterInteger(trigger, market.supportedPriceDecimals);
+        toLighterInteger(execution, market.supportedPriceDecimals);
+      }
+
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
@@ -2039,6 +2111,10 @@ export class LighterProvider implements PerpsProvider {
           error: 'updateMargin requires a non-zero amount',
         };
       }
+      // USDC uses 6 decimals. Integerize BEFORE signer setup so a huge
+      // finite amount fails closed with zero bridge calls instead of
+      // raw-scaling to an unsafe integer inside signer params.
+      const marginAmountInt = toLighterInteger(Math.abs(amount), 6);
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       // USDC uses 6 decimals; direction 1 adds isolated margin, 0 removes it
@@ -2052,7 +2128,7 @@ export class LighterProvider implements PerpsProvider {
               params: [
                 accountIndex,
                 market.marketId,
-                Math.round(Math.abs(amount) * 1_000_000),
+                marginAmountInt,
                 amount > 0 ? 1 : 0,
                 nonce,
               ],
@@ -2080,14 +2156,16 @@ export class LighterProvider implements PerpsProvider {
     try {
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
-      const amount = parseFloat(params.amount);
-      if (!(amount > 0)) {
+      const amount = parseFinitePositive(params.amount);
+      if (amount === null) {
         return { success: false, error: 'withdraw requires a positive amount' };
       }
+      // USDC uses 6 decimals on zkLighter. Integerize BEFORE signer setup:
+      // overflow/sub-tick amounts fail closed with zero bridge calls,
+      // matching validateWithdrawal exactly.
+      const assetAmount = String(toLighterInteger(amount, 6));
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
-      // USDC uses 6 decimals on zkLighter.
-      const assetAmount = String(Math.round(amount * 1_000_000));
       const result = await this.#withVenueNonce(
         accountIndex,
         async (nonce, submit) => {
@@ -2417,12 +2495,24 @@ export class LighterProvider implements PerpsProvider {
         error: `Unknown Lighter market: ${params.symbol}`,
       };
     }
+    if (params.leverage !== undefined) {
+      const maxLeverage = await this.getMaxLeverage(params.symbol);
+      if (params.leverage > maxLeverage) {
+        return {
+          isValid: false,
+          error: `Invalid leverage ${params.leverage}: exceeds the ${params.symbol} maximum of ${maxLeverage}x`,
+        };
+      }
+    }
     // Reference-price parity with placement: a MARKET order sizes at the
     // FRESH venue price through the SAME resolver (fail-closed missing
     // price, snapshot and slippage intent validation, drift) — the
     // caller's price/currentPrice is never trusted for min-size. A LIMIT
-    // order sizes at the caller's (finite-validated) price.
+    // order sizes at the caller's (finite-validated) price. The EXECUTION
+    // price is derived through the same helper placement signs with, so
+    // the wire-range check below inspects the exact signed value.
     let referencePrice: number;
+    let executionPrice: number;
     if (params.orderType === 'market') {
       const slippageFraction =
         params.maxSlippageBps === undefined
@@ -2437,10 +2527,16 @@ export class LighterProvider implements PerpsProvider {
         return { isValid: false, error: resolved.error };
       }
       referencePrice = resolved.referencePrice;
+      executionPrice = deriveLighterExecutionPrice(
+        referencePrice,
+        params.isBuy,
+        slippageFraction,
+      );
     } else {
       referencePrice = parseFloat(
         params.price ?? String(params.currentPrice ?? 0),
       );
+      executionPrice = referencePrice;
     }
     if (referencePrice > 0) {
       const requestedSize =
@@ -2462,13 +2558,14 @@ export class LighterProvider implements PerpsProvider {
           };
         }
       }
-      // Wire-format parity: placement integerizes size and price and
-      // toLighterInteger throws on safe-integer overflow there; surface
-      // the identical error here so validation never approves an order
-      // the signer path refuses.
+      // Wire-format parity: placement integerizes size and the
+      // slippage-adjusted EXECUTION price; toLighterInteger throws on
+      // safe-integer overflow and wire-zero there; surface the identical
+      // error here so validation never approves an order the signer path
+      // refuses (a safe reference can still overflow after +5%).
       try {
         toLighterInteger(requestedSize, market.supportedSizeDecimals);
-        toLighterInteger(referencePrice, market.supportedPriceDecimals);
+        toLighterInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
           isValid: false,
@@ -2498,11 +2595,10 @@ export class LighterProvider implements PerpsProvider {
     // Live sizing parity with closePosition→placeOrder: a validator that
     // approves a close the execution path rejects is worse than none.
     const positions = await this.getPositions();
-    const held = Math.abs(
-      parseFloat(
-        positions.find((entry) => entry.symbol === params.symbol)?.size ?? '0',
-      ),
+    const signedHeld = parseFloat(
+      positions.find((entry) => entry.symbol === params.symbol)?.size ?? '0',
     );
+    const held = Math.abs(signedHeld);
     if (held === 0) {
       return {
         isValid: false,
@@ -2516,6 +2612,7 @@ export class LighterProvider implements PerpsProvider {
     // venue price through the SAME helper as placement, inheriting its
     // fail-closed missing-price and drift semantics.
     let referencePrice: number;
+    let executionPrice: number;
     if ((params.orderType ?? 'market') === 'limit') {
       referencePrice = parseFloat(params.price ?? '');
       if (!Number.isFinite(referencePrice) || !(referencePrice > 0)) {
@@ -2524,6 +2621,7 @@ export class LighterProvider implements PerpsProvider {
           error: `Invalid limit price ${params.price}: must be a positive number`,
         };
       }
+      executionPrice = referencePrice;
     } else {
       const slippageFraction =
         params.maxSlippageBps === undefined
@@ -2538,6 +2636,13 @@ export class LighterProvider implements PerpsProvider {
         return { isValid: false, error: resolved.error };
       }
       referencePrice = resolved.referencePrice;
+      // Closing is the opposite side: a SHORT closes with a BUY, whose
+      // +slippage protection price is what placement actually signs.
+      executionPrice = deriveLighterExecutionPrice(
+        referencePrice,
+        signedHeld < 0,
+        slippageFraction,
+      );
     }
     if (referencePrice > 0) {
       const usdAmount = parseFloat(params.usdAmount ?? '');
@@ -2552,10 +2657,11 @@ export class LighterProvider implements PerpsProvider {
           error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
         };
       }
-      // Wire-format parity with the placement path closePosition uses.
+      // Wire-format parity with the placement path closePosition uses:
+      // the EXECUTION price is what gets integerized and signed.
       try {
         toLighterInteger(requestedSize, market.supportedSizeDecimals);
-        toLighterInteger(referencePrice, market.supportedPriceDecimals);
+        toLighterInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
           isValid: false,
@@ -2573,6 +2679,15 @@ export class LighterProvider implements PerpsProvider {
     const amount = parseFloat(params.amount ?? '');
     if (!Number.isFinite(amount) || amount <= 0) {
       return { isValid: false, error: 'Withdrawal amount must be positive' };
+    }
+    // Scaled wire-range parity with withdraw's own integerization.
+    try {
+      toLighterInteger(amount, 6);
+    } catch (error) {
+      return {
+        isValid: false,
+        error: ensureError(error, 'LighterProvider.validateWithdrawal').message,
+      };
     }
     return { isValid: true };
   }

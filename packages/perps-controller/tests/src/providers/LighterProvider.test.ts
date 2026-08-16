@@ -100,6 +100,11 @@ function createMockBridge(): {
             txInfo: '{"cancelOrder":true}',
             txHash: '0xcancelhash',
           } as Result;
+        case '_signUpdateLeverage':
+          return {
+            txInfo: '{"updateLeverage":true}',
+            txHash: '0xleveragehash',
+          } as Result;
         case '_createAuthToken':
           return {
             token: 'auth-token',
@@ -1617,12 +1622,10 @@ describe('LighterProvider', () => {
         expect(placement.success).toBe(false);
         expect(placement.error).toContain(testCase.error);
       }
-      expect(
-        calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(0);
-      expect(
-        calls.filter((call) => call.function === '_signUpdateLeverage'),
-      ).toHaveLength(0);
+      // Invalid intent must exit before signer/account setup entirely: not
+      // just no order/leverage signing, but ZERO bridge calls (no
+      // _createClient / key registration side effects either).
+      expect(calls).toHaveLength(0);
     });
 
     it('rejects non-finite close size and usdAmount in validateClosePosition and closePosition before any signer call', async () => {
@@ -1653,9 +1656,7 @@ describe('LighterProvider', () => {
         expect(execution.success).toBe(false);
         expect(execution.error).toContain(testCase.error);
       }
-      expect(
-        calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(0);
+      expect(calls).toHaveLength(0);
     });
 
     it('fails closed when finite intent cannot be represented as venue wire integers', async () => {
@@ -1697,9 +1698,223 @@ describe('LighterProvider', () => {
       });
       expect(closeExecution.success).toBe(false);
       expect(closeExecution.error).toContain('integer range');
-      expect(
-        calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(0);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('safe-checks the slippage-adjusted EXECUTION price a market buy signs, not just the reference', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      // priceDecimals=1: reference 900719925474099 -> wire 9007199254740990
+      // (safe, = MAX_SAFE_INTEGER - 1), but a BUY signs +5% protection:
+      // 9457559217478040 wire, unsafe. Reference-only validation approves
+      // what placement refuses.
+      const reference = 900719925474099;
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: reference }],
+      });
+      const buyRequest = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'market' as const,
+      };
+      const buyValidation = await provider.validateOrder(buyRequest);
+      expect(buyValidation.isValid).toBe(false);
+      expect(buyValidation.error).toContain('integer range');
+      const buyPlacement = await provider.placeOrder(buyRequest);
+      expect(buyPlacement.success).toBe(false);
+      expect(buyPlacement.error).toContain('integer range');
+      // Invalid intent exits before signer/account setup: ZERO bridge calls.
+      expect(calls).toHaveLength(0);
+      // Discriminating counterpart: a SELL protects at -5% (safe wire), so
+      // both surfaces must ACCEPT the same reference price.
+      const sellRequest = { ...buyRequest, isBuy: false };
+      const sellValidation = await provider.validateOrder(sellRequest);
+      expect(sellValidation.isValid).toBe(true);
+      const sellPlacement = await provider.placeOrder(sellRequest);
+      expect(sellPlacement.success).toBe(true);
+    });
+
+    it('safe-checks the buy-to-close execution price when closing a short', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      const reference = 900719925474099;
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: reference }],
+      });
+      // SHORT position: closing means BUYING, so the +5% protection price
+      // overflows exactly like the market-buy case.
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '-0.001' }],
+          },
+        ],
+      });
+      const shortCloseValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+      });
+      expect(shortCloseValidation.isValid).toBe(false);
+      expect(shortCloseValidation.error).toContain('integer range');
+      const shortCloseExecution = await provider.closePosition({
+        symbol: 'BTC',
+      });
+      expect(shortCloseExecution.success).toBe(false);
+      expect(shortCloseExecution.error).toContain('integer range');
+      // Invalid intent exits before signer/account setup: ZERO bridge calls.
+      expect(calls).toHaveLength(0);
+      // A LONG close SELLS at -5% (safe wire): both surfaces accept.
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.001' }],
+          },
+        ],
+      });
+      const longCloseValidation = await provider.validateClosePosition({
+        symbol: 'BTC',
+      });
+      expect(longCloseValidation.isValid).toBe(true);
+      const longCloseExecution = await provider.closePosition({
+        symbol: 'BTC',
+      });
+      expect(longCloseExecution.success).toBe(true);
+    });
+
+    it('invalid TP/SL replacements are rejected before any cancellation or signer call', async () => {
+      const { provider, calls } = buildProvider();
+      // Cancelling existing protection FIRST and only then discovering the
+      // replacement is unrepresentable would leave the position naked.
+      // '0.04' is sub-tick at priceDecimals=1: wire Math.round(0.4) = 0.
+      const badPrices = ['Infinity', 'NaN', '-100', '0', '1e300', '0.04'];
+      for (const bad of badPrices) {
+        const takeProfit = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: bad,
+        });
+        expect(takeProfit.success).toBe(false);
+        const stopLoss = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: bad,
+        });
+        expect(stopLoss.success).toBe(false);
+      }
+      // Zero bridge calls of ANY kind: no signer setup, no cancels, no
+      // grouped-order signing.
+      expect(calls).toHaveLength(0);
+    });
+
+    it('withdraw rejects non-finite and unrepresentable amounts before any signer call, matching validateWithdrawal', async () => {
+      const { provider, calls } = buildProvider();
+      for (const amount of ['Infinity', 'NaN', '-5', '0', '1e300']) {
+        const validation = await provider.validateWithdrawal({ amount });
+        expect(validation.isValid).toBe(false);
+        const execution = await provider.withdraw({ amount });
+        expect(execution.success).toBe(false);
+      }
+      expect(calls).toHaveLength(0);
+    });
+
+    it('updateMargin fails closed on wire-integer overflow before any signer call', async () => {
+      const { provider, calls } = buildProvider();
+      const overflow = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '1e300',
+      });
+      expect(overflow.success).toBe(false);
+      expect(overflow.error).toContain('integer range');
+      const infinite = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: 'Infinity',
+      });
+      expect(infinite.success).toBe(false);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('rejects tiny finite leverage whose margin fraction overflows to Infinity', async () => {
+      const { provider, calls } = buildProvider();
+      // 10000 / Number.MIN_VALUE === Infinity: an IMF-below-one guard alone
+      // misses it and Infinity would ride into _signUpdateLeverage.
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit' as const,
+        price: '90000',
+        leverage: Number.MIN_VALUE,
+      };
+      const validation = await provider.validateOrder(request);
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('Invalid leverage');
+      const placement = await provider.placeOrder(request);
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain('Invalid leverage');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('enforces the published per-market max leverage, not only IMF representability', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      // Venue publishes minInitialMarginFraction 400 -> 25x for BTC.
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            symbol: 'BTC',
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 400,
+            maintenanceMarginFraction: 240,
+          },
+        ],
+      });
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit' as const,
+        price: '90000',
+        leverage: 26,
+      };
+      const validation = await provider.validateOrder(request);
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('Invalid leverage');
+      expect(validation.error).toContain('25');
+      const placement = await provider.placeOrder(request);
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain('Invalid leverage');
+      expect(calls).toHaveLength(0);
+      // 25x exactly is within the published bound: accepted by both.
+      const atMax = { ...request, leverage: 25 };
+      const atMaxValidation = await provider.validateOrder(atMax);
+      expect(atMaxValidation.isValid).toBe(true);
+      const atMaxPlacement = await provider.placeOrder(atMax);
+      expect(atMaxPlacement.error).toBeUndefined();
+      expect(atMaxPlacement.success).toBe(true);
+    });
+
+    it('rejects a positive sub-tick limit price that rounds to wire zero, in validation and placement', async () => {
+      const { provider, calls } = buildProvider();
+      // 0.04 at priceDecimals=1 -> Math.round(0.4) = 0: positive intent,
+      // zero on the wire. Size 251 clears the $10 minimum notional (min
+      // size 250.00001 after float ceil) so ONLY the wire-zero check can
+      // be the rejection.
+      const request = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '251',
+        orderType: 'limit' as const,
+        price: '0.04',
+      };
+      const validation = await provider.validateOrder(request);
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain('rounds to zero');
+      const placement = await provider.placeOrder(request);
+      expect(placement.success).toBe(false);
+      expect(placement.error).toContain('rounds to zero');
+      expect(calls).toHaveLength(0);
     });
 
     it('rejects finite leverage that derives a zero venue margin fraction', async () => {
@@ -1719,12 +1934,7 @@ describe('LighterProvider', () => {
       const placement = await provider.placeOrder(request);
       expect(placement.success).toBe(false);
       expect(placement.error).toContain('Invalid leverage');
-      expect(
-        calls.filter((call) => call.function === '_signUpdateLeverage'),
-      ).toHaveLength(0);
-      expect(
-        calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(0);
+      expect(calls).toHaveLength(0);
     });
   });
 
