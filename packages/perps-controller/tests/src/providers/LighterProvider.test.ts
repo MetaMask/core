@@ -601,7 +601,9 @@ describe('LighterProvider', () => {
       expect(withTpsl.error).toContain('updatePositionTPSL');
     });
 
-    it('still allows a dust-sized full close through the reduce-only path', async () => {
+    it('rejects an isFullClose claim that live positions do not verify', async () => {
+      // Fixture position is 0.1 BTC; a 0.00001 "full close" is a lie a bump
+      // would turn into an over-close.
       const { provider, calls } = buildProvider();
       const result = await provider.placeOrder({
         symbol: 'BTC',
@@ -612,11 +614,39 @@ describe('LighterProvider', () => {
         isFullClose: true,
         currentPrice: 90000,
       });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('below the Lighter minimum');
+      expect(
+        calls.find((call) => call.function === '_signCreateOrder'),
+      ).toBeUndefined();
+    });
+
+    it('bumps a live-verified dust full close to the venue minimum', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      // The live position IS the dust amount being closed.
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.00001' }],
+          },
+        ],
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: false,
+        size: '0.00001',
+        orderType: 'market',
+        reduceOnly: true,
+        isFullClose: true,
+        currentPrice: 90000,
+      });
       expect(result.success).toBe(true);
-      // The venue minimum still applies to the signed order size.
       const orderCall = calls.find(
         (call) => call.function === '_signCreateOrder',
       );
+      // Bumped to the venue minimum; reduce-only clamps execution.
       expect(orderCall?.params[3]).toBe('20');
     });
 
@@ -1046,10 +1076,24 @@ describe('LighterProvider', () => {
       expect(accountReads).toContain(900);
     });
 
-    it('rebuilds stream channels for existing subscribers after an account switch', async () => {
-      const { provider, getUserAddressMock } = buildProvider({
+    it('rebuilds stream channels for the NEW account after a switch', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
       });
+      const accountB = { ...ACCOUNT, index: 900 };
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        (address: string) =>
+          Promise.resolve(
+            address.toLowerCase() === '0xbbbb'
+              ? { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] }
+              : {
+                  code: 200,
+                  l1Address: ACCOUNT.l1Address,
+                  subAccounts: [ACCOUNT],
+                },
+          ),
+      );
       StreamFakeWebSocket.instances = [];
       const unsubscribePrices = provider.subscribeToPrices({
         symbols: [],
@@ -1058,32 +1102,63 @@ describe('LighterProvider', () => {
       const unsubscribeAccount = provider.subscribeToAccount({
         callback: jest.fn(),
       });
+      await new Promise((resolve) => setTimeout(resolve, 0));
       StreamFakeWebSocket.instances[0].open();
-      await new Promise((resolve) => process.nextTick(resolve));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(StreamFakeWebSocket.instances[0].sent).toContainEqual(
-        JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
+        JSON.stringify({ type: 'subscribe', channel: 'user_stats/28' }),
       );
 
       // Wallet switches accounts; any session-bound call triggers rebind.
       getUserAddressMock.mockReturnValue('0xbbbb');
       await provider.getAccountState();
-      // A replacement socket must exist and re-subscribe the channels the
-      // surviving subscribers imply — for the NEW account.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       const replacement =
         StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
       expect(StreamFakeWebSocket.instances.length).toBeGreaterThan(1);
       replacement.open();
-      await new Promise((resolve) => process.nextTick(resolve));
-      await new Promise((resolve) => process.nextTick(resolve));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(replacement.sent).toContainEqual(
         JSON.stringify({ type: 'subscribe', channel: 'market_stats/all' }),
       );
+      // The account channels target account B's exact index — never A's.
+      expect(replacement.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'user_stats/900' }),
+      );
       expect(
-        replacement.sent.some((frame) => frame.includes('user_stats/')),
-      ).toBe(true);
+        replacement.sent.some((frame) => frame.includes('user_stats/28')),
+      ).toBe(false);
 
       unsubscribePrices();
       unsubscribeAccount();
+    });
+
+    it('cancels a queued write when the wallet switches accounts first', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      // Hold the write chain busy with a slow nonce fetch so the next write
+      // queues behind it.
+      let releaseNonce: (value: unknown) => void = () => undefined;
+      clientInstance.getNextNonce.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseNonce = resolve;
+          }),
+      );
+      const firstWrite = provider.cancelOrder({ orderId: '1', symbol: 'BTC' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const queuedWrite = provider.cancelOrder({ orderId: '2', symbol: 'BTC' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // Account switch happens while the second write sits in the queue.
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState().catch(() => undefined);
+      releaseNonce({ code: 200, nonce: 42 });
+      await firstWrite;
+      const queuedResult = await queuedWrite;
+      expect(queuedResult.success).toBe(false);
+      expect(queuedResult.error).toContain('switched accounts');
     });
   });
 

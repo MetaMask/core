@@ -67,6 +67,17 @@ export type LighterSignerBridge = {
   execute<Result>(call: LighterWasmCall): Promise<Result>;
 
   /**
+   * Optional subscription to bridge resets (WebView reload / process
+   * loss). The provider uses it to invalidate its cached signer session
+   * IMMEDIATELY instead of learning about the reset from the next failed
+   * trading call.
+   *
+   * @param listener - Invoked on every reset.
+   * @returns Unsubscribe function.
+   */
+  onReset?(listener: () => void): () => void;
+
+  /**
    * Optional hook to re-arm the bridge after a reload (WebView remount).
    */
   reset?(): void;
@@ -192,6 +203,12 @@ export type LighterOrderBooksResponse = {
  */
 export type LighterOrderBookDetail = LighterOrderBookMeta & {
   lastTradePrice: number;
+  /** Default initial margin fraction, hundredths of a percent (666 = 6.66%). */
+  defaultInitialMarginFraction?: number;
+  /** Minimum initial margin fraction, hundredths of a percent (400 → 25x max). */
+  minInitialMarginFraction?: number;
+  /** Maintenance margin fraction, hundredths of a percent (240 = 2.4%). */
+  maintenanceMarginFraction?: number;
   dailyTradesCount: number;
   dailyBaseTokenVolume: number;
   dailyQuoteTokenVolume: number;
@@ -450,6 +467,10 @@ export type LighterRestTrade = {
   bidAccountId: number;
   isMakerAsk?: boolean;
   timestamp: number;
+  /** Realized pnl for the ask-side account, signed USDC. */
+  askAccountPnl?: string;
+  /** Realized pnl for the bid-side account, signed USDC. */
+  bidAccountPnl?: string;
 };
 
 /**
