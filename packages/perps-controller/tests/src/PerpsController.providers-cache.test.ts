@@ -856,13 +856,21 @@ describe('PerpsController', () => {
       expect(controller.testGetProviders().has('myx')).toBe(false);
     });
 
-    it('registerLighterProvider registers the provider and forwards the platform signer bridge', () => {
+    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
-      // bridge through platform dependencies; the controller must forward it.
+      // bridge through the Lighter credentials bag; the controller must
+      // forward it (the shared platform surface stays venue-agnostic).
       const mockBridge = { execute: jest.fn() };
-      mockInfrastructure.lighterSignerBridge = mockBridge;
       const mockLighterInstance = createMockHyperLiquidProvider();
       const MockLighterConstructor = jest.fn(() => mockLighterInstance);
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { lighter: { signerBridge: mockBridge } },
+        },
+        infrastructure: mockInfrastructure,
+      });
 
       // Act
       controller.testRegisterLighterProvider(

@@ -985,13 +985,10 @@ describe('LighterProvider', () => {
       for (const result of results) {
         expect(result.success).toBe(false);
       }
-      const batchResults = await Promise.all([
-        provider.cancelOrders({} as never),
-        provider.closePositions({} as never),
-      ]);
-      for (const result of batchResults) {
-        expect(result).toMatchObject({ success: false, successCount: 0 });
-      }
+      // Batch operations are deliberately absent (optional interface
+      // members) so the controller falls back to per-item calls.
+      expect(provider.cancelOrders).toBeUndefined();
+      expect(provider.closePositions).toBeUndefined();
     });
 
     it('returns a zeroed historical portfolio', async () => {

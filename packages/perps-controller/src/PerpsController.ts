@@ -2529,7 +2529,7 @@ export class PerpsController extends BaseController<
       isTestnet: lighterIsTestnet,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
-      signerBridge: this.#options.infrastructure.lighterSignerBridge,
+      signerBridge: lighter.signerBridge,
       lighterAuthConfig: {
         enabled: lighter.enabled,
         accountIndex: lighterIsTestnet

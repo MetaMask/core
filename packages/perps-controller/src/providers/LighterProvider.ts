@@ -58,13 +58,9 @@ import type {
   AssetRoute,
   CandleData,
   CandleStick,
-  BatchCancelOrdersParams,
   CancelOrderParams,
   CancelOrderResult,
-  CancelOrdersResult,
   ClosePositionParams,
-  ClosePositionsParams,
-  ClosePositionsResult,
   DepositParams,
   DisconnectResult,
   EditOrderParams,
@@ -403,6 +399,9 @@ export class LighterProvider implements PerpsProvider {
     this.#accountSubscribers.clear();
     this.#positionSubscribers.clear();
     this.#orderSubscribers.clear();
+    this.#fillSubscribers.clear();
+    this.#orderBookSubscribers.clear();
+    this.#candleSubscribers.clear();
     return { success: true };
   }
 
@@ -476,6 +475,11 @@ export class LighterProvider implements PerpsProvider {
     }
     const address = this.#walletService.getUserAddress();
     const response = await this.#clientService.getAccountsByL1Address(address);
+    if (!response.subAccounts?.length) {
+      throw new Error(
+        `No Lighter account exists for ${address}; fund it via the bridge (or the testnet faucet) first`,
+      );
+    }
     const master = response.subAccounts.reduce((min, account) =>
       account.index < min.index ? account : min,
     );
@@ -1017,14 +1021,13 @@ export class LighterProvider implements PerpsProvider {
       );
       return { success: true, orderId: String(params.orderId) };
     } catch (error) {
-      return { success: false, error: ensureError(error).message };
+      const wrappedError = ensureError(error, 'LighterProvider.editOrder');
+      this.#deps.debugLogger.log('[LighterProvider] editOrder failed', {
+        error: String(wrappedError),
+        ...this.#getErrorContext('editOrder'),
+      });
+      return { success: false, error: wrappedError.message };
     }
-  }
-
-  async cancelOrders(
-    _params: BatchCancelOrdersParams,
-  ): Promise<CancelOrdersResult> {
-    return { success: false, successCount: 0, failureCount: 0, results: [] };
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
@@ -1051,14 +1054,13 @@ export class LighterProvider implements PerpsProvider {
         currentPrice: params.currentPrice,
       });
     } catch (error) {
-      return { success: false, error: ensureError(error).message };
+      const wrappedError = ensureError(error, 'LighterProvider.closePosition');
+      this.#deps.debugLogger.log('[LighterProvider] closePosition failed', {
+        error: String(wrappedError),
+        ...this.#getErrorContext('closePosition'),
+      });
+      return { success: false, error: wrappedError.message };
     }
-  }
-
-  async closePositions(
-    _params: ClosePositionsParams,
-  ): Promise<ClosePositionsResult> {
-    return { success: false, successCount: 0, failureCount: 0, results: [] };
   }
 
   async updatePositionTPSL(
@@ -1183,7 +1185,18 @@ export class LighterProvider implements PerpsProvider {
       );
       return { success: true };
     } catch (error) {
-      return { success: false, error: ensureError(error).message };
+      const wrappedError = ensureError(
+        error,
+        'LighterProvider.updatePositionTPSL',
+      );
+      this.#deps.debugLogger.log(
+        '[LighterProvider] updatePositionTPSL failed',
+        {
+          error: String(wrappedError),
+          ...this.#getErrorContext('updatePositionTPSL'),
+        },
+      );
+      return { success: false, error: wrappedError.message };
     }
   }
 
@@ -1231,7 +1244,12 @@ export class LighterProvider implements PerpsProvider {
       );
       return { success: true };
     } catch (error) {
-      return { success: false, error: ensureError(error).message };
+      const wrappedError = ensureError(error, 'LighterProvider.updateMargin');
+      this.#deps.debugLogger.log('[LighterProvider] updateMargin failed', {
+        error: String(wrappedError),
+        ...this.#getErrorContext('updateMargin'),
+      });
+      return { success: false, error: wrappedError.message };
     }
   }
 
@@ -1268,7 +1286,12 @@ export class LighterProvider implements PerpsProvider {
       );
       return { success: true, txHash: result.txHash };
     } catch (error) {
-      return { success: false, error: ensureError(error).message };
+      const wrappedError = ensureError(error, 'LighterProvider.withdraw');
+      this.#deps.debugLogger.log('[LighterProvider] withdraw failed', {
+        error: String(wrappedError),
+        ...this.#getErrorContext('withdraw'),
+      });
+      return { success: false, error: wrappedError.message };
     }
   }
 
@@ -1485,15 +1508,26 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async validateClosePosition(
-    _params: ClosePositionParams,
+    params: ClosePositionParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    return { isValid: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+    const markets = await this.#ensureMarkets();
+    if (!markets.has(params.symbol)) {
+      return {
+        isValid: false,
+        error: `Unknown Lighter market ${params.symbol}`,
+      };
+    }
+    return { isValid: true };
   }
 
   async validateWithdrawal(
-    _params: WithdrawParams,
+    params: WithdrawParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    return { isValid: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
+    const amount = parseFloat(params.amount ?? '');
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { isValid: false, error: 'Withdrawal amount must be positive' };
+    }
+    return { isValid: true };
   }
 
   // ============================================================================
@@ -1718,7 +1752,10 @@ export class LighterProvider implements PerpsProvider {
         this.#sendSubscribe(channel, meta.auth);
       }
       // The server closes idle sockets; any frame under 2 minutes keeps it up.
-      this.#wsKeepaliveTimer ??= setInterval(() => {
+      // Unconditional replacement: `??=` would keep a timer bound to a dead
+      // socket when a new one opens before the old socket's onclose fired.
+      this.#clearKeepalive();
+      this.#wsKeepaliveTimer = setInterval(() => {
         try {
           ws.send(JSON.stringify({ type: 'ping' }));
         } catch {

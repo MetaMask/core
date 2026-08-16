@@ -1048,6 +1048,14 @@ export type LighterCredentials = {
   accountIndexMainnet?: number;
   /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
   apiKeyIndex?: number;
+  /**
+   * Transport for the Lighter Go/WASM signer, provided by the client
+   * (mobile: off-screen WebView bridge; headless: in-process WASM).
+   * Optional — without it the Lighter provider is read-only. Lives on the
+   * Lighter credentials bag, not PerpsPlatformDependencies, so the shared
+   * platform surface stays venue-agnostic.
+   */
+  signerBridge?: LighterSignerBridge;
 };
 
 export type PerpsProviderCredentials = {
@@ -2288,13 +2296,6 @@ export type PerpsPlatformDependencies = {
 
   // === Platform Services (mobile/extension specific) ===
   streamManager: PerpsStreamManager;
-
-  /**
-   * Transport for the Lighter Go/WASM signer, provided by the client
-   * (mobile: off-screen WebView bridge; headless: in-process WASM).
-   * Optional — without it the Lighter provider is read-only.
-   */
-  lighterSignerBridge?: LighterSignerBridge;
 
   // === Feature Flags (platform-specific version gating) ===
   featureFlags: {
