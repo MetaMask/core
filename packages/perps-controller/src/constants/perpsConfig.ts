@@ -656,8 +656,12 @@ export const PROVIDER_CONFIG = {
   DefaultProvider: 'hyperliquid' as const,
   /** Force MYX to testnet only (mainnet credentials not yet available) */
   MYX_TESTNET_ONLY: false,
-  /** Force Lighter to testnet only (POC — no mainnet write path yet) */
-  LIGHTER_TESTNET_ONLY: true,
+  /**
+   * Force Lighter to testnet only. Off: Lighter follows the global network
+   * toggle so mainnet reads (full market catalog, prices, candles) work;
+   * writes stay testnet-gated inside LighterProvider (POC).
+   */
+  LIGHTER_TESTNET_ONLY: false,
 } as const;
 
 // Disk-backed cold-start cache keys and throttle interval.

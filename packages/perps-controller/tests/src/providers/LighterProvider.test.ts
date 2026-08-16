@@ -132,6 +132,7 @@ type MockClientInstance = {
  * @param options.withBridge - Attach the mock WASM bridge.
  * @param options.registeredKey - Pubkey the mocked apikeys endpoint reports.
  * @param options.webSocketCtor - Transport override (null = REST polling).
+ * @param options.isTestnet - Network the provider targets (defaults to testnet).
  * @returns Provider and its collaborators.
  */
 function buildProvider(
@@ -139,6 +140,7 @@ function buildProvider(
     withBridge?: boolean;
     registeredKey?: string;
     webSocketCtor?: LighterWebSocketCtor | null;
+    isTestnet?: boolean;
   } = {},
 ): {
   provider: LighterProvider;
@@ -146,7 +148,12 @@ function buildProvider(
   bridge: LighterSignerBridge;
   calls: LighterWasmCall[];
 } {
-  const { withBridge = true, registeredKey, webSocketCtor } = options;
+  const {
+    withBridge = true,
+    registeredKey,
+    webSocketCtor,
+    isTestnet = true,
+  } = options;
   const clientInstance = {
     network: 'testnet',
     getOrderBooks: jest.fn().mockResolvedValue([BTC_MARKET]),
@@ -231,7 +238,7 @@ function buildProvider(
 
   const { bridge, calls } = createMockBridge();
   const provider = new LighterProvider({
-    isTestnet: true,
+    isTestnet,
     platformDependencies: createMockInfrastructure(),
     lighterAuthConfig: { accountIndex: 28, apiKeyIndex: 7 },
     // Tests default to the REST-polling transport; the WS suite injects a fake.
@@ -307,6 +314,13 @@ describe('LighterProvider', () => {
         8,
         '{"changePubKey":true}',
       );
+    });
+
+    it('sets up the signer on mainnet the same way as testnet', async () => {
+      const { provider, calls } = buildProvider({ isTestnet: false });
+      const result = await provider.isReadyToTrade();
+      expect(result.ready).toBe(true);
+      expect(calls.map((call) => call.function)).toContain('_createClient');
     });
 
     it('skips registration when the venue key is already registered', async () => {
