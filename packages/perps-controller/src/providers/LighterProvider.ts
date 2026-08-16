@@ -888,46 +888,38 @@ export class LighterProvider implements PerpsProvider {
   /** Tail of the serialized venue-write chain (see #withVenueNonce). */
   #writeChain: Promise<void> = Promise.resolve();
 
-  /** Highest client order index issued so far (see allocator below). */
-  #lastClientOrderIndex = 0;
+  /** Every client order id this instance has issued (collision set). */
+  readonly #issuedClientOrderIds = new Set<number>();
 
   /**
-   * Per-instance lane (0-99) mixed into every issued id.
-   *
-   * SCOPE OF THE GUARANTEE, stated precisely: uniqueness is primarily
-   * provided by the controller holding ONE LighterProvider per session —
-   * within that scope the allocator is monotonic and collision-free. The
-   * random lane only REDUCES the residual cross-instance risk (fast
-   * recreation, or two devices trading the same account in the same
-   * millisecond) to a 1-in-100 chance per simultaneous pair; it does NOT
-   * eliminate it. A wider lane cannot fit: uint48 leaves ~×160 headroom
-   * over Date.now(), so 100 lanes is the available budget. This residual
-   * risk is accepted and documented rather than claimed away.
-   */
-  readonly #clientOrderLane = Math.floor(Math.random() * 100);
-
-  /**
-   * Atomically reserve strictly-increasing client order indexes.
+   * Atomically reserve unique client order indexes.
    *
    * The venue requires client_order_index to be UNIQUE ACROSS ALL MARKETS
-   * for the account (official Get Started docs). A bare Date.now()
-   * collides for parallel placements in the same millisecond, and any
-   * modulo wraps eventually — this allocator is synchronous (no
-   * interleaving between counter reads), monotonic (never reissues), and
-   * lane-separated across instances. Ids are Date.now()*100 + lane,
-   * stepping by 100: bounded by uint48 (2^48 ≈ 2.8e14) until ~2059.
+   * for the account (official Get Started docs) and does not require
+   * monotonicity. Ids are uniform random draws over the uint48 space
+   * (two 24-bit draws, exact in float space) with a per-instance
+   * collision set and retry: within an instance duplicates are
+   * impossible; across simultaneous instances/devices a single pair
+   * collides with probability 1/2^48 (~3.6e-15) and the birthday bound
+   * over n total ids is ~n(n-1)/2^49 — about 1.8e-7 after ten thousand
+   * orders, versus the 1% per-pair risk of the previous 100-lane scheme.
    *
    * @param count - How many ids to reserve.
-   * @returns The reserved ids, ascending.
+   * @returns The reserved ids.
    */
   readonly #allocateClientOrderIndexes = (count: number): number[] => {
-    const seed = Date.now() * 100 + this.#clientOrderLane;
-    const base = Math.max(seed, this.#lastClientOrderIndex + 100);
-    this.#lastClientOrderIndex = base + (count - 1) * 100;
-    return Array.from(
-      { length: count },
-      (_unused, offset) => base + offset * 100,
-    );
+    const ids: number[] = [];
+    while (ids.length < count) {
+      const high = Math.floor(Math.random() * 2 ** 24);
+      const low = Math.floor(Math.random() * 2 ** 24);
+      const candidate = high * 2 ** 24 + low;
+      if (candidate === 0 || this.#issuedClientOrderIds.has(candidate)) {
+        continue;
+      }
+      this.#issuedClientOrderIds.add(candidate);
+      ids.push(candidate);
+    }
+    return ids;
   };
 
   /**
@@ -1395,46 +1387,30 @@ export class LighterProvider implements PerpsProvider {
       );
       let executionPrice = referencePrice;
       if (params.orderType === 'market') {
-        // Always resolve a FRESH venue price: the caller's currentPrice is
-        // the same snapshot as priceAtCalculation, and a drift check that
-        // compares a snapshot to itself would never fire.
-        const details = await this.#clientService.getOrderBookDetails();
-        const freshPrice =
-          details.orderBookDetails.find(
-            (entry) => entry.symbol === params.symbol,
-          )?.lastTradePrice ?? 0;
-        if (!(freshPrice > 0)) {
-          // Fail closed: falling back to the caller's snapshot would let the
-          // drift check compare that snapshot to itself.
-          return {
-            success: false,
-            error: `No live venue price available for ${params.symbol}; refusing to size a market order`,
-          };
+        const resolved = await this.#resolveMarketReferencePrice(
+          params.symbol,
+          slippageFraction,
+          params.priceAtCalculation,
+        );
+        if (resolved.error !== null) {
+          return { success: false, error: resolved.error };
         }
-        referencePrice = freshPrice;
-        // Honor the caller's sizing snapshot: refuse instead of executing
-        // at a live price that drifted past their slippage tolerance.
-        if (
-          params.priceAtCalculation !== undefined &&
-          params.priceAtCalculation > 0 &&
-          referencePrice > 0 &&
-          Math.abs(referencePrice - params.priceAtCalculation) /
-            params.priceAtCalculation >
-            slippageFraction
-        ) {
-          return {
-            success: false,
-            error: `Price moved beyond the ${(slippageFraction * 100).toFixed(2)}% slippage tolerance since sizing`,
-          };
-        }
+        referencePrice = resolved.referencePrice;
         executionPrice = params.isBuy
           ? referencePrice * (1 + slippageFraction)
           : referencePrice * (1 - slippageFraction);
       }
-      if (!(referencePrice > 0) || !(executionPrice > 0)) {
+      // Finite AND positive: 'Infinity' passes a bare > 0 check but would
+      // corrupt integerization/signing downstream.
+      if (
+        !Number.isFinite(referencePrice) ||
+        !(referencePrice > 0) ||
+        !Number.isFinite(executionPrice) ||
+        !(executionPrice > 0)
+      ) {
         return {
           success: false,
-          error: 'Unable to resolve an execution price for the order',
+          error: 'Unable to resolve a finite execution price for the order',
         };
       }
       // USD is the source of truth when provided (hybrid sizing contract),
@@ -1645,6 +1621,53 @@ export class LighterProvider implements PerpsProvider {
         'Lighter order editing is unavailable: the venue currently accepts but does not apply ModifyOrder. Cancel and re-place the order instead.',
     };
   }
+
+  /**
+   * Resolve the FRESH venue reference price for a market-order sizing,
+   * with the same fail-closed and drift semantics as execution — shared
+   * by placement and close validation so they can never disagree.
+   *
+   * @param symbol - Market symbol.
+   * @param slippageFraction - Caller slippage tolerance (fraction).
+   * @param priceAtCalculation - Caller's sizing snapshot, if any.
+   * @returns The fresh reference price, or the exact execution error.
+   */
+  readonly #resolveMarketReferencePrice = async (
+    symbol: string,
+    slippageFraction: number,
+    priceAtCalculation?: number,
+  ): Promise<
+    | { referencePrice: number; error: null }
+    | { referencePrice: null; error: string }
+  > => {
+    // Always a FRESH venue price: the caller's currentPrice is the same
+    // snapshot as priceAtCalculation, and a drift check that compares a
+    // snapshot to itself would never fire.
+    const details = await this.#clientService.getOrderBookDetails();
+    const freshPrice =
+      details.orderBookDetails.find((entry) => entry.symbol === symbol)
+        ?.lastTradePrice ?? 0;
+    if (!Number.isFinite(freshPrice) || !(freshPrice > 0)) {
+      // Fail closed: falling back to the caller's snapshot would let the
+      // drift check compare that snapshot to itself.
+      return {
+        referencePrice: null,
+        error: `No live venue price available for ${symbol}; refusing to size a market order`,
+      };
+    }
+    if (
+      priceAtCalculation !== undefined &&
+      priceAtCalculation > 0 &&
+      Math.abs(freshPrice - priceAtCalculation) / priceAtCalculation >
+        slippageFraction
+    ) {
+      return {
+        referencePrice: null,
+        error: `Price moved beyond the ${(slippageFraction * 100).toFixed(2)}% slippage tolerance since sizing`,
+      };
+    }
+    return { referencePrice: freshPrice, error: null };
+  };
 
   /**
    * Validate the shape of a close request (shared by validateClosePosition
@@ -2276,6 +2299,19 @@ export class LighterProvider implements PerpsProvider {
     if (params.orderType === 'limit' && !params.price) {
       return { isValid: false, error: 'Limit order requires a price' };
     }
+    if (params.orderType === 'limit' && params.price !== undefined) {
+      const limitPrice = parseFloat(params.price);
+      // Finite parity with placement, LIMIT ONLY: 'Infinity' passes a bare
+      // > 0 check but placement refuses to integerize/sign it. Market
+      // placement ignores params.price entirely (fresh venue price), so
+      // rejecting it here would fail orders placement accepts.
+      if (!Number.isFinite(limitPrice) || !(limitPrice > 0)) {
+        return {
+          isValid: false,
+          error: `Invalid limit price ${params.price}: must be a positive number`,
+        };
+      }
+    }
     if (params.leverage !== undefined && !(params.leverage > 0)) {
       return {
         isValid: false,
@@ -2364,9 +2400,9 @@ export class LighterProvider implements PerpsProvider {
     // Order-type-specific pricing, matching execution exactly: a LIMIT
     // close is sized at the caller's price (which must be a finite
     // positive number — never silently replaced by a live price the
-    // execution path would not use); a MARKET close always sizes at the
-    // FRESH venue price, exactly like placement, regardless of any
-    // caller-provided snapshot.
+    // execution path would not use); a MARKET close resolves the FRESH
+    // venue price through the SAME helper as placement, inheriting its
+    // fail-closed missing-price and drift semantics.
     let referencePrice: number;
     if ((params.orderType ?? 'market') === 'limit') {
       referencePrice = parseFloat(params.price ?? '');
@@ -2377,10 +2413,19 @@ export class LighterProvider implements PerpsProvider {
         };
       }
     } else {
-      const details = await this.#clientService.getOrderBookDetails();
-      referencePrice =
-        details.orderBookDetails.find((entry) => entry.symbol === params.symbol)
-          ?.lastTradePrice ?? 0;
+      const slippageFraction =
+        params.maxSlippageBps === undefined
+          ? 0.05
+          : params.maxSlippageBps / 10_000;
+      const resolved = await this.#resolveMarketReferencePrice(
+        params.symbol,
+        slippageFraction,
+        params.priceAtCalculation,
+      );
+      if (resolved.error !== null) {
+        return { isValid: false, error: resolved.error };
+      }
+      referencePrice = resolved.referencePrice;
     }
     if (referencePrice > 0) {
       const usdAmount = parseFloat(params.usdAmount ?? '');
