@@ -85,6 +85,67 @@ describe('LighterClientService', () => {
     });
   });
 
+  describe('getTx', () => {
+    it('returns the transaction payload on 200', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          hash: 'aabbccdd',
+          account_index: 28,
+          api_key_index: 7,
+          nonce: 42,
+        }),
+      );
+      const service = buildService();
+      const tx = await service.getTx('aabbccdd');
+      expect(tx).toMatchObject({
+        code: 200,
+        hash: 'aabbccdd',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        nonce: 42,
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://testnet.zklighter.elliot.ai/api/v1/tx?by=hash&value=aabbccdd',
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+
+    it('resolves NULL only for the venue-confirmed not-found code 21500', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse(
+          { code: 21500, message: 'transaction not found' },
+          false,
+          400,
+        ),
+      );
+      const service = buildService();
+      expect(await service.getTx('aabbccdd')).toBeNull();
+    });
+
+    it('rethrows other API errors and transport failures (ambiguity, not non-acceptance)', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 21999, message: 'rate limited' }, false, 429),
+      );
+      const service = buildService();
+      await expect(service.getTx('aabbccdd')).rejects.toThrow('rate limited');
+      fetchMock.mockRejectedValue(new Error('socket hang up'));
+      await expect(service.getTx('aabbccdd')).rejects.toThrow('socket hang up');
+    });
+  });
+
+  describe('getInactiveOrders pagination', () => {
+    it('encodes limit, cursor and market_id query params', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, orders: [] }));
+      const service = buildService();
+      await service.getInactiveOrders(28, 'auth-token', 100, 'abc/def', 2);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://testnet.zklighter.elliot.ai/api/v1/accountInactiveOrders?account_index=28&limit=100&cursor=abc%2Fdef&market_id=2',
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+  });
+
   describe('error handling', () => {
     it('throws LighterApiError on application-level error codes', async () => {
       fetchMock.mockResolvedValue(
