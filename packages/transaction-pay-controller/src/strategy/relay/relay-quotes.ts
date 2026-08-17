@@ -2,10 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  hasTransactionType,
-} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -61,7 +57,11 @@ import {
 } from '../../utils/token.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw.js';
+import {
+  applyPolymarketDepositWalletOverrides,
+  getPredictWithdrawSafeAddress,
+  isPredictWithdraw,
+} from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
 import { validateRelayQuotes } from './relay-validation.js';
@@ -536,7 +536,10 @@ async function processTransactions(
   // so any extra dust is also sent to the same address, rather than back to the user.
   if (tokenTransferData) {
     requestBody.recipient = getTransferRecipient(tokenTransferData);
-    requestBody.refundTo = request.from;
+    // Honour a caller-specified refund address (e.g. the Predict Safe proxy) so
+    // dust and failed-transaction refunds go to the intended account. Only fall
+    // back to the EOA when no explicit refundTo was provided.
+    requestBody.refundTo = request.refundTo ?? request.from;
   }
 
   const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
@@ -968,9 +971,7 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
-  const isPredictWithdraw =
-    request.isPostQuote &&
-    hasTransactionType(transaction, [TransactionType.predictWithdraw]);
+  const isPredictWithdrawFlow = isPredictWithdraw(request, transaction);
 
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
@@ -980,9 +981,11 @@ async function calculateSourceNetworkCost(
   // native balance). Simulating those from the Safe proxy reverts and breaks
   // gas estimation. For swap-only routes, fall back to the relay params'
   // EOA `from` so simulation succeeds.
-  const hasDepositStep = quote.steps.some((step) => step.id === 'deposit');
-  const useFromOverride = isPredictWithdraw && hasDepositStep;
-  const fromOverride = useFromOverride ? request.refundTo : undefined;
+  const fromOverride = getPredictWithdrawSafeAddress(
+    request,
+    quote.steps,
+    transaction,
+  );
 
   // For post-quote flows the original transaction will be prepended to the
   // batch at submission time. Include it in the gas estimation so
@@ -1078,7 +1081,7 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  if (isPredictWithdraw && request.refundTo) {
+  if (isPredictWithdrawFlow && request.refundTo) {
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,
       sourceTokenAddress,

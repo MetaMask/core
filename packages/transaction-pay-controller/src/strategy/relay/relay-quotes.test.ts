@@ -708,7 +708,7 @@ describe('Relay Quotes Utils', () => {
       expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK.toLowerCase());
     });
 
-    it('extracts recipient and sets refundTo when nested transactions include token transfer with delegation', async () => {
+    it('extracts recipient and defaults refundTo to sender when nested transactions include token transfer with delegation and no explicit refundTo', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
@@ -740,6 +740,42 @@ describe('Relay Quotes Utils', () => {
 
       expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK);
       expect(body.refundTo).toBe(QUOTE_REQUEST_MOCK.from);
+    });
+
+    it('honours caller-specified refundTo over sender when nested transactions include token transfer with delegation', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const refundTo = '0xsafe000000000000000000000000000000000001' as Hex;
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, refundTo }],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: NESTED_TRANSACTION_DATA_MOCK,
+            },
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+            },
+          ],
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK);
+      expect(body.refundTo).toBe(refundTo);
     });
 
     it('skips delegation for Hypercore deposits', async () => {

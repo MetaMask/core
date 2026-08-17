@@ -1,3 +1,8 @@
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -13,6 +18,7 @@ import type {
   TransactionPayQuote,
 } from '../../../types.js';
 import { getLiveTokenBalance } from '../../../utils/token.js';
+import type { QuoteSimulation } from '../../../utils/validation.js';
 import type {
   RelayQuote,
   RelayQuoteRequest,
@@ -34,6 +40,167 @@ import {
 } from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'polymarket-withdraw');
+
+type RelayQuoteStep = RelayQuote['steps'][number];
+
+/**
+ * Whether a quote request + transaction represent a Predict withdraw post-quote
+ * flow.
+ *
+ * Predict withdraws move the user's source token (pUSD) out of a Polymarket
+ * smart-contract account (a Safe proxy or a deposit wallet), not the EOA. They
+ * are always post-quote flows.
+ *
+ * @param request - Quote request.
+ * @param transaction - Original transaction metadata.
+ * @returns True when this is a Predict withdraw post-quote flow.
+ */
+export function isPredictWithdraw(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): boolean {
+  return Boolean(
+    request.isPostQuote &&
+      hasTransactionType(transaction, [TransactionType.predictWithdraw]),
+  );
+}
+
+/**
+ * Resolve the Polymarket Safe proxy address that holds the source token for a
+ * Safe-based Predict withdraw, and that must act as `msg.sender` when estimating
+ * gas for the withdraw leg.
+ *
+ * For Safe-based Predict withdraws the source token lives in the Polymarket
+ * Safe proxy rather than the EOA, so gas estimation for the deposit-style route
+ * must be anchored to the Safe. Its address is carried on the quote request as
+ * `refundTo` (written through to the request for the Safe variant). (Quote
+ * validation for this legacy variant is skipped entirely; see
+ * `shouldSkipValidation` in `relay-validation.ts`.)
+ *
+ * This does NOT apply to the deposit-wallet variant: there the submitted batch
+ * is a hardcoded approve + unwrap sent from the CREATE2 deposit wallet (see
+ * {@link buildPolymarketDepositWalletSimulation}), and `request.refundTo` is
+ * not the deposit wallet (only the outgoing Relay body carries it). That
+ * variant is handled by its own simulation builder, so this returns
+ * `undefined` for it.
+ *
+ * The Safe sender is only used for deposit-style Relay routes (those with a
+ * `deposit` step), mirroring the gas-estimation logic in `relay-quotes.ts`.
+ * Same-chain swap-only routes go through DEX aggregators that reject contract
+ * callers (anti-MEV `msg.sender == tx.origin` checks, ERC777-style callbacks,
+ * native wrap/unwrap requiring caller native balance), so those keep the EOA
+ * `from` and this returns `undefined`.
+ *
+ * @param request - Quote request.
+ * @param steps - Relay quote steps (used to detect a deposit-style route).
+ * @param transaction - Original transaction metadata.
+ * @returns The Safe proxy address, or `undefined` when the default EOA `from`
+ * should be used.
+ */
+export function getPredictWithdrawSafeAddress(
+  request: QuoteRequest,
+  steps: RelayQuoteStep[],
+  transaction: TransactionMeta,
+): Hex | undefined {
+  if (!isPredictWithdraw(request, transaction)) {
+    return undefined;
+  }
+
+  // Deposit-wallet withdraws are validated via their own simulation builder;
+  // `request.refundTo` is not the deposit wallet for that variant.
+  if (request.isPolymarketDepositWallet) {
+    return undefined;
+  }
+
+  const hasDepositStep = steps.some((step) => step.id === 'deposit');
+
+  if (!hasDepositStep) {
+    return undefined;
+  }
+
+  return request.refundTo;
+}
+
+/**
+ * Build the simulation for a Polymarket deposit-wallet Predict withdraw.
+ *
+ * The deposit-wallet variant does not submit the Relay quote's calldata. That
+ * calldata is a placeholder generated because the quote was requested with
+ * `useDepositAddress: true`; only the Relay deposit address is extracted from
+ * it. The transaction actually broadcast is a hardcoded two-call batch executed
+ * by the CREATE2 deposit wallet:
+ *
+ * 1. `approve(offramp, amount)` on pUSD
+ * 2. `unwrap(USDC.e, relayDepositAddress, amount)` on the offramp
+ *
+ * This mirrors {@link submitPolymarketWithdraw} exactly so validation simulates
+ * what is really broadcast. The deposit wallet is resolved via the client
+ * callback and used as `from`, so the simulation checks that the deposit wallet
+ * holds enough pUSD and that the unwrap succeeds. The client-side execution
+ * wrapper (how the deposit wallet batches the two calls on-chain) is opaque to
+ * the controller and is intentionally not modelled; the calls themselves only
+ * require `msg.sender` to be the deposit wallet.
+ *
+ * @param quote - Relay quote (source amount + deposit step).
+ * @param from - The user EOA that owns the deposit wallet.
+ * @param messenger - Controller messenger.
+ * @returns Simulation for the approve + unwrap batch from the deposit wallet.
+ */
+export async function buildPolymarketDepositWalletSimulation(
+  quote: TransactionPayQuote<RelayQuote>,
+  from: Hex,
+  messenger: TransactionPayControllerMessenger,
+): Promise<QuoteSimulation> {
+  const depositWalletAddress = await getDepositWalletAddress(messenger, from);
+  const relayDepositAddress = extractRelayDepositAddress(quote.original);
+  const amount = BigInt(quote.sourceAmount.raw);
+
+  return {
+    transactions: buildDepositWalletUnwrapCalls(
+      relayDepositAddress,
+      amount,
+    ).map((call) => ({
+      from: depositWalletAddress,
+      to: call.target,
+      data: call.data,
+      value: '0x0',
+    })),
+  };
+}
+
+/**
+ * Build the approve + unwrap batch that moves a deposit wallet's pUSD to the
+ * Relay deposit address as USDC.e. Shared by the simulation
+ * ({@link buildPolymarketDepositWalletSimulation}) and the real submit
+ * ({@link submitPolymarketWithdraw}) so both model the exact same calls:
+ *
+ * 1. `approve(offramp, amount)` on pUSD
+ * 2. `unwrap(USDC.e, relayDepositAddress, amount)` on the offramp
+ *
+ * @param relayDepositAddress - The Relay deposit address that receives the
+ * unwrapped USDC.e.
+ * @param amount - The pUSD amount to unwrap.
+ * @returns The two `{ target, data }` calls.
+ */
+function buildDepositWalletUnwrapCalls(
+  relayDepositAddress: Hex,
+  amount: bigint,
+): { target: Hex; data: Hex }[] {
+  return [
+    {
+      target: POLYGON_PUSD_ADDRESS,
+      data: encodeApprove(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON, amount),
+    },
+    {
+      target: POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
+      data: encodeUnwrap({
+        asset: POLYGON_USDCE_ADDRESS,
+        recipient: relayDepositAddress,
+        amount,
+      }),
+    },
+  ];
+}
 
 export async function applyPolymarketDepositWalletOverrides(
   body: RelayQuoteRequest,
@@ -76,22 +243,9 @@ export async function submitPolymarketWithdraw(
   const result = await submitDepositWalletBatch(messenger, {
     eoa: from,
     depositWallet: depositWalletAddress,
-    calls: [
-      {
-        target: POLYGON_PUSD_ADDRESS,
-        value: '0',
-        data: encodeApprove(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON, amount),
-      },
-      {
-        target: POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
-        value: '0',
-        data: encodeUnwrap({
-          asset: POLYGON_USDCE_ADDRESS,
-          recipient: relayDepositAddress,
-          amount,
-        }),
-      },
-    ],
+    calls: buildDepositWalletUnwrapCalls(relayDepositAddress, amount).map(
+      (call) => ({ ...call, value: '0' }),
+    ),
   });
 
   return { ...result, preSubmitUsdceBalance };

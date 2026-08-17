@@ -58,10 +58,21 @@ export async function validateQuoteExecution({
 }: QuoteExecutionRequest): Promise<void> {
   throwIfAborted(signal);
 
-  const liveBalance = await getLiveSourceBalance(quote, messenger);
+  // Read the source-token balance at the account that actually holds it: the
+  // simulation sender (`transactions[0].from`), which both executes the
+  // transaction and holds the source token. For Safe-based Predict withdraws the
+  // builder simulates the calls directly from the Safe proxy, so the sender is
+  // already the source-token holder here too.
+  const sourceAddress = simulation.transactions[0]?.from ?? quote.request.from;
+
+  const liveBalance = await getLiveSourceBalance(
+    quote,
+    messenger,
+    sourceAddress,
+  );
 
   log('Live source balance', {
-    from: quote.request.from,
+    from: sourceAddress,
     liveBalance,
     sourceChainId: quote.request.sourceChainId,
     sourceTokenAddress: quote.request.sourceTokenAddress,
@@ -78,12 +89,10 @@ export async function validateQuoteExecution({
 
   validateRequiredSourceAmount(messenger, quote, liveBalance);
 
-  log('Quote source amount check passed');
-
   log('Checking decoded source transfers', {
     sourceChainId: quote.request.sourceChainId,
     sourceTokenAddress: quote.request.sourceTokenAddress,
-    transactionCount: simulation.transactions.length,
+    transactions: simulation.transactions,
   });
 
   validateDecodedSourceTransfers(
@@ -93,10 +102,17 @@ export async function validateQuoteExecution({
     simulation.transactions,
   );
 
-  log('Decoded source transfers check passed');
-
   throwIfAborted(signal);
 
+  await validateSimulation(messenger, quote, simulation, signal);
+}
+
+async function validateSimulation(
+  messenger: TransactionPayControllerMessenger,
+  quote: TransactionPayQuote<unknown>,
+  simulation: QuoteSimulation,
+  signal?: AbortSignal,
+): Promise<void> {
   log('Starting simulation', {
     chainId: quote.request.sourceChainId,
     transactions: simulation.transactions,
@@ -188,8 +204,9 @@ function formatTokenAmount(
 async function getLiveSourceBalance(
   quote: TransactionPayQuote<unknown>,
   messenger: TransactionPayControllerMessenger,
+  sourceAddress: Hex,
 ): Promise<string> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { sourceChainId, sourceTokenAddress } = quote.request;
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
     sourceChainId,
@@ -199,7 +216,7 @@ async function getLiveSourceBalance(
   try {
     return await getLiveTokenBalance(
       messenger,
-      from,
+      sourceAddress,
       sourceChainId,
       normalizedSourceTokenAddress,
     );
@@ -218,6 +235,10 @@ function validateRequiredSourceAmount(
   liveBalance: string,
 ): void {
   if (quote.request.isPostQuote || quote.request.paymentOverride) {
+    log('Skipping quote source amount check', {
+      hasPaymentOverride: Boolean(quote.request.paymentOverride),
+      isPostQuote: Boolean(quote.request.isPostQuote),
+    });
     return;
   }
 
@@ -225,6 +246,7 @@ function validateRequiredSourceAmount(
   const balance = new BigNumber(liveBalance);
 
   if (balance.isGreaterThanOrEqualTo(requiredAmount)) {
+    log('Quote source amount check passed');
     return;
   }
 
@@ -246,21 +268,37 @@ function validateDecodedSourceTransfers(
   liveBalance: string,
   transactions: SimulationTransaction[],
 ): void {
-  const decodedAmounts = getDecodedSourceTransferAmounts(quote, transactions);
+  // The decoded-transfer check compares a single source-token transfer amount
+  // against the sender's *starting* balance. That is only valid for the simple
+  // "spend what you already hold" case: exactly one transaction, and it is a
+  // source-token transfer. Any multi-step batch (e.g. a Safe-based Predict
+  // withdraw that unwraps legacy USDC into the source token before transferring
+  // it, or swaps/approvals) produces or transforms the source-token balance
+  // mid-batch, so the sender does not hold it up front and this static
+  // comparison would wrongly report insufficient funds. In those cases we skip
+  // the check and rely on the full on-chain simulation to catch real shortfalls.
+  if (transactions.length !== 1 || !isSourceTokenTransfer(quote, transactions[0])) {
+    log(
+      'Skipping decoded source transfer check: not a single source-token transfer',
+    );
+    return;
+  }
 
-  const requiredAmount = decodedAmounts
-    .reduce((total, amount) => total.plus(amount), new BigNumber(0))
-    .toString(10);
+  // `isSourceTokenTransfer` has already confirmed the data decodes to a
+  // transfer, so the amount is defined here.
+  const requiredAmount = decodeTransferAmount(
+    transactions[0].data as Hex,
+  ) as string;
 
   const balance = new BigNumber(liveBalance);
 
-  log('Decoded source transfer amounts', {
-    decodedAmounts,
+  log('Decoded source transfer amount', {
     liveBalance,
     requiredAmount,
   });
 
   if (balance.isGreaterThanOrEqualTo(requiredAmount)) {
+    log('Decoded source transfers check passed');
     return;
   }
 
@@ -276,17 +314,29 @@ function validateDecodedSourceTransfers(
   });
 }
 
-function getDecodedSourceTransferAmounts(
+/**
+ * Whether a simulation transaction is a transfer of the quote's source token.
+ *
+ * @param quote - Quote being validated (provides the source token + chain).
+ * @param transaction - The simulation transaction to inspect.
+ * @returns True when the transaction calls `transfer` on the source token.
+ */
+function isSourceTokenTransfer(
   quote: TransactionPayQuote<unknown>,
-  transactions: SimulationTransaction[],
-): string[] {
+  transaction: SimulationTransaction | undefined,
+): boolean {
+  if (!transaction?.to || !transaction.data) {
+    return false;
+  }
+
   const { sourceChainId, sourceTokenAddress } = quote.request;
+
   const isNativeSource =
     sourceTokenAddress.toLowerCase() ===
     getNativeToken(sourceChainId).toLowerCase();
 
   if (isNativeSource) {
-    return [];
+    return false;
   }
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
@@ -295,20 +345,17 @@ function getDecodedSourceTransferAmounts(
     TokenAddressTarget.MetaMask,
   ).toLowerCase();
 
-  return transactions
-    .filter(
-      (transaction) =>
-        transaction.to &&
-        normalizeTokenAddress(
-          transaction.to,
-          sourceChainId,
-          TokenAddressTarget.MetaMask,
-        ).toLowerCase() === normalizedSourceTokenAddress,
-    )
-    .map((transaction) =>
-      transaction.data ? decodeTransferAmount(transaction.data) : undefined,
-    )
-    .filter((amount): amount is string => amount !== undefined);
+  const normalizedTo = normalizeTokenAddress(
+    transaction.to,
+    sourceChainId,
+    TokenAddressTarget.MetaMask,
+  ).toLowerCase();
+
+  if (normalizedTo !== normalizedSourceTokenAddress) {
+    return false;
+  }
+
+  return decodeTransferAmount(transaction.data) !== undefined;
 }
 
 function decodeTransferAmount(data: Hex): string | undefined {
