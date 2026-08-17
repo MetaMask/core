@@ -507,7 +507,7 @@ graph TB
         direction TB
         subgraph engine["Engine wiring"]
             CInit["kyc-controller-init.ts<br/>new KycController({ messenger, state, sumsubLauncher })"]
-            SInit["kyc-service-init.ts<br/>new KycService({ fetch, env, messenger, baseUrl })"]
+            SInit["kyc-service-init.ts<br/>new KycService({ env, messenger, baseUrl })"]
             CMsgr["kyc-controller-messenger.ts<br/>delegates KycService:*"]
             SMsgr["kyc-service-messenger.ts<br/>delegates Auth + Geolocation"]
             Launcher["reactNativeSumSubLauncher.ts<br/>lazy-loads @sumsub/react-native-mobilesdk-module"]

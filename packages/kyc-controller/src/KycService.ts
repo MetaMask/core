@@ -110,7 +110,6 @@ export type KycServiceMessenger = Messenger<
  */
 export type KycServiceOptions = {
   messenger: KycServiceMessenger;
-  fetch: typeof fetch;
   /**
    * Mandatory value that sets the base url to KYC api
    */
@@ -252,7 +251,7 @@ export type GetSessionStatusParams = {
 /**
  * `KycService` communicates with the Universal KYC (UKYC) backend to drive the
  * identity + document-verification flow. It is stateless and platform-agnostic:
- * HTTP is performed through an injected `fetch`, and the auth bearer token and
+ * HTTP is performed through the global `fetch`, and the auth bearer token and
  * geolocation come from other controllers via the messenger.
  *
  * It extends {@link BaseDataService}, so every request is routed through
@@ -266,8 +265,6 @@ export class KycService extends BaseDataService<
   typeof serviceName,
   KycServiceMessenger
 > {
-  readonly #fetch: typeof fetch;
-
   readonly #baseUrl: string;
 
   readonly #fractalEncryptionBaseUrl: string;
@@ -277,7 +274,6 @@ export class KycService extends BaseDataService<
    *
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this service.
-   * @param options.fetch - A function used to make HTTP requests.
    * @param options.baseUrl - Base URL of the KYC API
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
    * encryption service, from which the JWKS used to verify the wrapping-key
@@ -288,7 +284,6 @@ export class KycService extends BaseDataService<
    */
   constructor({
     messenger,
-    fetch: fetchFunction,
     baseUrl,
     fractalEncryptionBaseUrl,
     queryClientConfig = {},
@@ -300,7 +295,6 @@ export class KycService extends BaseDataService<
       queryClientConfig,
       policyOptions,
     });
-    this.#fetch = fetchFunction;
     if (!baseUrl) {
       throw new Error('KycService: baseUrl is required');
     }
@@ -688,7 +682,7 @@ export class KycService extends BaseDataService<
       headers.Authorization = `Bearer ${bearerToken}`;
     }
 
-    const response = await this.#fetch(url.toString(), {
+    const response = await fetch(url.toString(), {
       ...init,
       headers,
     });

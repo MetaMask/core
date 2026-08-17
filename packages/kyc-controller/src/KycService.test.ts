@@ -529,7 +529,6 @@ function getService({
   );
 
   const service = new KycService({
-    fetch,
     messenger,
     baseUrl,
     ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
