@@ -667,6 +667,7 @@ export class KycService extends BaseDataService<
       const bearerToken = await this.messenger.call(
         'AuthenticationController:getBearerToken',
       );
+      assert(bearerToken, string());
       headers.Authorization = `Bearer ${bearerToken}`;
     }
 
