@@ -334,15 +334,10 @@ export class BaseDataService<
 
     const direction = deepEqual(pageParam, next) ? 'forward' : 'backward';
 
-    const result = await query.fetch(undefined, {
-      meta: {
-        fetchMore: {
-          direction,
-          // @ts-expect-error The types don't let us easily extend fetchMeta, but we add a property nevertheless.
-          pageParam,
-        },
-      },
-    });
+    const result = await query.fetch(
+      { ...query.options, meta: { pageParam } },
+      { meta: { fetchMore: { direction } } },
+    );
 
     const pageIndex = result.pageParams.findIndex((param) =>
       deepEqual(param, pageParam),
