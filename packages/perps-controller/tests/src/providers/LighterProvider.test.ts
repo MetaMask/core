@@ -1,5 +1,8 @@
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
-import { LighterClientService } from '../../../src/services/LighterClientService.js';
+import {
+  LighterApiError,
+  LighterClientService,
+} from '../../../src/services/LighterClientService.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import type {
   LighterSignerBridge,
@@ -36,6 +39,36 @@ const BTC_MARKET = {
   supportedSizeDecimals: 5,
   supportedPriceDecimals: 1,
   supportedQuoteDecimals: 6,
+};
+
+/**
+ * Resolve the key holding a journal's PAYLOAD: code-written journals
+ * store a pointer at the base key and the payload under an
+ * operation-scoped key; seeded inline journals live at the base key.
+ *
+ * @param disk - Test disk map.
+ * @param baseKey - The base journal key.
+ * @returns The key whose value contains the journal payload.
+ */
+const resolveJournalPayloadKey = (
+  disk: Map<string, string>,
+  baseKey: string,
+): string => {
+  try {
+    const parsed = JSON.parse(disk.get(baseKey) ?? '') as {
+      pointerVersion?: number;
+      operationId?: string;
+    };
+    if (parsed.pointerVersion === 1 && typeof parsed.operationId === 'string') {
+      return `${baseKey.replace(
+        'lighterTpslJournal:',
+        'lighterTpslJournalOp:',
+      )}:${parsed.operationId}`;
+    }
+  } catch {
+    // Inline journal.
+  }
+  return baseKey;
 };
 
 const ACCOUNT = {
@@ -99,16 +132,16 @@ function createMockBridge(): {
           return { txInfo: '{"changePubKey":true}' } as Result;
         case '_signCreateOrder': {
           signSequence += 1;
-          // Signed payloads carry ExpiredAt (~10 min, pinned signer
-          // default) and a UNIQUE tx hash known before submission; the
-          // hash is embedded in txInfo so the venue fake can commit the
-          // EXACT submitted payload (never a stale FIFO neighbour).
+          // FAITHFUL to the pinned WASM contract (web-wasm
+          // light_client.go): the signing RESULT carries {txHash, txInfo}
+          // and txInfo is the marshaled wire payload — it contains Nonce
+          // and ExpiredAt but NEVER the hash.
           const createHash = `aaaa${String(signSequence).padStart(12, '0')}`;
           return {
             txInfo: JSON.stringify({
               createOrder: true,
+              Nonce: Number((call.params as (string | number)[]).at(-1)),
               ExpiredAt: Date.now() + 599_000,
-              txHash: createHash,
             }),
             txHash: createHash,
           } as Result;
@@ -119,8 +152,8 @@ function createMockBridge(): {
           return {
             txInfo: JSON.stringify({
               cancelOrder: true,
+              Nonce: Number((call.params as (string | number)[]).at(-1)),
               ExpiredAt: Date.now() + 599_000,
-              txHash: cancelHash,
             }),
             txHash: cancelHash,
           } as Result;
@@ -136,8 +169,8 @@ function createMockBridge(): {
           return {
             txInfo: JSON.stringify({
               createGroupedOrders: true,
+              Nonce: Number((call.params as (string | number)[]).at(-1)),
               ExpiredAt: Date.now() + 599_000,
-              txHash: groupedHash,
             }),
             txHash: groupedHash,
           } as Result;
@@ -1706,6 +1739,7 @@ describe('LighterProvider', () => {
     ) => void;
     delayedCommitOnce: (txType: number, delayMs: number) => void;
     failResponseOnce: (txType: number) => void;
+    failCodedAfterCommitOnce: (txType: number, code: number) => void;
     failBeforeCommitOnce: (txType: number) => void;
     failExecutionOnceFor: (txType: number) => void;
     landedTxs: Map<string, { nonce: number; status: number }>;
@@ -1875,6 +1909,13 @@ describe('LighterProvider', () => {
     const failExecutionOnceFor = (txType: number): void => {
       failExecutionOnce.add(txType);
     };
+    // One-shot CODED error AFTER commit: the venue commits, then the
+    // caller receives an application/HTTP-coded error (e.g. a 5xx that
+    // masked the commit). The nonce IS consumed.
+    const failCodedAfterCommit = new Map<number, number>();
+    const failCodedAfterCommitOnce = (txType: number, code: number): void => {
+      failCodedAfterCommit.set(txType, code);
+    };
     const realSendTx = clientInstance.sendTx.getMockImplementation() as (
       txType: number,
       txInfo: string,
@@ -1934,12 +1975,19 @@ describe('LighterProvider', () => {
         rawTriggers.splice(at, 1);
       }
     };
-    // Payloads are matched by the txHash EMBEDDED in the submitted txInfo:
-    // a signed-but-never-submitted payload must never be committed in
+    // Payloads are matched by the wire NONCE in the submitted txInfo
+    // (the REAL signed payload shape carries Nonce, never the hash): a
+    // signed-but-never-submitted payload must never be committed in
     // place of the actually-submitted one (FIFO desync).
-    const hashFromTxInfo = (txInfo: string): string | undefined => {
+    const nonceFromTxInfo = (txInfo: string): number | undefined => {
       try {
-        return (JSON.parse(txInfo) as { txHash?: string }).txHash;
+        const parsed = (
+          JSON.parse(txInfo) as {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            Nonce?: unknown;
+          }
+        ).Nonce;
+        return typeof parsed === 'number' ? parsed : undefined;
       } catch {
         return undefined;
       }
@@ -1947,13 +1995,13 @@ describe('LighterProvider', () => {
     const takeStagedCreate = (
       txInfo: string,
     ): StagedCreateBatch | undefined => {
-      const hash = hashFromTxInfo(txInfo);
-      const at = stagedCreates.findIndex((batch) => batch.txHash === hash);
+      const nonce = nonceFromTxInfo(txInfo);
+      const at = stagedCreates.findIndex((batch) => batch.nonce === nonce);
       return at >= 0 ? stagedCreates.splice(at, 1)[0] : undefined;
     };
     const takeStagedCancel = (txInfo: string): StagedCancel | undefined => {
-      const hash = hashFromTxInfo(txInfo);
-      const at = stagedCancels.findIndex((staged) => staged.txHash === hash);
+      const nonce = nonceFromTxInfo(txInfo);
+      const at = stagedCancels.findIndex((staged) => staged.nonce === nonce);
       return at >= 0 ? stagedCancels.splice(at, 1)[0] : undefined;
     };
     // Drop a submission's staged payload when it never reached acceptance.
@@ -2042,6 +2090,11 @@ describe('LighterProvider', () => {
         if (failAfterCommit.has(txType)) {
           failAfterCommit.delete(txType);
           throw new Error('transport failure after venue commit');
+        }
+        const codedFailure = failCodedAfterCommit.get(txType);
+        if (codedFailure !== undefined) {
+          failCodedAfterCommit.delete(txType);
+          throw new LighterApiError('internal server error', codedFailure);
         }
         return response;
       },
@@ -2150,6 +2203,7 @@ describe('LighterProvider', () => {
       rawInactive,
       setCreateTerminal,
       failResponseOnce,
+      failCodedAfterCommitOnce,
       failBeforeCommitOnce,
       failExecutionOnceFor,
       landedTxs,
@@ -2977,7 +3031,9 @@ describe('LighterProvider', () => {
           key.startsWith('lighterTpslJournal:') && !key.includes('Index'),
       );
       expect(journalKeys).toHaveLength(1);
-      const persisted = JSON.parse(disk.get(journalKeys[0]) ?? '{}') as {
+      const persisted = JSON.parse(
+        disk.get(resolveJournalPayloadKey(disk, journalKeys[0])) ?? '{}',
+      ) as {
         attempts?: { kind: string }[];
       };
       expect(persisted.attempts?.some((a) => a.kind === 'create')).toBe(true);
@@ -3346,8 +3402,10 @@ describe('LighterProvider', () => {
       );
       const first = buildProvider({ platformDependencies: infra });
       const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
-      venueA.seedTrigger('take-profit', '110000');
+      // Two INDEPENDENT (ungrouped) stop-losses: their restores are
+      // sequential singles, so a crash can strike between them.
       venueA.seedTrigger('stop-loss', '80000');
+      venueA.seedTrigger('stop-loss', '78000');
       // Crash once BOTH old cancels were accepted: journal phase is
       // 'cancelling' with both prior intents persisted.
       const realActive =
@@ -3446,7 +3504,7 @@ describe('LighterProvider', () => {
       expect(venueC.rawTriggers).toHaveLength(2);
       expect(
         venueC.rawTriggers.map((row) => row.triggerPrice).sort(),
-      ).toStrictEqual(['110000', '80000'].sort());
+      ).toStrictEqual(['80000', '78000'].sort());
       expect(
         [...disk.keys()].filter(
           (key) =>
@@ -4762,8 +4820,8 @@ describe('LighterProvider', () => {
       const { disk, infra } = makeDurableDisk();
       const first = buildProvider({ platformDependencies: infra });
       const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
-      venueA.seedTrigger('take-profit', '110000');
       venueA.seedTrigger('stop-loss', '80000');
+      venueA.seedTrigger('stop-loss', '78000');
       const realActive =
         first.clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
       let died = false;
@@ -4941,7 +4999,7 @@ describe('LighterProvider', () => {
       killProvider(first);
       // Age the unknown cancel attempt (and its ledger entry) past the
       // signed validity: PROVEN never-landed → nonce released, retried.
-      const journalKey = journalKeysOf(disk)[0];
+      const journalKey = resolveJournalPayloadKey(disk, journalKeysOf(disk)[0]);
       const journal = JSON.parse(disk.get(journalKey) as string) as {
         attempts: { expiresAt: number }[];
       };
@@ -5025,6 +5083,7 @@ describe('LighterProvider', () => {
           apiKeyIndex: 7,
           intent: 'replace',
           phase: 'restoring',
+          priorGrouping: 'independent',
           priorTriggers: [
             {
               orderId: '9000',
@@ -5047,7 +5106,7 @@ describe('LighterProvider', () => {
             // Long expired: every attempt is PROVEN never-landed.
             expiresAt: 1_700_000_000_000,
             role: 'restore',
-            priorOrderId: '9000',
+            priorOrderIds: ['9000'],
             attemptId: index + 1,
           })),
         }),
@@ -5057,10 +5116,14 @@ describe('LighterProvider', () => {
       const journalSizes: number[] = [];
       (infra.diskCache.setItem as jest.Mock).mockImplementation(
         async (key: string, value: string) => {
-          if (key.startsWith('lighterTpslJournal:') && !key.includes('Index')) {
-            journalSizes.push(
-              (JSON.parse(value) as { attempts: unknown[] }).attempts.length,
-            );
+          if (
+            key.startsWith('lighterTpslJournalOp:') ||
+            (key.startsWith('lighterTpslJournal:') && !key.includes('Index'))
+          ) {
+            const parsed = JSON.parse(value) as { attempts?: unknown[] };
+            if (Array.isArray(parsed.attempts)) {
+              journalSizes.push(parsed.attempts.length);
+            }
           }
           disk.set(key, value);
         },
@@ -5087,8 +5150,8 @@ describe('LighterProvider', () => {
       const { disk, infra } = makeDurableDisk();
       const first = buildProvider({ platformDependencies: infra });
       const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
-      venueA.seedTrigger('take-profit', '110000');
       venueA.seedTrigger('stop-loss', '80000');
+      venueA.seedTrigger('stop-loss', '78000');
       const realActive =
         first.clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
       let died = false;
@@ -5207,6 +5270,873 @@ describe('LighterProvider', () => {
       expect(venueB.events.filter((event) => event === 'create')).toHaveLength(
         0,
       );
+    });
+  });
+
+  describe('round-18 real signer identity, durable nonce integrity and grouped restores', () => {
+    /**
+     * Durable disk map + infra wiring shared by restart scenarios.
+     *
+     * @returns The disk map and mocked infrastructure bound to it.
+     */
+    const makeDurableDisk = (): {
+      disk: Map<string, string>;
+      infra: ReturnType<typeof createMockInfrastructure>;
+    } => {
+      const disk = new Map<string, string>();
+      const infra = createMockInfrastructure();
+      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+        async (key: string) => disk.get(key) ?? null,
+      );
+      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+        async (key: string, value: string) => {
+          disk.set(key, value);
+        },
+      );
+      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+        async (key: string) => {
+          disk.delete(key);
+        },
+      );
+      return { disk, infra };
+    };
+
+    const journalKeysOf = (disk: Map<string, string>): string[] =>
+      [...disk.keys()].filter(
+        (key) =>
+          key.startsWith('lighterTpslJournal:') && !key.includes('Index'),
+      );
+
+    /**
+     * Simulate full process death for a provider (see round-15 helper).
+     *
+     * @param built - The provider under test.
+     * @param built.clientInstance - Its mocked client service instance.
+     * @param built.bridge - Its mocked signer bridge.
+     */
+    const killProvider = (built: {
+      clientInstance: MockClientInstance;
+      bridge: LighterSignerBridge;
+    }): void => {
+      for (const mockFn of Object.values(built.clientInstance)) {
+        if (jest.isMockFunction(mockFn)) {
+          mockFn.mockImplementation(async () => {
+            throw new Error('process died');
+          });
+        }
+      }
+      (built.bridge.execute as jest.Mock).mockImplementation(async () => {
+        throw new Error('process died');
+      });
+    };
+
+    const copyVenue = (
+      from: ReturnType<typeof setupTriggerVenue>,
+      to: ReturnType<typeof setupTriggerVenue>,
+      options: { triggers?: boolean; inactive?: boolean } = {},
+    ): void => {
+      to.setVenueNonce(from.getVenueNonce());
+      to.setNextIndex(from.getNextIndex());
+      if (options.triggers !== false) {
+        for (const row of from.rawTriggers) {
+          to.rawTriggers.push({ ...row });
+        }
+      }
+      if (options.inactive !== false) {
+        for (const row of from.rawInactive) {
+          to.rawInactive.push({ ...row });
+        }
+      }
+      for (const [hash, landed] of from.landedTxs) {
+        to.landedTxs.set(hash, landed);
+      }
+    };
+
+    const lastSignedNonce = (calls: LighterWasmCall[], fn: string): number => {
+      const call = calls.filter((entry) => entry.function === fn).at(-1);
+      const params = call?.params as (string | number)[];
+      return Number(params[params.length - 1]);
+    };
+
+    it('the dispatch ledger records the RESULT tx hash (real signer shape) and resolves a restart by exact identity', async () => {
+      const { infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      const first = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
+      venueA.seedTrigger('stop-loss', '80000');
+      venueA.failResponseOnce(15);
+      const crashed = await first.provider.updatePositionTPSL({
+        symbol: 'BTC',
+      });
+      expect(crashed.success).toBe(false);
+      const consumedNonce = lastSignedNonce(first.calls, '_signCancelOrder');
+      killProvider(first);
+      const second = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
+      copyVenue(venueA, venueB);
+      // REST lags at the consumed nonce; the ONLY consumption proof is
+      // the exact RESULT hash recorded at dispatch — txInfo never
+      // carried it (pinned WASM contract).
+      second.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: consumedNonce,
+      }));
+      const placed = await second.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(placed.success).toBe(true);
+      expect(lastSignedNonce(second.calls, '_signCreateOrder')).toBe(
+        consumedNonce + 1,
+      );
+    });
+
+    it('a HASHLESS unresolved dispatch is never released by expiry alone: writes stay blocked until the venue advances', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      // Seed a durable hashless entry (e.g. a dispatch whose signing
+      // result carried no hash): venue-confirmed absence is impossible.
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const frozenNonce = venue.getVenueNonce();
+      built.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: frozenNonce,
+      }));
+      disk.set(
+        `lighterNonceLedger:testnet:28:7`,
+        JSON.stringify({
+          version: 1,
+          consumedFloor: 0,
+          entries: [
+            {
+              nonce: frozenNonce,
+              txHash: null,
+              expiresAt: Date.now() - 700_000,
+            },
+          ],
+        }),
+      );
+      const blocked = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      // Expiry alone must NOT prove non-consumption without a hash.
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toContain('unresolved');
+      // The venue advances (the dispatch actually consumed the nonce):
+      // now provably consumed via REST-advance, writes recover.
+      built.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: frozenNonce + 1,
+      }));
+      const placed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(placed.success).toBe(true);
+      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBe(
+        frozenNonce + 1,
+      );
+    });
+
+    it('ledger consumption proof verifies the FULL identity, not the nonce alone', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const frozenNonce = venue.getVenueNonce();
+      built.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: frozenNonce,
+      }));
+      // The venue KNOWS a tx under this hash — but for a DIFFERENT api
+      // key slot: identity mismatch is ambiguity, never consumption.
+      venue.landedTxs.set('dddd000000000001', {
+        nonce: frozenNonce,
+        status: 3,
+      });
+      built.clientInstance.getTx.mockImplementation(async (hash: string) =>
+        hash === 'dddd000000000001'
+          ? {
+              code: 200,
+              hash,
+              accountIndex: 28,
+              apiKeyIndex: 9,
+              nonce: frozenNonce,
+              status: 3,
+            }
+          : null,
+      );
+      disk.set(
+        `lighterNonceLedger:testnet:28:7`,
+        JSON.stringify({
+          version: 1,
+          consumedFloor: 0,
+          entries: [
+            {
+              nonce: frozenNonce,
+              txHash: 'dddd000000000001',
+              expiresAt: Date.now() + 500_000,
+            },
+          ],
+        }),
+      );
+      const blocked = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toContain('unresolved');
+    });
+
+    it('a ledger write failure aborts the dispatch with the memory floor UNTOUCHED; writes heal to the venue-expected nonce', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const frozenNonce = venue.getVenueNonce();
+      built.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: frozenNonce,
+      }));
+      // The durable append fails ONCE: nothing may be dispatched and the
+      // floor must not advance.
+      let failLedgerWrite = true;
+      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+        async (key: string, value: string) => {
+          if (key.startsWith('lighterNonceLedger:') && failLedgerWrite) {
+            failLedgerWrite = false;
+            throw new Error('storage write refused');
+          }
+          disk.set(key, value);
+        },
+      );
+      const failed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(failed.success).toBe(false);
+      expect(
+        built.clientInstance.sendTx.mock.calls.filter(
+          ([txType]: [number]) => txType === 14,
+        ),
+      ).toHaveLength(0);
+      // Storage healed: the next write signs the nonce the venue still
+      // expects — a floor advanced before the durable append would have
+      // burned it.
+      const placed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90500',
+      });
+      expect(placed.success).toBe(true);
+      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBe(
+        frozenNonce,
+      );
+    });
+
+    it('a coded venue/HTTP error after a hidden commit never releases the nonce: the next write proves consumption by hash', async () => {
+      const { infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const frozenNonce = venue.getVenueNonce();
+      built.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: frozenNonce,
+      }));
+      // The venue COMMITS the trigger create, then answers with a coded
+      // 5xx that masks the commit.
+      venue.failCodedAfterCommitOnce(14, 500);
+      const failed = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(failed.success).toBe(false);
+      const consumedNonce = lastSignedNonce(built.calls, '_signCreateOrder');
+      // The next write must prove consumption via the exact hash and
+      // sign the NEXT nonce — releasing on the coded error would reuse
+      // the consumed one.
+      const placed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90500',
+      });
+      expect(placed.error).toBeUndefined();
+      expect(placed.success).toBe(true);
+      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBe(
+        consumedNonce + 1,
+      );
+    });
+
+    it('a stale never-landed reconciliation can never lower the floor below a nonce a RETRY has since consumed', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      const frozenNonce = venue.getVenueNonce();
+      built.clientInstance.getNextNonce.mockImplementation(async () => ({
+        code: 200,
+        nonce: frozenNonce,
+      }));
+      // TPSL remove dispatch A never lands.
+      venue.failBeforeCommitOnce(15);
+      const crashed = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+      });
+      expect(crashed.success).toBe(false);
+      // Age dispatch A (journal attempt + ledger entry): proven
+      // never-landed on next resolution.
+      for (const key of [...disk.keys()]) {
+        if (
+          key.startsWith('lighterNonceLedger:') ||
+          key.startsWith('lighterTpslJournalOp:') ||
+          (key.startsWith('lighterTpslJournal:') && !key.includes('Index'))
+        ) {
+          const doc = JSON.parse(disk.get(key) as string) as {
+            entries?: { expiresAt: number | null }[];
+            attempts?: { expiresAt: number }[];
+          };
+          for (const entry of doc.entries ?? []) {
+            entry.expiresAt = Date.now() - 700_000;
+          }
+          for (const attempt of doc.attempts ?? []) {
+            attempt.expiresAt = Date.now() - 700_000;
+          }
+          disk.set(key, JSON.stringify(doc));
+        }
+      }
+      // The old trigger disappears INDEPENDENTLY (external cancel): the
+      // later journal reconciliation will have nothing left to submit —
+      // its ONLY effect on the nonce state is the release itself.
+      venue.rawTriggers.splice(0, 1);
+      // Retry B: an unrelated write consumes the released nonce N.
+      const placed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(placed.success).toBe(true);
+      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBe(
+        frozenNonce,
+      );
+      // The STALE journal reconciliation of dispatch A now proves A
+      // never landed — but N was consumed by B: the floor must not drop.
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await built.provider.getOpenOrders();
+        if (journalKeysOf(disk).length === 0) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const placedAfter = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '91000',
+      });
+      expect(placedAfter.success).toBe(true);
+      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBe(
+        frozenNonce + 1,
+      );
+    });
+
+    it('tWO LIVE providers: a stale settlement pass physically cannot destroy the newer journal written by its peer', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const registeredKey = '9c'.repeat(40);
+      const first = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      const venue = setupTriggerVenue(first.clientInstance, first.bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // Journal A: replacement accepted+active, crash before cancels.
+      const realBridge = (
+        first.bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (first.bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_signCancelOrder') {
+            throw new Error('process died');
+          }
+          return await realBridge(call);
+        },
+      );
+      const crashed = await first.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(crashed.success).toBe(false);
+      (first.bridge.execute as jest.Mock).mockImplementation(realBridge);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      // A SECOND LIVE provider shares the same venue and disk — its lock
+      // is instance-local, so it interleaves with the first for real.
+      // Both providers are wired to ONE venue state: the second's client
+      // and signer mocks share the first venue's closures.
+      const second = buildProvider({
+        platformDependencies: infra,
+        registeredKey,
+      });
+      for (const method of [
+        'getActiveOrders',
+        'getInactiveOrders',
+        'getNextNonce',
+        'getTx',
+        'sendTx',
+      ] as const) {
+        second.clientInstance[method].mockImplementation(
+          first.clientInstance[method].getMockImplementation() as never,
+        );
+      }
+      (second.bridge.execute as jest.Mock).mockImplementation(
+        (first.bridge.execute as jest.Mock).getMockImplementation() as never,
+      );
+      // Stale seam on the FIRST provider's recovery read of the journal
+      // pointer: it captures the current value, then yields until the
+      // SECOND provider settled A and journalled its own operation B.
+      const baseJournalKey = journalKeysOf(disk).find(
+        (key) => key.split(':').length === 6,
+      );
+      let staleGateArmed = true;
+      let releaseStaleGate = (): void => undefined;
+      const staleGate = new Promise<void>((resolve) => {
+        releaseStaleGate = resolve;
+      });
+      const journalPointerKey = baseJournalKey ?? journalKeysOf(disk)[0];
+      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+        async (key: string) => {
+          const value = disk.get(key) ?? null;
+          if (key === journalPointerKey && staleGateArmed) {
+            staleGateArmed = false;
+            await staleGate;
+          }
+          return value;
+        },
+      );
+      // First provider's recovery holds the stale snapshot...
+      await first.provider.getOpenOrders();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      // ...while the SECOND provider settles A and journals B
+      // (response-loss on its replacement create).
+      venue.failResponseOnce(14);
+      const foreground = second.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      await Promise.race([
+        foreground,
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+      releaseStaleGate();
+      await foreground.catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      // B's journal payload must still exist — the stale pass could not
+      // delete or overwrite it — and later reads resolve it.
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await second.provider.getOpenOrders();
+        if (
+          journalKeysOf(disk).length === 0 &&
+          venue.rawTriggers.length === 1 &&
+          venue.rawTriggers[0].triggerPrice === '86000'
+        ) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(venue.rawTriggers.map((row) => row.triggerPrice)).toStrictEqual([
+        '86000',
+      ]);
+      expect(journalKeysOf(disk)).toHaveLength(0);
+    }, 15_000);
+
+    it('lifecycle boundary is captured BEFORE the position read: fills landing during it are still evidence', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const first = buildProvider({ platformDependencies: infra });
+      const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
+      venueA.seedTrigger('stop-loss', '80000');
+      // A foreign fill lands WHILE the position is being read (after the
+      // true operation start, before the journal is created).
+      const realAccount =
+        first.clientInstance.getAccountByIndex.getMockImplementation() as () => Promise<unknown>;
+      let injected = false;
+      first.clientInstance.getAccountByIndex.mockImplementation(async () => {
+        if (!injected) {
+          injected = true;
+          venueA.rawInactive.push({
+            orderIndex: 9990,
+            clientOrderIndex: 777001,
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.1',
+            remainingBaseAmount: '0.000',
+            price: '95000',
+            isAsk: true,
+            type: 'market',
+            timeInForce: 'immediate-or-cancel',
+            reduceOnly: 1,
+            status: 'filled',
+            orderExpiry: 0,
+            timestamp: Date.now(),
+            triggerPrice: '0',
+          });
+        }
+        return await realAccount();
+      });
+      const realActive =
+        first.clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
+      let died = false;
+      first.clientInstance.getActiveOrders.mockImplementation(async () => {
+        if (!died && venueA.events.includes('cancel')) {
+          died = true;
+          throw new Error('process died');
+        }
+        return await realActive();
+      });
+      const crashed = await first.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(crashed.success).toBe(false);
+      killProvider(first);
+      const [failedRow] = venueA.rawTriggers.splice(0, 1);
+      venueA.rawInactive.push({ ...failedRow, status: 'canceled' });
+      const second = buildProvider({ platformDependencies: infra });
+      const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
+      copyVenue(venueA, venueB, { triggers: false });
+      await second.provider.getOpenOrders();
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (journalKeysOf(disk).length === 0) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      // The fill happened INSIDE the boundary window: no restore.
+      expect(journalKeysOf(disk)).toHaveLength(0);
+      expect(venueB.rawTriggers).toHaveLength(0);
+      expect(venueB.events.filter((event) => event === 'create')).toHaveLength(
+        0,
+      );
+    });
+
+    it('fill evidence buried beyond the first history page is still found (cursor pagination to the boundary)', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const first = buildProvider({ platformDependencies: infra });
+      const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
+      venueA.seedTrigger('stop-loss', '80000');
+      const realActive =
+        first.clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
+      let died = false;
+      first.clientInstance.getActiveOrders.mockImplementation(async () => {
+        if (!died && venueA.events.includes('cancel')) {
+          died = true;
+          throw new Error('process died');
+        }
+        return await realActive();
+      });
+      const crashed = await first.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(crashed.success).toBe(false);
+      killProvider(first);
+      const [failedRow] = venueA.rawTriggers.splice(0, 1);
+      venueA.rawInactive.push({ ...failedRow, status: 'canceled' });
+      // The identical close+reopen fills...
+      venueA.rawInactive.push(
+        {
+          orderIndex: 9990,
+          clientOrderIndex: 777001,
+          marketIndex: 1,
+          ownerAccountIndex: 28,
+          initialBaseAmount: '0.1',
+          remainingBaseAmount: '0.000',
+          price: '95000',
+          isAsk: true,
+          type: 'market',
+          timeInForce: 'immediate-or-cancel',
+          reduceOnly: 1,
+          status: 'filled',
+          orderExpiry: 0,
+          timestamp: Date.now(),
+          triggerPrice: '0',
+        },
+        {
+          orderIndex: 9991,
+          clientOrderIndex: 777002,
+          marketIndex: 1,
+          ownerAccountIndex: 28,
+          initialBaseAmount: '0.1',
+          remainingBaseAmount: '0.000',
+          price: '95100',
+          isAsk: false,
+          type: 'market',
+          timeInForce: 'immediate-or-cancel',
+          reduceOnly: 0,
+          status: 'filled',
+          orderExpiry: 0,
+          timestamp: Date.now(),
+          triggerPrice: '0',
+        },
+      );
+      // ...buried under 120 NEWER cancelled rows (page 1 shows none of
+      // the fills).
+      for (let index = 0; index < 120; index += 1) {
+        venueA.rawInactive.push({
+          orderIndex: 20000 + index,
+          clientOrderIndex: 880000 + index,
+          marketIndex: 1,
+          ownerAccountIndex: 28,
+          initialBaseAmount: '0.001',
+          remainingBaseAmount: '0.001',
+          price: '90000',
+          isAsk: true,
+          type: 'limit',
+          timeInForce: 'good-till-time',
+          reduceOnly: 0,
+          status: 'canceled',
+          orderExpiry: 0,
+          timestamp: Date.now() + 1_000 + index,
+          triggerPrice: '0',
+        });
+      }
+      const second = buildProvider({ platformDependencies: infra });
+      const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
+      copyVenue(venueA, venueB, { triggers: false });
+      await second.provider.getOpenOrders();
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (journalKeysOf(disk).length === 0) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(journalKeysOf(disk)).toHaveLength(0);
+      expect(venueB.rawTriggers).toHaveLength(0);
+      expect(venueB.events.filter((event) => event === 'create')).toHaveLength(
+        0,
+      );
+    });
+
+    it('a replace that would cancel priors REFUSES pre-mutation when the lifecycle fingerprint cannot be captured', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      // The live position's entry price is malformed: no provable
+      // fingerprint can be persisted — a crash could never restore
+      // safely, so the swap must refuse up front.
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], avgEntryPrice: '0' }],
+          },
+        ],
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('lifecycle');
+      expect(
+        clientInstance.sendTx.mock.calls.filter(
+          ([txType]: [number]) =>
+            txType === 14 || txType === 28 || txType === 15,
+        ),
+      ).toHaveLength(0);
+      expect(venue.rawTriggers).toHaveLength(1);
+    });
+
+    it('an OCO prior pair is restored as ONE grouped transaction, preserving auto-cancel linkage', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const first = buildProvider({ platformDependencies: infra });
+      const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
+      venueA.seedTrigger('take-profit', '110000');
+      venueA.seedTrigger('stop-loss', '80000');
+      const realActive =
+        first.clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
+      let died = false;
+      first.clientInstance.getActiveOrders.mockImplementation(async () => {
+        if (
+          !died &&
+          venueA.events.filter((event) => event === 'cancel').length >= 2
+        ) {
+          died = true;
+          throw new Error('process died');
+        }
+        return await realActive();
+      });
+      const crashed = await first.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '111000',
+        stopLossPrice: '81000',
+      });
+      expect(crashed.success).toBe(false);
+      killProvider(first);
+      while (venueA.rawTriggers.length > 0) {
+        const [row] = venueA.rawTriggers.splice(0, 1);
+        venueA.rawInactive.push({ ...row, status: 'canceled' });
+      }
+      const second = buildProvider({ platformDependencies: infra });
+      const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
+      copyVenue(venueA, venueB, { triggers: false });
+      await second.provider.getOpenOrders();
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (
+          venueB.rawTriggers.length === 2 &&
+          journalKeysOf(disk).length === 0
+        ) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(
+        venueB.rawTriggers.map((row) => row.triggerPrice).sort(),
+      ).toStrictEqual(['110000', '80000'].sort());
+      expect(journalKeysOf(disk)).toHaveLength(0);
+      // The pair was restored via ONE grouped OCO signing — restoring as
+      // independent orders would silently drop the auto-cancel link.
+      const groupedRestores = second.calls.filter(
+        (call) => call.function === '_signCreateGroupedOrders',
+      );
+      expect(groupedRestores.length).toBeGreaterThanOrEqual(1);
+      const groupedParams = groupedRestores.at(-1)?.params as (
+        | string
+        | number
+      )[];
+      expect(groupedParams[1]).toBe(2);
+      expect(groupedParams[2]).toBe(2);
+      expect(
+        second.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+    });
+
+    it('compaction also covers proven-resolved cancel attempts: >40 mixed failures stay recoverable', async () => {
+      const { disk, infra } = makeDurableDisk();
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+      disk.set(
+        'lighterTpslJournalIndex:testnet',
+        JSON.stringify([settlementKey]),
+      );
+      disk.set(
+        `lighterTpslJournal:testnet:${settlementKey}`,
+        JSON.stringify({
+          version: 2,
+          recordedAt: 5,
+          createdAt: 5,
+          operationId: 'op-mixed-compact',
+          apiKeyIndex: 7,
+          intent: 'replace',
+          phase: 'restoring',
+          priorGrouping: 'independent',
+          priorTriggers: [
+            {
+              orderId: '9000',
+              side: 'sell',
+              wireOrderType: 2,
+              wireTimeInForce: 0,
+              orderExpiry: 0,
+              price: '80000',
+              triggerPrice: '80000',
+              remainingSize: '0.001',
+            },
+          ],
+          positionFingerprint: { sign: 1, size: '0.1', entryPrice: '100000' },
+          // 40 proven-resolved CANCEL failures (never landed, expired):
+          // without cancel compaction the next attempt dead-ends at the
+          // cap.
+          attempts: Array.from({ length: 40 }, (_, index) => ({
+            kind: 'cancel',
+            attemptId: index + 1,
+            nonce: 2000 + index,
+            outcome: 'unknown',
+            orderId: String(7000 + index),
+            txHash: `eeee${String(index).padStart(4, '0')}0000`,
+            expiresAt: 1_700_000_000_000,
+            role: 'stale',
+          })),
+        }),
+      );
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const journalSizes: number[] = [];
+      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+        async (key: string, value: string) => {
+          if (
+            key.startsWith('lighterTpslJournalOp:') ||
+            (key.startsWith('lighterTpslJournal:') && !key.includes('Index'))
+          ) {
+            try {
+              const parsed = JSON.parse(value) as { attempts?: unknown[] };
+              if (Array.isArray(parsed.attempts)) {
+                journalSizes.push(parsed.attempts.length);
+              }
+            } catch {
+              // pointer docs are not journals
+            }
+          }
+          disk.set(key, value);
+        },
+      );
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await built.provider.getOpenOrders();
+        if (
+          venue.rawTriggers.length === 1 &&
+          journalKeysOf(disk).length === 0
+        ) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(venue.rawTriggers[0].triggerPrice).toBe('80000');
+      expect(journalKeysOf(disk)).toHaveLength(0);
+      expect(Math.max(...journalSizes)).toBeLessThanOrEqual(40);
     });
   });
 
@@ -6430,9 +7360,10 @@ describe('LighterProvider', () => {
         });
         expect(result.error).toBeUndefined();
         expect(result.success).toBe(true);
-        // One uint48 id = exactly two 24-bit draws; reserving an unused
-        // second id would waste allocator budget for no order.
-        expect(randomSpy).toHaveBeenCalledTimes(2);
+        // One uint48 id = exactly two 24-bit draws (plus ONE draw for the
+        // journal's collision-resistant operation id); reserving an
+        // unused second id would waste allocator budget for no order.
+        expect(randomSpy).toHaveBeenCalledTimes(3);
         // A lone TP is an ordinary CreateOrder trigger — the venue rejects
         // CreateGroupedOrders with grouping type 0 ('GroupingType is not
         // valid'), and OCO requires two siblings.

@@ -300,6 +300,27 @@ async function phaseSignOnly(result: PhaseResult): Promise<void> {
       parsedTx.Sig.length > 0,
     signed.error,
   );
+  // PINNED SIGNER IDENTITY CONTRACT (round-18): the signing RESULT
+  // carries the tx hash; txInfo is the marshaled wire payload with
+  // Nonce and ExpiredAt but NEVER the hash. The provider's dispatch
+  // ledger depends on exactly this shape.
+  check(
+    result,
+    'signing RESULT carries a hex txHash',
+    typeof signed.txHash === 'string' &&
+      /^(0x)?[0-9a-fA-F]{8,128}$/u.test(signed.txHash),
+    signed.error,
+  );
+  check(
+    result,
+    'txInfo carries wire Nonce and ExpiredAt but NO txHash field',
+    Boolean(parsedTx) &&
+      typeof parsedTx.Nonce === 'number' &&
+      typeof parsedTx.ExpiredAt === 'number' &&
+      parsedTx.ExpiredAt > Date.now() &&
+      parsedTx.txHash === undefined,
+    signed.error,
+  );
 }
 
 /**
