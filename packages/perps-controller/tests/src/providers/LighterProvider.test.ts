@@ -9313,4 +9313,141 @@ describe('LighterProvider', () => {
       expect(mismatches).toStrictEqual([]);
     });
   });
+  describe('round-22 ledger serialization and post-dispatch fences', () => {
+    it('a selective acknowledgment can never overwrite a concurrent dispatch append with a stale ledger doc', async () => {
+      const registeredKey = '9c'.repeat(40);
+      const infra = createMockInfrastructure();
+      // Durable NON-BLOCKING failed outcome F awaiting acknowledgment.
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:7',
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [],
+          recovered: [
+            {
+              recoveryId: '41:beef',
+              kind: 13,
+              intent: 'withdraw:9',
+              txHash: 'beef',
+              outcome: 'failed',
+              evidence: 'tx-status:4',
+            },
+          ],
+        }),
+      );
+      const built = buildProvider({
+        registeredKey,
+        platformDependencies: infra,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      // Warm signer setup so the gated window contains ONLY the ack read
+      // and the order's ledger RMW.
+      await built.provider.getOpenOrders();
+      // Gate the ACK's ledger WRITE: it has already read the doc, and a
+      // concurrent placeOrder appends an unresolved entry in the window
+      // before the ack's (now stale) write lands. All ledger RMW must
+      // serialize on ONE mutex so this window cannot exist.
+      const realSet = (
+        infra.diskCache.setItem as jest.Mock
+      ).getMockImplementation() as (
+        key: string,
+        value: string,
+      ) => Promise<void>;
+      let releaseGate: () => void = () => undefined;
+      const gate = { armed: true };
+      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+        async (key: string, value: string) => {
+          if (gate.armed && key.startsWith('lighterNonceLedger:')) {
+            gate.armed = false;
+            await new Promise<void>((resolve) => {
+              releaseGate = resolve;
+            });
+          }
+          return await realSet(key, value);
+        },
+      );
+      const ackPromise = built.provider.acknowledgeRecoveredDispatch('41:beef');
+      // Let the ack reach its (gated) ledger read.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Concurrent dispatch whose venue commit is masked by response
+      // loss: its unresolved ledger entry is the only retry protection.
+      venue.failResponseOnce(14);
+      const orderPromise = built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      releaseGate();
+      await ackPromise;
+      const orderResult = await orderPromise;
+      expect(orderResult.success).toBe(false);
+      const doc = JSON.parse(
+        (await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:7',
+        )) as string,
+      ) as { entries: unknown[]; recovered: unknown[] };
+      // F acknowledged AND the concurrent unresolved dispatch SURVIVED —
+      // a stale ack write would have silently erased it, leaving the
+      // committed order retryable.
+      expect(doc.recovered).toHaveLength(0);
+      expect(doc.entries).toHaveLength(1);
+    });
+
+    it('an account switch DURING network submission quarantines the accepted dispatch: the switch-back retry is refused until acknowledged', async () => {
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({ registeredKey });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const otherAddress = '0x9999999999999999999999999999999999999999';
+      // The venue ACCEPTS the withdraw; the wallet switches accounts
+      // while the response is in flight, so the post-send fence cancels
+      // the operation AFTER the financial intent committed.
+      const realSend = built.clientInstance.sendTx.getMockImplementation() as (
+        txType: number,
+        txInfo: string,
+      ) => Promise<unknown>;
+      let switched = false;
+      built.clientInstance.sendTx.mockImplementation(
+        async (txType: number, txInfo: string) => {
+          const response = await realSend(txType, txInfo);
+          if (txType === 13 && !switched) {
+            switched = true;
+            built.getUserAddressMock.mockReturnValue(otherAddress);
+            built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+              code: 200,
+              l1Address: otherAddress,
+              subAccounts: [{ ...ACCOUNT, index: 77, l1Address: otherAddress }],
+            });
+          }
+          return response;
+        },
+      );
+      const cancelled = await built.provider.withdraw({ amount: '25' });
+      expect(cancelled.success).toBe(false);
+      // Switch BACK and retry the same intent: the committed withdraw
+      // was durably quarantined SUCCEEDED for the ORIGINAL account —
+      // the blind retry is refused until explicitly acknowledged.
+      built.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [ACCOUNT],
+      });
+      const retry = await built.provider.withdraw({ amount: '25' });
+      expect(retry.success).toBe(false);
+      expect(retry.error).toContain('actually completed');
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0].outcome).toBe('succeeded');
+      expect(outcomes[0].evidence).toBe('post-dispatch-session-cancelled');
+      expect(outcomes[0].intent).toBe('withdraw:25');
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[0].recoveryId);
+      expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
+        true,
+      );
+    });
+  });
 });
