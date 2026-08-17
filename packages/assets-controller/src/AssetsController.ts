@@ -81,6 +81,7 @@ import type {
 import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
+import { isStakingContractAssetId } from './data-sources/evm-rpc-services/index.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import {
@@ -608,6 +609,18 @@ function mergeAccountBalances(
     }
   }
 
+  // Staked vault balances are owned by StakedBalanceDataSource. When an
+  // Accounts API (or other) chain-slice replace omits them, keep the prior
+  // on-chain staked amount instead of clearing it to missing/0.
+  for (const [assetId, balance] of Object.entries(previousBalances)) {
+    if (
+      isStakingContractAssetId(assetId) &&
+      !Object.prototype.hasOwnProperty.call(next, assetId)
+    ) {
+      next[assetId] = balance;
+    }
+  }
+
   return next;
 }
 
@@ -1090,8 +1103,8 @@ export class AssetsController extends BaseController<
     // Subscribe to account group changes (when user switches between account groups like Account 1 -> Account 2)
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      () => {
-        this.#handleAccountGroupChanged().catch(console.error);
+      (groupId) => {
+        this.#handleAccountGroupChanged(groupId).catch(console.error);
       },
     );
 
@@ -3555,7 +3568,12 @@ export class AssetsController extends BaseController<
   // EVENT HANDLERS
   // ============================================================================
 
-  async #handleAccountGroupChanged(): Promise<void> {
+  async #handleAccountGroupChanged(groupId: string): Promise<void> {
+    // The selected account group can be empty during onboarding or wallet reset.
+    if (!groupId) {
+      return;
+    }
+
     const accounts = this.#getSelectedAccounts();
 
     log('Account group changed', {
@@ -3861,9 +3879,25 @@ export class AssetsController extends BaseController<
           sourceId === 'AccountsApiDataSource' ||
           sourceId === 'AccountActivityDataSource';
 
+        // Websocket updates can carry brand-new spam airdrops: enrich them
+        // with Token API occurrences and drop below-floor tokens BEFORE
+        // detection, so spam is never detected, enriched, priced or persisted.
+        const shouldFilterOccurrences =
+          sourceId === 'AccountActivityDataSource' &&
+          this.#isBasicFunctionality();
+
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets
             ? [this.#customAssetGraduationMiddleware]
+            : []),
+          ...(shouldFilterOccurrences
+            ? [
+                {
+                  getName: () => 'OccurrenceFloorFilter',
+                  assetsMiddleware:
+                    this.#tokenDataSource.occurrenceFilterMiddleware,
+                },
+              ]
             : []),
           this.#detectionMiddleware,
         ];

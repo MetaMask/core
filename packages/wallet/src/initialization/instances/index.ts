@@ -1,6 +1,8 @@
 export { accountsController } from './accounts-controller/accounts-controller.js';
 export { addressBookController } from './address-book-controller/address-book-controller.js';
 export { approvalController } from './approval-controller/approval-controller.js';
+export { claimsController } from './claims-controller/claims-controller.js';
+export { claimsService } from './claims-service/claims-service.js';
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
 export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
@@ -8,5 +10,9 @@ export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller.js';
 export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller.js';
+export { shieldApiService } from './shield-api-service/shield-api-service.js';
+export { shieldController } from './shield-controller/shield-controller.js';
 export { storageService } from './storage-service/storage-service.js';
+export { subscriptionController } from './subscription-controller/subscription-controller.js';
+export { subscriptionService } from './subscription-service/subscription-service.js';
 export { transactionController } from './transaction-controller/transaction-controller.js';

@@ -348,6 +348,7 @@ linkStyle default opacity:0.5
   chomp_api_service --> controller_utils;
   chomp_api_service --> messenger;
   claims_controller --> base_controller;
+  claims_controller --> base_data_service;
   claims_controller --> controller_utils;
   claims_controller --> keyring_controller;
   claims_controller --> messenger;
@@ -432,7 +433,6 @@ linkStyle default opacity:0.5
   kyc_controller --> messenger;
   kyc_controller --> profile_sync_controller;
   logging_controller --> base_controller;
-  logging_controller --> controller_utils;
   logging_controller --> messenger;
   message_manager --> base_controller;
   message_manager --> controller_utils;
@@ -589,8 +589,10 @@ linkStyle default opacity:0.5
   sentinel_api_service --> controller_utils;
   sentinel_api_service --> messenger;
   shield_controller --> base_controller;
+  shield_controller --> base_data_service;
   shield_controller --> controller_utils;
   shield_controller --> messenger;
+  shield_controller --> profile_sync_controller;
   shield_controller --> signature_controller;
   shield_controller --> transaction_controller;
   signature_controller --> accounts_controller;
@@ -622,6 +624,7 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
+  subscription_controller --> base_data_service;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
@@ -665,6 +668,7 @@ linkStyle default opacity:0.5
   wallet --> address_book_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
+  wallet --> claims_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
@@ -674,7 +678,9 @@ linkStyle default opacity:0.5
   wallet --> passkey_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> seedless_onboarding_controller;
+  wallet --> shield_controller;
   wallet --> storage_service;
+  wallet --> subscription_controller;
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;

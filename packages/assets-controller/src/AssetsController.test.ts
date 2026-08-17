@@ -2493,6 +2493,47 @@ describe('AssetsController', () => {
       });
     });
 
+    it('preserves existing staked balances when replaceCoveredChainBalances omits them', async () => {
+      const stakingAssetId =
+        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+            [stakingAssetId]: { amount: '1.5' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            replaceCoveredChainBalances: true,
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '2' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[stakingAssetId],
+        ).toStrictEqual({ amount: '1.5' });
+      });
+    });
+
     it('replaces state when full update has authoritative data', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
@@ -3374,15 +3415,38 @@ describe('AssetsController', () => {
 
   describe('account group changes', () => {
     it('handles account group change', async () => {
-      await withController(async ({ messenger }) => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue([]);
+
         (messenger.publish as CallableFunction)(
           'AccountTreeController:selectedAccountGroupChange',
-          undefined,
+          'entropy:mock-keyring-id-1/0',
+          '',
         );
 
         await new Promise(process.nextTick);
 
-        expect(true).toBe(true);
+        expect(getAssetsSpy).toHaveBeenCalled();
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('skips asset refresh when group ID is empty (onboarding or wallet reset)', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        (messenger.publish as CallableFunction)(
+          'AccountTreeController:selectedAccountGroupChange',
+          '',
+          'entropy:mock-keyring-id-1/0',
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+        getAssetsSpy.mockRestore();
       });
     });
   });

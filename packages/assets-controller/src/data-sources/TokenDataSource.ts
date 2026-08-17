@@ -349,6 +349,152 @@ export class TokenDataSource {
   }
 
   /**
+   * Middleware that runs BEFORE DetectionMiddleware for account-activity
+   * (websocket) updates. New-to-state EVM ERC-20 balances are enriched with
+   * their Token API occurrence counts first, and tokens below the per-chain
+   * suggested occurrence floor are dropped from the response (balances and
+   * stub metadata) so spam airdrops never reach detection, metadata
+   * enrichment, pricing, or state. Custom assets and mUSD are exempt, and
+   * assets unknown to the Token API are kept (fail open), mirroring
+   * {@link TokenDataSource.assetsMiddleware} filtering semantics.
+   *
+   * @returns The middleware function for the assets pipeline.
+   */
+  get occurrenceFilterMiddleware(): Middleware {
+    return forDataTypes(['balance'], async (ctx, next) => {
+      const { response } = ctx;
+      const {
+        assetsBalance: stateBalances,
+        assetsInfo: stateMetadata,
+        customAssets,
+      } = ctx.getAssetsState();
+
+      const customAssetIds = new Set(
+        Object.values(customAssets ?? {})
+          .flat()
+          .map((id) => id.toLowerCase()),
+      );
+
+      // State keys are checksummed, but AccountActivity delivers lower-case
+      // ERC-20 IDs, so every lookup below compares lower-cased IDs. Matching
+      // case-sensitively would classify existing holdings as new and delete
+      // the very balance update this pipeline pass is meant to persist.
+      const knownMetadataIds = new Set(
+        Object.keys(stateMetadata).map((id) => id.toLowerCase()),
+      );
+
+      // Candidates: EVM ERC-20s that are genuinely new (absent from state
+      // balances and metadata) — the same assets DetectionMiddleware would
+      // mark as newly detected right after this middleware.
+      const candidateByLowerId = new Map<string, string>();
+      for (const [accountId, accountBalances] of Object.entries(
+        response.assetsBalance ?? {},
+      )) {
+        const knownBalanceIds = new Set(
+          Object.keys(stateBalances[accountId] ?? {}).map((id) =>
+            id.toLowerCase(),
+          ),
+        );
+        for (const assetId of Object.keys(accountBalances)) {
+          const caipAssetId = assetId as Caip19AssetId;
+          const lowerId = assetId.toLowerCase();
+          if (
+            knownBalanceIds.has(lowerId) ||
+            knownMetadataIds.has(lowerId) ||
+            customAssetIds.has(lowerId) ||
+            lowerId.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`)
+          ) {
+            continue;
+          }
+          try {
+            const { assetNamespace, chain } = parseCaipAssetType(caipAssetId);
+            if (
+              assetNamespace === CaipAssetNamespace.Erc20 &&
+              chain.namespace === KnownCaipNamespace.Eip155
+            ) {
+              candidateByLowerId.set(lowerId, assetId);
+            }
+          } catch {
+            // Unparseable IDs are left for downstream middleware to handle.
+          }
+        }
+      }
+
+      if (candidateByLowerId.size === 0) {
+        return next(ctx);
+      }
+
+      try {
+        const [occurrenceResponse, suggestedOccurrenceFloors] =
+          await Promise.all([
+            reduceInBatchesSerially<string, V3AssetResponse[]>({
+              values: [...candidateByLowerId.values()],
+              batchSize: TOKENS_API_BATCH_SIZE,
+              eachBatch: async (workingResult, batch) => {
+                const batchResponse = await fetchWithTimeout(
+                  () =>
+                    this.#apiClient.tokens.fetchV3Assets(batch, {
+                      includeOccurrences: true,
+                    }),
+                  this.#fetchTimeoutMs,
+                );
+                return [
+                  ...(workingResult as V3AssetResponse[]),
+                  ...batchResponse,
+                ];
+              },
+              initialResult: [],
+            }),
+            this.#getSuggestedOccurrenceFloors(),
+          ]);
+
+        // Only assets the API knows can be judged; missing ones are kept.
+        const spamAssetIds = new Set<string>();
+        for (const assetData of occurrenceResponse) {
+          const candidateId = candidateByLowerId.get(
+            assetData.assetId.toLowerCase(),
+          );
+          if (
+            candidateId !== undefined &&
+            (assetData.occurrences ?? 0) <
+              getOccurrenceFloorForAsset(candidateId, suggestedOccurrenceFloors)
+          ) {
+            spamAssetIds.add(candidateId);
+          }
+        }
+
+        if (spamAssetIds.size > 0) {
+          for (const accountBalances of Object.values(
+            response.assetsBalance ?? {},
+          )) {
+            for (const assetId of spamAssetIds) {
+              delete (accountBalances as Record<string, unknown>)[assetId];
+            }
+          }
+          if (response.assetsInfo) {
+            const spamLowerIds = new Set(
+              [...spamAssetIds].map((id) => id.toLowerCase()),
+            );
+            for (const assetId of Object.keys(response.assetsInfo)) {
+              if (spamLowerIds.has(assetId.toLowerCase())) {
+                delete response.assetsInfo[assetId as Caip19AssetId];
+              }
+            }
+          }
+          log('Filtered low-occurrence websocket assets', {
+            assetIds: [...spamAssetIds],
+          });
+        }
+      } catch (error) {
+        // Fail open — keep all assets when occurrences cannot be fetched.
+        log('Failed to fetch occurrences for websocket update', { error });
+      }
+
+      return next(ctx);
+    });
+  }
+
+  /**
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
@@ -605,6 +751,20 @@ export class TokenDataSource {
               response.detectedAssets[accountId] = assetIds.filter(
                 (id) => !filteredOutAssets.has(id),
               );
+            }
+          }
+
+          // Drop stub metadata (e.g. websocket-seeded name/symbol) for
+          // filtered-out assets so it never persists to state — a persisted
+          // stub would make the asset look "known" on the next update and
+          // let its balance skip spam filtering as a heal. Case-insensitive
+          // because the API may return asset IDs in a different case.
+          const filteredOutLower = new Set(
+            [...filteredOutAssets].map((id) => id.toLowerCase()),
+          );
+          for (const assetId of Object.keys(response.assetsInfo)) {
+            if (filteredOutLower.has(assetId.toLowerCase())) {
+              delete response.assetsInfo[assetId as Caip19AssetId];
             }
           }
         }

@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+## [69.5.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
+
+### Fixed
+
+- Skip resimulation check when failing incomplete transactions at startup, preventing a crash when `isSimulationEnabled` depends on controllers not yet registered ([#9821](https://github.com/MetaMask/core/pull/9821))
+
+## [69.5.1]
+
+### Changed
+
 - Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.0.7` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+### Fixed
+
+- Strip leading zero digits from `value` in `eth_estimateGas` requests, so gas estimation no longer fails on RPC nodes that reject non-canonical hex quantities such as `0x00` (e.g. Go's `hexutil` parsing) ([#9797](https://github.com/MetaMask/core/pull/9797))
 
 ## [69.5.0]
 
@@ -2665,7 +2685,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.2...HEAD
+[69.5.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.1...@metamask/transaction-controller@69.5.2
+[69.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.0...@metamask/transaction-controller@69.5.1
 [69.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.4.0...@metamask/transaction-controller@69.5.0
 [69.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.3.0...@metamask/transaction-controller@69.4.0
 [69.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.2.1...@metamask/transaction-controller@69.3.0

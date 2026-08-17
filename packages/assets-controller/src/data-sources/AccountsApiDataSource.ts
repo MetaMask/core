@@ -34,6 +34,7 @@ import type {
   SubscriptionRequest,
 } from './AbstractDataSource.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
+import { isStakingContractAssetId } from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -427,7 +428,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       }
 
       const fetchOptions = request.forceUpdate
-        ? { staleTime: 100, gcTime: 100 }
+        ? { staleTime: 0, gcTime: 0 }
         : undefined;
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
@@ -612,6 +613,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
       // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
       const normalizedAssetId = normalizeAssetId(item.assetId as Caip19AssetId);
 
+      // Staked balances are owned by StakedBalanceDataSource. Accounts API may
+      // return the vault share token as a normal ERC-20 (often 0 or stale),
+      // which would overwrite or wipe the on-chain staked amount on merge.
+      if (isStakingContractAssetId(normalizedAssetId)) {
+        continue;
+      }
+
       // Store balance as returned by API
       assetsBalance[accountId][normalizedAssetId] = {
         amount: item.balance,
@@ -677,6 +685,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
         const normalizedAssetId = normalizeAssetId(
           item.assetId as Caip19AssetId,
         );
+
+        // Staked balances are owned by StakedBalanceDataSource. Accounts API may
+        // return the vault share token as a normal ERC-20 (often 0 or stale),
+        // which would overwrite or wipe the on-chain staked amount on merge.
+        if (isStakingContractAssetId(normalizedAssetId)) {
+          continue;
+        }
 
         // Store balance as returned by API
         assetsBalance[accountId][normalizedAssetId] = {
