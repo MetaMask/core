@@ -317,13 +317,7 @@ export class BaseDataService<
       >,
       'queryKey'
     > &
-      // `initialPageParam` and `getNextPageParam` are required, matching
-      // query-core's own infinite-query options: they make `TPageParam`
-      // inferable and describe how pages relate. `getPreviousPageParam` stays
-      // optional (only bidirectional consumers need it).
       InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
-        // @tanstack/query-core's fetchInfiniteQuery function accepts a "skip"
-        // token, but data services always provide a concrete query function.
         queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
       },
     pageParam?: TPageParam,
