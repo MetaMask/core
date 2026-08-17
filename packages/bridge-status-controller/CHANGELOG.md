@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add backdated Sentry operation completion traces for single-chain and cross-chain swaps ([#9899](https://github.com/MetaMask/core/pull/9899))
+
 ## [75.1.0]
 
 ### Changed

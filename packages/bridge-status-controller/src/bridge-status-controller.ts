@@ -99,7 +99,14 @@ import {
   getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
-import { getTraceParams } from './utils/trace.js';
+import {
+  getSwapOperationCompletedTraceParams,
+  getTraceParams,
+} from './utils/trace.js';
+import type {
+  SwapOperationResult,
+  SwapOperationTerminalStage,
+} from './utils/trace.js';
 import {
   getTransactionMetaById,
   getTransactions,
@@ -134,6 +141,9 @@ type SrcTxMetaId = string;
 export type FetchBridgeTxStatusArgs = {
   bridgeTxMetaId: string;
 };
+
+const isFinalBridgeStatus = (status?: StatusTypes): boolean =>
+  status === StatusTypes.COMPLETE || status === StatusTypes.FAILED;
 
 const MESSENGER_EXPOSED_METHODS = [
   'startPollingForBridgeTxStatus',
@@ -339,6 +349,38 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
+  readonly #traceSwapOperationCompleted = async (
+    historyKey: string | undefined,
+    result: SwapOperationResult,
+    terminalStage: SwapOperationTerminalStage,
+  ): Promise<void> => {
+    if (!historyKey) {
+      return;
+    }
+
+    const historyItem = this.state.txHistory[historyKey];
+    const featureId = historyItem?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE;
+    if (
+      !historyItem ||
+      historyItem.batchSellData ||
+      !ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+      historyItem.completionTime === undefined
+    ) {
+      return;
+    }
+
+    await this.#trace(
+      getSwapOperationCompletedTraceParams(
+        historyItem,
+        historyKey,
+        historyItem.completionTime,
+        result,
+        terminalStage,
+      ),
+      () => undefined,
+    );
+  };
+
   readonly #onTransactionFailed = ({
     txMeta,
     historyKey,
@@ -348,10 +390,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     historyKey?: string;
     isApprovalTxMeta: boolean;
   }): void => {
-    // Check if the history item is already marked as a failure
-    const isHistoryItemAlreadyFailed = historyKey
-      ? this.state.txHistory[historyKey]?.status.status === StatusTypes.FAILED
+    // Check if the history item is already in a final state
+    const isHistoryItemAlreadyFinal = historyKey
+      ? isFinalBridgeStatus(this.state.txHistory[historyKey]?.status.status)
       : false;
+
+    if (isHistoryItemAlreadyFinal) {
+      return;
+    }
 
     this.#updateHistoryItem({
       historyKey,
@@ -364,11 +410,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    // Skip tracking if this is a duplicate failed event for the same history item
-    // This can happen if the transaction includes an approval tx that fails
-    if (isHistoryItemAlreadyFailed) {
-      return;
-    }
+    this.#traceSwapOperationCompleted(historyKey, 'error', 'source').catch(
+      () => undefined,
+    );
 
     // Report finalized failure for swap/bridge transactions.
     // Note: TransactionStatus.rejected means the user cancelled signing, so the tx was never broadcast.
@@ -409,6 +453,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    const isHistoryItemAlreadyFinal = historyKey
+      ? isFinalBridgeStatus(this.state.txHistory[historyKey]?.status.status)
+      : false;
+
+    if (isHistoryItemAlreadyFinal) {
+      return;
+    }
+
     this.#updateHistoryItem({
       historyKey,
       txHash: txMeta.hash,
@@ -445,6 +497,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         true,
         txMeta.chainId,
         txMeta.hash,
+      );
+      this.#traceSwapOperationCompleted(historyKey, 'success', 'source').catch(
+        () => undefined,
       );
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
@@ -953,6 +1008,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    if (isFinalBridgeStatus(historyItem.status.status)) {
+      return;
+    }
+
     // 2. Check for previous failures
 
     if (shouldSkipFetchDueToFetchFailures(historyItem.attempts)) {
@@ -1045,6 +1104,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // 4. Create bridge history item
 
+      if (
+        isFinalBridgeStatus(this.state.txHistory[bridgeTxMetaId]?.status.status)
+      ) {
+        return;
+      }
+
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
@@ -1101,6 +1166,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyItem.quote.srcChainId,
           settlementTxHash,
         );
+
+        await this.#traceSwapOperationCompleted(
+          bridgeTxMetaId,
+          status.status === StatusTypes.COMPLETE ? 'success' : 'error',
+          isCrossChain(
+            historyItem.quote.srcChainId,
+            historyItem.quote.destChainId,
+          )
+            ? 'destination'
+            : 'source',
+        ).catch(() => undefined);
 
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
