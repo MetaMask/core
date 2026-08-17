@@ -3907,6 +3907,7 @@ export class LighterProvider implements PerpsProvider {
         }
       },
       generation,
+      true,
     );
     // AUTOMATIC bounded recovery: pending TP/SL journals must be
     // reconciled at startup/reconnect, not only when the next mutation
@@ -4070,13 +4071,17 @@ export class LighterProvider implements PerpsProvider {
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
+    allowMainnetSignerSetup = false,
   ): Promise<Result> => {
-    // INITIAL ROLLOUT GATE: every nonce-consuming venue write (including
-    // signer-key registration) is limited to testnet. Mainnet stays
-    // read-only until mainnet writes have been validated end-to-end —
-    // the enablement flags alone must not be able to unlock unvalidated
-    // mainnet trading.
-    if (!this.#isTestnet) {
+    // INITIAL ROLLOUT GATE: every nonce-consuming venue write is limited
+    // to testnet until mainnet trading is validated end-to-end — the
+    // enablement flags alone must not be able to unlock unvalidated
+    // mainnet trading. Signer SETUP may enter on mainnet (client
+    // creation is bridge-local and the nonce fetch is read-only) so the
+    // auth token can be minted for authenticated mainnet reads; any
+    // dispatch it would attempt (key registration) is refused by the
+    // same gate inside `submit`.
+    if (!this.#isTestnet && !allowMainnetSignerSetup) {
       throw new Error(
         'Lighter mainnet trading is not enabled yet; venue writes are limited to testnet',
       );
@@ -4146,6 +4151,14 @@ export class LighterProvider implements PerpsProvider {
         // Last fence before anything reaches the venue: a switch that
         // happened while SIGNING must abort before submission.
         this.#assertSession(generationAtIntent);
+        // Mainnet dispatch backstop: covers the signer-setup path that
+        // is allowed to ENTER the lock on mainnet — nothing may be
+        // submitted there.
+        if (!this.#isTestnet) {
+          throw new Error(
+            'Lighter mainnet trading is not enabled yet; venue writes are limited to testnet',
+          );
+        }
         // Record the dispatch DURABLY BEFORE anything else: a failed
         // ledger read/write means NO dispatch and an UNTOUCHED memory
         // floor — the nonce stays safely unissued at the venue. The
