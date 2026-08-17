@@ -3,6 +3,7 @@ import type {
   AccountTreeControllerInitializedEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerStateChangeEvent,
+  AccountTreeControllerUninitializedEvent,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -347,6 +348,7 @@ type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | AccountTreeControllerStateChangeEvent
   | AccountTreeControllerInitializedEvent
+  | AccountTreeControllerUninitializedEvent
   | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
@@ -747,6 +749,12 @@ export class AssetsController extends BaseController<
   /** Whether the keyring is unlocked. Combined with #uiOpen for #updateActive. */
   #keyringUnlocked = false;
 
+  /**
+   * Whether `AccountTreeController` has finished `init()`. Unlock / UI-open
+   * alone must not start fetches — the tree can still be mid-build.
+   */
+  #accountTreeInitialized = false;
+
   readonly #controllerMutex = new Mutex();
 
   /** Serializes account-switch fetch + subscribe to prevent overlapping races. */
@@ -1105,8 +1113,10 @@ export class AssetsController extends BaseController<
     // Subscribe to account group changes (when user switches between account groups like Account 1 -> Account 2)
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      (groupId) => {
-        this.#handleAccountGroupChanged(groupId).catch(console.error);
+      (groupId, previousGroupId) => {
+        this.#handleAccountGroupChanged(groupId, previousGroupId).catch(
+          console.error,
+        );
       },
     );
 
@@ -1199,7 +1209,12 @@ export class AssetsController extends BaseController<
     // happen before `AccountTreeController.init()`, and `:stateChange` fires
     // for intermediate mutations during that build.
     this.messenger.subscribe('AccountTreeController:initialized', () => {
-      this.#handleAccountTreeInitialized();
+      this.#accountTreeInitialized = true;
+      this.#updateActive();
+    });
+    this.messenger.subscribe('AccountTreeController:uninitialized', () => {
+      this.#accountTreeInitialized = false;
+      this.#updateActive();
     });
   }
 
@@ -1260,29 +1275,18 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Start or stop asset tracking based on client (UI) open state and keyring
-   * unlock state. Only runs when both UI is open and keyring is unlocked.
+   * Start or stop asset tracking based on client (UI) open state, keyring
+   * unlock state, and account-tree readiness. Only runs when the UI is open,
+   * the keyring is unlocked, and the account tree has finished `init()`.
    */
   #updateActive(): void {
-    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
+    const shouldRun =
+      this.#uiOpen && this.#keyringUnlocked && this.#accountTreeInitialized;
     if (shouldRun) {
       this.#start();
     } else {
       this.#stop();
     }
-  }
-
-  /**
-   * Handle `AccountTreeController:initialized`. Starts asset tracking once
-   * the tree is fully built. No-op unless the UI is open and the keyring is
-   * unlocked; `#start()` is idempotent if subscriptions are already active.
-   */
-  #handleAccountTreeInitialized(): void {
-    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
-    if (!shouldRun) {
-      return;
-    }
-    this.#start();
   }
 
   /**
@@ -1293,8 +1297,12 @@ export class AssetsController extends BaseController<
    * `:initialized` instead, so we do not fetch on every tree mutation.
    */
   #handleAccountTreeStateChange(): void {
-    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
-    if (!shouldRun || this.#activeSubscriptions.size === 0) {
+    const shouldRun =
+      this.#uiOpen &&
+      this.#keyringUnlocked &&
+      this.#accountTreeInitialized &&
+      this.#activeSubscriptions.size > 0;
+    if (!shouldRun) {
       return;
     }
     const accounts = this.#getSelectedAccounts();
@@ -1342,7 +1350,7 @@ export class AssetsController extends BaseController<
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
       });
-      this.#subscribeAssets();
+      this.#subscribeAssets({ skipInitialFetch: true });
       if (newAccounts.length > 0) {
         await this.getAssets(newAccounts, {
           chainIds: [...this.#enabledChains],
@@ -1352,7 +1360,7 @@ export class AssetsController extends BaseController<
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
       log('Failed to fetch assets after tree change', error);
-      this.#subscribeAssets();
+      this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
@@ -1375,13 +1383,14 @@ export class AssetsController extends BaseController<
       // and default tracked assets that were never returned by balance APIs.
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.#subscribeAssets();
+      // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
+      this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
       log('Failed to fetch assets on startup', error);
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.#subscribeAssets();
+      this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
@@ -3169,8 +3178,12 @@ export class AssetsController extends BaseController<
 
   /**
    * Subscribe to asset updates for all selected accounts.
+   *
+   * @param options - Subscription options.
+   * @param options.skipInitialFetch - When true, AccountsApi skips its
+   * one-shot subscribe poll (use after a force `getAssets` for the same scope).
    */
-  #subscribeAssets(): void {
+  #subscribeAssets(options?: { skipInitialFetch?: boolean }): void {
     const accounts = this.#getSelectedAccounts();
     const enabledChains = [...this.#enabledChains];
     if (accounts.length === 0 || enabledChains.length === 0) {
@@ -3178,7 +3191,7 @@ export class AssetsController extends BaseController<
     }
 
     // Subscribe to balance updates (batched by data source)
-    this.#subscribeAssetsBalance(accounts, enabledChains);
+    this.#subscribeAssetsBalance(accounts, enabledChains, options);
 
     // Subscribe to staked balance updates (separate from regular balance chain-claiming)
     this.#subscribeStakedBalance(accounts, enabledChains);
@@ -3200,10 +3213,13 @@ export class AssetsController extends BaseController<
    *
    * @param accounts - Accounts to subscribe balance updates for.
    * @param chainIds - Chain IDs to subscribe for.
+   * @param options - Subscription options.
+   * @param options.skipInitialFetch - Forwarded to AccountsApi subscribe.
    */
   #subscribeAssetsBalance(
     accounts: InternalAccount[],
     chainIds: ChainId[],
+    options?: { skipInitialFetch?: boolean },
   ): void {
     const chainToAccounts = this.#buildChainToAccountsMap(
       accounts,
@@ -3250,7 +3266,12 @@ export class AssetsController extends BaseController<
           return true;
         });
       if (accountsForSource.length > 0) {
-        this.#subscribeDataSource(source, accountsForSource, assignedChains);
+        this.#subscribeDataSource(source, accountsForSource, assignedChains, {
+          ...(options?.skipInitialFetch &&
+          source === this.#accountsApiDataSource
+            ? { skipInitialFetch: true }
+            : {}),
+        });
       }
     }
 
@@ -3400,12 +3421,17 @@ export class AssetsController extends BaseController<
    * @param options - Optional subscription overrides.
    * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
    * @param options.customAssetsOnly - When true, only poll customAssets for these chains.
+   * @param options.skipInitialFetch - When true, skip the data source's subscribe-time fetch.
    */
   #subscribeDataSource(
     source: AbstractDataSource<string, DataSourceState>,
     accounts: InternalAccount[],
     chains: ChainId[],
-    options: { subscriptionKey?: string; customAssetsOnly?: boolean } = {},
+    options: {
+      subscriptionKey?: string;
+      customAssetsOnly?: boolean;
+      skipInitialFetch?: boolean;
+    } = {},
   ): void {
     const sourceId = source.getName();
     const subscriptionKey = options.subscriptionKey ?? `ds:${sourceId}`;
@@ -3419,6 +3445,7 @@ export class AssetsController extends BaseController<
       accountCount: accounts.length,
       chainCount: chains.length,
       customAssetsOnly: options.customAssetsOnly === true,
+      skipInitialFetch: options.skipInitialFetch === true,
     });
 
     const subscribeReq: SubscriptionRequest = {
@@ -3435,6 +3462,9 @@ export class AssetsController extends BaseController<
       onAssetsUpdate: (response, request) =>
         this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
+      ...(options.skipInitialFetch === true
+        ? { skipInitialFetch: true }
+        : {}),
     };
 
     source.subscribe(subscribeReq).catch((error) => {
@@ -3580,9 +3610,23 @@ export class AssetsController extends BaseController<
   // EVENT HANDLERS
   // ============================================================================
 
-  async #handleAccountGroupChanged(groupId: string): Promise<void> {
+  async #handleAccountGroupChanged(
+    groupId: string,
+    previousGroupId: string = '',
+  ): Promise<void> {
     // The selected account group can be empty during onboarding or wallet reset.
     if (!groupId) {
+      return;
+    }
+
+    // First start is owned by `AccountTreeController:initialized` / `#start`.
+    // ATC also re-publishes `selectedAccountGroupChange` on every `init()`
+    // (including when the group did not change) so late subscribers can catch
+    // up — ignore those until we are already tracking.
+    if (this.#activeSubscriptions.size === 0) {
+      return;
+    }
+    if (groupId === previousGroupId) {
       return;
     }
 
@@ -3591,6 +3635,8 @@ export class AssetsController extends BaseController<
     log('Account group changed', {
       accountCount: accounts.length,
       accountIds: accounts.map((a) => a.id),
+      groupId,
+      previousGroupId,
     });
 
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
@@ -3607,7 +3653,8 @@ export class AssetsController extends BaseController<
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
       // Subscribe after seed so the price poll sees natives / defaults.
-      this.#subscribeAssets();
+      // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
+      this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();

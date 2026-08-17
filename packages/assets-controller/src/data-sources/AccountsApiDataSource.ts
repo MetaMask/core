@@ -24,6 +24,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types.js';
+import { forDataTypes } from '../types.js';
 import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import {
   getMigrationStages,
@@ -782,7 +783,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
       // No chains handled - pass context unchanged
       return next(context);
-    };
+    });
   }
 
   // ============================================================================
@@ -790,7 +791,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
-    const { request, subscriptionId, isUpdate } = subscriptionRequest;
+    const { request, subscriptionId, isUpdate, skipInitialFetch } =
+      subscriptionRequest;
 
     // Store state accessor for filtering when tokenDetectionEnabled is false
     if (subscriptionRequest.getAssetsState) {
@@ -879,8 +881,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
-    // Initial fetch
-    await pollFn();
+    // Interval above still polls on the normal cadence. This only skips the
+    // one-shot fetch at subscribe time when the controller already ran a
+    // force getAssets for the same scope (startup / group refresh).
+    if (!skipInitialFetch) {
+      await pollFn();
+    }
   }
 
   // ============================================================================
