@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Trading surface: order placement with venue-level leverage application, `closePosition` (reduce-only IOC market order with protection price), OCO TP/SL via grouped trigger orders (`updatePositionTPSL`), isolated margin add/remove (`updateMargin`), `withdraw` (signed L2 withdraw), and `fetchHistoricalCandles` via `/api/v1/candles`. Venue writes are serialized through a per-provider nonce queue and the session is re-bound automatically when the selected wallet account changes.
   - History and routes: `getOrders` (historical lifecycle), `getOrderFills`, `getFunding`, `getUserHistory`, `getUserNonFundingLedgerUpdates`, and USDC bridge `getDepositRoutes`/`getWithdrawalRoutes`.
   - `editOrder` deliberately returns an error: the venue currently accepts but does not apply ModifyOrder; cancel and re-place instead.
+- Add `PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE` (`previous_leverage`) for Perp UI Interaction `leverage_changed` events so clients can import the Segment property key from `@metamask/perps-controller` instead of a local interim constant ([#9881](https://github.com/MetaMask/core/pull/9881))
 
 ## [12.0.0]
 
