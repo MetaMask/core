@@ -45,10 +45,11 @@ export type GetActivityResponse = {
   };
 };
 
-export type PageParam = {
-  before?: string;
-  after?: string;
-};
+export type PageParam =
+  | {
+      before: string;
+    }
+  | { after: string };
 
 const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
 
