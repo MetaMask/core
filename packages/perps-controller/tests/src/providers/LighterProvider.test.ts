@@ -625,10 +625,11 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('mainnet signer setup may create the bridge client, but key REGISTRATION is refused at dispatch', async () => {
-      // No registered key: setup would need a ChangePubKey dispatch —
-      // the mainnet gate refuses it inside submit, so nothing reaches
-      // the venue and readiness reports false.
+    it('mainnet signer setup may create the bridge client, but key REGISTRATION is refused BEFORE any signature prompt', async () => {
+      // No registered key: registration can never succeed under the
+      // mainnet gate, so it is refused before the L1 personal_sign and
+      // the ChangePubKey signing — no pointless wallet/hardware prompt,
+      // nothing reaches the venue, readiness reports false.
       const { provider, calls, clientInstance } = buildProvider({
         isTestnet: false,
       });
@@ -636,6 +637,9 @@ describe('LighterProvider', () => {
       expect(result.ready).toBe(false);
       expect(clientInstance.sendTx).not.toHaveBeenCalled();
       expect(calls.map((call) => call.function)).toContain('_createClient');
+      expect(calls.map((call) => call.function)).not.toContain(
+        '_signChangePubKey',
+      );
     });
 
     it('mainnet AUTHENTICATED reads work when the venue key is already registered (no dispatch needed)', async () => {

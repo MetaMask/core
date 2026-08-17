@@ -3896,6 +3896,15 @@ export class LighterProvider implements PerpsProvider {
         const registered = await this.#isVenueKeyRegistered(accountIndex);
         this.#assertSession(generation);
         if (!registered) {
+          // Registration can never succeed under the mainnet rollout
+          // gate: refuse BEFORE the L1 personal_sign — never prompt the
+          // user (or a hardware wallet) for a signature that the
+          // dispatch backstop is guaranteed to refuse.
+          if (!this.#isTestnet) {
+            throw new Error(
+              'Lighter mainnet trading is not enabled yet; venue key registration is limited to testnet',
+            );
+          }
           await this.#registerVenueKey(
             accountIndex,
             created.body,
