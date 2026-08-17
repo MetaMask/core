@@ -237,8 +237,8 @@ describe('KycService', () => {
     });
 
     it('throws when no Fractal base URL is configured', async () => {
-      // Omit the option entirely so the constructor falls back to ''.
-      const { service } = getService({ fractalEncryptionBaseUrl: null });
+      // An empty base URL exercises the constructor's "not configured" guard.
+      const { service } = getService({ fractalEncryptionBaseUrl: '' });
 
       await expect(service.fetchJwks()).rejects.toThrow(
         /fractalEncryptionBaseUrl is not configured/u,
@@ -481,8 +481,8 @@ type RootMessenger = Messenger<
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
  * @param args.baseUrl - Base URL of the KYC API.
- * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
- * option so the service falls back to an empty string.
+ * @param args.fractalEncryptionBaseUrl - Fractal base URL; pass `''` to
+ * exercise the service's "not configured" guard.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -490,15 +490,13 @@ function getService({
   geolocation = 'US-NY',
   defaultPolicy = false,
   baseUrl = MOCK_API_URL,
-  // `null` means "omit the option entirely" (exercises the constructor's
-  // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
 }: {
   bearerToken?: string;
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
-  fractalEncryptionBaseUrl?: string | null;
+  fractalEncryptionBaseUrl?: string;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -531,7 +529,7 @@ function getService({
   const service = new KycService({
     messenger,
     baseUrl,
-    ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
+    fractalEncryptionBaseUrl,
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
 

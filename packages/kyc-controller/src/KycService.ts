@@ -111,16 +111,13 @@ export type KycServiceMessenger = Messenger<
 export type KycServiceOptions = {
   messenger: KycServiceMessenger;
   /**
-   * Mandatory value that sets the base url to KYC api
+   * Base url of the KYC api
    */
   baseUrl: string;
   /**
-   * Base URL of the Fractal encryption service, from which the JWKS used to
-   * verify the `jwtChain` returned by {@link KycService.getWrappingKey} is
-   * fetched. Required to run the wrapping-key exchange in
-   * {@link KycService.fetchJwks}.
+   * Base URL of the Fractal encryption api
    */
-  fractalEncryptionBaseUrl?: string;
+  fractalEncryptionBaseUrl: string;
   /**
    * Shared configuration applied to all queries exposed by the service (e.g. a
    * default `staleTime`/`cacheTime`). Each data service gets its own
@@ -299,7 +296,7 @@ export class KycService extends BaseDataService<
       throw new Error('KycService: baseUrl is required');
     }
     this.#baseUrl = baseUrl;
-    this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
+    this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl;
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
