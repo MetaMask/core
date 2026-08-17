@@ -349,7 +349,6 @@ const config = createConfig([
       'packages/assets-controllers/src/TokenRatesController.ts',
       'packages/assets-controllers/src/TokensController.ts',
       'packages/controller-utils/src/siwe.ts',
-      'packages/ens-controller/src/EnsController.ts',
       'packages/gas-fee-controller/src/GasFeeController.ts',
       'packages/logging-controller/src/LoggingController.ts',
       'packages/message-manager/src/AbstractMessageManager.ts',

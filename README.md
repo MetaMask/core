@@ -74,7 +74,6 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
 - [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
-- [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
 - [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
@@ -181,7 +180,6 @@ linkStyle default opacity:0.5
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
   eip_7702_internal_rpc_middleware(["@metamask/eip-7702-internal-rpc-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
-  ens_controller(["@metamask/ens-controller"]);
   eth_block_tracker(["@metamask/eth-block-tracker"]);
   eth_json_rpc_middleware(["@metamask/eth-json-rpc-middleware"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
