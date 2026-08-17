@@ -667,12 +667,6 @@ export class KycService extends BaseDataService<
       const bearerToken = await this.messenger.call(
         'AuthenticationController:getBearerToken',
       );
-      assert(bearerToken, string());
-      if (!bearerToken) {
-        throw new Error(
-          'Unable to obtain an authentication bearer token — is the wallet signed in?',
-        );
-      }
       headers.Authorization = `Bearer ${bearerToken}`;
     }
 

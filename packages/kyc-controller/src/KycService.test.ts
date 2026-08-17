@@ -87,13 +87,6 @@ describe('KycService', () => {
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
-    it('throws when no bearer token is available', async () => {
-      const { service } = getService({ bearerToken: '' });
-      await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
-      ).rejects.toThrow(/Unable to obtain an authentication bearer token/u);
-    });
-
     it('throws an HttpError on a non-ok response', async () => {
       nock(MOCK_API_URL)
         .get('/vendors/moonpay/disclaimers')
