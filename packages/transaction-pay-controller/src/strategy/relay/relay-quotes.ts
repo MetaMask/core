@@ -536,10 +536,7 @@ async function processTransactions(
   // so any extra dust is also sent to the same address, rather than back to the user.
   if (tokenTransferData) {
     requestBody.recipient = getTransferRecipient(tokenTransferData);
-    // Honour a caller-specified refund address (e.g. the Predict Safe proxy) so
-    // dust and failed-transaction refunds go to the intended account. Only fall
-    // back to the EOA when no explicit refundTo was provided.
-    requestBody.refundTo = request.refundTo ?? request.from;
+    requestBody.refundTo = request.from;
   }
 
   const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;

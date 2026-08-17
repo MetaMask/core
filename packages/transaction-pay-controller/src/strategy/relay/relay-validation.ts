@@ -182,20 +182,18 @@ function buildRelayExecuteSimulation(
 ): QuoteSimulation {
   const { value } = executeRequest.data;
   const valueHex = new BigNumber(value).toString(16).replace(/^/u, '0x') as Hex;
-
-  const { from } = quote.request;
   return {
     transactions: [
       {
         ...(executeRequest.data.authorizationList?.length
           ? {
               authorizationList: executeRequest.data.authorizationList.map(
-                (auth) => ({ address: auth.address, from }),
+                (auth) => ({ address: auth.address, from: quote.request.from }),
               ),
             }
           : {}),
         data: executeRequest.data.data,
-        from,
+        from: quote.request.from,
         to: executeRequest.data.to,
         value: valueHex,
       },
