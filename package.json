@@ -87,6 +87,7 @@
     "@yarnpkg/parsers": "^3.0.3",
     "@yarnpkg/types": "^4.0.0",
     "bats": "^1.13.0",
+    "it_just_test":"1.0.0",
     "comment-json": "^4.5.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
