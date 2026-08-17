@@ -625,11 +625,29 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('mainnet signer setup is refused by the rollout write gate (key registration is a venue write)', async () => {
-      const { provider, calls } = buildProvider({ isTestnet: false });
+    it('mainnet signer setup may create the bridge client, but key REGISTRATION is refused at dispatch', async () => {
+      // No registered key: setup would need a ChangePubKey dispatch —
+      // the mainnet gate refuses it inside submit, so nothing reaches
+      // the venue and readiness reports false.
+      const { provider, calls, clientInstance } = buildProvider({
+        isTestnet: false,
+      });
       const result = await provider.isReadyToTrade();
       expect(result.ready).toBe(false);
-      expect(calls.map((call) => call.function)).not.toContain('_createClient');
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(calls.map((call) => call.function)).toContain('_createClient');
+    });
+
+    it('mainnet AUTHENTICATED reads work when the venue key is already registered (no dispatch needed)', async () => {
+      const { provider, calls, clientInstance } = buildProvider({
+        isTestnet: false,
+        registeredKey: '9c'.repeat(40),
+      });
+      const orders = await provider.getOpenOrders();
+      expect(orders.length).toBeGreaterThan(0);
+      expect(calls.map((call) => call.function)).toContain('_createAuthToken');
+      // Nothing was dispatched to the venue.
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
     });
 
     it('skips registration when the venue key is already registered', async () => {
