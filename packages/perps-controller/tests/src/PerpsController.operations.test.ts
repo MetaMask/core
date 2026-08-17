@@ -1019,6 +1019,62 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('durable-settlement surfacing (manual recoveries / recovered dispatches)', () => {
+    it('returns empty lists when the active provider has no durable settlement state', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      expect(await controller.getPendingManualRecoveries()).toStrictEqual([]);
+      expect(await controller.getRecoveredDispatches()).toStrictEqual([]);
+      await expect(
+        controller.acknowledgeRecoveredDispatch('42:abcd'),
+      ).rejects.toThrow('no recovered dispatches');
+    });
+
+    it('routes to the active provider when it implements the durable-settlement contract', async () => {
+      const pending = [
+        {
+          symbol: 'BTC',
+          settlementKey: '0xabc:28:7:BTC',
+          recordedAt: 5,
+          reason: 'why',
+          priorIntent: 'replace' as const,
+          survivingOrderIds: ['9'],
+          actionNeeded: 'do the thing',
+        },
+      ];
+      const outcomes = [
+        {
+          recoveryId: '42:abcd',
+          kind: 13,
+          intent: 'withdraw:25',
+          txHash: 'abcd',
+          outcome: 'succeeded' as const,
+          evidence: 'tx-status:3',
+        },
+      ];
+      const durableProvider = {
+        ...mockProvider,
+        getPendingManualRecoveries: jest.fn().mockResolvedValue(pending),
+        getRecoveredDispatches: jest.fn().mockResolvedValue(outcomes),
+        acknowledgeRecoveredDispatch: jest.fn().mockResolvedValue(undefined),
+      } as unknown as PerpsProvider;
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', durableProvider]]));
+      expect(await controller.getPendingManualRecoveries()).toStrictEqual(
+        pending,
+      );
+      expect(await controller.getRecoveredDispatches()).toStrictEqual(outcomes);
+      await controller.acknowledgeRecoveredDispatch('42:abcd');
+      expect(
+        (
+          durableProvider as unknown as {
+            acknowledgeRecoveredDispatch: jest.Mock;
+          }
+        ).acknowledgeRecoveredDispatch,
+      ).toHaveBeenCalledWith('42:abcd');
+    });
+  });
+
   describe('getAvailableDexs', () => {
     beforeEach(() => {
       markControllerAsInitialized();

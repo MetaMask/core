@@ -50,6 +50,24 @@ const BTC_MARKET = {
  * @param baseKey - The base journal key.
  * @returns The key whose value contains the journal payload.
  */
+/**
+ * Round-21 acknowledgment protocol: read-only listing + selective
+ * per-outcome acknowledgment. Helper acks every pending outcome the way
+ * a caller would after refreshing venue state.
+ *
+ * @param provider - The provider under test.
+ * @returns The outcomes that were acknowledged.
+ */
+const acknowledgeAllRecovered = async (
+  provider: LighterProvider,
+): Promise<{ recoveryId: string; kind: number; intent: string }[]> => {
+  const outcomes = await provider.getRecoveredDispatches();
+  for (const outcome of outcomes) {
+    await provider.acknowledgeRecoveredDispatch(outcome.recoveryId);
+  }
+  return outcomes;
+};
+
 const resolveJournalPayloadKey = (
   disk: Map<string, string>,
   baseKey: string,
@@ -133,6 +151,7 @@ function createMockBridge(): {
           return {
             txInfo: JSON.stringify({
               changePubKey: true,
+              Nonce: Number((call.params as (string | number)[])[2]),
               ExpiredAt: Date.now() + 599_000,
             }),
             txHash: `dddd${String(signSequence).padStart(12, '0')}`,
@@ -171,6 +190,7 @@ function createMockBridge(): {
           return {
             txInfo: JSON.stringify({
               updateLeverage: true,
+              Nonce: Number((call.params as (string | number)[]).at(-1)),
               ExpiredAt: Date.now() + 599_000,
             }),
             txHash: `eeee${String(signSequence).padStart(12, '0')}`,
@@ -193,6 +213,7 @@ function createMockBridge(): {
           return {
             txInfo: JSON.stringify({
               updateMargin: true,
+              Nonce: Number((call.params as (string | number)[]).at(-1)),
               ExpiredAt: Date.now() + 599_000,
             }),
             txHash: `ffff${String(signSequence).padStart(12, '0')}`,
@@ -203,6 +224,7 @@ function createMockBridge(): {
           return {
             txInfo: JSON.stringify({
               withdraw: true,
+              Nonce: Number((call.params as (string | number)[]).at(-1)),
               ExpiredAt: Date.now() + 599_000,
             }),
             txHash: `abab${String(signSequence).padStart(12, '0')}`,
@@ -253,6 +275,7 @@ type MockClientInstance = {
  * @param options.configuredAccountIndex - Account index override; null forces resolution via accountsByL1Address.
  * @param options.platformDependencies - Shared platform deps (e.g. durable diskCache across simulated lifetimes).
  * @param options.apiKeyIndex - API key slot (nonce namespace); defaults to 7.
+ * @param options.sharedBridge - Share ANOTHER provider's bridge OBJECT (singleton-client model).
  * @returns Provider and its collaborators.
  */
 function buildProvider(
@@ -270,6 +293,8 @@ function buildProvider(
     platformDependencies?: ReturnType<typeof createMockInfrastructure>;
     /** API key slot (nonce namespace); defaults to 7. */
     apiKeyIndex?: number;
+    /** Share ANOTHER provider's bridge OBJECT (singleton-client model). */
+    sharedBridge?: ReturnType<typeof createMockBridge>;
   } = {},
 ): {
   provider: LighterProvider;
@@ -287,6 +312,7 @@ function buildProvider(
     configuredAccountIndex = 28,
     platformDependencies = createMockInfrastructure(),
     apiKeyIndex = 7,
+    sharedBridge,
   } = options;
   const clientInstance = {
     network: 'testnet',
@@ -445,7 +471,7 @@ function buildProvider(
       }) as unknown as LighterWalletService,
   );
 
-  const { bridge, calls, fireReset } = createMockBridge();
+  const { bridge, calls, fireReset } = sharedBridge ?? createMockBridge();
   const provider = new LighterProvider({
     isTestnet,
     platformDependencies,
@@ -1883,6 +1909,10 @@ describe('LighterProvider', () => {
     type StagedCancel = { orderId: string; txHash: string; nonce: number };
     const stagedCreates: StagedCreateBatch[] = [];
     const stagedCancels: StagedCancel[] = [];
+    // Generic (non-order) dispatches: withdraw/margin/leverage/key-reg.
+    // The venue's tx registry records EVERY landed tx by hash, so masked
+    // commits of these types must be exact-hash resolvable too.
+    const stagedGenerics: { txHash: string; nonce: number }[] = [];
     // Authoritative tx registry: exact-hash lookup resolves acceptance.
     // Status semantics follow the venue: 3 executed, 4 failed, 5 rejected.
     const venueApiKeyIndex = venueOptions.apiKeyIndex ?? 7;
@@ -2068,6 +2098,13 @@ describe('LighterProvider', () => {
       const at = stagedCancels.findIndex((staged) => staged.nonce === nonce);
       return at >= 0 ? stagedCancels.splice(at, 1)[0] : undefined;
     };
+    const takeStagedGeneric = (
+      txInfo: string,
+    ): { txHash: string; nonce: number } | undefined => {
+      const nonce = nonceFromTxInfo(txInfo);
+      const at = stagedGenerics.findIndex((staged) => staged.nonce === nonce);
+      return at >= 0 ? stagedGenerics.splice(at, 1)[0] : undefined;
+    };
     // Drop a submission's staged payload when it never reached acceptance.
     const dropStaged = (txType: number, txInfo: string): void => {
       if (txType === 14 || txType === 28) {
@@ -2075,6 +2112,8 @@ describe('LighterProvider', () => {
       }
       if (txType === 15) {
         takeStagedCancel(txInfo);
+      } else if (txType !== 14 && txType !== 28) {
+        takeStagedGeneric(txInfo);
       }
     };
     clientInstance.sendTx.mockImplementation(
@@ -2149,6 +2188,14 @@ describe('LighterProvider', () => {
           const staged = takeStagedCancel(txInfo);
           if (staged) {
             commitCancel(staged);
+          }
+        }
+        if (txType !== 14 && txType !== 28 && txType !== 15) {
+          // Generic dispatch (withdraw/margin/leverage/key-reg): the
+          // venue records EVERY landed tx by exact hash.
+          const staged = takeStagedGeneric(txInfo);
+          if (staged) {
+            landedTxs.set(staged.txHash, { nonce: staged.nonce, status: 3 });
           }
         }
         if (failAfterCommit.has(txType)) {
@@ -2251,6 +2298,34 @@ describe('LighterProvider', () => {
             txHash: result.txHash ?? 'missing',
             nonce: Number(wireParams[3]),
           });
+          return result;
+        }
+        if (
+          [
+            '_signWithdraw',
+            '_signUpdateMargin',
+            '_signUpdateLeverage',
+            '_signChangePubKey',
+          ].includes(call.function)
+        ) {
+          const result = (await realImplementation(call)) as {
+            txHash?: string;
+            txInfo?: string;
+          };
+          let wireNonce: number | undefined;
+          try {
+            wireNonce = (
+              JSON.parse(result.txInfo ?? '') as {
+                // eslint-disable-next-line @typescript-eslint/naming-convention
+                Nonce?: number;
+              }
+            ).Nonce;
+          } catch {
+            wireNonce = undefined;
+          }
+          if (typeof result.txHash === 'string' && wireNonce !== undefined) {
+            stagedGenerics.push({ txHash: result.txHash, nonce: wireNonce });
+          }
           return result;
         }
         return realImplementation(call);
@@ -2709,21 +2784,16 @@ describe('LighterProvider', () => {
       } finally {
         nowSpy.mockRestore();
       }
-      // Await the delayed commit, then retry: the recovered outcome is
-      // quarantined first (the delayed dispatch actually completed);
-      // acknowledgment unblocks and the retry reconciles serially.
+      // Await the delayed commit, then retry: the dispatch is JOURNAL-
+      // OWNED, so its landed outcome is consumed by the settlement
+      // machine directly — never parked behind the generic
+      // acknowledgment — and the retry reconciles serially.
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      const quarantined = await provider.updatePositionTPSL({
-        symbol: 'BTC',
-        stopLossPrice: '86000',
-      });
-      expect(quarantined.success).toBe(false);
-      expect(quarantined.error).toContain('actually completed');
-      await provider.acknowledgeRecoveredDispatches();
       const second = await provider.updatePositionTPSL({
         symbol: 'BTC',
         stopLossPrice: '86000',
       });
+      expect(await provider.getRecoveredDispatches()).toStrictEqual([]);
       expect(second.error).toBeUndefined();
       expect(second.success).toBe(true);
       expect(venue.rawTriggers).toHaveLength(1);
@@ -3043,20 +3113,14 @@ describe('LighterProvider', () => {
         });
       }
       deepVenue.setCreateTerminal('none');
-      // Acknowledge the quarantined recovered outcome (the lost-response
-      // create actually completed) before the counted retry.
-      const deepQuarantined = await deep.provider.updatePositionTPSL({
-        symbol: 'BTC',
-        stopLossPrice: '86000',
-      });
-      expect(deepQuarantined.success).toBe(false);
-      expect(deepQuarantined.error).toContain('actually completed');
-      await deep.provider.acknowledgeRecoveredDispatches();
       deep.clientInstance.getInactiveOrders.mockClear();
+      // The lost-response create is JOURNAL-OWNED: the retry reconciles
+      // it through the settlement machine directly (no quarantine).
       const second = await deep.provider.updatePositionTPSL({
         symbol: 'BTC',
         stopLossPrice: '86000',
       });
+      expect(await deep.provider.getRecoveredDispatches()).toStrictEqual([]);
       expect(second.error).toBeUndefined();
       expect(second.success).toBe(true);
       const inactiveCalls =
@@ -4133,18 +4197,9 @@ describe('LighterProvider', () => {
       });
       expect(crashed.success).toBe(false);
       // A DIFFERENT operation in a new lock section must not reuse it.
-      // The first section QUARANTINES the recovered outcome (the
-      // lost-response cancel completed); acknowledgment unblocks.
-      const quarantined = await built.provider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.001',
-        orderType: 'limit',
-        price: '90000',
-      });
-      expect(quarantined.success).toBe(false);
-      expect(quarantined.error).toContain('actually completed');
-      await built.provider.acknowledgeRecoveredDispatches();
+      // The lost-response cancel is JOURNAL-OWNED: its ledger entry is
+      // consumed by exact-hash proof (floor advance) without parking a
+      // generic quarantine, so the unrelated write proceeds immediately.
       const placed = await built.provider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
@@ -4379,16 +4434,16 @@ describe('LighterProvider', () => {
         code: 200,
         nonce: consumedNonce,
       }));
-      // A DIRECT unrelated write on the fresh session — no recovery kick
-      // ran; only the durable dispatch ledger can prevent the reuse. The
-      // FIRST write quarantines the recovered outcome (the lost-response
-      // cancel completed); acknowledgment unblocks.
-      const quarantined = await second.provider.updatePositionTPSL({
+      // A DIRECT write on the fresh session — no recovery kick ran; only
+      // the durable dispatch ledger can prevent the reuse. The lost-
+      // response cancel is JOURNAL-OWNED: the fresh session's protection
+      // intent resolves it through the settlement machine (no generic
+      // quarantine), and the floor advance survives the restart.
+      const resolvedRestart = await second.provider.updatePositionTPSL({
         symbol: 'BTC',
       });
-      expect(quarantined.success).toBe(false);
-      expect(quarantined.error).toContain('actually completed');
-      await second.provider.acknowledgeRecoveredDispatches();
+      expect(resolvedRestart.success).toBe(true);
+      expect(await second.provider.getRecoveredDispatches()).toStrictEqual([]);
       const placed = await second.provider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
@@ -4779,18 +4834,15 @@ describe('LighterProvider', () => {
         code: 200,
         nonce: consumedNonce,
       }));
-      // The RETRY is BLOCKED: the ambiguous dispatch is proven consumed
-      // and quarantined as a recovered outcome — blind retry could
-      // double the financial operation.
-      const blocked = await second.provider.updatePositionTPSL({
+      // The retry resolves the JOURNAL-OWNED dispatch through the
+      // settlement machine: the exact RESULT hash (recorded at dispatch;
+      // txInfo never carried it) proves consumption, the floor advances,
+      // and no generic quarantine is parked.
+      const resolvedRestart = await second.provider.updatePositionTPSL({
         symbol: 'BTC',
       });
-      expect(blocked.success).toBe(false);
-      expect(blocked.error).toContain('actually completed');
-      // Explicit acknowledgment (after refreshing state) unblocks.
-      const outcomes = await second.provider.acknowledgeRecoveredDispatches();
-      expect(outcomes).toHaveLength(1);
-      expect(outcomes[0].kind).toBe(15);
+      expect(resolvedRestart.success).toBe(true);
+      expect(await second.provider.getRecoveredDispatches()).toStrictEqual([]);
       const placed = await second.provider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
@@ -4845,9 +4897,10 @@ describe('LighterProvider', () => {
       expect(blocked.success).toBe(false);
       expect(blocked.error).toContain('unresolved');
       // The venue advances (the dispatch actually consumed the nonce):
-      // now provably consumed via REST-advance — the outcome is
-      // QUARANTINED (it completed while believed failed) and writes
-      // recover only after explicit acknowledgment.
+      // only the ADVANCE is proven via REST — the hashless intent's own
+      // fate is UNKNOWN, never reported completed. The outcome is
+      // QUARANTINED and writes recover only after explicit
+      // per-outcome acknowledgment.
       built.clientInstance.getNextNonce.mockImplementation(async () => ({
         code: 200,
         nonce: frozenNonce + 1,
@@ -4860,8 +4913,12 @@ describe('LighterProvider', () => {
         price: '90000',
       });
       expect(quarantined.success).toBe(false);
-      expect(quarantined.error).toContain('actually completed');
-      await built.provider.acknowledgeRecoveredDispatches();
+      expect(quarantined.error).toContain('landed with an UNKNOWN outcome');
+      const hashlessOutcomes = await built.provider.getRecoveredDispatches();
+      expect(hashlessOutcomes).toHaveLength(1);
+      expect(hashlessOutcomes[0].outcome).toBe('unknown');
+      expect(hashlessOutcomes[0].evidence).toBe('rest-advance');
+      await acknowledgeAllRecovered(built.provider);
       const placed = await built.provider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
@@ -5007,18 +5064,17 @@ describe('LighterProvider', () => {
       });
       expect(failed.success).toBe(false);
       const consumedNonce = lastSignedNonce(built.calls, '_signCreateOrder');
-      // The next write proves consumption via the exact hash and
-      // QUARANTINES the recovered outcome (the masked commit actually
-      // completed); the explicit acknowledgment unblocks, and the next
-      // dispatch signs the NEXT nonce — releasing on the coded error
-      // would have reused the consumed one.
-      const quarantined = await built.provider.updatePositionTPSL({
+      // The next write proves consumption via the exact hash: the
+      // JOURNAL-OWNED dispatch resolves through the settlement machine
+      // (no generic quarantine) and the next dispatch signs the NEXT
+      // nonce — releasing on the coded error would have reused the
+      // consumed one.
+      const resolvedNext = await built.provider.updatePositionTPSL({
         symbol: 'BTC',
         stopLossPrice: '87000',
       });
-      expect(quarantined.success).toBe(false);
-      expect(quarantined.error).toContain('actually completed');
-      await built.provider.acknowledgeRecoveredDispatches();
+      expect(resolvedNext.success).toBe(true);
+      expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
       const placed = await built.provider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
@@ -5028,8 +5084,26 @@ describe('LighterProvider', () => {
       });
       expect(placed.error).toBeUndefined();
       expect(placed.success).toBe(true);
-      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBe(
-        consumedNonce + 1,
+      // The masked-commit nonce is signed EXACTLY once (the original
+      // dispatch): the settlement + follow-up writes all sign LATER
+      // nonces — releasing on the coded error would have reused it.
+      const signedNonces = built.calls
+        .filter((call) =>
+          [
+            '_signCreateOrder',
+            '_signCancelOrder',
+            '_signCreateGroupedOrders',
+          ].includes(call.function),
+        )
+        .map((call) => {
+          const params = call.params as (string | number)[];
+          return Number(params[params.length - 1]);
+        });
+      expect(
+        signedNonces.filter((nonce) => nonce === consumedNonce),
+      ).toHaveLength(1);
+      expect(lastSignedNonce(built.calls, '_signCreateOrder')).toBeGreaterThan(
+        consumedNonce,
       );
     });
 
@@ -5338,7 +5412,7 @@ describe('LighterProvider', () => {
       expect(retry.success).toBe(false);
       expect(retry.error).toContain('actually completed');
       expect(retry.error).toContain('withdraw:25');
-      const outcomes = await built.provider.acknowledgeRecoveredDispatches();
+      const outcomes = await acknowledgeAllRecovered(built.provider);
       expect(outcomes.map((outcome) => outcome.intent)).toStrictEqual([
         'withdraw:25',
       ]);
@@ -5360,7 +5434,7 @@ describe('LighterProvider', () => {
       });
       expect(retry.success).toBe(false);
       expect(retry.error).toContain('actually completed');
-      await built.provider.acknowledgeRecoveredDispatches();
+      await acknowledgeAllRecovered(built.provider);
       const after = await built.provider.updateMargin({
         symbol: 'BTC',
         amount: '10',
@@ -5372,20 +5446,22 @@ describe('LighterProvider', () => {
       const registeredKey = '9c'.repeat(40);
       const first = buildProvider({ registeredKey });
       const venue = setupTriggerVenue(first.clientInstance, first.bridge);
-      // Second provider on a DIFFERENT venue account, SAME bridge.
+      // Second provider on a DIFFERENT venue account sharing the SAME
+      // bridge OBJECT (the singleton WASM client model).
       const second = buildProvider({
         registeredKey,
         configuredAccountIndex: 99,
+        sharedBridge: {
+          bridge: first.bridge,
+          calls: first.calls,
+          fireReset: first.fireReset,
+        },
       });
-      (second.clientInstance.getAccountByIndex).mockResolvedValue({
+      second.clientInstance.getAccountByIndex.mockResolvedValue({
         code: 200,
         accounts: [{ ...ACCOUNT, index: 99 }],
       });
       const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
-      // CRITICAL: both providers share ONE bridge object.
-      (second.bridge.execute as jest.Mock).mockImplementation(
-        (first.bridge.execute as jest.Mock).getMockImplementation() as never,
-      );
       const sharedCalls = first.calls;
       const order = {
         symbol: 'BTC',
@@ -5553,7 +5629,6 @@ describe('LighterProvider', () => {
       );
       return { disk, infra };
     };
-
 
     const shareVenue = (
       from: { clientInstance: MockClientInstance; bridge: LighterSignerBridge },
@@ -6146,21 +6221,14 @@ describe('LighterProvider', () => {
           '_signCancelOrder',
         ].includes(call.function),
       ).length;
-      // The retry first QUARANTINES the recovered outcome (the hidden
-      // create actually completed); after explicit acknowledgment the
-      // reconciliation observes the hidden create BEFORE any new signer
-      // mutation.
-      const quarantined = await provider.updatePositionTPSL({
-        symbol: 'BTC',
-        stopLossPrice: '86000',
-      });
-      expect(quarantined.success).toBe(false);
-      expect(quarantined.error).toContain('actually completed');
-      await provider.acknowledgeRecoveredDispatches();
+      // The hidden create is JOURNAL-OWNED: the retry reconciles it
+      // through the settlement machine (observing the hidden create
+      // BEFORE any new signer mutation) without a generic quarantine.
       const second = await provider.updatePositionTPSL({
         symbol: 'BTC',
         stopLossPrice: '86000',
       });
+      expect(await provider.getRecoveredDispatches()).toStrictEqual([]);
       expect(second.error).toBeUndefined();
       expect(second.success).toBe(true);
       expect(
@@ -6284,26 +6352,23 @@ describe('LighterProvider', () => {
         venueB.landedTxs.set(hash, landed);
       }
       // Phase 1: the committed 85000 stays hidden beyond the whole
-      // reconciliation window; its nonce IS consumed — the exact-hash
-      // proof QUARANTINES the recovered outcome and the fresh provider
-      // stays blocked with ZERO mutation calls until acknowledged.
+      // reconciliation window; its nonce IS consumed. The JOURNAL-OWNED
+      // dispatch is exact-hash proven consumed (no generic quarantine),
+      // but the settlement itself cannot converge against the lagged
+      // book — the fresh provider stays blocked with ZERO NEW protection
+      // mutations beyond the journal's own reconciliation.
       venueB.primeLag(committedView, 50);
       const blocked = await second.provider.updatePositionTPSL({
         symbol: 'BTC',
         stopLossPrice: '86000',
       });
       expect(blocked.success).toBe(false);
-      expect(blocked.error).toContain('actually completed');
       expect(
         second.calls.filter((call) =>
-          [
-            '_signCreateOrder',
-            '_signCreateGroupedOrders',
-            '_signCancelOrder',
-          ].includes(call.function),
+          ['_signCreateGroupedOrders'].includes(call.function),
         ),
       ).toHaveLength(0);
-      await second.provider.acknowledgeRecoveredDispatches();
+      expect(await second.provider.getRecoveredDispatches()).toStrictEqual([]);
       // Phase 2: the venue reveals the committed state; the retry
       // reconciles the journal and proceeds serially.
       venueB.primeLag(venueB.rawTriggers, 0);
@@ -6562,7 +6627,7 @@ describe('LighterProvider', () => {
       ).toHaveLength(0);
     });
 
-    it('a nonce advancing between the two stable reads keeps reconciliation blocked even when aged', async () => {
+    it('a nonce advancing past an ABSENT exact hash proves the dispatch never landed: retry-safe, no quarantine', async () => {
       const { provider, clientInstance, bridge } = buildProvider();
       const venue = setupTriggerVenue(clientInstance, bridge);
       venue.seedTrigger('stop-loss', '80000');
@@ -6584,15 +6649,18 @@ describe('LighterProvider', () => {
         .spyOn(Date, 'now')
         .mockImplementation(() => realNow + 13_000);
       try {
+        // The venue moved past the nonce while OUR exact hash is absent:
+        // another writer consumed it — the LEDGER treats it retry-safe
+        // (floor advances, NOTHING is reported completed and no
+        // quarantine is parked); the settlement machine itself stays
+        // conservatively blocked inside the signed validity window.
         const retry = await provider.updatePositionTPSL({
           symbol: 'BTC',
           stopLossPrice: '86000',
         });
         expect(retry.success).toBe(false);
-        // The advance PROVES the ambiguous dispatch completed: the
-        // recovered outcome is quarantined — still blocked, and now with
-        // an explicit completed-not-failed surface.
-        expect(retry.error).toContain('actually completed');
+        expect(retry.error).toContain('unresolved');
+        expect(await provider.getRecoveredDispatches()).toStrictEqual([]);
       } finally {
         nowSpy.mockRestore();
       }
@@ -6826,8 +6894,20 @@ describe('LighterProvider', () => {
     it('degenerate randomness aborts TP/SL replacement before any cancellation', async () => {
       const { provider, calls } = buildProvider();
       // The bounded allocator throws after 100 attempts per id; that
-      // exhaustion must land BEFORE signer setup and cancels.
-      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+      // exhaustion must land BEFORE signer setup and cancels. Ids draw
+      // from WebCrypto now — degenerate CRYPTO output is the seam.
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
+      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const randomSpy = jest
+        .spyOn(cryptoObj, 'getRandomValues')
+        .mockImplementation(
+          <TView extends ArrayBufferView | null>(array: TView): TView => {
+            if (array instanceof Uint8Array) {
+              array.fill(0);
+            }
+            return array;
+          },
+        );
       try {
         const result = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -7064,7 +7144,9 @@ describe('LighterProvider', () => {
     it('a single trigger replacement reserves exactly one client id', async () => {
       const { provider, calls, clientInstance, bridge } = buildProvider();
       setupTriggerVenue(clientInstance, bridge);
-      const randomSpy = jest.spyOn(Math, 'random');
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
+      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const randomSpy = jest.spyOn(cryptoObj, 'getRandomValues');
       try {
         const result = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -7072,10 +7154,10 @@ describe('LighterProvider', () => {
         });
         expect(result.error).toBeUndefined();
         expect(result.success).toBe(true);
-        // One uint48 id = exactly two 24-bit draws (plus TWO draws for
-        // the journal's collision-resistant operation id); reserving an
-        // unused second id would waste allocator budget for no order.
-        expect(randomSpy).toHaveBeenCalledTimes(4);
+        // One uint48 id = exactly ONE 6-byte crypto draw (plus ONE draw
+        // for the journal's collision-resistant operation id); reserving
+        // an unused second id would waste allocator budget for no order.
+        expect(randomSpy).toHaveBeenCalledTimes(2);
         // A lone TP is an ordinary CreateOrder trigger — the venue rejects
         // CreateGroupedOrders with grouping type 0 ('GroupingType is not
         // valid'), and OCO requires two siblings.
@@ -7555,7 +7637,19 @@ describe('LighterProvider', () => {
       const { provider, calls } = buildProvider();
       // Perpetual zero: every candidate is rejected, so a bounded allocator
       // must throw instead of spinning. The mock never falls through.
-      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
+      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const fillWith =
+        (byte: number) =>
+        <TView extends ArrayBufferView | null>(array: TView): TView => {
+          if (array instanceof Uint8Array) {
+            array.fill(byte);
+          }
+          return array;
+        };
+      const randomSpy = jest
+        .spyOn(cryptoObj, 'getRandomValues')
+        .mockImplementation(fillWith(0));
       try {
         const zeroResult = await provider.placeOrder({
           symbol: 'BTC',
@@ -7570,10 +7664,10 @@ describe('LighterProvider', () => {
         expect(zeroDraws).toBeGreaterThan(0);
         expect(zeroDraws).toBeLessThanOrEqual(200);
 
-        // Perpetual collision: one id issues at 0.5, then every later
-        // candidate collides with it forever.
+        // Perpetual collision: one id issues, then every later candidate
+        // collides with it forever (constant crypto output).
         randomSpy.mockClear();
-        randomSpy.mockReturnValue(0.5);
+        randomSpy.mockImplementation(fillWith(0x80));
         const first = await provider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
@@ -7641,20 +7735,28 @@ describe('LighterProvider', () => {
 
     it('a colliding random draw is retried until the id is unique', async () => {
       const { provider, calls } = buildProvider();
-      // Two 24-bit draws per candidate. Force the second placement's first
-      // candidate to collide with the first placement's id, then verify the
-      // allocator retries with a fresh draw instead of reusing the id.
-      // jest.spyOn falls through to the real Math.random once the queued
-      // values are exhausted, so the retry loop cannot spin forever even if
-      // this sequence is wrong.
+      // One 6-byte crypto draw per candidate. Force the second
+      // placement's first candidate to collide with the first
+      // placement's id, then verify the allocator retries with a fresh
+      // draw instead of reusing the id. The spy falls through to real
+      // crypto once the queue is exhausted, so the retry loop cannot
+      // spin forever even if this sequence is wrong.
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
+      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const realRandom = cryptoObj.getRandomValues.bind(cryptoObj);
+      const queue: number[] = [0x80, 0x80, 0x40];
       const randomSpy = jest
-        .spyOn(Math, 'random')
-        .mockReturnValueOnce(0.5)
-        .mockReturnValueOnce(0.5)
-        .mockReturnValueOnce(0.5)
-        .mockReturnValueOnce(0.5)
-        .mockReturnValueOnce(0.25)
-        .mockReturnValueOnce(0.25);
+        .spyOn(cryptoObj, 'getRandomValues')
+        .mockImplementation(
+          <TView extends ArrayBufferView | null>(array: TView): TView => {
+            const next = queue.shift();
+            if (next !== undefined && array instanceof Uint8Array) {
+              array.fill(next);
+              return array;
+            }
+            return realRandom(array as never) as TView;
+          },
+        );
       try {
         const first = await provider.placeOrder({
           symbol: 'BTC',
@@ -7675,14 +7777,14 @@ describe('LighterProvider', () => {
         const ids = calls
           .filter((call) => call.function === '_signCreateOrder')
           .map((call) => call.params[2] as number);
-        const half = Math.floor(0.5 * 2 ** 24);
-        const quarter = Math.floor(0.25 * 2 ** 24);
-        expect(ids).toStrictEqual([
-          half * 2 ** 24 + half,
-          quarter * 2 ** 24 + quarter,
-        ]);
-        // Six draws prove the colliding candidate was rejected and redrawn.
-        expect(randomSpy).toHaveBeenCalledTimes(6);
+        const of = (byte: number): number => {
+          const third = byte * 65_536 + byte * 256 + byte;
+          return third * 2 ** 24 + third;
+        };
+        expect(ids).toStrictEqual([of(0x80), of(0x40)]);
+        // Three draws prove the colliding candidate was rejected and
+        // redrawn.
+        expect(randomSpy).toHaveBeenCalledTimes(3);
       } finally {
         randomSpy.mockRestore();
       }
@@ -7690,12 +7792,20 @@ describe('LighterProvider', () => {
 
     it('a zero draw is rejected and redrawn, never issued as a client id', async () => {
       const { provider, calls } = buildProvider();
+      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
+      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const zeroQueue: number[] = [0x00, 0xc0];
       const randomSpy = jest
-        .spyOn(Math, 'random')
-        .mockReturnValueOnce(0)
-        .mockReturnValueOnce(0)
-        .mockReturnValueOnce(0.75)
-        .mockReturnValueOnce(0.75);
+        .spyOn(cryptoObj, 'getRandomValues')
+        .mockImplementation(
+          <TView extends ArrayBufferView | null>(array: TView): TView => {
+            const next = zeroQueue.shift();
+            if (next !== undefined && array instanceof Uint8Array) {
+              array.fill(next);
+            }
+            return array;
+          },
+        );
       try {
         const result = await provider.placeOrder({
           symbol: 'BTC',
@@ -7708,9 +7818,9 @@ describe('LighterProvider', () => {
         const ids = calls
           .filter((call) => call.function === '_signCreateOrder')
           .map((call) => call.params[2] as number);
-        const threeQuarters = Math.floor(0.75 * 2 ** 24);
-        expect(ids).toStrictEqual([threeQuarters * 2 ** 24 + threeQuarters]);
-        expect(randomSpy).toHaveBeenCalledTimes(4);
+        const third = 0xc0 * 65_536 + 0xc0 * 256 + 0xc0;
+        expect(ids).toStrictEqual([third * 2 ** 24 + third]);
+        expect(randomSpy).toHaveBeenCalledTimes(2);
       } finally {
         randomSpy.mockRestore();
       }
@@ -8872,6 +8982,335 @@ describe('LighterProvider', () => {
       const { provider } = buildProvider();
       expect(provider.getBlockExplorerUrl('0xabc')).toContain('/address/0xabc');
       expect(provider.getBlockExplorerUrl()).toMatch(/^https:/u);
+    });
+  });
+  describe('round-21 quarantine persistence, selective acknowledgment and durable manual state', () => {
+    it('an unacknowledged recovered outcome blocks the SECOND and THIRD retries too (no empty-entries bypass)', async () => {
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({ registeredKey });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.failResponseOnce(13);
+      expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
+        false,
+      );
+      // Retry 1 resolves the entry, quarantines the outcome, blocks.
+      const retry1 = await built.provider.withdraw({ amount: '25' });
+      expect(retry1.success).toBe(false);
+      expect(retry1.error).toContain('actually completed');
+      // Retries 2 and 3 arrive with ZERO unresolved entries — the
+      // quarantine check runs BEFORE the empty-entries return, so they
+      // stay blocked until the outcome is acknowledged.
+      const retry2 = await built.provider.withdraw({ amount: '25' });
+      expect(retry2.success).toBe(false);
+      expect(retry2.error).toContain('actually completed');
+      const retry3 = await built.provider.updateMargin({
+        symbol: 'BTC',
+        amount: '10',
+      });
+      expect(retry3.success).toBe(false);
+      expect(retry3.error).toContain('actually completed');
+      await acknowledgeAllRecovered(built.provider);
+      const after = await built.provider.withdraw({ amount: '25' });
+      expect(after.success).toBe(true);
+    });
+
+    it('getRecoveredDispatches is READ-ONLY and acknowledgment is selective per stable id', async () => {
+      const registeredKey = '9c'.repeat(40);
+      const infra = createMockInfrastructure();
+      // TWO ambiguous dispatches recorded by an earlier session (writes
+      // block after the first, so two entries model a restart/two-device
+      // ledger), both later proven consumed by exact hash.
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:7',
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [
+            {
+              nonce: 42,
+              txHash: 'abab000000000042',
+              expiresAt: 9_999_999_999_999,
+              kind: 13,
+              intent: 'withdraw:25',
+              owner: null,
+            },
+            {
+              nonce: 43,
+              txHash: 'ffff000000000043',
+              expiresAt: 9_999_999_999_999,
+              kind: 29,
+              intent: 'updateMargin:BTC:10',
+              owner: null,
+            },
+          ],
+          recovered: [],
+        }),
+      );
+      const built = buildProvider({
+        registeredKey,
+        platformDependencies: infra,
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      built.clientInstance.getTx.mockImplementation(async (hash: string) =>
+        hash === 'abab000000000042' || hash === 'ffff000000000043'
+          ? {
+              code: 200,
+              hash,
+              accountIndex: 28,
+              apiKeyIndex: 7,
+              nonce: hash === 'abab000000000042' ? 42 : 43,
+              status: 3,
+            }
+          : null,
+      );
+      // A blocked write resolves both entries into recovered outcomes.
+      expect((await built.provider.withdraw({ amount: '5' })).success).toBe(
+        false,
+      );
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(2);
+      expect(outcomes.map((outcome) => outcome.outcome)).toStrictEqual([
+        'succeeded',
+        'succeeded',
+      ]);
+      // READ-ONLY: a second read returns the SAME outcomes — nothing was
+      // destructively cleared by reading.
+      const reread = await built.provider.getRecoveredDispatches();
+      expect(reread).toStrictEqual(outcomes);
+      // Unknown id: refused explicitly.
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch('999:deadbeef'),
+      ).rejects.toThrow('No pending recovered');
+      // Acknowledge ONE: the other outcome still blocks writes.
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[0].recoveryId);
+      const stillBlocked = await built.provider.withdraw({ amount: '5' });
+      expect(stillBlocked.success).toBe(false);
+      expect(stillBlocked.error).toContain('actually completed');
+      expect(await built.provider.getRecoveredDispatches()).toHaveLength(1);
+      // Acknowledge the second: writes recover.
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[1].recoveryId);
+      const after = await built.provider.withdraw({ amount: '5' });
+      expect(after.success).toBe(true);
+    });
+
+    it("an account switch cannot acknowledge (or lose) another account's recovered outcome", async () => {
+      const registeredKey = '9c'.repeat(40);
+      const built = buildProvider({
+        registeredKey,
+        configuredAccountIndex: null,
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.failResponseOnce(13);
+      expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
+        false,
+      );
+      expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
+        false,
+      );
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(1);
+      // WALLET SWITCH: a different address owning a different account.
+      const otherAddress = '0x9999999999999999999999999999999999999999';
+      built.getUserAddressMock.mockReturnValue(otherAddress);
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: otherAddress,
+        subAccounts: [{ ...ACCOUNT, index: 77, l1Address: otherAddress }],
+      });
+      // The stale id targets the OLD account's ledger: the new session
+      // must not clear it (its own ledger has no such outcome).
+      await expect(
+        built.provider.acknowledgeRecoveredDispatch(outcomes[0].recoveryId),
+      ).rejects.toThrow('No pending recovered');
+      // Switch BACK: the outcome survived untouched and is still owed.
+      built.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [ACCOUNT],
+      });
+      const survived = await built.provider.getRecoveredDispatches();
+      expect(survived).toStrictEqual(outcomes);
+    });
+
+    it('a parked manual recovery carries reason, prior intent, survivors and required action — and survives a FAILED successor', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('take-profit', '110000');
+      venue.seedTrigger('stop-loss', '80000');
+      // After the FIRST old-cancel commits, the venue terminal-cancels
+      // one replacement leg (phase race) — parks durable manual state.
+      const realSend = clientInstance.sendTx.getMockImplementation() as (
+        txType: number,
+        txInfo: string,
+      ) => Promise<unknown>;
+      let raced = false;
+      clientInstance.sendTx.mockImplementation(
+        async (txType: number, txInfo: string) => {
+          const result = await realSend(txType, txInfo);
+          if (txType === 15 && !raced) {
+            raced = true;
+            const failedAt = venue.rawTriggers.findIndex(
+              (row) => row.triggerPrice === '81000',
+            );
+            if (failedAt >= 0) {
+              const [failedRow] = venue.rawTriggers.splice(failedAt, 1);
+              venue.rawInactive.push({ ...failedRow, status: 'canceled' });
+            }
+          }
+          return result;
+        },
+      );
+      const parked = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '111000',
+        stopLossPrice: '81000',
+      });
+      expect(parked.success).toBe(false);
+      const pending = await provider.getPendingManualRecoveries();
+      expect(pending).toHaveLength(1);
+      expect(pending[0].symbol).toBe('BTC');
+      expect(pending[0].reason.length).toBeGreaterThan(10);
+      expect(pending[0].priorIntent).toBe('replace');
+      expect(Array.isArray(pending[0].survivingOrderIds)).toBe(true);
+      expect(pending[0].actionNeeded).toContain('TP/SL');
+      // A FAILED successor intent must RETAIN the warning: the venue
+      // terminal-cancels the successor's create before activation.
+      venue.setCreateTerminal('canceled');
+      const failedSuccessor = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '84000',
+      });
+      expect(failedSuccessor.success).toBe(false);
+      expect(await provider.getPendingManualRecoveries()).toHaveLength(1);
+      // Only an authoritatively SUCCESSFUL successor clears it.
+      venue.setCreateTerminal('none');
+      const renewed = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '84000',
+      });
+      expect(renewed.error).toBeUndefined();
+      expect(renewed.success).toBe(true);
+      expect(await provider.getPendingManualRecoveries()).toHaveLength(0);
+    });
+
+    it('manual-recovery discovery PROPAGATES storage errors and filters to the bound identity', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: infra });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      await built.provider.getOpenOrders();
+      // A FOREIGN identity's parked warning is never surfaced here.
+      await infra.diskCache.setItem(
+        'lighterTpslManualIndex:testnet',
+        JSON.stringify(['0xother:99:7:ETH']),
+      );
+      await infra.diskCache.setItem(
+        'lighterTpslManual:testnet:0xother:99:7:ETH',
+        JSON.stringify({
+          version: 1,
+          settlementKey: '0xother:99:7:ETH',
+          symbol: 'ETH',
+          reason: 'foreign',
+          priorIntent: 'replace',
+          priorTriggers: [],
+          survivingOrderIds: [],
+          operationId: 'op-x',
+          recordedAt: 1,
+        }),
+      );
+      expect(await built.provider.getPendingManualRecoveries()).toHaveLength(0);
+      // Corruption REJECTS — it must never degrade to \"nothing pending\".
+      await infra.diskCache.setItem('lighterTpslManualIndex:testnet', '{oops');
+      await expect(built.provider.getPendingManualRecoveries()).rejects.toThrow(
+        'corrupt',
+      );
+    });
+
+    it('a leverage change committed before an order failure is reported as STRUCTURED partial state', async () => {
+      const built = buildProvider();
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      // Leverage submit succeeds; the ORDER dispatch then fails at the
+      // venue boundary.
+      const realSend = built.clientInstance.sendTx.getMockImplementation() as (
+        txType: number,
+        txInfo: string,
+      ) => Promise<unknown>;
+      built.clientInstance.sendTx.mockImplementation(
+        async (txType: number, txInfo: string) => {
+          if (txType === 14) {
+            throw new LighterApiError('order rejected', 21000);
+          }
+          return await realSend(txType, txInfo);
+        },
+      );
+      const result = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        leverage: 10,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('PARTIAL STATE');
+      expect(result.partialState).toStrictEqual({ leverageUpdated: 10 });
+    });
+
+    it("the auth-token mint runs under the bridge lease: a second account's takeover re-establishes OUR client first", async () => {
+      const registeredKey = '9c'.repeat(40);
+      const first = buildProvider({ registeredKey });
+      setupTriggerVenue(first.clientInstance, first.bridge);
+      const second = buildProvider({
+        registeredKey,
+        configuredAccountIndex: 99,
+        sharedBridge: {
+          bridge: first.bridge,
+          calls: first.calls,
+          fireReset: first.fireReset,
+        },
+      });
+      second.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, index: 99 }],
+      });
+      setupTriggerVenue(second.clientInstance, second.bridge);
+      const order = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      } as const;
+      // A establishes and holds a cached token; B takes the singleton.
+      expect((await first.provider.placeOrder(order)).success).toBe(true);
+      expect((await second.provider.placeOrder(order)).success).toBe(true);
+      // EXPIRE A's cached token, then force a fresh mint via a read that
+      // needs auth: the mint must re-create A's client under the lease.
+      const realNow = Date.now();
+      const nowSpy = jest
+        .spyOn(Date, 'now')
+        .mockImplementation(() => realNow + 700_000);
+      try {
+        await first.provider.getOpenOrders();
+      } finally {
+        nowSpy.mockRestore();
+      }
+      // Sequence: every _createAuthToken is owned by the LAST-created
+      // client account.
+      const mismatches: string[] = [];
+      let currentOwner: number | null = null;
+      for (const call of first.calls) {
+        if (call.function === '_createClient') {
+          currentOwner = Number((call.params as (string | number)[])[2]);
+        }
+        if (call.function === '_createAuthToken') {
+          const minter = Number((call.params as (string | number)[])[0]);
+          if (currentOwner !== null && currentOwner !== minter) {
+            mismatches.push(`${String(currentOwner)}!=${String(minter)}`);
+          }
+        }
+      }
+      expect(mismatches).toStrictEqual([]);
     });
   });
 });

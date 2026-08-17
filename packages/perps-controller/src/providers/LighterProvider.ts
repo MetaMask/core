@@ -300,6 +300,24 @@ type TpslPriorTrigger = {
  * as a recovered outcome — blocking blind retries of financial
  * operations until explicitly acknowledged.
  */
+type LighterRecoveredDispatch = {
+  /** Stable identity for selective acknowledgment. */
+  recoveryId: string;
+  kind: number;
+  intent: string;
+  txHash: string | null;
+  /**
+   * Authoritative outcome: 'succeeded' (exact-hash lookup, venue status
+   * executed), 'failed' (exact-hash lookup, venue status failed/rejected
+   * — retry-safe, non-blocking), 'unknown' (only the nonce advance is
+   * proven, e.g. another device moved the nonce; the intent's own fate
+   * is NOT known and must never be reported as completed).
+   */
+  outcome: 'succeeded' | 'failed' | 'unknown';
+  /** What proved the outcome (e.g. 'tx-status:3', 'rest-advance'). */
+  evidence: string;
+};
+
 type LighterNonceLedgerDoc = {
   consumedFloor: number;
   entries: {
@@ -308,8 +326,16 @@ type LighterNonceLedgerDoc = {
     expiresAt: number | null;
     kind: number;
     intent: string;
+    /**
+     * Operation that owns reconciliation of this dispatch (a TP/SL
+     * journal's operationId). Owned dispatches resolve through their
+     * own state machine and are NEVER quarantined into the generic
+     * recovered list — that would deadlock the machine behind an
+     * acknowledgment it cannot give.
+     */
+    owner: string | null;
   }[];
-  recovered: { kind: number; intent: string; txHash: string | null }[];
+  recovered: LighterRecoveredDispatch[];
 };
 
 /**
@@ -358,6 +384,26 @@ type TpslJournalState = {
    */
   priorGrouping: 'oco' | 'independent';
   priorTriggers: TpslPriorTrigger[];
+};
+
+/**
+ * DURABLE manual-recovery record, SEPARATE from the settlement journal:
+ * parking releases the journal slot (so a successor protection intent
+ * can run), while this warning survives until a successor intent
+ * SUCCEEDS — a failed successor must never erase the warning.
+ */
+type TpslManualRecovery = {
+  settlementKey: string;
+  symbol: string;
+  /** Human-readable cause of the parked state. */
+  reason: string;
+  priorIntent: 'replace' | 'remove';
+  /** Exact wire intents of the protection that was in place before. */
+  priorTriggers: TpslPriorTrigger[];
+  /** Venue order ids still on the books when the state was parked. */
+  survivingOrderIds: string[];
+  operationId: string;
+  recordedAt: number;
 };
 
 /**
@@ -466,6 +512,50 @@ const withStorageMutex = withProcessMutex;
  * sharing a bridge are serialized and re-establish the correct client
  * before signing.
  */
+/**
+ * Cryptographic randomness with a bounded Math.random fallback for hosts
+ * without WebCrypto. Collision-resistant ids matter here: a recycled
+ * operation id could let a stale journal resolver clear a live journal.
+ *
+ * @param byteCount - Number of random bytes.
+ * @returns The random bytes.
+ */
+const randomBytes = (byteCount: number): Uint8Array => {
+  const bytes = new Uint8Array(byteCount);
+  const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
+  if (cryptoObj?.getRandomValues) {
+    cryptoObj.getRandomValues(bytes);
+    return bytes;
+  }
+  for (let index = 0; index < byteCount; index += 1) {
+    bytes[index] = Math.floor(Math.random() * 256);
+  }
+  return bytes;
+};
+
+/**
+ * Two independent 24-bit random values (client order id halves).
+ *
+ * @returns The [high, low] pair.
+ */
+const randomUint24Pair = (): [number, number] => {
+  const bytes = randomBytes(6);
+  return [
+    bytes[0] * 65_536 + bytes[1] * 256 + bytes[2],
+    bytes[3] * 65_536 + bytes[4] * 256 + bytes[5],
+  ];
+};
+
+/**
+ * Collision-resistant id suffix (80 bits, hex).
+ *
+ * @returns The suffix string.
+ */
+const randomIdSuffix = (): string =>
+  Array.from(randomBytes(10), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+
 const bridgeClientOwners = new WeakMap<object, string>();
 const bridgeIds = new WeakMap<object, number>();
 let nextBridgeId = 1;
@@ -1051,6 +1141,20 @@ export class LighterProvider implements PerpsProvider {
   // Signer session
   // ============================================================================
 
+  /**
+   * The RAW bridge instance — the STABLE identity object for the
+   * process-wide ownership map and mutex key. The `#getSignerBridge`
+   * wrapper below is a fresh object per call and must NEVER key either.
+   *
+   * @returns The raw signer bridge.
+   */
+  readonly #rawSignerBridge = (): LighterSignerBridge => {
+    if (!this.#signerBridge) {
+      throw new Error(LIGHTER_SIGNER_UNAVAILABLE_ERROR);
+    }
+    return this.#signerBridge;
+  };
+
   readonly #getSignerBridge = (): LighterSignerBridge => {
     if (!this.#signerBridge) {
       throw new Error(LIGHTER_SIGNER_UNAVAILABLE_ERROR);
@@ -1087,9 +1191,28 @@ export class LighterProvider implements PerpsProvider {
     this.#sessionGeneration += 1;
     this.#signerReadyPromise = null;
     this.#authToken = null;
+    this.#clearBridgeOwnership();
     this.#deps.debugLogger.log(
       '[LighterProvider] signer session invalidated (client lost); will re-setup on next call',
     );
+  };
+
+  /**
+   * Drop ALL bridge-client ownership material for this provider: the
+   * identity, the recreate params, and — when WE are the recorded owner
+   * — the process-wide ownership entry, so a dead/rebound session can
+   * never be mistaken for the live owner of the singleton client.
+   */
+  readonly #clearBridgeOwnership = (): void => {
+    if (
+      this.#signerBridge &&
+      this.#signerIdentity !== null &&
+      bridgeClientOwners.get(this.#signerBridge) === this.#signerIdentity
+    ) {
+      bridgeClientOwners.delete(this.#signerBridge);
+    }
+    this.#signerIdentity = null;
+    this.#signerRecreateParams = null;
   };
 
   /**
@@ -1303,9 +1426,12 @@ export class LighterProvider implements PerpsProvider {
   /** This provider's bridge-client ownership identity (set at setup). */
   #signerIdentity: string | null = null;
 
-  /** Parameters to re-create OUR venue client on the shared bridge. */
+  /**
+   * Parameters to re-create OUR venue client on the shared bridge. The
+   * wallet-derived seed is NEVER retained here — it is re-derived under
+   * the bridge lease each time re-establishment is needed.
+   */
   #signerRecreateParams: {
-    seed: string;
     chainId: number;
     accountIndex: number;
   } | null = null;
@@ -1365,7 +1491,8 @@ export class LighterProvider implements PerpsProvider {
       if (
         (parsed.version === 1 ||
           parsed.version === 2 ||
-          parsed.version === 3) &&
+          parsed.version === 3 ||
+          parsed.version === 4) &&
         typeof consumedFloor === 'number' &&
         Number.isSafeInteger(consumedFloor) &&
         consumedFloor >= 0 &&
@@ -1389,6 +1516,34 @@ export class LighterProvider implements PerpsProvider {
           );
         })
       ) {
+        // STRICT bounded validation of the recovered list; malformed
+        // rows are dropped (they are observability records, never nonce
+        // state), and the list is capped.
+        const recoveredRaw = Array.isArray(parsed.recovered)
+          ? parsed.recovered
+          : [];
+        const recovered = recoveredRaw
+          .filter((row): row is LighterRecoveredDispatch => {
+            if (typeof row !== 'object' || row === null) {
+              return false;
+            }
+            const candidate = row as Record<string, unknown>;
+            return (
+              typeof candidate.recoveryId === 'string' &&
+              candidate.recoveryId.length >= 1 &&
+              candidate.recoveryId.length <= 160 &&
+              typeof candidate.kind === 'number' &&
+              typeof candidate.intent === 'string' &&
+              candidate.intent.length <= 200 &&
+              (candidate.txHash === null ||
+                typeof candidate.txHash === 'string') &&
+              (candidate.outcome === 'succeeded' ||
+                candidate.outcome === 'failed' ||
+                candidate.outcome === 'unknown') &&
+              typeof candidate.evidence === 'string'
+            );
+          })
+          .slice(0, 32);
         return {
           consumedFloor,
           entries: (
@@ -1398,16 +1553,16 @@ export class LighterProvider implements PerpsProvider {
               expiresAt: number | null;
               kind?: number;
               intent?: string;
+              owner?: string | null;
             }[]
           ).map((entry) => ({
             ...entry,
-            // v1/v2 migration: kind/intent unknown.
+            // v1-v3 migration: kind/intent/owner unknown.
             kind: typeof entry.kind === 'number' ? entry.kind : -1,
             intent: typeof entry.intent === 'string' ? entry.intent : 'unknown',
+            owner: typeof entry.owner === 'string' ? entry.owner : null,
           })),
-          recovered: Array.isArray(parsed.recovered)
-            ? (parsed.recovered as LighterNonceLedgerDoc['recovered'])
-            : [],
+          recovered,
         };
       }
     } catch {
@@ -1432,7 +1587,7 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<void> => {
     await this.#deps.diskCache.setItem(
       this.#nonceLedgerKey(accountIndex),
-      JSON.stringify({ version: 3, ...doc }),
+      JSON.stringify({ version: 4, ...doc }),
     );
   };
 
@@ -1486,31 +1641,64 @@ export class LighterProvider implements PerpsProvider {
         Math.max(floor, doc.consumedFloor),
       );
     }
+    // QUARANTINE CHECK FIRST: unacknowledged recovered outcomes block
+    // EVERY retry, including retries arriving when no unresolved
+    // entries remain — an early empty-entries return here would let the
+    // second retry sail past the quarantine.
+    const throwIfQuarantined = (): void => {
+      const blocking = doc.recovered.filter(
+        (outcome) => outcome.outcome !== 'failed',
+      );
+      if (blocking.length > 0) {
+        throw new Error(
+          `A previous Lighter submission believed failed actually ${blocking.some((outcome) => outcome.outcome === 'succeeded') ? 'completed' : 'landed with an UNKNOWN outcome'} (${blocking
+            .map((outcome) => outcome.intent)
+            .join(
+              ', ',
+            )}); refresh state and call acknowledgeRecoveredDispatch before retrying`,
+        );
+      }
+    };
+    throwIfQuarantined();
     if (doc.entries.length === 0) {
       return;
     }
+    const quarantine = (
+      entry: LighterNonceLedgerDoc['entries'][number],
+      outcome: LighterRecoveredDispatch['outcome'],
+      evidence: string,
+    ): void => {
+      // TP/SL-journal-OWNED dispatches resolve through their own state
+      // machine (journal attempts + exact-hash reconciliation) — they
+      // are never parked behind the generic acknowledgment.
+      if (entry.owner !== null) {
+        return;
+      }
+      doc.recovered.push({
+        recoveryId: `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`,
+        kind: entry.kind,
+        intent: entry.intent,
+        txHash: entry.txHash,
+        outcome,
+        evidence,
+      });
+    };
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
       this.#apiKeyIndex,
     );
     const remaining: typeof doc.entries = [];
     for (const entry of doc.entries) {
-      if (nonceResponse.nonce > entry.nonce) {
-        // The venue advanced past it: the AMBIGUOUS dispatch actually
-        // COMPLETED. Its intent is quarantined as a recovered outcome —
-        // blindly retrying it could double a withdrawal/order/margin
-        // change.
+      if (entry.txHash === null && nonceResponse.nonce > entry.nonce) {
+        // Only the nonce ADVANCE is proven (possibly by another device):
+        // the intent's own fate is UNKNOWN — never reported completed.
         doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
         const floor = this.#nonceReservations.get(reservationKey) ?? 0;
         this.#nonceReservations.set(
           reservationKey,
           Math.max(floor, entry.nonce + 1),
         );
-        doc.recovered.push({
-          kind: entry.kind,
-          intent: entry.intent,
-          txHash: entry.txHash,
-        });
+        quarantine(entry, 'unknown', 'rest-advance');
         continue;
       }
       if (entry.txHash !== null) {
@@ -1539,15 +1727,42 @@ export class LighterProvider implements PerpsProvider {
               reservationKey,
               Math.max(floor, entry.nonce + 1),
             );
-            doc.recovered.push({
-              kind: entry.kind,
-              intent: entry.intent,
-              txHash: entry.txHash,
-            });
+            // The EXACT tx status decides the intent's fate: executed →
+            // succeeded (blocking until acknowledged); failed/rejected →
+            // retry-safe FAILURE (recorded, non-blocking); anything else
+            // still pending → keep blocking as unresolved.
+            if (lookedUp.status === 4 || lookedUp.status === 5) {
+              quarantine(
+                entry,
+                'failed',
+                `tx-status:${String(lookedUp.status)}`,
+              );
+            } else if (lookedUp.status === 3) {
+              quarantine(entry, 'succeeded', 'tx-status:3');
+            } else {
+              quarantine(
+                entry,
+                'unknown',
+                `tx-status:${String(lookedUp.status ?? -1)}`,
+              );
+            }
             continue;
           }
           // A DIFFERENT payload under this hash: ambiguity, fail closed.
           remaining.push(entry);
+          continue;
+        }
+        if (nonceResponse.nonce > entry.nonce) {
+          // The venue moved past this nonce while OUR exact hash is
+          // absent: another dispatch (e.g. a second device) consumed it.
+          // Our payload can never land now — retry-safe never-landed,
+          // no quarantine; the floor advances with the venue.
+          doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+          const floor = this.#nonceReservations.get(reservationKey) ?? 0;
+          this.#nonceReservations.set(
+            reservationKey,
+            Math.max(floor, entry.nonce + 1),
+          );
           continue;
         }
         if (
@@ -1576,20 +1791,11 @@ export class LighterProvider implements PerpsProvider {
         'A previous Lighter submission has an unresolved outcome; writes are blocked until it can be proven consumed or never-landed',
       );
     }
-    // RECOVERED-OUTCOME quarantine: a previously ambiguous dispatch
-    // actually COMPLETED. NEVER continue with a new write in the same
-    // call — the caller believed the original failed and may be blindly
-    // retrying the exact intent (double withdrawal/order/margin). Writes
-    // stay blocked until `acknowledgeRecoveredDispatches` is called.
-    if (doc.recovered.length > 0) {
-      throw new Error(
-        `A previous Lighter submission believed failed actually completed (${doc.recovered
-          .map((outcome) => outcome.intent)
-          .join(
-            ', ',
-          )}); refresh state and call acknowledgeRecoveredDispatches before retrying`,
-      );
-    }
+    // RECOVERED-OUTCOME quarantine: succeeded/unknown outcomes block
+    // every subsequent write until selectively acknowledged (a blind
+    // retry could double the financial intent). FAILED outcomes are
+    // retry-safe and never block.
+    throwIfQuarantined();
   };
 
   /**
@@ -1602,23 +1808,73 @@ export class LighterProvider implements PerpsProvider {
    * @returns Parked manual-recovery entries.
    */
   async getPendingManualRecoveries(): Promise<
-    { symbol: string; settlementKey: string; recordedAt: number }[]
+    {
+      symbol: string;
+      settlementKey: string;
+      recordedAt: number;
+      reason: string;
+      priorIntent: 'replace' | 'remove';
+      survivingOrderIds: string[];
+      actionNeeded: string;
+    }[]
   > {
-    const index = await this.#readTpslJournalIndex().catch(() => []);
+    this.#ensureSessionBinding();
+    const accountIndex = await this.#ensureAccountIndex();
+    // ONLY the bound identity's parked warnings: another account's (or
+    // api key's) protection state must never leak into this session.
+    const identityPrefix = `${this.#boundAddress ?? 'unbound'}:${accountIndex}:${this.#apiKeyIndex}:`;
     const pending: {
       symbol: string;
       settlementKey: string;
       recordedAt: number;
+      reason: string;
+      priorIntent: 'replace' | 'remove';
+      survivingOrderIds: string[];
+      actionNeeded: string;
     }[] = [];
-    for (const settlementKey of index) {
-      const journal = await this.#loadTpslJournal(settlementKey).catch(
-        () => null,
-      );
+    const actionNeeded =
+      'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
+    // Storage errors PROPAGATE — a corrupt index degrading to "nothing
+    // pending" would hide a naked position.
+    const manualIndex = await this.#readTpslManualIndex();
+    for (const settlementKey of manualIndex) {
+      if (!settlementKey.startsWith(identityPrefix)) {
+        continue;
+      }
+      const doc = await this.#loadTpslManualRecovery(settlementKey);
+      if (doc) {
+        pending.push({
+          symbol: doc.symbol,
+          settlementKey,
+          recordedAt: doc.recordedAt,
+          reason: doc.reason,
+          priorIntent: doc.priorIntent,
+          survivingOrderIds: doc.survivingOrderIds,
+          actionNeeded,
+        });
+      }
+    }
+    // Legacy: journals parked 'manual' in the journal slot by an earlier
+    // version (migrated to the doc on the next settle pass).
+    const journalIndex = await this.#readTpslJournalIndex();
+    for (const settlementKey of journalIndex) {
+      if (
+        !settlementKey.startsWith(identityPrefix) ||
+        pending.some((entry) => entry.settlementKey === settlementKey)
+      ) {
+        continue;
+      }
+      const journal = await this.#loadTpslJournal(settlementKey);
       if (journal?.phase === 'manual') {
         pending.push({
           symbol: settlementKey.split(':').at(-1) ?? settlementKey,
           settlementKey,
           recordedAt: journal.recordedAt,
+          reason:
+            'TP/SL protection could not be safely re-established automatically (parked by an earlier session)',
+          priorIntent: journal.intent,
+          survivingOrderIds: [],
+          actionNeeded,
         });
       }
     }
@@ -1626,26 +1882,51 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
-   * Return and CLEAR the durable recovered-dispatch outcomes (previously
-   * ambiguous submissions later proven to have completed). Calling this
-   * is the explicit acknowledgment that unblocks further writes — the
-   * caller must refresh venue state first, never blindly retry.
+   * READ-ONLY view of the durable recovered-dispatch outcomes
+   * (previously ambiguous submissions later resolved). Never mutates the
+   * ledger — acknowledgment is a separate, per-outcome call so a crash
+   * between reading and acting can never silently drop an outcome.
    *
-   * @returns The acknowledged outcomes.
+   * @returns The pending recovered-dispatch outcomes.
    */
-  async acknowledgeRecoveredDispatches(): Promise<
-    { kind: number; intent: string; txHash: string | null }[]
-  > {
+  async getRecoveredDispatches(): Promise<LighterRecoveredDispatch[]> {
     this.#ensureSessionBinding();
     const accountIndex = await this.#ensureAccountIndex();
     const doc = await this.#readNonceLedger(accountIndex);
-    const outcomes = doc.recovered;
-    await this.#writeNonceLedger(accountIndex, {
-      consumedFloor: doc.consumedFloor,
-      entries: doc.entries,
-      recovered: [],
+    return doc.recovered.map((outcome) => ({ ...outcome }));
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+   * the caller has refreshed venue state and decided how to proceed.
+   * Runs under the ledger mutex and re-verifies the session generation
+   * inside it so an account switch mid-acknowledge can never clear
+   * another account's outcome.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    await withProcessMutex(this.#nonceLedgerKey(accountIndex), async () => {
+      this.#ensureSessionBinding();
+      this.#assertSession(generation);
+      const doc = await this.#readNonceLedger(accountIndex);
+      const remaining = doc.recovered.filter(
+        (outcome) => outcome.recoveryId !== recoveryId,
+      );
+      if (remaining.length === doc.recovered.length) {
+        throw new Error(
+          `No pending recovered Lighter dispatch matches id ${recoveryId}; refresh and re-read before acknowledging`,
+        );
+      }
+      await this.#writeNonceLedger(accountIndex, {
+        consumedFloor: doc.consumedFloor,
+        entries: doc.entries,
+        recovered: remaining,
+      });
     });
-    return outcomes;
   }
 
   /**
@@ -1986,6 +2267,146 @@ export class LighterProvider implements PerpsProvider {
       // fall through
     }
     throw new Error('Lighter TP/SL journal index is corrupt');
+  };
+
+  /**
+   * Durable manual-recovery doc key (separate from the journal slot).
+   *
+   * @param settlementKey - Settlement identity.
+   * @returns The disk-cache key.
+   */
+  readonly #tpslManualKey = (settlementKey: string): string =>
+    `lighterTpslManual:${this.#isTestnet ? 'testnet' : 'mainnet'}:${settlementKey}`;
+
+  /**
+   * Manual-recovery index key.
+   *
+   * @returns The disk-cache key.
+   */
+  readonly #tpslManualIndexKey = (): string =>
+    `lighterTpslManualIndex:${this.#isTestnet ? 'testnet' : 'mainnet'}`;
+
+  /**
+   * Read the manual-recovery index. Corruption THROWS — a parked
+   * protection warning silently degrading to "nothing pending" would
+   * hide a naked position.
+   *
+   * @returns Settlement keys with pending manual recoveries.
+   */
+  readonly #readTpslManualIndex = async (): Promise<string[]> => {
+    const raw = await this.#deps.diskCache.getItem(this.#tpslManualIndexKey());
+    if (raw === null) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.length <= 64 &&
+        parsed.every((entry) => typeof entry === 'string')
+      ) {
+        return parsed;
+      }
+    } catch {
+      // fall through
+    }
+    throw new Error('Lighter TP/SL manual-recovery index is corrupt');
+  };
+
+  /**
+   * Durably record a manual-recovery warning (doc + index entry).
+   *
+   * @param doc - The manual-recovery record.
+   */
+  readonly #writeTpslManualRecovery = async (
+    doc: TpslManualRecovery,
+  ): Promise<void> => {
+    await this.#deps.diskCache.setItem(
+      this.#tpslManualKey(doc.settlementKey),
+      JSON.stringify({ version: 1, ...doc }),
+    );
+    await withStorageMutex(this.#tpslManualIndexKey(), async () => {
+      const index = await this.#readTpslManualIndex();
+      if (!index.includes(doc.settlementKey)) {
+        await this.#deps.diskCache.setItem(
+          this.#tpslManualIndexKey(),
+          JSON.stringify([...index, doc.settlementKey].slice(0, 64)),
+        );
+      }
+    });
+  };
+
+  /**
+   * Load a manual-recovery record. Corruption THROWS (never null) so a
+   * parked warning cannot silently vanish.
+   *
+   * @param settlementKey - Settlement identity.
+   * @returns The record, or null when none is parked.
+   */
+  readonly #loadTpslManualRecovery = async (
+    settlementKey: string,
+  ): Promise<TpslManualRecovery | null> => {
+    const raw = await this.#deps.diskCache.getItem(
+      this.#tpslManualKey(settlementKey),
+    );
+    if (raw === null) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (
+        parsed.version === 1 &&
+        typeof parsed.settlementKey === 'string' &&
+        typeof parsed.symbol === 'string' &&
+        typeof parsed.reason === 'string' &&
+        parsed.reason.length <= 500 &&
+        (parsed.priorIntent === 'replace' || parsed.priorIntent === 'remove') &&
+        Array.isArray(parsed.priorTriggers) &&
+        Array.isArray(parsed.survivingOrderIds) &&
+        (parsed.survivingOrderIds as unknown[]).every(
+          (id) => typeof id === 'string',
+        ) &&
+        typeof parsed.operationId === 'string' &&
+        typeof parsed.recordedAt === 'number'
+      ) {
+        return {
+          settlementKey: parsed.settlementKey,
+          symbol: parsed.symbol,
+          reason: parsed.reason,
+          priorIntent: parsed.priorIntent,
+          priorTriggers: parsed.priorTriggers as TpslPriorTrigger[],
+          survivingOrderIds: parsed.survivingOrderIds as string[],
+          operationId: parsed.operationId,
+          recordedAt: parsed.recordedAt,
+        };
+      }
+    } catch {
+      // fall through to fail closed
+    }
+    throw new Error(
+      `Lighter TP/SL manual-recovery record for ${settlementKey} is corrupt; resolve storage before proceeding`,
+    );
+  };
+
+  /**
+   * Clear a manual-recovery record — called ONLY after a successor
+   * protection intent has authoritatively succeeded.
+   *
+   * @param settlementKey - Settlement identity.
+   */
+  readonly #clearTpslManualRecovery = async (
+    settlementKey: string,
+  ): Promise<void> => {
+    await this.#deps.diskCache.removeItem(this.#tpslManualKey(settlementKey));
+    await withStorageMutex(this.#tpslManualIndexKey(), async () => {
+      const index = await this.#readTpslManualIndex();
+      if (index.includes(settlementKey)) {
+        await this.#deps.diskCache.setItem(
+          this.#tpslManualIndexKey(),
+          JSON.stringify(index.filter((entry) => entry !== settlementKey)),
+        );
+      }
+    });
   };
 
   /**
@@ -2548,6 +2969,7 @@ export class LighterProvider implements PerpsProvider {
         txHash: string | null;
         expiresAt: number | null;
         intent?: string;
+        owner?: string | null;
       },
     ) => Promise<LighterSendTxResponse>;
   }): Promise<boolean> => {
@@ -2606,11 +3028,13 @@ export class LighterProvider implements PerpsProvider {
         txHash: string | null;
         expiresAt: number | null;
         intent?: string;
+        owner?: string | null;
       },
     ) => Promise<LighterSendTxResponse>;
   }): Promise<boolean> => {
     const {
       settlementKey,
+      symbol,
       market,
       accountIndex,
       readActiveRaw,
@@ -2687,7 +3111,11 @@ export class LighterProvider implements PerpsProvider {
         () => {
           cancelAttempt.outcome = 'accepted';
         },
-        { txHash: cancelIdentity.txHash, expiresAt: cancelIdentity.expiresAt },
+        {
+          txHash: cancelIdentity.txHash,
+          expiresAt: cancelIdentity.expiresAt,
+          owner: journalEntry.operationId,
+        },
       );
     };
     // Classify every journalled create leg on the books (reconcile
@@ -2827,21 +3255,50 @@ export class LighterProvider implements PerpsProvider {
     // `getPendingManualRecoveries` and resolved only by an explicit NEW
     // protection intent from the user. Never restored, never silently
     // cleared.
-    const parkManual = async (): Promise<boolean> => {
-      if (journalEntry.phase !== 'manual') {
-        journalEntry.phase = 'manual';
-        await persistEntry();
-      }
+    const parkManual = async (reason: string): Promise<boolean> => {
+      // Survivors: prior triggers still on the books + replacement legs
+      // still active — deliberately LEFT (only remaining protection).
+      const survivingOrderIds = [
+        ...new Set([
+          ...journalEntry.priorTriggers
+            .filter((prior) => priorActive(prior))
+            .map((prior) => prior.orderId),
+          ...rawActive
+            .filter((order) =>
+              replacementIds.some(
+                (clientId) =>
+                  String(order.clientOrderIndex) === String(clientId),
+              ),
+            )
+            .map((order) => String(order.orderIndex)),
+        ]),
+      ];
+      // The DURABLE warning lives in its own doc; the journal slot is
+      // released so a successor protection intent can run. The doc
+      // clears only after a successor SUCCEEDS.
+      await this.#writeTpslManualRecovery({
+        settlementKey,
+        symbol,
+        reason,
+        priorIntent: journalEntry.intent,
+        priorTriggers: journalEntry.priorTriggers,
+        survivingOrderIds,
+        operationId: journalEntry.operationId,
+        recordedAt: Date.now(),
+      });
       this.#deps.debugLogger.log(
         '[LighterProvider] TP/SL protection requires MANUAL re-establishment',
-        { settlementKey },
+        { settlementKey, reason },
       );
-      // Terminal-until-acknowledged: recovery stops retrying, the
-      // journal (and its index entry) REMAIN durable.
+      await this.#clearTpslJournal(settlementKey, journalEntry.operationId);
       return true;
     };
     if (journalEntry.phase === 'manual') {
-      return await parkManual();
+      // Journal parked 'manual' by an earlier version: migrate the
+      // warning into the dedicated durable doc.
+      return await parkManual(
+        'TP/SL protection could not be safely re-established automatically (parked by an earlier session)',
+      );
     }
     if (journalEntry.intent === 'remove') {
       // An intentional REMOVAL is never "recovered" by restoring the
@@ -2875,7 +3332,9 @@ export class LighterProvider implements PerpsProvider {
         // proven — park durably for MANUAL re-establishment. Any
         // surviving leg is deliberately LEFT (it is the only protection
         // remaining); nothing is restored.
-        return await parkManual();
+        return await parkManual(
+          'Replacement TP/SL orders failed after the previous protection cancels began; the position may be under-protected',
+        );
       }
     }
     if (cancelledOrderIds.length > 0 || createdClientIds.length > 0) {
@@ -2893,7 +3352,9 @@ export class LighterProvider implements PerpsProvider {
         return false;
       }
       if (settled.outcome === 'created-terminal-failed') {
-        return await parkManual();
+        return await parkManual(
+          'Replacement TP/SL order was cancelled or rejected by the venue after the previous protection was already removed',
+        );
       }
     }
     // A refused clear (superseded by a newer operation) is UNRESOLVED —
@@ -3289,6 +3750,7 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = null;
     this.#signerReadyPromise = null;
     this.#authToken = null;
+    this.#clearBridgeOwnership();
     // #tpslUnsettled survives (address+accountIndex+symbol keyed): a
     // reselect of the same account must still reconcile its pending ids.
   };
@@ -3353,8 +3815,10 @@ export class LighterProvider implements PerpsProvider {
         // per bridge, so every later write section re-establishes it
         // when another identity has since overwritten it.
         this.#signerIdentity = `${this.#clientService.network}:${accountIndex}:${this.#apiKeyIndex}`;
-        this.#signerRecreateParams = { seed, chainId, accountIndex };
-        bridgeClientOwners.set(bridge, this.#signerIdentity);
+        // The seed is deliberately NOT retained: re-establishment
+        // re-derives it under the bridge lease.
+        this.#signerRecreateParams = { chainId, accountIndex };
+        bridgeClientOwners.set(this.#rawSignerBridge(), this.#signerIdentity);
 
         // Register the venue key when the slot does not hold it yet. Only
         // the plaintext body leaves this scope — `created.prv` (the venue
@@ -3413,6 +3877,7 @@ export class LighterProvider implements PerpsProvider {
         txHash: string | null;
         expiresAt: number | null;
         intent?: string;
+        owner?: string | null;
       },
     ) => Promise<LighterSendTxResponse>,
   ): Promise<void> => {
@@ -3489,8 +3954,7 @@ export class LighterProvider implements PerpsProvider {
         );
       }
       attempts += 1;
-      const high = Math.floor(Math.random() * 2 ** 24);
-      const low = Math.floor(Math.random() * 2 ** 24);
+      const [high, low] = randomUint24Pair();
       const candidate = high * 2 ** 24 + low;
       if (candidate === 0 || this.#issuedClientOrderIds.has(candidate)) {
         continue;
@@ -3532,6 +3996,7 @@ export class LighterProvider implements PerpsProvider {
           txHash: string | null;
           expiresAt: number | null;
           intent?: string;
+          owner?: string | null;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -3581,29 +4046,12 @@ export class LighterProvider implements PerpsProvider {
       if (
         this.#signerIdentity !== null &&
         this.#signerRecreateParams !== null &&
-        bridgeClientOwners.get(this.#getSignerBridge()) !== this.#signerIdentity
+        bridgeClientOwners.get(this.#rawSignerBridge()) !== this.#signerIdentity
       ) {
-        const recreateParams = this.#signerRecreateParams;
-        const recreated = await this.#getSignerBridge().execute<{
-          success?: boolean;
-          error?: string;
-        }>({
-          function: '_createClient',
-          params: [
-            recreateParams.seed,
-            recreateParams.chainId,
-            recreateParams.accountIndex,
-            await nextNonce(),
-            this.#apiKeyIndex,
-          ],
-        });
-        if (recreated.error || !recreated.success) {
-          throw new Error(
-            `Lighter signer client re-establishment failed: ${recreated.error ?? 'unknown'}`,
-          );
-        }
-        this.#assertSession(generationAtIntent);
-        bridgeClientOwners.set(this.#getSignerBridge(), this.#signerIdentity);
+        await this.#reestablishSignerClient(
+          generationAtIntent,
+          await nextNonce(),
+        );
       }
       const submit = async (
         txType: number,
@@ -3613,6 +4061,7 @@ export class LighterProvider implements PerpsProvider {
           txHash: string | null;
           expiresAt: number | null;
           intent?: string;
+          owner?: string | null;
         },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
@@ -3643,6 +4092,7 @@ export class LighterProvider implements PerpsProvider {
             expiresAt: identity.expiresAt,
             kind: txType,
             intent: identity.intent ?? `txType:${txType}`,
+            owner: identity.owner ?? null,
           };
           const doc = await this.#readNonceLedger(accountIndex);
           if (doc.entries.length >= 16) {
@@ -3697,7 +4147,7 @@ export class LighterProvider implements PerpsProvider {
         // are serialized across ALL providers sharing the bridge.
         async () =>
           await withProcessMutex(
-            bridgeMutexKey(this.#getSignerBridge()),
+            bridgeMutexKey(this.#rawSignerBridge()),
             criticalSection,
           ),
       );
@@ -3721,6 +4171,7 @@ export class LighterProvider implements PerpsProvider {
           txHash: string | null;
           expiresAt: number | null;
           intent?: string;
+          owner?: string | null;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -3732,6 +4183,51 @@ export class LighterProvider implements PerpsProvider {
       generationAtIntent,
     );
 
+  /**
+   * Re-create OUR venue client on the shared bridge after another
+   * identity overwrote the singleton. MUST run while holding the bridge
+   * mutex. The wallet-derived seed is re-derived here — never retained.
+   *
+   * @param generation - The caller's captured session generation.
+   * @param nonce - A fresh venue nonce for the client creation.
+   */
+  readonly #reestablishSignerClient = async (
+    generation: number,
+    nonce: number,
+  ): Promise<void> => {
+    const recreateParams = this.#signerRecreateParams;
+    const identity = this.#signerIdentity;
+    if (recreateParams === null || identity === null) {
+      throw new Error(
+        'Lighter signer client re-establishment attempted before setup',
+      );
+    }
+    const seed = await this.#walletService.deriveKeySeedPlain(
+      this.#apiKeyIndex,
+    );
+    this.#assertSession(generation);
+    const recreated = await this.#getSignerBridge().execute<{
+      success?: boolean;
+      error?: string;
+    }>({
+      function: '_createClient',
+      params: [
+        seed,
+        recreateParams.chainId,
+        recreateParams.accountIndex,
+        nonce,
+        this.#apiKeyIndex,
+      ],
+    });
+    if (recreated.error || !recreated.success) {
+      throw new Error(
+        `Lighter signer client re-establishment failed: ${recreated.error ?? 'unknown'}`,
+      );
+    }
+    this.#assertSession(generation);
+    bridgeClientOwners.set(this.#rawSignerBridge(), identity);
+  };
+
   readonly #getAuthToken = async (): Promise<string> => {
     this.#ensureSessionBinding();
     const nowSeconds = Math.floor(Date.now() / 1000);
@@ -3741,11 +4237,36 @@ export class LighterProvider implements PerpsProvider {
     const generation = this.#sessionGeneration;
     await this.#ensureSignerReady();
     const accountIndex = await this.#ensureAccountIndex();
-    const token =
-      await this.#getSignerBridge().execute<LighterCreateAuthTokenResult>({
-        function: '_createAuthToken',
-        params: [accountIndex, this.#apiKeyIndex],
-      });
+    // The auth-token mint is a singleton-client call like any other sign:
+    // it runs under the BRIDGE LEASE, and re-establishes OUR client first
+    // when another identity has since overwritten it — otherwise the
+    // token would be minted by the wrong account's venue key.
+    const token = await withProcessMutex(
+      bridgeMutexKey(this.#rawSignerBridge()),
+      async () => {
+        if (
+          this.#signerIdentity !== null &&
+          this.#signerRecreateParams !== null &&
+          bridgeClientOwners.get(this.#rawSignerBridge()) !==
+            this.#signerIdentity
+        ) {
+          // Client creation is bridge-local: the read-only nonce fetch
+          // seeds its tracking without dispatching anything.
+          const nonceResponse = await this.#clientService.getNextNonce(
+            this.#signerRecreateParams.accountIndex,
+            this.#apiKeyIndex,
+          );
+          this.#assertSession(generation);
+          await this.#reestablishSignerClient(generation, nonceResponse.nonce);
+        }
+        return await this.#getSignerBridge().execute<LighterCreateAuthTokenResult>(
+          {
+            function: '_createAuthToken',
+            params: [accountIndex, this.#apiKeyIndex],
+          },
+        );
+      },
+    );
     if (token.error || !token.token) {
       throw new Error(
         `Lighter auth token creation failed: ${token.error ?? 'unknown'}`,
@@ -4373,6 +4894,9 @@ export class LighterProvider implements PerpsProvider {
       return {
         success: false,
         error: `${partialPrefix}${wrappedError.message}`,
+        ...(leverageCommitted
+          ? { partialState: { leverageUpdated: Number(params.leverage) } }
+          : {}),
       };
     }
   }
@@ -4866,13 +5390,7 @@ export class LighterProvider implements PerpsProvider {
           if (unsettled === null) {
             this.#tpslUnsettled.delete(settlementKey);
           }
-          if (unsettled?.phase === 'manual') {
-            // THIS call is an explicit NEW protection intent from the
-            // user: it acknowledges and resolves the parked manual state
-            // (the fresh snapshot below establishes the new protection).
-            await this.#clearTpslJournal(settlementKey, unsettled.operationId);
-            this.#assertSession(generationAtIntent);
-          } else if (unsettled) {
+          if (unsettled) {
             const resolved = await this.#settleTpslObligation({
               settlementKey,
               symbol: params.symbol,
@@ -4893,17 +5411,11 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter TP/SL settlement for ${params.symbol} is unresolved; refusing further protection changes until the venue reflects the previous update`,
               );
             }
-            // The machine may have PARKED the obligation as manual: this
-            // call is an explicit NEW protection intent, which is the
-            // designated acknowledgment — clear the parked journal so
-            // the fresh operation below can own the settlement slot.
-            const afterMachine = await this.#loadTpslJournal(settlementKey);
-            if (afterMachine?.phase === 'manual') {
-              await this.#clearTpslJournal(
-                settlementKey,
-                afterMachine.operationId,
-              );
-            }
+            // The machine may have PARKED the obligation into the
+            // durable manual-recovery doc (releasing the journal slot).
+            // The doc is NOT cleared here: only this operation's own
+            // SUCCESS — the successor protection authoritatively in
+            // force — clears the warning below.
             this.#assertSession(generationAtIntent);
           }
 
@@ -5030,7 +5542,7 @@ export class LighterProvider implements PerpsProvider {
             recordedAt: Date.now(),
             // Collision-resistant across processes: time + counter + two
             // independent random draws (~104 bits of entropy).
-            operationId: `op-${Date.now().toString(36)}-${(this.#tpslOperationCounter += 1).toString(36)}-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`,
+            operationId: `op-${Date.now().toString(36)}-${(this.#tpslOperationCounter += 1).toString(36)}-${randomIdSuffix()}`,
             createdAt: lifecycleBoundary,
             nextAttemptId: 1,
             intent: wantsReplacement ? 'replace' : 'remove',
@@ -5088,6 +5600,7 @@ export class LighterProvider implements PerpsProvider {
               {
                 txHash: cancelIdentity.txHash,
                 expiresAt: cancelIdentity.expiresAt,
+                owner: journal.operationId,
               },
             );
           };
@@ -5156,6 +5669,7 @@ export class LighterProvider implements PerpsProvider {
               {
                 txHash: createIdentity.txHash,
                 expiresAt: createIdentity.expiresAt,
+                owner: journal.operationId,
               },
             );
 
@@ -5266,13 +5780,35 @@ export class LighterProvider implements PerpsProvider {
               // AFTER the old protection was already cancelled. The
               // venue exposes no atomic primitive that could prove a
               // re-created trigger attaches to the same position
-              // lifecycle, so nothing is auto-restored: the journal
-              // parks DURABLY in 'manual' state (surfaced via
+              // lifecycle, so nothing is auto-restored: the warning
+              // parks DURABLY in the manual-recovery doc (surfaced via
               // getPendingManualRecoveries) and any surviving leg is
               // deliberately left as the only remaining protection.
-              // eslint-disable-next-line require-atomic-updates -- the write lock serializes every journal mutation
-              journal.phase = 'manual';
-              await persistJournal();
+              const rawNow = await readActiveRaw();
+              const survivingOrderIds = rawNow
+                .filter((order) =>
+                  journal.attempts.some(
+                    (attempt) =>
+                      attempt.kind === 'create' &&
+                      attempt.clientIds.some(
+                        (clientId) =>
+                          String(order.clientOrderIndex) === String(clientId),
+                      ),
+                  ),
+                )
+                .map((order) => String(order.orderIndex));
+              await this.#writeTpslManualRecovery({
+                settlementKey,
+                symbol: params.symbol,
+                reason:
+                  'Replacement TP/SL order was cancelled or rejected by the venue after the previous protection was already removed',
+                priorIntent: journal.intent,
+                priorTriggers: journal.priorTriggers,
+                survivingOrderIds,
+                operationId: journal.operationId,
+                recordedAt: Date.now(),
+              });
+              await this.#clearTpslJournal(settlementKey, journal.operationId);
               this.#assertSession(generationAtIntent);
               throw new Error(
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after the previous protection was already removed; the position's protection could NOT be safely re-established automatically — MANUAL re-establishment is required (a new explicit TP/SL update resolves this state)`,
@@ -5283,6 +5819,12 @@ export class LighterProvider implements PerpsProvider {
             // stale A protection report success under B.
             this.#assertSession(generationAtIntent);
           }
+          // ONLY here — the successor protection intent authoritatively
+          // in force (created and settled, or removal completed) — may a
+          // parked manual-recovery warning for this symbol be cleared. A
+          // failed successor leaves the warning untouched.
+          await this.#clearTpslManualRecovery(settlementKey);
+          this.#assertSession(generationAtIntent);
         },
         generationAtIntent,
       );
