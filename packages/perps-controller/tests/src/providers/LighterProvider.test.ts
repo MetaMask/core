@@ -629,9 +629,7 @@ describe('LighterProvider', () => {
       const { provider, calls } = buildProvider({ isTestnet: false });
       const result = await provider.isReadyToTrade();
       expect(result.ready).toBe(false);
-      expect(calls.map((call) => call.function)).not.toContain(
-        '_createClient',
-      );
+      expect(calls.map((call) => call.function)).not.toContain('_createClient');
     });
 
     it('skips registration when the venue key is already registered', async () => {
@@ -9557,7 +9555,7 @@ describe('LighterProvider', () => {
     });
   });
   describe('mainnet rollout gate', () => {
-    it('MAINNET venue writes are refused before any signing or dispatch', async () => {
+    it('mainnet venue writes are refused before any signing or dispatch', async () => {
       const built = buildProvider({
         isTestnet: false,
         registeredKey: '9c'.repeat(40),

@@ -740,7 +740,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
     const capable = this.#getActiveProviders().filter(
-      ([, provider]) => provider.acknowledgeRecoveredDispatch,
+      ([, provider]) =>
+        typeof provider.acknowledgeRecoveredDispatch === 'function',
     );
     if (capable.length === 0) {
       throw new Error(
