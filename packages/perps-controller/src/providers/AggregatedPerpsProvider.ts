@@ -61,6 +61,8 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
@@ -523,6 +525,69 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.withdraw(params);
+  }
+
+  /**
+   * Aggregate parked manual TP/SL recoveries from every underlying
+   * provider implementing the durable-settlement contract. Storage
+   * errors PROPAGATE — a corrupt store degrading to "nothing pending"
+   * would hide an under-protected position.
+   *
+   * @returns Pending manual-recovery entries across providers.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([, provider]) =>
+        provider.getPendingManualRecoveries
+          ? provider.getPendingManualRecoveries()
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Aggregate recovered-dispatch outcomes from every underlying provider
+   * implementing the durable-settlement contract.
+   *
+   * @returns Pending recovered-dispatch outcomes across providers.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([, provider]) =>
+        provider.getRecoveredDispatches
+          ? provider.getRecoveredDispatches()
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id on
+   * whichever underlying provider owns it.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const capable = this.#getActiveProviders().filter(
+      ([, provider]) => provider.acknowledgeRecoveredDispatch,
+    );
+    if (capable.length === 0) {
+      throw new Error(
+        'No perps provider has recovered dispatches to acknowledge',
+      );
+    }
+    let lastError: Error | null = null;
+    for (const [, provider] of capable) {
+      try {
+        await provider.acknowledgeRecoveredDispatch?.(recoveryId);
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    throw lastError as Error;
   }
 
   // ============================================================================

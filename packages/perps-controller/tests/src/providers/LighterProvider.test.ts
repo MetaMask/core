@@ -625,11 +625,13 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('sets up the signer on mainnet the same way as testnet', async () => {
+    it('mainnet signer setup is refused by the rollout write gate (key registration is a venue write)', async () => {
       const { provider, calls } = buildProvider({ isTestnet: false });
       const result = await provider.isReadyToTrade();
-      expect(result.ready).toBe(true);
-      expect(calls.map((call) => call.function)).toContain('_createClient');
+      expect(result.ready).toBe(false);
+      expect(calls.map((call) => call.function)).not.toContain(
+        '_createClient',
+      );
     });
 
     it('skips registration when the venue key is already registered', async () => {
@@ -9552,6 +9554,32 @@ describe('LighterProvider', () => {
       expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
         true,
       );
+    });
+  });
+  describe('mainnet rollout gate', () => {
+    it('MAINNET venue writes are refused before any signing or dispatch', async () => {
+      const built = buildProvider({
+        isTestnet: false,
+        registeredKey: '9c'.repeat(40),
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const placed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(placed.success).toBe(false);
+      expect(placed.error).toContain('limited to testnet');
+      const withdrawn = await built.provider.withdraw({ amount: '10' });
+      expect(withdrawn.success).toBe(false);
+      expect(withdrawn.error).toContain('limited to testnet');
+      // Nothing was signed and nothing reached the venue.
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(
+        built.calls.filter((call) => call.function.startsWith('_sign')),
+      ).toHaveLength(0);
     });
   });
 });
