@@ -1,8 +1,4 @@
-import {
-  Messenger,
-  ActionConstraint,
-  EventConstraint,
-} from '@metamask/messenger';
+import { Messenger, BaseMessenger } from '@metamask/messenger';
 import type {
   StorageServiceGetItemAction,
   StorageServiceRemoveItemAction,
@@ -11,16 +7,21 @@ import type {
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
+  DefaultError,
   DefaultOptions,
   DehydratedState,
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
+  GetNextPageParamFunction,
   InfiniteData,
+  InfiniteQueryPageParamsOptions,
   InvalidateOptions,
   InvalidateQueryFilters,
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
+  QueryFunction,
+  SkipToken,
   WithRequired,
   dehydrate,
   hydrate,
@@ -53,10 +54,10 @@ type CacheUpdatedType = DataServiceCacheUpdatedPayload['type'];
 
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
-  handler: (
-    filters?: InvalidateQueryFilters<Json>,
-    options?: InvalidateOptions,
-  ) => Promise<void>;
+  handler: BaseDataService<
+    ServiceName,
+    BaseMessenger<ServiceName>
+  >['invalidateQueries'];
 };
 
 export type DataServiceActions<ServiceName extends string> =
@@ -118,15 +119,7 @@ type PersistedCache = {
 
 export class BaseDataService<
   ServiceName extends string,
-  ServiceMessenger extends Messenger<
-    ServiceName,
-    ActionConstraint,
-    EventConstraint,
-    // Use `any` to allow any parent to be set. `any` is harmless in a type constraint anyway,
-    // it's the one totally safe place to use it.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any
-  >,
+  ServiceMessenger extends BaseMessenger<ServiceName>,
 > {
   public readonly name: ServiceName;
 
@@ -238,23 +231,42 @@ export class BaseDataService<
   /**
    * Fetch a query.
    *
-   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
-   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options - The options defining the query. Note that although this
+   * method wraps `fetchQuery` from `@tanstack/query-core`, there are a few
+   * restrictions:
+   * - `queryKey` and `queryFn` are required
+   * - `queryFn` must be a function, not a skip token
+   * - `retry` and `retryDelay` are not available (retries can be customized
+   *   using the constructor's `servicePolicyOptions`).
    * @returns The query results.
    */
   protected async fetchQuery<
     TQueryFnData extends Json,
-    TError = unknown,
+    TError = DefaultError,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
+    TPageParam extends Json = Json,
   >(
     options: WithRequired<
       OmitKeyof<
-        FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay'
+        FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
+        'retry' | 'retryDelay' | 'queryFn'
       >,
-      'queryKey' | 'queryFn'
-    >,
+      'queryKey'
+    > & {
+      queryFn: NonNullable<
+        Exclude<
+          FetchQueryOptions<
+            TQueryFnData,
+            TError,
+            TData,
+            TQueryKey,
+            TPageParam
+          >['queryFn'],
+          SkipToken
+        >
+      >;
+    },
   ): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
@@ -266,30 +278,73 @@ export class BaseDataService<
   /**
    * Fetch a paginated query.
    *
-   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
-   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options - The options defining the query. Note that although this
+   * method wraps `fetchInfiniteQuery` from `@tanstack/query-core`, there are a
+   * few differences:
+   * - `queryKey` and `queryFn` are required
+   * - `queryFn` must be a function, not a skip token
+   * - `retry` and `retryDelay` are not available (retries can be customized
+   *   using the constructor's `servicePolicyOptions`).
+   * - This function returns a page's worth of data (the same thing that
+   *   `queryFn` returns), not a list of pages
    * @param pageParam - An optional page parameter.
-   * @returns The query result, exclusively the requested page is returned.
+   * @returns The requested page.
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
-    TError = unknown,
-    TData extends TQueryFnData = TQueryFnData,
+    TError = DefaultError,
+    TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
     options: WithRequired<
       OmitKeyof<
-        FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay'
+        FetchInfiniteQueryOptions<
+          TQueryFnData,
+          TError,
+          TData,
+          TQueryKey,
+          TPageParam
+        >,
+        'retry' | 'retryDelay' | 'queryFn'
       >,
-      'queryKey' | 'queryFn'
-    >,
+      'queryKey'
+    > & {
+      queryFn: NonNullable<
+        Exclude<
+          FetchInfiniteQueryOptions<
+            TQueryFnData,
+            TError,
+            TData,
+            TQueryKey,
+            TPageParam
+          >['queryFn'],
+          SkipToken
+        >
+      >;
+    } & (
+        | {
+            pages?: never;
+          }
+        | {
+            pages: number;
+            getNextPageParam: GetNextPageParamFunction<
+              TPageParam,
+              TQueryFnData
+            >;
+          }
+      ) &
+      InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam>,
     pageParam?: TPageParam,
-  ): Promise<TData> {
+    // ): Promise<InfiniteData<TData, TPageParam> | TQueryFnData | TData> {
+  ): Promise<TQueryFnData> {
     const cache = this.#queryClient.getQueryCache();
 
-    const query = cache.find<TQueryFnData, TError, InfiniteData<TData>>({
+    const query = cache.find<
+      TQueryFnData,
+      TError,
+      InfiniteData<TQueryFnData, TPageParam>
+    >({
       queryKey: options.queryKey,
     });
 
@@ -304,12 +359,18 @@ export class BaseDataService<
             }),
           ),
       });
-
-      return result.pages[0];
+      // We have to assume that `fetchInfiniteQuery` returns the same data
+      // that `queryFn` returns.
+      return result.pages[0] as unknown as TQueryFnData;
     }
 
-    const { pages } = query.state.data;
-    const previous = options.getPreviousPageParam?.(pages[0], pages);
+    const { pages, pageParams } = query.state.data;
+    const previous = options.getPreviousPageParam?.(
+      pages[0],
+      pages,
+      pageParams[0],
+      pageParams,
+    );
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
 
@@ -317,7 +378,6 @@ export class BaseDataService<
       meta: {
         fetchMore: {
           direction,
-          pageParam,
         },
       },
     });
@@ -337,7 +397,7 @@ export class BaseDataService<
    * @returns Nothing.
    */
   async invalidateQueries(
-    filters?: InvalidateQueryFilters<Json>,
+    filters?: InvalidateQueryFilters<Json[]>,
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#queryClient.invalidateQueries(filters, options);

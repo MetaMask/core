@@ -1,5 +1,6 @@
 export type {
   ActionHandler,
+  BaseMessenger,
   ExtractActionParameters,
   ExtractActionResponse,
   ExtractEventHandler,

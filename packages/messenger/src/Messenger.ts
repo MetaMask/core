@@ -225,6 +225,22 @@ type StripNamespace<Namespaced extends NamespacedName> =
   Namespaced extends `${string}:${infer Name}` ? Name : never;
 
 /**
+ * The supertype of all messengers, scoped to a namespace.
+ *
+ * @template Namespace - The namespace for the messenger's own actions and
+ * events.
+ */
+export type BaseMessenger<Namespace extends string> = Messenger<
+  Namespace,
+  ActionConstraint,
+  EventConstraint,
+  // Use `any` to allow any parent to be set. `any` is harmless in a type constraint anyway,
+  // it's the one totally safe place to use it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any
+>;
+
+/**
  * A message broker for "actions" and "events".
  *
  * The messenger allows registering functions as 'actions' that can be called elsewhere,
