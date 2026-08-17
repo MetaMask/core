@@ -49,7 +49,8 @@ export type PageParam =
   | {
       before: string;
     }
-  | { after: string };
+  | { after: string }
+  | null;
 
 const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
 
@@ -112,6 +113,7 @@ export class ExampleDataService extends BaseDataService<
     return this.fetchInfiniteQuery<GetActivityResponse>(
       {
         queryKey: [`${this.name}:getActivity`, address],
+        initialPageParam: null,
         queryFn: async ({ pageParam }) => {
           const caipAddress = `eip155:0:${address.toLowerCase()}`;
           const url = new URL(
@@ -135,11 +137,9 @@ export class ExampleDataService extends BaseDataService<
           return response.json();
         },
         getPreviousPageParam: ({ pageInfo }) =>
-          pageInfo.hasPreviousPage
-            ? { before: pageInfo.startCursor }
-            : undefined,
+          pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null,
         getNextPageParam: ({ pageInfo }) =>
-          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
+          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
         staleTime: inMilliseconds(5, Duration.Minute),
       },
       page,
