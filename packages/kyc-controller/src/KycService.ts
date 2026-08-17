@@ -74,8 +74,9 @@ type AllowedActions =
 /**
  * Published when {@link KycService}'s cache is updated.
  */
-export type KycServiceCacheUpdatedEvent =
-  DataServiceCacheUpdatedEvent<typeof serviceName>;
+export type KycServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
 
 /**
  * Published when a single key within {@link KycService}'s cache is updated.

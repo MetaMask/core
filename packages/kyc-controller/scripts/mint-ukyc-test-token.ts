@@ -98,7 +98,9 @@ if (flags['expires-at']) {
 } else if (flags['expires-in']) {
   const issuedAt = params.issuedAt ?? new Date();
   params.issuedAt = issuedAt;
-  params.expiresAt = new Date(issuedAt.getTime() + parseDurationMs(flags['expires-in']));
+  params.expiresAt = new Date(
+    issuedAt.getTime() + parseDurationMs(flags['expires-in']),
+  );
 }
 
 const result = mintUkycTestToken(params);

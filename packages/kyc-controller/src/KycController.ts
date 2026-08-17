@@ -14,6 +14,7 @@ import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
@@ -25,7 +26,6 @@ import type {
   KycSumSubStatus,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { toBase64Url } from './encoding.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
 import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';

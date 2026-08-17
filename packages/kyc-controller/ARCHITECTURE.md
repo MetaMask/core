@@ -658,6 +658,6 @@ Reference client (metamask-mobile):
 | `app/core/Engine/controllers/kyc/kyc-service-init.ts`          | Construct service.                      |
 | `app/core/Engine/controllers/kyc/reactNativeSumSubLauncher.ts` | Native SumSub adapter.                  |
 | `app/core/Engine/messengers/kyc/*.ts`                          | Messenger delegation.                   |
-| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.            |
+| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.             |
 | `app/components/Views/MoonpayDemo/useMoonpayFrame.ts`          | WebView postMessage bridge.             |
 | `app/selectors/kycController.ts`                               | Redux selectors.                        |

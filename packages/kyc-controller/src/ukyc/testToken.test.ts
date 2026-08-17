@@ -1,6 +1,7 @@
-import { ed25519 } from '@noble/curves/ed25519';
 import { hexToBytes, stringToBytes } from '@metamask/utils';
+import { ed25519 } from '@noble/curves/ed25519';
 
+import { base64UrlToBytes } from '../encoding.js';
 import {
   UKYC_CAPABILITY_AUTH_SCHEME,
   UKYC_STORAGE_ACCESS_TOKEN_AUDIENCE,
@@ -8,7 +9,6 @@ import {
 } from './constants.js';
 import { canonicalizeJson } from './storageAccessToken.js';
 import { mintUkycTestToken } from './testToken.js';
-import { base64UrlToBytes } from '../encoding.js';
 
 // A fixed 32-byte secret (all 0x42), as hex, so storage_id and keys are stable.
 const SECRET_HEX = '42'.repeat(32);
@@ -101,9 +101,9 @@ describe('UKYC mintUkycTestToken', () => {
     // 32 bytes hex-encoded.
     expect(result.localUserSecret).toMatch(/^[0-9a-f]{64}$/u);
     expect(result.token.payload.operations).toStrictEqual(['read']);
-    expect(result.authorizationHeader.startsWith(
-      `${UKYC_CAPABILITY_AUTH_SCHEME} `,
-    )).toBe(true);
+    expect(
+      result.authorizationHeader.startsWith(`${UKYC_CAPABILITY_AUTH_SCHEME} `),
+    ).toBe(true);
   });
 
   it('binds session_id for a Relay-presented token', () => {
