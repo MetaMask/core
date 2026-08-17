@@ -4071,6 +4071,16 @@ export class LighterProvider implements PerpsProvider {
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
   ): Promise<Result> => {
+    // INITIAL ROLLOUT GATE: every nonce-consuming venue write (including
+    // signer-key registration) is limited to testnet. Mainnet stays
+    // read-only until mainnet writes have been validated end-to-end —
+    // the enablement flags alone must not be able to unlock unvalidated
+    // mainnet trading.
+    if (!this.#isTestnet) {
+      throw new Error(
+        'Lighter mainnet trading is not enabled yet; venue writes are limited to testnet',
+      );
+    }
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
       // Every unresolved prior dispatch (this session OR a previous one —
