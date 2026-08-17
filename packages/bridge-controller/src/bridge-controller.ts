@@ -3,7 +3,7 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -865,6 +865,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : TraceName.SwapQuotesFetched;
     }
     const tracedProviders = new Set<string>();
+    const traceWithoutImpact = async (request: TraceRequest): Promise<void> => {
+      try {
+        await this.#trace(request, () => undefined);
+      } catch {
+        // Telemetry failures must not affect quote fetching or state updates.
+      }
+    };
     const traceProviderFirstResult = async (
       providerData: Parameters<typeof formatProviderLabel>[0],
     ) => {
@@ -873,24 +880,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
       tracedProviders.add(provider);
-      await this.#trace(
-        {
-          name: TraceName.QuoteProviderFirstResult,
-          startTime: quoteTraceStartTime,
-          data: {
-            provider,
-            request_id: quoteTraceRequestId,
-            swap_type: getSwapType(
-              firstQuoteRequest.srcChainId,
-              firstQuoteRequest.destChainId,
-            ),
-            srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
-            destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
-            result: 'success',
-          },
+      await traceWithoutImpact({
+        name: TraceName.QuoteProviderFirstResult,
+        startTime: quoteTraceStartTime,
+        data: {
+          provider,
+          request_id: quoteTraceRequestId,
+          swap_type: getSwapType(
+            firstQuoteRequest.srcChainId,
+            firstQuoteRequest.destChainId,
+          ),
+          srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
+          destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
+          result: 'success',
         },
-        () => undefined,
-      );
+      });
     };
 
     try {
@@ -979,26 +983,23 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         error,
       );
     } finally {
-      await this.#trace(
-        {
-          name: traceName,
-          startTime: quoteTraceStartTime,
-          data: {
-            srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
-            destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
-            ...(!isBatchSellRequest && {
-              request_id: quoteTraceRequestId,
-              swap_type: getSwapType(
-                firstQuoteRequest.srcChainId,
-                firstQuoteRequest.destChainId,
-              ),
-              feature_id: context.feature_id,
-              result: traceResult,
-            }),
-          },
+      await traceWithoutImpact({
+        name: traceName,
+        startTime: quoteTraceStartTime,
+        data: {
+          srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
+          destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
+          ...(!isBatchSellRequest && {
+            request_id: quoteTraceRequestId,
+            swap_type: getSwapType(
+              firstQuoteRequest.srcChainId,
+              firstQuoteRequest.destChainId,
+            ),
+            feature_id: context.feature_id,
+            result: traceResult,
+          }),
         },
-        () => undefined,
-      );
+      });
     }
 
     // Update refresh count after fetching, validation and fee calculation have completed
