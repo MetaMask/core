@@ -93,13 +93,8 @@ function shouldSkipValidation(
     return true;
   }
 
-  // Safe-based (legacy) Predict withdraws move the source token (pUSD) out of a
-  // Polymarket Safe proxy for very old accounts. The Safe holds legacy USDC.e
-  // that is converted to pUSD outside the calls the controller can see, so a
-  // faithful simulation is not possible without synthesising calldata that is
-  // never broadcast. This is a long-tail legacy path, so simulation is skipped.
-  // The deposit-wallet variant is unaffected: its exact approve + unwrap batch
-  // is known and is still simulated (see buildPolymarketDepositWalletSimulation).
+  // Legacy Safe Predict withdraws convert USDC.e to pUSD outside the calls the
+  // controller can see, so they cannot be faithfully simulated and are skipped.
   if (
     isPredictWithdraw(request, transaction) &&
     !request.isPolymarketDepositWallet
@@ -113,21 +108,6 @@ function shouldSkipValidation(
   return false;
 }
 
-/**
- * Build the simulation used to validate a single relay quote.
- *
- * Polymarket deposit-wallet withdraws are a special case: the Relay quote's
- * calldata is a placeholder that is never broadcast (the quote was requested
- * with `useDepositAddress: true`). The transaction actually submitted is a
- * hardcoded approve + unwrap batch executed by the CREATE2 deposit wallet, so
- * validation simulates that batch directly. All other flows simulate the relay
- * submit calls. (Safe-based legacy Predict withdraws never reach here — they are
- * skipped in `shouldSkipValidation`.)
- *
- * @param request - Validation request (messenger, transaction, signal).
- * @param quote - Relay quote to validate.
- * @returns The simulation to pass to `validateQuoteExecution`.
- */
 async function buildValidationSimulation(
   request: ValidateRelayQuotesRequest,
   quote: TransactionPayQuote<RelayQuote>,
@@ -184,8 +164,6 @@ function buildRelayValidationSimulation(
   const { from, sourceChainId, targetChainId } = quote.request;
   const context = { from, sourceChainId, targetChainId };
 
-  // The execute and 7702 paths are authorized transactions executed by, and
-  // 7702-upgraded for, the user's EOA (`quote.request.from`).
   if (executeRequest) {
     log('Building execute simulation', context);
     return buildRelayExecuteSimulation(quote, executeRequest);
@@ -205,12 +183,6 @@ function buildRelayExecuteSimulation(
   const { value } = executeRequest.data;
   const valueHex = new BigNumber(value).toString(16).replace(/^/u, '0x') as Hex;
 
-  // The `redeemDelegations` transaction is executed by, and 7702-authorized for,
-  // the EOA the delegation was built for (`quote.request.from`). The `from` and
-  // `authorizationList[].from` must therefore stay the EOA so the simulation
-  // upgrades the correct account and models the real `msg.sender`. This path is
-  // never reached for Safe-based Predict withdraws (handled earlier by a direct
-  // source simulation), so the EOA is always both sender and source holder.
   const { from } = quote.request;
   return {
     transactions: [
@@ -236,13 +208,7 @@ function buildRelay7702BatchSimulation(
   quote: TransactionPayQuote<RelayQuote>,
   calls: TransactionParams[],
 ): QuoteSimulation {
-  const { sourceChainId } = quote.request;
-  // The batch call is an ERC-7821 `execute` on the sender's OWN account, which
-  // must be 7702-upgraded. That account is the EOA the batch was built for
-  // (`quote.request.from`). This path is never reached for Safe-based Predict
-  // withdraws (handled earlier by a direct source simulation), so the sender and
-  // authorization stay the EOA.
-  const { from } = quote.request;
+  const { from, sourceChainId } = quote.request;
   const gas = quote.original.metamask.gasLimits[0];
 
   const batchTx = generateEIP7702BatchTransaction(
@@ -254,11 +220,12 @@ function buildRelay7702BatchSimulation(
     })),
   );
 
-  // The account must appear upgraded for the simulation to succeed. The quote
-  // does not always carry an authorization, and there is no fast way to check
-  // the live upgrade state, so an authorization is always included: the
-  // delegator address comes from the quote when present, otherwise from the
-  // configured EIP-7702 upgrade contract for the chain.
+  // The batch call is an ERC-7821 `execute` on the sender's own account, so the
+  // account must appear upgraded for the simulation to succeed. The quote does
+  // not always carry an authorization, and there is no fast way to check the
+  // live upgrade state, so an authorization is always included: the delegator
+  // address comes from the quote when present, otherwise from the configured
+  // EIP-7702 upgrade contract for the chain.
   const address =
     quote.original.request.authorizationList?.[0]?.address ??
     getEIP7702UpgradeContractAddress(messenger, sourceChainId);

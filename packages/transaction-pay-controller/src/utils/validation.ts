@@ -58,21 +58,10 @@ export async function validateQuoteExecution({
 }: QuoteExecutionRequest): Promise<void> {
   throwIfAborted(signal);
 
-  // Read the source-token balance at the account that actually holds it: the
-  // simulation sender (`transactions[0].from`), which both executes the
-  // transaction and holds the source token. For Safe-based Predict withdraws the
-  // builder simulates the calls directly from the Safe proxy, so the sender is
-  // already the source-token holder here too.
-  const sourceAddress = simulation.transactions[0]?.from ?? quote.request.from;
-
-  const liveBalance = await getLiveSourceBalance(
-    quote,
-    messenger,
-    sourceAddress,
-  );
+  const liveBalance = await getLiveSourceBalance(quote, messenger);
 
   log('Live source balance', {
-    from: sourceAddress,
+    from: quote.request.from,
     liveBalance,
     sourceChainId: quote.request.sourceChainId,
     sourceTokenAddress: quote.request.sourceTokenAddress,
@@ -204,9 +193,8 @@ function formatTokenAmount(
 async function getLiveSourceBalance(
   quote: TransactionPayQuote<unknown>,
   messenger: TransactionPayControllerMessenger,
-  sourceAddress: Hex,
 ): Promise<string> {
-  const { sourceChainId, sourceTokenAddress } = quote.request;
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
     sourceChainId,
@@ -216,7 +204,7 @@ async function getLiveSourceBalance(
   try {
     return await getLiveTokenBalance(
       messenger,
-      sourceAddress,
+      from,
       sourceChainId,
       normalizedSourceTokenAddress,
     );
@@ -268,16 +256,13 @@ function validateDecodedSourceTransfers(
   liveBalance: string,
   transactions: SimulationTransaction[],
 ): void {
-  // The decoded-transfer check compares a single source-token transfer amount
-  // against the sender's *starting* balance. That is only valid for the simple
-  // "spend what you already hold" case: exactly one transaction, and it is a
-  // source-token transfer. Any multi-step batch (e.g. a Safe-based Predict
-  // withdraw that unwraps legacy USDC into the source token before transferring
-  // it, or swaps/approvals) produces or transforms the source-token balance
-  // mid-batch, so the sender does not hold it up front and this static
-  // comparison would wrongly report insufficient funds. In those cases we skip
-  // the check and rely on the full on-chain simulation to catch real shortfalls.
-  if (transactions.length !== 1 || !isSourceTokenTransfer(quote, transactions[0])) {
+  // Only valid for a single source-token transfer. Multi-step batches produce
+  // or transform the source-token balance mid-batch, so comparing against the
+  // starting balance is wrong; rely on the full simulation instead.
+  if (
+    transactions.length !== 1 ||
+    !isSourceTokenTransfer(quote, transactions[0])
+  ) {
     log(
       'Skipping decoded source transfer check: not a single source-token transfer',
     );
@@ -314,13 +299,6 @@ function validateDecodedSourceTransfers(
   });
 }
 
-/**
- * Whether a simulation transaction is a transfer of the quote's source token.
- *
- * @param quote - Quote being validated (provides the source token + chain).
- * @param transaction - The simulation transaction to inspect.
- * @returns True when the transaction calls `transfer` on the source token.
- */
 function isSourceTokenTransfer(
   quote: TransactionPayQuote<unknown>,
   transaction: SimulationTransaction | undefined,

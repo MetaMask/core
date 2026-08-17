@@ -107,7 +107,7 @@ describe('validateQuoteExecution', () => {
       ).toBeUndefined();
     });
 
-    it('reads the source balance at the first simulation transaction from address', async () => {
+    it('reads the source balance at the quote from address', async () => {
       const overrideAddress =
         '0x1111111111111111111111111111111111111111' as Hex;
       getLiveTokenBalanceMock.mockResolvedValue('500');
@@ -124,51 +124,6 @@ describe('validateQuoteExecution', () => {
             },
           ],
         }),
-      });
-
-      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
-        expect.anything(),
-        overrideAddress,
-        CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK,
-      );
-    });
-
-    it('reads the source balance at the simulation sender (e.g. Safe proxy for Predict withdraws)', async () => {
-      const safeAddress = '0x5afe000000000000000000000000000000000001' as Hex;
-      getLiveTokenBalanceMock.mockResolvedValue('500');
-
-      await validateQuoteExecution({
-        messenger: messengerMock.messenger,
-        quote: buildQuote({}, '500'),
-        simulation: buildSimulation({
-          transactions: [
-            {
-              data: TRANSFER_DATA_MOCK as Hex,
-              // Safe-based Predict withdraws simulate the calls directly from the
-              // Safe proxy, so the sender is also the source-token holder.
-              from: safeAddress,
-              to: TOKEN_ADDRESS_MOCK,
-            },
-          ],
-        }),
-      });
-
-      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
-        expect.anything(),
-        safeAddress,
-        CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK,
-      );
-    });
-
-    it('falls back to the quote from address when the simulation has no transactions', async () => {
-      getLiveTokenBalanceMock.mockResolvedValue('500');
-
-      await validateQuoteExecution({
-        messenger: messengerMock.messenger,
-        quote: buildQuote({}, '500'),
-        simulation: buildSimulation({ transactions: [] }),
       });
 
       expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
