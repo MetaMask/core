@@ -9450,4 +9450,91 @@ describe('LighterProvider', () => {
       );
     });
   });
+  describe('round-23 post-dispatch atomicity', () => {
+    it('a failing recovered-outcome write after a fence-cancelled accepted dispatch keeps the ORIGINAL unresolved entry: the switch-back retry stays blocked, then reconciles', async () => {
+      const registeredKey = '9c'.repeat(40);
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey,
+        platformDependencies: infra,
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const otherAddress = '0x9999999999999999999999999999999999999999';
+      // The venue ACCEPTS the withdraw; the wallet switches accounts
+      // while the response is in flight, AND the post-dispatch ledger
+      // transition (which would record the SUCCEEDED outcome) fails at
+      // the disk exactly once.
+      const realSend = built.clientInstance.sendTx.getMockImplementation() as (
+        txType: number,
+        txInfo: string,
+      ) => Promise<unknown>;
+      const realSet = (
+        infra.diskCache.setItem as jest.Mock
+      ).getMockImplementation() as (
+        key: string,
+        value: string,
+      ) => Promise<void>;
+      let failNextLedgerWrite = false;
+      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+        async (key: string, value: string) => {
+          if (failNextLedgerWrite && key.startsWith('lighterNonceLedger:')) {
+            failNextLedgerWrite = false;
+            throw new Error('storage write refused');
+          }
+          return await realSet(key, value);
+        },
+      );
+      let switched = false;
+      built.clientInstance.sendTx.mockImplementation(
+        async (txType: number, txInfo: string) => {
+          const response = await realSend(txType, txInfo);
+          if (txType === 13 && !switched) {
+            switched = true;
+            built.getUserAddressMock.mockReturnValue(otherAddress);
+            built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+              code: 200,
+              l1Address: otherAddress,
+              subAccounts: [{ ...ACCOUNT, index: 77, l1Address: otherAddress }],
+            });
+            // Arm the ONE-SHOT quarantine persistence failure for the
+            // atomic post-dispatch transition that follows acceptance.
+            failNextLedgerWrite = true;
+          }
+          return response;
+        },
+      );
+      const cancelled = await built.provider.withdraw({ amount: '25' });
+      expect(cancelled.success).toBe(false);
+      // The transition write failed: the ORIGINAL unresolved entry must
+      // remain the durable record (never consumed-first, quarantined-
+      // second — that would swallow the only proof of the mutation).
+      const doc = JSON.parse(
+        (await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:7',
+        )) as string,
+      ) as { entries: unknown[]; recovered: unknown[] };
+      expect(doc.entries).toHaveLength(1);
+      expect(doc.recovered).toHaveLength(0);
+      // Switch BACK: the retry stays BLOCKED — the resolve pass proves
+      // the exact hash landed (venue tx registry) and quarantines the
+      // outcome; only per-id acknowledgment unblocks.
+      built.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [ACCOUNT],
+      });
+      const retry = await built.provider.withdraw({ amount: '25' });
+      expect(retry.success).toBe(false);
+      expect(retry.error).toContain('actually completed');
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(1);
+      expect(outcomes[0].outcome).toBe('succeeded');
+      expect(outcomes[0].intent).toBe('withdraw:25');
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[0].recoveryId);
+      expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
+        true,
+      );
+    });
+  });
 });
