@@ -6345,11 +6345,7 @@ describe('TokenBalancesController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`
-        {
-          "tokenBalances": {},
-        }
-      `);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
