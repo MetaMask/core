@@ -21,6 +21,7 @@ export type {
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
   KycControllerCreateIronCustomerAction,
+  KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
   KycControllerHandleFrameMessageAction,
@@ -87,6 +88,7 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
   KycProduct,

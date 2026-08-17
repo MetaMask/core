@@ -18,6 +18,7 @@ import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
+  KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
   KycProduct,
@@ -375,6 +376,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'buildResetFrameUrl',
   'checkKycRequired',
   'getKycStatus',
+  'getCustomerIdentity',
   'refreshKycStatus',
   'startSumSub',
   'getSessionStatus',
@@ -631,6 +633,12 @@ export class KycController extends BaseController<
         state.email = params.email;
       }
       state.activeVendor = vendor;
+      // `moonpayCustomerId` is only ever issued by the MoonPay Check / Auth
+      // frames. Leaving it set while the flow switches to another vendor would
+      // make `getCustomerIdentity` report a MoonPay id under the wrong vendor.
+      if (vendor !== 'moonpay') {
+        state.moonpayCustomerId = null;
+      }
       state.activeProduct = params?.product ?? null;
     });
 
@@ -701,6 +709,9 @@ export class KycController extends BaseController<
     this.#applyUpdate((state) => {
       state.email = params.email;
       state.activeVendor = 'iron';
+      // See `initialize`: a MoonPay-issued customer id must not survive a
+      // switch to Iron, or `getCustomerIdentity` reports the wrong vendor.
+      state.moonpayCustomerId = null;
     });
     const generation = this.#generation;
     try {
@@ -1289,6 +1300,26 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Returns the vendor-scoped identity for the currently authenticated
+   * customer, or `null` when the flow has not yet captured a vendor customer
+   * id (before authentication or after {@link reset}).
+   *
+   * Exposed so consumers (e.g. ramps autoramp creation) can attach the vendor
+   * customer id to downstream calls without reading the full KYC state, which
+   * also holds session/access tokens. The id is session-scoped and never
+   * persisted.
+   *
+   * @returns The current {@link KycCustomerIdentity}, or `null`.
+   */
+  getCustomerIdentity(): KycCustomerIdentity | null {
+    const { moonpayCustomerId, activeVendor } = this.state;
+    if (!moonpayCustomerId) {
+      return null;
+    }
+    return { vendor: activeVendor, id: moonpayCustomerId };
+  }
+
+  /**
    * Runs the SumSub document-verification sub-flow end to end:
    *
    *  1. requests a per-session wrapping key from the UKYC backend;
@@ -1515,6 +1546,12 @@ export class KycController extends BaseController<
     } catch (error) {
       // Applicant already finished KYC — treat as completed for Money toast.
       if (String(error).includes(SESSION_NOT_IN_VALID_STATE)) {
+        // A reset() may have landed while `launch` was in flight; forcing
+        // `completed` (and publishing `statusChanged`) on an idle controller
+        // would resurrect a flow the consumer already tore down.
+        if (this.#generation !== generation) {
+          return { alreadyCompleted: true };
+        }
         this.#applyUserStatus({
           status: 'completed',
           sumsubSessionId: null,
@@ -1648,14 +1685,16 @@ export class KycController extends BaseController<
         tick();
       }, this.#userStatusPollIntervalMs);
       // Allow the process to exit while a pending-status poll is scheduled.
-      this.#userStatusPollTimer.unref();
+      // React Native / browser timers are numbers with no `unref`, hence the
+      // optional call.
+      this.#userStatusPollTimer.unref?.();
     };
     this.#userStatusPollTimer = setTimeout(() => {
       this.#userStatusPollTimer = null;
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       tick();
     }, this.#userStatusPollIntervalMs);
-    this.#userStatusPollTimer.unref();
+    this.#userStatusPollTimer.unref?.();
   }
 
   /**
