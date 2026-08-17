@@ -385,6 +385,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
           options?.chainId ?? null,
           options?.limit ?? null,
         ],
+        initialPageParam: null,
         staleTime: DEFAULT_STALE_TIME_MS,
         queryFn: async (context) => {
           const cursor = context.pageParam as string | null | undefined;
@@ -436,6 +437,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
             },
           );
         },
+        getNextPageParam: (lastPage) => lastPage.next_cursor,
       },
       options?.cursor ?? undefined,
     );

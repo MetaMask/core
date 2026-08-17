@@ -394,23 +394,23 @@ describe('createUIQueryClient', () => {
 
     const getPreviousPageParam = ({
       pageInfo,
-    }: GetActivityResponse): PageParam | undefined =>
-      pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : undefined;
+    }: GetActivityResponse): PageParam | null =>
+      pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null;
     const getNextPageParam = ({
       pageInfo,
-    }: GetActivityResponse): PageParam | undefined =>
-      pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined;
+    }: GetActivityResponse): PageParam | null =>
+      pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null;
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,
-      initialPageParam: undefined,
+      initialPageParam: null,
       getNextPageParam,
       getPreviousPageParam,
     });
 
     const observerB = new InfiniteQueryObserver(clientB, {
       queryKey: getActivityQueryKey,
-      initialPageParam: undefined,
+      initialPageParam: null,
       getNextPageParam,
       getPreviousPageParam,
     });

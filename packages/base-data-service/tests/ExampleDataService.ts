@@ -112,15 +112,12 @@ export class ExampleDataService extends BaseDataService<
     address: string,
     page?: PageParam,
   ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<
-      GetActivityResponse,
-      unknown,
-      GetActivityResponse,
-      [string, string],
-      PageParam
-    >(
+    // Only `TQueryFnData` is specified; the rest (including `TPageParam`) is
+    // inferred from `initialPageParam` and the page-param callbacks.
+    return this.fetchInfiniteQuery<GetActivityResponse>(
       {
         queryKey: [`${this.name}:getActivity`, address],
+        initialPageParam: null,
         queryFn: async ({ pageParam }) => {
           const caipAddress = `eip155:0:${address.toLowerCase()}`;
           const url = new URL(
@@ -143,10 +140,10 @@ export class ExampleDataService extends BaseDataService<
 
           return response.json();
         },
-        getPreviousPageParam: ({ pageInfo }) =>
-          pageInfo.hasPreviousPage
-            ? { before: pageInfo.startCursor }
-            : undefined,
+        getPreviousPageParam: ({ pageInfo }): PageParam | null =>
+          pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null,
+        getNextPageParam: ({ pageInfo }): PageParam | null =>
+          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
         // No `staleTime`, so this relies on the client's default. That keeps the
         // cached pages fresh for the tests (which do not advance timers) and
         // exercises the default-`staleTime` path in `fetchInfiniteQuery`.
@@ -156,12 +153,11 @@ export class ExampleDataService extends BaseDataService<
   }
 
   /**
-   * Fetch activity by cursor. Unlike `getActivity`, this omits the
-   * `getNextPageParam` / `getPreviousPageParam` callbacks and drives pagination
-   * purely by the explicit page param passed to the base method, the way a
-   * consumer that paginates by cursor does. Uses `null` as its first-page param
-   * and a zero `staleTime` so refetches can be exercised, and records every
-   * page param the query function receives in `pageParamsSeen`.
+   * Fetch activity by cursor. Unlike `getActivity`, this is forward-only: it
+   * provides `getNextPageParam` but omits `getPreviousPageParam`, the way a
+   * consumer that only paginates forward by cursor does. Uses `null` as its
+   * first-page param and a zero `staleTime` so refetches can be exercised, and
+   * records every page param the query function receives in `pageParamsSeen`.
    *
    * @param address - The account address.
    * @param page - The page to fetch. Passed last so this method works when
@@ -173,15 +169,10 @@ export class ExampleDataService extends BaseDataService<
     address: string,
     page?: PageParam,
   ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<
-      GetActivityResponse,
-      unknown,
-      GetActivityResponse,
-      [string, string],
-      PageParam | null
-    >(
+    return this.fetchInfiniteQuery<GetActivityResponse>(
       {
         queryKey: [`${this.name}:getActivityByCursor`, address],
+        initialPageParam: null,
         queryFn: async ({ pageParam }) => {
           this.pageParamsSeen.push(pageParam);
 
@@ -206,7 +197,8 @@ export class ExampleDataService extends BaseDataService<
 
           return response.json();
         },
-        initialPageParam: null,
+        getNextPageParam: ({ pageInfo }): PageParam | null =>
+          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
         staleTime: 0,
       },
       page,

@@ -15,8 +15,8 @@ import {
   DefaultOptions,
   DehydratedState,
   FetchQueryOptions,
-  GetPreviousPageParamFunction,
   InfiniteData,
+  InfiniteQueryPageParamsOptions,
   InvalidateOptions,
   InvalidateQueryFilters,
   OmitKeyof,
@@ -316,29 +316,22 @@ export class BaseDataService<
         'retry' | 'retryDelay' | 'queryFn' | 'initialPageParam'
       >,
       'queryKey'
-    > & {
-      // @tanstack/query-core's fetchInfiniteQuery function accepts a "skip"
-      // token, but data services always provide a concrete query function.
-      queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
-      // `getNextPageParam` is intentionally not accepted: this method fetches
-      // the page identified by the caller's `pageParam`, so there is nothing to
-      // derive a "next" param from (the UI derives it in its own
-      // `useInfiniteQuery`). `initialPageParam` identifies the first page.
-      // `getPreviousPageParam`, when provided, lets the method detect a cold
-      // jump and place a backward page.
-      initialPageParam?: TPageParam;
-      getPreviousPageParam?: GetPreviousPageParamFunction<
-        TPageParam,
-        TQueryFnData
-      >;
-    },
+    > &
+      // `initialPageParam` and `getNextPageParam` are required, matching
+      // query-core's own infinite-query options: they make `TPageParam`
+      // inferable and describe how pages relate. `getPreviousPageParam` stays
+      // optional (only bidirectional consumers need it).
+      InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
+        // @tanstack/query-core's fetchInfiniteQuery function accepts a "skip"
+        // token, but data services always provide a concrete query function.
+        queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
+      },
     pageParam?: TPageParam,
   ): Promise<TData> {
     // The page to fetch. A missing per-call `pageParam` means "the first page",
     // which uses the consumer's `initialPageParam`. A `null` initial param is
     // preserved: `??` only falls back when the per-call param itself is missing.
-    const requestedPageParam =
-      pageParam ?? (options.initialPageParam as TPageParam);
+    const requestedPageParam = pageParam ?? options.initialPageParam;
 
     const query = this.#queryClient
       .getQueryCache()
@@ -426,15 +419,23 @@ export class BaseDataService<
           return { pages: [page], pageParams: [requestedPageParam] };
         }
 
-        // Otherwise this is a new page: prepend when it is the previous page of
-        // the current first page, else append.
+        // Otherwise classify the new page. It extends backward (prepend) only
+        // when it is the previous page of the current first page and not the
+        // next page of the last; the next page and cold jumps both append.
+        const next = options.getNextPageParam(
+          existing.pages[existing.pages.length - 1],
+          existing.pages,
+          existing.pageParams[existing.pageParams.length - 1],
+          existing.pageParams,
+        );
         const previous = options.getPreviousPageParam?.(
           existing.pages[0],
           existing.pages,
           existing.pageParams[0],
           existing.pageParams,
         );
-        return deepEqual(requestedPageParam, previous)
+        return !deepEqual(requestedPageParam, next) &&
+          deepEqual(requestedPageParam, previous)
           ? {
               pages: [page, ...existing.pages],
               pageParams: [requestedPageParam, ...existing.pageParams],
