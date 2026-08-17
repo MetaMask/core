@@ -76,6 +76,9 @@
 ## Product Safety Team
 /packages/phishing-controller    @MetaMask/product-safety
 
+## Universal KYC Team
+/packages/kyc-controller    @MetaMask/universal-kyc
+
 ## Swaps-Bridge Team
 /packages/bridge-controller           @MetaMask/swaps-engineers
 /packages/bridge-status-controller    @MetaMask/swaps-engineers
