@@ -1621,9 +1621,28 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<Result> =>
     await withProcessMutex(this.#nonceLedgerKey(accountIndex), operation);
 
-  readonly #resolveNonceLedgerEntryConsumed = async (
+  /**
+   * ATOMIC post-dispatch entry transition, decided by the session fence
+   * BEFORE any ledger mutation: fence passed → the entry is consumed and
+   * removed (watermark advances); fence failed → the entry converts to a
+   * durable recovered SUCCEEDED outcome (the venue mutation is committed
+   * and a later retry under the original account would double the
+   * financial intent). Both shapes land in ONE write under the ledger
+   * lock — if that write fails, the ORIGINAL unresolved entry remains
+   * the durable record and every retry stays blocked. The entry is never
+   * consumed first and quarantined second. TP/SL-journal-owned entries
+   * are consumed without quarantine in both cases (their machine
+   * reconciles the intent by exact hash).
+   *
+   * @param accountIndex - Venue account index of the ORIGINAL session.
+   * @param entry - The dispatched (accepted) ledger entry.
+   * @param fenceFailed - Whether the post-send session fence rejected.
+   * @returns Resolves when the transition is durably committed.
+   */
+  readonly #resolveEntryPostDispatch = async (
     accountIndex: number,
-    entry: { nonce: number; txHash: string | null },
+    entry: LighterNonceLedgerDoc['entries'][number],
+    fenceFailed: boolean,
   ): Promise<void> =>
     await this.#withLedgerLock(accountIndex, async () => {
       const doc = await this.#readNonceLedger(accountIndex);
@@ -1635,45 +1654,25 @@ export class LighterProvider implements PerpsProvider {
         doc.entries.splice(at, 1);
       }
       doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
-      await this.#writeNonceLedger(accountIndex, doc);
-    });
-
-  /**
-   * Durably quarantine a SUCCEEDED outcome for a dispatch whose
-   * acceptance was observed but whose operation was then cancelled by a
-   * session fence (account switch during network submission). The venue
-   * mutation is committed; without this record a later retry under the
-   * original account would double the financial intent.
-   *
-   * @param accountIndex - Venue account index of the ORIGINAL session.
-   * @param entry - The dispatched (and consumed) ledger entry.
-   * @returns Resolves when the outcome is durably recorded.
-   */
-  readonly #quarantinePostDispatchOutcome = async (
-    accountIndex: number,
-    entry: LighterNonceLedgerDoc['entries'][number],
-  ): Promise<void> =>
-    await this.#withLedgerLock(accountIndex, async () => {
-      const doc = await this.#readNonceLedger(accountIndex);
-      const recoveryId = `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`;
-      if (doc.recovered.some((outcome) => outcome.recoveryId === recoveryId)) {
-        return;
+      if (fenceFailed && entry.owner === null) {
+        const recoveryId = `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`;
+        if (
+          !doc.recovered.some((outcome) => outcome.recoveryId === recoveryId)
+        ) {
+          doc.recovered = [
+            ...doc.recovered,
+            {
+              recoveryId,
+              kind: entry.kind,
+              intent: entry.intent,
+              txHash: entry.txHash,
+              outcome: 'succeeded' as const,
+              evidence: 'post-dispatch-session-cancelled',
+            },
+          ].slice(0, 32);
+        }
       }
-      await this.#writeNonceLedger(accountIndex, {
-        consumedFloor: doc.consumedFloor,
-        entries: doc.entries,
-        recovered: [
-          ...doc.recovered,
-          {
-            recoveryId,
-            kind: entry.kind,
-            intent: entry.intent,
-            txHash: entry.txHash,
-            outcome: 'succeeded' as const,
-            evidence: 'post-dispatch-session-cancelled',
-          },
-        ].slice(0, 32),
-      });
+      await this.#writeNonceLedger(accountIndex, doc);
     });
 
   /**
@@ -4188,36 +4187,33 @@ export class LighterProvider implements PerpsProvider {
         // authoritative reconciliation may release the nonce.
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
-        if (ledgerEntry !== null) {
-          // Acceptance observed: the nonce is definitively consumed —
-          // resolve the entry AND advance the durable consumed watermark
-          // so no stale reconciliation can ever release it.
-          await this.#resolveNonceLedgerEntryConsumed(
-            accountIndex,
-            ledgerEntry,
-          ).catch(() => undefined);
-        }
-        // Acceptance bookkeeping runs SYNCHRONOUSLY before the post-fence:
-        // a switch during network submission must cancel the operation,
-        // never the record of an already-accepted venue mutation.
+        // Acceptance bookkeeping runs SYNCHRONOUSLY before anything can
+        // fail: a switch during network submission must cancel the
+        // operation, never the record of an accepted venue mutation.
         onAccepted?.();
-        // And after: a switch DURING network submission must not let the
-        // operation report success under the new account's session. But
-        // the venue mutation IS committed: a plain failure here would
-        // invite a later retry of an executed financial intent, so the
-        // cancellation first quarantines a durable SUCCEEDED outcome for
-        // the ORIGINAL account/slot ledger. (TP/SL-journal-owned
-        // dispatches reconcile through their own machine instead.)
+        // POST-SEND ORDER: evaluate the session fence BEFORE the ledger
+        // entry transitions, then commit the transition ATOMICALLY in
+        // ONE write under the ledger lock — fence pass → consumed/
+        // removed; fence fail → recovered(SUCCEEDED). If that single
+        // write fails, the ORIGINAL unresolved entry remains the durable
+        // record and every retry stays blocked; the only durable proof
+        // of the accepted mutation is never consumed first and
+        // quarantined second.
+        let fenceError: unknown = null;
         try {
           this.#assertSession(generationAtIntent);
-        } catch (fenceError) {
-          if (ledgerEntry !== null && ledgerEntry.owner === null) {
-            await this.#quarantinePostDispatchOutcome(
-              accountIndex,
-              ledgerEntry,
-            ).catch(() => undefined);
-          }
-          throw fenceError;
+        } catch (error) {
+          fenceError = error;
+        }
+        if (ledgerEntry !== null) {
+          await this.#resolveEntryPostDispatch(
+            accountIndex,
+            ledgerEntry,
+            fenceError !== null,
+          ).catch(() => undefined);
+        }
+        if (fenceError !== null) {
+          throw ensureError(fenceError, 'LighterProvider.submit');
         }
         return response;
       };
