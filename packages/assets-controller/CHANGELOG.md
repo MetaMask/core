@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Clean up unused `assetsInfo` and `assetsPrice` entries after a successful startup refresh so those persisted state slices no longer grow unbounded ([#9806](https://github.com/MetaMask/core/pull/9806))
+
 ## [13.1.4]
 
 ### Changed

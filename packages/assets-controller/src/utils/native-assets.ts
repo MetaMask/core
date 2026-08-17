@@ -1,8 +1,9 @@
 import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
-import { parseCaipAssetType } from '@metamask/utils';
+import { isCaipAssetType, parseCaipAssetType } from '@metamask/utils';
 
 import type { Caip19AssetId, ChainId } from '../types.js';
+import { ZERO_ADDRESS } from './constants.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
@@ -27,6 +28,37 @@ export function buildNativeAssetsFromConstant(): Record<
     nativeAssetsMap[chainId] = normalizeAssetId(nativeAssetId);
   }
   return nativeAssetsMap;
+}
+
+const KNOWN_NATIVE_ASSET_IDS: ReadonlySet<string> = new Set(
+  Object.values(buildNativeAssetsFromConstant()).map((assetId) =>
+    assetId.toLowerCase(),
+  ),
+);
+
+/**
+ * Whether a CAIP-19 asset ID represents a chain's native asset — via the
+ * `slip44` namespace, the zero-address ERC-20 convention, or the hardcoded
+ * native asset registry (non-standard natives like METIS/MNT).
+ *
+ * @param assetId - The asset ID to check (any casing); malformed IDs are
+ * reported as non-native.
+ * @returns True when the asset ID is a native asset.
+ */
+export function isNativeAssetId(assetId: string): boolean {
+  if (KNOWN_NATIVE_ASSET_IDS.has(assetId.toLowerCase())) {
+    return true;
+  }
+  if (!isCaipAssetType(assetId)) {
+    return false;
+  }
+
+  const { assetNamespace, assetReference } = parseCaipAssetType(assetId);
+  return (
+    assetNamespace === 'slip44' ||
+    (assetNamespace === 'erc20' &&
+      assetReference.toLowerCase() === ZERO_ADDRESS)
+  );
 }
 
 /**
