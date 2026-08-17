@@ -1601,21 +1601,80 @@ export class LighterProvider implements PerpsProvider {
    * @param entry.nonce - The dispatched nonce.
    * @param entry.txHash - The dispatched tx hash (or null).
    */
+  /**
+   * EVERY ledger read-modify-write (append, resolve, consumed-resolve,
+   * selective acknowledgment) serializes on this ONE process-wide mutex
+   * per account+slot document. The venue write mutex alone cannot
+   * protect the document: `acknowledgeRecoveredDispatch` legitimately
+   * runs OUTSIDE it, and an unserialized ack RMW could overwrite a
+   * concurrent append with a stale doc — silently erasing an unresolved
+   * dispatch entry. Lock order is always venueWrite → bridge → ledger
+   * (the ack path takes only the ledger mutex), so no cycle exists.
+   *
+   * @param accountIndex - Venue account index.
+   * @param operation - The ledger RMW critical section.
+   * @returns The operation's result.
+   */
+  readonly #withLedgerLock = async <Result>(
+    accountIndex: number,
+    operation: () => Promise<Result>,
+  ): Promise<Result> =>
+    await withProcessMutex(this.#nonceLedgerKey(accountIndex), operation);
+
   readonly #resolveNonceLedgerEntryConsumed = async (
     accountIndex: number,
     entry: { nonce: number; txHash: string | null },
-  ): Promise<void> => {
-    const doc = await this.#readNonceLedger(accountIndex);
-    const at = doc.entries.findIndex(
-      (candidate) =>
-        candidate.nonce === entry.nonce && candidate.txHash === entry.txHash,
-    );
-    if (at >= 0) {
-      doc.entries.splice(at, 1);
-    }
-    doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
-    await this.#writeNonceLedger(accountIndex, doc);
-  };
+  ): Promise<void> =>
+    await this.#withLedgerLock(accountIndex, async () => {
+      const doc = await this.#readNonceLedger(accountIndex);
+      const at = doc.entries.findIndex(
+        (candidate) =>
+          candidate.nonce === entry.nonce && candidate.txHash === entry.txHash,
+      );
+      if (at >= 0) {
+        doc.entries.splice(at, 1);
+      }
+      doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+      await this.#writeNonceLedger(accountIndex, doc);
+    });
+
+  /**
+   * Durably quarantine a SUCCEEDED outcome for a dispatch whose
+   * acceptance was observed but whose operation was then cancelled by a
+   * session fence (account switch during network submission). The venue
+   * mutation is committed; without this record a later retry under the
+   * original account would double the financial intent.
+   *
+   * @param accountIndex - Venue account index of the ORIGINAL session.
+   * @param entry - The dispatched (and consumed) ledger entry.
+   * @returns Resolves when the outcome is durably recorded.
+   */
+  readonly #quarantinePostDispatchOutcome = async (
+    accountIndex: number,
+    entry: LighterNonceLedgerDoc['entries'][number],
+  ): Promise<void> =>
+    await this.#withLedgerLock(accountIndex, async () => {
+      const doc = await this.#readNonceLedger(accountIndex);
+      const recoveryId = `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`;
+      if (doc.recovered.some((outcome) => outcome.recoveryId === recoveryId)) {
+        return;
+      }
+      await this.#writeNonceLedger(accountIndex, {
+        consumedFloor: doc.consumedFloor,
+        entries: doc.entries,
+        recovered: [
+          ...doc.recovered,
+          {
+            recoveryId,
+            kind: entry.kind,
+            intent: entry.intent,
+            txHash: entry.txHash,
+            outcome: 'succeeded' as const,
+            evidence: 'post-dispatch-session-cancelled',
+          },
+        ].slice(0, 32),
+      });
+    });
 
   /**
    * Resolve every unresolved dispatch before a write section may issue
@@ -1625,10 +1684,21 @@ export class LighterProvider implements PerpsProvider {
    * venue-confirmed absence of the exact HASH after the signed validity
    * elapsed. A hashless dispatch can never be proven absent — it stays
    * blocking until the venue advances. Ambiguity blocks the write.
+   * Runs under the account+slot ledger lock.
    *
    * @param accountIndex - Venue account index.
+   * @returns Resolves when every prior dispatch is accounted for.
    */
-  readonly #resolveNonceLedger = async (
+  readonly #resolveNonceLedger = async (accountIndex: number): Promise<void> =>
+    await this.#withLedgerLock(accountIndex, async () =>
+      this.#resolveNonceLedgerLocked(accountIndex),
+    );
+
+  /**
+   * @param accountIndex - Venue account index.
+   * @returns Resolves when the pass completes.
+   */
+  readonly #resolveNonceLedgerLocked = async (
     accountIndex: number,
   ): Promise<void> => {
     const doc = await this.#readNonceLedger(accountIndex);
@@ -4094,16 +4164,19 @@ export class LighterProvider implements PerpsProvider {
             intent: identity.intent ?? `txType:${txType}`,
             owner: identity.owner ?? null,
           };
-          const doc = await this.#readNonceLedger(accountIndex);
-          if (doc.entries.length >= 16) {
-            throw new Error(
-              'Too many unresolved Lighter dispatches; refusing further writes until they resolve',
-            );
-          }
-          await this.#writeNonceLedger(accountIndex, {
-            consumedFloor: doc.consumedFloor,
-            entries: [...doc.entries, ledgerEntry],
-            recovered: doc.recovered,
+          const appendedEntry = ledgerEntry;
+          await this.#withLedgerLock(accountIndex, async () => {
+            const doc = await this.#readNonceLedger(accountIndex);
+            if (doc.entries.length >= 16) {
+              throw new Error(
+                'Too many unresolved Lighter dispatches; refusing further writes until they resolve',
+              );
+            }
+            await this.#writeNonceLedger(accountIndex, {
+              consumedFloor: doc.consumedFloor,
+              entries: [...doc.entries, appendedEntry],
+              recovered: doc.recovered,
+            });
           });
           // Only AFTER the durable append: reserve in memory — from this
           // point the venue may consume the nonce even if the response
@@ -4129,8 +4202,23 @@ export class LighterProvider implements PerpsProvider {
         // never the record of an already-accepted venue mutation.
         onAccepted?.();
         // And after: a switch DURING network submission must not let the
-        // operation report success under the new account's session.
-        this.#assertSession(generationAtIntent);
+        // operation report success under the new account's session. But
+        // the venue mutation IS committed: a plain failure here would
+        // invite a later retry of an executed financial intent, so the
+        // cancellation first quarantines a durable SUCCEEDED outcome for
+        // the ORIGINAL account/slot ledger. (TP/SL-journal-owned
+        // dispatches reconcile through their own machine instead.)
+        try {
+          this.#assertSession(generationAtIntent);
+        } catch (fenceError) {
+          if (ledgerEntry !== null && ledgerEntry.owner === null) {
+            await this.#quarantinePostDispatchOutcome(
+              accountIndex,
+              ledgerEntry,
+            ).catch(() => undefined);
+          }
+          throw fenceError;
+        }
         return response;
       };
       return await section(nextNonce, submit);
