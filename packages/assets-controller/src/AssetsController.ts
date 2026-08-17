@@ -3462,9 +3462,7 @@ export class AssetsController extends BaseController<
       onAssetsUpdate: (response, request) =>
         this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
-      ...(options.skipInitialFetch === true
-        ? { skipInitialFetch: true }
-        : {}),
+      ...(options.skipInitialFetch === true ? { skipInitialFetch: true } : {}),
     };
 
     source.subscribe(subscribeReq).catch((error) => {
