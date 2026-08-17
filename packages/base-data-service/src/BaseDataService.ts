@@ -14,9 +14,9 @@ import {
   DefaultError,
   DefaultOptions,
   DehydratedState,
-  FetchInfiniteQueryOptions,
   FetchQueryOptions,
   InfiniteData,
+  InfiniteQueryPageParamsOptions,
   InvalidateOptions,
   InvalidateQueryFilters,
   OmitKeyof,
@@ -282,27 +282,41 @@ export class BaseDataService<
   >(
     options: WithRequired<
       OmitKeyof<
-        FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay' | 'queryFn'
+        FetchQueryOptions<
+          TQueryFnData,
+          TError,
+          InfiniteData<TData, TPageParam>,
+          TQueryKey,
+          TPageParam
+        >,
+        'retry' | 'retryDelay' | 'queryFn' | 'initialPageParam'
       >,
       'queryKey'
-    > & { queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam> },
+    > &
+      InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
+        queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
+      },
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
 
-    const query = cache.find<TQueryFnData, TError, InfiniteData<TData>>({
+    const query = cache.find<
+      TQueryFnData,
+      TError,
+      InfiniteData<TData, TPageParam>
+    >({
       queryKey: options.queryKey,
     });
 
     if (!query?.state.data || pageParam === undefined) {
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
+        initialPageParam: pageParam ?? options.initialPageParam,
         queryFn: (context) =>
           this.#policy.execute(() =>
             options.queryFn({
               ...context,
-              pageParam: context.pageParam ?? pageParam,
+              pageParam: context.meta?.pageParam ?? context.pageParam,
             }),
           ),
       });
@@ -310,15 +324,22 @@ export class BaseDataService<
       return result.pages[0];
     }
 
-    const { pages } = query.state.data;
-    const previous = options.getPreviousPageParam?.(pages[0], pages);
+    const { pages, pageParams } = query.state.data;
+    const next = options.getNextPageParam(
+      pages[pages.length - 1],
+      pages,
+      pageParams[pageParams.length - 1],
+      pageParams,
+    );
 
-    const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
+    const direction = deepEqual(pageParam, next) ? 'forward' : 'backward';
 
     const result = await query.fetch(undefined, {
       meta: {
         fetchMore: {
           direction,
+          // @ts-expect-error The types don't let us easily extend fetchMeta, but we add a property nevertheless.
+          pageParam,
         },
       },
     });
