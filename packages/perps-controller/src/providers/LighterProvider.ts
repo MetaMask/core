@@ -54,7 +54,6 @@ import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import {
   convertKeysToCamelCase,
-  LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
@@ -227,12 +226,14 @@ type TpslCreateAttempt = {
   /** What this create IS: the replacement, or a restore of the old set. */
   role: 'replacement' | 'restore';
   /**
-   * For role 'restore' only: the prior trigger (by original orderId in
-   * `priorTriggers`) this attempt restores. With multiple prior triggers
-   * and a crash mid-restore, recovery uses this to restore exactly the
-   * remaining intents — never duplicating or omitting one.
+   * For role 'restore' only: the prior triggers (by original orderId in
+   * `priorTriggers`) this attempt restores, INDEX-ALIGNED with
+   * `clientIds` (a grouped OCO restore carries two legs). With multiple
+   * prior triggers and a crash mid-restore, recovery uses this to
+   * restore exactly the remaining intents — never duplicating or
+   * omitting one.
    */
-  priorOrderId?: string;
+  priorOrderIds?: string[];
 };
 
 type TpslCancelAttempt = {
@@ -321,6 +322,12 @@ type TpslJournalState = {
    * mistaken for the failed replacement.
    */
   phase: 'creating' | 'cancelling' | 'restoring';
+  /**
+   * Whether the prior set was an auto-cancel-linked TP+SL pair: a pair
+   * must be RESTORED as one grouped OCO transaction — independent
+   * creates would silently drop the linkage semantics.
+   */
+  priorGrouping: 'oco' | 'independent';
   priorTriggers: TpslPriorTrigger[];
   /** Lifecycle identity gate for restores (null = never restore). */
   positionFingerprint: TpslPositionFingerprint | null;
@@ -371,6 +378,108 @@ const requireSignedTxIdentity = (signed: {
     throw new Error(
       'Lighter signing result carries no usable ExpiredAt; refusing to submit an unreconcilable mutation',
     );
+  }
+  return { txHash, expiresAt };
+};
+
+/**
+ * PROCESS-WIDE storage mutex: journal pointer/index read-modify-writes
+ * are serialized across ALL provider instances in this runtime. The
+ * instance-local write lock cannot protect two live providers sharing
+ * one disk cache.
+ */
+const storageMutexTails = new Map<string, Promise<unknown>>();
+
+/**
+ * Run a storage read-modify-write atomically w.r.t. every other holder
+ * of the same key in this process.
+ *
+ * @param key - Storage key to serialize on.
+ * @param operation - The read-modify-write.
+ * @returns The operation's result.
+ */
+const withStorageMutex = async <Result>(
+  key: string,
+  operation: () => Promise<Result>,
+): Promise<Result> => {
+  const tail = storageMutexTails.get(key) ?? Promise.resolve();
+  const run = tail.then(operation, operation);
+  storageMutexTails.set(
+    key,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return await run;
+};
+
+/**
+ * Parse a journal-pointer document, or null when the content is not a
+ * pointer (legacy inline journal or corrupt data — both handled by the
+ * caller's payload validation path).
+ *
+ * @param raw - Raw base-key content.
+ * @returns The pointer, or null.
+ */
+const parseTpslJournalPointer = (
+  raw: string,
+): { operationId: string } | null => {
+  try {
+    const parsed = JSON.parse(raw) as {
+      pointerVersion?: unknown;
+      operationId?: unknown;
+    };
+    if (
+      parsed.pointerVersion === 1 &&
+      typeof parsed.operationId === 'string' &&
+      parsed.operationId.length >= 1 &&
+      parsed.operationId.length <= 64
+    ) {
+      return { operationId: parsed.operationId };
+    }
+  } catch {
+    // Not JSON: not a pointer.
+  }
+  return null;
+};
+
+/**
+ * Best-effort dispatch identity from a bridge signing result. The pinned
+ * WASM contract (web-wasm light_client.go) returns `{txHash, txInfo}`
+ * where txInfo is the marshaled wire payload — it carries Nonce and
+ * ExpiredAt but NEVER the hash. Non-throwing: ops whose signers omit a
+ * field dispatch with a partial identity (resolvable only by REST
+ * advance, never by expiry).
+ *
+ * @param signed - Bridge signing result.
+ * @param signed.txHash - Signed transaction hash from the RESULT.
+ * @param signed.txInfo - Marshaled wire payload.
+ * @returns The dispatch identity (null fields when unavailable).
+ */
+const extractDispatchIdentity = (signed: {
+  txHash?: unknown;
+  txInfo?: string;
+}): { txHash: string | null; expiresAt: number | null } => {
+  const txHash =
+    typeof signed.txHash === 'string' &&
+    /^(0x)?[0-9a-fA-F]{8,128}$/u.test(signed.txHash)
+      ? signed.txHash
+      : null;
+  let expiresAt: number | null = null;
+  try {
+    const wire = JSON.parse(signed.txInfo ?? '') as {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      ExpiredAt?: unknown;
+    };
+    expiresAt =
+      typeof wire.ExpiredAt === 'number' &&
+      Number.isSafeInteger(wire.ExpiredAt) &&
+      wire.ExpiredAt > 0
+        ? wire.ExpiredAt
+        : null;
+  } catch {
+    expiresAt = null;
   }
   return { txHash, expiresAt };
 };
@@ -470,6 +579,66 @@ const buildRestoreWireParams = (
   // absent/none expiry uses the signer's default sentinel. An ELAPSED
   // explicit expiry never reaches here — restore decisions skip it.
   prior.orderExpiry > 0 ? prior.orderExpiry : LIGHTER_ORDER_EXPIRY_NONE,
+  nonce,
+];
+
+/**
+ * Build the signer wire params rebuilding a prior TP+SL PAIR as one
+ * grouped OCO transaction — preserving the venue's auto-cancel linkage
+ * (independent creates would silently drop it). Shared by the live
+ * transition and crash recovery.
+ *
+ * @param priors - The two prior wire intents.
+ * @param market - Market integerization parameters.
+ * @param market.marketId - Venue market id.
+ * @param market.supportedSizeDecimals - Size integerization decimals.
+ * @param market.supportedPriceDecimals - Price integerization decimals.
+ * @param accountIndex - Venue account index.
+ * @param clientIds - Allocated client order indexes (index-aligned).
+ * @param nonce - Reserved venue nonce.
+ * @returns Wire params for `_signCreateGroupedOrders`.
+ */
+const buildGroupedRestoreWireParams = (
+  priors: [TpslPriorTrigger, TpslPriorTrigger],
+  market: {
+    marketId: number;
+    supportedSizeDecimals: number;
+    supportedPriceDecimals: number;
+  },
+  accountIndex: number,
+  clientIds: number[],
+  nonce: number,
+): (string | number)[] => [
+  accountIndex,
+  LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
+  priors.length,
+  ...priors.flatMap((prior, index) => [
+    market.marketId,
+    clientIds[index],
+    String(
+      toSignerWireInteger(
+        parseStrictDecimal(prior.remainingSize) ?? Number.NaN,
+        market.supportedSizeDecimals,
+      ),
+    ),
+    String(
+      toSignerWirePriceInteger(
+        parseStrictDecimal(prior.price) ?? Number.NaN,
+        market.supportedPriceDecimals,
+      ),
+    ),
+    prior.side === 'sell' ? 1 : 0,
+    prior.wireOrderType,
+    prior.wireTimeInForce,
+    1,
+    String(
+      toSignerWirePriceInteger(
+        parseStrictDecimal(prior.triggerPrice) ?? Number.NaN,
+        market.supportedPriceDecimals,
+      ),
+    ),
+    prior.orderExpiry > 0 ? prior.orderExpiry : LIGHTER_ORDER_EXPIRY_NONE,
+  ]),
   nonce,
 ];
 
@@ -1196,13 +1365,19 @@ export class LighterProvider implements PerpsProvider {
    * duplicate or wedge submissions.
    *
    * @param accountIndex - Venue account index.
-   * @returns Unresolved dispatch entries.
+   * @returns The ledger document (consumed-nonce watermark + unresolved
+   * dispatch entries).
    */
   readonly #readNonceLedger = async (
     accountIndex: number,
-  ): Promise<
-    { nonce: number; txHash: string | null; expiresAt: number | null }[]
-  > => {
+  ): Promise<{
+    consumedFloor: number;
+    entries: {
+      nonce: number;
+      txHash: string | null;
+      expiresAt: number | null;
+    }[];
+  }> => {
     let raw: string | null;
     try {
       raw = await this.#deps.diskCache.getItem(
@@ -1214,15 +1389,19 @@ export class LighterProvider implements PerpsProvider {
       );
     }
     if (raw === null) {
-      return [];
+      return { consumedFloor: 0, entries: [] };
     }
     try {
       const parsed = JSON.parse(raw) as {
         version?: unknown;
+        consumedFloor?: unknown;
         entries?: unknown;
       };
       if (
         parsed.version === 1 &&
+        typeof parsed.consumedFloor === 'number' &&
+        Number.isSafeInteger(parsed.consumedFloor) &&
+        parsed.consumedFloor >= 0 &&
         Array.isArray(parsed.entries) &&
         parsed.entries.length <= 16 &&
         parsed.entries.every((entry) => {
@@ -1243,11 +1422,14 @@ export class LighterProvider implements PerpsProvider {
           );
         })
       ) {
-        return parsed.entries as {
-          nonce: number;
-          txHash: string | null;
-          expiresAt: number | null;
-        }[];
+        return {
+          consumedFloor: parsed.consumedFloor,
+          entries: parsed.entries as {
+            nonce: number;
+            txHash: string | null;
+            expiresAt: number | null;
+          }[],
+        };
       }
     } catch {
       // fall through to fail closed
@@ -1258,73 +1440,92 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Persist the dispatch ledger.
+   * Persist the dispatch ledger document.
    *
    * @param accountIndex - Venue account index.
-   * @param entries - Unresolved dispatch entries.
+   * @param doc - The ledger document.
+   * @param doc.consumedFloor - Highest proven-consumed nonce + 1.
+   * @param doc.entries - Unresolved dispatch entries.
    */
   readonly #writeNonceLedger = async (
     accountIndex: number,
-    entries: {
-      nonce: number;
-      txHash: string | null;
-      expiresAt: number | null;
-    }[],
+    doc: {
+      consumedFloor: number;
+      entries: {
+        nonce: number;
+        txHash: string | null;
+        expiresAt: number | null;
+      }[];
+    },
   ): Promise<void> => {
     await this.#deps.diskCache.setItem(
       this.#nonceLedgerKey(accountIndex),
-      JSON.stringify({ version: 1, entries }),
+      JSON.stringify({ version: 1, ...doc }),
     );
   };
 
   /**
-   * Remove one resolved dispatch entry from the durable ledger.
+   * Resolve one dispatch entry as CONSUMED: remove it and advance the
+   * durable consumed-nonce watermark so no later (stale) reconciliation
+   * can ever release the nonce back.
    *
    * @param accountIndex - Venue account index.
-   * @param entry - The entry to remove (matched by nonce + txHash).
+   * @param entry - The consumed entry.
    * @param entry.nonce - The dispatched nonce.
    * @param entry.txHash - The dispatched tx hash (or null).
    */
-  readonly #removeNonceLedgerEntry = async (
+  readonly #resolveNonceLedgerEntryConsumed = async (
     accountIndex: number,
     entry: { nonce: number; txHash: string | null },
   ): Promise<void> => {
-    const entries = await this.#readNonceLedger(accountIndex);
-    const at = entries.findIndex(
+    const doc = await this.#readNonceLedger(accountIndex);
+    const at = doc.entries.findIndex(
       (candidate) =>
         candidate.nonce === entry.nonce && candidate.txHash === entry.txHash,
     );
     if (at >= 0) {
-      entries.splice(at, 1);
-      await this.#writeNonceLedger(accountIndex, entries);
+      doc.entries.splice(at, 1);
     }
+    doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+    await this.#writeNonceLedger(accountIndex, doc);
   };
 
   /**
    * Resolve every unresolved dispatch before a write section may issue
    * nonces. Consumption is proven by REST-nonce advance or an exact tx
-   * lookup; never-landed is proven by venue-confirmed absence after the
-   * signed validity elapsed (which RELEASES the nonce). Anything still
-   * ambiguous blocks the write — dispatch outcomes are never guessed.
+   * lookup verifying the FULL identity (hash + account + api-key slot +
+   * nonce + a numeric venue status); never-landed is proven ONLY by
+   * venue-confirmed absence of the exact HASH after the signed validity
+   * elapsed. A hashless dispatch can never be proven absent — it stays
+   * blocking until the venue advances. Ambiguity blocks the write.
    *
    * @param accountIndex - Venue account index.
    */
   readonly #resolveNonceLedger = async (
     accountIndex: number,
   ): Promise<void> => {
-    const entries = await this.#readNonceLedger(accountIndex);
-    if (entries.length === 0) {
+    const doc = await this.#readNonceLedger(accountIndex);
+    const reservationKey = `${accountIndex}:${this.#apiKeyIndex}`;
+    // The durable consumed watermark always seeds the memory floor.
+    if (doc.consumedFloor > 0) {
+      const floor = this.#nonceReservations.get(reservationKey) ?? 0;
+      this.#nonceReservations.set(
+        reservationKey,
+        Math.max(floor, doc.consumedFloor),
+      );
+    }
+    if (doc.entries.length === 0) {
       return;
     }
-    const reservationKey = `${accountIndex}:${this.#apiKeyIndex}`;
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
       this.#apiKeyIndex,
     );
-    const remaining: typeof entries = [];
-    for (const entry of entries) {
+    const remaining: typeof doc.entries = [];
+    for (const entry of doc.entries) {
       if (nonceResponse.nonce > entry.nonce) {
         // The venue advanced past it: consumed.
+        doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
         const floor = this.#nonceReservations.get(reservationKey) ?? 0;
         this.#nonceReservations.set(
           reservationKey,
@@ -1334,32 +1535,72 @@ export class LighterProvider implements PerpsProvider {
       }
       if (entry.txHash !== null) {
         const lookedUp = await this.#clientService.getTx(entry.txHash);
-        if (lookedUp !== null && lookedUp.nonce === entry.nonce) {
-          const floor = this.#nonceReservations.get(reservationKey) ?? 0;
-          this.#nonceReservations.set(
-            reservationKey,
-            Math.max(floor, entry.nonce + 1),
-          );
+        if (lookedUp !== null) {
+          const matchesIdentity =
+            typeof lookedUp.hash === 'string' &&
+            lookedUp.hash.toLowerCase().replace(/^0x/u, '') ===
+              entry.txHash.toLowerCase().replace(/^0x/u, '') &&
+            lookedUp.accountIndex === accountIndex &&
+            lookedUp.apiKeyIndex === this.#apiKeyIndex &&
+            lookedUp.nonce === entry.nonce &&
+            typeof lookedUp.status === 'number';
+          if (matchesIdentity) {
+            doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+            const floor = this.#nonceReservations.get(reservationKey) ?? 0;
+            this.#nonceReservations.set(
+              reservationKey,
+              Math.max(floor, entry.nonce + 1),
+            );
+            continue;
+          }
+          // A DIFFERENT payload under this hash: ambiguity, fail closed.
+          remaining.push(entry);
+          continue;
+        }
+        if (
+          entry.expiresAt !== null &&
+          Date.now() > entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+        ) {
+          // Venue-confirmed absent after the signed validity: PROVEN
+          // never landed — the venue still expects this nonce (unless a
+          // later dispatch already consumed it: consumedFloor guards).
+          if (entry.nonce >= doc.consumedFloor) {
+            this.#releaseNonceReservation(accountIndex, entry.nonce);
+          }
           continue;
         }
       }
-      if (
-        entry.expiresAt !== null &&
-        Date.now() > entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
-      ) {
-        // Venue-confirmed absent after the signed validity: PROVEN never
-        // landed — the venue still expects this nonce.
-        this.#releaseNonceReservation(accountIndex, entry.nonce);
-        continue;
-      }
+      // Hashless, or hash present but unexpired-and-absent: ambiguous.
       remaining.push(entry);
     }
-    await this.#writeNonceLedger(accountIndex, remaining);
+    await this.#writeNonceLedger(accountIndex, {
+      consumedFloor: doc.consumedFloor,
+      entries: remaining,
+    });
     if (remaining.length > 0) {
       throw new Error(
         'A previous Lighter submission has an unresolved outcome; writes are blocked until it can be proven consumed or never-landed',
       );
     }
+  };
+
+  /**
+   * Release a nonce reservation for a PROVEN never-landed dispatch —
+   * refused when the durable consumed watermark shows a later dispatch
+   * (e.g. a retry) already consumed the nonce.
+   *
+   * @param accountIndex - Venue account index.
+   * @param nonce - The proven-unconsumed nonce.
+   */
+  readonly #releaseNonceReservationIfUnconsumed = async (
+    accountIndex: number,
+    nonce: number,
+  ): Promise<void> => {
+    const doc = await this.#readNonceLedger(accountIndex).catch(() => null);
+    if (doc === null || nonce < doc.consumedFloor) {
+      return;
+    }
+    this.#releaseNonceReservation(accountIndex, nonce);
   };
 
   /**
@@ -1372,6 +1613,21 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #tpslJournalKey = (settlementKey: string): string =>
     `lighterTpslJournal:${this.#isTestnet ? 'testnet' : 'mainnet'}:${settlementKey}`;
+
+  /**
+   * Operation-scoped journal payload key: each operation's journal lives
+   * under its OWN key so a stale resolver physically cannot overwrite or
+   * delete a newer operation's payload — only its own.
+   *
+   * @param settlementKey - Settlement identity.
+   * @param operationId - The operation identity.
+   * @returns The disk-cache key.
+   */
+  readonly #tpslJournalOpKey = (
+    settlementKey: string,
+    operationId: string,
+  ): string =>
+    `lighterTpslJournalOp:${this.#isTestnet ? 'testnet' : 'mainnet'}:${settlementKey}:${operationId}`;
 
   /**
    * Load and strictly validate a persisted journal entry. Malformed or
@@ -1389,16 +1645,31 @@ export class LighterProvider implements PerpsProvider {
     // "no entry" would erase exactly the uncertainty this journal exists
     // to preserve and could duplicate a committed mutation. Malformed
     // data is NOT auto-removed — it blocks until inspected/resolved.
-    let raw: string | null;
+    let baseRaw: string | null;
     try {
-      raw = await this.#deps.diskCache.getItem(key);
+      baseRaw = await this.#deps.diskCache.getItem(key);
     } catch (error) {
       throw new Error(
         `Lighter TP/SL journal read failed for ${settlementKey}; refusing protection changes: ${ensureError(error, 'LighterProvider.#loadTpslJournal').message}`,
       );
     }
-    if (raw === null) {
+    if (baseRaw === null) {
       return null;
+    }
+    // The base key holds either a POINTER to an operation-scoped payload
+    // (code-written journals: a stale writer physically cannot destroy a
+    // newer operation's payload) or a legacy inline journal.
+    let raw = baseRaw;
+    const pointer = parseTpslJournalPointer(baseRaw);
+    if (pointer !== null) {
+      const payloadRaw = await this.#deps.diskCache.getItem(
+        this.#tpslJournalOpKey(settlementKey, pointer.operationId),
+      );
+      if (payloadRaw === null) {
+        // Dangling pointer (payload already resolved elsewhere).
+        return null;
+      }
+      raw = payloadRaw;
     }
     let parsed: {
       version?: unknown;
@@ -1408,6 +1679,7 @@ export class LighterProvider implements PerpsProvider {
       apiKeyIndex?: unknown;
       intent?: unknown;
       phase?: unknown;
+      priorGrouping?: unknown;
       priorTriggers?: unknown;
       positionFingerprint?: unknown;
       attempts?: unknown;
@@ -1452,11 +1724,15 @@ export class LighterProvider implements PerpsProvider {
         return (
           attempt.orderId === undefined &&
           (attempt.role === 'replacement' || attempt.role === 'restore') &&
-          // priorOrderId durably keys WHICH prior intent a restore leg
-          // restores; REQUIRED on restores, forbidden on replacements.
+          // priorOrderIds durably key WHICH prior intents a restore
+          // restores, INDEX-ALIGNED with clientIds; REQUIRED on
+          // restores, forbidden on replacements.
           (attempt.role === 'restore'
-            ? isOrderIdString(attempt.priorOrderId)
-            : attempt.priorOrderId === undefined) &&
+            ? Array.isArray(attempt.priorOrderIds) &&
+              Array.isArray(attempt.clientIds) &&
+              attempt.priorOrderIds.length === attempt.clientIds.length &&
+              attempt.priorOrderIds.every(isOrderIdString)
+            : attempt.priorOrderIds === undefined) &&
           Array.isArray(attempt.clientIds) &&
           attempt.clientIds.length >= 1 &&
           attempt.clientIds.length <= 2 &&
@@ -1545,6 +1821,8 @@ export class LighterProvider implements PerpsProvider {
       (parsed.phase === 'creating' ||
         parsed.phase === 'cancelling' ||
         parsed.phase === 'restoring') &&
+      (parsed.priorGrouping === 'oco' ||
+        parsed.priorGrouping === 'independent') &&
       (parsed.positionFingerprint === null ||
         isPositionFingerprint(parsed.positionFingerprint)) &&
       Array.isArray(parsed.priorTriggers) &&
@@ -1571,8 +1849,8 @@ export class LighterProvider implements PerpsProvider {
         (attempt) =>
           attempt.kind !== 'create' ||
           attempt.role !== 'restore' ||
-          priorTriggers.some(
-            (trigger) => trigger.orderId === attempt.priorOrderId,
+          (attempt.priorOrderIds ?? []).every((priorOrderId) =>
+            priorTriggers.some((trigger) => trigger.orderId === priorOrderId),
           ),
       );
       if (restoresLinked) {
@@ -1583,6 +1861,7 @@ export class LighterProvider implements PerpsProvider {
           createdAt: parsed.createdAt,
           intent: parsed.intent,
           phase: parsed.phase,
+          priorGrouping: parsed.priorGrouping,
           priorTriggers,
           positionFingerprint: parsed.positionFingerprint ?? null,
         };
@@ -1672,42 +1951,58 @@ export class LighterProvider implements PerpsProvider {
         JSON.stringify([...index, settlementKey]),
       );
     }
-    // COMPARE-AND-SWAP on the operation identity: a writer holding a
-    // stale snapshot must never overwrite a DIFFERENT operation's
-    // journal. (A missing journal is fine — first write of an op.)
-    const currentRaw = await this.#deps.diskCache.getItem(
-      this.#tpslJournalKey(settlementKey),
-    );
-    if (currentRaw !== null) {
-      let currentOperationId: unknown = null;
-      try {
-        currentOperationId = (
-          JSON.parse(currentRaw) as { operationId?: unknown }
-        ).operationId;
-      } catch {
-        // Corrupt current journal: fail closed below via mismatch.
+    const baseKey = this.#tpslJournalKey(settlementKey);
+    // The pointer read-modify-write is serialized PROCESS-WIDE: the
+    // instance-local write lock cannot protect two live provider
+    // instances sharing one disk cache.
+    await withStorageMutex(baseKey, async () => {
+      // COMPARE-AND-SWAP on the operation identity: a writer holding a
+      // stale snapshot must never take over a DIFFERENT operation's
+      // journal. (A missing journal is fine — first write of an op.)
+      const currentRaw = await this.#deps.diskCache.getItem(baseKey);
+      if (currentRaw !== null) {
+        const pointer = parseTpslJournalPointer(currentRaw);
+        let currentOperationId: unknown = pointer?.operationId ?? null;
+        if (pointer === null) {
+          try {
+            currentOperationId = (
+              JSON.parse(currentRaw) as { operationId?: unknown }
+            ).operationId;
+          } catch {
+            // Corrupt current journal: fail closed below via mismatch.
+          }
+        }
+        if (currentOperationId !== journal.operationId) {
+          throw new Error(
+            `Lighter TP/SL journal for ${settlementKey} belongs to a different operation; refusing a stale write`,
+          );
+        }
       }
-      if (currentOperationId !== journal.operationId) {
-        throw new Error(
-          `Lighter TP/SL journal for ${settlementKey} belongs to a different operation; refusing a stale write`,
-        );
-      }
-    }
-    await this.#deps.diskCache.setItem(
-      this.#tpslJournalKey(settlementKey),
-      JSON.stringify({
-        version: 2,
-        recordedAt: journal.recordedAt,
-        operationId: journal.operationId,
-        createdAt: journal.createdAt,
-        apiKeyIndex: this.#apiKeyIndex,
-        intent: journal.intent,
-        phase: journal.phase,
-        priorTriggers: journal.priorTriggers,
-        positionFingerprint: journal.positionFingerprint,
-        attempts: journal.attempts,
-      }),
-    );
+      // Payload first, under the operation's OWN key — then the pointer.
+      await this.#deps.diskCache.setItem(
+        this.#tpslJournalOpKey(settlementKey, journal.operationId),
+        JSON.stringify({
+          version: 2,
+          recordedAt: journal.recordedAt,
+          operationId: journal.operationId,
+          createdAt: journal.createdAt,
+          apiKeyIndex: this.#apiKeyIndex,
+          intent: journal.intent,
+          phase: journal.phase,
+          priorGrouping: journal.priorGrouping,
+          priorTriggers: journal.priorTriggers,
+          positionFingerprint: journal.positionFingerprint,
+          attempts: journal.attempts,
+        }),
+      );
+      await this.#deps.diskCache.setItem(
+        baseKey,
+        JSON.stringify({
+          pointerVersion: 1,
+          operationId: journal.operationId,
+        }),
+      );
+    });
     // A NEW pending obligation invalidates any "recovery complete"
     // marker recorded earlier in this session — otherwise later read
     // kicks would skip it until a restart or another mutation.
@@ -1725,17 +2020,57 @@ export class LighterProvider implements PerpsProvider {
    * @param settlementKey - Settlement identity.
    * @param expectedOperationId - The operation this resolver settled;
    * null prunes only a dangling index entry with NO journal behind it.
+   * @returns True when the obligation was cleared (or already gone);
+   * false when a NEWER operation owns the journal (unresolved).
    */
   readonly #clearTpslJournal = async (
     settlementKey: string,
     expectedOperationId: string | null,
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const journalKey = this.#tpslJournalKey(settlementKey);
-    const currentRaw = await this.#deps.diskCache.getItem(journalKey);
-    if (currentRaw !== null) {
+    const cleared = await withStorageMutex(journalKey, async () => {
+      const currentRaw = await this.#deps.diskCache.getItem(journalKey);
+      if (currentRaw === null) {
+        // Already resolved (or never journalled): nothing left to clear.
+        return true;
+      }
+      const pointer = parseTpslJournalPointer(currentRaw);
+      if (pointer !== null) {
+        if (expectedOperationId === null) {
+          // Prune mode: only a DANGLING pointer may be pruned.
+          const payloadRaw = await this.#deps.diskCache.getItem(
+            this.#tpslJournalOpKey(settlementKey, pointer.operationId),
+          );
+          if (payloadRaw !== null) {
+            return false;
+          }
+          await this.#deps.diskCache.removeItem(journalKey);
+          return true;
+        }
+        if (pointer.operationId !== expectedOperationId) {
+          // A NEWER operation owns the journal: remove only OUR OWN
+          // payload (physically incapable of touching theirs) and
+          // report the clear as unresolved.
+          this.#deps.debugLogger.log(
+            '[LighterProvider] TP/SL journal clear refused: different operation',
+            { settlementKey },
+          );
+          await this.#deps.diskCache
+            .removeItem(
+              this.#tpslJournalOpKey(settlementKey, expectedOperationId),
+            )
+            .catch(() => undefined);
+          return false;
+        }
+        await this.#deps.diskCache.removeItem(
+          this.#tpslJournalOpKey(settlementKey, expectedOperationId),
+        );
+        await this.#deps.diskCache.removeItem(journalKey);
+        return true;
+      }
+      // Legacy inline journal at the base key.
       if (expectedOperationId === null) {
-        // Prune mode: a journal exists — nothing to prune.
-        return;
+        return false;
       }
       let currentOperationId: unknown = null;
       try {
@@ -1750,9 +2085,13 @@ export class LighterProvider implements PerpsProvider {
           '[LighterProvider] TP/SL journal clear refused: different operation',
           { settlementKey },
         );
-        return;
+        return false;
       }
       await this.#deps.diskCache.removeItem(journalKey);
+      return true;
+    });
+    if (!cleared) {
+      return false;
     }
     const index = await this.#readTpslJournalIndex().catch(() => null);
     if (index?.includes(settlementKey)) {
@@ -1771,6 +2110,7 @@ export class LighterProvider implements PerpsProvider {
     ) {
       this.#tpslUnsettled.delete(settlementKey);
     }
+    return true;
   };
 
   /**
@@ -1916,7 +2256,13 @@ export class LighterProvider implements PerpsProvider {
             // fence) — the entry stays retryable, but never silently.
             this.#deps.debugLogger.log(
               '[LighterProvider] TP/SL journal entry recovery failed',
-              { settlementKey, error: String(error) },
+              {
+                settlementKey,
+                error:
+                  error instanceof Error
+                    ? (error.stack ?? error.message)
+                    : String(error),
+              },
             );
             return false;
           });
@@ -1975,10 +2321,9 @@ export class LighterProvider implements PerpsProvider {
         const journalEntry = await this.#loadTpslJournal(settlementKey);
         if (!journalEntry) {
           // Stale index entry with no journal behind it: prune.
-          await this.#clearTpslJournal(settlementKey, null).catch(
-            () => undefined,
+          return await this.#clearTpslJournal(settlementKey, null).catch(
+            () => false,
           );
-          return true;
         }
         const readActiveRaw = async (): Promise<LighterApiOrder[]> => {
           this.#assertSession(generation);
@@ -2057,6 +2402,7 @@ export class LighterProvider implements PerpsProvider {
       txType: number,
       txInfo: string,
       onAccepted?: () => void,
+      identity?: { txHash: string | null; expiresAt: number | null },
     ) => Promise<LighterSendTxResponse>;
   }): Promise<boolean> => {
     const {
@@ -2116,9 +2462,14 @@ export class LighterProvider implements PerpsProvider {
       };
       journalEntry.attempts.push(cancelAttempt);
       await persistEntry();
-      await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signedCancel.txInfo, () => {
-        cancelAttempt.outcome = 'accepted';
-      });
+      await submit(
+        LIGHTER_TX_TYPE_CANCEL_ORDER,
+        signedCancel.txInfo,
+        () => {
+          cancelAttempt.outcome = 'accepted';
+        },
+        { txHash: cancelIdentity.txHash, expiresAt: cancelIdentity.expiresAt },
+      );
     };
     // Restore one prior intent from its durably persisted EXACT wire
     // payload; `priorOrderId` durably keys WHICH intent this restores.
@@ -2154,14 +2505,73 @@ export class LighterProvider implements PerpsProvider {
         txHash: restoreIdentity.txHash,
         expiresAt: restoreIdentity.expiresAt,
         role: 'restore',
-        priorOrderId: prior.orderId,
+        priorOrderIds: [prior.orderId],
       };
       journalEntry.attempts.push(restoreAttempt);
       await persistEntry();
-      await submit(LIGHTER_TX_TYPE_CREATE_ORDER, signedRestore.txInfo, () => {
-        restoreAttempt.outcome = 'accepted';
-      });
+      await submit(
+        LIGHTER_TX_TYPE_CREATE_ORDER,
+        signedRestore.txInfo,
+        () => {
+          restoreAttempt.outcome = 'accepted';
+        },
+        {
+          txHash: restoreIdentity.txHash,
+          expiresAt: restoreIdentity.expiresAt,
+        },
+      );
       return restoreClientId;
+    };
+    // Restore a prior TP+SL PAIR as one grouped OCO transaction so the
+    // venue preserves the auto-cancel linkage.
+    const submitRecoveryRestoreGroup = async (
+      priors: [TpslPriorTrigger, TpslPriorTrigger],
+    ): Promise<number[]> => {
+      journalEntry.phase = 'restoring';
+      const restoreClientIds = this.#allocateClientOrderIndexes(2);
+      const restoreNonce = await nextNonce();
+      const signedRestore =
+        await this.#getSignerBridge().execute<LighterTxResult>({
+          function: '_signCreateGroupedOrders',
+          params: buildGroupedRestoreWireParams(
+            priors,
+            market,
+            accountIndex,
+            restoreClientIds,
+            restoreNonce,
+          ),
+        });
+      if (signedRestore.error) {
+        throw new Error(
+          `Failed to restore previous protection: ${signedRestore.error}`,
+        );
+      }
+      const restoreIdentity = requireSignedTxIdentity(signedRestore);
+      const restoreAttempt: TpslCreateAttempt = {
+        kind: 'create',
+        attemptId: nextAttemptIdFor(journalEntry),
+        nonce: restoreNonce,
+        outcome: 'unknown',
+        clientIds: [...restoreClientIds],
+        txHash: restoreIdentity.txHash,
+        expiresAt: restoreIdentity.expiresAt,
+        role: 'restore',
+        priorOrderIds: priors.map((prior) => prior.orderId),
+      };
+      journalEntry.attempts.push(restoreAttempt);
+      await persistEntry();
+      await submit(
+        LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+        signedRestore.txInfo,
+        () => {
+          restoreAttempt.outcome = 'accepted';
+        },
+        {
+          txHash: restoreIdentity.txHash,
+          expiresAt: restoreIdentity.expiresAt,
+        },
+      );
+      return [...restoreClientIds];
     };
     // Classify every journalled create leg on the books (reconcile
     // proved each attempt either landed or never can).
@@ -2254,15 +2664,26 @@ export class LighterProvider implements PerpsProvider {
     };
     const rollbackActiveReplacements = async (): Promise<void> =>
       await rollbackActiveJournalledLegs(replacementIds);
-    // COMPACTION: proven-resolved FAILED restore attempts (never landed
-    // or terminal-failed) carry no live effect and no coverage — drop
-    // them so repeated retries can never dead-end at the attempt cap.
-    journalEntry.attempts = journalEntry.attempts.filter(
-      (attempt) =>
-        attempt.kind !== 'create' ||
-        attempt.role !== 'restore' ||
-        attempt.clientIds.some((clientId) => stateOf(clientId) !== 'failed'),
-    );
+    // COMPACTION: proven-resolved attempts with no live effect and no
+    // coverage are dropped so repeated retries can never dead-end at the
+    // attempt cap: FAILED restore creates (never landed/terminal-failed)
+    // and resolved cancels (target gone, or proven never-landed).
+    const compactionNow = Date.now();
+    journalEntry.attempts = journalEntry.attempts.filter((attempt) => {
+      if (attempt.kind === 'create') {
+        return (
+          attempt.role !== 'restore' ||
+          attempt.clientIds.some((clientId) => stateOf(clientId) !== 'failed')
+        );
+      }
+      const targetGone = !rawActive.some(
+        (order) => String(order.orderIndex) === attempt.orderId,
+      );
+      const provenNeverLanded =
+        attempt.outcome === 'unknown' &&
+        compactionNow > attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS;
+      return !(targetGone || provenNeverLanded);
+    });
     const liveRestoreAttempts = journalEntry.attempts.filter(
       (attempt): attempt is TpslCreateAttempt =>
         attempt.kind === 'create' && attempt.role === 'restore',
@@ -2288,13 +2709,14 @@ export class LighterProvider implements PerpsProvider {
           );
           return false;
         }
-        const restoredCovered = liveRestoreAttempts.some(
-          (attempt) =>
-            attempt.priorOrderId === prior.orderId &&
-            attempt.clientIds.every(
-              (clientId) => stateOf(clientId) !== 'failed',
-            ),
-        );
+        // Coverage is INDEX-ALIGNED: the specific restore leg linked to
+        // THIS prior must be non-failed.
+        const restoredCovered = liveRestoreAttempts.some((attempt) => {
+          const legIndex = (attempt.priorOrderIds ?? []).indexOf(prior.orderId);
+          return (
+            legIndex >= 0 && stateOf(attempt.clientIds[legIndex]) !== 'failed'
+          );
+        });
         return !priorActive(prior) && !restoredCovered;
       });
       // Nothing to restore and no restore leg resting: nothing to gate.
@@ -2311,7 +2733,41 @@ export class LighterProvider implements PerpsProvider {
         journalClientIds: journalCreateIds,
       });
       if (verified) {
-        for (const prior of needingRestore) {
+        // RE-CHECK coverage on a FRESH book: legs can terminal-fail (or
+        // priors reappear) during the verification awaits.
+        const freshActive = await readActiveRaw();
+        const stillNeeding = needingRestore.filter((prior) => {
+          const priorNowActive = freshActive.some(
+            (order) => String(order.orderIndex) === prior.orderId,
+          );
+          const coveredFresh = liveRestoreAttempts.some((attempt) => {
+            const legIndex = (attempt.priorOrderIds ?? []).indexOf(
+              prior.orderId,
+            );
+            if (legIndex < 0) {
+              return false;
+            }
+            const legId = attempt.clientIds[legIndex];
+            return (
+              freshActive.some(
+                (order) => String(order.clientOrderIndex) === String(legId),
+              ) || stateOf(legId) === 'success'
+            );
+          });
+          return !priorNowActive && !coveredFresh;
+        });
+        // A prior OCO pair restores as ONE grouped transaction so the
+        // venue preserves the auto-cancel linkage.
+        if (journalEntry.priorGrouping === 'oco' && stillNeeding.length === 2) {
+          createdClientIds.push(
+            ...(await submitRecoveryRestoreGroup([
+              stillNeeding[0],
+              stillNeeding[1],
+            ])),
+          );
+          return;
+        }
+        for (const prior of stillNeeding) {
           createdClientIds.push(await submitRecoveryRestore(prior));
         }
         return;
@@ -2390,8 +2846,12 @@ export class LighterProvider implements PerpsProvider {
         return false;
       }
     }
-    await this.#clearTpslJournal(settlementKey, journalEntry.operationId);
-    return true;
+    // A refused clear (superseded by a newer operation) is UNRESOLVED —
+    // never reported as success.
+    return await this.#clearTpslJournal(
+      settlementKey,
+      journalEntry.operationId,
+    );
   };
 
   /**
@@ -2461,38 +2921,55 @@ export class LighterProvider implements PerpsProvider {
     }
     // Venue fill evidence: any FOREIGN order on this market with executed
     // base since the operation began means the position mutated — an
-    // identical-looking tuple can still be a different lifecycle.
-    const history = await this.#clientService.getInactiveOrders(
-      accountIndex,
-      authToken,
-      100,
-      undefined,
-      market.marketId,
-    );
-    this.#assertSession(generation);
-    for (const row of history.orders ?? []) {
-      if (
-        row.ownerAccountIndex !== accountIndex ||
-        row.marketIndex !== market.marketId ||
-        row.timestamp < createdAt ||
-        journalClientIds.has(String(row.clientOrderIndex))
-      ) {
-        continue;
+    // identical-looking tuple can still be a different lifecycle. The
+    // history is CURSOR-PAGED until rows OLDER than the boundary appear:
+    // evidence buried beyond page one must still be found. If the bound
+    // is exhausted before reaching the boundary, the window is UNPROVEN
+    // — fail closed.
+    let cursor: string | undefined;
+    let reachedBoundary = false;
+    for (let page = 0; page < 10 && !reachedBoundary; page += 1) {
+      const history = await this.#clientService.getInactiveOrders(
+        accountIndex,
+        authToken,
+        100,
+        cursor,
+        market.marketId,
+      );
+      this.#assertSession(generation);
+      const rows = history.orders ?? [];
+      for (const row of rows) {
+        if (row.timestamp < createdAt) {
+          reachedBoundary = true;
+          continue;
+        }
+        if (
+          row.ownerAccountIndex !== accountIndex ||
+          row.marketIndex !== market.marketId ||
+          journalClientIds.has(String(row.clientOrderIndex))
+        ) {
+          continue;
+        }
+        const initial = parseStrictDecimal(row.initialBaseAmount);
+        const remaining = parseStrictDecimal(row.remainingBaseAmount);
+        const status = row.status.toLowerCase();
+        const executedSome =
+          status === 'filled' ||
+          status === 'executed' ||
+          initial === null ||
+          remaining === null ||
+          initial - remaining > 0;
+        if (executedSome) {
+          return false;
+        }
       }
-      const initial = parseStrictDecimal(row.initialBaseAmount);
-      const remaining = parseStrictDecimal(row.remainingBaseAmount);
-      const status = row.status.toLowerCase();
-      const executedSome =
-        status === 'filled' ||
-        status === 'executed' ||
-        initial === null ||
-        remaining === null ||
-        initial - remaining > 0;
-      if (executedSome) {
-        return false;
+      if (history.nextCursor === undefined || rows.length === 0) {
+        // Full history scanned: the whole window is proven.
+        reachedBoundary = true;
       }
+      cursor = history.nextCursor;
     }
-    return true;
+    return reachedBoundary;
   };
 
   /**
@@ -2638,8 +3115,12 @@ export class LighterProvider implements PerpsProvider {
         return 'unresolved';
       }
       // Expired and venue-confirmed absent: authoritatively never landed —
-      // its reserved nonce is provably unconsumed and may be released.
-      this.#releaseNonceReservation(accountIndex, attempt.nonce);
+      // its reserved nonce may be released UNLESS a later dispatch (a
+      // retry) already consumed it (durable consumed watermark guards).
+      await this.#releaseNonceReservationIfUnconsumed(
+        accountIndex,
+        attempt.nonce,
+      );
     }
     return 'resolved';
   };
@@ -2973,7 +3454,12 @@ export class LighterProvider implements PerpsProvider {
     changePubKeyBody: string,
     generation: number,
     nextNonce: () => Promise<number>,
-    submit: (txType: number, txInfo: string) => Promise<LighterSendTxResponse>,
+    submit: (
+      txType: number,
+      txInfo: string,
+      onAccepted?: () => void,
+      identity?: { txHash: string | null; expiresAt: number | null },
+    ) => Promise<LighterSendTxResponse>,
   ): Promise<void> => {
     const bridge = this.#getSignerBridge();
     // The ChangePubKey plaintext from _createClient embeds the nonce used at
@@ -2993,7 +3479,12 @@ export class LighterProvider implements PerpsProvider {
       throw new Error(`Lighter ChangePubKey signing failed: ${signed.error}`);
     }
     this.#assertSession(generation);
-    const result = await submit(LIGHTER_TX_TYPE_CHANGE_PUB_KEY, signed.txInfo);
+    const result = await submit(
+      LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
+      signed.txInfo,
+      undefined,
+      extractDispatchIdentity(signed),
+    );
     this.#deps.debugLogger.log('[LighterProvider] Venue key registered', {
       accountIndex,
       apiKeyIndex: this.#apiKeyIndex,
@@ -3082,6 +3573,7 @@ export class LighterProvider implements PerpsProvider {
         txType: number,
         txInfo: string,
         onAccepted?: () => void,
+        identity?: { txHash: string | null; expiresAt: number | null },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
@@ -3126,79 +3618,55 @@ export class LighterProvider implements PerpsProvider {
         txType: number,
         txInfo: string,
         onAccepted?: () => void,
+        identity?: { txHash: string | null; expiresAt: number | null },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
         // happened while SIGNING must abort before submission.
         this.#assertSession(generationAtIntent);
-        // Reserve BEFORE dispatch: from this point the venue may consume
-        // the nonce even if the response never arrives. The reservation
-        // is DURABLE (dispatch ledger) — a failed ledger write aborts the
-        // submission with the nonce still safely unissued at the venue.
+        // Record the dispatch DURABLY BEFORE anything else: a failed
+        // ledger read/write means NO dispatch and an UNTOUCHED memory
+        // floor — the nonce stays safely unissued at the venue. The
+        // identity comes from the SIGNING RESULT (pinned WASM contract:
+        // txInfo never carries the hash).
         let ledgerEntry: {
           nonce: number;
           txHash: string | null;
           expiresAt: number | null;
         } | null = null;
         if (lastIssuedNonce !== null) {
-          this.#nonceReservations.set(reservationKey, lastIssuedNonce + 1);
-          let dispatchTxHash: string | null = null;
-          let dispatchExpiresAt: number | null = null;
-          try {
-            const wire = JSON.parse(txInfo) as {
-              txHash?: unknown;
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              ExpiredAt?: unknown;
-            };
-            dispatchTxHash =
-              typeof wire.txHash === 'string' ? wire.txHash : null;
-            dispatchExpiresAt =
-              typeof wire.ExpiredAt === 'number' &&
-              Number.isSafeInteger(wire.ExpiredAt) &&
-              wire.ExpiredAt > 0
-                ? wire.ExpiredAt
-                : null;
-          } catch {
-            // Unparseable wire payload: resolvable only by REST advance.
-          }
           ledgerEntry = {
             nonce: lastIssuedNonce,
-            txHash: dispatchTxHash,
-            expiresAt: dispatchExpiresAt,
+            txHash: identity?.txHash ?? null,
+            expiresAt: identity?.expiresAt ?? null,
           };
-          const entries = await this.#readNonceLedger(accountIndex);
-          if (entries.length >= 16) {
+          const doc = await this.#readNonceLedger(accountIndex);
+          if (doc.entries.length >= 16) {
             throw new Error(
               'Too many unresolved Lighter dispatches; refusing further writes until they resolve',
             );
           }
-          await this.#writeNonceLedger(accountIndex, [...entries, ledgerEntry]);
+          await this.#writeNonceLedger(accountIndex, {
+            consumedFloor: doc.consumedFloor,
+            entries: [...doc.entries, ledgerEntry],
+          });
+          // Only AFTER the durable append: reserve in memory — from this
+          // point the venue may consume the nonce even if the response
+          // never arrives.
+          this.#nonceReservations.set(reservationKey, lastIssuedNonce + 1);
         }
-        let response: LighterSendTxResponse;
-        try {
-          response = await this.#clientService.sendTx(txType, txInfo);
-        } catch (error) {
-          if (
-            ledgerEntry !== null &&
-            error instanceof LighterApiError &&
-            error.code !== undefined
-          ) {
-            // The venue OBSERVED and rejected the submission: the nonce
-            // was not consumed — release the reservation and the entry.
-            await this.#removeNonceLedgerEntry(accountIndex, ledgerEntry);
-            if (lastIssuedNonce !== null) {
-              this.#releaseNonceReservation(accountIndex, lastIssuedNonce);
-            }
-          }
-          // Transport/unknown failures keep the durable entry: the
-          // outcome is resolved authoritatively before the next write.
-          throw error;
-        }
+        // EVERY error path below keeps the durable entry — a coded venue
+        // or HTTP error can mask a commit, so nothing short of an exact
+        // authoritative reconciliation may release the nonce.
+        const response: LighterSendTxResponse =
+          await this.#clientService.sendTx(txType, txInfo);
         if (ledgerEntry !== null) {
-          // Acceptance observed: the nonce is definitively consumed; the
-          // reservation floor stays and the entry resolves.
-          await this.#removeNonceLedgerEntry(accountIndex, ledgerEntry).catch(
-            () => undefined,
-          );
+          // Acceptance observed: the nonce is definitively consumed —
+          // resolve the entry AND advance the durable consumed watermark
+          // so no stale reconciliation can ever release it.
+          await this.#resolveNonceLedgerEntryConsumed(
+            accountIndex,
+            ledgerEntry,
+          ).catch(() => undefined);
         }
         // Acceptance bookkeeping runs SYNCHRONOUSLY before the post-fence:
         // a switch during network submission must cancel the operation,
@@ -3227,6 +3695,7 @@ export class LighterProvider implements PerpsProvider {
         txType: number,
         txInfo: string,
         onAccepted?: () => void,
+        identity?: { txHash: string | null; expiresAt: number | null },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
@@ -3793,6 +4262,8 @@ export class LighterProvider implements PerpsProvider {
             await submit(
               LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
               signedLeverage.txInfo,
+              undefined,
+              extractDispatchIdentity(signedLeverage),
             );
           }
           const signed = await this.#getSignerBridge().execute<LighterTxResult>(
@@ -3825,7 +4296,12 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(`Lighter order signing failed: ${signed.error}`);
           }
-          return await submit(LIGHTER_TX_TYPE_CREATE_ORDER, signed.txInfo);
+          return await submit(
+            LIGHTER_TX_TYPE_CREATE_ORDER,
+            signed.txInfo,
+            undefined,
+            extractDispatchIdentity(signed),
+          );
         },
         generationAtIntent,
       );
@@ -3886,7 +4362,12 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(`Lighter cancel signing failed: ${signed.error}`);
           }
-          return await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signed.txInfo);
+          return await submit(
+            LIGHTER_TX_TYPE_CANCEL_ORDER,
+            signed.txInfo,
+            undefined,
+            extractDispatchIdentity(signed),
+          );
         },
         generationAtIntent,
       );
@@ -4145,6 +4626,10 @@ export class LighterProvider implements PerpsProvider {
           error: `Unknown Lighter market: ${params.symbol}`,
         };
       }
+      // The lifecycle boundary is captured BEFORE the position read: a
+      // fill landing DURING the read belongs to the operation's window
+      // and must count as lifecycle evidence.
+      const lifecycleBoundary = Date.now();
       const positions = await this.getPositions();
       const position = positions.find(
         (entry) => entry.symbol === params.symbol,
@@ -4408,6 +4893,22 @@ export class LighterProvider implements PerpsProvider {
                   entryPrice: position.entryPrice,
                 }
               : null;
+          // A mutation that will CANCEL priors must be able to restore
+          // them after a crash — without a provable lifecycle
+          // fingerprint that safety net cannot exist: refuse up front.
+          if (priorTriggers.length > 0 && positionFingerprint === null) {
+            throw new Error(
+              `Lighter TP/SL update for ${params.symbol} refused: the position lifecycle cannot be proven (unparseable venue position data), so existing protection will not be cancelled`,
+            );
+          }
+          // Whether the prior set is an auto-cancel-linked TP+SL pair —
+          // a pair must restore as ONE grouped OCO transaction.
+          const priorGrouping: 'oco' | 'independent' =
+            priorTriggers.length === 2 &&
+            priorTriggers.some((prior) => prior.wireOrderType >= 4) &&
+            priorTriggers.some((prior) => prior.wireOrderType <= 3)
+              ? 'oco'
+              : 'independent';
           // Per-attempt mutation journal, persisted incrementally.
           // RESPONSE-LOSS safety: every attempt is recorded UNKNOWN with
           // its own venue nonce BEFORE submission (the venue may commit
@@ -4417,10 +4918,11 @@ export class LighterProvider implements PerpsProvider {
           const journal: TpslJournalState = {
             attempts: [],
             recordedAt: Date.now(),
-            operationId: `op-${Date.now().toString(36)}-${(this.#tpslOperationCounter += 1).toString(36)}`,
-            createdAt: Date.now(),
+            operationId: `op-${Date.now().toString(36)}-${(this.#tpslOperationCounter += 1).toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+            createdAt: lifecycleBoundary,
             intent: wantsReplacement ? 'replace' : 'remove',
             phase: 'creating',
+            priorGrouping,
             priorTriggers,
             positionFingerprint,
           };
@@ -4471,6 +4973,10 @@ export class LighterProvider implements PerpsProvider {
               () => {
                 cancelAttempt.outcome = 'accepted';
               },
+              {
+                txHash: cancelIdentity.txHash,
+                expiresAt: cancelIdentity.expiresAt,
+              },
             );
           };
           // Sign+journal+submit a RESTORE create rebuilding a previously
@@ -4511,7 +5017,7 @@ export class LighterProvider implements PerpsProvider {
               txHash: restoreIdentity.txHash,
               expiresAt: restoreIdentity.expiresAt,
               role: 'restore',
-              priorOrderId: prior.orderId,
+              priorOrderIds: [prior.orderId],
             };
             journal.attempts.push(restoreAttempt);
             this.#tpslUnsettled.set(settlementKey, journal);
@@ -4522,8 +5028,64 @@ export class LighterProvider implements PerpsProvider {
               () => {
                 restoreAttempt.outcome = 'accepted';
               },
+              {
+                txHash: restoreIdentity.txHash,
+                expiresAt: restoreIdentity.expiresAt,
+              },
             );
             restoredClientIds.push(restoreClientId);
+          };
+          // Restore a prior TP+SL PAIR as one grouped OCO transaction so
+          // the venue preserves the auto-cancel linkage.
+          const submitTrackedRestoreGroup = async (
+            priors: [TpslPriorTrigger, TpslPriorTrigger],
+          ): Promise<void> => {
+            journal.phase = 'restoring';
+            const restoreClientIds = this.#allocateClientOrderIndexes(2);
+            const restoreNonce = await nextNonce();
+            const signedRestore =
+              await this.#getSignerBridge().execute<LighterTxResult>({
+                function: '_signCreateGroupedOrders',
+                params: buildGroupedRestoreWireParams(
+                  priors,
+                  market,
+                  accountIndex,
+                  restoreClientIds,
+                  restoreNonce,
+                ),
+              });
+            if (signedRestore.error) {
+              throw new Error(
+                `Failed to restore previous protection: ${signedRestore.error}`,
+              );
+            }
+            const restoreIdentity = requireSignedTxIdentity(signedRestore);
+            const restoreAttempt: TpslCreateAttempt = {
+              kind: 'create',
+              attemptId: nextAttemptIdFor(journal),
+              nonce: restoreNonce,
+              outcome: 'unknown',
+              clientIds: [...restoreClientIds],
+              txHash: restoreIdentity.txHash,
+              expiresAt: restoreIdentity.expiresAt,
+              role: 'restore',
+              priorOrderIds: priors.map((prior) => prior.orderId),
+            };
+            journal.attempts.push(restoreAttempt);
+            this.#tpslUnsettled.set(settlementKey, journal);
+            await persistJournal();
+            await submit(
+              LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+              signedRestore.txInfo,
+              () => {
+                restoreAttempt.outcome = 'accepted';
+              },
+              {
+                txHash: restoreIdentity.txHash,
+                expiresAt: restoreIdentity.expiresAt,
+              },
+            );
+            restoredClientIds.push(...restoreClientIds);
           };
 
           // CREATE FIRST, cancel after: if signing or submission of the
@@ -4586,6 +5148,10 @@ export class LighterProvider implements PerpsProvider {
                 // Acceptance OBSERVED (pre-fence): absence from the books
                 // can now only mean visibility lag, never never-landed.
                 createAttempt.outcome = 'accepted';
+              },
+              {
+                txHash: createIdentity.txHash,
+                expiresAt: createIdentity.expiresAt,
               },
             );
 
@@ -4762,15 +5328,28 @@ export class LighterProvider implements PerpsProvider {
               // persisted prior wire intents so the position is not
               // naked. An explicitly ELAPSED prior expiry is the user's
               // stated intent playing out — never revive it.
-              for (const prior of journal.priorTriggers) {
+              const restorablePriors = journal.priorTriggers.filter((prior) => {
                 if (prior.orderExpiry > 0 && prior.orderExpiry <= Date.now()) {
                   this.#deps.debugLogger.log(
                     '[LighterProvider] TP/SL restore skipped: prior expiry elapsed',
                     { symbol: params.symbol, orderId: prior.orderId },
                   );
-                  continue;
+                  return false;
                 }
-                await submitTrackedRestoreCreate(prior);
+                return true;
+              });
+              if (
+                journal.priorGrouping === 'oco' &&
+                restorablePriors.length === 2
+              ) {
+                await submitTrackedRestoreGroup([
+                  restorablePriors[0],
+                  restorablePriors[1],
+                ]);
+              } else {
+                for (const prior of restorablePriors) {
+                  await submitTrackedRestoreCreate(prior);
+                }
               }
               const restoreVisibility = await this.#awaitTpslVisibility(
                 readActiveRaw,
@@ -4867,7 +5446,12 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(signed.error);
           }
-          return await submit(LIGHTER_TX_TYPE_UPDATE_MARGIN, signed.txInfo);
+          return await submit(
+            LIGHTER_TX_TYPE_UPDATE_MARGIN,
+            signed.txInfo,
+            undefined,
+            extractDispatchIdentity(signed),
+          );
         },
         generationAtIntent,
       );
@@ -4927,7 +5511,12 @@ export class LighterProvider implements PerpsProvider {
           if (signed.error) {
             throw new Error(signed.error);
           }
-          return await submit(LIGHTER_TX_TYPE_WITHDRAW, signed.txInfo);
+          return await submit(
+            LIGHTER_TX_TYPE_WITHDRAW,
+            signed.txInfo,
+            undefined,
+            extractDispatchIdentity(signed),
+          );
         },
         generationAtIntent,
       );
