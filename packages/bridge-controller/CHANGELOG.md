@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fallback to `0` if trade `gasLimit` is null
+- Fallback to `0` if trade `gasLimit` is null ([#9902](https://github.com/MetaMask/core/pull/9902))
 
 ## [79.2.0]
 
