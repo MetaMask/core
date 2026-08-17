@@ -1,5 +1,6 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerInitializedEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
@@ -345,6 +346,7 @@ type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | AccountTreeControllerStateChangeEvent
+  | AccountTreeControllerInitializedEvent
   | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
@@ -1108,13 +1110,10 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Catch the initial tree build. On returning users,
-    // `selectedAccountGroupChange` does NOT fire when the persisted group
-    // is unchanged, and `accountTreeChange` doesn't fire either (init()
-    // rebuilds from persisted accounts without publishing it).
-    // The base-controller `:stateChange` event is guaranteed to fire
-    // when init() calls this.update(). #start() is idempotent so
-    // repeated fires are safe.
+    // Catch post-init tree mutations that change the selected account set
+    // (e.g. a snap account added to the current group) without changing
+    // the selected group id. Intermediate `:stateChange` events during
+    // `AccountTreeController.init()` are ignored until `:initialized`.
     this.messenger.subscribe('AccountTreeController:stateChange', () => {
       this.#handleAccountTreeStateChange();
     });
@@ -1196,6 +1195,12 @@ export class AssetsController extends BaseController<
         this.#onTransactionConfirmed(transactionMeta);
       },
     );
+    // Start tracking only after the account tree is fully built. Unlock can
+    // happen before `AccountTreeController.init()`, and `:stateChange` fires
+    // for intermediate mutations during that build.
+    this.messenger.subscribe('AccountTreeController:initialized', () => {
+      this.#handleAccountTreeInitialized();
+    });
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1268,56 +1273,63 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Handle AccountTreeController state changes.
-   * If already running, re-subscribe only when the set of selected accounts
-   * has actually changed (e.g. a snap account was added after initial startup).
-   * This guards against the many tree mutations that don't affect which
-   * accounts are selected — without this check every tree update would
-   * trigger a redundant full re-subscribe + forceUpdate fetch.
-   * If not running yet, delegate to #start() for the normal start flow.
+   * Handle `AccountTreeController:initialized`. Starts asset tracking once
+   * the tree is fully built. No-op unless the UI is open and the keyring is
+   * unlocked; `#start()` is idempotent if subscriptions are already active.
    */
-  #handleAccountTreeStateChange(): void {
+  #handleAccountTreeInitialized(): void {
     const shouldRun = this.#uiOpen && this.#keyringUnlocked;
     if (!shouldRun) {
       return;
     }
-    if (this.#activeSubscriptions.size > 0) {
-      const accounts = this.#getSelectedAccounts();
-      const currentIds = new Set(accounts.map((a) => a.id));
+    this.#start();
+  }
 
-      const accountsChanged =
-        currentIds.size !== this.#lastKnownAccountIds.size ||
-        [...currentIds].some((id) => !this.#lastKnownAccountIds.has(id));
-
-      if (!accountsChanged) {
-        return;
-      }
-
-      const hasOverlap = [...currentIds].some((id) =>
-        this.#lastKnownAccountIds.has(id),
-      );
-      if (!hasOverlap && this.#lastKnownAccountIds.size > 0) {
-        return;
-      }
-
-      log('Account tree changed with new accounts, re-subscribing', {
-        previousCount: this.#lastKnownAccountIds.size,
-        currentCount: currentIds.size,
-      });
-
-      const newAccounts = accounts.filter(
-        (account) => !this.#lastKnownAccountIds.has(account.id),
-      );
-
-      this.#lastKnownAccountIds = currentIds;
-      this.#ensureNativeBalancesDefaultZero();
-      this.#ensureDefaultTrackedAssetsSeeded();
-      this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
-        log('Failed to refresh assets after tree change', error);
-      });
-    } else {
-      this.#start();
+  /**
+   * Handle AccountTreeController state changes after the tree is initialized.
+   * Re-subscribe only when the set of selected accounts has actually changed
+   * (e.g. a snap account was added after initial startup). Intermediate
+   * `:stateChange` events during `init()` are ignored — startup is driven by
+   * `:initialized` instead, so we do not fetch on every tree mutation.
+   */
+  #handleAccountTreeStateChange(): void {
+    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
+    if (!shouldRun || this.#activeSubscriptions.size === 0) {
+      return;
     }
+    const accounts = this.#getSelectedAccounts();
+    const currentIds = new Set(accounts.map((a) => a.id));
+
+    const accountsChanged =
+      currentIds.size !== this.#lastKnownAccountIds.size ||
+      [...currentIds].some((id) => !this.#lastKnownAccountIds.has(id));
+
+    if (!accountsChanged) {
+      return;
+    }
+
+    const hasOverlap = [...currentIds].some((id) =>
+      this.#lastKnownAccountIds.has(id),
+    );
+    if (!hasOverlap && this.#lastKnownAccountIds.size > 0) {
+      return;
+    }
+
+    log('Account tree changed with new accounts, re-subscribing', {
+      previousCount: this.#lastKnownAccountIds.size,
+      currentCount: currentIds.size,
+    });
+
+    const newAccounts = accounts.filter(
+      (account) => !this.#lastKnownAccountIds.has(account.id),
+    );
+
+    this.#lastKnownAccountIds = currentIds;
+    this.#ensureNativeBalancesDefaultZero();
+    this.#ensureDefaultTrackedAssetsSeeded();
+    this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
+      log('Failed to refresh assets after tree change', error);
+    });
   }
 
   async #runAccountTreeRefresh(

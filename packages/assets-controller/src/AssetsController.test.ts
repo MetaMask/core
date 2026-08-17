@@ -3451,8 +3451,8 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('account tree state change', () => {
-    it('triggers start when tree initializes after unlock with empty accounts', async () => {
+  describe('account tree initialized', () => {
+    it('triggers start when the tree initializes after unlock with empty accounts', async () => {
       const getAccountsMock = jest.fn().mockReturnValue([]);
 
       const messenger: RootMessenger = new Messenger({
@@ -3461,6 +3461,14 @@ describe('AssetsController', () => {
       messenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
         getAccountsMock,
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => undefined,
       );
       messenger.registerActionHandler(
         'NetworkEnablementController:getState',
@@ -3516,12 +3524,21 @@ describe('AssetsController', () => {
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
-      // Step 2: AccountTreeController.init() completes — accounts now available
+      // Intermediate tree mutations during init must not start tracking.
       getAccountsMock.mockReturnValue([createMockInternalAccount()]);
       (messenger.publish as CallableFunction)(
         'AccountTreeController:stateChange',
         {},
         [],
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(getAssetsSpy).not.toHaveBeenCalled();
+
+      // Step 2: AccountTreeController.init() completes — tree is ready
+      (messenger.publish as CallableFunction)(
+        'AccountTreeController:initialized',
+        {},
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -3540,6 +3557,8 @@ describe('AssetsController', () => {
           assetsForPriceUpdate: expect.arrayContaining(['eip155:1/slip44:60']),
         }),
       );
+
+      controller.destroy();
     });
   });
 });

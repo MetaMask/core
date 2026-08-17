@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Subscribe to `AccountTreeController:initialized` (typed as `AccountTreeControllerInitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()`
+  - Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `AccountTreeController:initialized`
+
 ## [13.1.4]
 
 ### Changed

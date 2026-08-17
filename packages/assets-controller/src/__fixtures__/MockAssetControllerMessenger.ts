@@ -67,6 +67,7 @@ export function createMockAssetControllerMessenger(): {
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
       'AccountTreeController:stateChange',
+      'AccountTreeController:initialized',
       'ClientController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
