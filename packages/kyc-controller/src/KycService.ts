@@ -292,9 +292,6 @@ export class KycService extends BaseDataService<
       queryClientConfig,
       policyOptions,
     });
-    if (!baseUrl) {
-      throw new Error('KycService: baseUrl is required');
-    }
     this.#baseUrl = baseUrl;
     this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl;
     this.messenger.registerMethodActionHandlers(

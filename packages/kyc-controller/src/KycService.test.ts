@@ -442,12 +442,6 @@ describe('KycService', () => {
         disclaimers,
       );
     });
-
-    it('throws when baseUrl is empty', () => {
-      expect(() => getService({ baseUrl: '' })).toThrow(
-        'KycService: baseUrl is required',
-      );
-    });
   });
 
   describe('messenger actions', () => {
