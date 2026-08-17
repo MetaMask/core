@@ -113,6 +113,8 @@ import type {
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -965,9 +967,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOrderCapabilities',
   'getOrderFills',
   'getOrders',
+  'getPendingManualRecoveries',
   'getPendingTradeConfiguration',
   'getPositions',
   'getSelectedOrderType',
+  'getRecoveredDispatches',
+  'acknowledgeRecoveredDispatch',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
   'getVisibleCandleCount',
@@ -3828,6 +3833,54 @@ export class PerpsController extends BaseController<
       context: this.#createServiceContext('getOrderFills'),
       forceRefresh: options?.forceRefresh,
     });
+  }
+
+  /**
+   * List TP/SL protection changes the active provider parked for
+   * explicit manual re-establishment. Providers without durable
+   * settlement state return an empty list.
+   *
+   * @returns Pending manual-recovery entries.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.getPendingManualRecoveries) {
+      return [];
+    }
+    return provider.getPendingManualRecoveries();
+  }
+
+  /**
+   * READ-ONLY list of the active provider's recovered-dispatch outcomes
+   * (previously ambiguous submissions later resolved). Providers without
+   * durable dispatch state return an empty list.
+   *
+   * @returns Pending recovered-dispatch outcomes.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.getRecoveredDispatches) {
+      return [];
+    }
+    return provider.getRecoveredDispatches();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+   * refreshing venue state. Throws when the active provider has no
+   * durable dispatch state or the id no longer matches.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   * @returns Resolves when the outcome is acknowledged.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.acknowledgeRecoveredDispatch) {
+      throw new Error(
+        'The active perps provider has no recovered dispatches to acknowledge',
+      );
+    }
+    return provider.acknowledgeRecoveredDispatch(recoveryId);
   }
 
   /**

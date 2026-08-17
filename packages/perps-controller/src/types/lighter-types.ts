@@ -115,6 +115,12 @@ export type LighterCreateClientResult = {
 export type LighterSignChangePubKeyResult = {
   /** Serialized L2 transaction JSON (includes the injected `L1Sig`). */
   txInfo: string;
+  /**
+   * Signed transaction hash (pinned WASM contract: the signing RESULT
+   * carries the hash; `txInfo` never does). Required for the durable
+   * dispatch ledger's exact-identity reconciliation.
+   */
+  txHash?: string;
   error?: string;
 };
 
