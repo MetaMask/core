@@ -299,16 +299,19 @@ describe('Polymarket withdraw', () => {
     });
 
     it('returns false when not post-quote', () => {
-      expect(
-        isPredictWithdraw({} as QuoteRequest, withdrawTransaction),
-      ).toBe(false);
+      expect(isPredictWithdraw({} as QuoteRequest, withdrawTransaction)).toBe(
+        false,
+      );
     });
 
     it('returns false when the transaction is not a predict withdraw', () => {
       expect(
-        isPredictWithdraw({ isPostQuote: true } as QuoteRequest, {
-          type: TransactionType.simpleSend,
-        } as TransactionMeta),
+        isPredictWithdraw(
+          { isPostQuote: true } as QuoteRequest,
+          {
+            type: TransactionType.simpleSend,
+          } as TransactionMeta,
+        ),
       ).toBe(false);
     });
   });

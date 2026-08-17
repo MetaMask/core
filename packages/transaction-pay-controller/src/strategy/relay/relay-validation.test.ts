@@ -31,8 +31,7 @@ const { validateQuoteExecution } = jest.requireMock<
 
 const FROM_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const REFUND_TO_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
-const DEPOSIT_WALLET_MOCK =
-  '0x2222222222222222222222222222222222222222' as Hex;
+const DEPOSIT_WALLET_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const REQUEST_ID_MOCK = '0xreqid1234' as string;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const TOKEN_ADDRESS_MOCK = '0xtoken' as Hex;
@@ -216,13 +215,10 @@ describe('validateRelayQuotes', () => {
   });
 
   it('skips validation entirely for a Safe-based (non-deposit-wallet) Predict withdraw', async () => {
-    const quote = buildQuote(
-      { isPostQuote: true, refundTo: REFUND_TO_MOCK },
-      {
-        metamask: { gasLimits: [], is7702: false, isExecute: false },
-        steps: [DEPOSIT_STEP_MOCK],
-      } as unknown as Partial<RelayQuote>,
-    );
+    const quote = buildQuote({ isPostQuote: true, refundTo: REFUND_TO_MOCK }, {
+      metamask: { gasLimits: [], is7702: false, isExecute: false },
+      steps: [DEPOSIT_STEP_MOCK],
+    } as unknown as Partial<RelayQuote>);
 
     await validateRelayQuotes({
       messenger,
@@ -238,12 +234,9 @@ describe('validateRelayQuotes', () => {
   });
 
   it('skips validation for a swap-only Safe-based Predict withdraw (no deposit step)', async () => {
-    const quote = buildQuote(
-      { isPostQuote: true, refundTo: REFUND_TO_MOCK },
-      {
-        metamask: { gasLimits: [], is7702: false, isExecute: false },
-      } as Partial<RelayQuote>,
-    );
+    const quote = buildQuote({ isPostQuote: true, refundTo: REFUND_TO_MOCK }, {
+      metamask: { gasLimits: [], is7702: false, isExecute: false },
+    } as Partial<RelayQuote>);
 
     await validateRelayQuotes({
       messenger,
