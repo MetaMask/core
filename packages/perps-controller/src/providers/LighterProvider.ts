@@ -4061,6 +4061,9 @@ export class LighterProvider implements PerpsProvider {
    * provided helper (each call returns the next fresh nonce).
    * @param generationAtIntent - Session generation captured when the
    * caller's intent was formed (defaults to now).
+   * @param allowMainnetSignerSetup - Permit entering the lock on mainnet
+   * for signer setup only (bridge-local client creation + read-only
+   * nonce fetch); dispatches remain refused by the gate inside submit.
    * @returns The section's result.
    */
   readonly #withVenueWriteLock = async <Result>(
