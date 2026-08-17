@@ -630,6 +630,12 @@ export type RampsOrder = {
   partnerFees?: number;
   networkFees?: number;
   paymentDetails?: OrderPaymentDetail[];
+  /**
+   * Last-updated timestamp used by User Storage order sync for LWW conflict
+   * resolution. Set locally by {@link RampsController}; not returned by the V2
+   * ramps API.
+   */
+  lastUpdatedAt?: number;
 };
 
 /**

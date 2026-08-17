@@ -4,8 +4,13 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
@@ -15,6 +20,12 @@ import {
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
+import {
+  deleteOrderInRemoteStorage,
+  syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
+  updateOrderInRemoteStorage,
+} from './order-syncing/index.js';
+import type { SyncRampsOrder } from './order-syncing/types.js';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
@@ -386,7 +397,7 @@ export type RampsControllerState = {
    * The controller is the authority for V2 orders — it polls, updates,
    * and persists them.
    */
-  orders: RampsOrder[];
+  orders: SyncRampsOrder[];
   /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
@@ -638,7 +649,11 @@ type AllowedActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | UserStorageController.UserStorageControllerGetStateAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
+  | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -691,6 +706,18 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
+  /**
+   * Optional callback for order-sync failures (full sync parse/fetch/merge and
+   * incremental remote push/delete). Context never includes full order JSON.
+   */
+  onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+  /**
+   * Optional performance tracing callback used by order sync operations.
+   */
+  trace?: TraceCallback;
 };
 
 // === HELPER FUNCTIONS ===
@@ -769,17 +796,21 @@ export function getInternalOrderCode(
   orderOrId: Pick<RampsOrder, 'id' | 'providerOrderId'> | string,
 ): string {
   if (typeof orderOrId === 'string') {
-    return orderOrId.includes('/orders/')
-      ? orderOrId.split('/orders/')[1]
-      : orderOrId;
+    if (orderOrId.includes('/orders/')) {
+      return orderOrId.split('/orders/')[1]?.trim() || '';
+    }
+    return orderOrId.trim();
   }
 
   const { id, providerOrderId } = orderOrId;
   if (id?.includes('/orders/')) {
-    return id.split('/orders/')[1];
+    const code = id.split('/orders/')[1]?.trim();
+    if (code) {
+      return code;
+    }
   }
 
-  return providerOrderId;
+  return providerOrderId?.trim() ?? '';
 }
 
 // === ORDER POLLING CONSTANTS ===
@@ -844,6 +875,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'syncOrdersWithUserStorage',
 ] as const;
 
 /**
@@ -863,6 +895,13 @@ export class RampsController extends BaseController<
    * Maximum number of entries in the request cache.
    */
   readonly #requestCacheMaxSize: number;
+
+  readonly #onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+
+  readonly #trace?: TraceCallback;
 
   /**
    * Map of pending requests for deduplication.
@@ -889,6 +928,85 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  /**
+   * Semaphore that prevents sync feedback loops while applying remote order changes.
+   */
+  #isOrderSyncingInProgress = false;
+
+  /**
+   * Whether the full sync is applying its own local state changes.
+   */
+  #isApplyingOrderSyncChanges = false;
+
+  /**
+   * Orders deleted locally while a full sync held the semaphore.
+   */
+  readonly #pendingRemoteDeletes: Map<string, RampsOrder> = new Map();
+
+  /**
+   * Coalesces overlapping `syncOrdersWithUserStorage` calls into a follow-up run.
+   */
+  #orderSyncQueued = false;
+
+  #orderSyncPromise: Promise<void> | null = null;
+
+  /**
+   * Whether a full order sync is currently applying remote changes.
+   *
+   * @returns Whether order sync is in progress.
+   */
+  get isOrderSyncingInProgress(): boolean {
+    return this.#isOrderSyncingInProgress;
+  }
+
+  /**
+   * Sets the order-syncing-in-progress semaphore.
+   * Used by the order-syncing module; hosts should not call this.
+   *
+   * @param value - Whether sync is in progress.
+   * @internal
+   */
+  setIsOrderSyncingInProgress(value: boolean): void {
+    this.#isOrderSyncingInProgress = value;
+  }
+
+  /**
+   * Distinguishes full sync's own state changes from external mutations.
+   *
+   * @param value - Whether sync changes are being applied.
+   * @internal
+   */
+  setIsApplyingOrderSyncChanges(value: boolean): void {
+    this.#isApplyingOrderSyncChanges = value;
+  }
+
+  /**
+   * Returns orders deleted while a full sync was in progress.
+   * Used by the order-syncing module.
+   *
+   * @returns Pending deletes for remote tombstone upload.
+   * @internal
+   */
+  getPendingRemoteDeletes(): RampsOrder[] {
+    return [...this.#pendingRemoteDeletes.values()];
+  }
+
+  /**
+   * Clears deletes whose tombstones were successfully persisted. A delete
+   * replaced while a write was in flight remains pending.
+   *
+   * @param orders - Deletes included in a successful remote write.
+   * @internal
+   */
+  acknowledgePendingRemoteDeletes(orders: RampsOrder[]): void {
+    for (const order of orders) {
+      const key = getInternalOrderCode(order);
+      if (key && this.#pendingRemoteDeletes.get(key) === order) {
+        this.#pendingRemoteDeletes.delete(key);
+      }
+    }
+  }
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -930,12 +1048,16 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
+   * @param args.trace - Optional performance tracing callback for order sync.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    onOrderSyncErroneousSituation,
+    trace,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -951,6 +1073,8 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
+    this.#trace = trace;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -2402,24 +2526,70 @@ export class RampsController extends BaseController<
    */
   addOrder(order: RampsOrder): void {
     const internalOrderCode = getInternalOrderCode(order);
-    const healedOrder = {
+    if (!internalOrderCode) {
+      this.#onOrderSyncErroneousSituation?.(
+        'Unable to derive internal order code for addOrder',
+        {},
+      );
+      return;
+    }
+
+    const incomingLastUpdatedAt = order.lastUpdatedAt;
+    // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
+    // over stale remote copies when an incremental push was skipped/failed.
+    // This includes external edits mid-sync (e.g. polling via `getOrder`),
+    // which the queued follow-up sync must not lose under LWW.
+    // Only when sync applies its own imported orders do we preserve the remote
+    // `lu` / `createdAt` (never invent "now" for missing `lu`, or stale remotes
+    // win later LWW comparisons).
+    const healedOrder: SyncRampsOrder = {
       ...order,
       providerOrderId: internalOrderCode,
+      lastUpdatedAt: this.#isApplyingOrderSyncChanges
+        ? (incomingLastUpdatedAt ?? order.createdAt ?? 0)
+        : Date.now(),
     };
+
+    if (!this.#isApplyingOrderSyncChanges) {
+      this.#pendingRemoteDeletes.delete(internalOrderCode);
+    }
 
     this.update((state) => {
       const idx = state.orders.findIndex(
         (existing) => getInternalOrderCode(existing) === internalOrderCode,
       );
       if (idx === -1) {
-        state.orders.push(healedOrder as Draft<RampsOrder>);
+        state.orders.push(healedOrder);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
           ...healedOrder,
-        } as Draft<RampsOrder>;
+        };
       }
     });
+
+    if (this.#isOrderSyncingInProgress && !this.#isApplyingOrderSyncChanges) {
+      // Incremental push is suppressed during full sync; queue another full
+      // sync pass so mutations during the upload await are not dropped.
+      this.#orderSyncQueued = true;
+    } else if (!this.#isOrderSyncingInProgress) {
+      updateOrderInRemoteStorage(
+        healedOrder,
+        {
+          getRampsControllerInstance: () => this,
+          getMessenger: () => this.messenger,
+        },
+        {
+          onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+        },
+      ).catch((error) => {
+        console.error('Error updating ramps order in remote storage:', error);
+        this.#onOrderSyncErroneousSituation?.(
+          'Error updating ramps order in remote storage',
+          { error },
+        );
+      });
+    }
   }
 
   /**
@@ -2428,13 +2598,111 @@ export class RampsController extends BaseController<
    * @param providerOrderId - The provider order ID to remove.
    */
   removeOrder(providerOrderId: string): void {
+    const orderToRemove = this.state.orders.find(
+      (order) =>
+        order.providerOrderId === providerOrderId ||
+        getInternalOrderCode(order) === providerOrderId,
+    );
+
     this.update((state) => {
       state.orders = state.orders.filter(
-        (order) => order.providerOrderId !== providerOrderId,
+        (order) =>
+          order.providerOrderId !== providerOrderId &&
+          getInternalOrderCode(order) !== providerOrderId,
       );
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+
+    if (orderToRemove) {
+      if (orderToRemove.providerOrderId) {
+        this.#orderPollingMeta.delete(orderToRemove.providerOrderId);
+      }
+
+      const internalOrderCode = getInternalOrderCode(orderToRemove);
+      this.#orderPollingMeta.delete(internalOrderCode);
+    }
+
+    if (orderToRemove) {
+      const deleteKey = getInternalOrderCode(orderToRemove);
+      if (this.#isOrderSyncingInProgress) {
+        if (!this.#isApplyingOrderSyncChanges) {
+          // Incremental remote deletes are gated off during full sync; queue a
+          // tombstone write and another full sync pass so deletes during the
+          // upload await are not dropped.
+          this.#orderSyncQueued = true;
+          if (deleteKey) {
+            this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+          }
+        }
+      } else {
+        deleteOrderInRemoteStorage(
+          orderToRemove,
+          {
+            getRampsControllerInstance: () => this,
+            getMessenger: () => this.messenger,
+          },
+          {
+            onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+          },
+        ).catch((error) => {
+          console.error(
+            'Error deleting ramps order from remote storage:',
+            error,
+          );
+          this.#onOrderSyncErroneousSituation?.(
+            'Error deleting ramps order from remote storage',
+            { error },
+          );
+        });
+      }
+    }
+  }
+
+  /**
+   * Bidirectionally syncs V2 ramps orders with User Storage.
+   * Hosts should call this on unlock / when ramps syncing is enabled.
+   *
+   * Overlapping calls are coalesced into the in-flight worker. After the worker
+   * settles, this method loops when `#orderSyncQueued` is still set so a
+   * request that arrived between the worker's last loop check and promise
+   * resolution is not dropped.
+   */
+  async syncOrdersWithUserStorage(): Promise<void> {
+    this.#orderSyncQueued = true;
+
+    while (this.#orderSyncQueued || this.#orderSyncPromise) {
+      if (this.#orderSyncPromise) {
+        await this.#orderSyncPromise;
+        continue;
+      }
+
+      this.#orderSyncPromise = (async (): Promise<void> => {
+        while (this.#orderSyncQueued) {
+          this.#orderSyncQueued = false;
+          await syncOrdersWithUserStorageInternal(
+            {
+              onOrderSyncErroneousSituation:
+                this.#onOrderSyncErroneousSituation,
+            },
+            {
+              getRampsControllerInstance: () => this,
+              getMessenger: () => this.messenger,
+              trace: this.#trace,
+            },
+          );
+        }
+        // Yield so a caller can set `#orderSyncQueued` after the inner while
+        // check and still be observed by the outer loop.
+        await Promise.resolve();
+      })();
+
+      try {
+        await this.#orderSyncPromise;
+      } finally {
+        this.#orderSyncPromise = null;
+      }
+    }
   }
 
   /**
@@ -2689,20 +2957,8 @@ export class RampsController extends BaseController<
       providerOrderId: internalOrderCode,
     };
 
-    this.update((state) => {
-      const idx = state.orders.findIndex(
-        (existing: RampsOrder) =>
-          getInternalOrderCode(existing) === internalOrderCode,
-      );
-      if (idx === -1) {
-        state.orders.push(healedOrder as Draft<RampsOrder>);
-      } else {
-        state.orders[idx] = {
-          ...state.orders[idx],
-          ...healedOrder,
-        } as Draft<RampsOrder>;
-      }
-    });
+    // Use addOrder to ensure lastUpdatedAt is bumped and incremental sync is triggered
+    this.addOrder(healedOrder);
 
     return healedOrder;
   }

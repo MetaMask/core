@@ -9,7 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Synchronize orders across clients for the same SRP using timestamp-based last-write-wins conflict resolution, soft-delete tombstones, and incremental add/update/delete pushes
+  - Feature key: `rampsOrders`; hosts call `RampsController:syncOrdersWithUserStorage` on unlock when Backup & Sync + ramps syncing are enabled
+  - Persist optional `lastUpdatedAt` on local `RampsOrder` entries for LWW (not returned by the V2 API)
+  - Strip `paymentDetails` from remote payloads (PII stays local-only)
+  - Soft deletes use remote tombstones; retention matches contact sync (no remote purge/compaction)
+  - Mid-sync local mutations coalesce into a follow-up full sync pass so uploads are not dropped during `performBatchSetStorage`
+  - Polling via `getOrder` → `addOrder` stamps `lastUpdatedAt` so status refreshes participate in LWW
+  - Optional `onOrderSyncErroneousSituation` (full sync and incremental push/delete) and `trace` callbacks
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+  - `UserStorageController:getState`
+  - `UserStorageController:performGetStorageAllFeatureEntries`
+  - `UserStorageController:performBatchSetStorage`
+  - `AuthenticationController:isSignedIn`
 
 ## [20.0.0]
 
