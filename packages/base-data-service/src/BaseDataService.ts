@@ -322,37 +322,39 @@ export class BaseDataService<
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
-    // The page to fetch. A missing per-call `pageParam` means "the first page",
-    // which uses the consumer's `initialPageParam`. A `null` initial param is
-    // preserved: `??` only falls back when the per-call param itself is missing.
+    // A missing per-call `pageParam` means "the first page", which uses the
+    // consumer's `initialPageParam`. A `null` initial param is preserved: `??`
+    // only falls back when the per-call param itself is missing.
     const requestedPageParam = pageParam ?? options.initialPageParam;
 
-    // Serve an already-cached page without refetching while the query is fresh,
-    // so repeated requests for the same page (for example from multiple UI
-    // observers) reuse it. `staleTime` is resolved to a number: the per-call
-    // option or the client default.
     const query = this.#queryClient
       .getQueryCache()
       .find<TQueryFnData, TError, InfiniteData<TData, TPageParam>>({
         queryKey: options.queryKey,
       });
-    const staleTime = (options.staleTime ??
-      this.#queryClient.getDefaultOptions().queries?.staleTime) as
-      | number
-      | undefined;
-    if (query?.state.data && !query.isStaleByTime(staleTime)) {
-      const index = query.state.data.pageParams.findIndex((param) =>
-        deepEqual(param, requestedPageParam),
-      );
-      if (index !== -1) {
-        return query.state.data.pages[index];
-      }
+
+    // The first page (or a cold cache) goes through query-core's
+    // `fetchInfiniteQuery`, which reuses the cached page while the query is
+    // fresh. A cold jump starts the query at the requested page by using it as
+    // the initial page param.
+    if (
+      !query?.state.data ||
+      deepEqual(requestedPageParam, options.initialPageParam)
+    ) {
+      const result = await this.#queryClient.fetchInfiniteQuery({
+        ...options,
+        initialPageParam: requestedPageParam,
+        queryFn: (context) =>
+          this.#policy.execute(() => options.queryFn(context)),
+      });
+
+      return result.pages[0];
     }
 
-    // Fetch the requested page through the policy. Unlike query-core's
-    // `fetchInfiniteQuery`, which drives pagination through a `fetchMore` meta,
-    // we drive it directly by the requested page param. The context is built by
-    // hand; the query function only reads `pageParam`.
+    // A later page on an existing query. v5 no longer forwards an explicit page
+    // param, so fetch it directly and merge it into the infinite cache,
+    // appending the next page or prepending an earlier one.
+    const { pages, pageParams } = query.state.data;
     const page = (await this.#policy.execute(() =>
       options.queryFn({
         client: this.#queryClient,
@@ -363,34 +365,23 @@ export class BaseDataService<
         meta: options.meta,
       }),
     )) as TData;
-
-    // Merge the fetched page into the infinite cache so the accumulated pages
-    // stay available for hydration by UI clients.
+    const nextPageParam = options.getNextPageParam(
+      pages[pages.length - 1],
+      pages,
+      pageParams[pageParams.length - 1],
+      pageParams,
+    );
     this.#queryClient.setQueryData<InfiniteData<TData, TPageParam>>(
       options.queryKey,
-      (existing: InfiniteData<TData, TPageParam> | undefined) => {
-        if (!existing) {
-          return { pages: [page], pageParams: [requestedPageParam] };
-        }
-
-        // Append when the requested page is the next page of the current last
-        // page; otherwise prepend it as an earlier page.
-        const nextPageParam = options.getNextPageParam(
-          existing.pages[existing.pages.length - 1],
-          existing.pages,
-          existing.pageParams[existing.pageParams.length - 1],
-          existing.pageParams,
-        );
-        return deepEqual(requestedPageParam, nextPageParam)
-          ? {
-              pages: [...existing.pages, page],
-              pageParams: [...existing.pageParams, requestedPageParam],
-            }
-          : {
-              pages: [page, ...existing.pages],
-              pageParams: [requestedPageParam, ...existing.pageParams],
-            };
-      },
+      deepEqual(requestedPageParam, nextPageParam)
+        ? {
+            pages: [...pages, page],
+            pageParams: [...pageParams, requestedPageParam],
+          }
+        : {
+            pages: [page, ...pages],
+            pageParams: [requestedPageParam, ...pageParams],
+          },
     );
 
     return page;
