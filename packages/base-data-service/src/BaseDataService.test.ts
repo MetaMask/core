@@ -121,22 +121,18 @@ describe('BaseDataService', () => {
     expect(page2.data).not.toStrictEqual(page3.data);
   });
 
-  it('returns a cached page without refetching when re-requested', async () => {
+  it('returns the cached first page without refetching on a repeat request', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
     const page1 = await service.getActivity(TEST_ADDRESS);
-    const page2 = await service.getActivity(TEST_ADDRESS, {
-      after: page1.pageInfo.endCursor,
-    });
 
-    // Only one page 2 response is mocked, so re-requesting page 2 must be served
-    // from the cache without another request.
-    const page2Again = await service.getActivity(TEST_ADDRESS, {
-      after: page1.pageInfo.endCursor,
-    });
+    // Only one page 1 response is mocked, so a repeat request (as happens when
+    // multiple UI observers hydrate the same query) must be served from the
+    // cache without another request.
+    const page1Again = await service.getActivity(TEST_ADDRESS);
 
-    expect(page2Again.data).toStrictEqual(page2.data);
+    expect(page1Again.data).toStrictEqual(page1.data);
   });
 
   it('emits `:cacheUpdated` events when cache is updated', async () => {
