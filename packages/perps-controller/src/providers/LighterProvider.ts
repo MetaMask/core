@@ -209,6 +209,8 @@ type TpslCreateAttempt = {
    * retry legitimately reuses it.
    */
   attemptId: number;
+  /** See TpslCancelAttempt.terminalStatus. */
+  terminalStatus?: number;
   /** The venue nonce this submission attempted to consume. */
   nonce: number;
   /** 'accepted' only after the venue's 200 was OBSERVED. */
@@ -240,6 +242,12 @@ type TpslCancelAttempt = {
   kind: 'cancel';
   /** Unique per-journal attempt identity (see TpslCreateAttempt). */
   attemptId: number;
+  /**
+   * Venue-reported terminal status (4 failed / 5 rejected) recorded by
+   * reconciliation for an attempt that LANDED but did not mutate the
+   * books — makes it compactable.
+   */
+  terminalStatus?: number;
   nonce: number;
   outcome: 'unknown' | 'accepted';
   /** The cancelled order id. */
@@ -308,6 +316,20 @@ type TpslJournalState = {
   operationId: string;
   /** When the OPERATION began (immutable; `recordedAt` moves per write). */
   createdAt: number;
+  /**
+   * DURABLE monotonic attempt-id allocator: compaction removes attempts,
+   * so deriving the next id from the surviving maximum could recycle an
+   * identity a removed attempt already used.
+   */
+  nextAttemptId: number;
+  /**
+   * VENUE-derived lifecycle checkpoint: the newest venue-reported
+   * inactive-order timestamp on the market when the operation began.
+   * Lifecycle verification compares venue clocks against this (client
+   * clock skew cannot hide a fill). Null = no checkpoint capturable =
+   * restores fail closed.
+   */
+  venueCheckpoint: number | null;
   /**
    * The durable OPERATION intent: a 'remove' journals only cancels and
    * must NEVER be "recovered" by restoring the cancelled protection —
@@ -383,36 +405,53 @@ const requireSignedTxIdentity = (signed: {
 };
 
 /**
- * PROCESS-WIDE storage mutex: journal pointer/index read-modify-writes
- * are serialized across ALL provider instances in this runtime. The
- * instance-local write lock cannot protect two live providers sharing
- * one disk cache.
+ * PROCESS-WIDE mutexes: venue write sections, the per-settlement journal
+ * state machine, and journal/index read-modify-writes are serialized
+ * across ALL provider instances in this runtime. Instance-local write
+ * chains cannot protect two live providers sharing one venue account or
+ * one disk cache. Completed tails are evicted to keep the map bounded.
  */
-const storageMutexTails = new Map<string, Promise<unknown>>();
+const processMutexTails = new Map<string, Promise<unknown>>();
 
 /**
- * Run a storage read-modify-write atomically w.r.t. every other holder
- * of the same key in this process.
+ * Run an operation atomically w.r.t. every other holder of the same key
+ * in this process.
+ *
+ * @param key - Key to serialize on.
+ * @param operation - The critical operation.
+ * @returns The operation's result.
+ */
+const withProcessMutex = async <Result>(
+  key: string,
+  operation: () => Promise<Result>,
+): Promise<Result> => {
+  const tail = processMutexTails.get(key) ?? Promise.resolve();
+  const run = tail.then(operation, operation);
+  const settled = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  processMutexTails.set(key, settled);
+  settled
+    .then(() => {
+      // Evict when no newer holder queued behind us.
+      if (processMutexTails.get(key) === settled) {
+        processMutexTails.delete(key);
+      }
+      return undefined;
+    })
+    .catch(() => undefined);
+  return await run;
+};
+
+/**
+ * Storage-scoped alias of the process mutex (kept for call-site clarity).
  *
  * @param key - Storage key to serialize on.
  * @param operation - The read-modify-write.
  * @returns The operation's result.
  */
-const withStorageMutex = async <Result>(
-  key: string,
-  operation: () => Promise<Result>,
-): Promise<Result> => {
-  const tail = storageMutexTails.get(key) ?? Promise.resolve();
-  const run = tail.then(operation, operation);
-  storageMutexTails.set(
-    key,
-    run.then(
-      () => undefined,
-      () => undefined,
-    ),
-  );
-  return await run;
-};
+const withStorageMutex = withProcessMutex;
 
 /**
  * Parse a journal-pointer document, or null when the content is not a
@@ -485,18 +524,17 @@ const extractDispatchIdentity = (signed: {
 };
 
 /**
- * Next unique attempt identity for a journal (monotonic per journal;
- * survives compaction because it is derived from the maximum, not the
- * count).
+ * Allocate the next unique attempt identity from the journal's DURABLE
+ * monotonic counter (compaction can therefore never recycle an id).
  *
  * @param journal - The journal being appended to.
- * @returns The next attempt id.
+ * @returns The allocated attempt id.
  */
-const nextAttemptIdFor = (journal: TpslJournalState): number =>
-  journal.attempts.reduce(
-    (max, attempt) => Math.max(max, attempt.attemptId),
-    0,
-  ) + 1;
+const nextAttemptIdFor = (journal: TpslJournalState): number => {
+  const allocated = journal.nextAttemptId;
+  journal.nextAttemptId += 1;
+  return allocated;
+};
 
 /** Delay between TP/SL settlement visibility polls. */
 const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
@@ -1397,11 +1435,19 @@ export class LighterProvider implements PerpsProvider {
         consumedFloor?: unknown;
         entries?: unknown;
       };
+      // EXPLICIT schema evolution: v1 documents (an earlier pre-release
+      // shape without the consumed watermark) migrate in place — calling
+      // valid outstanding dispatch state corrupt would block writes
+      // permanently.
+      const consumedFloor =
+        parsed.version === 1 && parsed.consumedFloor === undefined
+          ? 0
+          : parsed.consumedFloor;
       if (
-        parsed.version === 1 &&
-        typeof parsed.consumedFloor === 'number' &&
-        Number.isSafeInteger(parsed.consumedFloor) &&
-        parsed.consumedFloor >= 0 &&
+        (parsed.version === 1 || parsed.version === 2) &&
+        typeof consumedFloor === 'number' &&
+        Number.isSafeInteger(consumedFloor) &&
+        consumedFloor >= 0 &&
         Array.isArray(parsed.entries) &&
         parsed.entries.length <= 16 &&
         parsed.entries.every((entry) => {
@@ -1423,7 +1469,7 @@ export class LighterProvider implements PerpsProvider {
         })
       ) {
         return {
-          consumedFloor: parsed.consumedFloor,
+          consumedFloor,
           entries: parsed.entries as {
             nonce: number;
             txHash: string | null;
@@ -1460,7 +1506,7 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<void> => {
     await this.#deps.diskCache.setItem(
       this.#nonceLedgerKey(accountIndex),
-      JSON.stringify({ version: 1, ...doc }),
+      JSON.stringify({ version: 2, ...doc }),
     );
   };
 
@@ -1676,6 +1722,8 @@ export class LighterProvider implements PerpsProvider {
       recordedAt?: unknown;
       operationId?: unknown;
       createdAt?: unknown;
+      nextAttemptId?: unknown;
+      venueCheckpoint?: unknown;
       apiKeyIndex?: unknown;
       intent?: unknown;
       phase?: unknown;
@@ -1714,6 +1762,9 @@ export class LighterProvider implements PerpsProvider {
         typeof attempt.attemptId !== 'number' ||
         !Number.isSafeInteger(attempt.attemptId) ||
         attempt.attemptId < 1 ||
+        (attempt.terminalStatus !== undefined &&
+          (typeof attempt.terminalStatus !== 'number' ||
+            !Number.isSafeInteger(attempt.terminalStatus))) ||
         (attempt.outcome !== 'unknown' && attempt.outcome !== 'accepted') ||
         !isTxHash(attempt.txHash) ||
         !isExpiry(attempt.expiresAt)
@@ -1794,16 +1845,17 @@ export class LighterProvider implements PerpsProvider {
         isPositiveDecimalString(fingerprint.entryPrice)
       );
     };
-    // Version 1 lacked the phase/priorTriggers/role transition state the
-    // recovery machine needs — it CANNOT be interpreted safely. Fail
-    // closed explicitly (never silently cleared, never read as v2).
-    if (parsed.version === 1) {
+    // Versions 1 and 2 lacked required transition state (phase/roles,
+    // then operation identity/grouping/checkpoint) — they CANNOT be
+    // interpreted safely. Fail closed explicitly per version (never
+    // silently cleared, never reinterpreted).
+    if (parsed.version === 1 || parsed.version === 2) {
       throw new Error(
-        `Lighter TP/SL journal for ${settlementKey} uses unsupported schema version 1; refusing protection changes until it is resolved`,
+        `Lighter TP/SL journal for ${settlementKey} uses unsupported schema version ${String(parsed.version)}; refusing protection changes until it is resolved`,
       );
     }
     if (
-      parsed.version === 2 &&
+      parsed.version === 3 &&
       typeof parsed.recordedAt === 'number' &&
       Number.isSafeInteger(parsed.recordedAt) &&
       parsed.recordedAt >= 0 &&
@@ -1815,6 +1867,13 @@ export class LighterProvider implements PerpsProvider {
       typeof parsed.createdAt === 'number' &&
       Number.isSafeInteger(parsed.createdAt) &&
       parsed.createdAt >= 0 &&
+      typeof parsed.nextAttemptId === 'number' &&
+      Number.isSafeInteger(parsed.nextAttemptId) &&
+      parsed.nextAttemptId >= 1 &&
+      (parsed.venueCheckpoint === null ||
+        (typeof parsed.venueCheckpoint === 'number' &&
+          Number.isSafeInteger(parsed.venueCheckpoint) &&
+          parsed.venueCheckpoint >= 0)) &&
       // An explicit durable operation intent is REQUIRED: without it a
       // remove could be misread as a failed replacement and "restored".
       (parsed.intent === 'replace' || parsed.intent === 'remove') &&
@@ -1859,6 +1918,8 @@ export class LighterProvider implements PerpsProvider {
           recordedAt: parsed.recordedAt,
           operationId: parsed.operationId,
           createdAt: parsed.createdAt,
+          nextAttemptId: parsed.nextAttemptId,
+          venueCheckpoint: parsed.venueCheckpoint ?? null,
           intent: parsed.intent,
           phase: parsed.phase,
           priorGrouping: parsed.priorGrouping,
@@ -1937,20 +1998,24 @@ export class LighterProvider implements PerpsProvider {
     // write by removing the journal could erase an EXISTING authoritative
     // journal holding already-accepted attempts. Any failure here aborts
     // BEFORE the next submission with every older obligation intact.
-    const index = await this.#readTpslJournalIndex();
-    if (!index.includes(settlementKey)) {
-      if (index.length >= 64) {
-        // NEVER evict a live obligation: fail the mutation before
-        // submission instead.
-        throw new Error(
-          'Lighter TP/SL journal index is full; refusing further protection changes until pending obligations resolve',
+    // Index RMW under its OWN process-wide mutex: concurrent persists
+    // for different settlement keys must never lose each other's entry.
+    await withStorageMutex(this.#tpslJournalIndexKey(), async () => {
+      const index = await this.#readTpslJournalIndex();
+      if (!index.includes(settlementKey)) {
+        if (index.length >= 64) {
+          // NEVER evict a live obligation: fail the mutation before
+          // submission instead.
+          throw new Error(
+            'Lighter TP/SL journal index is full; refusing further protection changes until pending obligations resolve',
+          );
+        }
+        await this.#deps.diskCache.setItem(
+          this.#tpslJournalIndexKey(),
+          JSON.stringify([...index, settlementKey]),
         );
       }
-      await this.#deps.diskCache.setItem(
-        this.#tpslJournalIndexKey(),
-        JSON.stringify([...index, settlementKey]),
-      );
-    }
+    });
     const baseKey = this.#tpslJournalKey(settlementKey);
     // The pointer read-modify-write is serialized PROCESS-WIDE: the
     // instance-local write lock cannot protect two live provider
@@ -1960,6 +2025,10 @@ export class LighterProvider implements PerpsProvider {
       // stale snapshot must never take over a DIFFERENT operation's
       // journal. (A missing journal is fine — first write of an op.)
       const currentRaw = await this.#deps.diskCache.getItem(baseKey);
+      const pointerAlreadyOurs =
+        currentRaw !== null &&
+        parseTpslJournalPointer(currentRaw)?.operationId ===
+          journal.operationId;
       if (currentRaw !== null) {
         const pointer = parseTpslJournalPointer(currentRaw);
         let currentOperationId: unknown = pointer?.operationId ?? null;
@@ -1982,10 +2051,12 @@ export class LighterProvider implements PerpsProvider {
       await this.#deps.diskCache.setItem(
         this.#tpslJournalOpKey(settlementKey, journal.operationId),
         JSON.stringify({
-          version: 2,
+          version: 3,
           recordedAt: journal.recordedAt,
           operationId: journal.operationId,
           createdAt: journal.createdAt,
+          nextAttemptId: journal.nextAttemptId,
+          venueCheckpoint: journal.venueCheckpoint,
           apiKeyIndex: this.#apiKeyIndex,
           intent: journal.intent,
           phase: journal.phase,
@@ -1995,13 +2066,28 @@ export class LighterProvider implements PerpsProvider {
           attempts: journal.attempts,
         }),
       );
-      await this.#deps.diskCache.setItem(
-        baseKey,
-        JSON.stringify({
-          pointerVersion: 1,
-          operationId: journal.operationId,
-        }),
-      );
+      try {
+        await this.#deps.diskCache.setItem(
+          baseKey,
+          JSON.stringify({
+            pointerVersion: 1,
+            operationId: journal.operationId,
+          }),
+        );
+      } catch (error) {
+        // Pointer write failed on the FIRST persist of this operation:
+        // remove the freshly written payload so no orphan accumulates.
+        // (When an earlier persist already pointed here, the payload is
+        // referenced durable state — keep it.)
+        if (!pointerAlreadyOurs) {
+          await this.#deps.diskCache
+            .removeItem(
+              this.#tpslJournalOpKey(settlementKey, journal.operationId),
+            )
+            .catch(() => undefined);
+        }
+        throw error;
+      }
     });
     // A NEW pending obligation invalidates any "recovery complete"
     // marker recorded earlier in this session — otherwise later read
@@ -2093,15 +2179,27 @@ export class LighterProvider implements PerpsProvider {
     if (!cleared) {
       return false;
     }
-    const index = await this.#readTpslJournalIndex().catch(() => null);
-    if (index?.includes(settlementKey)) {
-      await this.#deps.diskCache
-        .setItem(
-          this.#tpslJournalIndexKey(),
-          JSON.stringify(index.filter((entry) => entry !== settlementKey)),
-        )
-        .catch(() => undefined);
-    }
+    // Index removal under the index mutex, RE-VERIFYING the journal is
+    // still gone: a newer operation may have persisted (journal +
+    // index entry) between our clear and this removal — removing the
+    // entry then would blind restart recovery to a live obligation.
+    await withStorageMutex(this.#tpslJournalIndexKey(), async () => {
+      const stillGone =
+        (await this.#deps.diskCache.getItem(journalKey).catch(() => null)) ===
+        null;
+      if (!stillGone) {
+        return;
+      }
+      const index = await this.#readTpslJournalIndex().catch(() => null);
+      if (index?.includes(settlementKey)) {
+        await this.#deps.diskCache
+          .setItem(
+            this.#tpslJournalIndexKey(),
+            JSON.stringify(index.filter((entry) => entry !== settlementKey)),
+          )
+          .catch(() => undefined);
+      }
+    });
     const memoryEntry = this.#tpslUnsettled.get(settlementKey);
     if (
       memoryEntry === undefined ||
@@ -2405,9 +2503,62 @@ export class LighterProvider implements PerpsProvider {
       identity?: { txHash: string | null; expiresAt: number | null },
     ) => Promise<LighterSendTxResponse>;
   }): Promise<boolean> => {
+    const { settlementKey } = context;
+    // The ENTIRE same-settlement state machine is serialized
+    // PROCESS-WIDE: two live providers resolving the same operation
+    // could otherwise both choose and submit identical restores/cancels
+    // and overwrite each other's attempt state.
+    return await withProcessMutex(
+      `lighterTpslSettle:${this.#isTestnet ? 'testnet' : 'mainnet'}:${settlementKey}`,
+      async () => await this.#settleTpslObligationLocked(context),
+    );
+  };
+
+  /**
+   * The settlement machine body — MUST only run under the per-settlement
+   * process mutex (see #settleTpslObligation).
+   *
+   * @param context - See #settleTpslObligation.
+   * @param context.settlementKey - Full settlement identity.
+   * @param context.symbol - Market symbol.
+   * @param context.journalEntry - Caller's journal snapshot (reloaded).
+   * @param context.market - Market integerization parameters.
+   * @param context.market.marketId - Venue market id.
+   * @param context.market.supportedSizeDecimals - Size decimals.
+   * @param context.market.supportedPriceDecimals - Price decimals.
+   * @param context.accountIndex - Captured account index.
+   * @param context.authToken - Captured venue auth token.
+   * @param context.generation - Captured session generation.
+   * @param context.readActiveRaw - Session-fenced raw active reader.
+   * @param context.readInactiveFor - Targeted inactive reader.
+   * @param context.nextNonce - Lock-section nonce issuer.
+   * @param context.submit - Lock-section submitter.
+   * @returns See #settleTpslObligation.
+   */
+  readonly #settleTpslObligationLocked = async (context: {
+    settlementKey: string;
+    symbol: string;
+    journalEntry: TpslJournalState;
+    market: {
+      marketId: number;
+      supportedSizeDecimals: number;
+      supportedPriceDecimals: number;
+    };
+    accountIndex: number;
+    authToken: string;
+    generation: number;
+    readActiveRaw: () => Promise<LighterApiOrder[]>;
+    readInactiveFor: (targetClientIds: number[]) => Promise<LighterApiOrder[]>;
+    nextNonce: () => Promise<number>;
+    submit: (
+      txType: number,
+      txInfo: string,
+      onAccepted?: () => void,
+      identity?: { txHash: string | null; expiresAt: number | null },
+    ) => Promise<LighterSendTxResponse>;
+  }): Promise<boolean> => {
     const {
       settlementKey,
-      journalEntry,
       market,
       accountIndex,
       authToken,
@@ -2417,6 +2568,26 @@ export class LighterProvider implements PerpsProvider {
       nextNonce,
       submit,
     } = context;
+    // RELOAD inside the settlement mutex: the caller's snapshot may have
+    // been superseded while waiting for the mutex — decisions must be
+    // made on the CURRENT journal of the SAME operation only. Disk is
+    // authoritative (cross-provider); the in-memory entry backs it up
+    // when durable persistence is unavailable.
+    const journalEntry =
+      (await this.#loadTpslJournal(settlementKey)) ??
+      this.#tpslUnsettled.get(settlementKey) ??
+      null;
+    if (!journalEntry) {
+      return await this.#clearTpslJournal(settlementKey, null).catch(
+        () => false,
+      );
+    }
+    if (journalEntry.operationId !== context.journalEntry.operationId) {
+      // A different operation owns the journal now: this resolver's
+      // obligation no longer exists — report unresolved so the caller
+      // re-evaluates against the fresh state.
+      return false;
+    }
     const reconciled = await this.#reconcilePriorTpsl(
       readActiveRaw,
       readInactiveFor,
@@ -2629,14 +2800,29 @@ export class LighterProvider implements PerpsProvider {
       rawActive.some((order) => String(order.orderIndex) === prior.orderId);
     const cancelledOrderIds: string[] = [];
     const createdClientIds: number[] = [];
+    // Aggregation groups parallel to createdClientIds: one group per
+    // create ATTEMPT (grouped OCO semantics within, independence across).
+    const createdGroups: number[][] = [];
+    const pushCreatedGroup = (group: number[]): void => {
+      createdClientIds.push(...group);
+      createdGroups.push(group);
+    };
     const cancelPriorLeftovers = async (): Promise<void> => {
       // The replacement must STAY proven while the old protection is
       // removed: keep its live ids in the final expectation so a leg
       // terminal-failing DURING these cancels (the phase race) fails
-      // this pass instead of clearing the journal naked.
-      for (const clientId of replacementIds) {
-        if (stateOf(clientId) === 'active') {
-          createdClientIds.push(clientId);
+      // this pass instead of clearing the journal naked. Grouped per
+      // replacement ATTEMPT: an executed OCO leg legitimately
+      // auto-cancels its sibling.
+      for (const attempt of journalEntry.attempts) {
+        if (attempt.kind !== 'create' || attempt.role !== 'replacement') {
+          continue;
+        }
+        const activeLegs = attempt.clientIds.filter(
+          (clientId) => stateOf(clientId) === 'active',
+        );
+        if (activeLegs.length > 0) {
+          pushCreatedGroup(attempt.clientIds);
         }
       }
       for (const prior of journalEntry.priorTriggers) {
@@ -2682,7 +2868,11 @@ export class LighterProvider implements PerpsProvider {
       const provenNeverLanded =
         attempt.outcome === 'unknown' &&
         compactionNow > attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS;
-      return !(targetGone || provenNeverLanded);
+      // Accepted-but-terminal-FAILED cancels (venue status 4/5) landed
+      // without mutating the books: proven-resolved, compactable.
+      const landedTerminalFailed =
+        attempt.terminalStatus === 4 || attempt.terminalStatus === 5;
+      return !(targetGone || provenNeverLanded || landedTerminalFailed);
     });
     const liveRestoreAttempts = journalEntry.attempts.filter(
       (attempt): attempt is TpslCreateAttempt =>
@@ -2725,7 +2915,7 @@ export class LighterProvider implements PerpsProvider {
       }
       const verified = await this.#verifyRestoreLifecycle({
         fingerprint: journalEntry.positionFingerprint,
-        createdAt: journalEntry.createdAt,
+        venueCheckpoint: journalEntry.venueCheckpoint,
         market,
         accountIndex,
         authToken,
@@ -2756,19 +2946,34 @@ export class LighterProvider implements PerpsProvider {
           });
           return !priorNowActive && !coveredFresh;
         });
-        // A prior OCO pair restores as ONE grouped transaction so the
-        // venue preserves the auto-cancel linkage.
-        if (journalEntry.priorGrouping === 'oco' && stillNeeding.length === 2) {
-          createdClientIds.push(
-            ...(await submitRecoveryRestoreGroup([
-              stillNeeding[0],
-              stillNeeding[1],
-            ])),
-          );
+        // A VENUE-LINKED prior pair restores per real group semantics:
+        // BOTH legs gone (the swap we initiated cancelled the whole
+        // pair — a leg EXECUTING instead is caught by the lifecycle fill
+        // evidence above) → recreate as ONE grouped OCO transaction.
+        // Anything partial (one leg gone, its sibling still resting) is
+        // an externally-perturbed group that cannot be faithfully
+        // recreated with linkage — never lone-restore a genuine OCO leg;
+        // surface for manual recovery instead.
+        if (journalEntry.priorGrouping === 'oco') {
+          if (stillNeeding.length === 2) {
+            pushCreatedGroup(
+              await submitRecoveryRestoreGroup([
+                stillNeeding[0],
+                stillNeeding[1],
+              ]),
+            );
+            return;
+          }
+          if (stillNeeding.length > 0) {
+            this.#deps.debugLogger.log(
+              '[LighterProvider] TP/SL OCO restore requires MANUAL recovery: the linked pair cannot be faithfully recreated (partial/external resolution)',
+              { settlementKey },
+            );
+          }
           return;
         }
         for (const prior of stillNeeding) {
-          createdClientIds.push(await submitRecoveryRestore(prior));
+          pushCreatedGroup([await submitRecoveryRestore(prior)]);
         }
         return;
       }
@@ -2834,9 +3039,10 @@ export class LighterProvider implements PerpsProvider {
         readActiveRaw,
         readInactiveFor,
         { createdClientIds, cancelledOrderIds },
-        // Every id the machine expects is an INDEPENDENT obligation —
-        // one executed restore leg must never mask a rejected sibling.
-        { independentCreates: true },
+        // PER-ATTEMPT groups: a grouped OCO restore's executed leg
+        // legitimately auto-cancels its sibling, while independent
+        // restores must each individually land.
+        { createdGroups },
       );
       // ONLY a fully-settled pass may clear. 'created-terminal-failed'
       // (a rejected restore, or a replacement dying during the old
@@ -2844,6 +3050,66 @@ export class LighterProvider implements PerpsProvider {
       // retries — clearing here would leave the position naked.
       if (settled.outcome !== 'settled') {
         return false;
+      }
+      // POST-SUBMIT lifecycle re-verification for restores: without an
+      // atomic conditional-create primitive at the venue, a mutation can
+      // land between the final check and the restore submission. If it
+      // did, WITHDRAW the just-restored protection and surface manual
+      // recovery — never silently claim safety across that window.
+      if (createdGroups.length > 0 && journalEntry.intent === 'replace') {
+        const restoredIds = createdGroups.flat();
+        const restoreLegIds = new Set(
+          journalEntry.attempts
+            .filter(
+              (attempt): attempt is TpslCreateAttempt =>
+                attempt.kind === 'create' && attempt.role === 'restore',
+            )
+            .flatMap((attempt) => attempt.clientIds),
+        );
+        const restoredRestoreIds = restoredIds.filter((clientId) =>
+          restoreLegIds.has(clientId),
+        );
+        if (restoredRestoreIds.length > 0) {
+          const stillIntact = await this.#verifyRestoreLifecycle({
+            fingerprint: journalEntry.positionFingerprint,
+            venueCheckpoint: journalEntry.venueCheckpoint,
+            market,
+            accountIndex,
+            authToken,
+            generation,
+            journalClientIds: journalCreateIds,
+          });
+          if (!stillIntact) {
+            this.#deps.debugLogger.log(
+              '[LighterProvider] TP/SL restore WITHDRAWN: the position changed during the restore window; MANUAL recovery required',
+              { settlementKey },
+            );
+            const freshBook = await readActiveRaw();
+            const withdrawIds: string[] = [];
+            for (const clientId of restoredRestoreIds) {
+              const restored = freshBook.find(
+                (order) => String(order.clientOrderIndex) === String(clientId),
+              );
+              if (restored) {
+                withdrawIds.push(String(restored.orderIndex));
+                await submitRecoveryCancel(
+                  String(restored.orderIndex),
+                  'rollback',
+                );
+              }
+            }
+            if (withdrawIds.length > 0) {
+              const withdrawal = await this.#awaitTpslVisibility(
+                readActiveRaw,
+                readInactiveFor,
+                { createdClientIds: [], cancelledOrderIds: withdrawIds },
+              );
+              if (withdrawal.outcome !== 'settled') {
+                return false;
+              }
+            }
+          }
+        }
       }
     }
     // A refused clear (superseded by a newer operation) is UNRESOLVED —
@@ -2865,7 +3131,8 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param check - Verification inputs.
    * @param check.fingerprint - Persisted position fingerprint (null = never restore).
-   * @param check.createdAt - When the journalled operation began (ms).
+   * @param check.venueCheckpoint - VENUE-derived checkpoint captured at
+   * the operation start (null = unprovable, never restore).
    * @param check.market - Market parameters.
    * @param check.market.marketId - Venue market id.
    * @param check.accountIndex - Venue account index.
@@ -2877,7 +3144,7 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #verifyRestoreLifecycle = async (check: {
     fingerprint: TpslPositionFingerprint | null;
-    createdAt: number;
+    venueCheckpoint: number | null;
     market: { marketId: number };
     accountIndex: number;
     authToken: string;
@@ -2886,14 +3153,16 @@ export class LighterProvider implements PerpsProvider {
   }): Promise<boolean> => {
     const {
       fingerprint,
-      createdAt,
+      venueCheckpoint,
       market,
       accountIndex,
       authToken,
       generation,
       journalClientIds,
     } = check;
-    if (!fingerprint) {
+    // No fingerprint or no VENUE-derived checkpoint = unprovable: never
+    // auto-restore across that ambiguity.
+    if (!fingerprint || venueCheckpoint === null) {
       return false;
     }
     this.#assertSession(generation);
@@ -2939,7 +3208,9 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       const rows = history.orders ?? [];
       for (const row of rows) {
-        if (row.timestamp < createdAt) {
+        // VENUE-clock comparison against the venue-derived checkpoint:
+        // a row at-or-before the checkpoint predates the operation.
+        if (row.timestamp <= venueCheckpoint) {
           reachedBoundary = true;
           continue;
         }
@@ -3102,6 +3373,10 @@ export class LighterProvider implements PerpsProvider {
           return 'unresolved';
         }
         if (lookedUp.status === 4 || lookedUp.status === 5) {
+          // Record the terminal venue status durably (next persist):
+          // compaction can then drop this attempt even though its target
+          // may still be on the books.
+          attempt.terminalStatus = lookedUp.status;
           continue;
         }
         if (satisfiedOnBooks(attempt, rawActive, rawInactive)) {
@@ -3162,8 +3437,8 @@ export class LighterProvider implements PerpsProvider {
    * @param expectation.cancelledOrderIds - Order ids that must leave the
    * active book.
    * @param options - Aggregation options.
-   * @param options.independentCreates - Treat every created id as an
-   * independent obligation (see inline doc).
+   * @param options.createdGroups - Per-attempt aggregation groups over
+   * the created ids (see inline doc).
    * @returns Outcome: 'settled' when every id is accounted for and no
    * created id failed ('executedCreated' marks created ids that reached a
    * SUCCESS terminal state — filled/executed — instead of resting
@@ -3178,12 +3453,14 @@ export class LighterProvider implements PerpsProvider {
     expectation: { createdClientIds: number[]; cancelledOrderIds: string[] },
     options: {
       /**
-       * Treat every created id as an INDEPENDENT obligation: any failed
-       * id yields 'created-terminal-failed' even when a sibling fully
-       * executed. Default (false) keeps grouped-OCO semantics where one
-       * leg's execution legitimately auto-cancels its sibling.
+       * PER-ATTEMPT aggregation groups over `createdClientIds`: within a
+       * group, grouped-OCO semantics hold (one fully executed leg
+       * legitimately auto-cancels its sibling — the GROUP succeeded);
+       * ACROSS groups every group must independently succeed or rest
+       * active. Omitted: all created ids form one group (legacy grouped
+       * semantics).
        */
-      independentCreates?: boolean;
+      createdGroups?: number[][];
     } = {},
   ): Promise<
     | { outcome: 'settled'; executedCreated: boolean }
@@ -3251,37 +3528,44 @@ export class LighterProvider implements PerpsProvider {
           !rawActive.some((order) => String(order.orderIndex) === orderId),
       );
       if (createdAccounted && cancelledGone) {
-        const anyFailedLeg = classified.some(
-          (entry) => entry.state === 'failed',
+        // PER-GROUP aggregation: within a group one fully executed leg
+        // auto-cancels its sibling (grouped OCO — the GROUP succeeded);
+        // across groups each must independently succeed or rest active.
+        const groups =
+          options.createdGroups ??
+          (expectation.createdClientIds.length > 0
+            ? [expectation.createdClientIds]
+            : []);
+        const stateOfId = new Map(
+          classified.map((entry) => [entry.clientId, entry.state]),
         );
-        // INDEPENDENT creates (restore legs): every id must individually
-        // be active or fully executed — a failed one is a failure no
-        // sibling can mask.
-        if (options.independentCreates && anyFailedLeg) {
+        let anyGroupSuccess = false;
+        const failedGroupActiveIds: number[] = [];
+        let anyGroupFailed = false;
+        for (const group of groups) {
+          const states = group.map(
+            (clientId) => stateOfId.get(clientId) ?? 'missing',
+          );
+          if (states.includes('success')) {
+            anyGroupSuccess = true;
+            continue;
+          }
+          if (states.includes('failed')) {
+            anyGroupFailed = true;
+            failedGroupActiveIds.push(
+              ...group.filter(
+                (clientId) => stateOfId.get(clientId) === 'active',
+              ),
+            );
+          }
+        }
+        if (anyGroupFailed) {
           return {
             outcome: 'created-terminal-failed',
-            survivingActiveClientIds: classified
-              .filter((entry) => entry.state === 'active')
-              .map((entry) => entry.clientId),
+            survivingActiveClientIds: failedGroupActiveIds,
           };
         }
-        // OCO aggregation: one leg fully filling auto-cancels its sibling,
-        // so ANY proven execution makes the overall outcome an EXECUTION.
-        // Only failed-without-success is a terminal failure — reported
-        // WITH any legs still active so the caller can roll back or keep
-        // them explicitly.
-        if (classified.some((entry) => entry.state === 'success')) {
-          return { outcome: 'settled', executedCreated: true };
-        }
-        if (anyFailedLeg) {
-          return {
-            outcome: 'created-terminal-failed',
-            survivingActiveClientIds: classified
-              .filter((entry) => entry.state === 'active')
-              .map((entry) => entry.clientId),
-          };
-        }
-        return { outcome: 'settled', executedCreated: false };
+        return { outcome: 'settled', executedCreated: anyGroupSuccess };
       }
       await new Promise((resolve) =>
         setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
@@ -3634,10 +3918,22 @@ export class LighterProvider implements PerpsProvider {
           expiresAt: number | null;
         } | null = null;
         if (lastIssuedNonce !== null) {
+          // COMPLETE identity is REQUIRED before anything reaches the
+          // wire: a hashless dispatch could never be proven absent, so a
+          // response loss would wedge writes until the venue advances.
+          if (
+            identity?.txHash === null ||
+            identity?.expiresAt === null ||
+            identity === undefined
+          ) {
+            throw new Error(
+              'Lighter dispatch refused: the signing result did not provide a complete transaction identity (hash + expiry)',
+            );
+          }
           ledgerEntry = {
             nonce: lastIssuedNonce,
-            txHash: identity?.txHash ?? null,
-            expiresAt: identity?.expiresAt ?? null,
+            txHash: identity.txHash,
+            expiresAt: identity.expiresAt,
           };
           const doc = await this.#readNonceLedger(accountIndex);
           if (doc.entries.length >= 16) {
@@ -3679,7 +3975,16 @@ export class LighterProvider implements PerpsProvider {
       };
       return await section(nextNonce, submit);
     };
-    const run = this.#writeChain.then(criticalSection, criticalSection);
+    // The ENTIRE nonce resolve→fetch→sign/append→dispatch sequence is
+    // serialized PROCESS-WIDE per network+account+api-key slot: the
+    // instance chain alone cannot stop a second live provider from
+    // issuing the same nonce or interleaving ledger writes.
+    const guardedSection = async (): Promise<Result> =>
+      await withProcessMutex(
+        `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}:${this.#apiKeyIndex}`,
+        criticalSection,
+      );
+    const run = this.#writeChain.then(guardedSection, guardedSection);
     this.#writeChain = run.then(
       () => undefined,
       () => undefined,
@@ -4838,6 +5143,32 @@ export class LighterProvider implements PerpsProvider {
             this.#assertSession(generationAtIntent);
           }
 
+          // VENUE-DERIVED lifecycle checkpoint, captured BEFORE the read
+          // that produces the PERSISTED fingerprint: any fill landing
+          // during (or after) that read carries a venue timestamp AFTER
+          // this checkpoint — only venue clocks are ever compared, so
+          // client skew cannot hide a fill. (The earlier public
+          // getPositions read is validation-only; the fingerprint that
+          // gates restores is read fresh below, inside the lock.)
+          const checkpointPage = await this.#clientService.getInactiveOrders(
+            accountIndex,
+            authToken,
+            100,
+            undefined,
+            market.marketId,
+          );
+          this.#assertSession(generationAtIntent);
+          const venueCheckpoint = (checkpointPage.orders ?? []).reduce(
+            (max, row) => Math.max(max, row.timestamp),
+            0,
+          );
+          const freshAccount =
+            await this.#clientService.getAccountByIndex(accountIndex);
+          this.#assertSession(generationAtIntent);
+          const rawPosition = freshAccount.accounts?.[0]?.positions?.find(
+            (entry) => entry.marketId === market.marketId,
+          );
+
           const rawOrders = await readActiveRaw();
           const openOrders = rawOrders.map((order) =>
             adaptOrderFromLighter(
@@ -4876,21 +5207,28 @@ export class LighterProvider implements PerpsProvider {
             priorTriggers.push(priorIntent);
           }
           // Lifecycle identity of the position this protection belongs
-          // to: a delayed restore must never attach to a NEW same-symbol
-          // position opened after the original closed.
-          const fingerprintSign: 1 | -1 = position.size.startsWith('-')
-            ? -1
-            : 1;
-          const fingerprintSize = position.size.replace(/^-/u, '');
+          // to (from the FRESH in-lock raw read, matching exactly what
+          // verification later compares against): a delayed restore must
+          // never attach to a NEW same-symbol position.
+          const rawSize =
+            rawPosition === undefined
+              ? null
+              : parseStrictDecimal(String(rawPosition.position));
+          const rawEntry =
+            rawPosition === undefined
+              ? null
+              : parseStrictDecimal(String(rawPosition.avgEntryPrice));
           const positionFingerprint: TpslPositionFingerprint | null =
-            parseStrictDecimal(fingerprintSize) !== null &&
-            (parseStrictDecimal(fingerprintSize) ?? 0) > 0 &&
-            parseStrictDecimal(position.entryPrice) !== null &&
-            (parseStrictDecimal(position.entryPrice) ?? 0) > 0
+            rawPosition !== undefined &&
+            (rawPosition.sign === 1 || rawPosition.sign === -1) &&
+            rawSize !== null &&
+            rawSize > 0 &&
+            rawEntry !== null &&
+            rawEntry > 0
               ? {
-                  sign: fingerprintSign,
-                  size: fingerprintSize,
-                  entryPrice: position.entryPrice,
+                  sign: rawPosition.sign,
+                  size: String(rawPosition.position),
+                  entryPrice: String(rawPosition.avgEntryPrice),
                 }
               : null;
           // A mutation that will CANCEL priors must be able to restore
@@ -4901,14 +5239,48 @@ export class LighterProvider implements PerpsProvider {
               `Lighter TP/SL update for ${params.symbol} refused: the position lifecycle cannot be proven (unparseable venue position data), so existing protection will not be cancelled`,
             );
           }
-          // Whether the prior set is an auto-cancel-linked TP+SL pair —
-          // a pair must restore as ONE grouped OCO transaction.
+          // OCO grouping is decided by the VENUE'S OWN linkage fields
+          // (mutual to_cancel references) — never inferred from "one TP
+          // plus one SL". A linked pair must restore as ONE grouped OCO
+          // transaction; grouped signer invariants are preflighted here,
+          // BEFORE any cancel.
+          const staleRawRows = staleTriggers.map((stale) =>
+            rawOrders.find(
+              (order) => String(order.orderIndex) === stale.orderId,
+            ),
+          );
+          const rowLinksTo = (
+            source: LighterApiOrder | undefined,
+            target: LighterApiOrder | undefined,
+          ): boolean =>
+            source !== undefined &&
+            target !== undefined &&
+            typeof source.toCancelOrderId0 === 'string' &&
+            source.toCancelOrderId0.length > 0 &&
+            [String(target.orderIndex), target.orderId ?? ''].includes(
+              source.toCancelOrderId0,
+            );
           const priorGrouping: 'oco' | 'independent' =
             priorTriggers.length === 2 &&
-            priorTriggers.some((prior) => prior.wireOrderType >= 4) &&
-            priorTriggers.some((prior) => prior.wireOrderType <= 3)
+            rowLinksTo(staleRawRows[0], staleRawRows[1]) &&
+            rowLinksTo(staleRawRows[1], staleRawRows[0])
               ? 'oco'
               : 'independent';
+          if (priorGrouping === 'oco') {
+            // Grouped restore invariants (same closing side, same
+            // remaining size): a linked pair that cannot be re-signed as
+            // one group cannot be faithfully restored — refuse BEFORE
+            // touching it.
+            if (
+              priorTriggers[0].side !== priorTriggers[1].side ||
+              parseStrictDecimal(priorTriggers[0].remainingSize) !==
+                parseStrictDecimal(priorTriggers[1].remainingSize)
+            ) {
+              throw new Error(
+                `Lighter TP/SL update for ${params.symbol} refused: the existing linked OCO pair cannot be faithfully restored as a group, so it will not be cancelled`,
+              );
+            }
+          }
           // Per-attempt mutation journal, persisted incrementally.
           // RESPONSE-LOSS safety: every attempt is recorded UNKNOWN with
           // its own venue nonce BEFORE submission (the venue may commit
@@ -4920,6 +5292,8 @@ export class LighterProvider implements PerpsProvider {
             recordedAt: Date.now(),
             operationId: `op-${Date.now().toString(36)}-${(this.#tpslOperationCounter += 1).toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
             createdAt: lifecycleBoundary,
+            nextAttemptId: 1,
+            venueCheckpoint,
             intent: wantsReplacement ? 'replace' : 'remove',
             phase: 'creating',
             priorGrouping,
@@ -4983,6 +5357,7 @@ export class LighterProvider implements PerpsProvider {
           // cancelled trigger from its durably persisted EXACT wire
           // intent (single builder shared with crash recovery).
           const restoredClientIds: number[] = [];
+          const restoredGroups: number[][] = [];
           const submitTrackedRestoreCreate = async (
             prior: TpslPriorTrigger,
           ): Promise<void> => {
@@ -5034,6 +5409,7 @@ export class LighterProvider implements PerpsProvider {
               },
             );
             restoredClientIds.push(restoreClientId);
+            restoredGroups.push([restoreClientId]);
           };
           // Restore a prior TP+SL PAIR as one grouped OCO transaction so
           // the venue preserves the auto-cancel linkage.
@@ -5086,6 +5462,7 @@ export class LighterProvider implements PerpsProvider {
               },
             );
             restoredClientIds.push(...restoreClientIds);
+            restoredGroups.push([...restoreClientIds]);
           };
 
           // CREATE FIRST, cancel after: if signing or submission of the
@@ -5300,7 +5677,7 @@ export class LighterProvider implements PerpsProvider {
               // they cannot be proven to belong to.
               const lifecycleIntact = await this.#verifyRestoreLifecycle({
                 fingerprint: journal.positionFingerprint,
-                createdAt: journal.createdAt,
+                venueCheckpoint: journal.venueCheckpoint,
                 market,
                 accountIndex,
                 authToken,
@@ -5355,8 +5732,9 @@ export class LighterProvider implements PerpsProvider {
                 readActiveRaw,
                 readInactiveFor,
                 { createdClientIds: restoredClientIds, cancelledOrderIds: [] },
-                // Restore legs are independent obligations.
-                { independentCreates: true },
+                // Per-attempt groups: a grouped OCO restore's executed
+                // leg auto-cancels its sibling; singles are independent.
+                { createdGroups: restoredGroups },
               );
               if (restoreVisibility.outcome !== 'settled') {
                 // Journal retained (restore attempts recorded): the next

@@ -611,6 +611,15 @@ export type LighterApiOrder = {
    * trigger order is the ±5% protection EXECUTION price, not this level.
    */
   triggerPrice?: string;
+  /** Venue string order id (linkage fields reference this form). */
+  orderId?: string;
+  /** OCO/linkage: parent order references. */
+  parentOrderIndex?: number;
+  parentOrderId?: string;
+  /** OCO linkage: the sibling this order auto-cancels when it fires. */
+  toCancelOrderId0?: string;
+  toTriggerOrderId0?: string;
+  toTriggerOrderId1?: string;
 };
 
 /**
