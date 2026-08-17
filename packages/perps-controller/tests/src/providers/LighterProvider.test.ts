@@ -68,6 +68,28 @@ const acknowledgeAllRecovered = async (
   return outcomes;
 };
 
+/* eslint-disable n/no-unsupported-features/node-builtins, n/global-require, @typescript-eslint/no-require-imports -- test-only WebCrypto polyfill: Node 20+ exposes the global, the Node 18 CI floor does not; the provider falls back gracefully in production */
+/**
+ * The WebCrypto object under test. Node 20+ exposes it as a global;
+ * Node 18 (the CI floor) does not, so fall back to node:crypto's
+ * webcrypto and INSTALL it as the global the provider reads — the
+ * spies below must intercept the same object the code under test uses.
+ *
+ * @returns The WebCrypto object the provider draws randomness from.
+ */
+const ensureWebCrypto = (): Crypto => {
+  const holder = globalThis as { crypto?: Crypto };
+  if (!holder.crypto) {
+    const { webcrypto } = require('crypto') as { webcrypto: Crypto };
+    Object.defineProperty(globalThis, 'crypto', {
+      value: webcrypto,
+      configurable: true,
+    });
+  }
+  return holder.crypto as Crypto;
+};
+/* eslint-enable n/no-unsupported-features/node-builtins, n/global-require, @typescript-eslint/no-require-imports */
+
 const resolveJournalPayloadKey = (
   disk: Map<string, string>,
   baseKey: string,
@@ -6896,8 +6918,7 @@ describe('LighterProvider', () => {
       // The bounded allocator throws after 100 attempts per id; that
       // exhaustion must land BEFORE signer setup and cancels. Ids draw
       // from WebCrypto now — degenerate CRYPTO output is the seam.
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
-      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const cryptoObj = ensureWebCrypto();
       const randomSpy = jest
         .spyOn(cryptoObj, 'getRandomValues')
         .mockImplementation(
@@ -7144,8 +7165,7 @@ describe('LighterProvider', () => {
     it('a single trigger replacement reserves exactly one client id', async () => {
       const { provider, calls, clientInstance, bridge } = buildProvider();
       setupTriggerVenue(clientInstance, bridge);
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
-      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const cryptoObj = ensureWebCrypto();
       const randomSpy = jest.spyOn(cryptoObj, 'getRandomValues');
       try {
         const result = await provider.updatePositionTPSL({
@@ -7637,8 +7657,7 @@ describe('LighterProvider', () => {
       const { provider, calls } = buildProvider();
       // Perpetual zero: every candidate is rejected, so a bounded allocator
       // must throw instead of spinning. The mock never falls through.
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
-      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const cryptoObj = ensureWebCrypto();
       const fillWith =
         (byte: number) =>
         <TView extends ArrayBufferView | null>(array: TView): TView => {
@@ -7741,8 +7760,7 @@ describe('LighterProvider', () => {
       // draw instead of reusing the id. The spy falls through to real
       // crypto once the queue is exhausted, so the retry loop cannot
       // spin forever even if this sequence is wrong.
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
-      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const cryptoObj = ensureWebCrypto();
       const realRandom = cryptoObj.getRandomValues.bind(cryptoObj);
       const queue: number[] = [0x80, 0x80, 0x40];
       const randomSpy = jest
@@ -7792,8 +7810,7 @@ describe('LighterProvider', () => {
 
     it('a zero draw is rejected and redrawn, never issued as a client id', async () => {
       const { provider, calls } = buildProvider();
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins -- test-only spy on the WebCrypto global (available in the Jest runtime)
-      const cryptoObj = (globalThis as { crypto: Crypto }).crypto;
+      const cryptoObj = ensureWebCrypto();
       const zeroQueue: number[] = [0x00, 0xc0];
       const randomSpy = jest
         .spyOn(cryptoObj, 'getRandomValues')
