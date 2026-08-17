@@ -342,9 +342,8 @@ export class BaseDataService<
       .find<TQueryFnData, TError, InfiniteData<TData, TPageParam>>({
         queryKey: options.queryKey,
       });
-    const defaultStaleTime = this.#queryClient.getDefaultOptions().queries
-      ?.staleTime as number | undefined;
-    const staleTime = (options.staleTime ?? defaultStaleTime) as
+    const staleTime = (options.staleTime ??
+      this.#queryClient.getDefaultOptions().queries?.staleTime) as
       | number
       | undefined;
     if (query?.state.data && !query.isStaleByTime(staleTime)) {
@@ -380,29 +379,22 @@ export class BaseDataService<
           return { pages: [page], pageParams: [requestedPageParam] };
         }
 
-        // Prepend when the requested page is the previous page of the current
-        // first page (and not the next page of the last); otherwise append.
-        const next = options.getNextPageParam(
+        // Append when the requested page is the next page of the current last
+        // page; otherwise prepend it as an earlier page.
+        const nextPageParam = options.getNextPageParam(
           existing.pages[existing.pages.length - 1],
           existing.pages,
           existing.pageParams[existing.pageParams.length - 1],
           existing.pageParams,
         );
-        const previous = options.getPreviousPageParam?.(
-          existing.pages[0],
-          existing.pages,
-          existing.pageParams[0],
-          existing.pageParams,
-        );
-        return !deepEqual(requestedPageParam, next) &&
-          deepEqual(requestedPageParam, previous)
+        return deepEqual(requestedPageParam, nextPageParam)
           ? {
-              pages: [page, ...existing.pages],
-              pageParams: [requestedPageParam, ...existing.pageParams],
-            }
-          : {
               pages: [...existing.pages, page],
               pageParams: [...existing.pageParams, requestedPageParam],
+            }
+          : {
+              pages: [page, ...existing.pages],
+              pageParams: [requestedPageParam, ...existing.pageParams],
             };
       },
     );
