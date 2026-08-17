@@ -24,7 +24,6 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types.js';
-import { forDataTypes } from '../types.js';
 import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import {
   getMigrationStages,
@@ -722,6 +721,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
     return async (context, next) => {
       const { request } = context;
 
+      // Price/metadata-only requests must not hit the Accounts API.
+      if (!request.dataTypes.includes('balance')) {
+        return next(context);
+      }
+
       // If no chains requested, skip to next middleware
       if (request.chainIds.length === 0) {
         return next(context);
@@ -783,7 +787,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
       // No chains handled - pass context unchanged
       return next(context);
-    });
+    };
   }
 
   // ============================================================================
