@@ -54,6 +54,7 @@ import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import {
   convertKeysToCamelCase,
+  LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
@@ -203,6 +204,12 @@ const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
  */
 type TpslCreateAttempt = {
   kind: 'create';
+  /**
+   * Unique per-journal attempt identity. Nonces CANNOT identify
+   * attempts: a proven-never-landed submission releases its nonce and a
+   * retry legitimately reuses it.
+   */
+  attemptId: number;
   /** The venue nonce this submission attempted to consume. */
   nonce: number;
   /** 'accepted' only after the venue's 200 was OBSERVED. */
@@ -230,6 +237,8 @@ type TpslCreateAttempt = {
 
 type TpslCancelAttempt = {
   kind: 'cancel';
+  /** Unique per-journal attempt identity (see TpslCreateAttempt). */
+  attemptId: number;
   nonce: number;
   outcome: 'unknown' | 'accepted';
   /** The cancelled order id. */
@@ -290,6 +299,14 @@ type TpslPositionFingerprint = {
 type TpslJournalState = {
   attempts: TpslAttempt[];
   recordedAt: number;
+  /**
+   * IMMUTABLE identity of the operation this journal records. Clears and
+   * updates are compare-and-swap on this id so a recovery pass holding a
+   * STALE snapshot can never erase a newer operation's journal.
+   */
+  operationId: string;
+  /** When the OPERATION began (immutable; `recordedAt` moves per write). */
+  createdAt: number;
   /**
    * The durable OPERATION intent: a 'remove' journals only cancels and
    * must NEVER be "recovered" by restoring the cancelled protection —
@@ -359,50 +376,18 @@ const requireSignedTxIdentity = (signed: {
 };
 
 /**
- * Map a RAW venue trigger row to its durable prior wire intent, or null
- * when it cannot be faithfully restored (unknown type/TIF/expiry). A
- * mutation that would cancel such a row must fail closed BEFORE any
- * cancel: coercing a limit trigger to a market restore would silently
- * change the user's protection semantics.
+ * Next unique attempt identity for a journal (monotonic per journal;
+ * survives compaction because it is derived from the maximum, not the
+ * count).
  *
- * @param raw - Raw venue order row.
- * @returns The exact prior wire intent, or null when unmappable.
+ * @param journal - The journal being appended to.
+ * @returns The next attempt id.
  */
-const mapRawTriggerToPriorIntent = (
-  raw: LighterApiOrder,
-): TpslPriorTrigger | null => {
-  const wireOrderTypeByVenueType: Record<string, 2 | 3 | 4 | 5> = {
-    'stop-loss': 2,
-    'stop-loss-limit': 3,
-    'take-profit': 4,
-    'take-profit-limit': 5,
-  };
-  const wireTimeInForceByVenueTif: Record<string, 0 | 1 | 2> = {
-    'immediate-or-cancel': 0,
-    'good-till-time': 1,
-    'post-only': 2,
-  };
-  const wireOrderType = wireOrderTypeByVenueType[raw.type];
-  const wireTimeInForce = wireTimeInForceByVenueTif[raw.timeInForce];
-  if (
-    wireOrderType === undefined ||
-    wireTimeInForce === undefined ||
-    !Number.isSafeInteger(raw.orderExpiry) ||
-    raw.orderExpiry < -1
-  ) {
-    return null;
-  }
-  return {
-    orderId: String(raw.orderIndex),
-    side: raw.isAsk ? 'sell' : 'buy',
-    wireOrderType,
-    wireTimeInForce,
-    orderExpiry: raw.orderExpiry,
-    price: raw.price,
-    triggerPrice: raw.triggerPrice ?? raw.price,
-    remainingSize: raw.remainingBaseAmount,
-  };
-};
+const nextAttemptIdFor = (journal: TpslJournalState): number =>
+  journal.attempts.reduce(
+    (max, attempt) => Math.max(max, attempt.attemptId),
+    0,
+  ) + 1;
 
 /** Delay between TP/SL settlement visibility polls. */
 const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
@@ -481,13 +466,96 @@ const buildRestoreWireParams = (
       market.supportedPriceDecimals,
     ),
   ),
-  // Reuse the venue-reported absolute expiry while still valid;
-  // otherwise the signer's default sentinel.
-  prior.orderExpiry > Date.now()
-    ? prior.orderExpiry
-    : LIGHTER_ORDER_EXPIRY_NONE,
+  // Reuse the venue-reported absolute expiry while still valid; an
+  // absent/none expiry uses the signer's default sentinel. An ELAPSED
+  // explicit expiry never reaches here — restore decisions skip it.
+  prior.orderExpiry > 0 ? prior.orderExpiry : LIGHTER_ORDER_EXPIRY_NONE,
   nonce,
 ];
+
+/**
+ * Map a RAW venue trigger row to its durable prior wire intent, or null
+ * when it cannot be faithfully restored: unknown type/TIF/expiry, a
+ * MISSING trigger price (never substituted — that would change the
+ * user's protection semantics), a malformed/non-positive decimal, or a
+ * value that cannot be integerized onto the wire (range/sub-tick). The
+ * writer must never persist state the loader (or the signer) would
+ * later reject. A mutation that would cancel such a row must fail
+ * closed BEFORE any cancel.
+ *
+ * @param raw - Raw venue order row.
+ * @param market - Market integerization parameters.
+ * @param market.supportedSizeDecimals - Size integerization decimals.
+ * @param market.supportedPriceDecimals - Price integerization decimals.
+ * @returns The exact prior wire intent, or null when unmappable.
+ */
+const mapRawTriggerToPriorIntent = (
+  raw: LighterApiOrder,
+  market: {
+    supportedSizeDecimals: number;
+    supportedPriceDecimals: number;
+  },
+): TpslPriorTrigger | null => {
+  const wireOrderTypeByVenueType: Record<string, 2 | 3 | 4 | 5> = {
+    'stop-loss': 2,
+    'stop-loss-limit': 3,
+    'take-profit': 4,
+    'take-profit-limit': 5,
+  };
+  const wireTimeInForceByVenueTif: Record<string, 0 | 1 | 2> = {
+    'immediate-or-cancel': 0,
+    'good-till-time': 1,
+    'post-only': 2,
+  };
+  const wireOrderType = wireOrderTypeByVenueType[raw.type];
+  const wireTimeInForce = wireTimeInForceByVenueTif[raw.timeInForce];
+  if (
+    wireOrderType === undefined ||
+    wireTimeInForce === undefined ||
+    !Number.isSafeInteger(raw.orderExpiry) ||
+    raw.orderExpiry < -1 ||
+    !/^\d{1,20}$/u.test(String(raw.orderIndex)) ||
+    // A trigger's trigger price is REQUIRED verbatim.
+    typeof raw.triggerPrice !== 'string'
+  ) {
+    return null;
+  }
+  const price = parseStrictDecimal(raw.price);
+  const triggerPrice = parseStrictDecimal(raw.triggerPrice);
+  const remainingSize = parseStrictDecimal(raw.remainingBaseAmount);
+  if (
+    price === null ||
+    !Number.isFinite(price) ||
+    price <= 0 ||
+    triggerPrice === null ||
+    !Number.isFinite(triggerPrice) ||
+    triggerPrice <= 0 ||
+    remainingSize === null ||
+    !Number.isFinite(remainingSize) ||
+    remainingSize <= 0
+  ) {
+    return null;
+  }
+  // Wire PREFLIGHT: integerize exactly what a restore would sign. A
+  // range/sub-tick failure here refuses the whole mutation up front.
+  try {
+    toSignerWireInteger(remainingSize, market.supportedSizeDecimals);
+    toSignerWirePriceInteger(price, market.supportedPriceDecimals);
+    toSignerWirePriceInteger(triggerPrice, market.supportedPriceDecimals);
+  } catch {
+    return null;
+  }
+  return {
+    orderId: String(raw.orderIndex),
+    side: raw.isAsk ? 'sell' : 'buy',
+    wireOrderType,
+    wireTimeInForce,
+    orderExpiry: raw.orderExpiry,
+    price: raw.price,
+    triggerPrice: raw.triggerPrice,
+    remainingSize: raw.remainingBaseAmount,
+  };
+};
 
 /**
  * Validate caller leverage intent against what Lighter can represent.
@@ -1107,6 +1175,193 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #nonceReservations = new Map<string, number>();
 
+  /** Monotonic source for journal operation ids within this session. */
+  #tpslOperationCounter = 0;
+
+  /**
+   * Durable dispatch-ledger key: every nonce-consuming submission is
+   * recorded here BEFORE dispatch so a restart can never reissue a nonce
+   * whose outcome is unknown, and a proven never-landed dispatch can
+   * release its nonce for the venue to consume.
+   *
+   * @param accountIndex - Venue account index.
+   * @returns The disk-cache key.
+   */
+  readonly #nonceLedgerKey = (accountIndex: number): string =>
+    `lighterNonceLedger:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}:${this.#apiKeyIndex}`;
+
+  /**
+   * Read and strictly validate the durable dispatch ledger. Corruption
+   * fails CLOSED (writes stay blocked) — guessing at nonce state could
+   * duplicate or wedge submissions.
+   *
+   * @param accountIndex - Venue account index.
+   * @returns Unresolved dispatch entries.
+   */
+  readonly #readNonceLedger = async (
+    accountIndex: number,
+  ): Promise<
+    { nonce: number; txHash: string | null; expiresAt: number | null }[]
+  > => {
+    let raw: string | null;
+    try {
+      raw = await this.#deps.diskCache.getItem(
+        this.#nonceLedgerKey(accountIndex),
+      );
+    } catch (error) {
+      throw new Error(
+        `Lighter nonce ledger read failed; refusing writes: ${ensureError(error, 'LighterProvider.#readNonceLedger').message}`,
+      );
+    }
+    if (raw === null) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw) as {
+        version?: unknown;
+        entries?: unknown;
+      };
+      if (
+        parsed.version === 1 &&
+        Array.isArray(parsed.entries) &&
+        parsed.entries.length <= 16 &&
+        parsed.entries.every((entry) => {
+          if (typeof entry !== 'object' || entry === null) {
+            return false;
+          }
+          const candidate = entry as Record<string, unknown>;
+          return (
+            typeof candidate.nonce === 'number' &&
+            Number.isSafeInteger(candidate.nonce) &&
+            candidate.nonce >= 0 &&
+            (candidate.txHash === null ||
+              typeof candidate.txHash === 'string') &&
+            (candidate.expiresAt === null ||
+              (typeof candidate.expiresAt === 'number' &&
+                Number.isSafeInteger(candidate.expiresAt) &&
+                candidate.expiresAt > 0))
+          );
+        })
+      ) {
+        return parsed.entries as {
+          nonce: number;
+          txHash: string | null;
+          expiresAt: number | null;
+        }[];
+      }
+    } catch {
+      // fall through to fail closed
+    }
+    throw new Error(
+      'Lighter nonce dispatch ledger is corrupt; refusing further writes until it is resolved',
+    );
+  };
+
+  /**
+   * Persist the dispatch ledger.
+   *
+   * @param accountIndex - Venue account index.
+   * @param entries - Unresolved dispatch entries.
+   */
+  readonly #writeNonceLedger = async (
+    accountIndex: number,
+    entries: {
+      nonce: number;
+      txHash: string | null;
+      expiresAt: number | null;
+    }[],
+  ): Promise<void> => {
+    await this.#deps.diskCache.setItem(
+      this.#nonceLedgerKey(accountIndex),
+      JSON.stringify({ version: 1, entries }),
+    );
+  };
+
+  /**
+   * Remove one resolved dispatch entry from the durable ledger.
+   *
+   * @param accountIndex - Venue account index.
+   * @param entry - The entry to remove (matched by nonce + txHash).
+   * @param entry.nonce - The dispatched nonce.
+   * @param entry.txHash - The dispatched tx hash (or null).
+   */
+  readonly #removeNonceLedgerEntry = async (
+    accountIndex: number,
+    entry: { nonce: number; txHash: string | null },
+  ): Promise<void> => {
+    const entries = await this.#readNonceLedger(accountIndex);
+    const at = entries.findIndex(
+      (candidate) =>
+        candidate.nonce === entry.nonce && candidate.txHash === entry.txHash,
+    );
+    if (at >= 0) {
+      entries.splice(at, 1);
+      await this.#writeNonceLedger(accountIndex, entries);
+    }
+  };
+
+  /**
+   * Resolve every unresolved dispatch before a write section may issue
+   * nonces. Consumption is proven by REST-nonce advance or an exact tx
+   * lookup; never-landed is proven by venue-confirmed absence after the
+   * signed validity elapsed (which RELEASES the nonce). Anything still
+   * ambiguous blocks the write — dispatch outcomes are never guessed.
+   *
+   * @param accountIndex - Venue account index.
+   */
+  readonly #resolveNonceLedger = async (
+    accountIndex: number,
+  ): Promise<void> => {
+    const entries = await this.#readNonceLedger(accountIndex);
+    if (entries.length === 0) {
+      return;
+    }
+    const reservationKey = `${accountIndex}:${this.#apiKeyIndex}`;
+    const nonceResponse = await this.#clientService.getNextNonce(
+      accountIndex,
+      this.#apiKeyIndex,
+    );
+    const remaining: typeof entries = [];
+    for (const entry of entries) {
+      if (nonceResponse.nonce > entry.nonce) {
+        // The venue advanced past it: consumed.
+        const floor = this.#nonceReservations.get(reservationKey) ?? 0;
+        this.#nonceReservations.set(
+          reservationKey,
+          Math.max(floor, entry.nonce + 1),
+        );
+        continue;
+      }
+      if (entry.txHash !== null) {
+        const lookedUp = await this.#clientService.getTx(entry.txHash);
+        if (lookedUp !== null && lookedUp.nonce === entry.nonce) {
+          const floor = this.#nonceReservations.get(reservationKey) ?? 0;
+          this.#nonceReservations.set(
+            reservationKey,
+            Math.max(floor, entry.nonce + 1),
+          );
+          continue;
+        }
+      }
+      if (
+        entry.expiresAt !== null &&
+        Date.now() > entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+      ) {
+        // Venue-confirmed absent after the signed validity: PROVEN never
+        // landed — the venue still expects this nonce.
+        this.#releaseNonceReservation(accountIndex, entry.nonce);
+        continue;
+      }
+      remaining.push(entry);
+    }
+    await this.#writeNonceLedger(accountIndex, remaining);
+    if (remaining.length > 0) {
+      throw new Error(
+        'A previous Lighter submission has an unresolved outcome; writes are blocked until it can be proven consumed or never-landed',
+      );
+    }
+  };
+
   /**
    * Durable TP/SL journal key (network + address + accountIndex + symbol
    * scoped): the in-memory map alone cannot survive app/WebView/provider
@@ -1148,6 +1403,8 @@ export class LighterProvider implements PerpsProvider {
     let parsed: {
       version?: unknown;
       recordedAt?: unknown;
+      operationId?: unknown;
+      createdAt?: unknown;
       apiKeyIndex?: unknown;
       intent?: unknown;
       phase?: unknown;
@@ -1182,6 +1439,9 @@ export class LighterProvider implements PerpsProvider {
       const attempt = value as Record<string, unknown>;
       if (
         !isNonce(attempt.nonce) ||
+        typeof attempt.attemptId !== 'number' ||
+        !Number.isSafeInteger(attempt.attemptId) ||
+        attempt.attemptId < 1 ||
         (attempt.outcome !== 'unknown' && attempt.outcome !== 'accepted') ||
         !isTxHash(attempt.txHash) ||
         !isExpiry(attempt.expiresAt)
@@ -1273,6 +1533,12 @@ export class LighterProvider implements PerpsProvider {
       parsed.recordedAt >= 0 &&
       // The journal is bound to ONE api-key slot: nonces are per slot.
       parsed.apiKeyIndex === this.#apiKeyIndex &&
+      typeof parsed.operationId === 'string' &&
+      parsed.operationId.length >= 1 &&
+      parsed.operationId.length <= 64 &&
+      typeof parsed.createdAt === 'number' &&
+      Number.isSafeInteger(parsed.createdAt) &&
+      parsed.createdAt >= 0 &&
       // An explicit durable operation intent is REQUIRED: without it a
       // remove could be misread as a failed replacement and "restored".
       (parsed.intent === 'replace' || parsed.intent === 'remove') &&
@@ -1292,7 +1558,9 @@ export class LighterProvider implements PerpsProvider {
       parsed.attempts.length >= 1 &&
       parsed.attempts.length <= 40 &&
       parsed.attempts.every(isAttempt) &&
-      new Set(parsed.attempts.map((entry) => entry.nonce)).size ===
+      // Attempt IDENTITY is the attemptId — nonces may legitimately
+      // repeat when a proven-never-landed submission is retried.
+      new Set(parsed.attempts.map((entry) => entry.attemptId)).size ===
         parsed.attempts.length
     ) {
       const { attempts } = parsed;
@@ -1311,6 +1579,8 @@ export class LighterProvider implements PerpsProvider {
         return {
           attempts,
           recordedAt: parsed.recordedAt,
+          operationId: parsed.operationId,
+          createdAt: parsed.createdAt,
           intent: parsed.intent,
           phase: parsed.phase,
           priorTriggers,
@@ -1402,11 +1672,34 @@ export class LighterProvider implements PerpsProvider {
         JSON.stringify([...index, settlementKey]),
       );
     }
+    // COMPARE-AND-SWAP on the operation identity: a writer holding a
+    // stale snapshot must never overwrite a DIFFERENT operation's
+    // journal. (A missing journal is fine — first write of an op.)
+    const currentRaw = await this.#deps.diskCache.getItem(
+      this.#tpslJournalKey(settlementKey),
+    );
+    if (currentRaw !== null) {
+      let currentOperationId: unknown = null;
+      try {
+        currentOperationId = (
+          JSON.parse(currentRaw) as { operationId?: unknown }
+        ).operationId;
+      } catch {
+        // Corrupt current journal: fail closed below via mismatch.
+      }
+      if (currentOperationId !== journal.operationId) {
+        throw new Error(
+          `Lighter TP/SL journal for ${settlementKey} belongs to a different operation; refusing a stale write`,
+        );
+      }
+    }
     await this.#deps.diskCache.setItem(
       this.#tpslJournalKey(settlementKey),
       JSON.stringify({
         version: 2,
         recordedAt: journal.recordedAt,
+        operationId: journal.operationId,
+        createdAt: journal.createdAt,
         apiKeyIndex: this.#apiKeyIndex,
         intent: journal.intent,
         phase: journal.phase,
@@ -1422,15 +1715,45 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Resolve a settlement obligation everywhere. Disk removal failures
-   * PROPAGATE and the in-memory entry is retained: silently dropping only
-   * the memory copy would leave a stale durable obligation to wedge a
-   * later session.
+   * Resolve a settlement obligation everywhere — compare-and-swap on the
+   * operation identity: a resolver holding a STALE snapshot must never
+   * erase a NEWER operation's journal. Disk removal failures PROPAGATE
+   * and the in-memory entry is retained: silently dropping only the
+   * memory copy would leave a stale durable obligation to wedge a later
+   * session.
    *
    * @param settlementKey - Settlement identity.
+   * @param expectedOperationId - The operation this resolver settled;
+   * null prunes only a dangling index entry with NO journal behind it.
    */
-  readonly #clearTpslJournal = async (settlementKey: string): Promise<void> => {
-    await this.#deps.diskCache.removeItem(this.#tpslJournalKey(settlementKey));
+  readonly #clearTpslJournal = async (
+    settlementKey: string,
+    expectedOperationId: string | null,
+  ): Promise<void> => {
+    const journalKey = this.#tpslJournalKey(settlementKey);
+    const currentRaw = await this.#deps.diskCache.getItem(journalKey);
+    if (currentRaw !== null) {
+      if (expectedOperationId === null) {
+        // Prune mode: a journal exists — nothing to prune.
+        return;
+      }
+      let currentOperationId: unknown = null;
+      try {
+        currentOperationId = (
+          JSON.parse(currentRaw) as { operationId?: unknown }
+        ).operationId;
+      } catch {
+        // Corrupt journal is never silently cleared.
+      }
+      if (currentOperationId !== expectedOperationId) {
+        this.#deps.debugLogger.log(
+          '[LighterProvider] TP/SL journal clear refused: different operation',
+          { settlementKey },
+        );
+        return;
+      }
+      await this.#deps.diskCache.removeItem(journalKey);
+    }
     const index = await this.#readTpslJournalIndex().catch(() => null);
     if (index?.includes(settlementKey)) {
       await this.#deps.diskCache
@@ -1440,7 +1763,14 @@ export class LighterProvider implements PerpsProvider {
         )
         .catch(() => undefined);
     }
-    this.#tpslUnsettled.delete(settlementKey);
+    const memoryEntry = this.#tpslUnsettled.get(settlementKey);
+    if (
+      memoryEntry === undefined ||
+      expectedOperationId === null ||
+      memoryEntry.operationId === expectedOperationId
+    ) {
+      this.#tpslUnsettled.delete(settlementKey);
+    }
   };
 
   /**
@@ -1626,12 +1956,6 @@ export class LighterProvider implements PerpsProvider {
     generation: number,
     accountIndex: number,
   ): Promise<boolean> => {
-    const journalEntry = await this.#loadTpslJournal(settlementKey);
-    if (!journalEntry) {
-      // Stale index entry with no journal behind it: prune.
-      await this.#clearTpslJournal(settlementKey).catch(() => undefined);
-      return true;
-    }
     const markets = await this.#ensureMarkets();
     const market = markets.get(symbol);
     if (!market) {
@@ -1644,6 +1968,18 @@ export class LighterProvider implements PerpsProvider {
     return await this.#withVenueWriteLock(
       accountIndex,
       async (nextNonce, submit): Promise<boolean> => {
+        // The journal is loaded INSIDE the lock: a snapshot taken while
+        // waiting for the lock could be superseded by a foreground
+        // operation that settles it and journals a NEW one — acting on
+        // the stale snapshot could erase the newer obligation.
+        const journalEntry = await this.#loadTpslJournal(settlementKey);
+        if (!journalEntry) {
+          // Stale index entry with no journal behind it: prune.
+          await this.#clearTpslJournal(settlementKey, null).catch(
+            () => undefined,
+          );
+          return true;
+        }
         const readActiveRaw = async (): Promise<LighterApiOrder[]> => {
           this.#assertSession(generation);
           const response = await this.#clientService.getActiveOrders(
@@ -1665,6 +2001,7 @@ export class LighterProvider implements PerpsProvider {
           journalEntry,
           market,
           accountIndex,
+          authToken,
           generation,
           readActiveRaw,
           readInactiveFor,
@@ -1692,6 +2029,7 @@ export class LighterProvider implements PerpsProvider {
    * @param context.market.supportedSizeDecimals - Size integerization decimals.
    * @param context.market.supportedPriceDecimals - Price integerization decimals.
    * @param context.accountIndex - Captured account index.
+   * @param context.authToken - Captured venue auth token.
    * @param context.generation - Captured session generation.
    * @param context.readActiveRaw - Session-fenced raw active reader.
    * @param context.readInactiveFor - Targeted inactive reader.
@@ -1710,6 +2048,7 @@ export class LighterProvider implements PerpsProvider {
       supportedPriceDecimals: number;
     };
     accountIndex: number;
+    authToken: string;
     generation: number;
     readActiveRaw: () => Promise<LighterApiOrder[]>;
     readInactiveFor: (targetClientIds: number[]) => Promise<LighterApiOrder[]>;
@@ -1725,6 +2064,7 @@ export class LighterProvider implements PerpsProvider {
       journalEntry,
       market,
       accountIndex,
+      authToken,
       generation,
       readActiveRaw,
       readInactiveFor,
@@ -1766,6 +2106,7 @@ export class LighterProvider implements PerpsProvider {
       const cancelIdentity = requireSignedTxIdentity(signedCancel);
       const cancelAttempt: TpslCancelAttempt = {
         kind: 'cancel',
+        attemptId: nextAttemptIdFor(journalEntry),
         nonce: cancelNonce,
         outcome: 'unknown',
         orderId,
@@ -1806,6 +2147,7 @@ export class LighterProvider implements PerpsProvider {
       const restoreIdentity = requireSignedTxIdentity(signedRestore);
       const restoreAttempt: TpslCreateAttempt = {
         kind: 'create',
+        attemptId: nextAttemptIdFor(journalEntry),
         nonce: restoreNonce,
         outcome: 'unknown',
         clientIds: [restoreClientId],
@@ -1894,8 +2236,10 @@ export class LighterProvider implements PerpsProvider {
         }
       }
     };
-    const rollbackActiveReplacements = async (): Promise<void> => {
-      for (const clientId of replacementIds) {
+    const rollbackActiveJournalledLegs = async (
+      legIds: number[],
+    ): Promise<void> => {
+      for (const clientId of legIds) {
         if (stateOf(clientId) !== 'active') {
           continue;
         }
@@ -1908,47 +2252,43 @@ export class LighterProvider implements PerpsProvider {
         }
       }
     };
-    /**
-     * A restore may ONLY attach to the position lifecycle the protection
-     * belonged to. Verified against the live venue position; absence or
-     * any mismatch (side, size, entry) fails closed.
-     *
-     * @returns True when the persisted fingerprint matches the live one.
-     */
-    const lifecycleVerified = async (): Promise<boolean> => {
-      const persisted = journalEntry.positionFingerprint;
-      if (!persisted) {
-        return false;
-      }
-      this.#assertSession(generation);
-      const accountResponse =
-        await this.#clientService.getAccountByIndex(accountIndex);
-      this.#assertSession(generation);
-      const rawPosition = accountResponse.accounts?.[0]?.positions?.find(
-        (position) => position.marketId === market.marketId,
-      );
-      if (!rawPosition) {
-        return false;
-      }
-      const liveMagnitude = parseStrictDecimal(String(rawPosition.position));
-      const persistedMagnitude = parseStrictDecimal(persisted.size);
-      const liveEntry = parseStrictDecimal(String(rawPosition.avgEntryPrice));
-      const persistedEntry = parseStrictDecimal(persisted.entryPrice);
-      return (
-        rawPosition.sign === persisted.sign &&
-        liveMagnitude !== null &&
-        liveMagnitude === persistedMagnitude &&
-        liveEntry !== null &&
-        liveEntry === persistedEntry
-      );
-    };
+    const rollbackActiveReplacements = async (): Promise<void> =>
+      await rollbackActiveJournalledLegs(replacementIds);
+    // COMPACTION: proven-resolved FAILED restore attempts (never landed
+    // or terminal-failed) carry no live effect and no coverage — drop
+    // them so repeated retries can never dead-end at the attempt cap.
+    journalEntry.attempts = journalEntry.attempts.filter(
+      (attempt) =>
+        attempt.kind !== 'create' ||
+        attempt.role !== 'restore' ||
+        attempt.clientIds.some((clientId) => stateOf(clientId) !== 'failed'),
+    );
+    const liveRestoreAttempts = journalEntry.attempts.filter(
+      (attempt): attempt is TpslCreateAttempt =>
+        attempt.kind === 'create' && attempt.role === 'restore',
+    );
+    const activeRestoreLegIds = liveRestoreAttempts
+      .flatMap((attempt) => attempt.clientIds)
+      .filter((clientId) => stateOf(clientId) === 'active');
+    const journalCreateIds = new Set(allCreateIds.map(String));
     // Restore every prior intent not already covered, gated by the
-    // lifecycle fingerprint. When the lifecycle cannot be proven, fail
-    // closed WITHOUT attaching stale triggers: cancel every journalled
-    // leg still active (they belong to the dead lifecycle) and resolve.
+    // position LIFECYCLE (fingerprint + venue fill evidence). When the
+    // lifecycle cannot be proven, fail closed WITHOUT attaching stale
+    // triggers: cancel EVERY journalled leg still active — replacement
+    // AND restore legs belong to the dead lifecycle — and resolve.
     const restorePriorSet = async (): Promise<void> => {
+      const now = Date.now();
       const needingRestore = journalEntry.priorTriggers.filter((prior) => {
-        const restoredCovered = restoreAttempts.some(
+        // An explicit expiry that ELAPSED is the user's stated intent
+        // playing out — reviving it would extend protection beyond it.
+        if (prior.orderExpiry > 0 && prior.orderExpiry <= now) {
+          this.#deps.debugLogger.log(
+            '[LighterProvider] TP/SL restore skipped: prior expiry elapsed',
+            { settlementKey, orderId: prior.orderId },
+          );
+          return false;
+        }
+        const restoredCovered = liveRestoreAttempts.some(
           (attempt) =>
             attempt.priorOrderId === prior.orderId &&
             attempt.clientIds.every(
@@ -1957,10 +2297,20 @@ export class LighterProvider implements PerpsProvider {
         );
         return !priorActive(prior) && !restoredCovered;
       });
-      if (needingRestore.length === 0) {
+      // Nothing to restore and no restore leg resting: nothing to gate.
+      if (needingRestore.length === 0 && activeRestoreLegIds.length === 0) {
         return;
       }
-      if (await lifecycleVerified()) {
+      const verified = await this.#verifyRestoreLifecycle({
+        fingerprint: journalEntry.positionFingerprint,
+        createdAt: journalEntry.createdAt,
+        market,
+        accountIndex,
+        authToken,
+        generation,
+        journalClientIds: journalCreateIds,
+      });
+      if (verified) {
         for (const prior of needingRestore) {
           createdClientIds.push(await submitRecoveryRestore(prior));
         }
@@ -1970,7 +2320,9 @@ export class LighterProvider implements PerpsProvider {
         '[LighterProvider] TP/SL restore refused: position lifecycle changed',
         { settlementKey },
       );
-      await rollbackActiveReplacements();
+      // ALL journalled legs — including already-active restore legs —
+      // belong to the dead lifecycle.
+      await rollbackActiveJournalledLegs(allCreateIds);
       for (const prior of journalEntry.priorTriggers) {
         if (priorActive(prior)) {
           await submitRecoveryCancel(prior.orderId, 'stale');
@@ -2026,6 +2378,9 @@ export class LighterProvider implements PerpsProvider {
         readActiveRaw,
         readInactiveFor,
         { createdClientIds, cancelledOrderIds },
+        // Every id the machine expects is an INDEPENDENT obligation —
+        // one executed restore leg must never mask a rejected sibling.
+        { independentCreates: true },
       );
       // ONLY a fully-settled pass may clear. 'created-terminal-failed'
       // (a rejected restore, or a replacement dying during the old
@@ -2035,7 +2390,108 @@ export class LighterProvider implements PerpsProvider {
         return false;
       }
     }
-    await this.#clearTpslJournal(settlementKey);
+    await this.#clearTpslJournal(settlementKey, journalEntry.operationId);
+    return true;
+  };
+
+  /**
+   * Prove the live position is the SAME lifecycle the journalled
+   * protection belonged to: the persisted fingerprint must match AND the
+   * venue's own recent order history must show no FOREIGN fill on the
+   * market since the operation began (a close-then-reopen with an
+   * identical side/size/entry tuple is only detectable this way). Any
+   * doubt fails closed — old protection is never auto-attached to a
+   * lifecycle it cannot be proven to belong to.
+   *
+   * @param check - Verification inputs.
+   * @param check.fingerprint - Persisted position fingerprint (null = never restore).
+   * @param check.createdAt - When the journalled operation began (ms).
+   * @param check.market - Market parameters.
+   * @param check.market.marketId - Venue market id.
+   * @param check.accountIndex - Venue account index.
+   * @param check.authToken - Venue auth token.
+   * @param check.generation - Captured session generation.
+   * @param check.journalClientIds - Client ids belonging to this journal
+   * (its own legs are not foreign fills).
+   * @returns True only when the lifecycle is proven unchanged.
+   */
+  readonly #verifyRestoreLifecycle = async (check: {
+    fingerprint: TpslPositionFingerprint | null;
+    createdAt: number;
+    market: { marketId: number };
+    accountIndex: number;
+    authToken: string;
+    generation: number;
+    journalClientIds: Set<string>;
+  }): Promise<boolean> => {
+    const {
+      fingerprint,
+      createdAt,
+      market,
+      accountIndex,
+      authToken,
+      generation,
+      journalClientIds,
+    } = check;
+    if (!fingerprint) {
+      return false;
+    }
+    this.#assertSession(generation);
+    const accountResponse =
+      await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    const rawPosition = accountResponse.accounts?.[0]?.positions?.find(
+      (position) => position.marketId === market.marketId,
+    );
+    if (!rawPosition) {
+      return false;
+    }
+    const liveMagnitude = parseStrictDecimal(String(rawPosition.position));
+    const persistedMagnitude = parseStrictDecimal(fingerprint.size);
+    const liveEntry = parseStrictDecimal(String(rawPosition.avgEntryPrice));
+    const persistedEntry = parseStrictDecimal(fingerprint.entryPrice);
+    if (
+      rawPosition.sign !== fingerprint.sign ||
+      liveMagnitude === null ||
+      liveMagnitude !== persistedMagnitude ||
+      liveEntry === null ||
+      liveEntry !== persistedEntry
+    ) {
+      return false;
+    }
+    // Venue fill evidence: any FOREIGN order on this market with executed
+    // base since the operation began means the position mutated — an
+    // identical-looking tuple can still be a different lifecycle.
+    const history = await this.#clientService.getInactiveOrders(
+      accountIndex,
+      authToken,
+      100,
+      undefined,
+      market.marketId,
+    );
+    this.#assertSession(generation);
+    for (const row of history.orders ?? []) {
+      if (
+        row.ownerAccountIndex !== accountIndex ||
+        row.marketIndex !== market.marketId ||
+        row.timestamp < createdAt ||
+        journalClientIds.has(String(row.clientOrderIndex))
+      ) {
+        continue;
+      }
+      const initial = parseStrictDecimal(row.initialBaseAmount);
+      const remaining = parseStrictDecimal(row.remainingBaseAmount);
+      const status = row.status.toLowerCase();
+      const executedSome =
+        status === 'filled' ||
+        status === 'executed' ||
+        initial === null ||
+        remaining === null ||
+        initial - remaining > 0;
+      if (executedSome) {
+        return false;
+      }
+    }
     return true;
   };
 
@@ -2224,6 +2680,9 @@ export class LighterProvider implements PerpsProvider {
    * or terminal.
    * @param expectation.cancelledOrderIds - Order ids that must leave the
    * active book.
+   * @param options - Aggregation options.
+   * @param options.independentCreates - Treat every created id as an
+   * independent obligation (see inline doc).
    * @returns Outcome: 'settled' when every id is accounted for and no
    * created id failed ('executedCreated' marks created ids that reached a
    * SUCCESS terminal state — filled/executed — instead of resting
@@ -2236,6 +2695,15 @@ export class LighterProvider implements PerpsProvider {
     readActiveRaw: () => Promise<LighterApiOrder[]>,
     readInactive: (targetClientIds: number[]) => Promise<LighterApiOrder[]>,
     expectation: { createdClientIds: number[]; cancelledOrderIds: string[] },
+    options: {
+      /**
+       * Treat every created id as an INDEPENDENT obligation: any failed
+       * id yields 'created-terminal-failed' even when a sibling fully
+       * executed. Default (false) keeps grouped-OCO semantics where one
+       * leg's execution legitimately auto-cancels its sibling.
+       */
+      independentCreates?: boolean;
+    } = {},
   ): Promise<
     | { outcome: 'settled'; executedCreated: boolean }
     | {
@@ -2302,6 +2770,20 @@ export class LighterProvider implements PerpsProvider {
           !rawActive.some((order) => String(order.orderIndex) === orderId),
       );
       if (createdAccounted && cancelledGone) {
+        const anyFailedLeg = classified.some(
+          (entry) => entry.state === 'failed',
+        );
+        // INDEPENDENT creates (restore legs): every id must individually
+        // be active or fully executed — a failed one is a failure no
+        // sibling can mask.
+        if (options.independentCreates && anyFailedLeg) {
+          return {
+            outcome: 'created-terminal-failed',
+            survivingActiveClientIds: classified
+              .filter((entry) => entry.state === 'active')
+              .map((entry) => entry.clientId),
+          };
+        }
         // OCO aggregation: one leg fully filling auto-cancels its sibling,
         // so ANY proven execution makes the overall outcome an EXECUTION.
         // Only failed-without-success is a terminal failure — reported
@@ -2310,7 +2792,7 @@ export class LighterProvider implements PerpsProvider {
         if (classified.some((entry) => entry.state === 'success')) {
           return { outcome: 'settled', executedCreated: true };
         }
-        if (classified.some((entry) => entry.state === 'failed')) {
+        if (anyFailedLeg) {
           return {
             outcome: 'created-terminal-failed',
             survivingActiveClientIds: classified
@@ -2606,6 +3088,12 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<Result> => {
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
+      // Every unresolved prior dispatch (this session OR a previous one —
+      // the ledger is durable) must resolve before this section may issue
+      // nonces: a restart would otherwise reuse a consumed-but-lagging
+      // nonce, and a proven never-landed dispatch must release its nonce.
+      await this.#resolveNonceLedger(accountIndex);
+      this.#assertSession(generationAtIntent);
       // Monotonic nonce reservation: the venue's nextNonce endpoint can
       // LAG accepted submissions. The floor is SESSION-GLOBAL per
       // accountIndex:apiKeyIndex — a queued/next lock section (any
@@ -2643,11 +3131,75 @@ export class LighterProvider implements PerpsProvider {
         // happened while SIGNING must abort before submission.
         this.#assertSession(generationAtIntent);
         // Reserve BEFORE dispatch: from this point the venue may consume
-        // the nonce even if the response never arrives.
+        // the nonce even if the response never arrives. The reservation
+        // is DURABLE (dispatch ledger) — a failed ledger write aborts the
+        // submission with the nonce still safely unissued at the venue.
+        let ledgerEntry: {
+          nonce: number;
+          txHash: string | null;
+          expiresAt: number | null;
+        } | null = null;
         if (lastIssuedNonce !== null) {
           this.#nonceReservations.set(reservationKey, lastIssuedNonce + 1);
+          let dispatchTxHash: string | null = null;
+          let dispatchExpiresAt: number | null = null;
+          try {
+            const wire = JSON.parse(txInfo) as {
+              txHash?: unknown;
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              ExpiredAt?: unknown;
+            };
+            dispatchTxHash =
+              typeof wire.txHash === 'string' ? wire.txHash : null;
+            dispatchExpiresAt =
+              typeof wire.ExpiredAt === 'number' &&
+              Number.isSafeInteger(wire.ExpiredAt) &&
+              wire.ExpiredAt > 0
+                ? wire.ExpiredAt
+                : null;
+          } catch {
+            // Unparseable wire payload: resolvable only by REST advance.
+          }
+          ledgerEntry = {
+            nonce: lastIssuedNonce,
+            txHash: dispatchTxHash,
+            expiresAt: dispatchExpiresAt,
+          };
+          const entries = await this.#readNonceLedger(accountIndex);
+          if (entries.length >= 16) {
+            throw new Error(
+              'Too many unresolved Lighter dispatches; refusing further writes until they resolve',
+            );
+          }
+          await this.#writeNonceLedger(accountIndex, [...entries, ledgerEntry]);
         }
-        const response = await this.#clientService.sendTx(txType, txInfo);
+        let response: LighterSendTxResponse;
+        try {
+          response = await this.#clientService.sendTx(txType, txInfo);
+        } catch (error) {
+          if (
+            ledgerEntry !== null &&
+            error instanceof LighterApiError &&
+            error.code !== undefined
+          ) {
+            // The venue OBSERVED and rejected the submission: the nonce
+            // was not consumed — release the reservation and the entry.
+            await this.#removeNonceLedgerEntry(accountIndex, ledgerEntry);
+            if (lastIssuedNonce !== null) {
+              this.#releaseNonceReservation(accountIndex, lastIssuedNonce);
+            }
+          }
+          // Transport/unknown failures keep the durable entry: the
+          // outcome is resolved authoritatively before the next write.
+          throw error;
+        }
+        if (ledgerEntry !== null) {
+          // Acceptance observed: the nonce is definitively consumed; the
+          // reservation floor stays and the entry resolves.
+          await this.#removeNonceLedgerEntry(accountIndex, ledgerEntry).catch(
+            () => undefined,
+          );
+        }
         // Acceptance bookkeeping runs SYNCHRONOUSLY before the post-fence:
         // a switch during network submission must cancel the operation,
         // never the record of an already-accepted venue mutation.
@@ -3784,6 +4336,7 @@ export class LighterProvider implements PerpsProvider {
               journalEntry: unsettled,
               market,
               accountIndex,
+              authToken,
               generation: generationAtIntent,
               readActiveRaw,
               readInactiveFor,
@@ -3828,7 +4381,7 @@ export class LighterProvider implements PerpsProvider {
               (order) => String(order.orderIndex) === stale.orderId,
             );
             const priorIntent = rawRow
-              ? mapRawTriggerToPriorIntent(rawRow)
+              ? mapRawTriggerToPriorIntent(rawRow, market)
               : null;
             if (!priorIntent) {
               throw new Error(
@@ -3864,6 +4417,8 @@ export class LighterProvider implements PerpsProvider {
           const journal: TpslJournalState = {
             attempts: [],
             recordedAt: Date.now(),
+            operationId: `op-${Date.now().toString(36)}-${(this.#tpslOperationCounter += 1).toString(36)}`,
+            createdAt: Date.now(),
             intent: wantsReplacement ? 'replace' : 'remove',
             phase: 'creating',
             priorTriggers,
@@ -3899,6 +4454,7 @@ export class LighterProvider implements PerpsProvider {
             const cancelIdentity = requireSignedTxIdentity(signedCancel);
             const cancelAttempt: TpslCancelAttempt = {
               kind: 'cancel',
+              attemptId: nextAttemptIdFor(journal),
               nonce: cancelNonce,
               outcome: 'unknown',
               orderId,
@@ -3948,6 +4504,7 @@ export class LighterProvider implements PerpsProvider {
             const restoreIdentity = requireSignedTxIdentity(signedRestore);
             const restoreAttempt: TpslCreateAttempt = {
               kind: 'create',
+              attemptId: nextAttemptIdFor(journal),
               nonce: restoreNonce,
               outcome: 'unknown',
               clientIds: [restoreClientId],
@@ -4009,6 +4566,7 @@ export class LighterProvider implements PerpsProvider {
             const createIdentity = requireSignedTxIdentity(signed);
             const createAttempt: TpslCreateAttempt = {
               kind: 'create',
+              attemptId: nextAttemptIdFor(journal),
               nonce: createNonce,
               outcome: 'unknown',
               clientIds: [...createdClientIds],
@@ -4081,7 +4639,7 @@ export class LighterProvider implements PerpsProvider {
                   );
                 }
               }
-              await this.#clearTpslJournal(settlementKey);
+              await this.#clearTpslJournal(settlementKey, journal.operationId);
               throw new Error(
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
               );
@@ -4169,16 +4727,57 @@ export class LighterProvider implements PerpsProvider {
                   );
                 }
               }
+              // FRESH lifecycle verification before re-attaching old
+              // protection: the position may have closed (and even
+              // reopened identically) while this transition was in
+              // flight — old triggers must never attach to a lifecycle
+              // they cannot be proven to belong to.
+              const lifecycleIntact = await this.#verifyRestoreLifecycle({
+                fingerprint: journal.positionFingerprint,
+                createdAt: journal.createdAt,
+                market,
+                accountIndex,
+                authToken,
+                generation: generationAtIntent,
+                journalClientIds: new Set(
+                  journal.attempts
+                    .filter(
+                      (attempt): attempt is TpslCreateAttempt =>
+                        attempt.kind === 'create',
+                    )
+                    .flatMap((attempt) => attempt.clientIds.map(String)),
+                ),
+              });
+              if (!lifecycleIntact) {
+                await this.#clearTpslJournal(
+                  settlementKey,
+                  journal.operationId,
+                );
+                this.#assertSession(generationAtIntent);
+                throw new Error(
+                  `Lighter replacement TP/SL for ${params.symbol} failed after activation and the position changed while the update was in flight; the previous protection belongs to a closed position and was NOT restored`,
+                );
+              }
               // RESTORE the previous protection from the durably
               // persisted prior wire intents so the position is not
-              // naked.
+              // naked. An explicitly ELAPSED prior expiry is the user's
+              // stated intent playing out — never revive it.
               for (const prior of journal.priorTriggers) {
+                if (prior.orderExpiry > 0 && prior.orderExpiry <= Date.now()) {
+                  this.#deps.debugLogger.log(
+                    '[LighterProvider] TP/SL restore skipped: prior expiry elapsed',
+                    { symbol: params.symbol, orderId: prior.orderId },
+                  );
+                  continue;
+                }
                 await submitTrackedRestoreCreate(prior);
               }
               const restoreVisibility = await this.#awaitTpslVisibility(
                 readActiveRaw,
                 readInactiveFor,
                 { createdClientIds: restoredClientIds, cancelledOrderIds: [] },
+                // Restore legs are independent obligations.
+                { independentCreates: true },
               );
               if (restoreVisibility.outcome !== 'settled') {
                 // Journal retained (restore attempts recorded): the next
@@ -4187,13 +4786,13 @@ export class LighterProvider implements PerpsProvider {
                   `Lighter replacement TP/SL for ${params.symbol} failed after activation and restoring the previous protection is not yet confirmed; further protection changes are blocked until the venue reflects it`,
                 );
               }
-              await this.#clearTpslJournal(settlementKey);
+              await this.#clearTpslJournal(settlementKey, journal.operationId);
               this.#assertSession(generationAtIntent);
               throw new Error(
                 `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue after activation; the previous protection was restored`,
               );
             }
-            await this.#clearTpslJournal(settlementKey);
+            await this.#clearTpslJournal(settlementKey, journal.operationId);
             // A switch DURING the final journal-clear await must not let
             // stale A protection report success under B.
             this.#assertSession(generationAtIntent);
