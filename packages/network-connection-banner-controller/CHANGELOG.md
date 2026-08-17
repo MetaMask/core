@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `NetworkConnectionBannerControllerMessenger` now requires the `ClientController:stateChange` event to be delegated instead of `ClientController:stateChanged` ([#9893](https://github.com/MetaMask/core/pull/9893))
-  - `ClientController:stateChanged` is not declared by `@metamask/client-controller`, so clients had to suppress a type error to delegate it.
   - Clients delegating `ClientController:stateChanged` must switch to `ClientController:stateChange`, otherwise the controller no longer receives UI open state and the banner never shows.
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/network-enablement-controller` from `^6.0.1` to `^6.0.3` ([#9740](https://github.com/MetaMask/core/pull/9740), [#9791](https://github.com/MetaMask/core/pull/9791))
