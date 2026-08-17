@@ -2,8 +2,6 @@ import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
 import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie.js';
-import type { Hotlist, PhishingListState } from './PhishingController.js';
-import { ListKeys, phishingListKeyNameMap } from './PhishingController.js';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
@@ -12,13 +10,15 @@ import {
   ADDRESS_SCAN_SUPPORTED_CHAINS,
   APPROVAL_SUPPORTED_CHAINS,
   DEFAULT_CHAIN_ID_TO_NAME,
+  ListKeys,
+  phishingListKeyNameMap,
   TOKEN_SCAN_SUPPORTED_CHAINS,
 } from './types.js';
 import type {
   AddressScanSupportedChain,
   ApprovalSupportedChain,
-  TokenScanCacheData,
-  TokenScanResult,
+  Hotlist,
+  PhishingListState,
   TokenScanSupportedChain,
 } from './types.js';
 
@@ -484,25 +484,6 @@ export const generateParentDomains = (
 };
 
 /**
- * Builds a cache key for a token scan result.
- *
- * @param chainId - The chain ID.
- * @param address - The token address.
- * @param caseSensitive - When `true`, the address is kept as-is (for chains
- * like Solana where addresses are case-sensitive). When `false` (default),
- * the address is lowercased (appropriate for EVM).
- * @returns The cache key.
- */
-export const buildCacheKey = (
-  chainId: string,
-  address: string,
-  caseSensitive = false,
-) => {
-  const normalizedAddress = caseSensitive ? address : address.toLowerCase();
-  return `${chainId.toLowerCase()}:${normalizedAddress}`;
-};
-
-/**
  * Determines whether a chain name is supported for token approval scanning.
  *
  * @param chain - The chain name to check.
@@ -547,46 +528,4 @@ export const resolveChainName = (
   mapping = DEFAULT_CHAIN_ID_TO_NAME,
 ): string | null => {
   return mapping[chainId.toLowerCase() as keyof typeof mapping] ?? null;
-};
-
-/**
- * Split tokens into cached results and tokens that need to be fetched.
- *
- * @param cache - Cache-like object with get method.
- * @param cache.get - Method to retrieve cached data by key.
- * @param chainId - The chain ID.
- * @param tokens - Array of token addresses.
- * @param caseSensitive - When `true`, token addresses are kept as-is (for
- * chains like Solana where addresses are case-sensitive). When `false`
- * (default), addresses are lowercased (appropriate for EVM).
- * @returns Object containing cached results and tokens to fetch.
- */
-export const splitCacheHits = (
-  cache: { get: (key: string) => TokenScanCacheData | undefined },
-  chainId: string,
-  tokens: string[],
-  caseSensitive = false,
-): {
-  cachedResults: Record<string, TokenScanResult>;
-  tokensToFetch: string[];
-} => {
-  const cachedResults: Record<string, TokenScanResult> = {};
-  const tokensToFetch: string[] = [];
-
-  for (const address of tokens) {
-    const normalizedAddress = caseSensitive ? address : address.toLowerCase();
-    const key = buildCacheKey(chainId, normalizedAddress, caseSensitive);
-    const hit = cache.get(key);
-    if (hit) {
-      cachedResults[normalizedAddress] = {
-        result_type: hit.result_type,
-        chain: chainId,
-        address: normalizedAddress,
-      };
-    } else {
-      tokensToFetch.push(normalizedAddress);
-    }
-  }
-
-  return { cachedResults, tokensToFetch };
 };

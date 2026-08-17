@@ -1,9 +1,7 @@
 import { ListKeys, ListNames } from './PhishingController.js';
 import type { PhishingListState } from './PhishingController.js';
-import type { TokenScanResultType } from './types.js';
 import {
   applyDiffs,
-  buildCacheKey,
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
@@ -20,7 +18,6 @@ import {
   resolveChainName,
   roundToNearestMinute,
   sha256Hash,
-  splitCacheHits,
   validateConfig,
 } from './utils.js';
 
@@ -1183,43 +1180,6 @@ describe('generateParentDomains', () => {
   });
 });
 
-describe('buildCacheKey', () => {
-  it('should create cache key with lowercase chainId and address', () => {
-    const chainId = '0x1';
-    const address = '0x1234ABCD';
-    const result = buildCacheKey(chainId, address);
-    expect(result).toBe('0x1:0x1234abcd');
-  });
-
-  it('should handle already lowercase inputs', () => {
-    const chainId = '0xa';
-    const address = '0xdeadbeef';
-    const result = buildCacheKey(chainId, address);
-    expect(result).toBe('0xa:0xdeadbeef');
-  });
-
-  it('should handle mixed case inputs', () => {
-    const chainId = '0X89';
-    const address = '0XaBcDeF123456';
-    const result = buildCacheKey(chainId, address);
-    expect(result).toBe('0x89:0xabcdef123456');
-  });
-
-  it('should preserve address casing when caseSensitive is true', () => {
-    const chainId = 'solana';
-    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
-    const result = buildCacheKey(chainId, address, true);
-    expect(result).toBe('solana:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
-  });
-
-  it('should lowercase address when caseSensitive is false (default)', () => {
-    const chainId = 'solana';
-    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
-    const result = buildCacheKey(chainId, address);
-    expect(result).toBe('solana:gh9zwemdlj8dsckntktqpbnwlnnbjuszag9vp2kgtkjr');
-  });
-});
-
 describe('resolveChainName', () => {
   it('should resolve known chain IDs to chain names', () => {
     expect(resolveChainName('0x1')).toBe('ethereum');
@@ -1284,133 +1244,6 @@ describe('isAddressScanSupportedChain', () => {
   it('returns false for unknown chains', () => {
     expect(isAddressScanSupportedChain('unknown-chain')).toBe(false);
     expect(isAddressScanSupportedChain('')).toBe(false);
-  });
-});
-
-describe('splitCacheHits', () => {
-  const mockCache = {
-    get: jest.fn(),
-  };
-
-  beforeEach(() => {
-    mockCache.get.mockClear();
-  });
-
-  it('should split tokens correctly when some are cached', () => {
-    const chainId = '0x1';
-    const tokens = ['0xTOKEN1', '0xTOKEN2', '0xTOKEN3'];
-
-    // Mock cache to return data for token1 only
-    const mockResponses = new Map([
-      ['0x1:0xtoken1', { result_type: 'Benign' as TokenScanResultType }],
-    ]);
-    mockCache.get.mockImplementation((key: string) => mockResponses.get(key));
-
-    const result = splitCacheHits(mockCache, chainId, tokens);
-
-    expect(result.cachedResults).toStrictEqual({
-      '0xtoken1': {
-        result_type: 'Benign',
-        chain: '0x1',
-        address: '0xtoken1',
-      },
-    });
-    expect(result.tokensToFetch).toStrictEqual(['0xtoken2', '0xtoken3']);
-  });
-
-  it('should handle all tokens being cached', () => {
-    const chainId = '0x89';
-    const tokens = ['0xTOKEN1', '0xTOKEN2'];
-
-    mockCache.get.mockReturnValue({
-      result_type: 'Warning' as TokenScanResultType,
-    });
-
-    const result = splitCacheHits(mockCache, chainId, tokens);
-
-    expect(result.cachedResults).toStrictEqual({
-      '0xtoken1': {
-        result_type: 'Warning',
-        chain: '0x89',
-        address: '0xtoken1',
-      },
-      '0xtoken2': {
-        result_type: 'Warning',
-        chain: '0x89',
-        address: '0xtoken2',
-      },
-    });
-    expect(result.tokensToFetch).toStrictEqual([]);
-  });
-
-  it('should handle no tokens being cached', () => {
-    const chainId = '0xa';
-    const tokens = ['0xTOKEN1', '0xTOKEN2'];
-
-    mockCache.get.mockReturnValue(undefined);
-
-    const result = splitCacheHits(mockCache, chainId, tokens);
-
-    expect(result.cachedResults).toStrictEqual({});
-    expect(result.tokensToFetch).toStrictEqual(['0xtoken1', '0xtoken2']);
-  });
-
-  it('should handle empty token list', () => {
-    const chainId = '0x1';
-    const tokens: string[] = [];
-
-    const result = splitCacheHits(mockCache, chainId, tokens);
-
-    expect(result.cachedResults).toStrictEqual({});
-    expect(result.tokensToFetch).toStrictEqual([]);
-    expect(mockCache.get).not.toHaveBeenCalled();
-  });
-
-  it('should normalize addresses to lowercase', () => {
-    const chainId = '0X1';
-    const tokens = ['0XTOKEN1'];
-
-    mockCache.get.mockReturnValue({
-      result_type: 'Malicious' as TokenScanResultType,
-    });
-
-    const result = splitCacheHits(mockCache, chainId, tokens);
-
-    expect(mockCache.get).toHaveBeenCalledWith('0x1:0xtoken1');
-    expect(result.cachedResults).toHaveProperty('0xtoken1');
-    expect(result.cachedResults['0xtoken1'].address).toBe('0xtoken1');
-  });
-
-  it('should preserve address casing when caseSensitive is true', () => {
-    const chainId = 'solana';
-    const tokens = ['Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'];
-
-    mockCache.get.mockReturnValue(undefined);
-
-    const result = splitCacheHits(mockCache, chainId, tokens, true);
-
-    // tokensToFetch should preserve original casing
-    expect(result.tokensToFetch).toStrictEqual([
-      'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
-    ]);
-  });
-
-  it('should return cached result with preserved casing when caseSensitive is true', () => {
-    const chainId = 'solana';
-    const token = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
-
-    mockCache.get.mockReturnValue({
-      result_type: 'Benign' as TokenScanResultType,
-    });
-
-    const result = splitCacheHits(mockCache, chainId, [token], true);
-
-    expect(result.cachedResults[token]).toStrictEqual({
-      result_type: 'Benign',
-      chain: 'solana',
-      address: token,
-    });
-    expect(result.tokensToFetch).toStrictEqual([]);
   });
 });
 

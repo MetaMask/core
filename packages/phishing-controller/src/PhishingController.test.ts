@@ -18,6 +18,10 @@ import {
   ListNames,
   METAMASK_HOTLIST_DIFF_FILE,
   METAMASK_STALELIST_FILE,
+  METAMASK_HOTLIST_DIFF_URL,
+  METAMASK_STALELIST_URL,
+  C2_DOMAIN_BLOCKLIST_URL,
+  phishingListKeyNameMap,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
   CLIENT_SIDE_DETECION_BASE_URL,
@@ -34,6 +38,11 @@ import type {
   BulkPhishingDetectionScanResponse,
   PhishingControllerMessenger,
 } from './PhishingController.js';
+import {
+  PhishingDataService,
+  SCAN_RESULT_STALE_TIME,
+} from './PhishingDataService.js';
+import type { PhishingDataServiceMessenger } from './PhishingDataService.js';
 import {
   createMockStateChangePayload,
   createMockTransaction,
@@ -62,10 +71,60 @@ type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  AllPhishingControllerActions,
-  AllPhishingControllerEvents,
+  AllPhishingControllerActions | MessengerActions<PhishingDataServiceMessenger>,
+  AllPhishingControllerEvents | MessengerEvents<PhishingDataServiceMessenger>,
   RootMessenger
 >;
+
+const PHISHING_DATA_SERVICE_ACTIONS = [
+  'PhishingDataService:getStalelist',
+  'PhishingDataService:getHotlistDiffs',
+  'PhishingDataService:getC2DomainBlocklist',
+  'PhishingDataService:scanUrl',
+  'PhishingDataService:bulkScanUrls',
+  'PhishingDataService:bulkScanTokens',
+  'PhishingDataService:scanAddress',
+  'PhishingDataService:getApprovals',
+] as const;
+
+const createdDataServices: PhishingDataService[] = [];
+
+/**
+ * Destroys all data services created during the current test, releasing their
+ * query cache resources.
+ */
+function destroyDataServices(): void {
+  while (createdDataServices.length > 0) {
+    createdDataServices.pop()?.destroy();
+  }
+}
+
+/**
+ * Constructs a real PhishingDataService wired to the given root messenger, so
+ * that controller tests exercise the full request path via nock.
+ *
+ * @param rootMessenger - The root messenger.
+ * @returns The data service.
+ */
+function setupDataService(rootMessenger: RootMessenger): PhishingDataService {
+  const dataServiceMessenger = new Messenger<
+    'PhishingDataService',
+    MessengerActions<PhishingDataServiceMessenger>,
+    MessengerEvents<PhishingDataServiceMessenger>,
+    RootMessenger
+  >({
+    namespace: 'PhishingDataService',
+    parent: rootMessenger,
+  });
+
+  const dataService = new PhishingDataService({
+    messenger: dataServiceMessenger,
+    policyOptions: { maxRetries: 0 },
+    persistenceConfig: null,
+  });
+  createdDataServices.push(dataService);
+  return dataService;
+}
 
 type SetupMessengerOptions = {
   transactionControllerState?: TransactionControllerState;
@@ -133,10 +192,13 @@ function setupMessenger(options: SetupMessengerOptions = {}): {
     parent: rootMessenger,
   });
 
+  setupDataService(rootMessenger);
+
   rootMessenger.delegate({
     actions: [
       'AddressBookController:getState',
       'TransactionController:getState',
+      ...PHISHING_DATA_SERVICE_ACTIONS,
     ],
     events: [
       // eslint-disable-next-line no-restricted-syntax
@@ -194,11 +256,27 @@ describe('PhishingController', () => {
   afterEach(() => {
     jest.useRealTimers();
     cleanAll();
+    destroyDataServices();
   });
 
   it('should have no default phishing lists', () => {
     const { controller } = getPhishingController();
     expect(controller.state.phishingLists).toStrictEqual([]);
+  });
+
+  it('re-exports API URLs and list mappings for backwards compatibility', () => {
+    expect(METAMASK_STALELIST_URL).toBe(
+      `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`,
+    );
+    expect(METAMASK_HOTLIST_DIFF_URL).toBe(
+      `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`,
+    );
+    expect(C2_DOMAIN_BLOCKLIST_URL).toBe(
+      `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`,
+    );
+    expect(phishingListKeyNameMap.eth_phishing_detect_config).toBe(
+      ListNames.MetaMask,
+    );
   });
 
   it('should default to an empty whitelist', () => {
@@ -2833,7 +2911,12 @@ describe('PhishingController', () => {
 
       rootMessenger = createdMessenger;
 
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      // A nonzero epoch is required for the data service's query cache: a
+      // cached entry with `dataUpdatedAt` of 0 is treated as never fetched.
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
     });
 
     it('should return the scan result', async () => {
@@ -3088,7 +3171,12 @@ describe('PhishingController', () => {
 
       rootMessenger = createdMessenger;
 
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      // A nonzero epoch is required for the data service's query cache: a
+      // cached entry with `dataUpdatedAt` of 0 is treated as never fetched.
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
     });
 
     afterEach(() => {
@@ -3438,6 +3526,7 @@ describe('PhishingController', () => {
       // eslint-disable-next-line import-x/no-named-as-default-member
       expect(nock.pendingMocks()).toHaveLength(0);
     });
+
     it('should handle invalid URLs properly when mixed with valid URLs and cache results correctly', async () => {
       const validUrl = 'https://valid-example.com';
       const invalidUrl = 'not-a-url';
@@ -3558,7 +3647,12 @@ describe('PhishingController', () => {
 
       rootMessenger = createdMessenger;
 
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      // A nonzero epoch is required for the data service's query cache: a
+      // cached entry with `dataUpdatedAt` of 0 is treated as never fetched.
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
     });
 
     afterEach(() => {
@@ -3981,11 +4075,17 @@ describe('PhishingController', () => {
 
 describe('URL Scan Cache', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    // A nonzero epoch is required for the data service's query cache: a
+    // cached entry with `dataUpdatedAt` of 0 is treated as never fetched.
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask'],
+      now: 1_000_000,
+    });
   });
   afterEach(() => {
     jest.useRealTimers();
     cleanAll();
+    destroyDataServices();
   });
 
   it('should cache scan results and return them on subsequent calls', async () => {
@@ -4030,9 +4130,8 @@ describe('URL Scan Cache', () => {
     fetchSpy.mockRestore();
   });
 
-  it('should expire cache entries after TTL', async () => {
+  it('should expire cache entries after the scan result stale time', async () => {
     const testDomain = 'example.com';
-    const cacheTTL = 300; // 5 minutes
 
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
@@ -4052,90 +4151,28 @@ describe('URL Scan Cache', () => {
         recommendedAction: RecommendedAction.None,
       });
 
-    const { rootMessenger } = getPhishingController({
-      urlScanCacheTTL: cacheTTL,
-    });
+    const { rootMessenger } = getPhishingController();
 
     await rootMessenger.call(
       'PhishingController:scanUrl',
       `https://${testDomain}`,
     );
 
-    // Before TTL expires, should use cache
-    jest.advanceTimersByTime((cacheTTL - 10) * 1000);
+    // Before the stale time elapses, should use cache
+    jest.advanceTimersByTime(SCAN_RESULT_STALE_TIME - 10_000);
     await rootMessenger.call(
       'PhishingController:scanUrl',
       `https://${testDomain}`,
     );
     expect(pendingMocks()).toHaveLength(1); // One mock remaining
 
-    // After TTL expires, should fetch again
-    jest.advanceTimersByTime(11 * 1000);
+    // After the stale time elapses, should fetch again
+    jest.advanceTimersByTime(11_000);
     await rootMessenger.call(
       'PhishingController:scanUrl',
       `https://${testDomain}`,
     );
     expect(pendingMocks()).toHaveLength(0); // All mocks used
-  });
-
-  it('should evict oldest entries when cache exceeds max size', async () => {
-    const maxCacheSize = 2;
-    const domains = ['domain1.com', 'domain2.com', 'domain3.com'];
-
-    // Setup nock to respond to all three domains
-    domains.forEach((domain) => {
-      nock(PHISHING_DETECTION_BASE_URL)
-        .get(
-          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
-            domain,
-          )}`,
-        )
-        .reply(200, {
-          recommendedAction: RecommendedAction.None,
-        });
-    });
-
-    // Setup a second request for the first domain
-    nock(PHISHING_DETECTION_BASE_URL)
-      .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
-          domains[0],
-        )}`,
-      )
-      .reply(200, {
-        recommendedAction: RecommendedAction.Warn,
-      });
-
-    const { rootMessenger } = getPhishingController({
-      urlScanCacheMaxSize: maxCacheSize,
-    });
-
-    // Fill the cache
-    await rootMessenger.call(
-      'PhishingController:scanUrl',
-      `https://${domains[0]}`,
-    );
-    jest.advanceTimersByTime(1000); // Ensure different timestamps
-    await rootMessenger.call(
-      'PhishingController:scanUrl',
-      `https://${domains[1]}`,
-    );
-
-    // This should evict the oldest entry (domain1)
-    jest.advanceTimersByTime(1000);
-    await rootMessenger.call(
-      'PhishingController:scanUrl',
-      `https://${domains[2]}`,
-    );
-
-    // Now domain1 should not be in cache and require a new fetch
-    await rootMessenger.call(
-      'PhishingController:scanUrl',
-      `https://${domains[0]}`,
-    );
-
-    // All mocks should be used
-    expect(isDone()).toBe(true);
   });
 
   it('should handle fetch errors and not cache them', async () => {
@@ -4281,13 +4318,10 @@ describe('URL Scan Cache', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
-          "addressScanCache": {},
           "c2DomainBlocklistLastFetched": 0,
           "hotlistLastFetched": 0,
           "phishingLists": [],
           "stalelistLastFetched": 0,
-          "tokenScanCache": {},
-          "urlScanCache": {},
           "whitelist": [],
           "whitelistPaths": {},
         }
@@ -4303,13 +4337,7 @@ describe('URL Scan Cache', () => {
           controller.metadata,
           'usedInUi',
         ),
-      ).toMatchInlineSnapshot(`
-        {
-          "addressScanCache": {},
-          "tokenScanCache": {},
-          "urlScanCache": {},
-        }
-      `);
+      ).toMatchInlineSnapshot(`{}`);
     });
   });
 });
@@ -4335,6 +4363,7 @@ describe('Transaction Controller State Change Integration', () => {
 
   afterEach(() => {
     bulkScanTokensSpy.mockRestore();
+    destroyDataServices();
   });
 
   it('triggers bulk token scanning when transaction with token balance changes is added', async () => {
@@ -4418,6 +4447,47 @@ describe('Transaction Controller State Change Integration', () => {
     await new Promise((resolve) => process.nextTick(resolve));
 
     expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
+
+  it('groups tokens from multiple transactions on the same chain into one scan', async () => {
+    const transaction1 = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+    ]);
+    const transaction2 = createMockTransaction('test-tx-2', [
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+    const stateChangePayload = createMockStateChangePayload([
+      transaction1,
+      transaction2,
+    ]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: transaction1,
+        },
+        {
+          op: 'add' as const,
+          path: ['transactions', 1],
+          value: transaction2,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(bulkScanTokensSpy).toHaveBeenCalledTimes(1);
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: transaction1.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
+    });
   });
 
   it('does not trigger bulk token scanning when transaction has no token balance changes', async () => {
@@ -4571,6 +4641,8 @@ describe('Transaction Controller State Change Integration', () => {
 });
 
 describe('Address poisoning detection', () => {
+  afterEach(destroyDataServices);
+
   const ADDRESS_BOOK_RECIPIENT =
     '0x1234bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb5678' as `0x${string}`;
   const CONFIRMED_TX_RECIPIENT =
