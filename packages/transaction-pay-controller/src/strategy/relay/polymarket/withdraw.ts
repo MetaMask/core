@@ -57,7 +57,7 @@ export function isPredictWithdraw(
 ): boolean {
   return Boolean(
     request.isPostQuote &&
-      hasTransactionType(transaction, [TransactionType.predictWithdraw]),
+    hasTransactionType(transaction, [TransactionType.predictWithdraw]),
   );
 }
 
