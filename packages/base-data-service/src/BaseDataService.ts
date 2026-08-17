@@ -11,9 +11,9 @@ import type {
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
+  DefaultError,
   DefaultOptions,
   DehydratedState,
-  FetchInfiniteQueryOptions,
   FetchQueryOptions,
   GetPreviousPageParamFunction,
   InfiniteData,
@@ -22,7 +22,7 @@ import {
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
-  SkipToken,
+  QueryFunction,
   WithRequired,
   dehydrate,
   hydrate,
@@ -259,7 +259,7 @@ export class BaseDataService<
    */
   protected async fetchQuery<
     TQueryFnData extends Json,
-    TError = unknown,
+    TError = DefaultError,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
   >(
@@ -270,14 +270,9 @@ export class BaseDataService<
       >,
       'queryKey'
     > & {
-      // @tanstack/query-core's fetchQuery function accepts a "skip" token,
-      // but data services always provide a concrete query function.
-      queryFn: NonNullable<
-        Exclude<
-          FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>['queryFn'],
-          SkipToken
-        >
-      >;
+      // @tanstack/query-core's fetchQuery function accepts a "skip" token, but
+      // data services always provide a concrete query function.
+      queryFn: QueryFunction<TQueryFnData, TQueryKey>;
     },
   ): Promise<TData> {
     return this.#queryClient.fetchQuery({
@@ -304,7 +299,7 @@ export class BaseDataService<
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
-    TError = unknown,
+    TError = DefaultError,
     TData extends TQueryFnData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
@@ -324,18 +319,7 @@ export class BaseDataService<
     > & {
       // @tanstack/query-core's fetchInfiniteQuery function accepts a "skip"
       // token, but data services always provide a concrete query function.
-      queryFn: NonNullable<
-        Exclude<
-          FetchInfiniteQueryOptions<
-            TQueryFnData,
-            TError,
-            TData,
-            TQueryKey,
-            TPageParam
-          >['queryFn'],
-          SkipToken
-        >
-      >;
+      queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
       // `getNextPageParam` is intentionally not accepted: this method fetches
       // the page identified by the caller's `pageParam`, so there is nothing to
       // derive a "next" param from (the UI derives it in its own
@@ -473,7 +457,7 @@ export class BaseDataService<
    * @returns Nothing.
    */
   async invalidateQueries(
-    filters?: InvalidateQueryFilters<Json[]>,
+    filters?: InvalidateQueryFilters<QueryKey>,
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#queryClient.invalidateQueries(filters, options);
