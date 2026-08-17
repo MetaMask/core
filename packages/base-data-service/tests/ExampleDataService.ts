@@ -60,10 +60,6 @@ export class ExampleDataService extends BaseDataService<
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
 
-  // Records the page params that `getActivityByCursor`'s query function
-  // is invoked with, so tests can assert what actually reached it.
-  readonly pageParamsSeen: (PageParam | null | undefined)[] = [];
-
   constructor(
     messenger: ExampleMessenger,
     { persistenceConfig }: { persistenceConfig?: PersistenceConfiguration } = {
@@ -147,59 +143,6 @@ export class ExampleDataService extends BaseDataService<
         // No `staleTime`, so this relies on the client's default. That keeps the
         // cached pages fresh for the tests (which do not advance timers) and
         // exercises the default-`staleTime` path in `fetchInfiniteQuery`.
-      },
-      page,
-    );
-  }
-
-  /**
-   * Fetch activity by cursor. Unlike `getActivity`, this is forward-only: it
-   * provides `getNextPageParam` but omits `getPreviousPageParam`, the way a
-   * consumer that only paginates forward by cursor does. Uses `null` as its
-   * first-page param and a zero `staleTime` so refetches can be exercised, and
-   * records every page param the query function receives in `pageParamsSeen`.
-   *
-   * @param address - The account address.
-   * @param page - The page to fetch. Passed last so this method works when
-   * invoked through `createUIQueryClient`, which appends the page param as the
-   * final argument.
-   * @returns A page of activity.
-   */
-  async getActivityByCursor(
-    address: string,
-    page?: PageParam,
-  ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<GetActivityResponse>(
-      {
-        queryKey: [`${this.name}:getActivityByCursor`, address],
-        initialPageParam: null,
-        queryFn: async ({ pageParam }) => {
-          this.pageParamsSeen.push(pageParam);
-
-          const caipAddress = `eip155:0:${address.toLowerCase()}`;
-          const url = new URL(
-            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
-          );
-
-          if (pageParam?.after) {
-            url.searchParams.set('after', pageParam.after);
-          } else if (pageParam?.before) {
-            url.searchParams.set('before', pageParam.before);
-          }
-
-          const response = await fetch(url);
-
-          if (!response.ok) {
-            throw new Error(
-              `Query failed with status code: ${response.status}.`,
-            );
-          }
-
-          return response.json();
-        },
-        getNextPageParam: ({ pageInfo }): PageParam | null =>
-          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
-        staleTime: 0,
       },
       page,
     );

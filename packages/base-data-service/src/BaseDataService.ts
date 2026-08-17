@@ -333,52 +333,33 @@ export class BaseDataService<
     // preserved: `??` only falls back when the per-call param itself is missing.
     const requestedPageParam = pageParam ?? options.initialPageParam;
 
+    // Serve an already-cached page without refetching while the query is fresh,
+    // so repeated requests for the same page (for example from multiple UI
+    // observers) reuse it. `staleTime` is resolved to a number: the per-call
+    // option or the client default.
     const query = this.#queryClient
       .getQueryCache()
       .find<TQueryFnData, TError, InfiniteData<TData, TPageParam>>({
         queryKey: options.queryKey,
       });
-
-    // Data services configure `staleTime` as a number; resolve the effective
-    // value (per-call option or client default) for the freshness check.
     const defaultStaleTime = this.#queryClient.getDefaultOptions().queries
       ?.staleTime as number | undefined;
     const staleTime = (options.staleTime ?? defaultStaleTime) as
       | number
       | undefined;
-
-    // Serve an already-cached page without refetching while the query is fresh.
-    // A param-less read must return the real first page, so if the cached first
-    // page reports a previous page (it came from a cold jump) skip the cache and
-    // refetch from the start instead.
     if (query?.state.data && !query.isStaleByTime(staleTime)) {
-      const { pages, pageParams } = query.state.data;
-      const firstPagePrevious =
-        pageParam === undefined
-          ? options.getPreviousPageParam?.(
-              pages[0],
-              pages,
-              pageParams[0],
-              pageParams,
-            )
-          : undefined;
-      const firstPageIsColdJump =
-        firstPagePrevious !== undefined && firstPagePrevious !== null;
-
-      if (!firstPageIsColdJump) {
-        const index = pageParams.findIndex((param) =>
-          deepEqual(param, requestedPageParam),
-        );
-        if (index !== -1) {
-          return pages[index];
-        }
+      const index = query.state.data.pageParams.findIndex((param) =>
+        deepEqual(param, requestedPageParam),
+      );
+      if (index !== -1) {
+        return query.state.data.pages[index];
       }
     }
 
     // Fetch the requested page through the policy. Unlike query-core's
-    // `fetchInfiniteQuery`, which drives pagination through `getNextPageParam`
-    // and a `fetchMore` meta, we drive it directly by the requested page param.
-    // The context is built by hand; the query function only reads `pageParam`.
+    // `fetchInfiniteQuery`, which drives pagination through a `fetchMore` meta,
+    // we drive it directly by the requested page param. The context is built by
+    // hand; the query function only reads `pageParam`.
     const page = (await this.#policy.execute(() =>
       options.queryFn({
         client: this.#queryClient,
@@ -399,29 +380,8 @@ export class BaseDataService<
           return { pages: [page], pageParams: [requestedPageParam] };
         }
 
-        // Replace an already-cached page in place. This covers a stale refetch
-        // of a page we already hold (including the first page on a param-less
-        // read), so the fresh page updates the accumulated pages rather than
-        // being stored as a duplicate.
-        const index = existing.pageParams.findIndex((param) =>
-          deepEqual(param, requestedPageParam),
-        );
-        if (index !== -1) {
-          const pages = [...existing.pages];
-          pages[index] = page;
-          return { pages, pageParams: existing.pageParams };
-        }
-
-        // A param-less read whose first page is not already cached rebuilds from
-        // the first page. This happens after a cold jump, whose accumulated
-        // pages do not start at the real first page.
-        if (pageParam === undefined) {
-          return { pages: [page], pageParams: [requestedPageParam] };
-        }
-
-        // Otherwise classify the new page. It extends backward (prepend) only
-        // when it is the previous page of the current first page and not the
-        // next page of the last; the next page and cold jumps both append.
+        // Prepend when the requested page is the previous page of the current
+        // first page (and not the next page of the last); otherwise append.
         const next = options.getNextPageParam(
           existing.pages[existing.pages.length - 1],
           existing.pages,
