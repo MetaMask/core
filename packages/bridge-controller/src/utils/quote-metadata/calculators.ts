@@ -163,12 +163,9 @@ const calcTotalGasFee = ({
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const totalGasLimitInDec =
-    tradeGasLimit || approvalGasLimit || resetApprovalGasLimit
-      ? new BigNumber(tradeGasLimit?.toFixed() ?? '0')
-          .plus(approvalGasLimit?.toFixed() ?? '0')
-          .plus(resetApprovalGasLimit?.toFixed() ?? '0')
-      : undefined;
+  const totalGasLimitInDec = new BigNumber(tradeGasLimit?.toFixed() ?? '0')
+    .plus(approvalGasLimit?.toFixed() ?? '0')
+    .plus(resetApprovalGasLimit?.toFixed() ?? '0');
 
   const l1GasFeesInDecGWei = l1GasFeesInHexWei
     ? weiHexToGweiDec(toHex(l1GasFeesInHexWei))

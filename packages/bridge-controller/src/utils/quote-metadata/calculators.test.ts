@@ -642,9 +642,9 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result?.total?.amount).toBeUndefined();
-      expect(result?.total?.valueInCurrency).toBeUndefined();
-      expect(result?.total?.usd).toBeUndefined();
+      expect(result?.total?.amount).toBe('0');
+      expect(result?.total?.valueInCurrency).toBe('0');
+      expect(result?.total?.usd).toBe('0');
     });
 
     it('should handle missing approval', () => {
@@ -682,7 +682,7 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result?.total?.amount).toBeUndefined();
+      expect(result?.total?.amount).toBe('0.0001');
     });
 
     it('should handle missing trade gasLimit, with l1GasFeesInHexWei', () => {
@@ -737,7 +737,7 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1500',
       });
 
-      expect(result?.total?.amount).toBeUndefined();
+      expect(result?.total?.amount).toBe('0');
     });
 
     it('should handle large gas limits and fees', () => {
