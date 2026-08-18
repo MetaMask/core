@@ -324,8 +324,7 @@ export class BaseDataService<
           this.#policy.execute(() =>
             options.queryFn({
               ...context,
-              pageParam:
-                (context.meta?.pageParam as TPageParam) ?? context.pageParam,
+              pageParam: context.meta?.pageParam ?? context.pageParam,
             }),
           ),
       });

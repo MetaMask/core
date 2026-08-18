@@ -49,7 +49,8 @@ export type PageParam =
   | {
       before: string;
     }
-  | { after: string };
+  | { after: string }
+  | null;
 
 const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
 
@@ -135,10 +136,11 @@ export class ExampleDataService extends BaseDataService<
 
           return response.json();
         },
-        getPreviousPageParam: ({ pageInfo }): PageParam | null =>
+        getPreviousPageParam: ({ pageInfo }) =>
           pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null,
-        getNextPageParam: ({ pageInfo }): PageParam | null =>
+        getNextPageParam: ({ pageInfo }) =>
           pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
+        staleTime: inMilliseconds(5, Duration.Minute),
       },
       page,
     );
