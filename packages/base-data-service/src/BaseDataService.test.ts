@@ -1,5 +1,5 @@
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
-import { hashQueryKey } from '@tanstack/query-core';
+import { hashKey } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
 
@@ -131,7 +131,7 @@ describe('BaseDataService', () => {
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
-    const hash = hashQueryKey(queryKey);
+    const hash = hashKey(queryKey);
 
     expect(publishSpy).toHaveBeenNthCalledWith(
       6,
@@ -186,7 +186,7 @@ describe('BaseDataService', () => {
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
-    const hash = hashQueryKey(queryKey);
+    const hash = hashKey(queryKey);
 
     expect(publishSpy).toHaveBeenNthCalledWith(
       8,
@@ -333,6 +333,7 @@ describe('BaseDataService', () => {
         state: {
           queries: [
             {
+              dehydratedAt: expect.any(Number),
               queryHash:
                 '["ExampleDataService:getAssets",["eip155:1/slip44:60","bip122:000000000019d6689c085ae165831e93/slip44:0","eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f"]]',
               queryKey: [

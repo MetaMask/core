@@ -11,8 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` and `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor options to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
 
+## [11.0.0]
+
 ### Changed
 
+- **BREAKING:** Bump `@metamask/subscription-controller` from `^7.0.0` to `^8.0.0` ([#9903](https://github.com/MetaMask/core/pull/9903))
+  - Exported `DefaultActions` and root-messenger `SubscriptionController:*` actions pick up the 8.0.0 renames: `SubscriptionController:startShieldSubscriptionWithCard` is now `SubscriptionController:startSubscriptionWithCard`, and `SubscriptionController:submitShieldSubscriptionCryptoApproval` is now `SubscriptionController:submitSubscriptionCryptoApproval`.
+  - `submitSubscriptionCryptoApproval` and `cacheLastSelectedPaymentMethod` now take a single request object instead of positional arguments.
+  - Exported `DefaultState['SubscriptionController']` changes: `lastSelectedPaymentMethod` is `Partial`, `PricingPaymentMethod` and `TokenPaymentInfo` are discriminated unions, and `TokenPaymentInfo.conversionRate` is optional. Narrow with `type === 'crypto'` / `isVaultShare === true` before reading crypto- or vault-only fields.
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [10.0.0]
@@ -176,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0

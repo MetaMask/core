@@ -947,6 +947,34 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware skips Accounts API when balance is not requested', async () => {
+    const { controller, apiClient } = await setupController({
+      balances: [
+        createMockBalanceItem(
+          `eip155:1:${MOCK_ADDRESS}`,
+          'eip155:1/slip44:60',
+          '1',
+        ),
+      ],
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['price'] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
   it('middleware removes handled chains from next request', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
@@ -979,6 +1007,28 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
+    const { controller, assetsUpdateHandler, apiClient } =
+      await setupController();
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+      skipInitialFetch: true,
+    });
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
 
     controller.destroy();
   });
