@@ -1398,6 +1398,9 @@ describe('PerpsController', () => {
 
       expect(onControllerConstructed).toHaveBeenCalledTimes(1);
       expect(onControllerConstructed).toHaveBeenCalledWith(321);
+      expect(
+        (infra.diskCache.getItemSync as jest.Mock).mock.invocationCallOrder[0],
+      ).toBeLessThan(onControllerConstructed.mock.invocationCallOrder[0]);
       expect(infra.tracer.setMeasurement).not.toHaveBeenCalled();
     });
 

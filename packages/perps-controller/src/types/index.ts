@@ -1941,8 +1941,15 @@ export type PerpsPerformance = {
    * Optional platform hook invoked once after constructor disk hydration.
    * Receives `performance.now()` — not a Sentry write.
    */
-  onControllerConstructed?(monotonicMs: number): void;
+  onControllerConstructed?: (monotonicMs: number) => void;
 };
+
+type PerpsSetMeasurement = ((
+  name: string,
+  value: number,
+  unit: string,
+) => void) &
+  ((name: string, value: number, unit: string, id: string) => void);
 
 /**
  * Injectable tracer interface for Sentry/observability tracing.
@@ -1966,7 +1973,7 @@ export type PerpsTracer = {
     data?: Record<string, PerpsTraceValue>;
   }): void;
 
-  setMeasurement(name: string, value: number, unit: string, id?: string): void;
+  setMeasurement: PerpsSetMeasurement;
 
   addBreadcrumb(breadcrumb: {
     category: string;

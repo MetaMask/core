@@ -4204,9 +4204,7 @@ export class PerpsController extends BaseController<
         },
       });
 
-      this.#debugLog('PerpsController: Fetching user data in background', {
-        userAddress,
-      });
+      this.#debugLog('PerpsController: Fetching user data in background');
 
       if (activeProvider === 'hyperliquid') {
         const snapshot = await this.getUserDataSnapshot();
