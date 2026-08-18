@@ -33,11 +33,11 @@ class ChildBlockTrackerPollingController extends BlockTrackerPollingController<B
 }
 
 class TestBlockTracker extends EventEmitter {
-  private latestBlockNumber = 0;
+  #latestBlockNumber = 0;
 
-  emitBlockEvent() {
-    this.latestBlockNumber += 1;
-    this.emit('latest', this.latestBlockNumber);
+  emitBlockEvent(): void {
+    this.#latestBlockNumber += 1;
+    this.emit('latest', this.#latestBlockNumber);
   }
 }
 
