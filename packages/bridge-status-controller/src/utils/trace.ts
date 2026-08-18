@@ -2,6 +2,7 @@
 import {
   formatChainIdToCaip,
   formatProviderLabel,
+  FeatureId,
   getSwapType,
   isCrossChain,
   QuoteResponseV1,
@@ -27,6 +28,7 @@ export const getTraceParams = (
     data: {
       srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
       stxEnabled: isStxEnabled,
+      feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
     },
   };
 };
@@ -45,6 +47,7 @@ export const getApprovalTraceParams = (
     data: {
       srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
       stxEnabled: isStxEnabled,
+      feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
     },
   };
 };
@@ -65,6 +68,7 @@ export const getSwapOperationCompletedTraceParams = (
     data: {
       srcChainId: formatChainIdToCaip(historyItem.quote.srcChainId),
       destChainId: formatChainIdToCaip(historyItem.quote.destChainId),
+      feature_id: historyItem.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
       provider: formatProviderLabel(historyItem.quote),
       swap_type: getSwapType(
         historyItem.quote.srcChainId,

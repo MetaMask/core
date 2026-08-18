@@ -885,6 +885,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         startTime: quoteTraceStartTime,
         data: {
           provider,
+          feature_id: context.feature_id,
           request_id: quoteTraceRequestId,
           swap_type: getSwapType(
             firstQuoteRequest.srcChainId,
