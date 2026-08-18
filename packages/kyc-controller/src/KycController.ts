@@ -363,6 +363,19 @@ export function getDefaultKycControllerState(): KycControllerState {
   };
 }
 
+/**
+ * Whether an error indicates the applicant already finished KYC — the UKYC /
+ * relay `session_not_in_valid_state` signal — which the controller maps to the
+ * simplified `completed` user status.
+ *
+ * @param error - The caught error.
+ * @returns `true` when the error carries the `session_not_in_valid_state`
+ * marker.
+ */
+function isSessionAlreadyCompletedError(error: unknown): boolean {
+  return String(error).includes(SESSION_NOT_IN_VALID_STATE);
+}
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -1564,7 +1577,7 @@ export class KycController extends BaseController<
       return result;
     } catch (error) {
       // Applicant already finished KYC — treat as completed for Money toast.
-      if (String(error).includes(SESSION_NOT_IN_VALID_STATE)) {
+      if (isSessionAlreadyCompletedError(error)) {
         // A reset() may have landed while `launch` was in flight; forcing
         // `completed` (and publishing `statusChanged`) on an idle controller
         // would resurrect a flow the consumer already tore down.
