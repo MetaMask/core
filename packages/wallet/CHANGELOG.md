@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0]
+
 ### Uncategorized
 
 - chore: Fix broken override feature on the remote feature flag controller ([#9816](https://github.com/MetaMask/core/pull/9816))
@@ -177,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0
