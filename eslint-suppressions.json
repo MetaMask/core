@@ -2199,7 +2199,7 @@
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
+      "count": 7
     },
     "no-new": {
       "count": 1

@@ -1,9 +1,8 @@
 import { BaseController } from '@metamask/base-controller';
-import type {
-  NetworkClientId,
-  NetworkClient,
-} from '@metamask/network-controller';
-import type { Json } from '@metamask/utils';
+import type { BlockTracker as BaseBlockTracker } from '@metamask/eth-block-tracker';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import type { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
+import type { Json, Hex } from '@metamask/utils';
 
 import {
   AbstractPollingControllerBaseMixin,
@@ -12,11 +11,75 @@ import {
 import type { Constructor, PollingTokenSetId } from './types.js';
 
 /**
+ * The type of network client that can be created.
+ */
+enum NetworkClientType {
+  Custom = 'custom',
+  Infura = 'infura',
+}
+
+/**
+ * A configuration object that can be used to create a client for a network.
+ */
+type CommonNetworkClientConfiguration = {
+  chainId: Hex;
+  failoverRpcUrls?: string[];
+  ticker: string;
+};
+
+/**
+ * A configuration object that can be used to create a client for a custom
+ * network.
+ */
+type CustomNetworkClientConfiguration = CommonNetworkClientConfiguration & {
+  rpcUrl: string;
+  type: NetworkClientType.Custom;
+};
+
+/**
+ * A configuration object that can be used to create a client for an Infura
+ * network.
+ */
+type InfuraNetworkClientConfiguration = CommonNetworkClientConfiguration & {
+  network: string;
+  infuraProjectId: string;
+  type: NetworkClientType.Infura;
+};
+
+/**
+ * A configuration object that can be used to create a client for a network.
+ */
+type NetworkClientConfiguration =
+  | CustomNetworkClientConfiguration
+  | InfuraNetworkClientConfiguration;
+
+type Provider = InternalProvider<
+  MiddlewareContext<
+    { origin: string; skipCache: boolean } & Record<string, unknown>
+  >
+>;
+
+type BlockTracker = BaseBlockTracker & {
+  checkForLatestBlock(): Promise<string>;
+};
+
+/**
+ * The pair of provider / block tracker that can be used to interface with the
+ * network and respond to new activity.
+ */
+type NetworkClient = {
+  configuration: NetworkClientConfiguration;
+  provider: Provider;
+  blockTracker: BlockTracker;
+  destroy: () => void;
+};
+
+/**
  * The minimum input required to start polling for a {@link BlockTrackerPollingController}.
  * Implementing classes may provide additional properties.
  */
 export type BlockTrackerPollingInput = {
-  networkClientId: NetworkClientId;
+  networkClientId: string;
 };
 
 /**
@@ -40,7 +103,7 @@ function BlockTrackerPollingControllerMixin<
     #activeListeners: Record<string, (options: Json) => Promise<void>> = {};
 
     abstract _getNetworkClientById(
-      networkClientId: NetworkClientId,
+      networkClientId: string,
     ): NetworkClient | undefined;
 
     _startPolling(input: PollingInput): void {
@@ -67,7 +130,7 @@ function BlockTrackerPollingControllerMixin<
     _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void {
       const { networkClientId } = JSON.parse(key);
       const networkClient = this._getNetworkClientById(
-        networkClientId as NetworkClientId,
+        networkClientId as string,
       );
 
       if (networkClient && this.#activeListeners[key]) {
