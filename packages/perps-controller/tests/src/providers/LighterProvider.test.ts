@@ -338,6 +338,7 @@ function buildProvider(
   } = options;
   const clientInstance = {
     network: 'testnet',
+    getCandles: jest.fn().mockResolvedValue({ code: 200, c: [] }),
     getOrderBooks: jest.fn().mockResolvedValue([BTC_MARKET]),
     getOrderBookDetails: jest.fn().mockResolvedValue({
       code: 200,
@@ -8358,6 +8359,114 @@ describe('LighterProvider', () => {
       unsubscribe();
     });
 
+    it('drops malformed order book levels at the WS boundary instead of poisoning cumulative totals', async () => {
+      // The WS payload is cast, not validated: a level with a malformed
+      // price or size would flow into the cumulative-total math as NaN and
+      // reach the depth chart as an invalid SVG coordinate.
+      const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
+      const bookCallback = jest.fn();
+      const unsubscribe = provider.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback: bookCallback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'subscribed/order_book',
+          channel: 'order_book:1',
+          order_book: {
+            bids: [
+              { price: '90000', size: '0.5' },
+              { price: 'abc', size: '1' },
+              { size: '2' },
+              { price: '89990', size: 'oops' },
+            ],
+            asks: [{ price: '90010', size: '0.4' }, { price: '90020' }],
+          },
+        }),
+      });
+      expect(bookCallback).toHaveBeenCalled();
+      const book =
+        bookCallback.mock.calls[bookCallback.mock.calls.length - 1][0];
+      expect(book.bids).toHaveLength(1);
+      expect(book.asks).toHaveLength(1);
+      for (const side of [book.bids, book.asks]) {
+        for (const level of side) {
+          for (const field of [
+            'price',
+            'size',
+            'total',
+            'notional',
+            'totalNotional',
+          ]) {
+            expect(Number.isFinite(parseFloat(level[field]))).toBe(true);
+          }
+        }
+      }
+      expect(Number.isFinite(parseFloat(book.maxTotal))).toBe(true);
+      unsubscribe();
+    });
+
+    it('drops malformed candles from the REST seed and the WS channel', async () => {
+      // Same boundary: a candle with a missing field would be stringified
+      // as "undefined" and reach the chart as NaN.
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+      });
+      jest
+        .spyOn(clientInstance, 'getCandles')
+        .mockImplementation()
+        .mockResolvedValue({
+          code: 200,
+          c: [
+            { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
+            { t: 1500, o: 1, h: 2, l: 0.5, v: 10 }, // missing close
+          ],
+        });
+      const candleCallback = jest.fn();
+      const unsubscribe = provider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h',
+        callback: candleCallback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const seeded =
+        candleCallback.mock.calls[candleCallback.mock.calls.length - 1][0];
+      expect(seeded.candles).toHaveLength(1);
+      const socket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/candle',
+          channel: 'candle:1:1h',
+          candles: [
+            { t: 2000, o: 1.5, h: 2.5, l: 1, c: 2, v: 5 },
+            { t: 3000, o: 'x', h: 2, l: 1, c: 2, v: 5 },
+            { o: 1, h: 2, l: 1, c: 2, v: 5 },
+          ],
+        }),
+      });
+      const live =
+        candleCallback.mock.calls[candleCallback.mock.calls.length - 1][0];
+      expect(
+        live.candles.map((candle: { time: number }) => candle.time),
+      ).toStrictEqual([1000, 2000]);
+      for (const candle of live.candles) {
+        for (const field of ['open', 'high', 'low', 'close', 'volume']) {
+          expect(Number.isFinite(parseFloat(candle[field]))).toBe(true);
+        }
+      }
+      unsubscribe();
+    });
+
     it('withholds a fills snapshot containing unsupported (nonzero-fee) fills', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeStreamCtor,
@@ -9108,19 +9217,22 @@ describe('LighterProvider', () => {
     it('returns immediate empty snapshots from subscriptions', async () => {
       const { provider } = buildProvider();
       const callback = jest.fn();
+      // No `as never` here: force-casting subscription params is exactly
+      // what hid the missing required `symbol` on subscribeToOrderBook and
+      // the bare-level order book payload defect.
       const unsubscribers = [
-        provider.subscribeToPrices({ symbols: ['BTC'], callback } as never),
-        provider.subscribeToPositions({ callback } as never),
-        provider.subscribeToOrderFills({ callback } as never),
-        provider.subscribeToOrders({ callback } as never),
-        provider.subscribeToAccount({ callback } as never),
-        provider.subscribeToOICaps({ callback } as never),
+        provider.subscribeToPrices({ symbols: ['BTC'], callback }),
+        provider.subscribeToPositions({ callback }),
+        provider.subscribeToOrderFills({ callback }),
+        provider.subscribeToOrders({ callback }),
+        provider.subscribeToAccount({ callback }),
+        provider.subscribeToOICaps({ callback }),
         provider.subscribeToCandles({
           symbol: 'BTC',
           interval: '1h',
           callback,
-        } as never),
-        provider.subscribeToOrderBook({ callback } as never),
+        }),
+        provider.subscribeToOrderBook({ symbol: 'BTC', callback }),
       ];
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(callback).toHaveBeenCalled();
