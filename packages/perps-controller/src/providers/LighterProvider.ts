@@ -4426,11 +4426,23 @@ export class LighterProvider implements PerpsProvider {
         .filter((market) => market.marketType === 'perp')
         .map((market) => {
           const adapted = adaptMarketFromLighter(market);
-          const minInitial = this.#marginBySymbol.get(
-            market.symbol,
-          )?.minInitial;
-          if (minInitial && minInitial > 0) {
-            adapted.maxLeverage = Math.floor(10_000 / minInitial);
+          const margins = this.#marginBySymbol.get(market.symbol);
+          if (margins?.minInitial && margins.minInitial > 0) {
+            adapted.maxLeverage = Math.floor(10_000 / margins.minInitial);
+          }
+          // The venue enforces BOTH a quote minimum and a BASE minimum:
+          // at current prices the base minimum can exceed the quote one
+          // (ETH: 0.0053 ETH > $10), so a UI defaulting to the quote
+          // minimum produces orders one tick below the venue floor.
+          // Report the binding USD minimum, rounded UP to whole cents.
+          if (margins?.lastTradePrice && margins.lastTradePrice > 0) {
+            const minBaseUsd =
+              parseFloat(market.minBaseAmount) * margins.lastTradePrice;
+            const minQuoteUsd = parseFloat(market.minQuoteAmount);
+            const bindingUsd = Math.max(minQuoteUsd, minBaseUsd);
+            if (Number.isFinite(bindingUsd) && bindingUsd > 0) {
+              adapted.minimumOrderSize = Math.ceil(bindingUsd * 100) / 100;
+            }
           }
           return adapted;
         });
@@ -6757,10 +6769,10 @@ export class LighterProvider implements PerpsProvider {
     return 1 / (2 * LIGHTER_MAX_LEVERAGE);
   }
 
-  /** Per-market margin fractions from orderBookDetails (hundredths of %). */
+  /** Per-market margin fractions + last price from orderBookDetails. */
   readonly #marginBySymbol: Map<
     string,
-    { minInitial?: number; maintenance?: number }
+    { minInitial?: number; maintenance?: number; lastTradePrice?: number }
   > = new Map();
 
   /**
@@ -6837,12 +6849,17 @@ export class LighterProvider implements PerpsProvider {
           // The timestamp only advances on success.
           const fresh = new Map<
             string,
-            { minInitial?: number; maintenance?: number }
+            {
+              minInitial?: number;
+              maintenance?: number;
+              lastTradePrice?: number;
+            }
           >();
           for (const detail of details.orderBookDetails) {
             fresh.set(detail.symbol, {
               minInitial: detail.minInitialMarginFraction,
               maintenance: detail.maintenanceMarginFraction,
+              lastTradePrice: detail.lastTradePrice,
             });
           }
           this.#marginBySymbol.clear();
@@ -7821,8 +7838,9 @@ export class LighterProvider implements PerpsProvider {
    * @returns Single-element route list.
    */
   readonly #bridgeRoute = (minAmount: string): AssetRoute[] => {
-    const bridge =
-      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet'];
+    // Only the MAINNET bridge is ever advertised: the effective-testnet
+    // branches return [] before reaching here (devnet L1 unreachable).
+    const bridge = LIGHTER_BRIDGE_CONFIG.mainnet;
     return [
       {
         assetId:
@@ -7834,22 +7852,26 @@ export class LighterProvider implements PerpsProvider {
     ];
   };
 
-  getDepositRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
-    // Testnet settles on a venue-hosted devnet L1 (chain 123456) the
-    // wallet cannot reach: advertising that route makes pay-with flows
-    // build a deposit transaction on an unknown chain and fail the whole
-    // trade ("Invalid chain ID 0x1e240"). No route means: trade from the
-    // venue balance, top up via the venue faucet.
-    if (this.#isTestnet) {
+  getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
+    // The params.isTestnet OVERRIDE is part of the route contract (HL
+    // honors it too): DepositService requests { isTestnet: false } to
+    // scaffold the deposit-and-trade transaction on a chain the wallet
+    // can reach. Lighter TESTNET itself settles on a venue-hosted devnet
+    // L1 (chain 123456) the wallet cannot reach — advertising it made
+    // pay-with flows build a transaction on an unknown chain ("Invalid
+    // chain ID 0x1e240") — so the effective-testnet answer is NO routes:
+    // trade from the venue balance, top up via the venue faucet.
+    const isTestnet = params?.isTestnet ?? this.#isTestnet;
+    if (isTestnet) {
       return [];
     }
     return this.#bridgeRoute(LIGHTER_BRIDGE_CONFIG.mainnet.minDepositUsdc);
   }
 
-  getWithdrawalRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
-    // Same devnet-L1 reality as deposits: an unreachable withdrawal
-    // target is not a route.
-    if (this.#isTestnet) {
+  getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
+    // Same devnet-L1 reality and the same override contract as deposits.
+    const isTestnet = params?.isTestnet ?? this.#isTestnet;
+    if (isTestnet) {
       return [];
     }
     return this.#bridgeRoute(LIGHTER_BRIDGE_CONFIG.mainnet.minWithdrawUsdc);
