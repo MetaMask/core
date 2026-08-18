@@ -2,6 +2,8 @@ import {
   Messenger,
   ActionConstraint,
   EventConstraint,
+  MessengerActions,
+  MessengerEvents,
 } from '@metamask/messenger';
 import type {
   StorageServiceGetItemAction,
@@ -161,7 +163,13 @@ export class BaseDataService<
     persistenceConfig,
   }: {
     name: ServiceName;
-    messenger: ServiceMessenger;
+    messenger: DataServiceActions<ServiceName>['type'] extends
+      | MessengerActions<ServiceMessenger>['type']
+      | DataServiceAllowedActions['type']
+      ? DataServiceEvents<ServiceName>['type'] extends MessengerEvents<ServiceMessenger>['type']
+        ? ServiceMessenger
+        : never
+      : never;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
     persistenceConfig?: PersistenceConfiguration;
