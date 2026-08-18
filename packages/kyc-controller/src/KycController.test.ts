@@ -2365,6 +2365,60 @@ describe('KycController', () => {
       }
     });
 
+    it('does not start a second poll loop when refreshed during an in-flight tick', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            let releaseTick: (value: { status: string }) => void = () => {
+              // placeholder
+            };
+            handlers.fetchKycStatus
+              // Initial refresh starts the loop.
+              .mockResolvedValueOnce({ status: 'pending' })
+              // The first scheduled tick hangs, so the timer handle is null
+              // while the request is in flight.
+              .mockImplementationOnce(
+                async () =>
+                  new Promise((resolve) => {
+                    releaseTick = resolve;
+                  }),
+              )
+              // Any later poll stays pending so the loop keeps scheduling.
+              .mockResolvedValue({ status: 'pending' });
+
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+
+            // Fire the scheduled tick; it clears the timer handle then awaits.
+            jest.advanceTimersByTime(1000);
+            await Promise.resolve();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(2);
+
+            // A concurrent refresh while the tick is in flight (timer handle
+            // null) must not spin up a second loop on the same token.
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(3);
+
+            // Let the in-flight tick resolve and reschedule.
+            releaseTick({ status: 'pending' });
+            await Promise.resolve();
+            await Promise.resolve();
+
+            // A single loop means exactly one fetch per interval; a duplicated
+            // loop would fire twice here.
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(4);
+
+            controller.reset();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('drops superseded user-status poll ticks after reset', async () => {
       jest.useFakeTimers();
       try {

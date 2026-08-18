@@ -536,6 +536,15 @@ export class KycController extends BaseController<
   /** Handle for the scheduled next user-status poll, or `null`. */
   #userStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Whether a user-status poll loop is currently active. Tracked separately
+   * from {@link #userStatusPollTimer} because a scheduled tick clears the timer
+   * handle before awaiting `fetchKycStatus`; relying on the handle alone would
+   * let a concurrent {@link refreshKycStatus} start a second loop on the same
+   * token during that in-flight window.
+   */
+  #userStatusPolling = false;
+
   /** Monotonic token for the user-status poll loop (see `#pollToken`). */
   #userStatusPollToken = 0;
 
@@ -1687,9 +1696,10 @@ export class KycController extends BaseController<
    * still `pending`.
    */
   #ensureUserStatusPolling(): void {
-    if (this.#userStatusPollTimer !== null) {
+    if (this.#userStatusPolling) {
       return;
     }
+    this.#userStatusPolling = true;
     const token = this.#userStatusPollToken;
     const tick = async (): Promise<void> => {
       try {
@@ -1734,6 +1744,7 @@ export class KycController extends BaseController<
    */
   #stopUserStatusPolling(): void {
     this.#userStatusPollToken += 1;
+    this.#userStatusPolling = false;
     if (this.#userStatusPollTimer !== null) {
       clearTimeout(this.#userStatusPollTimer);
       this.#userStatusPollTimer = null;
