@@ -9506,7 +9506,8 @@ describe('LighterProvider', () => {
       const btc = markets.find((market) => market.name === 'BTC');
       // Mock market: minBaseAmount x lastTradePrice(100000) vs minQuoteAmount —
       // whichever binds must be reported, never the raw quote minimum alone.
-      // minBase 0.0002 x lastTradePrice 100000 = $20 > minQuote $10.
+      // Binding base size: max(minBase 0.0002, $10/100000 = 0.0001)
+      // = 0.0002 BTC x $100000 = $20 (> the raw $10 quote minimum).
       expect(btc?.minimumOrderSize).toBe(20);
       expect(btc?.maxLeverage).toBe(50); // 10000 / minInitialMarginFraction(200)
     });
