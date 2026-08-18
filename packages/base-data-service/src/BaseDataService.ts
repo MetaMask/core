@@ -322,69 +322,61 @@ export class BaseDataService<
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
-    // A missing per-call `pageParam` means "the first page", which uses the
-    // consumer's `initialPageParam`. A `null` initial param is preserved: `??`
-    // only falls back when the per-call param itself is missing.
-    const requestedPageParam = pageParam ?? options.initialPageParam;
+    const cache = this.#queryClient.getQueryCache();
 
-    const query = this.#queryClient
-      .getQueryCache()
-      .find<TQueryFnData, TError, InfiniteData<TData, TPageParam>>({
-        queryKey: options.queryKey,
-      });
+    const query = cache.find<
+      TQueryFnData,
+      TError,
+      InfiniteData<TData, TPageParam>
+    >({
+      queryKey: options.queryKey,
+    });
 
-    // The first page (or a cold cache) goes through query-core's
-    // `fetchInfiniteQuery`, which reuses the cached page while the query is
-    // fresh. A cold jump starts the query at the requested page by using it as
-    // the initial page param.
-    if (
-      !query?.state.data ||
-      deepEqual(requestedPageParam, options.initialPageParam)
-    ) {
+    // A first-page request (no per-call `pageParam`, which our cursor consumers
+    // express as a falsy `initialPageParam`) or a cold cache goes through
+    // query-core's `fetchInfiniteQuery`, which reuses the cached page while the
+    // query is fresh. The explicit param a later page needs is smuggled through
+    // the query meta and read back by the query function.
+    if (!query?.state.data || !pageParam) {
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
-        initialPageParam: requestedPageParam,
+        initialPageParam: pageParam ?? options.initialPageParam,
         queryFn: (context) =>
-          this.#policy.execute(() => options.queryFn(context)),
+          this.#policy.execute(() =>
+            options.queryFn({
+              ...context,
+              pageParam:
+                (context.meta?.pageParam as TPageParam) ?? context.pageParam,
+            }),
+          ),
       });
 
       return result.pages[0];
     }
 
-    // A later page on an existing query. v5 no longer forwards an explicit page
-    // param, so fetch it directly and merge it into the infinite cache,
-    // appending the next page or prepending an earlier one.
+    // A later page on an existing query. Classify it as the next or previous
+    // page to choose the fetch direction, then let query-core fetch it, passing
+    // the explicit param through the query meta.
     const { pages, pageParams } = query.state.data;
-    const page = (await this.#policy.execute(() =>
-      options.queryFn({
-        client: this.#queryClient,
-        queryKey: options.queryKey,
-        signal: new AbortController().signal,
-        pageParam: requestedPageParam,
-        direction: 'forward',
-        meta: options.meta,
-      }),
-    )) as TData;
-    const nextPageParam = options.getNextPageParam(
+    const next = options.getNextPageParam(
       pages[pages.length - 1],
       pages,
       pageParams[pageParams.length - 1],
       pageParams,
     );
-    this.#queryClient.setQueryData<InfiniteData<TData, TPageParam>>(
-      options.queryKey,
-      deepEqual(requestedPageParam, nextPageParam)
-        ? {
-            pages: [...pages, page],
-            pageParams: [...pageParams, requestedPageParam],
-          }
-        : {
-            pages: [page, ...pages],
-            pageParams: [requestedPageParam, ...pageParams],
-          },
+
+    const direction = deepEqual(pageParam, next) ? 'forward' : 'backward';
+
+    const result = await query.fetch(
+      { ...query.options, meta: { pageParam } },
+      { meta: { fetchMore: { direction } } },
     );
 
-    return page;
+    const pageIndex = result.pageParams.findIndex((param) =>
+      deepEqual(param, pageParam),
+    );
+
+    return result.pages[pageIndex];
   }
 
   /**
