@@ -1,4 +1,5 @@
 import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
+import { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
@@ -49,7 +50,6 @@ import type {
   InfuraNetworkClientConfiguration,
 } from '../src/types.js';
 import { NetworkClientType } from '../src/types.js';
-import { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 
 export type AllNetworkControllerActions =
   MessengerActions<NetworkControllerMessenger>;
