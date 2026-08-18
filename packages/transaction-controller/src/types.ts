@@ -1337,6 +1337,14 @@ export enum TransactionEnvelopeType {
   feeMarket = '0x2',
 
   /**
+   * EIP-4844 defined the blob transaction type that allows for submitting
+   * binary large objects (blobs) to be persisted in the beacon node for a
+   * limited period of time. Blob transactions use EIP-1559 fee market
+   * parameters plus an additional `maxFeePerBlobGas` field.
+   */
+  blob = '0x3',
+
+  /**
    * Adds code to externally owned accounts according to the signed authorizations
    * in the new `authorizationList` parameter.
    * Introduced in EIP-7702.
