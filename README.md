@@ -488,6 +488,7 @@ linkStyle default opacity:0.5
   network_connection_banner_controller --> network_enablement_controller;
   network_controller --> analytics_controller;
   network_controller --> base_controller;
+  network_controller --> config_registry_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
