@@ -7,11 +7,11 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type {
   ConfigRegistryControllerStateChangedEvent,
   ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
 } from '@metamask/config-registry-controller';
+import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
   InfuraNetworkType,
