@@ -30,7 +30,6 @@
 ## Confirmations Team
 /packages/address-book-controller       @MetaMask/confirmations
 /packages/approval-controller           @MetaMask/confirmations
-/packages/ens-controller                @MetaMask/confirmations
 /packages/gas-fee-controller            @MetaMask/confirmations
 /packages/logging-controller            @MetaMask/confirmations
 /packages/message-manager               @MetaMask/confirmations
@@ -156,13 +155,19 @@
 /packages/wallet/src/initialization/instances/accounts-controller/               @MetaMask/accounts-engineers
 /packages/wallet/src/initialization/instances/address-book-controller/           @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/approval-controller/               @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/claims-controller/                 @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/claims-service/                    @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/connectivity-controller/           @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/gas-fee-controller/                @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/subscription-service/              @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
 
 ## Package Release related
@@ -211,9 +216,6 @@
 /packages/money-account-api-data-service/package.json          @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-api-data-service/CHANGELOG.md          @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-api-data-service/tsconfig.*            @MetaMask/earn @MetaMask/core-platform
-/packages/ens-controller/package.json                          @MetaMask/confirmations @MetaMask/core-platform
-/packages/ens-controller/CHANGELOG.md                          @MetaMask/confirmations @MetaMask/core-platform
-/packages/ens-controller/tsconfig.*                            @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/package.json                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/CHANGELOG.md                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/tsconfig.*                        @MetaMask/confirmations @MetaMask/core-platform

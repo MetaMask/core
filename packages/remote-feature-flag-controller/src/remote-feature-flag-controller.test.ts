@@ -59,6 +59,7 @@ const MOCK_BASE_VERSION = '13.10.0';
  * @param options.getMetaMetricsId - Returns metaMetricsId
  * @param options.clientVersion - The client version string
  * @param options.prevClientVersion - The previous client version string
+ * @param options.defaultFeatureFlags - Client-side default feature flags
  * @returns The controller and the root messenger
  */
 function createController(
@@ -69,6 +70,7 @@ function createController(
     getMetaMetricsId: () => string;
     clientVersion: string;
     prevClientVersion: string;
+    defaultFeatureFlags: FeatureFlags;
   }> = {},
 ): { controller: RemoteFeatureFlagController; messenger: RootMessenger } {
   const { rootMessenger, controllerMessenger } = buildMessenger();
@@ -83,6 +85,7 @@ function createController(
       ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
     prevClientVersion: options.prevClientVersion,
+    defaultFeatureFlags: options.defaultFeatureFlags,
   });
   return { controller, messenger: rootMessenger };
 }
@@ -518,6 +521,51 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
         thresholdObjectFlag: 'enabled',
       });
+    });
+
+    it('preserves the threshold array when no group covers the threshold', async () => {
+      const unreachableGroups = [
+        { name: 'groupA', scope: { type: 'threshold', value: 0 }, value: 'a' },
+      ];
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { unreachableFlag: unreachableGroups },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.unreachableFlag).toStrictEqual(
+        unreachableGroups,
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
+    });
+
+    it('selects an unnamed threshold group without recording a group name', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          unnamedGroupFlag: [
+            { scope: { type: 'threshold', value: 1 }, value: 'selected' },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.unnamedGroupFlag).toBe(
+        'selected',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
     it('preserves non-threshold feature flags unchanged', async () => {
@@ -984,7 +1032,7 @@ describe('RemoteFeatureFlagController', () => {
       ).toBeDefined();
     });
 
-    it('does not include metaMetricsIds values in rawRemoteFeatureFlags state', async () => {
+    it('retains metaMetricsIds values in rawRemoteFeatureFlags state so targeting can be re-derived', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
       });
@@ -997,19 +1045,15 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      const rawEntries = controller.state.rawRemoteFeatureFlags
-        .testFlag as Record<string, unknown>[];
-      expect(
-        rawEntries.every((entry) => entry.metaMetricsIds === undefined),
-      ).toBe(true);
+      expect(controller.state.rawRemoteFeatureFlags?.testFlag).toStrictEqual(
+        MOCK_FLAGS_WITH_EXPLICIT_IDS.testFlag,
+      );
     });
 
-    it('does not include metaMetricsIds values in remoteFeatureFlags state when metaMetricsId is unavailable', async () => {
+    it('preserves threshold entries as-is, metaMetricsIds included, when metaMetricsId is unavailable', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
       });
-      // No metaMetricsId → threshold arrays are preserved as-is, but
-      // metaMetricsIds must still be stripped from the processed output.
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '',
@@ -1019,14 +1063,12 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      const processedEntries = controller.state.remoteFeatureFlags
-        .testFlag as Record<string, unknown>[];
-      expect(
-        processedEntries.every((entry) => entry.metaMetricsIds === undefined),
-      ).toBe(true);
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual(
+        MOCK_FLAGS_WITH_EXPLICIT_IDS.testFlag,
+      );
     });
 
-    it('does not include metaMetricsIds values in remoteFeatureFlags state when explicit match is found', async () => {
+    it('resolves to a single value carrying no metaMetricsIds when an explicit match is found', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
       });
@@ -1487,13 +1529,12 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     describe('removeFlagOverride', () => {
-      it('removes a specific override', () => {
+      it('removes a specific override, revealing the remote value beneath it', () => {
         const { controller, messenger } = createController({
           state: {
             remoteFeatureFlags: {
               remoteFlag: 'remoteValue',
-              flag1: 'value1',
-              flag2: 'value2',
+              flag1: 'remoteValue1',
             },
             localOverrides: {
               flag1: 'value1',
@@ -1512,6 +1553,7 @@ describe('RemoteFeatureFlagController', () => {
         });
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
+          flag1: 'remoteValue1',
           flag2: 'value2',
         });
       });
@@ -1548,8 +1590,6 @@ describe('RemoteFeatureFlagController', () => {
           state: {
             remoteFeatureFlags: {
               remoteFlag: 'remoteValue',
-              flag1: 'value1',
-              flag2: 'value2',
             },
             localOverrides: {
               flag1: 'value1',
@@ -1611,7 +1651,7 @@ describe('RemoteFeatureFlagController', () => {
         });
       });
 
-      it('uses persisted remoteFeatureFlags with overrides on init', () => {
+      it('uses persisted remoteFeatureFlags with overrides on init', async () => {
         const { controller } = createController({
           state: {
             remoteFeatureFlags: {
@@ -1624,13 +1664,15 @@ describe('RemoteFeatureFlagController', () => {
           },
         });
 
+        await controller.init();
+
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
           overrideFlag: 'overrideValue',
         });
       });
 
-      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', () => {
+      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', async () => {
         const { controller, messenger } = createController({
           state: {
             remoteFeatureFlags: {
@@ -1642,6 +1684,8 @@ describe('RemoteFeatureFlagController', () => {
             },
           },
         });
+
+        await controller.init();
 
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
@@ -1657,6 +1701,386 @@ describe('RemoteFeatureFlagController', () => {
           remoteFlag: 'remoteValue',
           overrideFlag: 'remoteOnlyValue',
         });
+      });
+    });
+  });
+
+  describe('defaultFeatureFlags', () => {
+    it('initializes with defaults when no remote or persisted flags exist', async () => {
+      const { controller } = createController({
+        defaultFeatureFlags: {
+          defaultFlag: 'defaultValue',
+          anotherDefault: false,
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultFlag: 'defaultValue',
+        anotherDefault: false,
+      });
+    });
+
+    it('applies precedence of override over remote over default', async () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: {
+            sharedFlag: 'remoteValue',
+            remoteOnly: true,
+          },
+          localOverrides: {
+            sharedFlag: 'overrideValue',
+          },
+        },
+        defaultFeatureFlags: {
+          sharedFlag: 'defaultValue',
+          defaultOnly: 'fromDefaults',
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'overrideValue',
+        remoteOnly: true,
+        defaultOnly: 'fromDefaults',
+      });
+    });
+
+    it('keeps defaults for flags absent from a remote fetch', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { remoteFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        defaultFeatureFlags: {
+          defaultOnly: 'fromDefaults',
+          remoteFlag: 'defaultRemote',
+        },
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        remoteFlag: 'fromServer',
+      });
+    });
+
+    it('restores default when removing an override with no remote value', () => {
+      const { controller, messenger } = createController({
+        defaultFeatureFlags: {
+          defaultFlag: 'defaultValue',
+        },
+      });
+
+      messenger.call(
+        'RemoteFeatureFlagController:setFlagOverride',
+        'defaultFlag',
+        'overrideValue',
+      );
+      messenger.call(
+        'RemoteFeatureFlagController:removeFlagOverride',
+        'defaultFlag',
+      );
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultFlag: 'defaultValue',
+      });
+      expect(controller.state.localOverrides).toStrictEqual({});
+    });
+
+    it('treats undefined localOverrides as empty when updating the cache', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { remoteFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        state: {
+          localOverrides: undefined,
+        },
+        defaultFeatureFlags: {
+          defaultOnly: 'fromDefaults',
+        },
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.localOverrides).toBeUndefined();
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        remoteFlag: 'fromServer',
+      });
+    });
+  });
+
+  describe('init', () => {
+    it('keeps an explicitly targeted user in their group across a restart', async () => {
+      const targetedFlag = [
+        {
+          name: 'qa',
+          scope: { type: 'threshold', value: 0 },
+          value: 'qaValue',
+          metaMetricsIds: [MOCK_METRICS_ID],
+        },
+        { name: 'rest', scope: { type: 'threshold', value: 1 }, value: 'rest' },
+      ];
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { targetedFlag },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      // Only explicit targeting can select the zero-threshold group.
+      expect(controller.state.remoteFeatureFlags.targetedFlag).toBe('qaValue');
+
+      const { controller: restartedController } = createController({
+        state: controller.state,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await restartedController.init();
+
+      expect(restartedController.state.remoteFeatureFlags.targetedFlag).toBe(
+        'qaValue',
+      );
+      expect(
+        restartedController.state.featureFlagThresholdGroups,
+      ).toStrictEqual({ targetedFlag: 'qa' });
+    });
+
+    it('rebuilds the remote layer so a stale override value is not mistaken for it', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { sharedFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      messenger.call(
+        'RemoteFeatureFlagController:setFlagOverride',
+        'sharedFlag',
+        'overridden',
+      );
+
+      const { controller: restartedController, messenger: restartedMessenger } =
+        createController({ state: controller.state });
+      await restartedController.init();
+
+      restartedMessenger.call(
+        'RemoteFeatureFlagController:removeFlagOverride',
+        'sharedFlag',
+      );
+
+      expect(restartedController.state.remoteFeatureFlags).toStrictEqual({
+        sharedFlag: 'fromServer',
+      });
+    });
+
+    it('re-evaluates version gating against the current client version', async () => {
+      const versionedFlag = {
+        versions: {
+          '13.0.0': { enabled: false },
+          '14.0.0': { enabled: true },
+        },
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { versionedFlag },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        clientVersion: '13.10.0',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      expect(controller.state.remoteFeatureFlags.versionedFlag).toStrictEqual({
+        enabled: false,
+      });
+
+      const { controller: upgradedController } = createController({
+        state: controller.state,
+        clientVersion: '14.0.0',
+      });
+      await upgradedController.init();
+
+      expect(
+        upgradedController.state.remoteFeatureFlags.versionedFlag,
+      ).toStrictEqual({ enabled: true });
+    });
+
+    it('keeps local overrides on top of the rebuilt layer', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { remoteFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      messenger.call(
+        'RemoteFeatureFlagController:setFlagOverride',
+        'remoteFlag',
+        'overridden',
+      );
+
+      const { controller: restartedController } = createController({
+        state: controller.state,
+        defaultFeatureFlags: { defaultOnly: 'fromDefaults' },
+      });
+      await restartedController.init();
+
+      expect(restartedController.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        remoteFlag: 'overridden',
+      });
+    });
+
+    it('carries over the previous session flags when there are no persisted raw flags', async () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { carriedOver: 'fromLastSession' },
+          rawRemoteFeatureFlags: {},
+          cacheTimestamp: 123456789,
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        carriedOver: 'fromLastSession',
+      });
+      expect(controller.state.cacheTimestamp).toBe(123456789);
+    });
+
+    it('carries over the previous session flags when raw flags are absent from persisted state', async () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { carriedOver: 'fromLastSession' },
+          rawRemoteFeatureFlags: undefined,
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        carriedOver: 'fromLastSession',
+      });
+    });
+
+    it('layers defaults and overrides onto the carried over flags when there are no raw flags', async () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: {
+            carriedOver: 'fromLastSession',
+            sharedFlag: 'fromLastSession',
+          },
+          localOverrides: { sharedFlag: 'overridden' },
+          rawRemoteFeatureFlags: {},
+        },
+        defaultFeatureFlags: {
+          defaultOnly: 'fromDefaults',
+          carriedOver: 'fromDefaults',
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        carriedOver: 'fromLastSession',
+        sharedFlag: 'overridden',
+      });
+    });
+
+    it('applies defaults and overrides on a fresh install with no persisted flags', async () => {
+      const { controller } = createController({
+        state: { localOverrides: { sharedFlag: 'overridden' } },
+        defaultFeatureFlags: {
+          defaultOnly: 'fromDefaults',
+          sharedFlag: 'fromDefaults',
+        },
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        defaultOnly: 'fromDefaults',
+        sharedFlag: 'overridden',
+      });
+    });
+
+    it('leaves the merge to init rather than the constructor', () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { remoteFlag: 'fromLastSession' },
+          localOverrides: { overrideFlag: 'overridden' },
+        },
+        defaultFeatureFlags: { defaultOnly: 'fromDefaults' },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'fromLastSession',
+      });
+    });
+
+    it('does not fetch, and leaves raw flags and the cache timestamp untouched', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { remoteFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      const { cacheTimestamp, rawRemoteFeatureFlags } = controller.state;
+      jest.mocked(clientConfigApiService.fetchRemoteFeatureFlags).mockClear();
+
+      await controller.init();
+
+      expect(
+        clientConfigApiService.fetchRemoteFeatureFlags,
+      ).not.toHaveBeenCalled();
+      expect(controller.state.cacheTimestamp).toBe(cacheTimestamp);
+      expect(controller.state.rawRemoteFeatureFlags).toStrictEqual(
+        rawRemoteFeatureFlags,
+      );
+    });
+
+    it('is safe to call more than once', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: { remoteFlag: 'fromServer' },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      await controller.init();
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({
+        remoteFlag: 'fromServer',
       });
     });
   });
@@ -2174,6 +2598,43 @@ describe('RemoteFeatureFlagController', () => {
         }
       `);
     });
+
+    it.each(['includeInStateLogs', 'includeInDebugSnapshot'] as const)(
+      'sends raw flags including metaMetricsIds to %s',
+      async (metadataProperty) => {
+        const rawFlags = {
+          testFlag: [
+            {
+              name: 'qaGroup',
+              scope: { type: 'threshold', value: 0.0 },
+              value: 'qa-value',
+              metaMetricsIds: [MOCK_METRICS_ID],
+            },
+          ],
+        };
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: rawFlags,
+        });
+        const { controller, messenger } = createController({
+          clientConfigApiService,
+          getMetaMetricsId: () => MOCK_METRICS_ID,
+        });
+
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+
+        // These IDs identify QA and PM testers rather than the reporting user,
+        // and are broadcast to every client, so they are deliberately not
+        // redacted on the way out.
+        const derived = deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          metadataProperty,
+        );
+        expect(derived.rawRemoteFeatureFlags).toStrictEqual(rawFlags);
+      },
+    );
   });
 });
 

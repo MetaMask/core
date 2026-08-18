@@ -178,6 +178,7 @@ export const getQuotesReceivedProperties = (
     usd_quoted_gas: Number(activeQuote?.quote?.feeData?.network?.[0]?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.quote?.dest?.usd ?? 0),
     usd_balance_source: usdBalanceSource ?? 0,
+    usd_amount_source: Number(activeQuote?.quote?.src?.usd ?? 0),
     best_quote_provider: recommendedQuote
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,

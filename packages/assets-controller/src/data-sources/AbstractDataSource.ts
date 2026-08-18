@@ -26,6 +26,12 @@ export type SubscriptionRequest = {
    * Provided by the controller when subscribing.
    */
   getAssetsState?: () => AssetsControllerStateInternal;
+  /**
+   * When true, skip the one-shot fetch that normally runs when a subscription
+   * is created. Used after the controller has already force-fetched balances
+   * for the same accounts/chains so we do not immediately hit the API again.
+   */
+  skipInitialFetch?: boolean;
 };
 
 /**

@@ -2067,7 +2067,7 @@ describe('Feature Flags Utils', () => {
       );
     });
 
-    it('returns flag value when stable-tokens is a valid object', () => {
+    it('returns flag value when stableTokens is a valid object', () => {
       const flagValue = {
         '0x1': ['0xaaa', '0xbbb'],
         '0xa4b1': ['0xccc'],
@@ -2076,7 +2076,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          'stable-tokens': flagValue,
+          stableTokens: flagValue,
         },
       });
 
@@ -2087,7 +2087,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          'stable-tokens': {
+          stableTokens: {
             '0xA4B1': ['0xAf88d065e77c8cC2239327C5EDb3A432268e5831'],
           },
         },
@@ -2103,7 +2103,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          'stable-tokens': {
+          stableTokens: {
             '0x1': ['0xaaa'],
             '0xa4b1': 'not-an-array',
           },
@@ -2118,7 +2118,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          'stable-tokens': ['not', 'an', 'object'],
+          stableTokens: ['not', 'an', 'object'],
         },
       });
 
@@ -2130,7 +2130,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          'stable-tokens': true,
+          stableTokens: true,
         },
       });
 

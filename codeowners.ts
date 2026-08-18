@@ -98,6 +98,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-controller',
+  },
+  'claims-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-service',
   },
   'client-controller': {
     teams: [
@@ -142,9 +147,6 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'eip1193-permission-middleware': {
     teams: ['@MetaMask/core-platform'],
-  },
-  'ens-controller': {
-    teams: ['@MetaMask/confirmations'],
   },
   'eth-block-tracker': {
     teams: ['@MetaMask/core-platform'],
@@ -314,8 +316,13 @@ const PACKAGES: Record<string, PackageInfo> = {
   'sentinel-api-service': {
     teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
   },
+  'shield-api-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-api-service',
+  },
   'shield-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'shield-controller',
   },
   'signature-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -353,6 +360,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'subscription-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-controller',
+  },
+  'subscription-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'subscription-service',
   },
   'transaction-controller': {
     teams: ['@MetaMask/confirmations'],
@@ -435,7 +447,6 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [
         buildRuleForPackage('address-book-controller'),
         buildRuleForPackage('approval-controller'),
-        buildRuleForPackage('ens-controller'),
         buildRuleForPackage('gas-fee-controller'),
         buildRuleForPackage('logging-controller'),
         buildRuleForPackage('message-manager'),
@@ -656,7 +667,6 @@ function buildPackageReleaseSection(): CodeownersSection {
     'earn-controller',
     'money-account-balance-service',
     'money-account-api-data-service',
-    'ens-controller',
     'gas-fee-controller',
     'gator-permissions-controller',
     'geolocation-controller',

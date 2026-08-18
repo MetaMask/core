@@ -4388,6 +4388,7 @@ export class TransactionController extends BaseController<
         {
           transactionId: transactionMeta.id,
           skipValidation: true,
+          skipResimulateCheck: true,
         },
         (draftTransactionMeta) => {
           draftTransactionMeta.status = TransactionStatus.failed;

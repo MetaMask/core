@@ -30,22 +30,6 @@ export function createSnapPublicKeyRequest(
 }
 
 /**
- * Constructs Request to Message Signing Snap to get [EntropySourceId, PublicKey][]
- *
- * @returns Snap getAllPublicKeys Request
- */
-export function createSnapAllPublicKeysRequest(): SnapRPCRequest {
-  return {
-    snapId,
-    origin: 'metamask',
-    handler: 'onRpcRequest' as any,
-    request: {
-      method: 'getAllPublicKeys',
-    },
-  };
-}
-
-/**
  * Constructs Request to get Message Signing Snap to sign a message.
  *
  * @param message - message to sign

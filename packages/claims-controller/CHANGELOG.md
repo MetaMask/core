@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
+
+## [0.6.0]
+
+### Added
+
+- Export `ClaimsControllerOptions` and `ClaimsServiceConfig` types ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService-method-action-types.ts` with generated method action types for `ClaimsService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `ClaimsService:invalidateQueries` action and `ClaimsService:cacheUpdated` events via `BaseDataService` ([#9588](https://github.com/MetaMask/core/pull/9588))
+- Add `@metamask/base-data-service` `^0.1.3`, `@metamask/superstruct` `^3.1.0`, and `@tanstack/query-core` `^4.43.0` as dependencies ([#9588](https://github.com/MetaMask/core/pull/9588))
+
+### Changed
+
+- Migrate `ClaimsService` to `BaseDataService` with TanStack Query caching, circuit-breaker policy support, and response validation ([#9588](https://github.com/MetaMask/core/pull/9588))
+- `ClaimsServiceConfig.fetchFunction` is optional and defaults to `globalThis.fetch` ([#9588](https://github.com/MetaMask/core/pull/9588))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [0.5.4]
@@ -151,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.0...HEAD
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.4...@metamask/claims-controller@0.6.0
 [0.5.4]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.3...@metamask/claims-controller@0.5.4
 [0.5.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.2...@metamask/claims-controller@0.5.3
 [0.5.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.1...@metamask/claims-controller@0.5.2

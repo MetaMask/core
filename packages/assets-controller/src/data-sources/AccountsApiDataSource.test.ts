@@ -525,7 +525,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('uses a short-lived TanStack cache window when forceUpdate is true', async () => {
+  it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
     const { controller, apiClient } = await setupController();
 
     await controller.fetch(createDataRequest({ forceUpdate: true }));
@@ -533,7 +533,7 @@ describe('AccountsApiDataSource', () => {
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
-      { staleTime: 100, gcTime: 100 },
+      { staleTime: 0, gcTime: 0 },
     );
 
     controller.destroy();
@@ -561,6 +561,33 @@ describe('AccountsApiDataSource', () => {
       response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
         ?.amount,
     ).toBe('1000000000000000000');
+
+    controller.destroy();
+  });
+
+  it('excludes staking contract asset IDs from v5 balance response', async () => {
+    const stakingAssetId =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+    const balances = [
+      createMockBalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        'eip155:1/slip44:60',
+        '1000000000000000000',
+      ),
+      createMockBalanceItem(`eip155:1:${MOCK_ADDRESS}`, stakingAssetId, '0'),
+    ];
+
+    const { controller } = await setupController({ balances });
+
+    const response = await controller.fetch(createDataRequest());
+    const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+    expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+    expect(
+      Object.keys(accountBalances).some((id) =>
+        id.toLowerCase().includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+      ),
+    ).toBe(false);
 
     controller.destroy();
   });
@@ -755,6 +782,40 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
+    it('excludes staking contract asset IDs from v6 balance response', async () => {
+      const stakingAssetId =
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        v6Accounts: [
+          {
+            accountId: `eip155:1:${MOCK_ADDRESS}`,
+            balances: [
+              createMockV6BalanceItem(
+                'eip155:1/slip44:60',
+                '1000000000000000000',
+              ),
+              createMockV6BalanceItem(stakingAssetId, '0'),
+            ],
+          },
+        ],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+      const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+      expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+      expect(
+        Object.keys(accountBalances).some((id) =>
+          id
+            .toLowerCase()
+            .includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+        ),
+      ).toBe(false);
+
+      controller.destroy();
+    });
+
     it('marks v6 unprocessed networks as errors', async () => {
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
@@ -886,6 +947,34 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware skips Accounts API when balance is not requested', async () => {
+    const { controller, apiClient } = await setupController({
+      balances: [
+        createMockBalanceItem(
+          `eip155:1:${MOCK_ADDRESS}`,
+          'eip155:1/slip44:60',
+          '1',
+        ),
+      ],
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['price'] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
   it('middleware removes handled chains from next request', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
@@ -918,6 +1007,28 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
+    const { controller, assetsUpdateHandler, apiClient } =
+      await setupController();
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+      skipInitialFetch: true,
+    });
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
 
     controller.destroy();
   });

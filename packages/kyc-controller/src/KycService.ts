@@ -136,7 +136,7 @@ export type KycServiceOptions = {
   fractalEncryptionBaseUrl?: string;
   /**
    * Shared configuration applied to all queries exposed by the service (e.g. a
-   * default `staleTime`/`cacheTime`). Each data service gets its own
+   * default `staleTime`/`gcTime`). Each data service gets its own
    * `QueryClient`.
    */
   queryClientConfig?: QueryClientConfig;
@@ -316,7 +316,7 @@ export type GetSessionStatusParams = {
  * breaker) and its result is exposed via the service's `QueryClient`. Read-only
  * endpoints (`fetchDisclaimers`, `fetchJwks`) are cached with a `staleTime`;
  * the session-creating and status-polling endpoints opt out of caching
- * (`staleTime`/`cacheTime` of `0`) so they never serve a stale result.
+ * (`staleTime`/`gcTime` of `0`) so they never serve a stale result.
  */
 export class KycService extends BaseDataService<
   typeof serviceName,
@@ -452,7 +452,7 @@ export class KycService extends BaseDataService<
         }),
       // A session-creating mutation must never serve a stale/cached result.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -491,7 +491,7 @@ export class KycService extends BaseDataService<
         }),
       // The requirement can change server-side, so always re-check.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     const { required } = this.#validateResponse(
       data,
@@ -523,7 +523,7 @@ export class KycService extends BaseDataService<
         }),
       // Customer creation/resume must never serve a stale/cached result.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -573,7 +573,7 @@ export class KycService extends BaseDataService<
         this.#requestJson(url, { method: 'POST', body: '{}' }),
       // The requirement can change server-side, so always re-check.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     const { required } = this.#validateResponse(
       data,
@@ -610,7 +610,7 @@ export class KycService extends BaseDataService<
           }),
         }),
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
   }
 
@@ -627,7 +627,7 @@ export class KycService extends BaseDataService<
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       // Status is polled for toast flips, so it must always be fresh.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -665,7 +665,7 @@ export class KycService extends BaseDataService<
         }),
       // A per-session key exchange must always run fresh.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -733,7 +733,7 @@ export class KycService extends BaseDataService<
         }),
       // A session-creating mutation must never serve a stale/cached result.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -761,7 +761,7 @@ export class KycService extends BaseDataService<
       queryFn: async () => this.#requestJson(url, { method: 'POST' }),
       // Journeys are (re)created on demand; do not reuse a cached token.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -790,7 +790,7 @@ export class KycService extends BaseDataService<
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       // Status is polled for a terminal decision, so it must always be fresh.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
