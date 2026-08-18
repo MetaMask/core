@@ -277,11 +277,25 @@ export async function exportState(
 ): Promise<AccountTreeSnapshot> {
   const state = context.getState();
 
-  const includeSecrets = options.includeSecrets ?? false;
   const { isUnlocked } = context.messenger.call('KeyringController:getState');
   if (!isUnlocked) {
     throw new Error('Cannot export account tree when vault is locked');
   }
+
+  // Use `options` here to let the compiler infer the type of `includeSecrets` based on the
+  // discriminated union.
+  if (options.includeSecrets) {
+    // We verify the password here to force consumers to have it in their flow
+    // before calling exportState. The password is never stored, so the only
+    // way to supply it is to ask the user, ensuring they are prompted upstream
+    // rather than having the export silently succeed without their interaction.
+    await context.messenger.call(
+      'KeyringController:verifyPassword',
+      options.password,
+    );
+  }
+
+  const includeSecrets = options.includeSecrets ?? false;
 
   const idMap = new IdMap();
   const entries: AccountTreeWalletEntry[] = [];

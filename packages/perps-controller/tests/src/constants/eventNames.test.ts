@@ -5,6 +5,12 @@ import {
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  describe('PREVIOUS_LEVERAGE', () => {
+    it('exports PREVIOUS_LEVERAGE as previous_leverage', () => {
+      expect(PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE).toBe('previous_leverage');
+    });
+  });
+
   describe('advanced chart analytics property keys', () => {
     it('exports CHART_LIBRARY key', () => {
       expect(PERPS_EVENT_PROPERTY.CHART_LIBRARY).toBe('chart_library');
