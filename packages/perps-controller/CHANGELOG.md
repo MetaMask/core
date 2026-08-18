@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the optional `PerpsPerformance.onControllerConstructed` hook and optional trace ID parameter to `PerpsTracer.setMeasurement`, allowing clients to correlate controller construction and preload measurements with the intended trace ([#9906](https://github.com/MetaMask/core/pull/9906))
 - Add `PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE` (`previous_leverage`) for Perp UI Interaction `leverage_changed` events so clients can import the Segment property key from `@metamask/perps-controller` instead of a local interim constant ([#9881](https://github.com/MetaMask/core/pull/9881))
+
+### Changed
+
+- Target market and user preload measurements to their named traces, and omit wallet addresses from user-preload trace data ([#9906](https://github.com/MetaMask/core/pull/9906))
 
 ## [12.0.0]
 
