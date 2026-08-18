@@ -991,10 +991,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
           ...(!isBatchSellRequest && {
             request_id: quoteTraceRequestId,
-            swap_type: getSwapType(
-              firstQuoteRequest.srcChainId,
-              firstQuoteRequest.destChainId,
-            ),
             feature_id: context.feature_id,
             result: traceResult,
           }),

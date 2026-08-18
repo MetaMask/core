@@ -329,7 +329,6 @@ describe('BridgeController SSE', function () {
       ).toStrictEqual(
         expect.objectContaining({
           request_id: 'test-uuid-1234',
-          swap_type: 'crosschain',
           feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           result: 'success',
         }),
@@ -353,7 +352,6 @@ describe('BridgeController SSE', function () {
         },
         traceName: TraceName.SwapQuotesFetched,
         result: 'success',
-        swapType: 'single_chain',
         providerCount: 1,
       },
       {
@@ -362,7 +360,6 @@ describe('BridgeController SSE', function () {
         request: quoteRequest,
         traceName: TraceName.BridgeQuotesFetched,
         result: 'no_quotes',
-        swapType: 'crosschain',
         providerCount: 0,
       },
       {
@@ -371,7 +368,6 @@ describe('BridgeController SSE', function () {
         request: quoteRequest,
         traceName: TraceName.BridgeQuotesFetched,
         result: 'error',
-        swapType: 'crosschain',
         providerCount: 0,
       },
     ])('records $name', async (scenario) => {
@@ -380,7 +376,6 @@ describe('BridgeController SSE', function () {
       expect(getTrace(requests, scenario.traceName)?.data).toStrictEqual(
         expect.objectContaining({
           result: scenario.result,
-          swap_type: scenario.swapType,
         }),
       );
       expect(
