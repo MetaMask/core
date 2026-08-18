@@ -133,6 +133,7 @@ import type {
   LighterWebSocketCtor,
   LighterWebSocketLike,
   LighterWsAccountMessage,
+  LighterCandle,
   LighterWsCandleMessage,
   LighterWsOrderBookMessage,
   LighterWsTradesMessage,
@@ -220,6 +221,37 @@ const snapToLighterSizeGrid = (
   } catch {
     return size;
   }
+};
+
+/**
+ * Map one venue candle onto the CandleStick contract, or null when any
+ * field is non-finite. WS/REST candle payloads are cast at the boundary,
+ * not validated — a malformed candle stringified blind reaches the chart
+ * as "undefined"/NaN, the same native-SVG crash class the bare
+ * order-book levels produced.
+ *
+ * @param candle - Raw venue candle.
+ * @returns The contract candle, or null when unmappable.
+ */
+const toFiniteCandle = (candle: LighterCandle): CandleStick | null => {
+  const time = Number(candle?.t);
+  const fields = [candle?.o, candle?.h, candle?.l, candle?.c, candle?.v].map(
+    Number,
+  );
+  if (
+    !Number.isFinite(time) ||
+    fields.some((value) => !Number.isFinite(value))
+  ) {
+    return null;
+  }
+  return {
+    time,
+    open: String(candle.o),
+    high: String(candle.h),
+    low: String(candle.l),
+    close: String(candle.c),
+    volume: String(candle.v),
+  };
 };
 
 /** The pinned signer casts price fields to uint32. */
@@ -7405,7 +7437,16 @@ export class LighterProvider implements PerpsProvider {
     }
     for (const side of ['bids', 'asks'] as const) {
       for (const level of message.orderBook[side] ?? []) {
-        if (parseFloat(level.size) === 0) {
+        // Boundary guard: the payload is cast, not validated — a level
+        // with a malformed price or size would flow into the
+        // cumulative-total math below as NaN and reach the depth chart
+        // as an invalid SVG coordinate.
+        const price = parseFloat(level?.price);
+        const size = parseFloat(level?.size);
+        if (!Number.isFinite(price) || !Number.isFinite(size)) {
+          continue;
+        }
+        if (size === 0) {
           state[side].delete(level.price);
         } else {
           state[side].set(level.price, level.size);
@@ -7491,14 +7532,10 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     for (const candle of message.candles ?? []) {
-      series.set(candle.t, {
-        time: candle.t,
-        open: String(candle.o),
-        high: String(candle.h),
-        low: String(candle.l),
-        close: String(candle.c),
-        volume: String(candle.v),
-      });
+      const mapped = toFiniteCandle(candle);
+      if (mapped) {
+        series.set(mapped.time, mapped);
+      }
     }
     const candles = [...series.values()].sort((a, b) => a.time - b.time);
     for (const subscriber of subscribers) {
@@ -7806,14 +7843,10 @@ export class LighterProvider implements PerpsProvider {
       return {
         symbol: options.symbol,
         interval: options.interval,
-        candles: (response.c ?? []).map((candle) => ({
-          time: candle.t,
-          open: String(candle.o),
-          high: String(candle.h),
-          low: String(candle.l),
-          close: String(candle.c),
-          volume: String(candle.v),
-        })),
+        candles: (response.c ?? []).flatMap((candle) => {
+          const mapped = toFiniteCandle(candle);
+          return mapped ? [mapped] : [];
+        }),
       };
     } catch (error) {
       this.#deps.debugLogger.log(
