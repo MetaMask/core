@@ -432,7 +432,11 @@ describe('TerminalMarketService', () => {
         statusText: 'OK',
         json: () =>
           Promise.resolve([
-            { symbol: 'xyz:CBRS', name: 'Cerebras Systems', category: 'stocks' },
+            {
+              symbol: 'xyz:CBRS',
+              name: 'Cerebras Systems',
+              category: 'stocks',
+            },
           ]),
       } as Response);
 
