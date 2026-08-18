@@ -122,7 +122,12 @@ export type KycServiceMessenger = Messenger<
  */
 export type KycServiceOptions = {
   messenger: KycServiceMessenger;
-  fetch: typeof fetch;
+  /**
+   * A function used to make HTTP requests. Defaults to the runtime's native
+   * `fetch`, so consumers do not need to inject one on platforms where `fetch`
+   * is available globally (browser, React Native, Node 18+).
+   */
+  fetch?: typeof fetch;
   /**
    * Mandatory value that sets the base url to KYC api
    */
@@ -308,8 +313,9 @@ export type GetSessionStatusParams = {
 /**
  * `KycService` communicates with the Universal KYC (UKYC) backend to drive the
  * identity + document-verification flow. It is stateless and platform-agnostic:
- * HTTP is performed through an injected `fetch`, and the auth bearer token and
- * geolocation come from other controllers via the messenger.
+ * HTTP is performed through the runtime's native `fetch` (or an injected
+ * `fetch` when provided), and the auth bearer token and geolocation come from
+ * other controllers via the messenger.
  *
  * It extends {@link BaseDataService}, so every request is routed through
  * `fetchQuery`: it is wrapped in the shared service policy (retries, circuit
@@ -333,7 +339,8 @@ export class KycService extends BaseDataService<
    *
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this service.
-   * @param options.fetch - A function used to make HTTP requests.
+   * @param options.fetch - A function used to make HTTP requests. Defaults to
+   * the runtime's native `fetch`.
    * @param options.baseUrl - Base URL of the KYC API
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
    * encryption service, from which the JWKS used to verify the wrapping-key
@@ -356,7 +363,10 @@ export class KycService extends BaseDataService<
       queryClientConfig,
       policyOptions,
     });
-    this.#fetch = fetchFunction;
+    // Fall back to the runtime's native `fetch`, bound to `globalThis` so it
+    // can be invoked as a method of this instance without an illegal-invocation
+    // error on platforms that check the receiver.
+    this.#fetch = fetchFunction ?? globalThis.fetch.bind(globalThis);
     if (!baseUrl) {
       throw new Error('KycService: baseUrl is required');
     }

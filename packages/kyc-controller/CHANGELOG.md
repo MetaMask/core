@@ -14,12 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the `@metamask/kyc-controller` package for managing KYC / identity verification state across MetaMask clients ([#9781](https://github.com/MetaMask/core/pull/9781))
 - Add `KycController` and `KycService` for managing KYC / identity verification state across MetaMask clients ([#9615](https://github.com/MetaMask/core/pull/9615), [#9712](https://github.com/MetaMask/core/pull/9712))
   - `KycController` (`BaseController`) owns the flow state machine, the Check/Auth frame message protocol, X25519 credential decryption, and SumSub orchestration via an injected `KycSumSubLauncher` adapter.
-  - `KycService` extends `BaseDataService` and performs the Universal KYC (UKYC) HTTP calls via an injected `fetch`, sourcing the auth bearer token and geolocation through the messenger.
+  - `KycService` extends `BaseDataService` and performs the Universal KYC (UKYC) HTTP calls via the runtime's native `fetch` (an alternative `fetch` may still be injected), sourcing the auth bearer token and geolocation through the messenger.
   - Exposes a vendor-neutral, per-product surface (`ramps`, `card`) plus reselect selectors.
   - Add automatic post-authentication continuation to `KycController`
   - Add optional `baseUrl` option to `KycService` constructor that overrides the base URL derived from `env`, enabling clients to target a custom (e.g. local or staging) KYC API
   - Add UKYC session-status polling to `KycController`
   - Add handling in `KycController.startSumSub` for applicants already being processed by the vendor
+
+### Changed
+
+- Make the `fetch` option on the `KycService` constructor optional; it now defaults to the runtime's native `fetch` (browser, React Native, Node 18+), so consumers no longer need to inject one.
 
 ### Fixed
 

@@ -507,7 +507,7 @@ graph TB
         direction TB
         subgraph engine["Engine wiring"]
             CInit["kyc-controller-init.ts<br/>new KycController({ messenger, state, sumsubLauncher })"]
-            SInit["kyc-service-init.ts<br/>new KycService({ fetch, env, messenger, baseUrl })"]
+            SInit["kyc-service-init.ts<br/>new KycService({ env, messenger, baseUrl })"]
             CMsgr["kyc-controller-messenger.ts<br/>delegates KycService:*"]
             SMsgr["kyc-service-messenger.ts<br/>delegates Auth + Geolocation"]
             Launcher["reactNativeSumSubLauncher.ts<br/>lazy-loads @sumsub/react-native-mobilesdk-module"]
@@ -549,8 +549,9 @@ graph TB
 
 - **`kyc-controller-init.ts`** constructs `KycController` with the persisted
   state slice and injects `reactNativeSumSubLauncher`.
-- **`kyc-service-init.ts`** constructs `KycService` with the global `fetch`, an
-  `env` derived from `isProduction()`, and (currently) a dev `baseUrl` override.
+- **`kyc-service-init.ts`** constructs `KycService` with an `env` derived from
+  `isProduction()` and (currently) a dev `baseUrl` override. It does not inject
+  a `fetch`; `KycService` defaults to the runtime's native `fetch`.
 - **`kyc-controller-messenger.ts`** delegates the six `KycService:*` actions to
   the controller's messenger.
 - **`kyc-service-messenger.ts`** delegates

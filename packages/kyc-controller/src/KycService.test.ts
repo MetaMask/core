@@ -23,6 +23,23 @@ describe('KycService', () => {
     cleanAll();
   });
 
+  describe('constructor', () => {
+    it('falls back to the native fetch when no fetch is injected', async () => {
+      const disclaimers = [
+        { id: '1', display_name: 'Terms', url: 'https://t' },
+      ];
+      nock(MOCK_API_URL)
+        .get('/vendors/moonpay/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, disclaimers);
+      const { service } = getService({ omitFetch: true });
+
+      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
+        disclaimers,
+      );
+    });
+  });
+
   describe('getGeoCountry', () => {
     it('maps the geolocation to an ISO alpha-3 country code', async () => {
       const { service } = getService({ geolocation: 'US-NY' });
@@ -753,6 +770,8 @@ type RootMessenger = Messenger<
  * @param args.baseUrl - Base URL of the KYC API.
  * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
  * option so the service falls back to an empty string.
+ * @param args.omitFetch - When true, omit the `fetch` option so the service
+ * falls back to the runtime's native `fetch`.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -763,12 +782,16 @@ function getService({
   // `null` means "omit the option entirely" (exercises the constructor's
   // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
+  // When true, omit the `fetch` option so the service falls back to the
+  // runtime's native `fetch` (which nock intercepts).
+  omitFetch = false,
 }: {
   bearerToken?: string;
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
   fractalEncryptionBaseUrl?: string | null;
+  omitFetch?: boolean;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -799,7 +822,7 @@ function getService({
   );
 
   const service = new KycService({
-    fetch,
+    ...(omitFetch ? {} : { fetch }),
     messenger,
     baseUrl,
     ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
