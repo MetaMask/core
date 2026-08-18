@@ -1937,6 +1937,11 @@ export type PerpsStreamManager = {
  */
 export type PerpsPerformance = {
   now(): number;
+  /**
+   * Optional platform hook invoked once after constructor disk hydration.
+   * Receives `performance.now()` — not a Sentry write.
+   */
+  onControllerConstructed?(monotonicMs: number): void;
 };
 
 /**
@@ -1961,7 +1966,7 @@ export type PerpsTracer = {
     data?: Record<string, PerpsTraceValue>;
   }): void;
 
-  setMeasurement(name: string, value: number, unit: string): void;
+  setMeasurement(name: string, value: number, unit: string, id?: string): void;
 
   addBreadcrumb(breadcrumb: {
     category: string;
