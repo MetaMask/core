@@ -8894,6 +8894,15 @@ describe('LighterProvider', () => {
       const { provider } = buildProvider();
       expect(provider.getDepositRoutes()).toStrictEqual([]);
       expect(provider.getWithdrawalRoutes()).toStrictEqual([]);
+      // The isTestnet OVERRIDE is honored (route contract): a testnet
+      // provider asked for mainnet routes returns the Ethereum L1 bridge
+      // — DepositService uses this to scaffold the deposit-and-trade
+      // transaction on a chain the wallet can reach.
+      const [scaffoldRoute] = provider.getDepositRoutes({ isTestnet: false });
+      expect(scaffoldRoute.chainId).toBe('eip155:1');
+      expect(scaffoldRoute.contractAddress).toBe(
+        '0x3B4D794a66304F130a4Db8F2551B0070dfCf5ca7',
+      );
 
       const { provider: mainnetProvider } = buildProvider({
         isTestnet: false,
@@ -9490,6 +9499,19 @@ describe('LighterProvider', () => {
       );
     });
   });
+  describe('per-market minimums (dynamic, venue-derived)', () => {
+    it('getMarkets reports the BINDING USD minimum: max(quote minimum, base minimum x last price), rounded up to cents', async () => {
+      const { provider } = buildProvider();
+      const markets = await provider.getMarkets();
+      const btc = markets.find((market) => market.name === 'BTC');
+      // Mock market: minBaseAmount x lastTradePrice(100000) vs minQuoteAmount —
+      // whichever binds must be reported, never the raw quote minimum alone.
+      // minBase 0.0002 x lastTradePrice 100000 = $20 > minQuote $10.
+      expect(btc?.minimumOrderSize).toBe(20);
+      expect(btc?.maxLeverage).toBe(50); // 10000 / minInitialMarginFraction(200)
+    });
+  });
+
   describe('close-size contract (mobile sheet parity)', () => {
     it('a FULL close sent as an EMPTY size string closes the position (mobile sends size: "" for 100% closes)', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
