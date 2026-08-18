@@ -40,7 +40,12 @@ fi
 UPSTREAM_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD)"
 
 echo "Building main.wasm from source (commit $UPSTREAM_COMMIT)..."
-(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o main.wasm)
+# DETERMINISTIC build: GOTOOLCHAIN pins the compiler, -trimpath strips
+# host paths — two clean builds of the same commit produce the same
+# sha256 anywhere. (Upstream's committed blob is NOT reproducible: it
+# was built without -trimpath and embeds the author's laptop paths, so
+# the upstream compare below stays informational by nature.)
+(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm GOTOOLCHAIN=go1.26.0 go build -trimpath -ldflags="-s -w" -o main.wasm)
 
 # Upstream's committed blob, for the informational hash-compare.
 UPSTREAM_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
@@ -51,8 +56,12 @@ if git -C "$REPO_DIR" cat-file -e "HEAD:web-wasm/main.wasm" 2>/dev/null; then
   git -C "$REPO_DIR" show "HEAD:web-wasm/main.wasm" > "$OUT_DIR/upstream-main.wasm"
   COMMITTED_SHA="$(shasum -a 256 "$OUT_DIR/upstream-main.wasm" | awk '{print $1}')"
 fi
-# Re-run the build so the artifact we ship is unambiguously source-built.
-(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o main.wasm)
+# Re-run the build so the artifact we ship is unambiguously source-built,
+# and prove SELF-reproducibility: a forced full recompile must produce
+# the identical hash.
+(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm GOTOOLCHAIN=go1.26.0 go build -trimpath -ldflags="-s -w" -o main.wasm)
+FIRST_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
+(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm GOTOOLCHAIN=go1.26.0 go build -a -trimpath -ldflags="-s -w" -o main.wasm)
 BUILT_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
 cp "$REPO_DIR/web-wasm/main.wasm" "$OUT_DIR/main.wasm"
 
@@ -70,6 +79,10 @@ fi
 SIZE_BYTES="$(wc -c < "$OUT_DIR/main.wasm" | tr -d ' ')"
 MATCH="false"
 [ -n "$COMMITTED_SHA" ] && [ "$BUILT_SHA" = "$COMMITTED_SHA" ] && MATCH="true"
+if [ "$BUILT_SHA" != "$FIRST_SHA" ]; then
+  echo "FAIL: build is not self-reproducible ($FIRST_SHA vs $BUILT_SHA)" >&2
+  exit 1
+fi
 
 cat > "$OUT_DIR/manifest.json" <<EOF
 {
@@ -80,6 +93,9 @@ cat > "$OUT_DIR/manifest.json" <<EOF
   "builtSha256": "$BUILT_SHA",
   "upstreamCommittedSha256": "$COMMITTED_SHA",
   "reproducibleMatch": $MATCH,
+  "selfReproducible": true,
+  "toolchain": "go1.26.0 (GOTOOLCHAIN-pinned) + -trimpath",
+  "upstreamBlobNote": "upstream committed blob built without -trimpath; embeds author-machine paths, byte-match impossible by construction",
   "sizeBytes": $SIZE_BYTES
 }
 EOF
