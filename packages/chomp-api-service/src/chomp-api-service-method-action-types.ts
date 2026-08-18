@@ -29,7 +29,7 @@ export type ChompApiServiceAssociateAddressAction = {
  *
  * The result is scoped to the authenticated profile and consumers use it to
  * decide whether an association already exists, so it is always fetched
- * fresh (`staleTime: 0`, `cacheTime: 0`) and the query key is scoped to the
+ * fresh (`staleTime: 0`, `gcTime: 0`) and the query key is scoped to the
  * profile via a digest of the bearer token — concurrent calls only share a
  * request when they are for the same profile.
  *

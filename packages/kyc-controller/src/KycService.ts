@@ -385,7 +385,7 @@ export class KycService extends BaseDataService<
         }),
       // A session-creating mutation must never serve a stale/cached result.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -424,7 +424,7 @@ export class KycService extends BaseDataService<
         }),
       // The requirement can change server-side, so always re-check.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     const { required } = this.#validateResponse(
       data,
@@ -463,7 +463,7 @@ export class KycService extends BaseDataService<
         }),
       // A per-session key exchange must always run fresh.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -531,7 +531,7 @@ export class KycService extends BaseDataService<
         }),
       // A session-creating mutation must never serve a stale/cached result.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -559,7 +559,7 @@ export class KycService extends BaseDataService<
       queryFn: async () => this.#requestJson(url, { method: 'POST' }),
       // Journeys are (re)created on demand; do not reuse a cached token.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,
@@ -588,7 +588,7 @@ export class KycService extends BaseDataService<
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       // Status is polled for a terminal decision, so it must always be fresh.
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
     return this.#validateResponse(
       data,

@@ -234,7 +234,7 @@ describe('ChompApiService', () => {
       const publishSpy = jest.spyOn(messenger, 'publish');
 
       await service.getAssociatedAddresses();
-      // Eviction (`cacheTime: 0`) is scheduled on a macrotask; let it run.
+      // Eviction (`gcTime: 0`) is scheduled on a macrotask; let it run.
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(publishSpy).toHaveBeenCalledWith(
