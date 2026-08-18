@@ -200,7 +200,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
-   * @param options.getCanonicalProfileId - Returns the canonical profile identifier used for threshold flags by default.
+   * @param options.getCanonicalProfileId - Returns the canonical profile identifier used for threshold flags by default. Must return an empty string, rather than throwing, when the identifier is unavailable.
    * @param options.metaMetricsFlags - Map of feature flag names that should use MetaMetrics ID for threshold assignment.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
@@ -213,7 +213,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
-    getCanonicalProfileId = (): string => '',
+    getCanonicalProfileId,
     metaMetricsFlags = {},
     clientVersion,
     prevClientVersion,
@@ -223,7 +223,7 @@ export class RemoteFeatureFlagController extends BaseController<
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
-    getCanonicalProfileId?: () => string;
+    getCanonicalProfileId: () => string;
     metaMetricsFlags?: Record<string, boolean>;
     fetchInterval?: number;
     disabled?: boolean;

@@ -117,35 +117,6 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('defaults getCanonicalProfileId to an empty string when omitted', async () => {
-      const mockFlags = {
-        canonicalThresholdFlag: [
-          {
-            name: 'groupA',
-            scope: { type: 'threshold', value: 1.0 },
-            value: 'canonicalA',
-          },
-        ],
-      };
-      const { rootMessenger, controllerMessenger } = buildMessenger();
-      const controller = new RemoteFeatureFlagController({
-        messenger: controllerMessenger,
-        clientConfigApiService: buildClientConfigApiService({
-          remoteFeatureFlags: mockFlags,
-        }),
-        getMetaMetricsId: (): string => MOCK_METRICS_ID,
-        clientVersion: MOCK_BASE_VERSION,
-      });
-
-      await rootMessenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-
-      expect(
-        controller.state.remoteFeatureFlags.canonicalThresholdFlag,
-      ).toStrictEqual(mockFlags.canonicalThresholdFlag);
-    });
-
     it('initializes with default state if the disabled parameter is provided', () => {
       const { controller } = createController({ disabled: true });
 
