@@ -787,6 +787,40 @@ describe('LighterProvider', () => {
       ).toBeUndefined();
     });
 
+    it('accepts a USD amount whose raw quotient lands a hair under the minimum but grid-snaps onto it', async () => {
+      // Regression (found live on device): a $10.15 seed computed from a
+      // slightly stale price produced a raw quotient of 0.00529… ETH against
+      // a 0.0053 minimum and was rejected — even though wire integerization
+      // rounds to the size grid, so the venue would have received the valid
+      // minimum step. The pre-check must judge the SNAPPED size.
+      const { provider, calls } = buildProvider();
+      // 17.9999 / 90000 = 0.00019999988… < 0.0002 raw, snaps to 0.0002 @ 5dp.
+      const validation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        usdAmount: '17.9999',
+        size: '',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(validation.isValid).toBe(true);
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        usdAmount: '17.9999',
+        size: '',
+        orderType: 'limit',
+        price: '90000',
+      });
+      expect(result.success).toBe(true);
+      const orderCall = calls.find(
+        (call) => call.function === '_signCreateOrder',
+      );
+      const [, , , baseAmount] = orderCall?.params ?? [];
+      // 0.0002 BTC @ 5 size decimals — exactly the venue minimum step.
+      expect(baseAmount).toBe('20');
+    });
+
     it('rejects non-positive sizes and attached TP/SL', async () => {
       const { provider } = buildProvider();
       const negative = await provider.placeOrder({
