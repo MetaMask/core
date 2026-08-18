@@ -46,15 +46,22 @@ export type ActivityKind =
   | 'perpsCloseLongTakeProfit'
   | 'marketShort'
   | 'stopMarketCloseShort'
-  | 'marketCloseShort';
+  | 'marketCloseShort'
+  | 'assetActivation'
+  | 'assetDeactivation'
+  | 'rampBuy'
+  | 'rampSell';
 
 export type Status = 'pending' | 'success' | 'failed' | 'cancelled';
+
+export type AssetType = 'native' | 'erc20' | 'erc721' | 'erc1155';
 
 export type TokenAmount = {
   amount?: string;
   decimals?: number;
   symbol?: string;
   assetId?: string;
+  assetType?: AssetType;
   direction: 'in' | 'out';
 };
 
@@ -69,6 +76,7 @@ export type Fee = {
   decimals?: number;
   symbol?: string;
   assetId?: string;
+  assetType?: AssetType;
 };
 
 type ActivityData<Type extends ActivityKind, Data> = {
@@ -80,9 +88,27 @@ type ActivityData<Type extends ActivityKind, Data> = {
   data: Data;
 };
 
+/**
+ * Bank transfer instruction fields attached to a ramp order by providers
+ * that require manual payment (e.g. SEPA, wire transfer).
+ */
+export type RampOrderPaymentDetail = {
+  fiatCurrency: string;
+  paymentMethod: string;
+  fields: { name: string; id: string; value: string }[];
+};
+
 export type ActivityItem =
   | ActivityData<
       'approveSpendingCap' | 'revokeSpendingCap' | 'increaseSpendingCap',
+      {
+        from?: string;
+        token?: TokenAmount;
+        fees?: Fee[];
+      }
+    >
+  | ActivityData<
+      'assetActivation' | 'assetDeactivation',
       {
         from?: string;
         token?: TokenAmount;
@@ -148,6 +174,26 @@ export type ActivityItem =
         methodId?: string;
         transactionCategory?: string;
         transactionProtocol?: string;
+      }
+    >
+  | ActivityData<
+      'rampBuy' | 'rampSell',
+      {
+        from?: string;
+        fiat?: FiatAmount;
+        token?: TokenAmount;
+        fees?: Fee[];
+        provider?: {
+          id?: string;
+          name?: string;
+          orderLink?: string;
+        };
+        statusDescription?: string;
+        paymentDetails?: RampOrderPaymentDetail[];
+        // Stable identifier for orders that may not have a hash yet (e.g. a
+        // ramp order pending fiat settlement, where `hash` is empty until it
+        // settles on-chain). Lives in `data` as a ramp-specific property.
+        id?: string;
       }
     >;
 

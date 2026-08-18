@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
@@ -9,27 +10,24 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps';
+} from '../constants/bridge.js';
+import { CHAIN_IDS } from '../constants/chains.js';
+import { SWAPS_CONTRACT_ADDRESSES } from '../constants/swaps.js';
 import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
   SYMBOL_TO_SLIP44_MAP,
-} from '../constants/tokens';
-import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens';
-import type {
-  BridgeAsset,
-  BridgeControllerState,
-  GenericQuoteRequest,
-  QuoteResponseV1,
-  TxData,
-} from '../types';
-import { ChainId } from '../types';
+} from '../constants/tokens.js';
+import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens.js';
+import type { BridgeControllerState, GenericQuoteRequest } from '../types.js';
+import { ChainId } from '../types.js';
+import type { BridgeAsset } from '../validators/bridge-asset.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import type { TxData } from '../validators/trade.js';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
-} from './caip-formatters';
+} from './caip-formatters.js';
 
 /**
  * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds
@@ -141,7 +139,10 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
     return '0x0';
   }
 
-  const sum = hexStrings.reduce((acc, hex) => acc + BigInt(hex), BigInt(0));
+  const sum = hexStrings.reduce(
+    (acc, hexString) => acc + BigInt(hexString),
+    BigInt(0),
+  );
   return `0x${sum.toString(16)}`;
 };
 

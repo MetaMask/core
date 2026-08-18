@@ -20,7 +20,7 @@ import {
   fromMYXCollateral,
   MYX_MAX_LEVERAGE,
   MYX_MINIMUM_ORDER_SIZE_USD,
-} from '../constants/myxConfig';
+} from '../constants/myxConfig.js';
 import type {
   AccountState,
   CandleStick,
@@ -32,7 +32,7 @@ import type {
   Position,
   MarketDataFormatters,
   UserHistoryItem,
-} from '../types';
+} from '../types/index.js';
 import {
   MYX_HL_OVERLAPPING_MARKETS,
   MYXDirection,
@@ -42,7 +42,7 @@ import {
   MYXOrderTypeEnum,
   MYXExecTypeEnum,
   MYXTradeFlowTypeEnum,
-} from '../types/myx-types';
+} from '../types/myx-types.js';
 import type {
   MYXPoolSymbol,
   MYXTicker,
@@ -51,7 +51,7 @@ import type {
   MYXTradeFlowItem,
   MYXKlineData,
   MYXKlineWsData,
-} from '../types/myx-types';
+} from '../types/myx-types.js';
 
 /**
  * Format a price change value with sign prefix.

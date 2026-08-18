@@ -1,12 +1,16 @@
-import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
+import type {
+  TxData,
+  BitcoinTradeData,
+  TronTradeData,
+  Trade,
+} from '../validators/trade.js';
 import {
-  extractTradeData,
   isEvmTxData,
   isBitcoinTrade,
   isStellarTrade,
   isTronTrade,
-} from './trade-utils';
-import type { Trade } from './trade-utils';
+} from '../validators/trade.js';
+import { extractTradeData } from './trade-utils.js';
 
 describe('Trade utils', () => {
   describe('isEvmTxData', () => {

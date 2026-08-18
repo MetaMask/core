@@ -3,26 +3,26 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayController } from '.';
-import { updateFiatPayment } from './actions/update-fiat-payment';
-import { updatePaymentToken } from './actions/update-payment-token';
-import { PaymentOverride, TransactionPayStrategy } from './constants';
-import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
-import { getMessengerMock } from './tests/messenger-mock';
+import { updateFiatPayment } from './actions/update-fiat-payment.js';
+import { updatePaymentToken } from './actions/update-payment-token.js';
+import { PaymentOverride, TransactionPayStrategy } from './constants.js';
+import { TransactionPayController } from './index.js';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
+import { getMessengerMock } from './tests/messenger-mock.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPaySourceAmount,
   UpdateTransactionDataCallback,
-} from './types';
-import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
+} from './types.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
+import { updateQuotes } from './utils/quotes.js';
+import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
 jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
@@ -924,6 +924,7 @@ describe('TransactionPayController', () => {
           sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         }),
         messenger,
+        undefined,
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
@@ -935,6 +936,32 @@ describe('TransactionPayController', () => {
         transactionId: TRANSACTION_ID_MOCK,
         updateTransactionData: expect.any(Function),
       });
+    });
+
+    it('forwards the resolveSourceAmount option to updateSourceAmounts', () => {
+      const resolveSourceAmount = jest.fn();
+      const controller = createController({ resolveSourceAmount });
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.sourceAmounts = [
+          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
+        ];
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        expect.any(Object),
+        messenger,
+        resolveSourceAmount,
+      );
     });
   });
 

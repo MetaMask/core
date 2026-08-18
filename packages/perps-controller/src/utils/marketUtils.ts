@@ -2,9 +2,26 @@ import type {
   GetMarketDataWithPricesParams,
   MarketTypeFilter,
   PerpsMarketData,
-} from '../types';
-import type { CandleData, CandleStick } from '../types/perps-types';
-import { sortMarkets } from './sortMarkets';
+} from '../types/index.js';
+import type { CandleData, CandleStick } from '../types/perps-types.js';
+import { sortMarkets } from './sortMarkets.js';
+
+export function clonePerpsMarketData(
+  markets: PerpsMarketData[],
+): PerpsMarketData[] {
+  return markets.map((market) => ({
+    ...market,
+    ...(market.keywords && { keywords: [...market.keywords] }),
+    ...(market.tags && { tags: [...market.tags] }),
+    ...(market.categories && { categories: [...market.categories] }),
+    ...(market.trend && {
+      trend: market.trend.map(([timestamp, price]): [number, string] => [
+        timestamp,
+        price,
+      ]),
+    }),
+  }));
+}
 
 // ============================================================================
 // Market category classification (pure functions)

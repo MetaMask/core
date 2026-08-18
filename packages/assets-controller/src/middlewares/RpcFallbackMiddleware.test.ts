@@ -7,8 +7,8 @@ import type {
   Context,
   DataRequest,
   DataResponse,
-} from '../types';
-import { RpcFallbackMiddleware } from './RpcFallbackMiddleware';
+} from '../types.js';
+import { RpcFallbackMiddleware } from './RpcFallbackMiddleware.js';
 
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ASSET_MAINNET = 'eip155:1/slip44:60' as Caip19AssetId;

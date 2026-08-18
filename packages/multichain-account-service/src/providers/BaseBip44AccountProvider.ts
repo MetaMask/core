@@ -15,7 +15,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 /**
  * Asserts a keyring account is BIP-44 compatible.
@@ -116,6 +116,14 @@ export type Bip44AccountProvider<
     context: { entropySource: EntropySourceId; groupIndex: number },
     accountIds: Account['id'][],
   ): boolean;
+  /**
+   * Ensures the provider is ready before any account operation is attempted:
+   * - EVM providers return immediately.
+   * - Snap providers will wait for the Snap platform and keyring to be available.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  ensureReady(): Promise<void>;
 };
 
 export abstract class BaseBip44AccountProvider<
@@ -232,6 +240,10 @@ export abstract class BaseBip44AccountProvider<
     return (
       accountIds.length >= 1 && accountIds.every((id) => this.accounts.has(id))
     );
+  }
+
+  async ensureReady(): Promise<void> {
+    // No-op for non-snap providers.
   }
 
   abstract get capabilities(): KeyringCapabilities;

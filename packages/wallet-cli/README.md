@@ -12,13 +12,35 @@ or
 
 ## Usage
 
-The CLI drives a long-lived background **daemon** that holds an unlocked `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` topic; run `mm --help` (or `mm daemon <command> --help`) for the full reference.
+The CLI drives a long-lived background daemon that holds a `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` and `mm wallet` topics; run `mm --help` (or `mm <topic> <command> --help`) for the full reference.
 
 Start the daemon (flags may also be supplied as the `INFURA_PROJECT_ID`, `MM_WALLET_PASSWORD`, and `MM_WALLET_SRP` environment variables — preferred for secrets):
 
 ```sh
+# First run — password required to import the secret recovery phrase:
 mm daemon start --infura-project-id <key> --password <pw> --srp "<phrase>"
+
+# Subsequent runs — password optional. Omit to start with a locked keyring
+# and unlock later with `mm wallet unlock`:
+mm daemon start --infura-project-id <key> --srp "<phrase>"
 ```
+
+Unlock the keyring after a password-less start (or after `KeyringController:setLocked`):
+
+```sh
+mm wallet unlock --password <pw>   # or: MM_WALLET_PASSWORD=<pw> mm wallet unlock
+mm wallet unlock                   # prompts interactively (input masked)
+```
+
+Send a transaction. `--value` is in ether; select the network with `--network-client-id` or `--chain-id`; the sender defaults to the selected account. The command previews the resolved plan and asks for confirmation before broadcasting, then prints the transaction hash:
+
+```sh
+mm wallet send --to 0xRecipient --value 0.01 --chain-id 0x1
+mm wallet send --to 0xRecipient --value 0.01 --network-client-id mainnet --yes   # skip the prompt
+mm wallet send --to 0xContract --data 0xabcdef --value 0 --chain-id 0x1 --dry-run # resolve + validate only
+```
+
+Because the daemon auto-approves (see the security note below), the confirmation prompt — or your explicit `--yes` — is the only boundary before funds move; use `--dry-run` first if unsure. Gas is estimated automatically unless overridden with `--gas` / `--max-fee-per-gas` / `--max-priority-fee-per-gas` / `--gas-price` (each a `0x`-prefixed hex quantity).
 
 Discover what the running wallet can do — `list` prints every messenger action currently dispatchable via `call`. This surface grows as more controllers are wired, so treat it as evolving rather than a stability contract:
 
@@ -44,6 +66,8 @@ mm daemon purge           # stop, then delete all daemon state files (--force to
 ```
 
 State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DATA_DIR`.
+
+> **Security model — the daemon auto-approves everything.** Because it is headless, the daemon accepts every approval request (transactions and signatures included) with no per-request prompt; otherwise an awaited request would hang forever with no UI to resolve it. The trust boundary is therefore the daemon's `0600`, same-user Unix socket — anything that can reach the socket can move funds. For `mm wallet send` the confirmation prompt (or `--yes`) is the only per-transaction gate; the daemon itself still applies no per-request policy.
 
 ## Troubleshooting
 

@@ -4,11 +4,11 @@ import { createSelector as createSelector_ } from 'reselect';
 import {
   processSmartTransactionsFeatureFlags,
   getSmartTransactionsFeatureFlagsForChain,
-} from './featureFlags/feature-flags';
+} from './featureFlags/feature-flags.js';
 import type {
   SmartTransactionsFeatureFlagsConfig,
   SmartTransactionsNetworkConfig,
-} from './types';
+} from './types.js';
 
 /**
  * The state shape expected by the smart transactions feature flag selectors.

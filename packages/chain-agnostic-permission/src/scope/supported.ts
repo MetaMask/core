@@ -13,9 +13,9 @@ import {
   KnownSessionProperties,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from './constants';
-import type { ExternalScopeString } from './types';
-import { parseScopeString } from './types';
+} from './constants.js';
+import type { ExternalScopeString } from './types.js';
+import { parseScopeString } from './types.js';
 
 /**
  * Determines if a scope string is supported.

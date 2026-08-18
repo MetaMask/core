@@ -1,5 +1,9 @@
-import type { InstanceSpecificOptions } from '../types';
-import type { DefaultActions, DefaultEvents, RootMessenger } from './defaults';
+import type { InstanceSpecificOptions } from '../types.js';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from './defaults.js';
 
 /**
  * Utility type for inferring the state of an instance.

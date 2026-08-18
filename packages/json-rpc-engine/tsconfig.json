@@ -11,7 +11,7 @@
   },
   "references": [
     {
-      "path": "../messenger/tsconfig.json"
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

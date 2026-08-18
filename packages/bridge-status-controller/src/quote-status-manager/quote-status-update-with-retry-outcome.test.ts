@@ -1,9 +1,9 @@
 import {
   QuoteStatusUpdateBackendErrorType,
   QuoteStatusFetchWithRetryOutcomeType,
-} from './constants';
-import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
-import type { QuoteStatusUpdateResponse } from './types';
+} from './constants.js';
+import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome.js';
+import type { QuoteStatusUpdateResponse } from './types.js';
 
 describe('QuoteStatusUpdateWithRetryOutcome', () => {
   it('exposes the outcome type', () => {

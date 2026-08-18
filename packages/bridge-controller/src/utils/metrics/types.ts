@@ -2,11 +2,11 @@
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
-  FeatureId,
   InputPrimaryDenomination,
   SortOrder,
   StatusTypes,
-} from '../../types';
+} from '../../types.js';
+import type { FeatureId } from '../../validators/feature-flags.js';
 import type {
   UnifiedSwapBridgeEventName,
   BatchSellMetricsEventName,
@@ -16,7 +16,7 @@ import type {
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
-} from './constants';
+} from './constants.js';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml
@@ -231,6 +231,7 @@ type RequiredEventContextFromClientBase = {
       can_submit: QuoteFetchData['can_submit'];
       usd_balance_source?: number;
       has_sufficient_gas_for_quote?: boolean | null;
+      usd_amount_source: number;
     };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
@@ -268,6 +269,7 @@ type RequiredEventContextFromClientBase = {
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
       batch_id?: string;
+      transaction_internal_id?: string;
     } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
@@ -309,7 +311,7 @@ type RequiredEventContextFromClientBase = {
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
-    'gas_included'
+    'gas_included' | 'gas_included_7702'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
@@ -318,7 +320,7 @@ type RequiredEventContextFromClientBase = {
     };
   [UnifiedSwapBridgeEventName.AllQuotesSorted]: Pick<
     TradeData,
-    'gas_included'
+    'gas_included' | 'gas_included_7702'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {

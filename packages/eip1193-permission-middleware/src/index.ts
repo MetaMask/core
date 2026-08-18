@@ -1,8 +1,8 @@
 import { MethodNames } from '@metamask/permission-controller';
 
-import { getPermissionsHandler } from './wallet-getPermissions';
-import { requestPermissionsHandler } from './wallet-requestPermissions';
-import { revokePermissionsHandler } from './wallet-revokePermissions';
+import { getPermissionsHandler } from './wallet-getPermissions.js';
+import { requestPermissionsHandler } from './wallet-requestPermissions.js';
+import { revokePermissionsHandler } from './wallet-revokePermissions.js';
 
 type MethodHandlers = {
   [MethodNames.GetPermissions]: typeof getPermissionsHandler;

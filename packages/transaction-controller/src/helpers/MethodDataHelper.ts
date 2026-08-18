@@ -6,12 +6,12 @@ import { MethodRegistry } from 'eth-method-registry';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { projectLogger } from '../logger';
+import { projectLogger } from '../logger.js';
 import type {
   MethodData,
   TransactionControllerMessenger,
-} from '../TransactionController';
-import { getProvider } from '../utils/provider';
+} from '../TransactionController.js';
+import { getProvider } from '../utils/provider.js';
 
 const log = createModuleLogger(projectLogger, 'method-data');
 

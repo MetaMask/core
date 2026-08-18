@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AnalyticsController } from './AnalyticsController';
+import type { AnalyticsController } from './AnalyticsController.js';
 
 /**
  * Track an analytics event.
@@ -46,6 +46,12 @@ export type AnalyticsControllerTrackViewAction = {
  *
  * Records that a consent decision has been made and replays any events that
  * were queued while the user was undecided.
+ *
+ * When geolocation enrichment is enabled, geolocation is resolved here (once
+ * the user has consented) and awaited before the queued events are replayed,
+ * so those events are enriched with the resolved location as they are sent.
+ *
+ * @returns A promise that resolves once opt-in processing has completed.
  */
 export type AnalyticsControllerOptInAction = {
   type: `AnalyticsController:optIn`;

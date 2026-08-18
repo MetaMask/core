@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PerpsController } from './PerpsController';
+import type { PerpsController } from './PerpsController.js';
 
 /**
  * Read cached market data for the currently active provider (or aggregated).
@@ -34,6 +34,18 @@ export type PerpsControllerGetCachedMarketDataForActiveProviderAction = {
 export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
   type: `PerpsController:getCachedUserDataForActiveProvider`;
   handler: PerpsController['getCachedUserDataForActiveProvider'];
+};
+
+/**
+ * Fetch, validate, and atomically cache a complete user-data snapshot.
+ * This remains callable after mount so consumers can seed their live channel
+ * from one coherent positions/orders/account result.
+ *
+ * @returns The accepted user-data snapshot.
+ */
+export type PerpsControllerGetUserDataSnapshotAction = {
+  type: `PerpsController:getUserDataSnapshot`;
+  handler: PerpsController['getUserDataSnapshot'];
 };
 
 /**
@@ -547,7 +559,7 @@ export type PerpsControllerGetWithdrawalRoutesAction = {
 };
 
 /**
- * Set the transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+ * Set the transient UTM / discovery attribution context.
  * Replaces any previously set context. Held in-memory only — not persisted.
  *
  * @param context - The attribution context (UTM fields) to store.
@@ -558,7 +570,7 @@ export type PerpsControllerSetAttributionContextAction = {
 };
 
 /**
- * Get a copy of the current attribution context (TAT-3133, TAT-3140).
+ * Get a copy of the current attribution context.
  *
  * @returns A shallow copy of the stored attribution context.
  */
@@ -568,7 +580,7 @@ export type PerpsControllerGetAttributionContextAction = {
 };
 
 /**
- * Clear the stored attribution context (TAT-3133, TAT-3140).
+ * Clear the stored attribution context.
  */
 export type PerpsControllerClearAttributionContextAction = {
   type: `PerpsController:clearAttributionContext`;
@@ -767,6 +779,32 @@ export type PerpsControllerCalculateFeesAction = {
 };
 
 /**
+ * Approve the dedicated subscription builder outside order submission.
+ * Until this succeeds, subscription waivers fall back to the ordinary
+ * builder at the standard fee.
+ *
+ * @returns Whether the subscription builder is approved.
+ */
+export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
+  type: `PerpsController:approveSubscriptionBuilderFee`;
+  handler: PerpsController['approveSubscriptionBuilderFee'];
+};
+
+/**
+ * Drop the cached subscription benefits snapshot.
+ *
+ * Call this when the identity behind the benefits changes — sign-out, or a
+ * profile switch. The snapshot carries no profile identity of its own, so
+ * without this it keeps answering for the previous profile until the next
+ * successful refresh. The next fee resolution reports the waiver as
+ * unavailable, so it is withheld until preview or lifecycle hydration.
+ */
+export type PerpsControllerInvalidateSubscriptionBenefitsAction = {
+  type: `PerpsController:invalidateSubscriptionBenefits`;
+  handler: PerpsController['invalidateSubscriptionBenefits'];
+};
+
+/**
  * Disconnect provider and cleanup subscriptions
  * Call this when navigating away from Perps screens to prevent battery drain
  */
@@ -962,6 +1000,39 @@ export type PerpsControllerSetMaxSlippageAction = {
 };
 
 /**
+ * Get the user's pro-mode layout preferences (network-independent).
+ *
+ * @returns The current pro-mode layout preferences.
+ */
+export type PerpsControllerGetProLayoutPreferencesAction = {
+  type: `PerpsController:getProLayoutPreferences`;
+  handler: PerpsController['getProLayoutPreferences'];
+};
+
+/**
+ * Update the user's pro-mode layout preferences.
+ *
+ * Patch-style setter: only the provided fields are updated, the rest are
+ * preserved. This keeps the signature stable as new layout fields are added.
+ *
+ * @param patch - Partial set of pro-mode layout preferences to update.
+ */
+export type PerpsControllerSetProLayoutPreferencesAction = {
+  type: `PerpsController:setProLayoutPreferences`;
+  handler: PerpsController['setProLayoutPreferences'];
+};
+
+/**
+ * Set the Perps interface mode (lite/pro).
+ *
+ * @param mode - The mode to switch to.
+ */
+export type PerpsControllerSetPerpsModeAction = {
+  type: `PerpsController:setPerpsMode`;
+  handler: PerpsController['setPerpsMode'];
+};
+
+/**
  * Set the selected payment token for the Perps order/deposit flow.
  * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
  * Only required fields (address, chainId) are stored in state; description and symbol are optional.
@@ -1090,6 +1161,7 @@ export type PerpsControllerIsCurrentlyReinitializingAction = {
 export type PerpsControllerMethodActions =
   | PerpsControllerGetCachedMarketDataForActiveProviderAction
   | PerpsControllerGetCachedUserDataForActiveProviderAction
+  | PerpsControllerGetUserDataSnapshotAction
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
@@ -1151,6 +1223,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerApproveSubscriptionBuilderFeeAction
+  | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction
   | PerpsControllerStopEligibilityMonitoringAction
@@ -1170,6 +1244,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSaveMarketFilterPreferencesAction
   | PerpsControllerGetMaxSlippageAction
   | PerpsControllerSetMaxSlippageAction
+  | PerpsControllerGetProLayoutPreferencesAction
+  | PerpsControllerSetProLayoutPreferencesAction
+  | PerpsControllerSetPerpsModeAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction

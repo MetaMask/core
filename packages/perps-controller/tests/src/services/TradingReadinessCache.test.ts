@@ -2,7 +2,7 @@
 import {
   TradingReadinessCache,
   PerpsSigningCache,
-} from '../../../src/services/TradingReadinessCache';
+} from '../../../src/services/TradingReadinessCache.js';
 
 describe('TradingReadinessCache / PerpsSigningCache', () => {
   // Both exports reference the same singleton instance

@@ -146,6 +146,9 @@
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/kyc-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/local-node-utils/tsconfig.build.json"
     },
     {
@@ -158,19 +161,25 @@
       "path": "./packages/messenger-cli/tsconfig.build.json"
     },
     {
-      "path": "./packages/platform-api-docs/tsconfig.build.json"
-    },
-    {
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/money-account-balance-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-upgrade-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-utils/tsconfig.build.json"
     },
     {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
@@ -186,6 +195,9 @@
     },
     {
       "path": "./packages/name-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/network-connection-banner-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/network-controller/tsconfig.build.json"
@@ -210,6 +222,9 @@
     },
     {
       "path": "./packages/phishing-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/platform-api-docs/tsconfig.build.json"
     },
     {
       "path": "./packages/polling-controller/tsconfig.build.json"
@@ -243,6 +258,9 @@
     },
     {
       "path": "./packages/selected-network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/sentinel-api-service/tsconfig.build.json"
     },
     {
       "path": "./packages/shield-controller/tsconfig.build.json"

@@ -3,7 +3,7 @@ import execa from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { generate, resolveRepoUrl } from './generate';
+import { generate, resolveRepoUrl } from './generate.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/generate');
 

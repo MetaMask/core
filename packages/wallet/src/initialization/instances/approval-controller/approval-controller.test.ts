@@ -2,13 +2,13 @@ import { ApprovalController } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
-import { defaultConfigurations } from '../../defaults';
+import { defaultConfigurations } from '../../defaults.js';
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { approvalController } from './approval-controller';
+} from '../../defaults.js';
+import { approvalController } from './approval-controller.js';
 
 /**
  * Creates a root messenger for use in tests.

@@ -8,20 +8,26 @@ import {
 } from '@nktkas/hyperliquid';
 import type { HistoricalOrdersResponse } from '@nktkas/hyperliquid';
 
-import { CandlePeriod, calculateCandleCount } from '../constants/chartConfig';
-import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig';
-import { PERFORMANCE_CONFIG, PERPS_CONSTANTS } from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { WebSocketConnectionState } from '../types';
+import {
+  CandlePeriod,
+  calculateCandleCount,
+} from '../constants/chartConfig.js';
+import { HYPERLIQUID_TRANSPORT_CONFIG } from '../constants/hyperLiquidConfig.js';
+import {
+  PERFORMANCE_CONFIG,
+  PERPS_CONSTANTS,
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { HyperLiquidNetwork } from '../types/config.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
   PerpsPlatformDependencies,
-} from '../types';
-import type { HyperLiquidNetwork } from '../types/config';
-import type { CandleData } from '../types/perps-types';
-import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
-import { ensureError, isAbortError } from '../utils/errorUtils';
-import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext';
+} from '../types/index.js';
+import type { CandleData } from '../types/perps-types.js';
+import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
+import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext.js';
 
 /**
  * Maximum number of reconnection attempts before giving up.
@@ -57,7 +63,7 @@ export type HyperLiquidWalletParams = {
 
 // WebSocketConnectionState is now imported from controllers/types
 // Re-export for backward compatibility with existing consumers
-export { WebSocketConnectionState } from '../types';
+export { WebSocketConnectionState } from '../types/index.js';
 
 /**
  * Service for managing HyperLiquid SDK clients
@@ -77,6 +83,8 @@ export class HyperLiquidClientService {
   #wsTransport?: WebSocketTransport;
 
   #httpTransport?: HttpTransport;
+
+  #walletParams?: HyperLiquidWalletParams;
 
   #isTestnet: boolean;
 
@@ -128,6 +136,7 @@ export class HyperLiquidClientService {
 
     try {
       this.#updateConnectionState(WebSocketConnectionState.Connecting);
+      this.#walletParams = wallet;
       this.#createTransports();
 
       // Ensure transports are created
@@ -135,23 +144,7 @@ export class HyperLiquidClientService {
         throw new Error('Failed to create transports');
       }
 
-      // Wallet adapter implements AbstractViemJsonRpcAccount interface with signTypedData method
-      // ExchangeClient uses HTTP transport for write operations (orders, approvals, etc.)
-      this.#exchangeClient = new ExchangeClient({
-        wallet: wallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
-        transport: this.#httpTransport,
-      });
-
-      // InfoClient with WebSocket transport (default) - multiplexed requests over single connection
-      this.#infoClient = new InfoClient({ transport: this.#wsTransport });
-
-      // InfoClient with HTTP transport (fallback) - for specific calls if WebSocket has issues
-      this.#infoClientHttp = new InfoClient({ transport: this.#httpTransport });
-
-      // SubscriptionClient uses WebSocket transport for real-time pub/sub (price feeds, position updates)
-      this.#subscriptionClient = new SubscriptionClient({
-        transport: this.#wsTransport,
-      });
+      this.#createAllClients(wallet);
 
       // Wait for WebSocket to actually be ready before setting CONNECTED
       // This ensures we have a real connection, not just client objects
@@ -287,6 +280,48 @@ export class HyperLiquidClientService {
   }
 
   /**
+   * Create all SDK clients using the current transports.
+   * Shared by initialize() and #handleConnectionDrop() to avoid drift.
+   *
+   * @param wallet - Optional wallet params. Uses stored #walletParams when omitted (reconnection path).
+   */
+  #createAllClients(wallet?: HyperLiquidWalletParams): void {
+    if (!this.#wsTransport || !this.#httpTransport) {
+      throw new Error('Transports must be created before clients');
+    }
+
+    this.#infoClient = new InfoClient({ transport: this.#wsTransport });
+    this.#subscriptionClient = new SubscriptionClient({
+      transport: this.#wsTransport,
+    });
+    this.#createHttpClients(wallet);
+  }
+
+  /**
+   * Create the HTTP-backed SDK clients.
+   *
+   * @param wallet - Optional wallet params. Uses stored #walletParams when omitted.
+   */
+  #createHttpClients(wallet?: HyperLiquidWalletParams): void {
+    const effectiveWallet = wallet ?? this.#walletParams;
+
+    if (!this.#httpTransport) {
+      throw new Error('HTTP transport must be created before clients');
+    }
+
+    this.#infoClientHttp = new InfoClient({ transport: this.#httpTransport });
+
+    if (effectiveWallet) {
+      this.#exchangeClient = new ExchangeClient({
+        wallet: effectiveWallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
+        transport: this.#httpTransport,
+      });
+    } else {
+      this.#exchangeClient = undefined;
+    }
+  }
+
+  /**
    * Toggle testnet mode and reinitialize clients
    *
    * @param wallet - The wallet parameters for signing typed data.
@@ -332,10 +367,26 @@ export class HyperLiquidClientService {
     wallet: HyperLiquidWalletParams,
   ): Promise<void> {
     if (!this.#subscriptionClient) {
+      // A reconnect publishes its WebSocket clients only after transport.ready().
+      // Do not start a competing initialize() while that attempt or its retry
+      // backoff is active; callers will observe an unavailable subscription
+      // client until the reconnect completes and restores tracked subscriptions.
+      if (this.#isReconnecting || this.#reconnectionRetryTimeout) {
+        return;
+      }
+
       this.#deps.debugLogger.log(
         'HyperLiquid: Recreating subscription client after disconnect',
       );
-      await this.initialize(wallet);
+
+      if (
+        this.#walletParams &&
+        this.#connectionState === WebSocketConnectionState.Disconnected
+      ) {
+        await this.reconnect();
+      } else {
+        await this.initialize(wallet);
+      }
     }
   }
 
@@ -345,8 +396,8 @@ export class HyperLiquidClientService {
    * @returns The initialized ExchangeClient instance.
    */
   public getExchangeClient(): ExchangeClient {
-    this.ensureInitialized();
     if (!this.#exchangeClient) {
+      this.ensureInitialized();
       throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
     }
     return this.#exchangeClient;
@@ -360,15 +411,15 @@ export class HyperLiquidClientService {
    * @returns InfoClient instance with the selected transport.
    */
   public getInfoClient(options?: { useHttp?: boolean }): InfoClient {
-    this.ensureInitialized();
-
     if (options?.useHttp) {
       if (!this.#infoClientHttp) {
+        this.ensureInitialized();
         throw new Error(PERPS_ERROR_CODES.INFO_CLIENT_NOT_AVAILABLE);
       }
       return this.#infoClientHttp;
     }
 
+    this.ensureInitialized();
     if (!this.#infoClient) {
       throw new Error(PERPS_ERROR_CODES.INFO_CLIENT_NOT_AVAILABLE);
     }
@@ -481,7 +532,6 @@ export class HyperLiquidClientService {
     signal?: AbortSignal;
   }): Promise<CandleData | null> {
     const { symbol, interval, limit = 100, endTime, signal } = options;
-    this.ensureInitialized();
 
     if (signal?.aborted) {
       const abortError = new Error('Aborted');
@@ -1186,16 +1236,27 @@ export class HyperLiquidClientService {
       this.#wsTransport = undefined;
       this.#httpTransport = undefined;
 
-      // Recreate WebSocket transport - returns the new transport for type safety
+      // WebSocket clients are unavailable throughout the reconnect. HTTP
+      // clients remain usable while the new socket is staged and verified.
+      this.#subscriptionClient = undefined;
+      this.#infoClient = undefined;
+
+      // Recreate transports (both WS and HTTP)
       const newWsTransport = this.#createTransports();
 
-      // Recreate clients that use WebSocket transport
-      this.#infoClient = new InfoClient({ transport: newWsTransport });
-      this.#subscriptionClient = new SubscriptionClient({
+      const newInfoClient = new InfoClient({ transport: newWsTransport });
+      const newSubscriptionClient = new SubscriptionClient({
         transport: newWsTransport,
       });
+      this.#createHttpClients();
 
       await newWsTransport.ready();
+
+      // Publish WebSocket clients only after the transport is usable. This
+      // keeps isInitialized() false and blocks WS-backed access during a
+      // failed or in-flight reconnect without disabling HTTP-backed trading.
+      this.#infoClient = newInfoClient;
+      this.#subscriptionClient = newSubscriptionClient;
 
       this.#deps.debugLogger.log(
         'HyperLiquid: Transport ready, restoring subscriptions',
@@ -1216,6 +1277,21 @@ export class HyperLiquidClientService {
       this.#updateConnectionState(WebSocketConnectionState.Connected);
       this.#isReconnecting = false;
     } catch {
+      // The staged WebSocket clients were never published. Keep the HTTP
+      // clients alive so exchange writes and explicit HTTP info reads remain
+      // available while the WebSocket retry loop continues.
+      this.#subscriptionClient = undefined;
+      this.#infoClient = undefined;
+
+      if (this.#wsTransport) {
+        try {
+          this.#wsTransport.close();
+        } catch {
+          // Ignore cleanup errors - transport may already be dead
+        }
+      }
+      this.#wsTransport = undefined;
+
       // Reset flag before scheduling retry so the next attempt can proceed
       this.#isReconnecting = false;
 

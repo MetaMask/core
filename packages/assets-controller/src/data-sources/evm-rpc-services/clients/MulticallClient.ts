@@ -5,7 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { ZERO_ADDRESS } from '../../../utils/constants';
+import { ZERO_ADDRESS } from '../../../utils/constants.js';
 import type {
   Address,
   BalanceOfRequest,
@@ -13,8 +13,8 @@ import type {
   ChainId,
   GetProviderFunction,
   Provider,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
+} from '../types/index.js';
+import { reduceInBatchesSerially } from '../utils/index.js';
 
 // =============================================================================
 // ABI DEFINITIONS
@@ -374,6 +374,10 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
   '0xa5bf': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Arc (5042)
   '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Robinhood Chain (4663)
+  '0x1237': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Somnia (5031), MultiCallV3 per docs.somnia.network/developer/smart-contracts
+  '0x13a7': '0x5e44F178E8cF9B2F5409B6f18ce936aB817C5a11',
 };
 
 // =============================================================================
@@ -400,6 +404,70 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
   return encodeFunctionData(multicall3Interface, 'getEthBalance', [
     accountAddress,
   ]);
+}
+
+type BalanceCallDataCache = {
+  getErc20BalanceCallData: (accountAddress: Address) => Hex;
+  getNativeBalanceCallData: (accountAddress: Address) => Hex;
+};
+
+function createBalanceCallDataCache(): BalanceCallDataCache {
+  const erc20ByAccount = new Map<string, Hex>();
+  const nativeByAccount = new Map<string, Hex>();
+
+  return {
+    getErc20BalanceCallData(accountAddress: Address): Hex {
+      const key = accountAddress.toLowerCase();
+      const existing = erc20ByAccount.get(key);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const callData = encodeBalanceOf(accountAddress);
+      erc20ByAccount.set(key, callData);
+      return callData;
+    },
+    getNativeBalanceCallData(accountAddress: Address): Hex {
+      const key = accountAddress.toLowerCase();
+      const existing = nativeByAccount.get(key);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const callData = encodeGetEthBalance(accountAddress);
+      nativeByAccount.set(key, callData);
+      return callData;
+    },
+  };
+}
+
+/**
+ * Cache balance call encodings per account address.
+ * ERC-20 `balanceOf` and native `getEthBalance` call data depend only on the
+ * account being queried, not the token contract (which is the multicall target).
+ */
+const balanceCallDataCache = createBalanceCallDataCache();
+
+/**
+ * Build Multicall3 aggregate3 calls for a batch of balance requests.
+ *
+ * @param batch - Balance requests in the current batch.
+ * @param multicallAddress - Multicall3 contract address for native balance calls.
+ * @returns Aggregate3 call descriptors.
+ */
+function buildAggregate3BalanceCalls(
+  batch: BalanceOfRequest[],
+  multicallAddress: Hex,
+): { target: Address; allowFailure: boolean; callData: Hex }[] {
+  return batch.map((req) => {
+    const isNative = req.tokenAddress === ZERO_ADDRESS;
+    const target = isNative ? multicallAddress : req.tokenAddress;
+    return {
+      target,
+      allowFailure: true,
+      callData: isNative
+        ? balanceCallDataCache.getNativeBalanceCallData(req.accountAddress)
+        : balanceCallDataCache.getErc20BalanceCallData(req.accountAddress),
+    };
+  });
 }
 
 /**
@@ -478,6 +546,25 @@ export type MulticallClientConfig = {
 };
 
 /**
+ * Function for retrieving the Multicall3 contract address for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @returns The Multicall3 contract address, or undefined if not supported.
+ */
+export type GetMulticall3AddressForChainFunction = (
+  chainId: ChainId,
+) => Hex | undefined;
+
+/**
+ * Options for creating a MulticallClient.
+ */
+export type MulticallClientOptions = {
+  getProvider: GetProviderFunction;
+  getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
+  config?: MulticallClientConfig;
+};
+
+/**
  * Client for batching RPC calls using Multicall3.
  * Falls back to individual calls on chains without Multicall3 support.
  */
@@ -486,10 +573,13 @@ export class MulticallClient {
 
   readonly #config: Required<MulticallClientConfig>;
 
-  constructor(
-    getProvider: GetProviderFunction,
-    config?: MulticallClientConfig,
-  ) {
+  readonly #getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
+
+  constructor({
+    getProvider,
+    getMulticall3AddressForChain,
+    config,
+  }: MulticallClientOptions) {
     this.#getProvider = getProvider;
     // Use default values for invalid (non-positive) batch sizes to prevent
     // infinite loops or errors in divideIntoBatches
@@ -505,6 +595,7 @@ export class MulticallClient {
       maxCallsPerBatch,
       timeoutMs,
     };
+    this.#getMulticall3AddressForChain = getMulticall3AddressForChain;
   }
 
   /**
@@ -525,7 +616,9 @@ export class MulticallClient {
       return [];
     }
 
-    const multicallAddress = MULTICALL3_ADDRESS_BY_CHAIN[chainId];
+    const multicallAddress =
+      this.#getMulticall3AddressForChain(chainId) ??
+      MULTICALL3_ADDRESS_BY_CHAIN[chainId];
     const provider = this.#getProvider(chainId);
 
     if (!multicallAddress) {
@@ -568,23 +661,12 @@ export class MulticallClient {
       batchSize,
       initialResult: [],
       eachBatch: async (workingResult, batch) => {
+        const calls = buildAggregate3BalanceCalls(batch, multicallAddress);
+
         try {
           await createServicePolicy({
             maxRetries: MULTICALL_MAX_RETRIES,
           }).execute(async () => {
-            // Build aggregate3 calls
-            const calls = batch.map((req) => {
-              const isNative = req.tokenAddress === ZERO_ADDRESS;
-              const target = isNative ? multicallAddress : req.tokenAddress;
-              return {
-                target,
-                allowFailure: true,
-                callData: isNative
-                  ? encodeGetEthBalance(req.accountAddress)
-                  : encodeBalanceOf(req.accountAddress),
-              };
-            });
-
             // Encode and send aggregate3 call
             const callData = encodeAggregate3(calls);
             const result = await provider.call({
@@ -710,7 +792,8 @@ export class MulticallClient {
       }
 
       // ERC-20 token
-      const callData = encodeBalanceOf(accountAddress);
+      const callData =
+        balanceCallDataCache.getErc20BalanceCallData(accountAddress);
       const result = await provider.call({
         to: tokenAddress,
         data: callData,

@@ -7,7 +7,7 @@ import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_NOTIFICATION_PREFERENCES_URL,
-} from '../mocks/authenticated-userstorage';
+} from '../mocks/authenticated-userstorage.js';
 
 type MockReply = {
   status: nock.StatusCode;

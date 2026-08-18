@@ -1,8 +1,8 @@
 import type { Patch } from 'immer';
 
-import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
-import type { ActionConstraint } from './Messenger';
-import type { MockAnyNamespace } from './Messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger.js';
+import type { ActionConstraint } from './Messenger.js';
+import type { MockAnyNamespace } from './Messenger.js';
 
 describe('Messenger', () => {
   describe('registerActionHandler and call', () => {
@@ -581,6 +581,113 @@ describe('Messenger', () => {
       expect(handler1.mock.calls).toHaveLength(1);
       expect(handler2).toHaveBeenCalledWith('hello');
       expect(handler2.mock.calls).toHaveLength(1);
+    });
+
+    it('defers a re-entrant publish of the same event until the current publish finishes', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const calls: string[] = [];
+      let republished = false;
+      messenger.subscribe('Fixture:message', (message) => {
+        calls.push(`first:${message}`);
+        if (!republished) {
+          republished = true;
+          messenger.publish('Fixture:message', 'second');
+        }
+      });
+      messenger.subscribe('Fixture:message', (message) => {
+        calls.push(`second:${message}`);
+      });
+
+      messenger.publish('Fixture:message', 'first');
+
+      expect(calls).toStrictEqual([
+        'first:first',
+        'second:first',
+        'first:second',
+        'second:second',
+      ]);
+    });
+
+    it('drains multiple re-entrant publishes of the same event in order', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const received: string[] = [];
+      let done = false;
+      messenger.subscribe('Fixture:message', (message) => {
+        received.push(message);
+        if (!done) {
+          done = true;
+          messenger.publish('Fixture:message', 'b');
+          messenger.publish('Fixture:message', 'c');
+        }
+      });
+
+      messenger.publish('Fixture:message', 'a');
+
+      expect(received).toStrictEqual(['a', 'b', 'c']);
+    });
+
+    it('runs a re-entrant publish of a different event inline', () => {
+      type MessageEvent =
+        | { type: 'Fixture:a'; payload: [] }
+        | { type: 'Fixture:b'; payload: [] };
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const calls: string[] = [];
+      messenger.subscribe('Fixture:a', () => {
+        calls.push('a:start');
+        messenger.publish('Fixture:b');
+        calls.push('a:end');
+      });
+      messenger.subscribe('Fixture:b', () => {
+        calls.push('b');
+      });
+
+      messenger.publish('Fixture:a');
+
+      expect(calls).toStrictEqual(['a:start', 'b', 'a:end']);
+    });
+
+    it('defers a re-entrant publish that crosses a delegated messenger', () => {
+      type ExampleEvent = { type: 'Source:event'; payload: [string] };
+      const source = new Messenger<'Source', never, ExampleEvent>({
+        namespace: 'Source',
+      });
+      const delegatee = new Messenger<'Destination', never, ExampleEvent>({
+        namespace: 'Destination',
+      });
+      source.delegate({ messenger: delegatee, events: ['Source:event'] });
+
+      const calls: string[] = [];
+      let republished = false;
+      delegatee.subscribe('Source:event', (message) => {
+        calls.push(`delegatee:${message}`);
+        if (!republished) {
+          republished = true;
+          source.publish('Source:event', 'second');
+        }
+      });
+      source.subscribe('Source:event', (message) => {
+        calls.push(`source:${message}`);
+      });
+
+      source.publish('Source:event', 'first');
+
+      expect(calls).toStrictEqual([
+        'delegatee:first',
+        'source:first',
+        'delegatee:second',
+        'source:second',
+      ]);
     });
 
     describe('on first state change with an initial payload function registered', () => {
@@ -1928,6 +2035,77 @@ describe('Messenger', () => {
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
         `A handler for Source:getLength has not been registered`,
       );
+    });
+  });
+
+  describe('delegateAll', () => {
+    it('delegates all listed actions and events', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+      type ChildOwnAction = {
+        type: 'Child:doStuff';
+        handler: () => void;
+      };
+      type SourceEvent = {
+        type: 'Source:stateChange';
+        payload: [{ value: number }];
+      };
+
+      const sourceMessenger = new Messenger<
+        'Source',
+        SourceAction | ChildOwnAction,
+        SourceEvent
+      >({ namespace: 'Source' });
+
+      const childMessenger = new Messenger<
+        'Child',
+        SourceAction | ChildOwnAction,
+        SourceEvent
+      >({ namespace: 'Child' });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 42);
+
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: ['Source:stateChange'],
+      });
+
+      // Child can now call the delegated action
+      expect(childMessenger.call('Source:getValue')).toBe(42);
+
+      // Child can now subscribe to the delegated event
+      const subscriber = jest.fn();
+      // eslint-disable-next-line no-restricted-syntax
+      childMessenger.subscribe('Source:stateChange', subscriber);
+      sourceMessenger.publish('Source:stateChange', { value: 1 });
+      expect(subscriber).toHaveBeenCalledWith({ value: 1 });
+    });
+
+    it('delegates actions with an empty events array', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+
+      const sourceMessenger = new Messenger<'Source', SourceAction, never>({
+        namespace: 'Source',
+      });
+      const childMessenger = new Messenger<'Child', SourceAction, never>({
+        namespace: 'Child',
+      });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 99);
+
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: [],
+      });
+
+      expect(childMessenger.call('Source:getValue')).toBe(99);
     });
   });
 

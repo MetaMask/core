@@ -1,0 +1,33 @@
+name: Close Stale Release PRs
+
+# Release PRs on `release/*` branches are expected to merge quickly. Abandoned
+# ones block other engineers from starting a new release. This workflow closes
+# inactive release PRs, leaves a comment, and deletes the branch.
+on:
+  schedule:
+    # Check twice an hour so the 3h window is reasonably precise.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: close-stale-release-prs
+
+jobs:
+  close-stale-release-prs:
+    name: Close stale release PRs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+      - name: Close inactive release PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: yarn tsx scripts/close-stale-release-prs.mts

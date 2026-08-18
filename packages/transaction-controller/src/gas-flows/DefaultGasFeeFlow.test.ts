@@ -6,15 +6,15 @@ import type {
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
   TransactionMeta,
-} from '../types';
-import { GasFeeEstimateType, TransactionStatus } from '../types';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+} from '../types.js';
+import { GasFeeEstimateType, TransactionStatus } from '../types.js';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow.js';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

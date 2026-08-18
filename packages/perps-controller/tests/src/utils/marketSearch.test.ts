@@ -1,9 +1,9 @@
-import type { PerpsMarketData } from '../../../src/types';
+import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
   MarketMatchRank,
   getMarketMatchRank,
   rankMarketsByQuery,
-} from '../../../src/utils/marketSearch';
+} from '../../../src/utils/marketSearch.js';
 
 /**
  * Build a minimal market fixture. Only `symbol`, `name`, and optional

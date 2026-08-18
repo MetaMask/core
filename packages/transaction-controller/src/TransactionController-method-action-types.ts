@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionController } from './TransactionController';
+import type { TransactionController } from './TransactionController.js';
 
 /**
  * Handle new method data request.
@@ -132,6 +132,39 @@ export type TransactionControllerEstimateGasBufferedAction = {
 export type TransactionControllerUpdateTransactionAction = {
   type: `TransactionController:updateTransaction`;
   handler: TransactionController['updateTransaction'];
+};
+
+/**
+ * Updates transaction metadata.
+ *
+ * @param options - Update options.
+ * @param options.transactionId - ID of the transaction to update.
+ * @param options.callback - Function that mutates the transaction metadata.
+ * @param options.skipResimulate - Whether to skip automatic re-simulation.
+ * @returns The updated transaction metadata.
+ */
+export type TransactionControllerUpdateTransactionMetadataAction = {
+  type: `TransactionController:updateTransactionMetadata`;
+  handler: TransactionController['updateTransactionMetadata'];
+};
+
+/**
+ * Mark a transaction as failed, transitioning it through the standard failure
+ * path.
+ *
+ * Unlike `updateTransaction`, this emits the transaction lifecycle events
+ * (`transactionFailed`, `transactionStatusUpdated`, `transactionFinished`), so
+ * downstream subscribers such as the bridge status controller and metrics are
+ * notified. Intended for callers that finalize a transaction out-of-band, for
+ * example the smart transactions controller when the relay cancels a smart
+ * transaction that never landed on chain.
+ *
+ * @param transactionId - The ID of the transaction to mark as failed.
+ * @param error - The error describing why the transaction failed.
+ */
+export type TransactionControllerFailTransactionAction = {
+  type: `TransactionController:failTransaction`;
+  handler: TransactionController['failTransaction'];
 };
 
 /**
@@ -422,6 +455,8 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionMetadataAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
   | TransactionControllerConfirmExternalTransactionAction

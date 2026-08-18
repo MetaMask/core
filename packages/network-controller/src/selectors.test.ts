@@ -1,4 +1,4 @@
-import { getRpcFailoverMode } from './selectors';
+import { getRpcFailoverMode } from './selectors.js';
 
 /**
  * Builds a remote feature flag controller state with the given failover mode.

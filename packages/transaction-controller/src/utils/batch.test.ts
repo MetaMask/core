@@ -4,46 +4,46 @@ import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
 
+import { flushPromises } from '../../../../tests/helpers.js';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook.js';
 import {
   TransactionEnvelopeType,
   TransactionType,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
-} from '..';
+} from '../index.js';
 import type {
   TransactionControllerMessenger,
   TransactionControllerState,
   TransactionMeta,
-} from '..';
-import { flushPromises } from '../../../../tests/helpers';
-import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
-import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
+} from '../index.js';
 import type {
   GasFeeFlow,
   PublishBatchHook,
   RequiredAsset,
   TransactionBatchSingleRequest,
-} from '../types';
+} from '../types.js';
 import {
   ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
   addTransactionBatch,
   isAtomicBatchSupported,
-} from './batch';
+} from './batch.js';
 import {
   ERROR_MESSGE_PUBLIC_KEY,
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
-} from './eip7702';
+} from './eip7702.js';
 import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { determineTransactionType } from './transaction-type';
-import { validateBatchRequest } from './validation';
+} from './feature-flags.js';
+import { simulateGasBatch } from './gas.js';
+import { determineTransactionType } from './transaction-type.js';
+import { validateBatchRequest } from './validation.js';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -830,6 +830,87 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('merges provided authorizationList with from upgrade authorization', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: false,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+        CONTRACT_ADDRESS_MOCK,
+      );
+
+      const providedAuthorization = {
+        address: '0x1234567890123456789012345678901234567890' as const,
+        chainId: '0x1' as const,
+        nonce: '0x5' as const,
+        r: '0xabc' as const,
+        s: '0xdef' as const,
+        yParity: '0x1' as const,
+      };
+
+      request.request.authorizationList = [providedAuthorization];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: TransactionEnvelopeType.setCode,
+          authorizationList: [
+            { address: CONTRACT_ADDRESS_MOCK },
+            providedAuthorization,
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('includes provided authorizationList when from is already upgraded', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      const providedAuthorization = {
+        address: '0x1234567890123456789012345678901234567890' as const,
+        chainId: '0x1' as const,
+        nonce: '0x5' as const,
+        r: '0xabc' as const,
+        s: '0xdef' as const,
+        yParity: '0x1' as const,
+      };
+
+      request.request.authorizationList = [providedAuthorization];
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: TransactionEnvelopeType.setCode,
+          authorizationList: [providedAuthorization],
+        }),
+        expect.anything(),
+      );
+    });
+
     it('does not use type 4 if not upgraded but disableUpgrade set', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -1387,6 +1468,47 @@ describe('Batch Utils', () => {
             ],
             origin: ORIGIN_MOCK,
           },
+          CHAIN_ID_MOCK,
+        );
+      });
+
+      it('does not use provided foreign authorization as delegation mock when from is upgraded', async () => {
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: CONTRACT_ADDRESS_MOCK,
+          isSupported: true,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+          TRANSACTION_BATCH_PARAMS_MOCK,
+        );
+
+        const providedAuthorization = {
+          address: '0x1234567890123456789012345678901234567890' as const,
+          chainId: '0x1' as const,
+          nonce: '0x5' as const,
+          r: '0xabc' as const,
+          s: '0xdef' as const,
+          yParity: '0x1' as const,
+        };
+
+        request.request.authorizationList = [providedAuthorization];
+
+        const validateSecurityMock = jest.fn();
+        validateSecurityMock.mockResolvedValueOnce({});
+
+        request.request.validateSecurity = validateSecurityMock;
+
+        await addTransactionBatch(request);
+
+        expect(validateSecurityMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            delegationMock: undefined,
+          }),
           CHAIN_ID_MOCK,
         );
       });

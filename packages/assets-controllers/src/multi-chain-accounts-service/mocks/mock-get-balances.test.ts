@@ -1,7 +1,7 @@
 import {
   MOCK_GET_BALANCES_RESPONSE,
   createMockGetBalancesResponse,
-} from './mock-get-balances';
+} from './mock-get-balances.js';
 
 describe('mock-get-balances', () => {
   describe('MOCK_GET_BALANCES_RESPONSE', () => {

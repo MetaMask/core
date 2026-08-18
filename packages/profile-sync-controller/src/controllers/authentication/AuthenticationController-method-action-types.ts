@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AuthenticationController } from './AuthenticationController';
+import type { AuthenticationController } from './AuthenticationController.js';
 
 export type AuthenticationControllerPerformSignInAction = {
   type: `AuthenticationController:performSignIn`;
@@ -85,6 +85,22 @@ export type AuthenticationControllerGetUserProfileLineageAction = {
   handler: AuthenticationController['getUserProfileLineage'];
 };
 
+/**
+ * Returns a Customer Service specific access token for the specified SRP,
+ * logging in if needed.
+ *
+ * Exchanges the OIDC access token for a short-lived token scoped to the
+ * customer-service audience. Customer Service tooling consumes this token to
+ * identify and authenticate the user.
+ *
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The customer-service access token.
+ */
+export type AuthenticationControllerGetCustomerServiceTokenAction = {
+  type: `AuthenticationController:getCustomerServiceToken`;
+  handler: AuthenticationController['getCustomerServiceToken'];
+};
+
 export type AuthenticationControllerIsSignedInAction = {
   type: `AuthenticationController:isSignedIn`;
   handler: AuthenticationController['isSignedIn'];
@@ -101,4 +117,5 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerGetSessionProfileAction
   | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction
+  | AuthenticationControllerGetCustomerServiceTokenAction
   | AuthenticationControllerIsSignedInAction;

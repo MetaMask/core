@@ -1,14 +1,14 @@
 import type { CaipChainId, CaipNamespace, Hex, Json } from '@metamask/utils';
 
-import { bucketScopesBySupport } from './filter';
-import { normalizeAndMergeScopes } from './transform';
+import { bucketScopesBySupport } from './filter.js';
+import { normalizeAndMergeScopes } from './transform.js';
 import type {
   ExternalScopesObject,
   ExternalScopeString,
   NormalizedScopesObject,
-} from './types';
-import { parseScopeString } from './types';
-import { getValidScopes } from './validation';
+} from './types.js';
+import { parseScopeString } from './types.js';
+import { getValidScopes } from './validation.js';
 /**
  * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
  */

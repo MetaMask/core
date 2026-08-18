@@ -1,11 +1,11 @@
-export type { AccountWalletObject } from './wallet';
-export type { AccountGroupObject } from './group';
-export { isAccountGroupNameUnique } from './group';
+export type { AccountWalletObject } from './wallet.js';
+export type { AccountGroupObject } from './group.js';
+export { isAccountGroupNameUnique } from './group.js';
 
 export {
   USER_STORAGE_GROUPS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_KEY,
-} from './backup-and-sync/user-storage/constants';
+} from './backup-and-sync/user-storage/constants.js';
 
 export type {
   AccountTreeControllerState,
@@ -17,18 +17,22 @@ export type {
   AccountTreeControllerAccountGroupCreatedEvent,
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
+  AccountTreeControllerInitializedEvent,
+  AccountTreeControllerUninitializedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
-} from './types';
+} from './types.js';
 
 export type {
   AccountTreeControllerGetAccountWalletObjectAction,
   AccountTreeControllerGetAccountWalletObjectsAction,
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerGetAccountFromSelectedAccountGroupAction,
   AccountTreeControllerGetAccountGroupObjectAction,
   AccountTreeControllerGetAccountContextAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerSetSelectedAccountGroupAction,
+  AccountTreeControllerSetSelectedAccountGroupByAccountIdAction,
   AccountTreeControllerSetAccountGroupNameAction,
   AccountTreeControllerSetAccountWalletNameAction,
   AccountTreeControllerSetAccountGroupPinnedAction,
@@ -38,11 +42,37 @@ export type {
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
   AccountTreeControllerReinitAction,
-} from './AccountTreeController-method-action-types';
+  AccountTreeControllerExportStateAction,
+  AccountTreeControllerImportStateAction,
+} from './AccountTreeController-method-action-types.js';
 
-export type { AccountContext } from './AccountTreeController';
+export type { AccountContext } from './AccountTreeController.js';
 
 export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
-} from './AccountTreeController';
+} from './AccountTreeController.js';
+
+export type {
+  AccountTreePayload,
+  AccountTreePayloadStructType,
+  AccountWalletMnemonicPayload,
+  AccountWalletPrivateKeyPayload,
+  AccountWalletMnemonicGroupEntry,
+  AccountWalletPrivateKeyGroupEntry,
+  AccountWalletPayloadId,
+  AccountGroupPayloadId,
+  AccountTreeSnapshotWallet,
+  AccountTreeSnapshotGroup,
+  ExportStateOptions,
+} from './state/payload.js';
+
+export {
+  AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
+  AccountTreePayloadStruct,
+  assertAccountTreePayload,
+} from './state/payload.js';
+
+export { AccountTreeSnapshot } from './state/snapshot.js';
+export { IdMap } from './state/id-map.js';

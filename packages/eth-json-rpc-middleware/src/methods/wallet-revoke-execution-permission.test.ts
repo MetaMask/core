@@ -1,12 +1,12 @@
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
-import type { WalletMiddlewareParams } from '../wallet';
+import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
   ProcessRevokeExecutionPermissionHook,
   RevokeExecutionPermissionRequestParams,
-} from './wallet-revoke-execution-permission';
-import { createWalletRevokeExecutionPermissionHandler } from './wallet-revoke-execution-permission';
+} from './wallet-revoke-execution-permission.js';
+import { createWalletRevokeExecutionPermissionHandler } from './wallet-revoke-execution-permission.js';
 
 const HEX_MOCK = '0x123abc';
 

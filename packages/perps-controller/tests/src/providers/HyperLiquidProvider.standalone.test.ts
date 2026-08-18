@@ -3,18 +3,18 @@ jest.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
 
-import { CandlePeriod } from '../../../src/constants/chartConfig';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   BUILDER_FEE_CONFIG,
   REFERRAL_CONFIG,
-} from '../../../src/constants/hyperLiquidConfig';
-import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider';
-import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
-import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache';
+} from '../../../src/constants/hyperLiquidConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   ClosePositionParams,
   DepositParams,
@@ -22,7 +22,7 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -30,12 +30,12 @@ import {
   validateDepositParams,
   validateOrderParams,
   validateWithdrawalParams,
-} from '../../../src/utils/hyperLiquidValidation';
-import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient';
+} from '../../../src/utils/hyperLiquidValidation.js';
+import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../../helpers/serviceMocks';
+} from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');
@@ -765,6 +765,289 @@ describe('HyperLiquidProvider', () => {
       mockCreateStandaloneInfoClient.mockImplementation(
         () => mockStandaloneInfoClient,
       );
+    });
+
+    describe('getUserDataSnapshot', () => {
+      it('reuses one clearinghouse response for positions and account state', async () => {
+        const clearinghouseState = {
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        };
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue(
+          clearinghouseState,
+        );
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 101,
+            side: 'A',
+            limitPx: '0',
+            triggerPx: '55000',
+            sz: '0',
+            origSz: '0',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Market',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: true,
+            cloid: undefined,
+            children: [],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 7,
+            dexes: ['main'],
+          },
+        });
+
+        expect(mockStandaloneInfoClient.perpDexs).not.toHaveBeenCalled();
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockStandaloneInfoClient.frontendOpenOrders,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          mockStandaloneInfoClient.spotClearinghouseState,
+        ).toHaveBeenCalledTimes(1);
+        expect(mockStandaloneInfoClient.userAbstraction).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(result.positions).toHaveLength(1);
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitCount: 1,
+            stopLossCount: 0,
+            takeProfitPrice: '55000',
+            takeProfitOrders: [
+              expect.objectContaining({
+                orderId: '101',
+                size: '0.5',
+                triggerPrice: '55000',
+              }),
+            ],
+          }),
+        );
+        expect(result.orders).toEqual([
+          expect.objectContaining({
+            orderId: '101',
+            size: '0.5',
+            originalSize: '0.5',
+          }),
+        ]);
+        expect(result.accountState.totalBalance).toBe('25000');
+        expect(result.identity).toEqual({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          address: mockUserAddress,
+          hip3ConfigVersion: 7,
+          dexes: ['main'],
+        });
+      });
+
+      it('ignores child triggers from the inactive TP/SL grouping', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 201,
+            side: 'A',
+            limitPx: '0',
+            triggerPx: '55000',
+            sz: '0',
+            origSz: '0',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Market',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: true,
+            cloid: undefined,
+            children: [],
+          },
+          {
+            coin: 'BTC',
+            oid: 202,
+            side: 'B',
+            limitPx: '44000',
+            triggerPx: '0',
+            sz: '0.5',
+            origSz: '0.5',
+            timestamp: Date.now(),
+            orderType: 'Limit',
+            isTrigger: false,
+            reduceOnly: false,
+            isPositionTpsl: false,
+            cloid: undefined,
+            children: [
+              {
+                coin: 'BTC',
+                oid: 203,
+                side: 'A',
+                limitPx: '0',
+                triggerPx: '',
+                sz: '0',
+                origSz: '0',
+                timestamp: Date.now(),
+                orderType: 'Take Profit Market',
+                isTrigger: true,
+                reduceOnly: true,
+                isPositionTpsl: false,
+                cloid: undefined,
+                children: [],
+              },
+            ],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitCount: 1,
+            takeProfitPrice: '55000',
+          }),
+        );
+      });
+
+      it('logs privacy-safe timing for each atomic snapshot stage', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        const timingCalls = (
+          mockPlatformDependencies.debugLogger.log as jest.Mock
+        ).mock.calls.filter(([marker]) => marker === '[PerpsUserSnapshot]');
+        const stages = timingCalls.map(([, detail]) => detail.stage);
+        expect(stages).toHaveLength(5);
+        expect(stages).toEqual(
+          expect.arrayContaining([
+            'clearinghouse_state',
+            'frontend_open_orders',
+            'spot_clearinghouse_state',
+            'user_abstraction',
+            'complete',
+          ]),
+        );
+        expect(JSON.stringify(timingCalls)).not.toContain(mockUserAddress);
+      });
+
+      it('accepts canonical DEX identity when a DEX sorts before main', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main', 'flx'],
+          },
+        });
+
+        expect(result.identity.dexes).toEqual(['main', 'flx']);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).toHaveBeenCalledTimes(2);
+      });
+
+      it('rejects the entire bundle when one required request fails', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          withdrawable: '0',
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
+          new Error('orders unavailable'),
+        );
+
+        const request = provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        await expect(request).rejects.toThrow('orders unavailable');
+      });
     });
 
     describe('getPositions with standalone mode', () => {

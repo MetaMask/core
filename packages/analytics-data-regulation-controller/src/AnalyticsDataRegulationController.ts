@@ -6,11 +6,17 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { AnalyticsDataRegulationControllerMethodActions } from './AnalyticsDataRegulationController-method-action-types';
-import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService';
-import { projectLogger as log } from './logger';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
-import type { DeleteRegulationResponse, DeleteRegulationStatus } from './types';
+import type { AnalyticsDataRegulationControllerMethodActions } from './AnalyticsDataRegulationController-method-action-types.js';
+import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService.js';
+import { projectLogger as log } from './logger.js';
+import {
+  DATA_DELETE_RESPONSE_STATUSES,
+  DATA_DELETE_STATUSES,
+} from './types.js';
+import type {
+  DeleteRegulationResponse,
+  DeleteRegulationStatus,
+} from './types.js';
 
 // === GENERAL ===
 

@@ -4,19 +4,21 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
-import { updateFiatPayment } from './actions/update-fiat-payment';
-import { updatePaymentToken } from './actions/update-payment-token';
+import { updateFiatPayment } from './actions/update-fiat-payment.js';
+import { updatePaymentToken } from './actions/update-payment-token.js';
 import {
   CONTROLLER_NAME,
   isTransactionPayStrategy,
   TransactionPayStrategy,
-} from './constants';
-import { QuoteRefresher } from './helpers/QuoteRefresher';
+} from './constants.js';
+import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  ResolveSourceAmountCallback,
+  TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -25,14 +27,14 @@ import type {
   TransactionPayControllerState,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
-} from './types';
-import { getStrategyOrder } from './utils/feature-flags';
-import { updateQuotes } from './utils/quotes';
-import { updateSourceAmounts } from './utils/source-amounts';
+} from './types.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
+import { updateQuotes } from './utils/quotes.js';
+import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',
@@ -83,6 +85,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
+  readonly #resolveSourceAmount?: ResolveSourceAmountCallback;
+
   constructor({
     fiatOptions,
     getAmountData,
@@ -92,6 +96,7 @@ export class TransactionPayController extends BaseController<
     getStrategies,
     messenger,
     polymarket,
+    resolveSourceAmount,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -108,6 +113,7 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
+    this.#resolveSourceAmount = resolveSourceAmount;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -148,30 +154,23 @@ export class TransactionPayController extends BaseController<
     callback: TransactionConfigCallback,
   ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
-      const config = {
-        isMaxAmount: transactionData.isMaxAmount,
-        isPostQuote: transactionData.isPostQuote,
-        isHyperliquidSource: transactionData.isHyperliquidSource,
-        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
-        isQuoteRequired: transactionData.isQuoteRequired,
-        refundTo: transactionData.refundTo,
+      const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
+        atomic: transactionData.atomic,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
+        isMaxAmount: transactionData.isMaxAmount,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
+        isPostQuote: transactionData.isPostQuote,
+        isQuoteRequired: transactionData.isQuoteRequired,
         paymentOverride: transactionData.paymentOverride,
+        refundTo: transactionData.refundTo,
       };
 
       const previousAccountOverride = config.accountOverride;
 
       callback(config);
 
-      transactionData.accountOverride = config.accountOverride;
-      transactionData.isMaxAmount = config.isMaxAmount;
-      transactionData.isPostQuote = config.isPostQuote;
-      transactionData.isHyperliquidSource = config.isHyperliquidSource;
-      transactionData.isPolymarketDepositWallet =
-        config.isPolymarketDepositWallet;
-      transactionData.isQuoteRequired = config.isQuoteRequired;
-      transactionData.refundTo = config.refundTo;
-      transactionData.paymentOverride = config.paymentOverride;
+      Object.assign(transactionData, config);
 
       if (
         !config.isPostQuote &&
@@ -375,7 +374,12 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(transactionId, current as never, this.messenger);
+        updateSourceAmounts(
+          transactionId,
+          current as never,
+          this.messenger,
+          this.#resolveSourceAmount,
+        );
 
         shouldUpdateQuotes = true;
       }

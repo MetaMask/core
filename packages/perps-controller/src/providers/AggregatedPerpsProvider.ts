@@ -16,9 +16,9 @@
 
 import type { CaipAccountId } from '@metamask/utils';
 
-import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer';
-import { ProviderRouter } from '../routing/ProviderRouter';
-import { WebSocketConnectionState } from '../types';
+import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -80,7 +80,8 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
-} from '../types';
+  PerpsFeeResolution,
+} from '../types/index.js';
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
@@ -654,6 +655,24 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         provider.setUserFeeDiscount(discountBips);
       }
     });
+  }
+
+  setUserFeeResolution(resolution: PerpsFeeResolution | undefined): void {
+    this.#providers.forEach((provider) => {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(resolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(resolution?.discountBips);
+      }
+    });
+  }
+
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const provider =
+      this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
+    return provider.approveSubscriptionBuilderFee
+      ? provider.approveSubscriptionBuilderFee()
+      : false;
   }
 
   // ============================================================================

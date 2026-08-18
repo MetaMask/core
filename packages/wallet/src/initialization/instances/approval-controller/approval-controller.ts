@@ -5,7 +5,7 @@ import {
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
-import { InitializationConfiguration } from '../../types';
+import { InitializationConfiguration } from '../../types.js';
 
 /**
  * Approval types that are exempt from per-origin rate limiting, so more than one

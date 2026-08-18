@@ -1,4 +1,4 @@
-export { SmartTransactionsController } from './SmartTransactionsController';
+export { SmartTransactionsController } from './SmartTransactionsController.js';
 export type {
   SmartTransactionsControllerMessenger,
   SmartTransactionsControllerState,
@@ -8,7 +8,7 @@ export type {
   SmartTransactionsControllerSmartTransactionEvent,
   SmartTransactionsControllerSmartTransactionConfirmationDoneEvent,
   SmartTransactionsControllerEvents,
-} from './SmartTransactionsController';
+} from './SmartTransactionsController.js';
 export type {
   SmartTransactionsControllerCheckPollAction,
   SmartTransactionsControllerInitializeSmartTransactionsForChainIdAction,
@@ -29,7 +29,7 @@ export type {
   SmartTransactionsControllerGetTransactionsAction,
   SmartTransactionsControllerGetSmartTransactionByMinedTxHashAction,
   SmartTransactionsControllerWipeSmartTransactionsAction,
-} from './SmartTransactionsController-method-action-types';
+} from './SmartTransactionsController-method-action-types.js';
 export {
   type Fee,
   type Fees,
@@ -47,16 +47,16 @@ export {
   ClientId,
   Feature,
   Kind,
-} from './types';
-export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants';
+} from './types.js';
+export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants.js';
 export {
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
-} from './utils';
+} from './utils.js';
 
 // Feature flag selectors
 export {
   selectSmartTransactionsFeatureFlags,
   selectSmartTransactionsFeatureFlagsForChain,
   type SmartTransactionsFeatureFlagsState,
-} from './selectors';
+} from './selectors.js';

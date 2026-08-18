@@ -2,16 +2,16 @@ import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { TransactionController } from '@metamask/transaction-controller';
 
-import type { WalletOptions } from '../../../types';
-import { Wallet } from '../../../Wallet';
-import { defaultConfigurations } from '../../defaults';
+import type { WalletOptions } from '../../../types.js';
+import { Wallet } from '../../../Wallet.js';
+import { defaultConfigurations } from '../../defaults.js';
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
-import { AlwaysOnlineAdapter } from '../connectivity-controller/always-online-adapter';
-import { transactionController } from './transaction-controller';
+} from '../../defaults.js';
+import { AlwaysOnlineAdapter } from '../connectivity-controller/always-online-adapter.js';
+import { transactionController } from './transaction-controller.js';
 
 const controllers: TransactionController[] = [];
 const wallets: Wallet[] = [];
@@ -115,6 +115,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
+    gasFeeController: {
+      clientId: 'test',
+    },
     networkController: {
       infuraProjectId: 'test-infura-project-id',
     },
@@ -122,6 +125,7 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
       storage: new InMemoryStorageAdapter(),
     },
     remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    subscriptionController: {},
   };
 }
 

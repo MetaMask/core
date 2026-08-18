@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { GeolocationApiService } from './geolocation-api-service';
+import type { GeolocationApiService } from './geolocation-api-service.js';
 
 /**
  * Returns the geolocation code. Serves from cache when the TTL has not
@@ -23,7 +23,25 @@ export type GeolocationApiServiceFetchGeolocationAction = {
 };
 
 /**
+ * Returns the country, region, and timezone for the current client. Serves
+ * from cache when the TTL has not expired, otherwise performs a network
+ * fetch. Concurrent callers are deduplicated to a single in-flight request.
+ *
+ * @param options - Optional fetch options.
+ * @param options.bypassCache - When true, invalidates the TTL cache. If a
+ * request is already in-flight it will be reused (deduplication always
+ * applies).
+ * @returns The geolocation data, where each field is `null` when the API
+ * omits it or returns a value that fails validation.
+ */
+export type GeolocationApiServiceFetchGeolocationDataAction = {
+  type: `GeolocationApiService:fetchGeolocationData`;
+  handler: GeolocationApiService['fetchGeolocationData'];
+};
+
+/**
  * Union of all GeolocationApiService action types.
  */
 export type GeolocationApiServiceMethodActions =
-  GeolocationApiServiceFetchGeolocationAction;
+  | GeolocationApiServiceFetchGeolocationAction
+  | GeolocationApiServiceFetchGeolocationDataAction;

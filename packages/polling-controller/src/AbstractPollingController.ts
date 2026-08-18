@@ -6,7 +6,7 @@ import type {
   Constructor,
   PollingTokenSetId,
   IPollingController,
-} from './types';
+} from './types.js';
 
 export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
   stringify(input);

@@ -1,9 +1,9 @@
-import { Env, Platform } from '../../shared/env';
-import { RateLimitedError } from '../errors';
-import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp';
-import { AuthType } from './types';
-import type { AuthConfig, LoginResponse, UserProfile } from './types';
-import * as timeUtils from './utils/time';
+import { Env, Platform } from '../../shared/env.js';
+import { RateLimitedError } from '../errors.js';
+import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp.js';
+import { AuthType } from './types.js';
+import type { AuthConfig, LoginResponse, UserProfile } from './types.js';
+import * as timeUtils from './utils/time.js';
 
 jest.setTimeout(15000);
 
@@ -21,12 +21,15 @@ const mockGetNonce = jest.fn();
 const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
 const mockPairProfiles = jest.fn();
+const mockGetCustomerServiceToken = jest.fn();
 
 jest.mock('./services', () => ({
   authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
   authorizeOIDC: (...args: unknown[]): unknown => mockAuthorizeOIDC(...args),
   getNonce: (...args: unknown[]): unknown => mockGetNonce(...args),
   getUserProfileLineage: jest.fn(),
+  getCustomerServiceToken: (...args: unknown[]): unknown =>
+    mockGetCustomerServiceToken(...args),
   pairProfiles: (...args: unknown[]): unknown => mockPairProfiles(...args),
 }));
 
@@ -246,6 +249,21 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     const token = await auth.getAccessToken();
     expect(token).toBe('access');
     expect(mockGetNonce).toHaveBeenCalledTimes(1);
+  });
+
+  it('getCustomerServiceToken exchanges the access token via the service', async () => {
+    const { auth } = createAuth();
+    mockGetCustomerServiceToken.mockResolvedValue('cs-access-token');
+
+    const result = await auth.getCustomerServiceToken();
+
+    expect(result).toBe('cs-access-token');
+    // Logs in to obtain the OIDC access token, then exchanges it.
+    expect(mockAuthorizeOIDC).toHaveBeenCalledTimes(1);
+    expect(mockGetCustomerServiceToken).toHaveBeenCalledWith(
+      config.env,
+      'access',
+    );
   });
 });
 
@@ -630,5 +648,117 @@ describe('SRPJwtBearerAuth pairSrpProfiles deduplication', () => {
     await auth.pairSrpProfiles(['a', 'c'], 'a');
 
     expect(mockPairProfiles).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('SRPJwtBearerAuth login tag', () => {
+  const config: AuthConfig & { type: AuthType.SRP } = {
+    type: AuthType.SRP,
+    env: Env.DEV,
+    platform: Platform.EXTENSION,
+  };
+
+  const MOCK_PROFILE: UserProfile = {
+    profileId: 'p1',
+    canonicalProfileId: 'p1',
+    metaMetricsId: 'm1',
+    identifierId: 'i1',
+  };
+
+  beforeEach((): void => {
+    jest.clearAllMocks();
+    mockGetNonce.mockResolvedValue({
+      nonce: 'nonce-1',
+      identifier: 'identifier-1',
+      expiresIn: 60,
+    });
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: MOCK_PROFILE,
+    });
+    mockAuthorizeOIDC.mockResolvedValue({
+      accessToken: 'access',
+      expiresIn: 60,
+      obtainedAt: Date.now(),
+    });
+  });
+
+  it('leaves raw_message untagged when getLoginTag is omitted', async () => {
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+    });
+
+    await auth.getAccessToken();
+
+    expect(mockAuthenticate).toHaveBeenCalledWith(
+      'metamask:nonce-1:pubkey-1',
+      'signature-1',
+      AuthType.SRP,
+      Env.DEV,
+      undefined,
+      'SRP',
+    );
+  });
+
+  it('appends the tag returned by getLoginTag', async () => {
+    const getLoginTag = jest.fn().mockResolvedValue('secondary');
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+      getLoginTag,
+    });
+
+    await auth.getAccessToken('entropy-secondary');
+
+    expect(getLoginTag).toHaveBeenCalledWith('entropy-secondary');
+    expect(mockAuthenticate).toHaveBeenCalledWith(
+      'metamask:nonce-1:pubkey-1:secondary',
+      'signature-1',
+      AuthType.SRP,
+      Env.DEV,
+      undefined,
+      'SRP',
+    );
+  });
+
+  it('forwards getLoginIdentifierType without tagging when getLoginTag is omitted', async () => {
+    const getLoginIdentifierType = jest.fn().mockResolvedValue('GOOGLE');
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> => null,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'pubkey-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+      getLoginIdentifierType,
+    });
+
+    await auth.getAccessToken('entropy-primary');
+
+    expect(getLoginIdentifierType).toHaveBeenCalledWith('entropy-primary');
+    expect(mockAuthenticate).toHaveBeenCalledWith(
+      'metamask:nonce-1:pubkey-1',
+      'signature-1',
+      AuthType.SRP,
+      Env.DEV,
+      undefined,
+      'GOOGLE',
+    );
   });
 });

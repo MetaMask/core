@@ -6,12 +6,12 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
+import type { PermissionControllerHasPermissionsAction } from './PermissionController-method-action-types.js';
 import type {
   GenericPermissionController,
   PermissionSubjectMetadata,
-} from './PermissionController';
-import type { PermissionControllerHasPermissionsAction } from './PermissionController-method-action-types';
-import type { SubjectMetadataControllerMethodActions } from './SubjectMetadataController-method-action-types';
+} from './PermissionController.js';
+import type { SubjectMetadataControllerMethodActions } from './SubjectMetadataController-method-action-types.js';
 
 const controllerName = 'SubjectMetadataController';
 

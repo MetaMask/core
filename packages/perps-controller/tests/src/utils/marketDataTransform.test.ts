@@ -2,17 +2,17 @@ import {
   HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
   getHyperLiquidAssetName,
-} from '../../../src/constants/hyperLiquidConfig';
-import type { MarketDataFormatters } from '../../../src/types';
+} from '../../../src/constants/hyperLiquidConfig.js';
 import type {
   AllMidsResponse,
   PerpsAssetCtx,
   PerpsUniverse,
-} from '../../../src/types/hyperliquid-types';
+} from '../../../src/types/hyperliquid-types.js';
+import type { MarketDataFormatters } from '../../../src/types/index.js';
 import {
   isMarketTradable,
   transformMarketData,
-} from '../../../src/utils/marketDataTransform';
+} from '../../../src/utils/marketDataTransform.js';
 
 // Mock formatters matching the MarketDataFormatters interface
 const mockFormatters: MarketDataFormatters = {

@@ -1,15 +1,15 @@
-import { CandlePeriod } from '../../../src/constants/chartConfig';
-import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider';
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
   PerpsProvider,
   PerpsProviderType,
   Position,
   MarketInfo,
   Order,
-} from '../../../src/types';
-import { WebSocketConnectionState } from '../../../src/types';
+} from '../../../src/types/index.js';
+import { WebSocketConnectionState } from '../../../src/types/index.js';
 /* eslint-disable */
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Create a comprehensive mock provider
 const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
@@ -99,6 +99,8 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     // Configuration
     setLiveDataConfig: jest.fn(),
     setUserFeeDiscount: jest.fn(),
+    setUserFeeResolution: jest.fn(),
+    approveSubscriptionBuilderFee: jest.fn().mockResolvedValue(true),
 
     // Lifecycle
     toggleTestnet: jest
@@ -627,6 +629,36 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(mockHLProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
       expect(mockMYXProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
+    });
+
+    it('preserves the fee source for providers that support full resolutions', () => {
+      const resolution = {
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription' as const,
+        subscription: { eligible: true, reason: 'eligible' as const },
+      };
+      mockMYXProvider.setUserFeeResolution = undefined;
+
+      aggregatedProvider.setUserFeeResolution(resolution);
+
+      expect(mockHLProvider.setUserFeeResolution).toHaveBeenCalledWith(
+        resolution,
+      );
+      expect(mockMYXProvider.setUserFeeDiscount).toHaveBeenCalledWith(10000);
+    });
+
+    it('delegates subscription builder approval to the default provider', async () => {
+      await expect(
+        aggregatedProvider.approveSubscriptionBuilderFee(),
+      ).resolves.toBe(true);
+
+      expect(
+        mockHLProvider.approveSubscriptionBuilderFee,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockMYXProvider.approveSubscriptionBuilderFee,
+      ).not.toHaveBeenCalled();
     });
   });
 

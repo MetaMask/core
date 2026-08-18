@@ -2,14 +2,14 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import nock from 'nock';
 
-import { Env, getEnvUrls } from '../../sdk';
-import { createSHA256Hash } from '../../shared/encryption';
-import type { UserStorageGenericPathWithFeatureAndKey } from '../../shared/storage-schema';
+import { Env, getEnvUrls } from '../../sdk/index.js';
+import { createSHA256Hash } from '../../shared/encryption/index.js';
+import type { UserStorageGenericPathWithFeatureAndKey } from '../../shared/storage-schema.js';
 import {
   createEntryPath,
   USER_STORAGE_FEATURE_NAMES,
-} from '../../shared/storage-schema';
-import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
+} from '../../shared/storage-schema.js';
+import { mockUserStorageMessenger } from './__fixtures__/mockMessenger.js';
 import {
   mockEndpointBatchUpsertUserStorage,
   mockEndpointGetUserStorage,
@@ -18,10 +18,13 @@ import {
   mockEndpointDeleteUserStorageAllFeatureEntries,
   mockEndpointDeleteUserStorage,
   mockEndpointBatchDeleteUserStorage,
-} from './__fixtures__/mockServices';
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
-import { UserStorageController, defaultState } from './UserStorageController';
+} from './__fixtures__/mockServices.js';
+import { BACKUPANDSYNC_FEATURES } from './constants.js';
+import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage.js';
+import {
+  UserStorageController,
+  defaultState,
+} from './UserStorageController.js';
 
 describe('UserStorageController', () => {
   describe('constructor', () => {

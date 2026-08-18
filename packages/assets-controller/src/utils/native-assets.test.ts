@@ -4,8 +4,8 @@ import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
-} from './native-assets';
-import { normalizeAssetId } from './normalizeAssetId';
+} from './native-assets.js';
+import { normalizeAssetId } from './normalizeAssetId.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

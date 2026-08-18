@@ -1,5 +1,5 @@
-import { QuoteStatusUpdateBackendErrorType } from './constants';
-import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
+import { QuoteStatusUpdateBackendErrorType } from './constants.js';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors.js';
 
 describe('QuoteStatusUpdateError', () => {
   describe('constructor', () => {

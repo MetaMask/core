@@ -2,14 +2,17 @@ import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
-import { createMockJWTToken } from '../tests/mocks/utils';
-import type { DecodedNodeAuthToken } from './types';
+import { createMockJWTToken } from '../tests/mocks/utils.js';
+import { SecretType } from './constants.js';
+import { SecretMetadata } from './SecretMetadata.js';
+import type { DecodedNodeAuthToken } from './types.js';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
+  getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
-} from './utils';
+} from './utils.js';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {
@@ -227,6 +230,43 @@ describe('utils', () => {
       expect(() => getSecretTypeFromDataType(unknownDataType)).toThrow(
         'Unknown EncAccountDataType: UnknownType',
       );
+    });
+  });
+
+  describe('getInvalidPrimarySecretDataTypeErrorData', () => {
+    it('should return dataType values in secret order', () => {
+      const secrets = [
+        new SecretMetadata('seed phrase', {
+          type: SecretType.Mnemonic,
+          dataType: EncAccountDataType.ImportedSrp,
+        }),
+        new SecretMetadata('private key', {
+          type: SecretType.PrivateKey,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        }),
+        new SecretMetadata('another private key', {
+          type: SecretType.PrivateKey,
+          dataType: EncAccountDataType.ImportedPrivateKey,
+        }),
+      ];
+
+      expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
+        EncAccountDataType.ImportedSrp,
+        EncAccountDataType.ImportedPrivateKey,
+        EncAccountDataType.ImportedPrivateKey,
+      ]);
+    });
+
+    it('should fall back to SecretType when dataType is missing', () => {
+      const secrets = [
+        new SecretMetadata('seed phrase', {
+          type: SecretType.Mnemonic,
+        }),
+      ];
+
+      expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
+        SecretType.Mnemonic,
+      ]);
     });
   });
 });

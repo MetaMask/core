@@ -6,22 +6,33 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
   ResourceState,
   UserRegion,
-} from './RampsController';
+} from './RampsController.js';
 import {
-  normalizeProviderCode,
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-} from './RampsController';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+} from './RampsController.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+} from './RampsService-method-action-types.js';
 import type {
   Country,
   TokensResponse,
@@ -33,18 +44,9 @@ import type {
   Quote,
   RampsToken,
   RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-} from './RampsService-method-action-types';
-import { RequestStatus } from './RequestCache';
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
+import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,
   TransakUserDetails,
@@ -60,25 +62,19 @@ import type {
   TransakOrder,
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
-} from './TransakService';
+} from './TransakService.js';
+
+/**
+ * The default redirect ("fake callback") URL a staging `RampsService` returns.
+ * Written out in full so the tests pin the exact host the widened quote path
+ * forwards, rather than re-deriving it from the code under test.
+ */
+const STAGING_REDIRECT_CALLBACK_URL =
+  'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback';
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
     'Execution prevented because the circuit breaker is open';
-
-  describe('normalizeProviderCode', () => {
-    it('strips /providers/ prefix', () => {
-      expect(normalizeProviderCode('/providers/transak')).toBe('transak');
-      expect(normalizeProviderCode('/providers/transak-staging')).toBe(
-        'transak-staging',
-      );
-    });
-
-    it('returns string unchanged when no prefix', () => {
-      expect(normalizeProviderCode('transak')).toBe('transak');
-      expect(normalizeProviderCode('')).toBe('');
-    });
-  });
 
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
     it('includes every RampsService action that RampsController calls', async () => {
@@ -405,7 +401,7 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getQuotes provider-scope widening (in-app)', () => {
+  describe('getQuotes all-providers widening', () => {
     const SCOPE_ASSET_ID = 'eip155:1/slip44:60';
     const SCOPE_PAYMENT_METHOD = '/payments/debit-credit-card';
     const SCOPE_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
@@ -447,7 +443,7 @@ describe('RampsController', () => {
       },
     });
 
-    const inAppScopeQuote = (provider: string, reliability: number): Quote => ({
+    const appBrowserQuote = (provider: string, reliability: number): Quote => ({
       provider,
       quote: {
         amountIn: 100,
@@ -461,7 +457,7 @@ describe('RampsController', () => {
       metadata: { reliability },
     });
 
-    const externalScopeQuote = (
+    const externalBrowserQuote = (
       provider: string,
       reliability: number,
     ): Quote => ({
@@ -485,6 +481,29 @@ describe('RampsController', () => {
       providers: createResourceState(providers, null),
     });
 
+    /**
+     * Registers a `RemoteFeatureFlagController:getState` handler on the root
+     * messenger. Defaults to serving the all-providers flag as `true`.
+     *
+     * @param rootMessenger - The root messenger to register the handler on.
+     * @param flagState - `RemoteFeatureFlagController` state overrides.
+     */
+    const registerFeatureFlagState = (
+      rootMessenger: RootMessenger,
+      flagState: Partial<RemoteFeatureFlagControllerState> = {
+        remoteFeatureFlags: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true },
+      },
+    ): void => {
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({
+          remoteFeatureFlags: {},
+          cacheTimestamp: 0,
+          ...flagState,
+        }),
+      );
+    };
+
     const callScopedGetQuotes = async (
       messenger: RampsControllerMessenger,
       overrides: Record<string, unknown> = {},
@@ -502,16 +521,16 @@ describe('RampsController', () => {
         ...overrides,
       });
 
-    it('widens to all supporting providers and returns the reliability winner at success[0], excluding external quotes', async () => {
+    it('widens to all supporting providers and returns the reliability winner at success[0]', async () => {
       const response: QuotesResponse = {
         success: [
-          inAppScopeQuote(MOONPAY, 90),
-          inAppScopeQuote(REVOLUT, 80),
-          externalScopeQuote(COINBASE, 99),
-          inAppScopeQuote(NATIVE, 70),
+          appBrowserQuote(MOONPAY, 90),
+          appBrowserQuote(REVOLUT, 80),
+          externalBrowserQuote(COINBASE, 99),
+          appBrowserQuote(NATIVE, 70),
         ],
-        // Coinbase is the most reliable but external, so it is skipped and the
-        // next in-app provider (MoonPay) wins.
+        // Coinbase is the most reliable; external-browser quotes are eligible
+        // under the all-providers flag, so it wins.
         sorted: [
           { sortBy: 'reliability', ids: [COINBASE, MOONPAY, REVOLUT, NATIVE] },
         ],
@@ -522,7 +541,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(NATIVE, 'native'),
               buildScopeProvider(MOONPAY, 'aggregator'),
@@ -532,6 +550,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let quotedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -550,16 +569,106 @@ describe('RampsController', () => {
             REVOLUT,
             COINBASE,
           ]);
-          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+          expect(quotes.success[0]?.provider).toBe(COINBASE);
         },
       );
     });
 
-    it('keeps the native provider as a valid in-app candidate and selects it when it ranks first', async () => {
+    it('selects the correct quote when provider IDs carry no /providers/ prefix', async () => {
+      // Provider-code normalization was removed (#9448): the provider list,
+      // quotes, and sort-order arrive with plain, unprefixed IDs and must
+      // match each other directly.
+      const PLAIN_MOONPAY = 'moonpay';
+      const PLAIN_REVOLUT = 'revolut';
+
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(NATIVE, 90), inAppScopeQuote(MOONPAY, 80)],
-        // Transak Native is the most reliable in-app quote, so it wins: the
-        // in-app scope must not exclude native providers.
+        success: [
+          appBrowserQuote(PLAIN_MOONPAY, 90),
+          appBrowserQuote(PLAIN_REVOLUT, 80),
+        ],
+        sorted: [
+          { sortBy: 'reliability', ids: [PLAIN_MOONPAY, PLAIN_REVOLUT] },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(PLAIN_MOONPAY, 'aggregator'),
+              buildScopeProvider(PLAIN_REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The plain IDs matched across the provider list, quotes, and
+          // sort-order without normalization.
+          expect(quotedProviders).toStrictEqual([PLAIN_MOONPAY, PLAIN_REVOLUT]);
+          expect(quotes.success[0]?.provider).toBe(PLAIN_MOONPAY);
+        },
+      );
+    });
+
+    it('keeps external-browser and custom-action quotes eligible', async () => {
+      const response: QuotesResponse = {
+        success: [
+          externalBrowserQuote(COINBASE, 99),
+          appBrowserQuote(MOONPAY, 80),
+        ],
+        sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
+        error: [],
+        customActions: [
+          {
+            buy: { providerId: MOONPAY },
+            paymentMethodId: SCOPE_PAYMENT_METHOD,
+            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(COINBASE, 'aggregator'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The external Coinbase quote (top reliability) stays eligible.
+          expect(quotes.success[0]?.provider).toBe(COINBASE);
+        },
+      );
+    });
+
+    it('keeps the native provider as a valid candidate and selects it when it ranks first', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 90), appBrowserQuote(MOONPAY, 80)],
+        // Transak Native is the most reliable quote, so it wins: widening
+        // must not exclude native providers.
         sorted: [{ sortBy: 'reliability', ids: [NATIVE, MOONPAY] }],
         error: [],
         customActions: [],
@@ -568,7 +677,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(NATIVE, 'native'),
               buildScopeProvider(MOONPAY, 'aggregator'),
@@ -576,6 +684,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -590,7 +699,7 @@ describe('RampsController', () => {
 
     it('falls back to the price order when there is no reliability order', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'price', ids: [REVOLUT, MOONPAY] }],
         error: [],
         customActions: [],
@@ -599,7 +708,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator'),
               buildScopeProvider(REVOLUT, 'aggregator'),
@@ -607,6 +715,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -621,7 +730,7 @@ describe('RampsController', () => {
 
     it('skips a provider whose fiat limits do not fit the amount and picks the next', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
         error: [],
         customActions: [],
@@ -630,7 +739,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               // MoonPay's minimum is above the $100 amount, so it is skipped.
               buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(200, 1000)),
@@ -640,6 +748,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -652,22 +761,26 @@ describe('RampsController', () => {
       );
     });
 
-    it('returns an empty success list when no in-app quote is usable', async () => {
+    it('returns an empty success list when no quote fits the published provider limits', async () => {
       const response: QuotesResponse = {
-        success: [externalScopeQuote(COINBASE, 99)],
-        sorted: [{ sortBy: 'reliability', ids: [COINBASE] }],
-        error: [{ provider: MOONPAY, error: 'unavailable' }],
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [{ provider: REVOLUT, error: 'unavailable' }],
         customActions: [],
       };
 
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([buildScopeProvider(COINBASE, 'aggregator')]),
+            state: scopeState([
+              // MoonPay's minimum is above the $100 amount and no other quote
+              // exists, so nothing is usable.
+              buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(200, 1000)),
+            ]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -693,11 +806,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([nonSupportingProvider]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           const getQuotesMock = jest.fn();
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -706,7 +819,7 @@ describe('RampsController', () => {
 
           // `autoSelectProvider` alone triggers widening; without
           // `restrictToKnownOrNativeProviders` the empty guard is reached via the
-          // `|| widenToInAppProviders` branch.
+          // `|| widenToAllProviders` branch.
           const quotes = await callScopedGetQuotes(messenger, {
             autoSelectProvider: true,
             restrictToKnownOrNativeProviders: false,
@@ -723,47 +836,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('excludes custom-action providers from selection', async () => {
+    it('does not widen and does not mutate providers.selected when the flag is false', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
-        error: [],
-        customActions: [
-          {
-            buy: { providerId: MOONPAY },
-            paymentMethodId: SCOPE_PAYMENT_METHOD,
-            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
-          },
-        ],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([
-              buildScopeProvider(MOONPAY, 'aggregator'),
-              buildScopeProvider(REVOLUT, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // MoonPay is a custom action, so Revolut wins despite ranking higher.
-          expect(quotes.success[0]?.provider).toBe(REVOLUT);
-        },
-      );
-    });
-
-    it('does not widen and does not mutate providers.selected when the scope is off', async () => {
-      const response: QuotesResponse = {
-        success: [inAppScopeQuote(NATIVE, 70)],
+        success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
         error: [],
         customActions: [],
@@ -772,7 +847,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'off',
             state: scopeState([
               buildScopeProvider(NATIVE, 'native'),
               buildScopeProvider(MOONPAY, 'aggregator'),
@@ -780,6 +854,11 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
+            },
+          });
           let quotedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -800,9 +879,178 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not widen when the caller passes an explicit providers list', async () => {
+    it('does not widen when the flag is missing from remote feature flags', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, { remoteFeatureFlags: {} });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+        },
+      );
+    });
+
+    it.each([
+      ['the string "true"', 'true'],
+      ['a number', 1],
+      ['an object with enabled false', { enabled: false }],
+      ['an object with a non-boolean enabled', { enabled: 'true' }],
+      [
+        'a disabled payload with provider ids',
+        { enabled: false, providerIds: ['/providers/moonpay'] },
+      ],
+      ['a scope string', 'all'],
+    ])(
+      'does not widen when the flag value is %s',
+      async (_description, flagValue) => {
+        const response: QuotesResponse = {
+          success: [appBrowserQuote(NATIVE, 70)],
+          sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+          error: [],
+          customActions: [],
+        };
+
+        await withController(
+          {
+            options: {
+              state: scopeState([
+                buildScopeProvider(NATIVE, 'native'),
+                buildScopeProvider(MOONPAY, 'aggregator'),
+              ]),
+            },
+          },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(rootMessenger, {
+              remoteFeatureFlags: {
+                [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: flagValue,
+              },
+            });
+            let quotedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params: { providers?: string[] }) => {
+                quotedProviders = params.providers;
+                return response;
+              },
+            );
+
+            await callScopedGetQuotes(messenger);
+
+            expect(quotedProviders).toStrictEqual([NATIVE]);
+          },
+        );
+      },
+    );
+
+    it('widens when the flag value is an enabled object payload', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+                enabled: true,
+                featureVersion: '1',
+              },
+            },
+          });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The object payload widens exactly like the boolean `true`, and
+          // with no provider ids listed it applies no restriction.
+          expect(quotedProviders).toStrictEqual([NATIVE, MOONPAY]);
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('does not widen when RemoteFeatureFlagController:getState is not wired up', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          // No RemoteFeatureFlagController:getState handler is registered, so
+          // the flag read throws internally and the controller fails closed.
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+          expect(quotes).toStrictEqual(response);
+        },
+      );
+    });
+
+    it('honors a localOverrides true value when the remote flag is off', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -811,7 +1059,137 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
+            },
+            localOverrides: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true },
+          });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // The dev override widens the path even though the remote flag is
+          // off.
+          expect(quotedProviders).toStrictEqual([NATIVE, MOONPAY]);
+        },
+      );
+    });
+
+    it('honors a localOverrides false value over a remote true value', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true,
+            },
+            localOverrides: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false },
+          });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+        },
+      );
+    });
+
+    it('reads the flag on every getQuotes call so a runtime change takes effect', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let flagValue = false;
+          rootMessenger.registerActionHandler(
+            'RemoteFeatureFlagController:getState',
+            () => ({
+              remoteFeatureFlags: {
+                [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: flagValue,
+              },
+              cacheTimestamp: 0,
+            }),
+          );
+          const quotedProviderLists: (string[] | undefined)[] = [];
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviderLists.push(params.providers);
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+          flagValue = true;
+          await callScopedGetQuotes(messenger, { forceRefresh: true });
+
+          expect(quotedProviderLists).toStrictEqual([
+            [NATIVE],
+            [NATIVE, MOONPAY],
+          ]);
+        },
+      );
+    });
+
+    it('does not widen when the caller passes an explicit providers list', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator'),
               buildScopeProvider(REVOLUT, 'aggregator'),
@@ -819,6 +1197,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let quotedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -840,7 +1219,7 @@ describe('RampsController', () => {
 
     it('hydrates the provider catalog via getProviders when state is empty', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -849,11 +1228,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: { userRegion: createMockUserRegion('us-ca') },
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
             async () => ({
@@ -877,44 +1256,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('excludes a quote carrying an inline isCustomAction flag', async () => {
-      const inlineCustom = inAppScopeQuote(MOONPAY, 90);
-      (inlineCustom.quote as { isCustomAction?: boolean }).isCustomAction =
-        true;
-      const response: QuotesResponse = {
-        success: [inlineCustom, inAppScopeQuote(REVOLUT, 80)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
-        error: [],
-        customActions: [],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([
-              buildScopeProvider(MOONPAY, 'aggregator'),
-              buildScopeProvider(REVOLUT, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // The inline-flagged MoonPay quote is dropped, so Revolut wins.
-          expect(quotes.success[0]?.provider).toBe(REVOLUT);
-        },
-      );
-    });
-
     it('falls through to the first candidate when the sort orders reference no surviving provider', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         // Neither order lists MoonPay, so both walks fall through to
         // the first surviving candidate.
         sorted: [
@@ -928,11 +1272,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -945,50 +1289,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('with scope all, does not exclude external or custom-action quotes', async () => {
-      const response: QuotesResponse = {
-        success: [
-          externalScopeQuote(COINBASE, 99),
-          inAppScopeQuote(MOONPAY, 80),
-        ],
-        sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
-        error: [],
-        customActions: [
-          {
-            buy: { providerId: MOONPAY },
-            paymentMethodId: SCOPE_PAYMENT_METHOD,
-            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
-          },
-        ],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'all',
-            state: scopeState([
-              buildScopeProvider(COINBASE, 'aggregator'),
-              buildScopeProvider(MOONPAY, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // `all` keeps the external Coinbase quote (top reliability) eligible.
-          expect(quotes.success[0]?.provider).toBe(COINBASE);
-        },
-      );
-    });
-
     it('widens on restrictToKnownOrNativeProviders alone and selects a provider whose limits fit', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -997,13 +1300,13 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(10, 1000)),
             ]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -1022,7 +1325,7 @@ describe('RampsController', () => {
 
     it('skips a provider whose maximum limit is below the amount', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
         error: [],
         customActions: [],
@@ -1031,7 +1334,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(10, 50)),
               buildScopeProvider(REVOLUT, 'aggregator'),
@@ -1039,6 +1341,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -1052,11 +1355,11 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not widen for a non-off scope when neither autoSelect nor restrict is set', async () => {
+    it('does not widen when the flag is enabled but neither autoSelect nor restrict is set', async () => {
       const response: QuotesResponse = {
         success: [
-          inAppScopeQuote(MOONPAY, 90),
-          externalScopeQuote(COINBASE, 99),
+          appBrowserQuote(MOONPAY, 90),
+          externalBrowserQuote(COINBASE, 99),
         ],
         sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
         error: [],
@@ -1066,7 +1369,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator'),
               buildScopeProvider(COINBASE, 'aggregator'),
@@ -1074,13 +1376,15 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
           );
 
           // Neither flag and no explicit providers: the plain all-provider path
-          // runs and the response is returned unfiltered even under `in-app`.
+          // runs and the response is returned unfiltered even when the feature
+          // flag is enabled.
           const quotes = await callScopedGetQuotes(messenger, {
             autoSelectProvider: undefined,
             restrictToKnownOrNativeProviders: undefined,
@@ -1091,24 +1395,24 @@ describe('RampsController', () => {
       );
     });
 
-    it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
+    it("forwards the service's default redirectUrl on the widened path when the caller omits one", async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
 
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1120,32 +1424,108 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // The caller omitted redirectUrl, so the widened path supplies the
-          // injected default and forwards it to the service.
-          expect(forwardedRedirectUrl).toBe(DEFAULT_REDIRECT);
+          // The caller omitted redirectUrl, so the widened path asks the
+          // service for the callback URL of its environment and forwards it.
+          expect(getDefaultRedirectCallbackUrlSpy).toHaveBeenCalledTimes(1);
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.uat-api.cx.metamask.io/regions/fake-callback',
+          );
         },
       );
     });
 
-    it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
+    it('rejects the entire getQuotes call when the default-redirect service action is not delegated', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          // Simulate a host that upgraded without adding the new action to
+          // its hand-written messenger delegation list.
+          rootMessenger.unregisterActionHandler(
+            'RampsService:getDefaultRedirectCallbackUrl',
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          await expect(callScopedGetQuotes(messenger)).rejects.toThrow(
+            /A handler for RampsService:getDefaultRedirectCallbackUrl has not been (registered|delegated)/u,
+          );
+        },
+      );
+    });
+
+    it('forwards whichever callback URL the service reports, without rederiving it', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          spyOnDefaultRedirectCallbackUrl(
+            rootMessenger,
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // A production service reports the production host, and the
+          // controller passes it through untouched.
+          expect(forwardedRedirectUrl).toBe(
+            'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
+          );
+        },
+      );
+    });
+
+    it('prefers an explicit caller redirectUrl and never asks the service on the widened path', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
       const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
 
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1159,31 +1539,35 @@ describe('RampsController', () => {
             redirectUrl: EXPLICIT_REDIRECT,
           });
 
-          // An explicit caller redirectUrl always wins; the default is not
-          // applied.
+          // An explicit caller redirectUrl always wins, and the controller
+          // short-circuits before reaching the service.
           expect(forwardedRedirectUrl).toBe(EXPLICIT_REDIRECT);
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not inject the default redirectUrl when the scope is off', async () => {
+    it('does not inject the default redirectUrl or ask the service when the flag is disabled', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(NATIVE, 70)],
+        success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
         error: [],
         customActions: [],
       };
-      const DEFAULT_REDIRECT = 'https://default.example/callback';
-
       await withController(
         {
           options: {
-            getProviderScope: () => 'off',
-            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(NATIVE, 'native')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
+            },
+          });
+          const getDefaultRedirectCallbackUrlSpy =
+            spyOnDefaultRedirectCallbackUrl(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1195,48 +1579,214 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // Scope `off` never widens, so the default is not injected even when a
-          // `getDefaultRedirectUrl` callback is present.
+          // The disabled flag never widens, so nothing is injected and the
+          // service is not consulted.
           expect(forwardedRedirectUrl).toBeUndefined();
+          expect(getDefaultRedirectCallbackUrlSpy).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
-      const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
-        error: [],
-        customActions: [],
+    describe('provider allowlist', () => {
+      const customActionQuote = (
+        provider: string,
+        reliability: number,
+      ): Quote => {
+        const quote = appBrowserQuote(provider, reliability);
+        return {
+          ...quote,
+          quote: {
+            ...quote.quote,
+            isCustomAction: true,
+          } as unknown as Quote['quote'],
+        };
       };
 
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+      const fourProviderState = scopeState([
+        buildScopeProvider(NATIVE, 'native'),
+        buildScopeProvider(MOONPAY, 'aggregator'),
+        buildScopeProvider(REVOLUT, 'aggregator'),
+        buildScopeProvider(COINBASE, 'aggregator'),
+      ]);
+
+      const fourProviderResponse = (): QuotesResponse => ({
+        success: [
+          appBrowserQuote(MOONPAY, 90),
+          appBrowserQuote(REVOLUT, 80),
+          externalBrowserQuote(COINBASE, 99),
+          appBrowserQuote(NATIVE, 70),
+        ],
+        sorted: [
+          { sortBy: 'reliability', ids: [COINBASE, MOONPAY, REVOLUT, NATIVE] },
+        ],
+        error: [],
+        customActions: [],
+      });
+
+      const enabledPayload = (
+        payload: Record<string, unknown>,
+      ): Partial<RemoteFeatureFlagControllerState> => ({
+        remoteFeatureFlags: {
+          [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: {
+            enabled: true,
+            featureVersion: '1',
+            ...payload,
+          } as unknown as Json,
+        },
+      });
+
+      it('restricts the pick to the top-level providerIds list', async () => {
+        await withController(
+          { options: { state: fourProviderState } },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(
+              rootMessenger,
+              enabledPayload({ providerIds: [MOONPAY, REVOLUT] }),
+            );
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => fourProviderResponse(),
+            );
+
+            const quotes = await callScopedGetQuotes(messenger);
+
+            // Coinbase is the reliability winner but is not listed, so the
+            // best listed candidate wins the pick.
+            expect(quotes.success[0]?.provider).toBe(MOONPAY);
           },
-        },
-        async ({ messenger, rootMessenger }) => {
-          let forwardedRedirectUrl: string | undefined;
-          let redirectUrlWasSeen = false;
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async (params: { redirectUrl?: string }) => {
-              forwardedRedirectUrl = params.redirectUrl;
-              redirectUrlWasSeen = true;
-              return response;
-            },
-          );
+        );
+      });
 
-          await callScopedGetQuotes(messenger);
+      it('forces an external-browser-only pick over a more reliable in-app quote', async () => {
+        const response = fourProviderResponse();
+        response.sorted = [
+          {
+            sortBy: 'reliability',
+            ids: [MOONPAY, REVOLUT, NATIVE, COINBASE],
+          },
+        ];
 
-          // With no injected callback, the constructor default returns
-          // undefined, so the widened path forwards undefined.
-          expect(redirectUrlWasSeen).toBe(true);
-          expect(forwardedRedirectUrl).toBeUndefined();
-        },
-      );
+        await withController(
+          { options: { state: fourProviderState } },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(
+              rootMessenger,
+              enabledPayload({ providerIds: [COINBASE] }),
+            );
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => response,
+            );
+
+            const quotes = await callScopedGetQuotes(messenger);
+
+            // The QA forcing scenario: only the external-browser provider is
+            // listed, so its quote wins even though in-app quotes rank higher.
+            expect(quotes.success[0]?.provider).toBe(COINBASE);
+            expect(quotes.success[0]?.quote.buyWidget?.browser).toBe(
+              'IN_APP_OS_BROWSER',
+            );
+          },
+        );
+      });
+
+      it('matches allowlist entries in bare or mixed-case form against prefixed quote ids', async () => {
+        await withController(
+          { options: { state: fourProviderState } },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(
+              rootMessenger,
+              // Quote ids are `/providers/revolut`; the payload lists the
+              // bare, mixed-case form.
+              enabledPayload({ providerIds: ['ReVoLuT'] }),
+            );
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => fourProviderResponse(),
+            );
+
+            const quotes = await callScopedGetQuotes(messenger);
+
+            expect(quotes.success[0]?.provider).toBe(REVOLUT);
+          },
+        );
+      });
+
+      it('applies the allowlist to custom-action quotes in success[]', async () => {
+        const response = fourProviderResponse();
+        response.success = [
+          customActionQuote(MOONPAY, 90),
+          appBrowserQuote(REVOLUT, 80),
+        ];
+        response.sorted = [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }];
+
+        await withController(
+          { options: { state: fourProviderState } },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(
+              rootMessenger,
+              enabledPayload({ providerIds: [REVOLUT] }),
+            );
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => response,
+            );
+
+            const quotes = await callScopedGetQuotes(messenger);
+
+            // The unlisted custom-action quote is dropped like any other
+            // candidate.
+            expect(quotes.success[0]?.provider).toBe(REVOLUT);
+          },
+        );
+      });
+
+      it('returns an empty success[] preserving diagnostics when the allowlist eliminates every candidate', async () => {
+        const response = fourProviderResponse();
+        response.error = [{ provider: NATIVE, error: 'boom' }];
+
+        await withController(
+          { options: { state: fourProviderState } },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(
+              rootMessenger,
+              enabledPayload({ providerIds: ['/providers/none'] }),
+            );
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => response,
+            );
+
+            const quotes = await callScopedGetQuotes(messenger);
+
+            expect(quotes.success).toStrictEqual([]);
+            expect(quotes.sorted).toStrictEqual(response.sorted);
+            expect(quotes.error).toStrictEqual(response.error);
+            expect(quotes.customActions).toStrictEqual(response.customActions);
+          },
+        );
+      });
+
+      it('applies no restriction for a malformed providerIds value', async () => {
+        await withController(
+          { options: { state: fourProviderState } },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(
+              rootMessenger,
+              enabledPayload({ providerIds: 'moonpay' }),
+            );
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => fourProviderResponse(),
+            );
+
+            const quotes = await callScopedGetQuotes(messenger);
+
+            // Malformed list: ignored, so the reliability winner stands.
+            expect(quotes.success[0]?.provider).toBe(COINBASE);
+          },
+        );
+      });
     });
   });
 
@@ -4550,6 +5100,300 @@ describe('RampsController', () => {
             feeFixedRate: 1,
             feeDynamicRate: 0.02,
           });
+        },
+      );
+    });
+  });
+
+  describe('setSelectedProviderForAsset', () => {
+    const ASSET_ID =
+      'eip155:143/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
+
+    const makeProvider = (id: string, assetIds: string[] = []): Provider => ({
+      id,
+      name: id,
+      environmentType: 'PRODUCTION' as const,
+      description: '',
+      hqAddress: '',
+      links: [],
+      logos: { light: '', dark: '', height: 0, width: 0 },
+      supportedCryptoCurrencies: Object.fromEntries(
+        assetIds.map((a) => [a.toLowerCase(), true]),
+      ),
+    });
+
+    it('switches to the first compatible provider when the selected one does not support the asset', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('does not switch when the selected provider already supports the asset', async () => {
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([compatible], compatible),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('does not switch when no provider supports the asset', async () => {
+      const a = makeProvider('/providers/coinbase');
+      const b = makeProvider('/providers/moonpay');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([a, b], a),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(a);
+        },
+      );
+    });
+
+    it('returns false and does not switch when providers.data is empty', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('switches to a compatible provider when nothing is selected yet', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([incompatible, compatible], null),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('does not select the currently selected provider as its own replacement', async () => {
+      const provider = makeProvider('/providers/transak-native');
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([provider], provider),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+        },
+      );
+    });
+
+    it('does not re-select the current provider when its data-list entry serves the asset but the selected copy does not', async () => {
+      // Simulates a stale-selected-copy scenario: providers.selected has empty
+      // assets while providers.data holds the fresh version of the same provider
+      // with the asset now included. The fresh entry is what decides
+      // compatibility, so there is no spurious self-switch.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([selectedFresh], selectedStale),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('does not switch away when the current provider data-list entry serves the asset and another provider serves it too', async () => {
+      // Same stale-selected-copy scenario, but with a second compatible
+      // provider available: the fresh entry for the current provider must win
+      // over the stale selected copy, so no switch happens.
+      const selectedStale = makeProvider('/providers/transak-native');
+      const selectedFresh = makeProvider('/providers/transak-native', [
+        ASSET_ID,
+      ]);
+      const other = makeProvider('/providers/moonpay', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [selectedFresh, other],
+                selectedStale,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(false);
+          expect(controller.state.providers.selected).toStrictEqual(
+            selectedStale,
+          );
+        },
+      );
+    });
+
+    it('matches the asset case-insensitively (API key lowercase, caller assetId checksummed)', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      // The providers API returns lowercase keys; the caller passes checksummed assetId.
+      const compatible: Provider = {
+        ...makeProvider('/providers/transak-native'),
+        supportedCryptoCurrencies: { [ASSET_ID.toLowerCase()]: true },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          const switched = controller.setSelectedProviderForAsset(ASSET_ID);
+
+          expect(switched).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
+        },
+      );
+    });
+
+    it('forwards autoSelected option to setSelectedProvider', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.setSelectedProviderForAsset(ASSET_ID, {
+            autoSelected: false,
+          });
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('is callable via the RampsController:setSelectedProviderForAsset messenger action', async () => {
+      const incompatible = makeProvider('/providers/coinbase');
+      const compatible = makeProvider('/providers/transak-native', [ASSET_ID]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [incompatible, compatible],
+                incompatible,
+              ),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          const result = rootMessenger.call(
+            'RampsController:setSelectedProviderForAsset',
+            ASSET_ID,
+          );
+
+          expect(result).toBe(true);
+          expect(controller.state.providers.selected).toStrictEqual(compatible);
         },
       );
     });
@@ -8023,9 +8867,10 @@ describe('RampsController', () => {
         expect(controller.state.orders).toHaveLength(1);
         const stub = controller.state.orders[0];
         expect(stub?.providerOrderId).toBe('abc123');
-        expect(stub?.provider?.id).toBe('/providers/paypal');
+        expect(stub?.provider?.id).toBe('paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+        expect(stub?.network).toStrictEqual({ chainId: '1', name: '' });
       });
     });
 
@@ -8035,11 +8880,16 @@ describe('RampsController', () => {
           orderId: 'plain-order-id',
           providerCode: 'transak',
           walletAddress: '0xdef',
+          chainId: 'eip155:1',
         });
 
         expect(controller.state.orders[0]?.providerOrderId).toBe(
           'plain-order-id',
         );
+        expect(controller.state.orders[0]?.network).toStrictEqual({
+          chainId: 'eip155:1',
+          name: '',
+        });
       });
     });
 
@@ -8049,6 +8899,20 @@ describe('RampsController', () => {
           orderId: '/providers/paypal/orders/',
           providerCode: 'paypal',
           walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
+      });
+    });
+
+    it('skips addOrder when chainId is empty or whitespace', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '   ',
         });
 
         expect(controller.state.orders).toHaveLength(0);
@@ -10214,6 +11078,73 @@ describe('RampsController', () => {
       });
     });
 
+    describe('transakCreateWidgetUrl', () => {
+      const mockQuote: TransakBuyQuote = {
+        quoteId: 'quote-1',
+        conversionPrice: 50000,
+        marketConversionPrice: 50100,
+        slippage: 0.5,
+        fiatCurrency: 'USD',
+        cryptoCurrency: 'BTC',
+        paymentMethod: 'credit_debit_card',
+        fiatAmount: 100,
+        cryptoAmount: 0.002,
+        isBuyOrSell: 'BUY',
+        network: 'bitcoin',
+        feeDecimal: 0.01,
+        totalFee: 1,
+        feeBreakdown: [],
+        nonce: 1,
+        cryptoLiquidityProvider: 'provider-1',
+        notes: [],
+      };
+
+      it('calls messenger with correct arguments and returns the widget URL', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const handler = jest
+            .fn()
+            .mockResolvedValue('https://global.transak.com?sessionId=sess-1');
+          rootMessenger.registerActionHandler(
+            'TransakService:createWidgetUrl',
+            handler,
+          );
+          const extraParams = { themeColor: '037dd6' };
+          const result = await rootMessenger.call(
+            'RampsController:transakCreateWidgetUrl',
+            mockQuote,
+            '0x123',
+            extraParams,
+          );
+          expect(result).toBe('https://global.transak.com?sessionId=sess-1');
+          expect(handler).toHaveBeenCalledWith(mockQuote, '0x123', extraParams);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
+          rootMessenger.registerActionHandler(
+            'TransakService:createWidgetUrl',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakCreateWidgetUrl',
+              mockQuote,
+              '0x123',
+            ),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
+    });
+
     describe('transakSubmitPurposeOfUsageForm', () => {
       it('calls messenger with purpose array', async () => {
         await withController(async ({ rootMessenger }) => {
@@ -10853,7 +11784,39 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  // Stands in for the real service, which derives this from its environment.
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    () => STAGING_REDIRECT_CALLBACK_URL,
+  );
+  return rootMessenger;
+}
+
+/**
+ * Replaces the default `RampsService:getDefaultRedirectCallbackUrl` handler
+ * with a spy, so a test can assert whether the controller asked the service
+ * for the default redirect URL at all.
+ *
+ * @param rootMessenger - The root messenger to re-register the handler on.
+ * @param url - The URL the spy returns. Defaults to the staging callback URL.
+ * @returns The spy standing in for the service method.
+ */
+function spyOnDefaultRedirectCallbackUrl(
+  rootMessenger: RootMessenger,
+  url: string = STAGING_REDIRECT_CALLBACK_URL,
+): jest.Mock<string, []> {
+  const handler = jest.fn<string, []>(() => url);
+  rootMessenger.unregisterActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+  );
+  rootMessenger.registerActionHandler(
+    'RampsService:getDefaultRedirectCallbackUrl',
+    handler,
+  );
+  return handler;
 }
 
 /**
@@ -10870,7 +11833,10 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: [...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS],
+    actions: [
+      ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+      'RemoteFeatureFlagController:getState',
+    ],
   });
   return messenger;
 }

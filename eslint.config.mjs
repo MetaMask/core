@@ -2,6 +2,7 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import node from 'eslint-plugin-n';
 
 const NODE_LTS_VERSION = 22;
 
@@ -77,11 +78,12 @@ const config = createConfig([
       '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
+      '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
       'merged-packages/**',
+      'packages/wallet-framework-docs/site/build/**',
       'scripts/create-package/package-template/**',
-      '.platform-api-docs/**',
     ],
   },
   {
@@ -116,10 +118,10 @@ const config = createConfig([
       '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'scripts/*.ts',
-      'scripts/create-package/**/*.ts',
+      'scripts/**/*.{ts,mts}',
       'packages/platform-api-docs/**/*.ts',
     ],
+    ignores: ['scripts/create-package/package-template/**/*.ts'],
     extends: [nodejs],
   },
   {
@@ -130,7 +132,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [typescript],
     languageOptions: {
       parserOptions: {
@@ -371,6 +373,31 @@ const config = createConfig([
     files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
     rules: {
       'n/no-process-env': 'off',
+    },
+  },
+  {
+    // `import-x/extensions` doesn't support using ".js" for TypeScript
+    // files(?), so we load the `n` plugin and use
+    // `n/file-extension-in-import` instead.
+    plugins: { n: node },
+
+    rules: {
+      'n/file-extension-in-import': ['error', 'always'],
+      'import-x/extensions': [
+        'error',
+        {
+          js: 'ignorePackages',
+          ts: 'never',
+          tsx: 'never',
+          json: 'always',
+        },
+      ],
+      'import-x/no-useless-path-segments': [
+        'error',
+        {
+          noUselessIndex: false,
+        },
+      ],
     },
   },
 ]);

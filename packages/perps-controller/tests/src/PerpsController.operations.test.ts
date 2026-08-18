@@ -6,20 +6,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import {
-  GasFeeEstimateLevel,
-  GasFeeEstimateType,
-} from '@metamask/transaction-controller';
-
-import Engine from '../../../core/Engine';
-import {
-  createMockHyperLiquidProvider,
-  createMockPosition,
-} from '../helpers/providerMocks';
+import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../helpers/serviceMocks';
+} from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({
@@ -30,31 +21,22 @@ jest.mock('@myx-trade/sdk', () => ({
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../../src/constants/eventNames';
-import {
-  PERPS_CONSTANTS,
-  PERPS_DISK_CACHE_MARKETS,
-  PERPS_DISK_CACHE_USER_DATA,
-} from '../../src/constants/perpsConfig';
+} from '../../src/constants/eventNames.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
-  firstNonEmpty,
-  resolveMyxAuthConfig,
-} from '../../src/PerpsController';
-import type { PerpsControllerState } from '../../src/PerpsController';
-import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider';
+} from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
-  AccountState,
   GetAvailableDexsParams,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
-  SubscribeAccountParams,
-} from '../../src/types';
-import { PerpsAnalyticsEvent } from '../../src/types';
+} from '../../src/types/index.js';
+import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
 jest.mock('../../src/providers/MYXProvider');
@@ -88,59 +70,6 @@ jest.mock(
   () => ({
     getStreamManagerInstance: jest.fn(() => mockStreamManager),
   }),
-  { virtual: true },
-);
-
-// Create persistent mock controllers INSIDE jest.mock factory
-jest.mock(
-  '../../../core/Engine',
-  () => {
-    const mockRewardsController = {
-      getPerpsDiscountForAccount: jest.fn(),
-    };
-
-    const mockNetworkController = {
-      getNetworkClientById: jest.fn().mockReturnValue({
-        configuration: { chainId: '0x1' },
-      }),
-    };
-
-    const mockAccountTreeController = {
-      getAccountsFromSelectedAccountGroup: jest.fn().mockReturnValue([
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          type: 'eip155:eoa',
-        },
-      ]),
-    };
-
-    const mockTransactionController = {
-      estimateGasFee: jest.fn(),
-      estimateGas: jest.fn(),
-    };
-
-    const mockAccountTrackerController = {
-      state: {
-        accountsByChainId: {},
-      },
-    };
-
-    const mockEngineContext = {
-      RewardsController: mockRewardsController,
-      NetworkController: mockNetworkController,
-      AccountTreeController: mockAccountTreeController,
-      TransactionController: mockTransactionController,
-      AccountTrackerController: mockAccountTrackerController,
-    };
-
-    // Return as default export to match the actual Engine import
-    return {
-      __esModule: true,
-      default: {
-        context: mockEngineContext,
-      },
-    };
-  },
   { virtual: true },
 );
 
@@ -554,14 +483,6 @@ describe('PerpsController', () => {
       () => undefined,
     );
 
-    // Reset Engine.context mocks to default state to prevent test interdependence
-    (
-      Engine.context.RewardsController.getPerpsDiscountForAccount as jest.Mock
-    ).mockResolvedValue(null);
-    (
-      Engine.context.NetworkController.getNetworkClientById as jest.Mock
-    ).mockReturnValue({ configuration: { chainId: '0x1' } });
-
     // Create a fresh mock provider for each test
     mockProvider = createMockHyperLiquidProvider();
 
@@ -907,6 +828,21 @@ describe('PerpsController', () => {
   });
 
   describe('fee calculations', () => {
+    it('approves the subscription builder outside order submission', async () => {
+      mockProvider.approveSubscriptionBuilderFee = jest
+        .fn()
+        .mockResolvedValue(true);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+      expect(mockProvider.approveSubscriptionBuilderFee).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
     it('calculates fees', async () => {
       const feeParams = {
         orderType: 'market' as const,
@@ -940,6 +876,101 @@ describe('PerpsController', () => {
         params: feeParams,
         context: expect.any(Object),
       });
+    });
+
+    it('passes the cached subscription waiver status to the fee preview', async () => {
+      const feeParams = {
+        orderType: 'market' as const,
+        isMaker: false,
+        amount: '100000',
+        symbol: 'BTC',
+      };
+      const waiverStatus = {
+        eligible: true,
+        reason: 'eligible' as const,
+        remainingNotionalUsd: 2500,
+      };
+      const getStatus = jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'getSubscriptionFeeWaiverStatus',
+        )
+        .mockReturnValue(waiverStatus);
+      const refresh = jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await controller.calculateFees(feeParams);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh.mock.invocationCallOrder[0]).toBeLessThan(
+        getStatus.mock.invocationCallOrder[0],
+      );
+      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({
+            subscriptionFeeWaiver: waiverStatus,
+          }),
+        }),
+      );
+
+      getStatus.mockRestore();
+      refresh.mockRestore();
+    });
+
+    it('exposes subscription benefits invalidation to clients', async () => {
+      // The service is private to the controller, so a client detecting a
+      // sign-out or profile switch can only reach it through this method.
+      const invalidate = jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'invalidateSubscriptionBenefits',
+        )
+        .mockImplementation(() => undefined);
+
+      controller.invalidateSubscriptionBenefits();
+
+      expect(invalidate).toHaveBeenCalledTimes(1);
+
+      invalidate.mockRestore();
+    });
+
+    it('omits the subscription waiver from the fee preview when no source is wired', async () => {
+      const feeParams = {
+        orderType: 'market' as const,
+        isMaker: false,
+        amount: '100000',
+        symbol: 'BTC',
+      };
+      // The mocked infrastructure wires no `subscription` dependency, so the
+      // real service reports `no-source` and the context field must be absent
+      // rather than carrying a meaningless "not eligible".
+      const getStatus = jest.spyOn(
+        RewardsIntegrationService.prototype,
+        'getSubscriptionFeeWaiverStatus',
+      );
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await controller.calculateFees(feeParams);
+
+      expect(getStatus).toHaveReturnedWith({
+        eligible: false,
+        reason: 'no-source',
+      });
+      const { context } = (
+        mockMarketDataServiceInstance.calculateFees as jest.Mock
+      ).mock.calls.at(-1)[0];
+      expect(context.subscriptionFeeWaiver).toBeUndefined();
+
+      getStatus.mockRestore();
     });
   });
 
@@ -1108,34 +1139,6 @@ describe('PerpsController', () => {
           return undefined;
         });
 
-      Engine.context.TransactionController.estimateGasFee = jest
-        .fn()
-        .mockResolvedValue({
-          estimates: {
-            type: GasFeeEstimateType.FeeMarket,
-            [GasFeeEstimateLevel.Low]: {
-              maxFeePerGas: '0x3b9aca00',
-              maxPriorityFeePerGas: '0x1',
-            },
-            [GasFeeEstimateLevel.Medium]: {
-              maxFeePerGas: '0x3b9aca00',
-              maxPriorityFeePerGas: '0x1',
-            },
-            [GasFeeEstimateLevel.High]: {
-              maxFeePerGas: '0x3b9aca00',
-              maxPriorityFeePerGas: '0x1',
-            },
-          },
-        });
-
-      Engine.context.AccountTrackerController.state.accountsByChainId = {
-        [mockAssetChainId]: {
-          [mockTransaction.from.toLowerCase()]: {
-            balance: '0xde0b6b3a7640000',
-          },
-        },
-      };
-
       // Create a controller with the custom infrastructure for this test suite
       depositController = new TestablePerpsController({
         messenger: createMockMessenger({ call: depositMockCall }),
@@ -1155,7 +1158,6 @@ describe('PerpsController', () => {
     });
 
     afterEach(() => {
-      delete (Engine.context.TransactionController as any).estimateGasFee;
       jest.clearAllMocks();
       mockAddTransaction.mockClear();
     });

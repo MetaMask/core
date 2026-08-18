@@ -2,15 +2,19 @@ import { NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
 
-import { CHAIN_IDS } from '../constants';
+import { CHAIN_IDS } from '../constants.js';
 import type {
   TransactionMeta,
   SecurityAlertResponse,
   SimulationData,
   SimulationTokenBalanceChange,
-} from '../types';
-import { TransactionStatus, SimulationTokenStandard } from '../types';
-import { getPercentageChange } from '../utils/utils';
+} from '../types.js';
+import {
+  TransactionContainerType,
+  TransactionStatus,
+  SimulationTokenStandard,
+} from '../types.js';
+import { getPercentageChange } from '../utils/utils.js';
 import {
   ResimulateHelper,
   BLOCK_TIME_ADDITIONAL_SECONDS,
@@ -20,8 +24,8 @@ import {
   shouldResimulate,
   VALUE_COMPARISON_PERCENT_THRESHOLD,
   RESIMULATE_INTERVAL_MS,
-} from './ResimulateHelper';
-import type { ResimulateHelperOptions } from './ResimulateHelper';
+} from './ResimulateHelper.js';
+import type { ResimulateHelperOptions } from './ResimulateHelper.js';
 
 const CURRENT_TIME_MOCK = 1234567890;
 const CURRENT_TIME_SECONDS_MOCK = 1234567;
@@ -321,6 +325,35 @@ describe('Resimulate Utils', () => {
         expect(result).toStrictEqual({
           blockTime: undefined,
           resimulate: false,
+        });
+      });
+    });
+
+    describe('Enforced simulations', () => {
+      it('resimulates when enforced simulations are applied', () => {
+        const result = shouldResimulate(TRANSACTION_META_MOCK, {
+          ...TRANSACTION_META_MOCK,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        });
+
+        expect(result).toStrictEqual({
+          blockTime: undefined,
+          resimulate: true,
+        });
+      });
+
+      it('resimulates when enforced simulations are removed', () => {
+        const result = shouldResimulate(
+          {
+            ...TRANSACTION_META_MOCK,
+            containerTypes: [TransactionContainerType.EnforcedSimulations],
+          },
+          TRANSACTION_META_MOCK,
+        );
+
+        expect(result).toStrictEqual({
+          blockTime: undefined,
+          resimulate: true,
         });
       });
     });

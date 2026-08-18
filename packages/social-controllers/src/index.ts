@@ -5,11 +5,11 @@ export type {
   SocialControllerMessenger,
   SocialControllerOptions,
   SocialControllerStateChangeEvent,
-} from './SocialController';
+} from './SocialController.js';
 export {
   SocialController,
   getDefaultSocialControllerState,
-} from './SocialController';
+} from './SocialController.js';
 
 export type {
   SocialControllerFollowTraderAction,
@@ -18,17 +18,18 @@ export type {
   SocialControllerUnfollowTraderAction,
   SocialControllerUpdateFollowingAction,
   SocialControllerUpdateLeaderboardAction,
-} from './SocialController-method-action-types';
+} from './SocialController-method-action-types.js';
 
 export type {
   SocialServiceActions,
   SocialServiceEvents,
   SocialServiceMessenger,
-} from './SocialService';
-export { SocialService } from './SocialService';
+} from './SocialService.js';
+export { SocialService } from './SocialService.js';
 
 export type {
   SocialServiceFetchClosedPositionsAction,
+  SocialServiceFetchFeedAction,
   SocialServiceFetchFollowersAction,
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
@@ -38,11 +39,16 @@ export type {
   SocialServiceFollowAction,
   SocialServiceOptInToLeaderboardAction,
   SocialServiceOptOutOfLeaderboardAction,
+  SocialServiceRefreshNotificationPreferencesCacheAction,
   SocialServiceUnfollowAction,
-} from './SocialService-method-action-types';
+} from './SocialService-method-action-types.js';
 
-export { TradeStruct } from './social-types';
+export { TradeStruct } from './social-types.js';
 export type {
+  FeedItem,
+  FeedPagination,
+  FeedResponse,
+  FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
@@ -67,9 +73,9 @@ export type {
   TraderStats,
   UnfollowOptions,
   UnfollowResponse,
-} from './social-types';
+} from './social-types.js';
 
 export {
   serviceName as socialServiceName,
   SocialServiceErrorMessage,
-} from './social-constants';
+} from './social-constants.js';

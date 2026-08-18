@@ -4,7 +4,7 @@ import {
   RemoteFeatureFlagControllerMessenger,
 } from '@metamask/remote-feature-flag-controller';
 
-import { InitializationConfiguration } from '../../types';
+import { InitializationConfiguration } from '../../types.js';
 
 export const remoteFeatureFlagController: InitializationConfiguration<
   RemoteFeatureFlagController,
@@ -24,6 +24,7 @@ export const remoteFeatureFlagController: InitializationConfiguration<
       prevClientVersion: options.prevClientVersion,
       fetchInterval: options.fetchInterval,
       disabled: options.disabled,
+      defaultFeatureFlags: options.defaultFeatureFlags,
     }),
   getMessenger: (parent) =>
     new Messenger({

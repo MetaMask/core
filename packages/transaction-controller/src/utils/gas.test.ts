@@ -6,19 +6,25 @@ import { cloneDeep } from 'lodash';
 import type {
   SimulationResponse,
   SimulationResponseTransaction,
-} from '../api/simulation-api';
-import { simulateTransactions } from '../api/simulation-api';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType } from '../types';
-import type { TransactionMeta } from '../types';
+} from '../api/simulation-api.js';
+import { simulateTransactions } from '../api/simulation-api.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionEnvelopeType } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 import type {
   AuthorizationList,
   BatchTransactionParams,
   TransactionBatchSingleRequest,
-} from '../types';
-import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
-import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import type { UpdateGasRequest } from './gas';
+} from '../types.js';
+import {
+  DELEGATION_PREFIX,
+  generateEIP7702BatchTransaction,
+} from './eip7702.js';
+import {
+  getGasEstimateBuffer,
+  getGasEstimateFallback,
+} from './feature-flags.js';
+import type { UpdateGasRequest } from './gas.js';
 import {
   addGasBuffer,
   estimateGas,
@@ -31,8 +37,8 @@ import {
   INTRINSIC_GAS,
   DUMMY_AUTHORIZATION_SIGNATURE,
   simulateGasBatch,
-} from './gas';
-import { rpcRequest } from './provider';
+} from './gas.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('./provider', () => ({
   ...jest.requireActual('./provider'),
@@ -864,35 +870,49 @@ describe('gas', () => {
       });
     });
 
-    it('normalizes value in estimate request', async () => {
-      mockQuery({
-        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-        estimateGasResponse: toHex(GAS_MOCK),
-      });
+    it.each<[string, string | null | undefined, string]>([
+      ['undefined', undefined, '0x0'],
+      ['null', null, '0x0'],
+      ['zero with leading zero digits', '0x00', '0x0'],
+      [
+        'a quantity with leading zero digits',
+        '0x0de0b6b3a7640000',
+        '0xde0b6b3a7640000',
+      ],
+      ['an already canonical quantity', '0x1', '0x1'],
+      ['not a strict hex string', '123', '123'],
+    ])(
+      'normalizes value in estimate request when value is %s',
+      async (_case, value, expectedValue) => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
 
-      await estimateGas({
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        messenger: MESSENGER_MOCK,
-        txParams: {
-          ...TRANSACTION_META_MOCK.txParams,
-          value: undefined,
-        },
-      });
-
-      expect(rpcRequestMock).toHaveBeenCalledWith({
-        messenger: MESSENGER_MOCK,
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        method: 'eth_estimateGas',
-        params: [
-          {
+        await estimateGas({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          isSimulationEnabled: false,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
+          txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            value: '0x0',
+            value: value as string | undefined,
           },
-        ],
-      });
-    });
+        });
+
+        expect(rpcRequestMock).toHaveBeenCalledWith({
+          messenger: MESSENGER_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          method: 'eth_estimateGas',
+          params: [
+            {
+              ...TRANSACTION_META_MOCK.txParams,
+              value: expectedValue,
+            },
+          ],
+        });
+      },
+    );
 
     it('normalizes authorization list in estimate request', async () => {
       mockQuery({

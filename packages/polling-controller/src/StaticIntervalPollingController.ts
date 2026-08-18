@@ -4,12 +4,12 @@ import type { Json } from '@metamask/utils';
 import {
   AbstractPollingControllerBaseMixin,
   getKey,
-} from './AbstractPollingController';
+} from './AbstractPollingController.js';
 import type {
   Constructor,
   IPollingController,
   PollingTokenSetId,
-} from './types';
+} from './types.js';
 
 /**
  * StaticIntervalPollingControllerMixin

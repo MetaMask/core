@@ -6,20 +6,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import {
-  GasFeeEstimateLevel,
-  GasFeeEstimateType,
-} from '@metamask/transaction-controller';
-
-import Engine from '../../../core/Engine';
-import {
-  createMockHyperLiquidProvider,
-  createMockPosition,
-} from '../helpers/providerMocks';
+import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../helpers/serviceMocks';
+} from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({
@@ -28,33 +19,18 @@ jest.mock('@myx-trade/sdk', () => ({
 }));
 
 import {
-  PERPS_EVENT_PROPERTY,
-  PERPS_EVENT_VALUE,
-} from '../../src/constants/eventNames';
-import {
-  PERPS_CONSTANTS,
-  PERPS_DISK_CACHE_MARKETS,
-  PERPS_DISK_CACHE_USER_DATA,
-} from '../../src/constants/perpsConfig';
-import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
-  firstNonEmpty,
-  resolveMyxAuthConfig,
-} from '../../src/PerpsController';
-import type { PerpsControllerState } from '../../src/PerpsController';
-import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider';
+} from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
-  AccountState,
-  GetAvailableDexsParams,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
-  SubscribeAccountParams,
-} from '../../src/types';
-import { PerpsAnalyticsEvent } from '../../src/types';
+} from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
 jest.mock('../../src/providers/MYXProvider');
@@ -73,6 +49,7 @@ jest.mock(
 jest.mock('../../src/utils/wait', () => ({
   wait: jest.fn().mockResolvedValue(undefined),
 }));
+import { wait as mockWait } from '../../src/utils/wait';
 
 // Mock stream manager
 const mockStreamManager = {
@@ -88,59 +65,6 @@ jest.mock(
   () => ({
     getStreamManagerInstance: jest.fn(() => mockStreamManager),
   }),
-  { virtual: true },
-);
-
-// Create persistent mock controllers INSIDE jest.mock factory
-jest.mock(
-  '../../../core/Engine',
-  () => {
-    const mockRewardsController = {
-      getPerpsDiscountForAccount: jest.fn(),
-    };
-
-    const mockNetworkController = {
-      getNetworkClientById: jest.fn().mockReturnValue({
-        configuration: { chainId: '0x1' },
-      }),
-    };
-
-    const mockAccountTreeController = {
-      getAccountsFromSelectedAccountGroup: jest.fn().mockReturnValue([
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          type: 'eip155:eoa',
-        },
-      ]),
-    };
-
-    const mockTransactionController = {
-      estimateGasFee: jest.fn(),
-      estimateGas: jest.fn(),
-    };
-
-    const mockAccountTrackerController = {
-      state: {
-        accountsByChainId: {},
-      },
-    };
-
-    const mockEngineContext = {
-      RewardsController: mockRewardsController,
-      NetworkController: mockNetworkController,
-      AccountTreeController: mockAccountTreeController,
-      TransactionController: mockTransactionController,
-      AccountTrackerController: mockAccountTrackerController,
-    };
-
-    // Return as default export to match the actual Engine import
-    return {
-      __esModule: true,
-      default: {
-        context: mockEngineContext,
-      },
-    };
-  },
   { virtual: true },
 );
 
@@ -553,14 +477,6 @@ describe('PerpsController', () => {
     mockFeatureFlagConfigurationServiceInstance.refreshHip3Config.mockImplementation(
       () => undefined,
     );
-
-    // Reset Engine.context mocks to default state to prevent test interdependence
-    (
-      Engine.context.RewardsController.getPerpsDiscountForAccount as jest.Mock
-    ).mockResolvedValue(null);
-    (
-      Engine.context.NetworkController.getNetworkClientById as jest.Mock
-    ).mockReturnValue({ configuration: { chainId: '0x1' } });
 
     // Create a fresh mock provider for each test
     mockProvider = createMockHyperLiquidProvider();
@@ -1035,6 +951,51 @@ describe('PerpsController', () => {
       const provider = controller.getActiveProvider();
       expect(provider).toBe(mockProvider);
     });
+
+    it('throws plain CLIENT_NOT_INITIALIZED on Failed state (not compound string)', () => {
+      controller.testSetInitialized(false);
+      controller.testUpdate((state) => {
+        state.initializationState = InitializationState.Failed;
+        state.initializationError = 'WebSocket transport failed';
+      });
+
+      expect(() => controller.getActiveProvider()).toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+
+      try {
+        controller.getActiveProvider();
+      } catch (e: any) {
+        expect(e.message).toBe(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+        expect(e.message).not.toContain(':');
+      }
+    });
+
+    it('does not log to Sentry when state is Failed', () => {
+      controller.testSetInitialized(false);
+      controller.testUpdate((state) => {
+        state.initializationState = InitializationState.Failed;
+        state.initializationError = 'WebSocket transport failed';
+      });
+
+      expect(() => controller.getActiveProvider()).toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+      expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+    });
+
+    it('does not log to Sentry when initializationError is null on Failed state', () => {
+      controller.testSetInitialized(false);
+      controller.testUpdate((state) => {
+        state.initializationState = InitializationState.Failed;
+        state.initializationError = null;
+      });
+
+      expect(() => controller.getActiveProvider()).toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+      expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+    });
   });
 
   describe('getActiveProviderOrNull', () => {
@@ -1063,6 +1024,81 @@ describe('PerpsController', () => {
       const result = controller.getActiveProviderOrNull();
 
       expect(result).toBe(mockProvider);
+    });
+  });
+
+  describe('action calls during initialization', () => {
+    it('waits for init to complete before resolving when state is Initializing', async () => {
+      let resolveBlock!: () => void;
+      const blockingPromise = new Promise<void>((resolve) => {
+        resolveBlock = resolve;
+      });
+
+      let attempt = 0;
+      (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) {
+          throw new Error('Transient failure');
+        }
+        return mockProvider;
+      });
+
+      // Block the first retry delay so init stays in Initializing
+      (mockWait as jest.Mock).mockImplementationOnce(() => blockingPromise);
+
+      const mockOrderResult = {
+        success: true,
+        orderId: '123',
+        status: 'filled',
+      };
+      jest
+        .spyOn(mockTradingServiceInstance, 'placeOrder')
+        .mockResolvedValue(mockOrderResult);
+
+      // Start init (will fail first attempt → block on retry wait)
+      const initPromise = controller.init();
+
+      // Yield so init reaches the blocking wait
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      // Call placeOrder while init is still in-flight — should not throw
+      const orderPromise = controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      } as any);
+
+      // Unblock init retry so initialization completes
+      resolveBlock();
+
+      await initPromise;
+      const result = await orderPromise;
+
+      expect(result).toEqual(expect.objectContaining({ orderId: '123' }));
+    });
+
+    it('throws CLIENT_NOT_INITIALIZED immediately when state is Failed', async () => {
+      controller.testSetInitialized(false);
+      controller.testUpdate((state) => {
+        state.initializationState = InitializationState.Failed;
+        state.initializationError = 'Network error';
+      });
+
+      await expect(
+        controller.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        } as any),
+      ).rejects.toThrow(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
     });
   });
 

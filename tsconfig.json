@@ -141,6 +141,9 @@
       "path": "./packages/keyring-controller"
     },
     {
+      "path": "./packages/kyc-controller"
+    },
+    {
       "path": "./packages/local-node-utils"
     },
     {
@@ -153,16 +156,22 @@
       "path": "./packages/messenger-cli"
     },
     {
-      "path": "./packages/platform-api-docs"
+      "path": "./packages/money-account-api-data-service"
     },
     {
       "path": "./packages/money-account-balance-service"
+    },
+    {
+      "path": "./packages/money-account-api-data-service"
     },
     {
       "path": "./packages/money-account-controller"
     },
     {
       "path": "./packages/money-account-upgrade-controller"
+    },
+    {
+      "path": "./packages/money-account-utils"
     },
     {
       "path": "./packages/multichain-account-service"
@@ -178,6 +187,9 @@
     },
     {
       "path": "./packages/name-controller"
+    },
+    {
+      "path": "./packages/network-connection-banner-controller"
     },
     {
       "path": "./packages/network-controller"
@@ -202,6 +214,9 @@
     },
     {
       "path": "./packages/phishing-controller"
+    },
+    {
+      "path": "./packages/platform-api-docs"
     },
     {
       "path": "./packages/polling-controller"
@@ -237,6 +252,9 @@
       "path": "./packages/selected-network-controller"
     },
     {
+      "path": "./packages/sentinel-api-service"
+    },
+    {
       "path": "./packages/shield-controller"
     },
     {
@@ -270,6 +288,18 @@
       "path": "./packages/user-operation-controller"
     },
     {
+      "path": "./packages/eip-5792-middleware"
+    },
+    {
+      "path": "./packages/eip-7702-internal-rpc-middleware"
+    },
+    {
+      "path": "./packages/logging-controller"
+    },
+    {
+      "path": "./packages/storage-service"
+    },
+    {
       "path": "./packages/wallet"
     },
     {
@@ -280,5 +310,11 @@
     }
   ],
   "files": [],
-  "include": ["./docs", "./types", "./scripts", "./knip.config.ts"]
+  "include": [
+    "./docs",
+    "./types",
+    "./scripts",
+    "./codeowners.ts",
+    "./knip.config.mts"
+  ]
 }

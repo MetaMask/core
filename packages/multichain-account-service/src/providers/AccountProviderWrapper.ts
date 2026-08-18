@@ -7,8 +7,8 @@ import type {
 import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider.js';
 
 /**
  * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.
@@ -165,6 +165,19 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
       return [];
     }
     return this.provider.createAccounts(options);
+  }
+
+  /**
+   * Returns immediately when disabled. Delegates to the wrapped provider otherwise,
+   * waiting for the underlying platform (e.g. snap runtime) to be ready.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  override async ensureReady(): Promise<void> {
+    if (!this.isEnabled) {
+      return;
+    }
+    await this.provider.ensureReady();
   }
 
   /**

@@ -52,4 +52,9 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    * `enable`/`disable` actions.
    */
   disabled?: RemoteFeatureFlagControllerOptions['disabled'];
+  /**
+   * Client-side default feature flags used as the lowest-precedence layer
+   * under processed remote flags and local overrides. Not persisted.
+   */
+  defaultFeatureFlags?: RemoteFeatureFlagControllerOptions['defaultFeatureFlags'];
 };

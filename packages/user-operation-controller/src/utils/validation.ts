@@ -14,16 +14,16 @@ import {
 import { TransactionType } from '@metamask/transaction-controller';
 import { isStrictHexString } from '@metamask/utils';
 
-import { EMPTY_BYTES } from '../constants';
+import { EMPTY_BYTES } from '../constants.js';
 import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
   UpdateUserOperationResponse,
-} from '../types';
+} from '../types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
-} from '../UserOperationController';
+} from '../UserOperationController.js';
 
 /**
  * Validate a request to add a user operation.

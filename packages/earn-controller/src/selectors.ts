@@ -6,7 +6,7 @@ import type {
   LendingMarketWithPosition,
   LendingPositionWithMarket,
   LendingPositionWithMarketReference,
-} from './EarnController';
+} from './EarnController.js';
 
 export const selectLendingMarkets = (
   state: EarnControllerState,

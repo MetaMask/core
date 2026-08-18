@@ -21,26 +21,33 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  getEffectiveRecipient,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
-import { findSimilarAddresses } from './address-poisoning';
-import { CacheManager } from './CacheManager';
-import type { CacheEntry } from './CacheManager';
-import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
-import type { PathTrie } from './PathTrie';
+import { findSimilarAddresses } from './address-poisoning.js';
+import { CacheManager } from './CacheManager.js';
+import type { CacheEntry } from './CacheManager.js';
+import {
+  convertListToTrie,
+  insertToTrie,
+  matchedPathPrefix,
+} from './PathTrie.js';
+import type { PathTrie } from './PathTrie.js';
 import type {
   PhishingControllerMaybeUpdateStateAction,
   PhishingControllerMethodActions,
   PhishingControllerTestOriginAction,
-} from './PhishingController-method-action-types';
-import { PhishingDetector } from './PhishingDetector';
+} from './PhishingController-method-action-types.js';
+import { PhishingDetector } from './PhishingDetector.js';
 import {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
-} from './types';
+} from './types.js';
 import type {
   PhishingDetectorResult,
   PhishingDetectionScanResult,
@@ -52,7 +59,7 @@ import type {
   AddressScanResult,
   SimilarAddressMatch,
   ApprovalsResponse,
-} from './types';
+} from './types.js';
 import {
   applyDiffs,
   fetchTimeNow,
@@ -64,8 +71,10 @@ import {
   splitCacheHits,
   resolveChainName,
   getPathnameFromUrl,
+  isAddressScanSupportedChain,
   isApprovalSupportedChain,
-} from './utils';
+  isTokenScanSupportedChain,
+} from './utils.js';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -954,7 +963,7 @@ export class PhishingController extends BaseController<
     }
 
     const transactionRecipient = this.#normalizeAddress(
-      transaction.txParams.to,
+      getEffectiveRecipient(transaction),
     );
     const swapAndSendRecipient = this.#normalizeAddress(
       transaction.swapAndSendRecipient,
@@ -1464,7 +1473,7 @@ export class PhishingController extends BaseController<
     const normalizedAddress = address.toLowerCase();
     const chain = resolveChainName(normalizedChainId);
 
-    if (!chain) {
+    if (!chain || !isAddressScanSupportedChain(chain)) {
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
@@ -1629,8 +1638,8 @@ export class PhishingController extends BaseController<
     const normalizedChainId = chainId.toLowerCase();
     const chain = resolveChainName(normalizedChainId);
 
-    if (!chain) {
-      console.warn(`Unknown chain ID: ${chainId}`);
+    if (!chain || !isTokenScanSupportedChain(chain)) {
+      console.warn(`Unsupported chain ID: ${chainId}`);
       return {};
     }
 

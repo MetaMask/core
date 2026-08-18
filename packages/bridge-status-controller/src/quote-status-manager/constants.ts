@@ -16,7 +16,23 @@ export const QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS = 30 * 60 * 1000; // 30 minut
  * store on the next read, and never retried again. This bounds how long the
  * manager keeps trying to report a status that the backend may never accept.
  */
-export const QUOTE_STATUS_UPDATE_ENTRY_TTL = 12 * 60 * 60 * 1000; // 12 hours
+export const QUOTE_STATUS_UPDATE_ENTRY_TTL = 3 * 60 * 60 * 1000; // 3 hours
+
+/**
+ * Maximum age of a persisted `txHistory` item, measured from its `startTime`,
+ * that is still eligible to have its quote-status entry backfilled on
+ * startup.
+ *
+ * Used by `#seedQuoteStatusEntriesFromHistory` to skip history items whose
+ * `startTime` predates this window: the backend's quote data itself is only
+ * retained for a bounded period, so reporting a status for a quote older than
+ * that would be rejected regardless of how fresh the locally-recreated entry
+ * is. This is intentionally longer than `QUOTE_STATUS_UPDATE_ENTRY_TTL`
+ * (which bounds an entry's local retry lifetime from creation, not the
+ * underlying quote's age) so that swaps/bridges left in-flight across
+ * multiple closed sessions still get a chance to be resumed.
+ */
+export const QUOTE_STATUS_BACKFILL_WINDOW_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 /**
  * Quote lifecycle statuses as understood by the backend `quote/updateStatus`

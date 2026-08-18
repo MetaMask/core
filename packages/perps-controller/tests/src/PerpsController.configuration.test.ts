@@ -11,15 +11,14 @@ import {
   GasFeeEstimateType,
 } from '@metamask/transaction-controller';
 
-import Engine from '../../../core/Engine';
 import {
   createMockHyperLiquidProvider,
   createMockPosition,
-} from '../helpers/providerMocks';
+} from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
-} from '../helpers/serviceMocks';
+} from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({
@@ -30,22 +29,23 @@ jest.mock('@myx-trade/sdk', () => ({
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../../src/constants/eventNames';
+} from '../../src/constants/eventNames.js';
 import {
   PERPS_CONSTANTS,
   PERPS_DISK_CACHE_MARKETS,
   PERPS_DISK_CACHE_USER_DATA,
-} from '../../src/constants/perpsConfig';
+} from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
+  PerpsMode,
   firstNonEmpty,
   resolveMyxAuthConfig,
-} from '../../src/PerpsController';
-import type { PerpsControllerState } from '../../src/PerpsController';
-import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes';
-import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider';
+} from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
   AccountState,
   GetAvailableDexsParams,
@@ -53,8 +53,8 @@ import type {
   PerpsPlatformDependencies,
   PerpsProviderType,
   SubscribeAccountParams,
-} from '../../src/types';
-import { PerpsAnalyticsEvent } from '../../src/types';
+} from '../../src/types/index.js';
+import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
 jest.mock('../../src/providers/MYXProvider');
@@ -88,59 +88,6 @@ jest.mock(
   () => ({
     getStreamManagerInstance: jest.fn(() => mockStreamManager),
   }),
-  { virtual: true },
-);
-
-// Create persistent mock controllers INSIDE jest.mock factory
-jest.mock(
-  '../../../core/Engine',
-  () => {
-    const mockRewardsController = {
-      getPerpsDiscountForAccount: jest.fn(),
-    };
-
-    const mockNetworkController = {
-      getNetworkClientById: jest.fn().mockReturnValue({
-        configuration: { chainId: '0x1' },
-      }),
-    };
-
-    const mockAccountTreeController = {
-      getAccountsFromSelectedAccountGroup: jest.fn().mockReturnValue([
-        {
-          address: '0x1234567890123456789012345678901234567890',
-          type: 'eip155:eoa',
-        },
-      ]),
-    };
-
-    const mockTransactionController = {
-      estimateGasFee: jest.fn(),
-      estimateGas: jest.fn(),
-    };
-
-    const mockAccountTrackerController = {
-      state: {
-        accountsByChainId: {},
-      },
-    };
-
-    const mockEngineContext = {
-      RewardsController: mockRewardsController,
-      NetworkController: mockNetworkController,
-      AccountTreeController: mockAccountTreeController,
-      TransactionController: mockTransactionController,
-      AccountTrackerController: mockAccountTrackerController,
-    };
-
-    // Return as default export to match the actual Engine import
-    return {
-      __esModule: true,
-      default: {
-        context: mockEngineContext,
-      },
-    };
-  },
   { virtual: true },
 );
 
@@ -570,14 +517,6 @@ describe('PerpsController', () => {
       () => undefined,
     );
 
-    // Reset Engine.context mocks to default state to prevent test interdependence
-    (
-      Engine.context.RewardsController.getPerpsDiscountForAccount as jest.Mock
-    ).mockResolvedValue(null);
-    (
-      Engine.context.NetworkController.getNetworkClientById as jest.Mock
-    ).mockReturnValue({ configuration: { chainId: '0x1' } });
-
     // Create a fresh mock provider for each test
     mockProvider = createMockHyperLiquidProvider();
 
@@ -751,6 +690,180 @@ describe('PerpsController', () => {
         optionId: 'priceChange',
         direction: 'asc',
       });
+    });
+  });
+
+  describe('pro layout preferences', () => {
+    it('defaults to collapsed order book, collapsed chart, reserved positions, and positions/orders sort/filter defaults', () => {
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
+      });
+    });
+
+    it('updates a single field without clobbering the others', () => {
+      controller.setProLayoutPreferences({ orderBookExpanded: true });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
+      });
+    });
+
+    it('merges successive partial patches', () => {
+      controller.setProLayoutPreferences({ orderBookExpanded: true });
+      controller.setProLayoutPreferences({ orderBookPosition: 'right' });
+      controller.setProLayoutPreferences({ orderFormPosition: 'left' });
+      controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
+      controller.setProLayoutPreferences({
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        ordersSideFilter: 'short',
+        ordersSortField: 'orderValue',
+        ordersSortDirection: 'asc',
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: false,
+        orderBookPosition: 'right',
+        orderFormPosition: 'left',
+        positionsSideFilter: 'long',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+        ordersSideFilter: 'short',
+        ordersSortField: 'orderValue',
+        ordersSortDirection: 'asc',
+      });
+    });
+
+    it('updates sort field without clobbering sort direction', () => {
+      controller.setProLayoutPreferences({
+        positionsSortField: 'fundingRate',
+        positionsSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        positionsSortField: 'unrealizedPnl',
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
+      });
+    });
+
+    it('updates orders sort field without clobbering orders sort direction or positions sort', () => {
+      controller.setProLayoutPreferences({
+        ordersSortField: 'size',
+        ordersSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        ordersSortField: 'price',
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'price',
+        ordersSortDirection: 'asc',
+      });
+    });
+
+    it('updates orders side filter without clobbering positions side filter', () => {
+      controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
+      controller.setProLayoutPreferences({ ordersSideFilter: 'short' });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'long',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'short',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
+      });
+    });
+
+    it('persists the update to controller state', () => {
+      controller.setProLayoutPreferences({ chartExpanded: true });
+
+      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(true);
+    });
+
+    it('fills in defaults for fields missing from persisted state', () => {
+      controller.testUpdate((state) => {
+        // Simulate persisted state that predates some fields.
+        state.proLayoutPreferences = {
+          orderBookExpanded: true,
+        } as PerpsControllerState['proLayoutPreferences'];
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
+      });
+    });
+  });
+
+  describe('perps mode', () => {
+    it('defaults to lite mode', () => {
+      expect(controller.state.mode).toBe(PerpsMode.Lite);
+    });
+
+    it('sets the mode to pro', () => {
+      controller.setPerpsMode(PerpsMode.Pro);
+
+      expect(controller.state.mode).toBe(PerpsMode.Pro);
+    });
+
+    it('sets the mode back to lite', () => {
+      controller.setPerpsMode(PerpsMode.Pro);
+      controller.setPerpsMode(PerpsMode.Lite);
+
+      expect(controller.state.mode).toBe(PerpsMode.Lite);
     });
   });
 

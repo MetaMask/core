@@ -1,3 +1,9 @@
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
+import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import { Messenger } from '@metamask/messenger';
 import {
   ClientConfigApiService,
   ClientType,
@@ -11,19 +17,26 @@ import {
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
-import type { WalletOptions } from '@metamask/wallet';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+  WalletOptions,
+} from '@metamask/wallet';
 import { rm } from 'node:fs/promises';
 
-import { KeyValueStore } from '../persistence/KeyValueStore';
-import { loadState, subscribeToChanges } from '../persistence/persistence';
-import type { Logger } from './types';
+import { KeyValueStore } from '../persistence/KeyValueStore.js';
+import { loadState, subscribeToChanges } from '../persistence/persistence.js';
+import { subscribeToAutoApproval } from './auto-approval.js';
+import type { Password, Srp } from './secrets.js';
+import type { Logger } from './types.js';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
 export type CreateWalletConfig = {
   databasePath: string;
-  password: string;
-  srp: string;
+  password?: Password;
+  srp: Srp;
   infuraProjectId: string;
   log?: Logger;
 };
@@ -60,7 +73,16 @@ export type CreateWalletResult = {
  * - `remoteFeatureFlagController` — a `ClientConfigApiService` fetching real
  *   flags over the network.
  * - `approvalController` — a no-op `showApprovalRequest` (the daemon is
- *   headless).
+ *   headless); pending requests are accepted separately by the auto-approval
+ *   subscription `createWallet` installs, not by this hook.
+ * - `gasFeeController` — only `clientId: 'cli'` (sent as `X-Client-Id` to the
+ *   gas API); the API endpoints, poll interval, and compatibility callbacks are
+ *   left at the wallet package's platform-agnostic defaults (the default
+ *   `EIP1559APIEndpoint` is already the production URL, so the daemon does not
+ *   re-specify it).
+ * - `transactionController` — swaps processing disabled and no client hooks;
+ *   see the slot's inline comment for why the daemon relies on the
+ *   controller's defaults for everything else.
  *
  * The optional `keyringController` slot is intentionally omitted so the
  * controller's built-in defaults (e.g. the PBKDF2 encryptor) apply.
@@ -73,11 +95,19 @@ function buildInstanceOptions(
 ): WalletOptions['instanceOptions'] {
   return {
     approvalController: {
+      // The daemon is headless, so there is no UI to open: requests are
+      // resolved by the auto-approval subscription (see `subscribeToAutoApproval`)
+      // rather than by this hook, which stays a no-op.
       // TODO: surface approval requests over the daemon transport.
       showApprovalRequest: (): undefined => undefined,
     },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
+    },
+    gasFeeController: {
+      // Identifies the CLI to the gas estimation API via the `X-Client-Id`
+      // header.
+      clientId: 'cli',
     },
     networkController: {
       infuraProjectId,
@@ -99,8 +129,55 @@ function buildInstanceOptions(
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    // TODO(#8975): add the `transactionController` slot once it is wired.
+    transactionController: {
+      // The CLI exposes no swaps surface, so skip the swaps-specific
+      // post-processing a full wallet client runs (mobile makes the same
+      // choice; the extension keeps swaps enabled).
+      disableSwaps: true,
+      // No CLI-specific transaction hooks: the controller's built-in publish
+      // path broadcasts through the wired `NetworkController` provider, and the
+      // remaining hooks (metrics, notifications, gas-fee tokens) are client-UI
+      // concerns the headless daemon has no equivalent for. Every other option
+      // (`getPermittedAccounts`, `isSimulationEnabled`, `trace`, …) is left at
+      // the controller's default.
+      hooks: {},
+    },
   };
+}
+
+/**
+ * Register handlers for the `AnalyticsController` actions that
+ * `NetworkController` calls to emit RPC service analytics. The daemon does not
+ * report analytics, so these do nothing: `getState` returns an empty analytics
+ * ID, which stops the controller before it tracks anything, and `trackEvent` is
+ * a no-op. Registering them keeps those messenger calls from throwing.
+ *
+ * @param messenger - The wallet's root messenger.
+ */
+function registerAnalyticsStubHandlers(messenger: Wallet['messenger']): void {
+  // Register on an `AnalyticsController`-namespaced messenger, not the root: a
+  // messenger can only register handlers for its own namespace, and doing so
+  // delegates them up to the root, where `NetworkController` can reach them.
+  const analyticsMessenger = new Messenger<
+    'AnalyticsController',
+    AnalyticsControllerGetStateAction | AnalyticsControllerTrackEventAction,
+    never,
+    RootMessenger<DefaultActions, DefaultEvents>
+  >({
+    namespace: 'AnalyticsController',
+    parent: messenger as RootMessenger<DefaultActions, DefaultEvents>,
+  });
+  analyticsMessenger.registerActionHandler(
+    'AnalyticsController:getState',
+    () => ({
+      ...getDefaultAnalyticsControllerState(),
+      analyticsId: '',
+    }),
+  );
+  analyticsMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    () => undefined,
+  );
 }
 
 /**
@@ -112,10 +189,15 @@ function buildInstanceOptions(
  * persist-flagged properties are written through.
  *
  * If the store does not yet contain a keyring vault (first run), the supplied
- * secret recovery phrase is imported. On subsequent runs the persisted vault is
- * reused — `password`/`srp` go unused and the wallet starts locked; the caller
- * unlocks it via `KeyringController:submitPassword` before any keyring-bound
- * operation.
+ * secret recovery phrase is imported using the supplied password. On
+ * subsequent runs, the persisted vault is reused: when a password is
+ * supplied, the wallet is unlocked via `KeyringController:submitPassword` so
+ * keyring-bound messenger actions work immediately; when no password is
+ * supplied, the wallet starts locked and the caller is expected to invoke
+ * `mm wallet unlock` before any keyring-bound operation. First-run startup
+ * without a password is rejected (the SRP cannot be imported without one).
+ * On a subsequent run, a wrong password rejects startup with a `Failed to
+ * unlock the persisted vault` error that wraps the `submitPassword` rejection.
  *
  * On any failure after the store is opened, the store is closed (and the wallet
  * destroyed, if constructed). On a first-run failure, the on-disk database is
@@ -126,8 +208,11 @@ function buildInstanceOptions(
  * @param config - Wallet configuration.
  * @param config.databasePath - Path to the SQLite database file (or
  * `':memory:'` for ephemeral use).
- * @param config.password - The wallet password.
- * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
+ * @param config.password - The wallet password. Optional on subsequent runs;
+ * when omitted, the daemon starts with a locked keyring. Required on first
+ * run (to import the SRP).
+ * @param config.srp - The secret recovery phrase (BIP-39 mnemonic). Used
+ * only on first run.
  * @param config.infuraProjectId - The Infura project ID for the
  * `NetworkController`.
  * @param config.log - Optional logger for persistence-write and teardown
@@ -145,23 +230,38 @@ export async function createWallet({
   const logFn = log ?? ((message: string): void => console.error(message));
   const store = new KeyValueStore(databasePath);
   let wallet: Wallet | undefined;
-  let unsubscribe: (() => void) | undefined;
+  let persistenceUnsubscribe: (() => void) | undefined;
+  let autoApprovalUnsubscribe: (() => void) | undefined;
   let wasFirstRun = false;
 
   try {
     const state = await loadPersistedState(store, infuraProjectId, logFn);
     wasFirstRun = !hasPersistedKeyring(state);
 
+    // Validate the first-run precondition BEFORE constructing the wallet,
+    // so a doomed startup doesn't build a Wallet (and wire persistence
+    // handlers) just to tear it down.
+    if (wasFirstRun && password === undefined) {
+      throw new Error(
+        'A password is required on first run to import the secret recovery phrase. ' +
+          'Pass `--password` (or `MM_WALLET_PASSWORD`) on `mm daemon start`.',
+      );
+    }
+
     wallet = new Wallet({
       state,
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
-    unsubscribe = subscribeToChanges(
+    registerAnalyticsStubHandlers(wallet.messenger);
+    persistenceUnsubscribe = subscribeToChanges(
       wallet.messenger,
       wallet.controllerMetadata,
       store,
       logFn,
     );
+
+    // Installed before `init` so any approval raised during initialization is covered.
+    autoApprovalUnsubscribe = subscribeToAutoApproval(wallet.messenger, logFn);
 
     // Complete post-construction controller setup before serving requests —
     // e.g. `NetworkController.init` applies the selected network so a provider
@@ -184,17 +284,48 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      await importSecretRecoveryPhrase(wallet, password, srp);
+      // The precondition check above throws when `wasFirstRun && password ===
+      // undefined`, so `password` is defined here. TS does not correlate the
+      // two separate variables, so it cannot narrow `password` from
+      // `wasFirstRun` alone — hence the assertion.
+      await importSecretRecoveryPhrase(
+        wallet,
+        (password as Password).unwrap(),
+        srp.unwrap(),
+      );
+    } else if (password !== undefined) {
+      try {
+        await wallet.messenger.call(
+          'KeyringController:submitPassword',
+          password.unwrap(),
+        );
+      } catch (error) {
+        throw new Error(
+          `Failed to unlock the persisted vault: ${String(error)}`,
+        );
+      }
     }
 
     let disposePromise: Promise<void> | undefined;
     return {
       wallet,
       dispose: async () =>
-        (disposePromise ??= teardown(unsubscribe, wallet, store, logFn)),
+        (disposePromise ??= teardown(
+          persistenceUnsubscribe,
+          autoApprovalUnsubscribe,
+          wallet,
+          store,
+          logFn,
+        )),
     };
   } catch (error) {
-    await teardown(unsubscribe, wallet, store, logFn);
+    await teardown(
+      persistenceUnsubscribe,
+      autoApprovalUnsubscribe,
+      wallet,
+      store,
+      logFn,
+    );
 
     if (wasFirstRun && databasePath !== IN_MEMORY_DATABASE_PATH) {
       // Best-effort cleanup of the on-disk SQLite files (main, WAL, SHM) so a
@@ -244,6 +375,7 @@ async function loadPersistedState(
   const probe = new Wallet({
     instanceOptions: buildInstanceOptions(infuraProjectId),
   });
+  registerAnalyticsStubHandlers(probe.messenger);
   try {
     return loadState(store, probe.controllerMetadata);
   } finally {
@@ -254,29 +386,53 @@ async function loadPersistedState(
 }
 
 /**
+ * Best-effort unsubscribe: run the function if present, logging (and
+ * swallowing) any error so a later teardown step still runs.
+ *
+ * @param unsubscribe - The unsubscribe function, if one was registered.
+ * @param label - Human-readable subscription name for the failure log.
+ * @param logFn - Logger for a failure.
+ */
+function runUnsubscribe(
+  unsubscribe: (() => void) | undefined,
+  label: string,
+  logFn: Logger,
+): void {
+  if (!unsubscribe) {
+    return;
+  }
+  try {
+    unsubscribe();
+  } catch (error) {
+    logFn(
+      `${label} unsubscribe failed during teardown — subscription may remain ` +
+        `live until the process exits: ${String(error)}`,
+    );
+  }
+}
+
+/**
  * Persistence-safe teardown of a wallet and its store; see {@link
  * CreateWalletResult.dispose} for the ordering rationale. Each step is
  * best-effort, so a failure is logged and the remaining steps still run.
  *
- * @param unsubscribe - The persistence-subscription unsubscribe function, if
- * one was registered.
+ * @param persistenceUnsubscribe - The persistence-subscription unsubscribe
+ * function, if one was registered.
+ * @param autoApprovalUnsubscribe - The auto-approval-subscription unsubscribe
+ * function, if one was registered.
  * @param wallet - The wallet to destroy, if one was constructed.
  * @param store - The store to close.
  * @param logFn - Logger for step failures.
  */
 async function teardown(
-  unsubscribe: (() => void) | undefined,
+  persistenceUnsubscribe: (() => void) | undefined,
+  autoApprovalUnsubscribe: (() => void) | undefined,
   wallet: Wallet | undefined,
   store: KeyValueStore,
   logFn: Logger,
 ): Promise<void> {
-  if (unsubscribe) {
-    try {
-      unsubscribe();
-    } catch (error) {
-      logFn(`Persistence unsubscribe failed during teardown: ${String(error)}`);
-    }
-  }
+  runUnsubscribe(persistenceUnsubscribe, 'Persistence', logFn);
+  runUnsubscribe(autoApprovalUnsubscribe, 'Auto-approval', logFn);
   if (wallet) {
     try {
       await wallet.destroy();

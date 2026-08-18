@@ -12,13 +12,13 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
   JsonRpcMiddleware,
-} from './JsonRpcEngine';
+} from './JsonRpcEngine.js';
 import {
   assertExpectedHooks,
   createHandlerMessenger,
   selectHooks,
   UnionToIntersection,
-} from './v2/utils';
+} from './v2/utils.js';
 
 type HandlerActions<Handler> = Handler extends {
   implementation: (...args: infer Args) => unknown;

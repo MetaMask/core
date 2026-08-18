@@ -1,15 +1,15 @@
 import { AddressZero } from '@ethersproject/constants';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
-import { CHAIN_IDS } from '../constants/chains';
-import { ChainId } from '../types';
+import { CHAIN_IDS } from '../constants/chains.js';
+import { ChainId } from '../types.js';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
   formatAddressToCaipReference,
   formatAddressToAssetId,
-} from './caip-formatters';
+} from './caip-formatters.js';
 
 describe('CAIP Formatters', () => {
   describe('formatChainIdToCaip', () => {

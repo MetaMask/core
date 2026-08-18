@@ -6,7 +6,7 @@ export {
   getCaipAccountIdsFromCaip25CaveatValue,
   isInternalAccountInPermittedAccountIds,
   isCaipAccountIdInPermittedAccountIds,
-} from './operators/caip-permission-operator-accounts';
+} from './operators/caip-permission-operator-accounts.js';
 export {
   getPermittedEthChainIds,
   addPermittedEthChainId,
@@ -17,20 +17,20 @@ export {
   getAllScopesFromPermission,
   getAllScopesFromCaip25CaveatValue,
   getAllScopesFromScopesObjects,
-} from './operators/caip-permission-operator-permittedChains';
+} from './operators/caip-permission-operator-permittedChains.js';
 export {
   getInternalScopesObject,
   getSessionScopes,
   getSessionProperties,
   getPermittedAccountsForScopes,
-} from './operators/caip-permission-operator-session-scopes';
-export type { Caip25Authorization } from './scope/authorization';
+} from './operators/caip-permission-operator-session-scopes.js';
+export type { Caip25Authorization } from './scope/authorization.js';
 export {
   validateAndNormalizeScopes,
   bucketScopes,
   isNamespaceInScopesObject,
-} from './scope/authorization';
-export { assertIsInternalScopeString } from './scope/assert';
+} from './scope/authorization.js';
+export { assertIsInternalScopeString } from './scope/assert.js';
 export {
   KnownWalletRpcMethods,
   KnownRpcMethods,
@@ -38,8 +38,8 @@ export {
   KnownNotifications,
   KnownWalletScopeString,
   isKnownSessionPropertyValue,
-} from './scope/constants';
-export { getSupportedScopeObjects } from './scope/filter';
+} from './scope/constants.js';
+export { getSupportedScopeObjects } from './scope/filter.js';
 export type {
   ExternalScopeString,
   ExternalScopeObject,
@@ -51,8 +51,8 @@ export type {
   NormalizedScopesObject,
   ScopedProperties,
   NonWalletKnownCaipNamespace,
-} from './scope/types';
-export { parseScopeString } from './scope/types';
+} from './scope/types.js';
+export { parseScopeString } from './scope/types.js';
 export {
   getUniqueArrayItems,
   normalizeScope,
@@ -60,9 +60,9 @@ export {
   mergeNormalizedScopes,
   mergeInternalScopes,
   normalizeAndMergeScopes,
-} from './scope/transform';
+} from './scope/transform.js';
 
-export type { Caip25CaveatValue } from './caip25Permission';
+export type { Caip25CaveatValue } from './caip25Permission.js';
 export {
   caip25CaveatBuilder,
   Caip25CaveatType,
@@ -74,6 +74,6 @@ export {
   getCaip25CaveatFromPermission,
   getCaip25PermissionFromLegacyPermissions,
   requestPermittedChainsPermissionIncremental,
-} from './caip25Permission';
-export { KnownSessionProperties } from './scope/constants';
-export { Caip25Errors } from './scope/errors';
+} from './caip25Permission.js';
+export { KnownSessionProperties } from './scope/constants.js';
+export { Caip25Errors } from './scope/errors.js';

@@ -2,11 +2,15 @@ import type { StateMetadata } from '@metamask/base-controller';
 import {
   QuoteMetadata,
   RequiredEventContextFromClient,
-  QuoteResponse,
+  QuoteResponseV1,
   Trade,
   FeatureId,
   BatchSellTradesResponse,
   InputPrimaryDenomination,
+  QuoteResponse,
+  toQuoteMetadataV1,
+  mergeQuoteMetadata,
+  toQuoteResponseV1,
 } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
@@ -19,8 +23,10 @@ import {
   PollingStatus,
   formatChainIdToHex,
 } from '@metamask/bridge-controller';
+import { QuoteResponseSchemaV1 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { is } from '@metamask/superstruct';
 import {
   TransactionStatus,
   TransactionType,
@@ -39,48 +45,49 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
-} from './constants';
+} from './constants.js';
 import {
+  QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QUOTE_STATUS_UPDATE_ENTRY_TTL,
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
-} from './quote-status-manager/constants';
+} from './quote-status-manager/constants.js';
 import {
   QuoteStatusGetError,
   QuoteStatusUpdateError,
-} from './quote-status-manager/errors';
-import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager';
-import executeSubmitStrategy from './strategy';
-import { SubmitStep } from './strategy/types';
-import type { SubmitStrategyParams } from './strategy/types';
+} from './quote-status-manager/errors.js';
+import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager.js';
+import executeSubmitStrategy from './strategy/index.js';
+import { SubmitStep } from './strategy/types.js';
+import type { SubmitStrategyParams } from './strategy/types.js';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
   FetchFunction,
   BridgeHistoryItem,
-} from './types';
-import type { BridgeStatusControllerMessenger } from './types';
-import { BridgeClientId } from './types';
-import { getAccountByAddress } from './utils/accounts';
-import { getJwt } from './utils/authentication';
-import {
-  getBatchSellTrades,
-  stopPollingForQuotes,
-  trackMetricsEvent,
-} from './utils/bridge';
+} from './types.js';
+import type { BridgeStatusControllerMessenger } from './types.js';
+import { BridgeClientId } from './types.js';
+import { getAccountByAddress } from './utils/accounts.js';
+import { getJwt } from './utils/authentication.js';
 import {
   fetchBridgeTxStatus,
   fetchBridgeQuoteStatus,
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
   shouldWaitForFinalBridgeStatus,
-} from './utils/bridge-status';
+} from './utils/bridge-status.js';
+import {
+  getBatchSellTrades,
+  stopPollingForQuotes,
+  trackMetricsEvent,
+} from './utils/bridge.js';
 import {
   getInitialHistoryItem,
   getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
   getMatchingHistoryEntryForApprovalTxMeta,
-} from './utils/history';
+} from './utils/history.js';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -90,9 +97,9 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
-} from './utils/metrics';
-import { getSelectedChainId } from './utils/network';
-import { getTraceParams } from './utils/trace';
+} from './utils/metrics.js';
+import { getSelectedChainId } from './utils/network.js';
+import { getTraceParams } from './utils/trace.js';
 import {
   getTransactionMetaById,
   getTransactions,
@@ -100,7 +107,7 @@ import {
   isCrossChainTx,
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
-} from './utils/transaction';
+} from './utils/transaction.js';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -316,6 +323,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
+    // Seed any missing quote-status entries from persisted history before
+    // init(), so init()'s reconciliation loop can finalize quotes whose
+    // deferred entry was never created (e.g. the client closed before
+    // reportSubmitted ran).
+    this.#seedQuoteStatusEntriesFromHistory();
+
     // Replay swap/bridge finalizations that resolved while the client was
     // closed, before resuming polling (which recovers in-flight bridges).
     this.#quoteStatusManager.init();
@@ -365,7 +378,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       (txMeta.type && isCrossChainTx(txMeta.type)) ||
       hasNestedSwapTransactions(txMeta)
     ) {
-      this.#quoteStatusManager.reportFinalised(txMeta.id, false);
+      this.#quoteStatusManager.reportFinalised(
+        txMeta.id,
+        false,
+        txMeta.chainId,
+        txMeta.hash,
+      );
     }
 
     this.#trackUnifiedSwapBridgeEvent(
@@ -422,7 +440,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ) {
         this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
       }
-      this.#quoteStatusManager.reportFinalised(txMeta.id, true);
+      this.#quoteStatusManager.reportFinalised(
+        txMeta.id,
+        true,
+        txMeta.chainId,
+        txMeta.hash,
+      );
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         historyKey,
@@ -469,6 +492,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * poll where the hash is known, and the final-status branch) and the poll
    * path runs on every interval.
    *
+   * For 7702/nested batch sells a single source transaction carries multiple
+   * quotes: the parent history item lists all of them in `quoteIds` (each a key
+   * into `txHistory`). In that case every quote is reported under the shared
+   * source tx hash and `txMetaId`.
+   *
    * @param historyKey - The key of the history item in `txHistory`
    * @param srcTxHash - The source chain transaction hash
    * @param txMetaId - The transaction meta id, used for finalization matching
@@ -479,17 +507,44 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): void => {
     const historyItem = this.state.txHistory[historyKey];
-    if (!historyItem?.quoteId) {
+    if (!historyItem) {
       return;
     }
+
+    // For a 7702/nested batch the parent item lists every quote in `quoteIds`
+    // (keys into `txHistory`); resolve each to its real quote id. Otherwise fall
+    // back to the item's own single quote id.
+    let quoteIds: string[];
+    if (historyItem.quoteIds?.length) {
+      quoteIds = historyItem.quoteIds
+        .map((quoteKey) => this.state.txHistory[quoteKey]?.quoteId)
+        .filter((quoteId): quoteId is string => Boolean(quoteId));
+    } else if (historyItem.quoteId) {
+      quoteIds = [historyItem.quoteId];
+    } else {
+      quoteIds = [];
+    }
+
+    if (quoteIds.length === 0) {
+      return;
+    }
+
+    // `reportedSubmittedTxHash` is set once `reportSubmitted` is called.
+    // This avoids processing multiple `eportSubmitted` for the
+    // same swap/bridge.
     if (historyItem.reportedSubmittedTxHash === srcTxHash) {
       return;
     }
-    this.#quoteStatusManager.reportSubmitted(
-      historyItem.quoteId,
-      srcTxHash,
-      txMetaId,
-    );
+
+    for (const quoteId of quoteIds) {
+      this.#quoteStatusManager.reportSubmitted(
+        quoteId,
+        srcTxHash,
+        txMetaId,
+        historyItem.quote.srcChainId,
+      );
+    }
+
     this.update((state) => {
       const item = state.txHistory[historyKey];
       if (item) {
@@ -612,6 +667,62 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): BridgeHistoryItem | undefined => {
     return this.state.txHistory[txMetaId];
+  };
+
+  /**
+   * Seeds missing quote-status entries from persisted history on startup.
+   *
+   * The deferred quote-status entry (keyed by `${quoteId}:${srcTxHash}`) is only
+   * created when `reportSubmitted` runs. If the client closes after a swap/bridge
+   * is submitted but before that happens, the entry is never created and
+   * `QuoteStatusManager.init()` has nothing to reconcile. The persisted history
+   * item carries the `quoteId`, source tx hash, and `txMetaId` needed to rebuild
+   * the entry, so we replay `reportSubmitted` here (idempotent via
+   * `#reportSubmittedOnce`) before `init()` runs.
+   */
+  readonly #seedQuoteStatusEntriesFromHistory = (): void => {
+    if (!this.#quoteStatusManager.enabled) {
+      // Skip seeding to prevent `#reportSubmittedOnce` from persisting
+      // `reportedSubmittedTxHash` so recent bridge history cannot be marked as
+      //  already reported with no store entry or backend update.
+      return;
+    }
+
+    for (const [historyKey, historyItem] of Object.entries(
+      this.state.txHistory,
+    )) {
+      const { quoteId, quoteIds, txMetaId } = historyItem;
+      // A 7702/nested batch parent reports its quotes via `quoteIds` rather than
+      // its own single `quoteId`, so accept either. `#reportSubmittedOnce`
+      // resolves the actual set of quotes to report.
+      if ((!quoteId && !quoteIds?.length) || !txMetaId) {
+        continue;
+      }
+
+      // Skip items older than the backfill window: the backend would reject
+      // a status report for a quote that old, so there is no point creating
+      // an entry or making a request.
+      if (
+        Date.now() - historyItem.startTime >
+        QUOTE_STATUS_BACKFILL_WINDOW_MS
+      ) {
+        continue;
+      }
+
+      // Prefer the history hash; fall back to the tx hash (covers STX swaps
+      // confirmed while closed, where the history hash was never written).
+      const srcTxHash =
+        historyItem.status.srcChain.txHash ??
+        getTransactionMetaById(this.messenger, txMetaId)?.hash;
+      if (!srcTxHash) {
+        continue;
+      }
+
+      // Call `reportSubmittedOnce` for each history item that satisfies
+      // the above criteria. The method will then take care the rest
+      // (ie. if it actually needs to be reported or not because it already has been).
+      this.#reportSubmittedOnce(historyKey, srcTxHash, txMetaId);
+    }
   };
 
   /**
@@ -821,7 +932,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Report finalization as a failure here, this is the only place that
     // permanently ends polling, so it's the correct and non-duplicative point
     // to emit the final status.
-    this.#quoteStatusManager.reportFinalised(bridgeTxMetaId, false);
+    const historyItem = this.state.txHistory[bridgeTxMetaId];
+    this.#quoteStatusManager.reportFinalised(
+      bridgeTxMetaId,
+      false,
+      historyItem?.quote.srcChainId,
+      historyItem?.status.srcChain.txHash,
+    );
     this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
@@ -981,6 +1098,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#quoteStatusManager.reportFinalised(
           bridgeTxMetaId,
           status.status === StatusTypes.COMPLETE,
+          historyItem.quote.srcChainId,
+          settlementTxHash,
         );
 
         if (status.status === StatusTypes.COMPLETE) {
@@ -1196,7 +1315,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse: payload.quoteResponse,
               accountAddress: params.selectedAccount.address,
               isStxEnabled: params.isStxEnabled,
-              slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+              slippagePercentage: payload.quoteResponse.quote.slippage ?? 0,
             });
             this.#reportSubmittedForNonEvmTx(
               payload.historyKey,
@@ -1208,13 +1327,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             this.#startPollingForTxId(payload.historyKey);
             break;
 
-          case SubmitStep.PublishCompletedEvent:
-            this.#quoteStatusManager.reportFinalised(payload.historyKey, true);
+          case SubmitStep.PublishCompletedEvent: {
+            const completedHistoryItem =
+              this.state.txHistory[payload.historyKey];
+            this.#quoteStatusManager.reportFinalised(
+              payload.historyKey,
+              true,
+              completedHistoryItem?.quote.srcChainId,
+              completedHistoryItem?.status.srcChain.txHash,
+            );
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Completed,
               payload.historyKey,
             );
             break;
+          }
 
           /* c8 ignore start */
           default:
@@ -1251,8 +1378,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitTx = async (
     accountAddress: string,
     maybeQuoteResponses:
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
+      | QuoteResponse
+      | QuoteResponse[]
+      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)
+      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown,
@@ -1267,9 +1396,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
      * and the same account. In this case its safe to use the first quote response's properties for
      * metrics and other pre-submission logic
      */
-    const quoteResponses = Array.isArray(maybeQuoteResponses)
+    const quoteResponsesV1orV2 = Array.isArray(maybeQuoteResponses)
       ? maybeQuoteResponses
       : [maybeQuoteResponses];
+    // Convert quote responses to V1 format and preserve metadata for consistency
+    const quoteResponses = quoteResponsesV1orV2.map((quote) => {
+      if (is(quote, QuoteResponseSchemaV1)) {
+        return quote;
+      }
+      const quoteMetadata = toQuoteMetadataV1(quote);
+      return mergeQuoteMetadata(toQuoteResponseV1(quote), quoteMetadata);
+    });
     const quoteResponse = quoteResponses[0];
 
     const { quote } = quoteResponse;
@@ -1398,7 +1535,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @throws An error if intent or transaction submission fails before they get published
    */
   submitIntent = async (params: {
-    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+    quoteResponse: QuoteResponse;
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1436,7 +1573,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   submitBatchSell = async (params: {
-    quoteResponses: ((QuoteResponse<Trade, Trade> & QuoteMetadata) | null)[];
+    quoteResponses: (QuoteResponse | null)[];
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1453,9 +1590,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return await this.submitTx(
       params.accountAddress,
       params.quoteResponses.filter(
-        (
-          quoteResponse,
-        ): quoteResponse is QuoteResponse<Trade, Trade> & QuoteMetadata =>
+        (quoteResponse): quoteResponse is QuoteResponse & QuoteMetadata =>
           quoteResponse !== null,
       ),
       params.isStxEnabled ?? false,
@@ -1613,10 +1748,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
-      ...(eventName === UnifiedSwapBridgeEventName.Completed &&
-        historyItem.inputPrimaryDenomination && {
+      ...(eventName === UnifiedSwapBridgeEventName.Completed && {
+        ...(!isNonEvmChainId(historyItem.quote.srcChainId) &&
+          historyItem.txMetaId && {
+            transaction_internal_id: historyItem.txMetaId,
+          }),
+        ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+      }),
     };
 
     trackMetricsEvent({

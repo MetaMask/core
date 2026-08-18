@@ -16,7 +16,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 
 export type GetPermissionsHooks = {
   getPermissionsForOrigin: () => ReturnType<

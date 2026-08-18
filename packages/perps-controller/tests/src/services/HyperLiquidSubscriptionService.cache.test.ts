@@ -7,21 +7,21 @@
 
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
-import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig';
-import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
-import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
+import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
+import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
+import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
-} from '../../../src/types';
+} from '../../../src/types/index.js';
 import {
   adaptAccountStateFromSDK,
   parseAssetName,
-} from '../../../src/utils/hyperLiquidAdapter';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+} from '../../../src/utils/hyperLiquidAdapter.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Mock HyperLiquid SDK types
 interface MockSubscription {
@@ -431,6 +431,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
@@ -563,6 +566,21 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe1();
       unsubscribe2();
     });
+
+    it('reports DEX coverage for positions only once that DEX has published', async () => {
+      // closePosition treats a cache miss as "position closed" only for a
+      // covered DEX, so coverage must be false until data arrives
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+
+      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      // No HIP-3 DEX published, so a miss there proves nothing
+      expect(service.getCachedPositionsForDex('xyz')).toBeNull();
+
+      unsubscribe();
+    });
   });
 
   describe('spotState WebSocket Subscription', () => {
@@ -576,6 +594,9 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ user: expect.stringMatching(/^0x/) }),
         expect.any(Function),
       );
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
 
       unsubscribe();
     });
@@ -1591,6 +1612,35 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // Verify allMids was not called
       expect(mockSubscriptionClient.allMids).not.toHaveBeenCalled();
+    });
+
+    it('restores fastAssetCtxs subscription when price subscribers exist (TAT-3387)', async () => {
+      const callback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
+
+      // Restore subscriptions (simulates reconnection)
+      await service.restoreSubscriptions();
+
+      // Verify fastAssetCtxs subscription was re-established alongside allMids
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+    });
+
+    it('does not restore fastAssetCtxs subscription when no price subscribers exist', async () => {
+      // No subscriptions created
+
+      await service.restoreSubscriptions();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).not.toHaveBeenCalled();
     });
 
     // TODO: Refactor to test restoreSubscriptions through public disconnect/reconnect API

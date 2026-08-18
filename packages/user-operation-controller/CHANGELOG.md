@@ -9,7 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [41.2.8]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.1` ([#9629](https://github.com/MetaMask/core/pull/9629), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [41.2.7]
+
+### Changed
+
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
 
 ## [41.2.6]
 
@@ -639,7 +658,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.8...HEAD
+[41.2.8]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.7...@metamask/user-operation-controller@41.2.8
+[41.2.7]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...@metamask/user-operation-controller@41.2.7
 [41.2.6]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...@metamask/user-operation-controller@41.2.6
 [41.2.5]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.4...@metamask/user-operation-controller@41.2.5
 [41.2.4]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.3...@metamask/user-operation-controller@41.2.4

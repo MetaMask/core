@@ -9,10 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.2` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
-- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [4.0.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+### Fixed
+
+- Disable in-request retries on `ProfileMetricsService:submitMetrics` by default (`maxRetries: 0`) ([#9667](https://github.com/MetaMask/core/pull/9667))
+  - Proof nonces are single-use, so retrying a spent `submitMetrics` payload caused `PUT /profile/accounts` 400s; `fetchNonces` still retries because a failed fetch soft-degrades to a proof-less submit that clears the queue.
+
+## [4.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.2.0` to `^69.0.0` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349), [#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.5` ([#9349](https://github.com/MetaMask/core/pull/9349), [#9470](https://github.com/MetaMask/core/pull/9470))
 - Bump `@metamask/polling-controller` from `^16.0.7` to `^16.0.8` ([#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
 
 ## [4.0.1]
 
@@ -200,7 +224,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.3...HEAD
+[4.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.2...@metamask/profile-metrics-controller@4.0.3
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.1...@metamask/profile-metrics-controller@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.0...@metamask/profile-metrics-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.2.0...@metamask/profile-metrics-controller@4.0.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.6...@metamask/profile-metrics-controller@3.2.0

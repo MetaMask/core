@@ -1,7 +1,11 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
-import { ActionTypes, validateQuoteResponseV1 } from '../src/utils/validators';
+import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
+import type { DeepPartial } from '../src/types.js';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1.js';
+import type { QuoteResponse } from '../src/validators/quote-response.js';
+import { ActionTypes } from '../src/validators/step.js';
 
 export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
   {
@@ -23,7 +27,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
       minDestTokenAmount: '970000000000000000',
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:42161/slip44:614',
+        assetId: 'eip155:42161/slip44:60',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -59,7 +63,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           },
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             chainId: 10,
             symbol: 'ETH',
             decimals: 18,
@@ -68,7 +72,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           },
           destAsset: {
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:42161/slip44:614',
+            assetId: 'eip155:42161/slip44:60',
             chainId: 42161,
             symbol: 'ETH',
             decimals: 18,
@@ -119,7 +123,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
       minDestTokenAmount: '969000000000000000',
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:42161/slip44:614',
+        assetId: 'eip155:42161/slip44:60',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -169,7 +173,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           },
           destAsset: {
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:42161/slip44:614',
+            assetId: 'eip155:42161/slip44:60',
             chainId: 42161,
             symbol: 'ETH',
             decimals: 18,
@@ -224,7 +228,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
       minDestTokenAmount: '968000000000000000',
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:42161/slip44:614',
+        assetId: 'eip155:42161/slip44:60',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -282,7 +286,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           },
           destAsset: {
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:42161/slip44:614',
+            assetId: 'eip155:42161/slip44:60',
             chainId: 42161,
             symbol: 'ETH',
             decimals: 18,
@@ -341,7 +345,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
       minDestTokenAmount: '967000000000000000',
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:42161/slip44:614',
+        assetId: 'eip155:42161/slip44:60',
         chainId: 42161,
         symbol: 'ETH',
         decimals: 18,
@@ -385,7 +389,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           },
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:614',
+            assetId: 'eip155:10/slip44:60',
             chainId: 10,
             symbol: 'ETH',
             decimals: 18,
@@ -398,7 +402,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           },
           destAsset: {
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:42161/slip44:614',
+            assetId: 'eip155:42161/slip44:60',
             chainId: 42161,
             symbol: 'ETH',
             decimals: 18,
@@ -454,7 +458,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
       destAsset: {
         chainId: 42161,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:42161/slip44:614',
+        assetId: 'eip155:42161/slip44:60',
         symbol: 'ETH',
         name: 'Ethereum',
         decimals: 18,
@@ -508,7 +512,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
           destAsset: {
             chainId: 42161,
             address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:42161/slip44:614',
+            assetId: 'eip155:42161/slip44:60',
             symbol: 'ETH',
             name: 'Ethereum',
             decimals: 18,
@@ -574,7 +578,7 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
         id: '42161_0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
         symbol: 'ETH',
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:42161/slip44:614',
+        assetId: 'eip155:42161/slip44:60',
         chainId: 42161,
         name: 'ETH',
         decimals: 18,
@@ -978,10 +982,10 @@ export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
 
 export const getMockBridgeQuotesErc20NativeV2 = (
   quoteOverrides?: DeepPartial<QuoteResponseV1>,
-): QuoteResponseV1[] => {
+): QuoteResponse[] => {
   return mockBridgeQuotesErc20NativeV1.map((quote) => {
     const mergedQuote = merge({}, quote, quoteOverrides);
     validateQuoteResponseV1(mergedQuote);
-    return mergedQuote;
+    return toQuoteResponseV2(mergedQuote);
   });
 };
