@@ -111,6 +111,7 @@ const TerminalPerpetualItemStruct = type({
   minimumOrderSize: optional(number()),
   keywords: optional(nullable(array(string()))),
   tags: optional(nullable(array(string()))),
+  category: optional(nullable(string())),
   categories: optional(nullable(array(string()))),
   marketType: optional(nullable(string())),
   listedAt: optional(nullable(union([number(), string()]))),
@@ -633,13 +634,9 @@ export class TerminalMarketService {
     };
   }
 
-  #marketTypeFor(
-    dex: string,
-    category: string | null,
+  #categoryToMarketType(
+    category: string | null | undefined,
   ): TerminalAssetMetadata['marketType'] | undefined {
-    if (dex === 'main') {
-      return MarketCategory.CryptoCurrency;
-    }
     if (category === 'stocks') {
       return MarketCategory.Stock;
     }
@@ -650,6 +647,16 @@ export class TerminalMarketService {
       return category as TerminalAssetMetadata['marketType'];
     }
     return undefined;
+  }
+
+  #marketTypeFor(
+    dex: string,
+    category: string | null,
+  ): TerminalAssetMetadata['marketType'] | undefined {
+    if (dex === 'main') {
+      return MarketCategory.CryptoCurrency;
+    }
+    return this.#categoryToMarketType(category);
   }
 
   #cloneGlobalSnapshotResult(
@@ -788,6 +795,11 @@ export class TerminalMarketService {
       ) {
         entry.marketType =
           item.marketType as TerminalAssetMetadata['marketType'];
+      } else {
+        const fromCategory = this.#categoryToMarketType(item.category);
+        if (fromCategory) {
+          entry.marketType = fromCategory;
+        }
       }
 
       if (item.listedAt !== null && item.listedAt !== undefined) {
