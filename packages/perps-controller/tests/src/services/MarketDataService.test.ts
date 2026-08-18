@@ -1349,6 +1349,33 @@ describe('MarketDataService', () => {
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
       });
 
+      it('ignores useTerminalApi when the active provider is not HyperLiquid-backed', async () => {
+        const providerMarkets: MarketInfo[] = [
+          {
+            name: 'ETH',
+            szDecimals: 4,
+            maxLeverage: 50,
+            marginTableId: 0,
+            minimumOrderSize: 10.16,
+          },
+        ];
+        const lighterProvider = {
+          ...mockProvider,
+          protocolId: 'lighter',
+          getMarkets: jest.fn().mockResolvedValue(providerMarkets),
+        };
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: lighterProvider as unknown as typeof mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(lighterProvider.getMarkets).toHaveBeenCalled();
+      });
+
       it('falls back to provider when symbol filter yields no terminal matches', async () => {
         mockTerminalService.fetchMarkets.mockResolvedValue({
           markets: terminalMarkets,
