@@ -394,12 +394,12 @@ describe('createUIQueryClient', () => {
 
     const getPreviousPageParam = ({
       pageInfo,
-    }: GetActivityResponse): PageParam | null =>
-      pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null;
+    }: GetActivityResponse): PageParam | undefined =>
+      pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : undefined;
     const getNextPageParam = ({
       pageInfo,
-    }: GetActivityResponse): PageParam | null =>
-      pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null;
+    }: GetActivityResponse): PageParam | undefined =>
+      pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined;
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,

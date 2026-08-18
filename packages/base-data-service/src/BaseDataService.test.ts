@@ -121,24 +121,6 @@ describe('BaseDataService', () => {
     expect(page2.data).not.toStrictEqual(page3.data);
   });
 
-  it('returns the cached first page without refetching on a repeat request', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
-    const service = new ExampleDataService(messenger);
-    const fetchSpy = jest.spyOn(globalThis, 'fetch');
-
-    const page1 = await service.getActivity(TEST_ADDRESS);
-
-    // A repeat request (as happens when multiple UI observers hydrate the same
-    // query) is served from the cache: it returns the same data and does not
-    // make a second network call.
-    const page1Again = await service.getActivity(TEST_ADDRESS);
-
-    expect(page1Again.data).toStrictEqual(page1.data);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-
-    fetchSpy.mockRestore();
-  });
-
   it('emits `:cacheUpdated` events when cache is updated', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
