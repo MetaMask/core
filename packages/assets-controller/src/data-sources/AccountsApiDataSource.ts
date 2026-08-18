@@ -721,6 +721,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
     return async (context, next) => {
       const { request } = context;
 
+      // Price/metadata-only requests must not hit the Accounts API.
+      if (!request.dataTypes.includes('balance')) {
+        return next(context);
+      }
+
       // If no chains requested, skip to next middleware
       if (request.chainIds.length === 0) {
         return next(context);
@@ -790,7 +795,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
-    const { request, subscriptionId, isUpdate } = subscriptionRequest;
+    const { request, subscriptionId, isUpdate, skipInitialFetch } =
+      subscriptionRequest;
 
     // Store state accessor for filtering when tokenDetectionEnabled is false
     if (subscriptionRequest.getAssetsState) {
@@ -879,8 +885,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
-    // Initial fetch
-    await pollFn();
+    // Interval above still polls on the normal cadence. This only skips the
+    // one-shot fetch at subscribe time when the controller already ran a
+    // force getAssets for the same scope (startup / group refresh).
+    if (!skipInitialFetch) {
+      await pollFn();
+    }
   }
 
   // ============================================================================

@@ -44,6 +44,7 @@ import type { BackupAndSyncAnalyticsEventPayload } from './backup-and-sync/analy
 import { BackupAndSyncService } from './backup-and-sync/service/index.js';
 import { isAccountGroupNameUnique } from './group.js';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring.js';
+import { makeLocalMnemonicWallet } from './state/tests/helpers.js';
 import type { AccountTreeControllerState } from './types.js';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
@@ -246,33 +247,13 @@ const MOCK_PREPOPULATED_GROUP_ID = toMultichainAccountGroupId(
 const MOCK_PREPOPULATED_STATE: Partial<AccountTreeControllerState> = {
   selectedAccountGroup: MOCK_PREPOPULATED_GROUP_ID,
   accountTree: {
-    wallets: {
-      [MOCK_PREPOPULATED_WALLET_ID]: {
-        id: MOCK_PREPOPULATED_WALLET_ID,
-        type: AccountWalletType.Entropy,
-        status: 'ready',
-        groups: {
-          [MOCK_PREPOPULATED_GROUP_ID]: {
-            id: MOCK_PREPOPULATED_GROUP_ID,
-            type: AccountGroupType.MultichainAccount,
-            accounts: [MOCK_HD_ACCOUNT_1.id],
-            metadata: {
-              name: 'Account 1',
-              entropy: {
-                groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
-              },
-              pinned: false,
-              hidden: false,
-              lastSelected: 0,
-            },
-          },
-        },
-        metadata: {
-          name: 'Wallet 1',
-          entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
-        },
+    wallets: makeLocalMnemonicWallet(MOCK_HD_KEYRING_1.metadata.id, [
+      {
+        groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+        name: 'Account 1',
+        accounts: [MOCK_HD_ACCOUNT_1.id],
       },
-    },
+    ]),
   },
 };
 
@@ -341,6 +322,8 @@ function setup({
     KeyringController: {
       keyrings: KeyringObject[];
       getState: jest.Mock;
+      verifyPassword: jest.Mock;
+      withController: jest.Mock;
     };
     AccountsController: {
       accounts: InternalAccount[];
@@ -364,6 +347,8 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+      verifyPassword: jest.fn().mockResolvedValue(undefined),
+      withController: jest.fn(),
     },
     AccountsController: {
       accounts,
@@ -464,6 +449,26 @@ function setup({
     messenger.registerActionHandler(
       'KeyringController:getState',
       mocks.KeyringController.getState,
+    );
+
+    messenger.registerActionHandler(
+      'KeyringController:verifyPassword',
+      mocks.KeyringController.verifyPassword,
+    );
+
+    // Default: call the callback with no existing keyrings so private-key
+    // imports are a no-op unless the test overrides this handler.
+    mocks.KeyringController.withController.mockImplementation(
+      async (
+        callback: (ctx: {
+          keyrings: { keyring: { type: string }; keyringV2: unknown }[];
+          addNewKeyring: jest.Mock;
+        }) => Promise<unknown>,
+      ) => callback({ keyrings: [], addNewKeyring: jest.fn() }),
+    );
+    messenger.registerActionHandler(
+      'KeyringController:withController',
+      mocks.KeyringController.withController,
     );
   }
 
@@ -4708,6 +4713,53 @@ describe('AccountTreeController', () => {
       );
       expect(spy).toHaveBeenCalledWith(groupId, hidden);
     });
+
+    it('calls exportState via AccountTreeController:exportState', async () => {
+      const spy = jest.spyOn(AccountTreeController.prototype, 'exportState');
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      await messenger.call('AccountTreeController:exportState');
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('calls importState via AccountTreeController:importState', async () => {
+      const spy = jest
+        .spyOn(AccountTreeController.prototype, 'importState')
+        .mockResolvedValue();
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const mockSnapshot = {} as Parameters<
+        AccountTreeController['importState']
+      >[0];
+      await messenger.call('AccountTreeController:importState', mockSnapshot);
+      expect(spy).toHaveBeenCalledWith(mockSnapshot);
+    });
   });
 
   describe('Event Emissions', () => {
@@ -5359,6 +5411,100 @@ describe('AccountTreeController', () => {
       expect(updatedListener).toHaveBeenCalledTimes(1);
       expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
       expect(expectedGroup.metadata.hidden).toBe(true);
+    });
+
+    it('emits initialized after init() completes', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.init();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(controller.state);
+    });
+
+    it('emits initialized again after reinit()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      controller.reinit();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(controller.state);
+    });
+
+    it('does NOT emit initialized during clearState()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:initialized',
+        initializedListener,
+      );
+
+      controller.clearState();
+
+      expect(initializedListener).not.toHaveBeenCalled();
+    });
+
+    it('emits uninitialized after clearState()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const uninitializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:uninitialized',
+        uninitializedListener,
+      );
+
+      controller.clearState();
+
+      expect(uninitializedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit uninitialized during init()', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const uninitializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:uninitialized',
+        uninitializedListener,
+      );
+
+      controller.init();
+
+      expect(uninitializedListener).not.toHaveBeenCalled();
     });
   });
 
@@ -6430,6 +6576,177 @@ describe('AccountTreeController', () => {
         expect(groups[0].metadata.pinned).toBe(true);
         expect(groups[0].metadata.hidden).toBe(true);
       });
+    });
+  });
+
+  describe('exportState / importState round-trip', () => {
+    it('preserves wallet and group metadata across a metadata-only export/import cycle', async () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      // Set custom metadata before export.
+      controller.setAccountWalletName(walletId, 'My Custom Wallet');
+      controller.setAccountGroupName(groupId, 'My Custom Account');
+      controller.setAccountGroupPinned(groupId, true);
+      controller.setAccountGroupHidden(groupId, false);
+
+      // Register handlers that export needs but the default setup() doesn't provide.
+      // withKeyringV2Unsafe: returns the entropy source ID derived from the keyring.
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              mnemonic: null,
+            },
+          }),
+      );
+
+      // --- EXPORT ---
+      const snapshot = await controller.exportState();
+      const payload = snapshot.serialize();
+
+      expect(payload.wallets).toHaveLength(1);
+      const exportedWallet = payload.wallets[0];
+      expect(exportedWallet.type).toBe('mnemonic');
+      expect(exportedWallet.metadata.name).toBe('My Custom Wallet');
+      expect(exportedWallet.groups[0]?.metadata.name).toBe('My Custom Account');
+      expect(exportedWallet.groups[0]?.metadata.pinned).toBe(true);
+      expect(exportedWallet.groups[0]?.metadata.hidden).toBe(false);
+
+      // The snapshot's idMap bridges local IDs ↔ payload IDs.
+      expect(snapshot.toPayloadId(walletId)).toBe(
+        `wallet:${MOCK_HD_KEYRING_1.metadata.id}`,
+      );
+      expect(
+        snapshot.toLocalId(`wallet:${MOCK_HD_KEYRING_1.metadata.id}`),
+      ).toBe(walletId);
+
+      // Mutate metadata so the import can restore it.
+      controller.setAccountWalletName(walletId, 'Overwritten Wallet Name');
+      controller.setAccountGroupName(groupId, 'Overwritten Account Name');
+      controller.setAccountGroupPinned(groupId, false);
+      controller.setAccountGroupHidden(groupId, true);
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('Overwritten Wallet Name');
+
+      // --- IMPORT ---
+      // withKeyringV2Unsafe is called again during import to find the matching wallet.
+      // It's already registered; the existing handler stays in place.
+      await controller.importState(snapshot);
+
+      // After import, original metadata should be restored.
+      expect(
+        controller.state.accountTree.wallets[walletId]?.metadata.name,
+      ).toBe('My Custom Wallet');
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.name,
+      ).toBe('My Custom Account');
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.pinned,
+      ).toBe(true);
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.metadata.hidden,
+      ).toBe(false);
+    });
+
+    it('throws when exporting with a locked vault regardless of includeSecrets', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      mocks.KeyringController.getState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: mocks.KeyringController.keyrings,
+      });
+
+      await expect(
+        controller.exportState({ includeSecrets: false }),
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
+
+      await expect(
+        controller.exportState({
+          includeSecrets: true,
+          password: 'test-password',
+        }),
+      ).rejects.toThrow('Cannot export account tree when vault is locked');
+    });
+
+    it('throws when exporting with a wrong password', async () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      mocks.KeyringController.verifyPassword.mockRejectedValue(
+        new Error('Invalid password'),
+      );
+
+      await expect(
+        controller.exportState({
+          includeSecrets: true,
+          password: 'wrong-password',
+        }),
+      ).rejects.toThrow('Invalid password');
+    });
+
+    it('verifies password before exporting', async () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2Unsafe',
+        async (
+          _selector: unknown,
+          callback: (ctx: { keyring: unknown }) => unknown,
+        ) =>
+          callback({
+            keyring: {
+              toEntropySourceId: async () => MOCK_HD_KEYRING_1.metadata.id,
+              // Must be even-length for encodeMnemonic (uses Uint16Array internally).
+              mnemonic: new Uint8Array([1, 2, 3, 4]),
+            },
+          }),
+      );
+
+      await controller.exportState({
+        includeSecrets: true,
+        password: 'correct-password',
+      });
+
+      expect(mocks.KeyringController.verifyPassword).toHaveBeenCalledWith(
+        'correct-password',
+      );
     });
   });
 });

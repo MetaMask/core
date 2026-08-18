@@ -26,6 +26,10 @@ import {
   toGroupPayloadId,
   toWalletPayloadId,
 } from './payload.js';
+import {
+  makeLocalKeyringWallet,
+  makeLocalMnemonicWallet,
+} from './tests/helpers.js';
 
 const MOCK_PRIVATE_KEY_PAYLOAD_ID = toWalletPayloadId(
   AccountWalletPayloadType.PrivateKey,
@@ -45,58 +49,20 @@ const MOCK_PRIVATE_KEY_GROUP_ID = toAccountGroupId(
   '0xabc',
 );
 
-const MOCK_HD_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
-  {
-    [MOCK_HD_WALLET_ID]: {
-      id: MOCK_HD_WALLET_ID,
-      type: AccountWalletType.Entropy,
-      status: 'ready',
-      groups: {
-        [MOCK_HD_GROUP_ID]: {
-          id: MOCK_HD_GROUP_ID,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: {
-            name: 'Account 1',
-            entropy: { groupIndex: 0 },
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
-      },
-      metadata: {
-        name: 'Wallet 1',
-        entropy: { id: 'mock-entropy-id' },
-      },
-    },
-  };
+const MOCK_HD_WALLET_STATE = makeLocalMnemonicWallet('mock-entropy-id', [
+  { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
+]);
 
-const MOCK_PRIVATE_KEY_WALLET_STATE: AccountTreeControllerState['accountTree']['wallets'] =
-  {
-    [MOCK_PRIVATE_KEY_WALLET_ID]: {
-      id: MOCK_PRIVATE_KEY_WALLET_ID,
-      type: AccountWalletType.Keyring,
-      status: 'ready',
-      groups: {
-        [MOCK_PRIVATE_KEY_GROUP_ID]: {
-          id: MOCK_PRIVATE_KEY_GROUP_ID,
-          type: AccountGroupType.SingleAccount,
-          accounts: ['account-private-key-1'],
-          metadata: {
-            name: 'Imported 1',
-            pinned: false,
-            hidden: false,
-            lastSelected: 0,
-          },
-        },
-      },
-      metadata: {
-        name: 'Imported Accounts',
-        keyring: { type: KeyringTypes.simple },
-      },
+const MOCK_PRIVATE_KEY_WALLET_STATE = makeLocalKeyringWallet(
+  KeyringTypes.simple,
+  [
+    {
+      address: '0xabc',
+      name: 'Imported 1',
+      accounts: ['account-private-key-1'],
     },
-  };
+  ],
+);
 
 /**
  * Creates an ExportContext with individual jest mocks per action so tests can
@@ -119,6 +85,7 @@ function setup({
   mocks: {
     KeyringController: {
       getState: jest.Mock;
+      verifyPassword: jest.Mock;
       withKeyringV2Unsafe: jest.Mock;
       withKeyringV2: jest.Mock;
     };
@@ -130,6 +97,7 @@ function setup({
   const mocks = {
     KeyringController: {
       getState: jest.fn().mockReturnValue({ isUnlocked, keyrings: [] }),
+      verifyPassword: jest.fn().mockResolvedValue(undefined),
       withKeyringV2Unsafe: jest.fn(),
       withKeyringV2: jest.fn(),
     },
@@ -143,6 +111,8 @@ function setup({
       switch (action) {
         case 'KeyringController:getState':
           return mocks.KeyringController.getState();
+        case 'KeyringController:verifyPassword':
+          return mocks.KeyringController.verifyPassword(...args);
         case 'KeyringController:withKeyringV2Unsafe':
           return mocks.KeyringController.withKeyringV2Unsafe(...args);
         case 'KeyringController:withKeyringV2':
@@ -321,7 +291,10 @@ describe('exportState', () => {
         new Uint8Array([1, 2, 3, 4]),
       );
 
-      const snapshot = await exportState(context, { includeSecrets: true });
+      const snapshot = await exportState(context, {
+        includeSecrets: true,
+        password: 'test-password',
+      });
       const wallet = snapshot.serialize().wallets[0] as { value?: string };
 
       expect(Array.isArray(wallet.value)).toBe(true);
@@ -336,7 +309,10 @@ describe('exportState', () => {
       );
 
       await expect(
-        exportState(context, { includeSecrets: true }),
+        exportState(context, {
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('Failed to export mnemonic');
     });
 
@@ -364,58 +340,15 @@ describe('exportState', () => {
     });
 
     it('exports groups sorted by groupIndex regardless of insertion order', async () => {
-      const group0Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
-      const group1Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 1);
-      const group2Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 2);
-
       // Insert groups in reverse order so Object.values() returns them as [2, 1, 0].
-      const walletsWithReversedGroups: AccountTreeControllerState['accountTree']['wallets'] =
-        {
-          [MOCK_HD_WALLET_ID]: {
-            id: MOCK_HD_WALLET_ID,
-            type: AccountWalletType.Entropy,
-            status: 'ready',
-            groups: {
-              [group2Id]: {
-                id: group2Id,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-3'],
-                metadata: {
-                  name: 'Account 3',
-                  entropy: { groupIndex: 2 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-              [group1Id]: {
-                id: group1Id,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-2'],
-                metadata: {
-                  name: 'Account 2',
-                  entropy: { groupIndex: 1 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-              [group0Id]: {
-                id: group0Id,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-1'],
-                metadata: {
-                  name: 'Account 1',
-                  entropy: { groupIndex: 0 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-            },
-            metadata: { name: 'Wallet 1', entropy: { id: 'mock-entropy-id' } },
-          },
-        };
+      const walletsWithReversedGroups = makeLocalMnemonicWallet(
+        'mock-entropy-id',
+        [
+          { groupIndex: 2, name: 'Account 3', accounts: ['account-3'] },
+          { groupIndex: 1, name: 'Account 2', accounts: ['account-2'] },
+          { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
+        ],
+      );
 
       const { context, mocks } = setup({ wallets: walletsWithReversedGroups });
       mocks.KeyringController.withKeyringV2Unsafe =
@@ -429,44 +362,10 @@ describe('exportState', () => {
     });
 
     it('throws when mnemonic groups have a gap after sorting', async () => {
-      const group0Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 0);
-      const group2Id = toMultichainAccountGroupId(MOCK_HD_WALLET_ID, 2);
-
-      const walletsWithGap: AccountTreeControllerState['accountTree']['wallets'] =
-        {
-          [MOCK_HD_WALLET_ID]: {
-            id: MOCK_HD_WALLET_ID,
-            type: AccountWalletType.Entropy,
-            status: 'ready',
-            groups: {
-              [group0Id]: {
-                id: group0Id,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-1'],
-                metadata: {
-                  name: 'Account 1',
-                  entropy: { groupIndex: 0 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-              [group2Id]: {
-                id: group2Id,
-                type: AccountGroupType.MultichainAccount,
-                accounts: ['account-3'],
-                metadata: {
-                  name: 'Account 3',
-                  entropy: { groupIndex: 2 },
-                  pinned: false,
-                  hidden: false,
-                  lastSelected: 0,
-                },
-              },
-            },
-            metadata: { name: 'Wallet 1', entropy: { id: 'mock-entropy-id' } },
-          },
-        };
+      const walletsWithGap = makeLocalMnemonicWallet('mock-entropy-id', [
+        { groupIndex: 0, name: 'Account 1', accounts: ['account-1'] },
+        { groupIndex: 2, name: 'Account 3', accounts: ['account-3'] },
+      ]);
 
       const { context, mocks } = setup({ wallets: walletsWithGap });
       mocks.KeyringController.withKeyringV2Unsafe =
@@ -580,7 +479,10 @@ describe('exportState', () => {
         encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
       });
 
-      const snapshot = await exportState(context, { includeSecrets: true });
+      const snapshot = await exportState(context, {
+        includeSecrets: true,
+        password: 'test-password',
+      });
       const group = snapshot.serialize().wallets[0]?.groups[0] as {
         value?: { privateKey: number[]; encoding: string; type: string };
       };
@@ -610,7 +512,10 @@ describe('exportState', () => {
       );
 
       await expect(
-        exportState(context, { includeSecrets: true }),
+        exportState(context, {
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('does not support exportAccount');
     });
 
@@ -626,7 +531,10 @@ describe('exportState', () => {
         makePrivateKeyExportHandler(undefined);
 
       await expect(
-        exportState(context, { includeSecrets: true }),
+        exportState(context, {
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('Failed to export private key');
     });
 
