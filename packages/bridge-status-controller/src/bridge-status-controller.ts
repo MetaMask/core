@@ -370,7 +370,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       getSwapOperationCompletedTraceParams(
         historyItem,
         historyKey,
-        historyItem.completionTime,
         result,
         terminalStage,
       ),

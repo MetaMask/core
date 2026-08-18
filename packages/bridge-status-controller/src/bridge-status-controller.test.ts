@@ -1844,7 +1844,6 @@ describe('BridgeStatusController', () => {
                   quote_id: '197c402f-cb96-4096-9f8c-54aed84ca776',
                   transaction_id: 'bridgeTxMetaId1',
                   src_tx_hash: '0xsrcTxHash1',
-                  duration_ms: completionTime - startTime,
                   result: scenario.result,
                 }),
               }),

@@ -52,7 +52,6 @@ export const getApprovalTraceParams = (
 export const getSwapOperationCompletedTraceParams = (
   historyItem: BridgeHistoryItem,
   historyKey: string,
-  completionTime: number,
   result: SwapOperationResult,
   terminalStage: SwapOperationTerminalStage,
 ) => {
@@ -73,7 +72,6 @@ export const getSwapOperationCompletedTraceParams = (
       ),
       terminal_stage: terminalStage,
       transaction_id: historyItem.txMetaId ?? historyKey,
-      duration_ms: completionTime - historyItem.startTime,
       result,
       ...(quoteId ? { quote_id: quoteId } : {}),
       ...(sourceTransactionHash ? { src_tx_hash: sourceTransactionHash } : {}),
