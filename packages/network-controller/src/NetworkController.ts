@@ -10,6 +10,7 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   ConfigRegistryControllerStateChangedEvent,
   ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+  ConfigRegistryControllerGetStateAction,
 } from '@metamask/config-registry-controller';
 import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
@@ -45,6 +46,7 @@ import {
   hasProperty,
   isPlainObject,
   isStrictHexString,
+  numberToHex,
   parseCaipChainId,
 } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
@@ -738,11 +740,12 @@ export type NetworkControllerActions =
  * All actions that {@link NetworkController} calls internally.
  */
 type AllowedActions =
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
+  | ConfigRegistryControllerGetStateAction
   | ConnectivityControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | AnalyticsControllerGetStateAction
-  | AnalyticsControllerTrackEventAction
-  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction;
+  | AnalyticsControllerTrackEventAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -1639,15 +1642,22 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Initialize the NetworkController, applying the RPC failover mode from the
-   * `corePlatformRpcFailoverMode` remote feature flag and applying the network
-   * selection.
+   * Initialize the NetworkController:
+   *   - Apply the RPC failover mode from the `corePlatformRpcFailoverMode` remote feature flag;
+   *   - Apply the network selection.
+   *   - Auto-enable any chains that are configured to be auto-enabled in ConfigRegistryController.
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
     this.#updateRpcFailover(getRpcFailoverMode(state));
 
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
+
+    this.#autoEnableChains(
+      getConfigRegistryEvmAutoEnabledChains(
+        this.messenger.call('ConfigRegistryController:getState'),
+      ),
+    );
   }
 
   /**
@@ -3169,9 +3179,14 @@ export class NetworkController extends BaseController<
         'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
         chainId,
       );
-      const hexChainId = add0x(parseCaipChainId(chainId).reference);
+      const hexChainId = numberToHex(
+        Number(parseCaipChainId(chainId).reference),
+      );
 
-      if (!networkConfiguration || this.getNetworkClientById(hexChainId)) {
+      if (
+        !networkConfiguration ||
+        this.state.networkConfigurationsByChainId[hexChainId]
+      ) {
         return;
       }
 
@@ -3179,7 +3194,8 @@ export class NetworkController extends BaseController<
         networkConfiguration.rpcProviders.default.type === 'infura'
           ? {
               type: RpcEndpointType.Infura,
-              networkClientId: hexChainId,
+              networkClientId:
+                networkConfiguration.rpcProviders.default.networkClientId,
               url: networkConfiguration.rpcProviders.default
                 .url as InfuraRpcEndpoint['url'],
             }

@@ -42,7 +42,10 @@ export function getConfigRegistryEvmAutoEnabledChains(
   return Object.values(state.configs.networks)
     .filter(
       ({ chainId, config }) =>
-        chainId.startsWith(KnownCaipNamespace.Eip155) && config.isAutoEnabled,
+        chainId.startsWith(KnownCaipNamespace.Eip155) &&
+        config.isAutoEnabled &&
+        config.isActive &&
+        !config.isDeprecated,
     )
     .map((config) => config.chainId);
 }
