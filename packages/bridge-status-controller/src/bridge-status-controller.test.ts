@@ -1861,75 +1861,6 @@ describe('BridgeStatusController', () => {
         );
       });
 
-      it('does not emit a duplicate trace for a repeated terminal poll', async () => {
-        jest.useFakeTimers();
-        jest.spyOn(Date, 'now').mockImplementation(() => 1736277625746);
-        const traceRequests: TraceRequest[] = [];
-        const fetchBridgeTxStatusSpy = jest
-          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-          .mockResolvedValue({
-            status: MockStatusResponse.getComplete(),
-            validationFailures: [],
-          });
-
-        await withController(
-          {
-            options: {
-              traceFn: createTraceCallback(traceRequests),
-            },
-          },
-          async ({ controller, rootMessenger }) => {
-            registerDefaultActionHandlers(rootMessenger);
-            rootMessenger.call(
-              'BridgeStatusController:startPollingForBridgeTxStatus',
-              getMockStartPollingForBridgeTxStatusArgs(),
-            );
-            jest.advanceTimersByTime(10000);
-            await flushPromises();
-
-            await controller._executePoll({
-              bridgeTxMetaId: 'bridgeTxMetaId1',
-            });
-
-            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-            expect(
-              traceRequests.filter(
-                ({ name }) => name === TraceName.SwapOperationCompleted,
-              ),
-            ).toHaveLength(1);
-          },
-        );
-      });
-
-      it('does not trace a final status restored from persisted history', async () => {
-        const traceRequests: TraceRequest[] = [];
-        const fetchBridgeTxStatusSpy = jest.spyOn(
-          bridgeStatusUtils,
-          'fetchBridgeTxStatus',
-        );
-
-        await withController(
-          {
-            options: {
-              state: {
-                txHistory: MockTxHistory.getComplete(),
-              },
-              traceFn: createTraceCallback(traceRequests),
-            },
-          },
-          async ({ controller }) => {
-            await controller._executePoll({
-              bridgeTxMetaId: 'bridgeTxMetaId1',
-            });
-
-            expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
-            expect(
-              getSwapOperationCompletedTrace(traceRequests),
-            ).toBeUndefined();
-          },
-        );
-      });
-
       it.each([
         {
           name: 'same-chain success',
@@ -2006,46 +1937,6 @@ describe('BridgeStatusController', () => {
           );
         },
       );
-
-      it('does not trace or downgrade a duplicate failure for a terminal item', async () => {
-        const traceRequests: TraceRequest[] = [];
-
-        await withController(
-          {
-            options: {
-              state: {
-                txHistory: MockTxHistory.getComplete(),
-              },
-              traceFn: createTraceCallback(traceRequests),
-            },
-          },
-          async ({ controller, rootMessenger }) => {
-            registerDefaultActionHandlers(rootMessenger);
-            rootMessenger.publish(
-              'TransactionController:transactionStatusUpdated',
-              {
-                transactionMeta: {
-                  chainId: CHAIN_IDS.ARBITRUM,
-                  networkClientId: 'eth-id',
-                  time: Date.now(),
-                  txParams: {} as unknown as TransactionParams,
-                  type: TransactionType.bridge,
-                  status: TransactionStatus.failed,
-                  id: 'bridgeTxMetaId1',
-                } as TransactionMeta,
-              },
-            );
-            await flushPromises();
-
-            expect(
-              controller.state.txHistory.bridgeTxMetaId1.status.status,
-            ).toBe(StatusTypes.COMPLETE);
-            expect(
-              getSwapOperationCompletedTrace(traceRequests),
-            ).toBeUndefined();
-          },
-        );
-      });
     });
 
     it.each([

@@ -142,9 +142,6 @@ export type FetchBridgeTxStatusArgs = {
   bridgeTxMetaId: string;
 };
 
-const isFinalBridgeStatus = (status?: StatusTypes): boolean =>
-  status === StatusTypes.COMPLETE || status === StatusTypes.FAILED;
-
 const MESSENGER_EXPOSED_METHODS = [
   'startPollingForBridgeTxStatus',
   'wipeBridgeStatus',
@@ -390,14 +387,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     historyKey?: string;
     isApprovalTxMeta: boolean;
   }): void => {
-    // Check if the history item is already in a final state
-    const isHistoryItemAlreadyFinal = historyKey
-      ? isFinalBridgeStatus(this.state.txHistory[historyKey]?.status.status)
+    const isHistoryItemAlreadyFailed = historyKey
+      ? this.state.txHistory[historyKey]?.status.status === StatusTypes.FAILED
       : false;
-
-    if (isHistoryItemAlreadyFinal) {
-      return;
-    }
 
     this.#updateHistoryItem({
       historyKey,
@@ -407,6 +399,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
 
     if (txMeta.status === TransactionStatus.rejected) {
+      return;
+    }
+
+    if (isHistoryItemAlreadyFailed) {
       return;
     }
 
@@ -450,14 +446,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Return early if the confirmed txMeta is for an approval since we
     // still need to wait for the trade to be confirmed
     if (isApprovalTxMeta) {
-      return;
-    }
-
-    const isHistoryItemAlreadyFinal = historyKey
-      ? isFinalBridgeStatus(this.state.txHistory[historyKey]?.status.status)
-      : false;
-
-    if (isHistoryItemAlreadyFinal) {
       return;
     }
 
@@ -1008,10 +996,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    if (isFinalBridgeStatus(historyItem.status.status)) {
-      return;
-    }
-
     // 2. Check for previous failures
 
     if (shouldSkipFetchDueToFetchFailures(historyItem.attempts)) {
@@ -1103,12 +1087,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
 
       // 4. Create bridge history item
-
-      if (
-        isFinalBridgeStatus(this.state.txHistory[bridgeTxMetaId]?.status.status)
-      ) {
-        return;
-      }
 
       const newBridgeHistoryItem = {
         ...historyItem,
