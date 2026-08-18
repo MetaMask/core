@@ -85,6 +85,7 @@ function setup({
   mocks: {
     KeyringController: {
       getState: jest.Mock;
+      verifyPassword: jest.Mock;
       withKeyringV2Unsafe: jest.Mock;
       withKeyringV2: jest.Mock;
     };
@@ -96,6 +97,7 @@ function setup({
   const mocks = {
     KeyringController: {
       getState: jest.fn().mockReturnValue({ isUnlocked, keyrings: [] }),
+      verifyPassword: jest.fn().mockResolvedValue(undefined),
       withKeyringV2Unsafe: jest.fn(),
       withKeyringV2: jest.fn(),
     },
@@ -109,6 +111,8 @@ function setup({
       switch (action) {
         case 'KeyringController:getState':
           return mocks.KeyringController.getState();
+        case 'KeyringController:verifyPassword':
+          return mocks.KeyringController.verifyPassword(...args);
         case 'KeyringController:withKeyringV2Unsafe':
           return mocks.KeyringController.withKeyringV2Unsafe(...args);
         case 'KeyringController:withKeyringV2':
@@ -287,7 +291,10 @@ describe('exportState', () => {
         new Uint8Array([1, 2, 3, 4]),
       );
 
-      const snapshot = await exportState(context, { includeSecrets: true });
+      const snapshot = await exportState(context, {
+        includeSecrets: true,
+        password: 'test-password',
+      });
       const wallet = snapshot.serialize().wallets[0] as { value?: string };
 
       expect(Array.isArray(wallet.value)).toBe(true);
@@ -302,7 +309,10 @@ describe('exportState', () => {
       );
 
       await expect(
-        exportState(context, { includeSecrets: true }),
+        exportState(context, {
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('Failed to export mnemonic');
     });
 
@@ -469,7 +479,10 @@ describe('exportState', () => {
         encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
       });
 
-      const snapshot = await exportState(context, { includeSecrets: true });
+      const snapshot = await exportState(context, {
+        includeSecrets: true,
+        password: 'test-password',
+      });
       const group = snapshot.serialize().wallets[0]?.groups[0] as {
         value?: { privateKey: number[]; encoding: string; type: string };
       };
@@ -499,7 +512,10 @@ describe('exportState', () => {
       );
 
       await expect(
-        exportState(context, { includeSecrets: true }),
+        exportState(context, {
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('does not support exportAccount');
     });
 
@@ -515,7 +531,10 @@ describe('exportState', () => {
         makePrivateKeyExportHandler(undefined);
 
       await expect(
-        exportState(context, { includeSecrets: true }),
+        exportState(context, {
+          includeSecrets: true,
+          password: 'test-password',
+        }),
       ).rejects.toThrow('Failed to export private key');
     });
 

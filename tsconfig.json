@@ -105,9 +105,6 @@
       "path": "./packages/eip1193-permission-middleware"
     },
     {
-      "path": "./packages/ens-controller"
-    },
-    {
       "path": "./packages/eth-block-tracker"
     },
     {
