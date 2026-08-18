@@ -315,6 +315,15 @@ const config = createConfig([
     },
   },
   {
+    // The UKYC test-token minter is a dev-only Node CLI, so it may use Node
+    // builtins and globals unlike the platform-agnostic package source.
+    files: ['packages/kyc-controller/scripts/**/*.ts'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
     files: [
       'packages/wallet-cli/src/**/*.test.{js,ts}',
       'packages/wallet-cli/tests/**/*.{js,ts}',
@@ -349,7 +358,6 @@ const config = createConfig([
       'packages/assets-controllers/src/TokenRatesController.ts',
       'packages/assets-controllers/src/TokensController.ts',
       'packages/controller-utils/src/siwe.ts',
-      'packages/ens-controller/src/EnsController.ts',
       'packages/gas-fee-controller/src/GasFeeController.ts',
       'packages/logging-controller/src/LoggingController.ts',
       'packages/message-manager/src/AbstractMessageManager.ts',

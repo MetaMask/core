@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "description": "Handle user subscription",
   "keywords": [
     "Ethereum",

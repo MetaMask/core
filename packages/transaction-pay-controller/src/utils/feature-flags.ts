@@ -535,7 +535,7 @@ export function getFeatureFlags(
 }
 
 /**
- * Get the stablecoins map from the `stable-tokens` feature flag.
+ * Get the stablecoins map from the `stableTokens` feature flag.
  * Falls back to the hardcoded {@link STABLECOINS} constant when the flag is
  * absent or not a valid object.
  *
@@ -546,7 +546,7 @@ export function getStablecoins(
   messenger: TransactionPayControllerMessenger,
 ): Record<Hex, Hex[]> {
   const state = messenger.call('RemoteFeatureFlagController:getState');
-  const flag = state.remoteFeatureFlags?.['stable-tokens'];
+  const flag = state.remoteFeatureFlags?.stableTokens;
 
   if (flag && typeof flag === 'object' && !Array.isArray(flag)) {
     const raw = flag as Record<string, string[]>;

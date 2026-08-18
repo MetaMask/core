@@ -1,9 +1,19 @@
-import greeter from './index.js';
+import * as packageExports from './index.js';
 
-describe('Test', () => {
-  it('greets', () => {
-    const name = 'Huey';
-    const result = greeter(name);
-    expect(result).toBe('Hello, Huey!');
+describe('@metamask/kyc-controller', () => {
+  it('exports the controller, service, selectors, and helpers', () => {
+    expect(packageExports).toMatchObject({
+      KycController: expect.any(Function),
+      KycService: expect.any(Function),
+      getDefaultKycControllerState: expect.any(Function),
+      selectKycPhase: expect.any(Function),
+      selectKycSumSub: expect.any(Function),
+      selectIsKycRequiredForProduct: expect.any(Function),
+      alpha2ToAlpha3: expect.any(Function),
+      generateKeyPair: expect.any(Function),
+      decryptCredentials: expect.any(Function),
+      controllerName: 'KycController',
+      serviceName: 'KycService',
+    });
   });
 });
