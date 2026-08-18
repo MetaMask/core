@@ -4430,16 +4430,18 @@ export class LighterProvider implements PerpsProvider {
           if (margins?.minInitial && margins.minInitial > 0) {
             adapted.maxLeverage = Math.floor(10_000 / margins.minInitial);
           }
-          // The venue enforces BOTH a quote minimum and a BASE minimum:
-          // at current prices the base minimum can exceed the quote one
-          // (ETH: 0.0053 ETH > $10), so a UI defaulting to the quote
-          // minimum produces orders one tick below the venue floor.
-          // Report the binding USD minimum, rounded UP to whole cents.
+          // The venue floor is the SAME base size placement enforces:
+          // max(minBase, minQuote/price) rounded UP to the size grid —
+          // grid rounding matters (ETH: $10/price = 0.005222 rounds up
+          // to 0.0053 ETH ≈ $10.15), so a flat quote-minimum default
+          // lands one grid tick below the floor. Report that binding
+          // base size in USD, rounded UP to whole cents.
           if (margins?.lastTradePrice && margins.lastTradePrice > 0) {
-            const minBaseUsd =
-              parseFloat(market.minBaseAmount) * margins.lastTradePrice;
-            const minQuoteUsd = parseFloat(market.minQuoteAmount);
-            const bindingUsd = Math.max(minQuoteUsd, minBaseUsd);
+            const minBaseSize = computeLighterMinOrderSize(
+              market,
+              margins.lastTradePrice,
+            );
+            const bindingUsd = minBaseSize * margins.lastTradePrice;
             if (Number.isFinite(bindingUsd) && bindingUsd > 0) {
               adapted.minimumOrderSize = Math.ceil(bindingUsd * 100) / 100;
             }
