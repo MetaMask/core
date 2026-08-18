@@ -686,6 +686,12 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Associated quote request. */
   request: QuoteRequest;
 
+  /**
+   * Expected number of TransactionController child transactions created when
+   * this quote is executed. Undefined when the count cannot be predicted.
+   */
+  requiredTransactionCount?: number;
+
   /** Amount of source token required. */
   sourceAmount: Amount;
 

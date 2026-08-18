@@ -678,10 +678,10 @@ async function submitTransactions(
   );
 }
 
-function getRelayTransactionStepData(
-  quote: TransactionPayQuote<RelayQuote>,
+export function getRelayTransactionStepData(
+  quote: RelayQuote,
 ): RelayTransactionStep['items'][0]['data'][] {
-  const { steps } = quote.original;
+  const { steps } = quote;
   const supportedStepKinds = ['transaction', 'signature'];
   const invalidKind = steps.find(
     (step) => !supportedStepKinds.includes(step.kind),
@@ -712,7 +712,7 @@ async function buildRelaySubmitParams({
   quote: TransactionPayQuote<RelayQuote>;
   transaction: TransactionMeta;
 }): Promise<RelaySubmitParams> {
-  const params = getRelayTransactionStepData(quote);
+  const params = getRelayTransactionStepData(quote.original);
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
   );
