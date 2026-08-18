@@ -248,13 +248,8 @@ export class BaseDataService<
   /**
    * Fetch a query.
    *
-   * @param options - The options defining the query. Note that although this
-   * method wraps `fetchQuery` from `@tanstack/query-core`, there are a few
-   * restrictions:
-   * - `queryKey` and `queryFn` are required
-   * - `queryFn` must be a function, not a skip token
-   * - `retry` and `retryDelay` are not available (retries can be customized
-   *   using the constructor's `servicePolicyOptions`).
+   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
+   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
    * @returns The query results.
    */
   protected async fetchQuery<
@@ -269,11 +264,7 @@ export class BaseDataService<
         'retry' | 'retryDelay' | 'queryFn'
       >,
       'queryKey'
-    > & {
-      // @tanstack/query-core's fetchQuery function accepts a "skip" token, but
-      // data services always provide a concrete query function.
-      queryFn: QueryFunction<TQueryFnData, TQueryKey>;
-    },
+    > & { queryFn: QueryFunction<TQueryFnData, TQueryKey> },
   ): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
@@ -285,17 +276,10 @@ export class BaseDataService<
   /**
    * Fetch a paginated query.
    *
-   * @param options - The options defining the query. Note that although this
-   * method wraps `fetchInfiniteQuery` from `@tanstack/query-core`, there are a
-   * few differences:
-   * - `queryKey` and `queryFn` are required
-   * - `queryFn` must be a function, not a skip token
-   * - `retry` and `retryDelay` are not available (retries can be customized
-   *   using the constructor's `servicePolicyOptions`).
+   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
+   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
    * @param pageParam - An optional page parameter.
-   * @returns A page's worth of data (i.e. what `queryFn` returns). Note that
-   * this is different from `@tanstack/query-core`'s `fetchInfiniteQuery`
-   * method, which returns all pages.
+   * @returns The query result, exclusively the requested page is returned.
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
@@ -332,11 +316,6 @@ export class BaseDataService<
       queryKey: options.queryKey,
     });
 
-    // A first-page request (no per-call `pageParam`, which our cursor consumers
-    // express as a falsy `initialPageParam`) or a cold cache goes through
-    // query-core's `fetchInfiniteQuery`, which reuses the cached page while the
-    // query is fresh. The explicit param a later page needs is smuggled through
-    // the query meta and read back by the query function.
     if (!query?.state.data || !pageParam) {
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
@@ -354,9 +333,6 @@ export class BaseDataService<
       return result.pages[0];
     }
 
-    // A later page on an existing query. Classify it as the next or previous
-    // page to choose the fetch direction, then let query-core fetch it, passing
-    // the explicit param through the query meta.
     const { pages, pageParams } = query.state.data;
     const next = options.getNextPageParam(
       pages[pages.length - 1],

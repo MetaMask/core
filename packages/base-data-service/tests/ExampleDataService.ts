@@ -109,8 +109,6 @@ export class ExampleDataService extends BaseDataService<
     address: string,
     page?: PageParam,
   ): Promise<GetActivityResponse> {
-    // Only `TQueryFnData` is specified; the rest (including `TPageParam`) is
-    // inferred from `initialPageParam` and the page-param callbacks.
     return this.fetchInfiniteQuery<GetActivityResponse>(
       {
         queryKey: [`${this.name}:getActivity`, address],
@@ -141,9 +139,6 @@ export class ExampleDataService extends BaseDataService<
           pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null,
         getNextPageParam: ({ pageInfo }): PageParam | null =>
           pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
-        // No `staleTime`, so this relies on the client's default. That keeps the
-        // cached pages fresh for the tests (which do not advance timers) and
-        // exercises the default-`staleTime` path in `fetchInfiniteQuery`.
       },
       page,
     );
