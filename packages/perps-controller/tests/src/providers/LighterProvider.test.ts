@@ -8289,6 +8289,75 @@ describe('LighterProvider', () => {
       unsubscribeOrders();
     });
 
+    it('emits order book levels with the full contract shape (cumulative totals, notionals, maxTotal)', async () => {
+      // Regression (found live on device): levels were fanned out as bare
+      // {price, size}, so the depth chart's parseFloat(level.total) produced
+      // NaN Y-coordinates and crashed the native SVG path parser
+      // (RNSVGPathParser InvalidNumber).
+      const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
+      const bookCallback = jest.fn();
+      const unsubscribe = provider.subscribeToOrderBook({
+        symbol: 'BTC',
+        levels: 5,
+        callback: bookCallback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'subscribed/order_book',
+          channel: 'order_book:1',
+          order_book: {
+            bids: [
+              { price: '90000', size: '0.5' },
+              { price: '89990', size: '1.5' },
+            ],
+            asks: [
+              { price: '90010', size: '0.4' },
+              { price: '90020', size: '2.0' },
+            ],
+          },
+        }),
+      });
+      expect(bookCallback).toHaveBeenCalled();
+      const book =
+        bookCallback.mock.calls[bookCallback.mock.calls.length - 1][0];
+      // Cumulative sizes per side.
+      expect(
+        book.bids.map((level: { total: string }) => level.total),
+      ).toStrictEqual(['0.5', '2']);
+      expect(
+        book.asks.map((level: { total: string }) => level.total),
+      ).toStrictEqual(['0.4', '2.4']);
+      // Per-level notional and cumulative notional.
+      expect(parseFloat(book.bids[0].notional)).toBeCloseTo(45000);
+      expect(parseFloat(book.bids[1].totalNotional)).toBeCloseTo(
+        45000 + 89990 * 1.5,
+      );
+      // Book-level scaling fields the UI depends on.
+      expect(parseFloat(book.maxTotal)).toBeCloseTo(2.4);
+      expect(typeof book.lastUpdated).toBe('number');
+      // No NaN anywhere the depth chart reads.
+      for (const side of [book.bids, book.asks]) {
+        for (const level of side) {
+          for (const field of [
+            'price',
+            'size',
+            'total',
+            'notional',
+            'totalNotional',
+          ]) {
+            expect(Number.isFinite(parseFloat(level[field]))).toBe(true);
+          }
+        }
+      }
+      unsubscribe();
+    });
+
     it('withholds a fills snapshot containing unsupported (nonzero-fee) fills', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeStreamCtor,

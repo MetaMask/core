@@ -103,6 +103,8 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  OrderBookData,
+  OrderBookLevel,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -7414,28 +7416,60 @@ export class LighterProvider implements PerpsProvider {
     if (!subscribers || subscribers.size === 0) {
       return;
     }
+    // Levels must carry the FULL OrderBookLevel contract. The depth chart
+    // draws Y-coordinates from parseFloat(level.total): a bare {price, size}
+    // level renders as an SVG path full of NaN and crashes the native path
+    // parser (found live on device, RNSVGPathParser InvalidNumber).
+    const toContractLevels = (
+      entries: [string, string][],
+    ): OrderBookLevel[] => {
+      let cumulativeSize = 0;
+      let cumulativeNotional = 0;
+      return entries.map(([price, size]) => {
+        const sizeNum = parseFloat(size);
+        const notional = parseFloat(price) * sizeNum;
+        cumulativeSize += sizeNum;
+        cumulativeNotional += notional;
+        return {
+          price,
+          size,
+          total: String(cumulativeSize),
+          notional: String(notional),
+          totalNotional: String(cumulativeNotional),
+        };
+      });
+    };
     for (const subscriber of subscribers) {
       const levels = subscriber.levels ?? 10;
-      const bids = [...state.bids.entries()]
-        .sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]))
-        .slice(0, levels)
-        .map(([price, size]) => ({ price, size }));
-      const asks = [...state.asks.entries()]
-        .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-        .slice(0, levels)
-        .map(([price, size]) => ({ price, size }));
+      const bids = toContractLevels(
+        [...state.bids.entries()]
+          .sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]))
+          .slice(0, levels),
+      );
+      const asks = toContractLevels(
+        [...state.asks.entries()]
+          .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+          .slice(0, levels),
+      );
       const bestBid = parseFloat(bids[0]?.price ?? '0');
       const bestAsk = parseFloat(asks[0]?.price ?? '0');
       const mid = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : 0;
+      const maxTotal = Math.max(
+        parseFloat(bids[bids.length - 1]?.total ?? '0'),
+        parseFloat(asks[asks.length - 1]?.total ?? '0'),
+      );
+      const book: OrderBookData = {
+        bids,
+        asks,
+        spread: String(bestAsk - bestBid),
+        spreadPercentage:
+          mid > 0 ? String(((bestAsk - bestBid) / mid) * 100) : '0',
+        midPrice: String(mid),
+        lastUpdated: Date.now(),
+        maxTotal: String(maxTotal),
+      };
       try {
-        subscriber.callback({
-          bids,
-          asks,
-          spread: String(bestAsk - bestBid),
-          spreadPercentage:
-            mid > 0 ? String(((bestAsk - bestBid) / mid) * 100) : '0',
-          midPrice: String(mid),
-        } as never);
+        subscriber.callback(book);
       } catch (error) {
         this.#logSubscriberError('orderBook', error);
       }
