@@ -2205,6 +2205,11 @@
       "count": 6
     }
   },
+  "packages/user-operation-controller/src/BlockTrackerPollingController.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 1
+    }
+  },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
