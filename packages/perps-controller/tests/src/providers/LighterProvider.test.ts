@@ -8886,13 +8886,14 @@ describe('LighterProvider', () => {
       expect(updates[2].delta.usdc).toBe('10000.000000');
     });
 
-    it('exposes the venue bridge route per network', () => {
+    it('exposes the venue bridge route on mainnet only; testnet advertises NO routes (unreachable devnet L1)', () => {
+      // Testnet settles on the venue-hosted devnet chain 123456 that the
+      // wallet cannot reach: advertising it made mobile pay-with flows
+      // build a deposit transaction on an unknown chain and fail the
+      // trade ("Invalid chain ID 0x1e240" — found in device validation).
       const { provider } = buildProvider();
-      const [testnetRoute] = provider.getDepositRoutes();
-      expect(testnetRoute.contractAddress).toBe(
-        '0xe034801BC49cCDC79FB683022dA0591C86077261',
-      );
-      expect(testnetRoute.constraints?.minAmount).toBe('1');
+      expect(provider.getDepositRoutes()).toStrictEqual([]);
+      expect(provider.getWithdrawalRoutes()).toStrictEqual([]);
 
       const { provider: mainnetProvider } = buildProvider({
         isTestnet: false,
@@ -9489,6 +9490,27 @@ describe('LighterProvider', () => {
       );
     });
   });
+  describe('close-size contract (mobile sheet parity)', () => {
+    it('a FULL close sent as an EMPTY size string closes the position (mobile sends size: "" for 100% closes)', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      const validation = await built.provider.validateClosePosition({
+        symbol: 'BTC',
+        size: '',
+        currentPrice: 100000,
+      });
+      expect(validation.isValid).toBe(true);
+      const result = await built.provider.closePosition({
+        symbol: 'BTC',
+        size: '',
+        orderType: 'market',
+        currentPrice: 100000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.success).toBe(true);
+    });
+  });
+
   describe('round-23 post-dispatch atomicity', () => {
     it('a failing recovered-outcome write after a fence-cancelled accepted dispatch keeps the ORIGINAL unresolved entry: the switch-back retry stays blocked, then reconciles', async () => {
       const registeredKey = '9c'.repeat(40);

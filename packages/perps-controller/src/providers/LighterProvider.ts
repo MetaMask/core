@@ -5177,6 +5177,24 @@ export class LighterProvider implements PerpsProvider {
    * @param params - Close request.
    * @returns Error message, or null when the shape is acceptable.
    */
+  /**
+   * The mobile close sheet sends a FULL close as an EMPTY size string
+   * (`size: sizeToClose || ''`); HyperLiquid and TradingService treat a
+   * falsy size as "no explicit size", so this venue honors the same
+   * contract — an empty/whitespace size or usdAmount means full close,
+   * never a validation failure.
+   *
+   * @param params - Raw close request.
+   * @returns The request with empty-string sizing normalized to absent.
+   */
+  readonly #normalizeCloseParams = (
+    params: ClosePositionParams,
+  ): ClosePositionParams => ({
+    ...params,
+    size: params.size?.trim() ? params.size : undefined,
+    usdAmount: params.usdAmount?.trim() ? params.usdAmount : undefined,
+  });
+
   readonly #validateCloseShape = (
     params: ClosePositionParams,
   ): string | null => {
@@ -5232,7 +5250,8 @@ export class LighterProvider implements PerpsProvider {
     return held > 0 && requestedSize >= held * (1 - 1e-9);
   };
 
-  async closePosition(params: ClosePositionParams): Promise<OrderResult> {
+  async closePosition(rawParams: ClosePositionParams): Promise<OrderResult> {
+    const params = this.#normalizeCloseParams(rawParams);
     try {
       // One intent identity from the position read through the final write:
       // an account switch mid-sequence aborts instead of trading the new
@@ -6547,8 +6566,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   readonly #validateClosePositionChecks = async (
-    params: ClosePositionParams,
+    rawParams: ClosePositionParams,
   ): Promise<{ isValid: boolean; error?: string }> => {
+    const params = this.#normalizeCloseParams(rawParams);
     // Same shape rules the execution path enforces.
     const shapeError = this.#validateCloseShape(params);
     if (shapeError) {
@@ -7815,15 +7835,24 @@ export class LighterProvider implements PerpsProvider {
   };
 
   getDepositRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
-    const bridge =
-      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet'];
-    return this.#bridgeRoute(bridge.minDepositUsdc);
+    // Testnet settles on a venue-hosted devnet L1 (chain 123456) the
+    // wallet cannot reach: advertising that route makes pay-with flows
+    // build a deposit transaction on an unknown chain and fail the whole
+    // trade ("Invalid chain ID 0x1e240"). No route means: trade from the
+    // venue balance, top up via the venue faucet.
+    if (this.#isTestnet) {
+      return [];
+    }
+    return this.#bridgeRoute(LIGHTER_BRIDGE_CONFIG.mainnet.minDepositUsdc);
   }
 
   getWithdrawalRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
-    const bridge =
-      LIGHTER_BRIDGE_CONFIG[this.#isTestnet ? 'testnet' : 'mainnet'];
-    return this.#bridgeRoute(bridge.minWithdrawUsdc);
+    // Same devnet-L1 reality as deposits: an unreachable withdrawal
+    // target is not a route.
+    if (this.#isTestnet) {
+      return [];
+    }
+    return this.#bridgeRoute(LIGHTER_BRIDGE_CONFIG.mainnet.minWithdrawUsdc);
   }
 
   // ============================================================================
