@@ -16,6 +16,7 @@ import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
+import type { CreateUkycSessionParams } from './KycService.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
   KycCustomerIdentity,
@@ -1320,6 +1321,32 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Builds the vendor-specific fields spread into a
+   * `KycService:createUkycSession` call, derived from the active vendor and the
+   * currently captured auth state.
+   *
+   * MoonPay sessions must carry the access token and customer id in
+   * `vendorMetadata`; Iron sessions carry no vendor metadata.
+   *
+   * @returns The vendor-specific subset of the `createUkycSession` params.
+   */
+  #buildUkycSessionVendorFields(): Pick<
+    CreateUkycSessionParams,
+    'vendorMetadata'
+  > {
+    if (this.state.activeVendor === 'moonpay') {
+      return {
+        vendorMetadata: {
+          moonPayAccessToken: this.state.accessToken,
+          moonPayUserId: this.state.moonpayCustomerId,
+        },
+      };
+    }
+
+    return {};
+  }
+
+  /**
    * Runs the SumSub document-verification sub-flow end to end:
    *
    *  1. requests a per-session wrapping key from the UKYC backend;
@@ -1424,20 +1451,12 @@ export class KycController extends BaseController<
         expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
       });
 
-      const isIron = this.state.activeVendor === 'iron';
       const { sessionId, kycStatus, finalStatus } = await this.messenger.call(
         'KycService:createUkycSession',
         {
           jwtToken,
-          vendorId: isIron ? 'iron' : 'moonpay',
-          ...(isIron
-            ? {}
-            : {
-                vendorMetadata: {
-                  moonPayAccessToken: this.state.accessToken,
-                  moonPayUserId: this.state.moonpayCustomerId,
-                },
-              }),
+          vendorId: this.state.activeVendor,
+          ...this.#buildUkycSessionVendorFields(),
           wrappedEncryptionKey,
           ukycCapabilityToken,
         },
