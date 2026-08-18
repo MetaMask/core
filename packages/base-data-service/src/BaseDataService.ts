@@ -308,7 +308,7 @@ export class BaseDataService<
       queryKey: options.queryKey,
     });
 
-    if (!query?.state.data || pageParam === undefined) {
+    if (!query?.state.data || !pageParam) {
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         initialPageParam: pageParam ?? options.initialPageParam,
