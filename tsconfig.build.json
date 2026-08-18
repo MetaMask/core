@@ -110,9 +110,6 @@
       "path": "./packages/eip1193-permission-middleware/tsconfig.build.json"
     },
     {
-      "path": "./packages/ens-controller/tsconfig.build.json"
-    },
-    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {

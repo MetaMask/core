@@ -10,6 +10,8 @@ import { CandlePeriod } from '../constants/chartConfig.js';
  * - `stop_*` / `take_profit_*`: trigger placement — the order rests off-book until
  *   `OrderParams.triggerPrice` is reached, then executes as a market or limit order
  *   according to the suffix.
+ * - `twap` / `scale` / `chase`: strategy placement — one request expands into an
+ *   execution schedule rather than a single resting order. See `StrategyOrderType`.
  *
  * Provider-agnostic by design: no protocol vocabulary (HyperLiquid's `tpsl`,
  * `triggerPx`, `isMarket`) appears in the params model.
@@ -20,12 +22,50 @@ export type OrderType =
   | 'stop_market'
   | 'stop_limit'
   | 'take_profit_market'
-  | 'take_profit_limit';
+  | 'take_profit_limit'
+  | 'twap'
+  | 'scale'
+  | 'chase';
 
 /**
  * The subset of `OrderType` values that require a trigger price.
+ *
+ * Spelled out rather than derived with `Exclude`: every order type added to
+ * `OrderType` that is neither `market` nor `limit` would otherwise be pulled in
+ * here automatically and start demanding a trigger price it has no concept of.
  */
-export type TriggerOrderType = Exclude<OrderType, 'market' | 'limit'>;
+export type TriggerOrderType =
+  | 'stop_market'
+  | 'stop_limit'
+  | 'take_profit_market'
+  | 'take_profit_limit';
+
+/**
+ * The subset of `OrderType` values that describe an execution *strategy* rather
+ * than a single order.
+ *
+ * - `twap`: slice the size over `OrderParams.twapDuration` minutes. Placed and
+ *   cancelled through the venue's own TWAP endpoints, not the order book.
+ * - `scale`: fan out `OrderParams.scaleNumOrders` limit orders evenly between
+ *   `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`.
+ * - `chase`: rest a post-only order at the near touch and re-price it as the
+ *   touch moves, until it fills or the chase window closes.
+ *
+ * A strategy placement returns a *handle* in `OrderResult.orderId` — a venue
+ * TWAP id, or a client-generated group/session id — which is what
+ * `CancelOrderParams` takes together with the matching `orderType`.
+ */
+export type StrategyOrderType = 'twap' | 'scale' | 'chase';
+
+/**
+ * Every `OrderType` that resolves to a single order the exchange can be handed
+ * directly — market, limit, and the four trigger placements.
+ *
+ * Derived with `Exclude` on purpose, the safe direction: it *shrinks* as
+ * `StrategyOrderType` grows, so a strategy added later is kept out of the
+ * single-order helpers automatically rather than silently falling through them.
+ */
+export type OrdinaryOrderType = Exclude<OrderType, StrategyOrderType>;
 
 /**
  * Whether a triggered order executes as a market or a limit order.
