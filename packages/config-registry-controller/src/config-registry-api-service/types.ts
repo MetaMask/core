@@ -48,7 +48,7 @@ const ChainConfigSchema = type({
   isFeatured: boolean(),
   isDeprecated: boolean(),
   isDeletable: boolean(),
-  isAutoEnabled: boolean(),
+  isAutoEnabled: optional(boolean()),
   priority: number(),
 });
 
