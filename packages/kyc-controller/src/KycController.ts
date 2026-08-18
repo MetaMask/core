@@ -770,31 +770,31 @@ export class KycController extends BaseController<
    * Captures terms acceptance for the currently loaded disclaimers and creates
    * a session.
    *
-   * @param params - Optional parameters.
+   * @param params - The parameters.
    * @param params.email - The account email to associate with the session.
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
    * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
-   * accepted (T&C2). Defaults to `true` when omitted.
+   * accepted (T&C2).
    * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
-   * (T&C2). Defaults to `true` when omitted.
+   * (T&C2).
    */
-  async acceptTermsAndStartSession(params?: {
+  async acceptTermsAndStartSession(params: {
     email?: string;
     product?: KycProduct;
-    sumsubTncSigned?: boolean;
-    idosTncSigned?: boolean;
+    sumsubTncSigned: boolean;
+    idosTncSigned: boolean;
   }): Promise<void> {
     const termsAcceptedAt = new Date().toISOString();
     const disclaimerIds = this.state.disclaimers.map(
       (disclaimer) => disclaimer.id,
     );
     this.#applyUpdate((state) => {
-      if (params?.email) {
+      if (params.email) {
         state.email = params.email;
       }
-      if (params?.product) {
+      if (params.product) {
         state.activeProduct = params.product;
       }
       state.termsAcceptedAt = termsAcceptedAt;
@@ -802,8 +802,8 @@ export class KycController extends BaseController<
     });
     if (this.state.activeVendor === 'iron') {
       await this.#startIronSession({
-        sumsubTncSigned: params?.sumsubTncSigned ?? true,
-        idosTncSigned: params?.idosTncSigned ?? true,
+        sumsubTncSigned: params.sumsubTncSigned,
+        idosTncSigned: params.idosTncSigned,
       });
       return;
     }

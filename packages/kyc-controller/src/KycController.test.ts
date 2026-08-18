@@ -306,6 +306,8 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'ramps',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
 
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
@@ -350,7 +352,10 @@ describe('KycController', () => {
           );
 
           // Creating a new session must invalidate the carried-over auth.
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.accessToken).toBeNull();
           expect(controller.buildAuthFrameUrl()).toBeNull();
@@ -382,7 +387,10 @@ describe('KycController', () => {
             }),
           );
 
-          const pending = controller.acceptTermsAndStartSession();
+          const pending = controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           // While the request is in flight (phase `session`) the stale token
           // must already be gone so no Check frame URL can be built for it.
@@ -416,7 +424,10 @@ describe('KycController', () => {
           handlers.createSession.mockRejectedValue(new Error('nope'));
           handlers.fetchDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
@@ -450,7 +461,10 @@ describe('KycController', () => {
             }),
           );
 
-          const pending = controller.acceptTermsAndStartSession();
+          const pending = controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           // Reset while the create request is in flight, then let it fail. The
           // superseded flow must not force the now-idle controller back to
@@ -481,7 +495,11 @@ describe('KycController', () => {
           handlers.createSession.mockRejectedValue(new Error('nope'));
           handlers.fetchDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({ product: 'ramps' });
+          await controller.acceptTermsAndStartSession({
+            product: 'ramps',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           // The failed flow must not leave a lingering product behind that a
           // later product-less `acceptTermsAndStartSession` would auto-run.
@@ -499,7 +517,10 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing email/u);
@@ -509,7 +530,11 @@ describe('KycController', () => {
 
     it('fails when no disclaimers were accepted', async () => {
       await withController(async ({ controller }) => {
-        await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+        await controller.acceptTermsAndStartSession({
+          email: 'a@b.co',
+          sumsubTncSigned: true,
+          idosTncSigned: true,
+        });
 
         expect(controller.state.phase).toBe('error');
         expect(controller.state.error).toMatch(/Missing terms acceptance/u);
@@ -2075,7 +2100,10 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing email/u);
@@ -2095,7 +2123,11 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing Iron disclaimer/u);
@@ -2119,7 +2151,11 @@ describe('KycController', () => {
           );
           handlers.fetchIronDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
@@ -2146,7 +2182,11 @@ describe('KycController', () => {
           });
           handlers.fetchKycStatus.mockRejectedValue(new Error('status down'));
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
@@ -2177,6 +2217,8 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
           controller.reset();
           release();
@@ -2211,6 +2253,8 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
           // Consents + UKYC session run first; wait until launch is pending.
           await Promise.resolve();
@@ -2247,6 +2291,8 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
           controller.reset();
           release(new Error('late consent failure'));
@@ -2532,7 +2578,11 @@ describe('KycController', () => {
           );
           handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('done');
           expect(controller.state.userStatus).toBe('completed');

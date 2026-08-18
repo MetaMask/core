@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Make the `fetch` option on the `KycService` constructor optional; it now defaults to the runtime's native `fetch` (browser, React Native, Node 18+), so consumers no longer need to inject one.
+- Make `KycController.acceptTermsAndStartSession` require a params object, and make its `sumsubTncSigned` and `idosTncSigned` flags required (previously optional, defaulting to `true`), so callers explicitly declare T&C2 acceptance.
 
 ### Fixed
 

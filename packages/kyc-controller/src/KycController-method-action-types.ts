@@ -58,9 +58,9 @@ export type KycControllerLoadDisclaimersAction = {
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
  * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
- * accepted (T&C2). Defaults to `true` when omitted.
+ * accepted (T&C2).
  * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
- * (T&C2). Defaults to `true` when omitted.
+ * (T&C2).
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
