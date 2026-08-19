@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [35.0.1]
-
 ### Changed
 
 - **BREAKING:** `NetworkControllerMessenger` now requires the `ConfigRegistryController:stateChanged` event and `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated from the root messenger ([#9879](https://github.com/MetaMask/core/pull/9879))
   - `NetworkController` now depends on the `ConfigRegistryController` to auto-enable default networks from the registry.
+
+## [35.0.1]
+
+### Changed
+
 - Bump `@metamask/eth-json-rpc-middleware` from `^23.1.3` to `^24.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758))
 
 ## [35.0.0]
