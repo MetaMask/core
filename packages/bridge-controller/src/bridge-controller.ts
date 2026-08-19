@@ -1061,8 +1061,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         onQuoteValidationFailure: (validationFailures) =>
           this.#trackQuoteValidationFailures(validationFailures, featureId),
         onValidQuoteReceived: async (quote: QuoteResponse) => {
-          traceProviderFirstResult(quote.quote);
-
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
               quote.chainId,
@@ -1073,6 +1071,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             );
             if (quotesWithFees.length > 0) {
               validQuotesCounter += 1;
+              traceProviderFirstResult(quote.quote);
             }
             this.update((state) => {
               // Clear previous quotes and quotes load time when first quote in the current
