@@ -278,12 +278,12 @@ export class BaseDataService<
   }): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
-      queryFn: (context) =>
-        // TODO: Consider if the validation should happen outside the policy executor
-        this.#policy.execute(async () => {
-          const response = await options.queryFn(context);
-          return processQueryResponse(options.queryKey, response, struct);
-        }),
+      queryFn: async (context) => {
+        const response = await this.#policy.execute(() =>
+          options.queryFn(context),
+        );
+        return processQueryResponse(options.queryKey, response, struct);
+      },
     });
   }
 
@@ -342,15 +342,15 @@ export class BaseDataService<
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         initialPageParam: pageParam ?? options.initialPageParam,
-        queryFn: (context) =>
-          this.#policy.execute(async () => {
-            const response = await options.queryFn({
+        queryFn: async (context) => {
+          const response = await this.#policy.execute(async () =>
+            options.queryFn({
               ...context,
               pageParam: context.meta?.pageParam ?? context.pageParam,
-            });
-
-            return processQueryResponse(options.queryKey, response, struct);
-          }),
+            }),
+          );
+          return processQueryResponse(options.queryKey, response, struct);
+        },
       });
 
       return result.pages[0];

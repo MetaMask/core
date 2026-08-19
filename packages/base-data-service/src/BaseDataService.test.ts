@@ -243,8 +243,6 @@ describe('BaseDataService', () => {
       const service = new ExampleDataService(messenger);
 
       mockAssets({ status: 200, body: { foo: 'bar' } });
-      mockAssets({ status: 200, body: { foo: 'bar' } });
-      mockAssets({ status: 200, body: { foo: 'bar' } });
 
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
         /ExampleDataService:getAssets.*returned an invalid response:/u,
