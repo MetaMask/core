@@ -51,8 +51,6 @@ type RootMessengerDiscoveryOptions = {
 type SkippedCapabilities = {
   /** Declared inline in the union, so there is no name or JSDoc to document. */
   unnamed: string[];
-  /** Resolved to `any` or `unknown`, which usually means an import failed. */
-  unresolved: string[];
   /** Named, but of a shape the extractor rejects. */
   unextractable: string[];
 };
@@ -181,11 +179,44 @@ function findCapabilityDeclaration(
       ? aliasDeclarations
       : (constituent.getSymbol()?.getDeclarations() ?? []);
 
-  return declarations.find(
+  const found = declarations.find(
     (node): node is TypeAliasDeclaration | InterfaceDeclaration =>
       NodeGuards.isTypeAliasDeclaration(node) ||
       NodeGuards.isInterfaceDeclaration(node),
   );
+  if (found) {
+    return found;
+  }
+
+  // Nothing named behind the type itself. When the root aliases a single
+  // generic instantiation, the declaration we want is the one its type node
+  // references — `Foo` in `type Actions = Foo<Bar>`.
+  return findDeclarationFromRootTypeNode(rootDeclaration);
+}
+
+/**
+ * Resolve the declaration referenced by a root alias's type node.
+ *
+ * @param rootDeclaration - The root union's own declaration.
+ * @returns The referenced declaration, or undefined.
+ */
+function findDeclarationFromRootTypeNode(
+  rootDeclaration: TypeAliasDeclaration,
+): TypeAliasDeclaration | InterfaceDeclaration | undefined {
+  const typeNode = rootDeclaration.getTypeNode();
+  if (!typeNode || !NodeGuards.isTypeReference(typeNode)) {
+    return undefined;
+  }
+
+  const localSymbol = typeNode.getTypeName().getSymbol();
+  const symbol = localSymbol?.getAliasedSymbol() ?? localSymbol;
+  return symbol
+    ?.getDeclarations()
+    .find(
+      (node): node is TypeAliasDeclaration | InterfaceDeclaration =>
+        NodeGuards.isTypeAliasDeclaration(node) ||
+        NodeGuards.isInterfaceDeclaration(node),
+    );
 }
 
 /**
@@ -206,15 +237,34 @@ function summarizeType(type: Type): string {
  * @param kind - Whether these are actions or events.
  * @param projectPath - Absolute path to the project root.
  * @param skipped - Labels collected as undocumentable constituents are found.
+ * @param reference - The reference that named this type, used in errors.
+ * @param flagName - The CLI flag the reference came from, used in errors.
  * @returns The extracted capabilities.
+ * @throws If the union resolved to `any` or `unknown`.
  */
 function extractFromRootType(
   rootDeclaration: TypeAliasDeclaration,
   kind: 'action' | 'event',
   projectPath: string,
   skipped: SkippedCapabilities,
+  reference: RootTypeReference,
+  flagName: string,
 ): MessengerCapabilityPacket[] {
   const rootType = rootDeclaration.getTypeNodeOrThrow().getType();
+
+  // TypeScript absorbs `any | T` into `any` and `unknown | T` into `unknown`,
+  // so a single member the checker can't resolve — typically a failed import —
+  // erases every other capability in the union. Fail instead of emitting a
+  // catalog that looks complete but silently isn't.
+  if (rootType.isAny() || rootType.isUnknown()) {
+    throw new Error(
+      `${reference.filePath}#${reference.typeName}, named by ${flagName}, ` +
+        `resolved to \`${rootType.getText()}\` rather than a union of ` +
+        `capabilities. This usually means an import in that file could not be ` +
+        `resolved; because TypeScript absorbs the rest of a union into ` +
+        `\`any\`, every other capability in it would be missing.`,
+    );
+  }
 
   // A project with no capabilities of this kind aliases the union to `never`.
   if (rootType.isNever()) {
@@ -227,16 +277,6 @@ function extractFromRootType(
   const packets: MessengerCapabilityPacket[] = [];
 
   for (const constituent of constituents) {
-    // `any`/`unknown` means the checker couldn't resolve the type at all,
-    // usually a failed import. Worth separating from a genuinely anonymous
-    // capability, because the fix is entirely different.
-    if (constituent.isAny() || constituent.isUnknown()) {
-      skipped.unresolved.push(
-        `${rootDeclaration.getName()} (resolved to \`${constituent.getText()}\`)`,
-      );
-      continue;
-    }
-
     const declaration = findCapabilityDeclaration(constituent, rootDeclaration);
     if (!declaration) {
       skipped.unnamed.push(summarizeType(constituent));
@@ -275,11 +315,7 @@ export function discoverFromRootMessenger(
 ): RootMessengerDiscoveryResult {
   const { projectPath, actions, events } = options;
   const project = createRootMessengerProject();
-  const skipped: SkippedCapabilities = {
-    unnamed: [],
-    unresolved: [],
-    unextractable: [],
-  };
+  const skipped: SkippedCapabilities = { unnamed: [], unextractable: [] };
   const packets: MessengerCapabilityPacket[] = [];
 
   for (const [reference, kind, flagName] of [
@@ -293,7 +329,14 @@ export function discoverFromRootMessenger(
       flagName,
     );
     packets.push(
-      ...extractFromRootType(rootDeclaration, kind, projectPath, skipped),
+      ...extractFromRootType(
+        rootDeclaration,
+        kind,
+        projectPath,
+        skipped,
+        reference,
+        flagName,
+      ),
     );
   }
 

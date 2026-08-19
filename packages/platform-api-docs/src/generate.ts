@@ -593,7 +593,6 @@ function collectFromRootMessenger(
   // Report rather than drop silently: a jump in any of these usually means the
   // project changed how it declares its capabilities.
   warnSkipped('declared inline, with no name to document', skipped.unnamed);
-  warnSkipped('whose imports could not be resolved', skipped.unresolved);
   warnSkipped('whose shape could not be read', skipped.unextractable);
 
   // Both unions resolving to nothing is always a misconfiguration — a wrong

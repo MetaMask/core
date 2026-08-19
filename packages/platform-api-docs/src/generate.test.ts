@@ -1132,7 +1132,9 @@ export type GlobalEvents = never;
               typeName: 'GlobalEvents',
             },
           }),
-        ).rejects.toThrow('No messenger actions or events found in');
+        ).rejects.toThrow(
+          'named by --root-actions, resolved to `Missing` rather than a union',
+        );
       } finally {
         warn.mockRestore();
       }

@@ -213,7 +213,6 @@ export type RootMessengerEvents = MessengerEvents<ChildMessengers>;
       ]);
       expect(result.skipped).toStrictEqual({
         unnamed: [],
-        unresolved: [],
         unextractable: [],
       });
     });
@@ -396,8 +395,8 @@ export type GlobalEvents = never;
     });
   });
 
-  it('reports a constituent that could not be resolved as unresolved', async () => {
-    expect.assertions(2);
+  it('throws when a root union resolves to `any`', async () => {
+    expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
       await writeFixture(
@@ -411,16 +410,84 @@ export type GlobalEvents = never;
 `,
       );
 
+      expect(() =>
+        discoverFromRootMessenger({
+          projectPath: directoryPath,
+          actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
+          events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        }),
+      ).toThrow(
+        'app/types.ts#GlobalActions, named by --root-actions, resolved to ' +
+          '`Missing` rather than a union of capabilities',
+      );
+    });
+  });
+
+  // TypeScript absorbs `any | T` into `any`, so one unresolved import would
+  // otherwise take every sibling capability down with it — silently, since the
+  // events union still resolves and generation would report success.
+  it('throws rather than dropping the siblings of an unresolved member', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await writeFixture(
+        directoryPath,
+        'app/types.ts',
+        `
+import type { Missing } from 'this-package-does-not-exist';
+
+export type GoodOne = { type: 'Good:one'; handler: () => void };
+export type GoodTwo = { type: 'Good:two'; handler: () => void };
+export type SomeEvent = { type: 'Good:changed'; payload: [string] };
+
+export type GlobalActions = GoodOne | GoodTwo | Missing;
+export type GlobalEvents = SomeEvent;
+`,
+      );
+
+      expect(() =>
+        discoverFromRootMessenger({
+          projectPath: directoryPath,
+          actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
+          events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        }),
+      ).toThrow(
+        // The whole union has become plain `any` — `GoodOne` and `GoodTwo` are
+        // no longer visible to the checker at all.
+        'app/types.ts#GlobalActions, named by --root-actions, resolved to ' +
+          '`any` rather than a union of capabilities',
+      );
+    });
+  });
+
+  it('documents a lone generic instantiation of a type alias', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await writeFixture(
+        directoryPath,
+        'app/types.ts',
+        `
+export type GenericAction<Value> = {
+  type: 'Gen:do';
+  handler: (value: Value) => void;
+};
+
+export type GlobalActions = GenericAction<string>;
+export type GlobalEvents = never;
+`,
+      );
+
       const result = discoverFromRootMessenger({
         projectPath: directoryPath,
         actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
         events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
       });
 
-      expect(result.packets).toStrictEqual([]);
-      expect(result.skipped.unresolved).toStrictEqual([
-        'GlobalActions (resolved to `Missing`)',
+      expect(result.packets).toMatchObject([
+        { typeName: 'GenericAction', typeString: 'Gen:do', kind: 'action' },
       ]);
+      expect(result.skipped.unnamed).toStrictEqual([]);
     });
   });
 
@@ -505,7 +572,6 @@ export type GlobalEvents = never;
       ]);
       expect(result.skipped).toStrictEqual({
         unnamed: [],
-        unresolved: [],
         unextractable: [],
       });
     });
@@ -675,7 +741,6 @@ export type GlobalEvents = never;
       expect(result.packets).toStrictEqual([]);
       expect(result.skipped).toStrictEqual({
         unnamed: [],
-        unresolved: [],
         unextractable: [],
       });
     });
