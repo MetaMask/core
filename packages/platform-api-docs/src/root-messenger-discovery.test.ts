@@ -460,6 +460,66 @@ export type GlobalEvents = SomeEvent;
     });
   });
 
+  // The lone-instantiation fallback must not fire for a union: an anonymous
+  // member is genuinely anonymous, and blaming the wrapper type would file it
+  // under the wrong bucket with a misleading name.
+  it('reports an inline member as unnamed when the root aliases a union', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await writeFixture(
+        directoryPath,
+        'app/types.ts',
+        `
+export type NamedAction = { type: 'Named:do'; handler: () => void };
+
+type AllActions = NamedAction | { type: 'Anonymous:do'; handler: () => void };
+
+export type GlobalActions = AllActions;
+export type GlobalEvents = never;
+`,
+      );
+
+      const result = discoverFromRootMessenger({
+        projectPath: directoryPath,
+        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
+        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+      });
+
+      expect(result.packets).toMatchObject([{ typeString: 'Named:do' }]);
+      expect(result.skipped.unnamed).toStrictEqual([
+        '{ type: "Anonymous:do"; handler: () => void; }',
+      ]);
+      expect(result.skipped.unextractable).toStrictEqual([]);
+    });
+  });
+
+  it('reports a root that is a single inline capability as unnamed', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await writeFixture(
+        directoryPath,
+        'app/types.ts',
+        `
+export type GlobalActions = { type: 'Anonymous:do'; handler: () => void };
+export type GlobalEvents = never;
+`,
+      );
+
+      const result = discoverFromRootMessenger({
+        projectPath: directoryPath,
+        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
+        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+      });
+
+      expect(result.packets).toStrictEqual([]);
+      expect(result.skipped.unnamed).toStrictEqual([
+        '{ type: "Anonymous:do"; handler: () => void; }',
+      ]);
+    });
+  });
+
   it('documents a lone generic instantiation of a type alias', async () => {
     expect.assertions(2);
 

@@ -159,11 +159,13 @@ function resolveRootDeclaration(
  *
  * @param constituent - The resolved constituent type.
  * @param rootDeclaration - The root union's own declaration.
+ * @param isLoneConstituent - Whether this is the root's only constituent.
  * @returns The declaration, or undefined when the constituent is anonymous.
  */
 function findCapabilityDeclaration(
   constituent: Type,
   rootDeclaration: TypeAliasDeclaration,
+  isLoneConstituent: boolean,
 ): TypeAliasDeclaration | InterfaceDeclaration | undefined {
   // Prefer the alias symbol: for a type alias it carries the name and JSDoc,
   // where the plain symbol points at the anonymous object type. Skip an alias
@@ -190,8 +192,12 @@ function findCapabilityDeclaration(
 
   // Nothing named behind the type itself. When the root aliases a single
   // generic instantiation, the declaration we want is the one its type node
-  // references — `Foo` in `type Actions = Foo<Bar>`.
-  return findDeclarationFromRootTypeNode(rootDeclaration);
+  // references — `Foo` in `type Actions = Foo<Bar>`. Only when it is the lone
+  // constituent, though: in a union, an anonymous member is genuinely
+  // anonymous, and attributing it to the wrapper would mislabel it.
+  return isLoneConstituent
+    ? findDeclarationFromRootTypeNode(rootDeclaration)
+    : undefined;
 }
 
 /**
@@ -223,10 +229,12 @@ function findDeclarationFromRootTypeNode(
  * Render a short, single-line label for an anonymous type.
  *
  * @param type - The type to describe.
+ * @param enclosingNode - Node to render the type relative to, so an aliased
+ * type reads as its name rather than `import("<absolute path>").Name`.
  * @returns The label.
  */
-function summarizeType(type: Type): string {
-  const text = type.getText().replace(/\s+/gu, ' ');
+function summarizeType(type: Type, enclosingNode: TypeAliasDeclaration): string {
+  const text = type.getText(enclosingNode).replace(/\s+/gu, ' ');
   return text.length > 80 ? `${text.slice(0, 77)}...` : text;
 }
 
@@ -277,9 +285,13 @@ function extractFromRootType(
   const packets: MessengerCapabilityPacket[] = [];
 
   for (const constituent of constituents) {
-    const declaration = findCapabilityDeclaration(constituent, rootDeclaration);
+    const declaration = findCapabilityDeclaration(
+      constituent,
+      rootDeclaration,
+      constituents.length === 1,
+    );
     if (!declaration) {
-      skipped.unnamed.push(summarizeType(constituent));
+      skipped.unnamed.push(summarizeType(constituent, rootDeclaration));
       continue;
     }
 
