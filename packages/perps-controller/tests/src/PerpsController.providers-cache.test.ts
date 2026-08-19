@@ -1384,6 +1384,26 @@ describe('PerpsController', () => {
       ).toHaveLength(1);
     });
 
+    it('publishes one construction timestamp after disk hydration and does not write Sentry at construct', () => {
+      const infra = createMockInfrastructure();
+      (infra.performance.now as jest.Mock).mockReturnValue(321);
+      const onControllerConstructed = jest.fn();
+      infra.performance.onControllerConstructed = onControllerConstructed;
+
+      new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: infra,
+      });
+
+      expect(onControllerConstructed).toHaveBeenCalledTimes(1);
+      expect(onControllerConstructed).toHaveBeenCalledWith(321);
+      expect(
+        (infra.diskCache.getItemSync as jest.Mock).mock.invocationCallOrder[0],
+      ).toBeLessThan(onControllerConstructed.mock.invocationCallOrder[0]);
+      expect(infra.tracer.setMeasurement).not.toHaveBeenCalled();
+    });
+
     it('does not hydrate expired Terminal trend provenance from disk', () => {
       const infra = createMockInfrastructure();
       (infra.diskCache.getItemSync as jest.Mock).mockImplementation(
@@ -2115,6 +2135,13 @@ describe('PerpsController', () => {
       expect(mockInfrastructure.tracer.trace).toHaveBeenCalled();
       expect(mockInfrastructure.tracer.endTrace).toHaveBeenCalled();
       expect(mockInfrastructure.tracer.setMeasurement).toHaveBeenCalled();
+      const traceId = mockInfrastructure.tracer.trace.mock.calls[0][0].id;
+      expect(mockInfrastructure.tracer.setMeasurement).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Number),
+        'millisecond',
+        traceId,
+      );
     });
   });
 
@@ -2633,6 +2660,35 @@ describe('PerpsController', () => {
         expect.objectContaining({
           identity: expect.objectContaining({ network: 'testnet' }),
         }),
+      );
+    });
+
+    it('does not put userAddress on user-preload trace data and targets the named trace id', async () => {
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await jest.advanceTimersByTimeAsync(100);
+
+      const userPreloadTrace = preloadInfrastructure.tracer.trace.mock.calls
+        .map((call) => call[0])
+        .find((params) => params.name === 'Perps User Data Preload');
+      expect(userPreloadTrace).toBeDefined();
+      expect(userPreloadTrace?.data).toBeUndefined();
+      expect(JSON.stringify(userPreloadTrace)).not.toContain(
+        mockEvmAccount.address,
+      );
+      expect(preloadInfrastructure.tracer.setMeasurement).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Number),
+        'millisecond',
+        userPreloadTrace?.id,
       );
     });
 

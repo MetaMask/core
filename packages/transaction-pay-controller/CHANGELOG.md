@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix quote simulation for Polymarket Predict withdrawals ([#9891](https://github.com/MetaMask/core/pull/9891))
+
 ## [26.3.1]
 
 ### Changed

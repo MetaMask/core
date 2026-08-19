@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0]
+
 ### Added
 
+- Add the optional `PerpsPerformance.onControllerConstructed` post-hydration timestamp hook ([#9906](https://github.com/MetaMask/core/pull/9906))
+- Add an explicit trace ID overload to `PerpsTracer.setMeasurement`, allowing clients to target preload measurements to their named trace ([#9906](https://github.com/MetaMask/core/pull/9906))
 - Add `PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE` (`previous_leverage`) for Perp UI Interaction `leverage_changed` events so clients can import the Segment property key from `@metamask/perps-controller` instead of a local interim constant ([#9881](https://github.com/MetaMask/core/pull/9881))
+
+### Changed
+
+- Target market and user preload measurements to their named traces, and omit wallet addresses from user-preload trace data ([#9906](https://github.com/MetaMask/core/pull/9906))
 
 ## [12.0.0]
 
@@ -724,7 +732,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...@metamask/perps-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...@metamask/perps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@10.0.0...@metamask/perps-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.3.0...@metamask/perps-controller@10.0.0
