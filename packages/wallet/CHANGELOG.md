@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId`constructor options to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
-- Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor options to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor option to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
 
 ## [11.0.0]
 
