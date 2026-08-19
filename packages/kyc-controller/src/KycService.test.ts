@@ -38,6 +38,35 @@ describe('KycService', () => {
         disclaimers,
       );
     });
+
+    it('throws when fetch is not globally available and not provided', () => {
+      const savedFetch = globalThis.fetch;
+      try {
+        // @ts-expect-error - deliberately removing fetch for test
+        delete globalThis.fetch;
+
+        const rootMessenger: RootMessenger = new Messenger({
+          namespace: MOCK_ANY_NAMESPACE,
+        });
+        const messenger: KycServiceMessenger = new Messenger({
+          namespace: 'KycService',
+          parent: rootMessenger,
+        });
+
+        expect(
+          () =>
+            new KycService({
+              messenger:
+                messenger as unknown as MockAnyNamespace<KycServiceMessenger>,
+              baseUrl: MOCK_API_URL,
+            }),
+        ).toThrow(
+          'fetch is not available globally and was not provided in options',
+        );
+      } finally {
+        globalThis.fetch = savedFetch;
+      }
+    });
   });
 
   describe('getGeoCountry', () => {
