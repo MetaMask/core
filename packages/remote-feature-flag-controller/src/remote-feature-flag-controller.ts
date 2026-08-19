@@ -4,7 +4,7 @@ import {
 } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { isValidSemVerVersion } from '@metamask/utils';
+import { hasProperty, isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
@@ -425,7 +425,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @returns The segmentation identifier, which may be empty when unavailable.
    */
   #getSegmentationId(featureFlagName: string): string {
-  if (hasProperty(this.#metaMetricsFlags, featureFlagName)) {
+    if (hasProperty(this.#metaMetricsFlags, featureFlagName)) {
       return this.#getMetaMetricsId();
     }
     return this.#getCanonicalProfileId();
