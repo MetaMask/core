@@ -7,6 +7,7 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
   OrderType,
@@ -329,6 +330,55 @@ export type OrderResult = {
   // Absent for every non-strategy placement.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
+  /**
+   * Structured record of venue state that was ALREADY committed before the
+   * placement failed — e.g. a leverage change that landed before the order
+   * was rejected. Present only on failure results where such state exists;
+   * callers must not treat the failure as "nothing happened".
+   */
+  partialState?: {
+    /** Leverage (in x) the venue already applied for this symbol. */
+    leverageUpdated?: number;
+  };
+};
+
+/**
+ * A TP/SL protection change that could not be safely completed
+ * automatically and requires an explicit new protection intent from the
+ * user. Surfaced by providers with durable settlement state (Lighter).
+ */
+export type PerpsPendingManualRecovery = {
+  symbol: string;
+  /** Durable identity (address:accountIndex:apiKey:symbol). */
+  settlementKey: string;
+  recordedAt: number;
+  /** Human-readable cause of the parked state. */
+  reason: string;
+  /** Whether the interrupted operation replaced or removed protection. */
+  priorIntent: 'replace' | 'remove';
+  /** Venue order ids still on the books when the state was parked. */
+  survivingOrderIds: string[];
+  /** What the user should do to resolve the state. */
+  actionNeeded: string;
+};
+
+/**
+ * A previously ambiguous dispatch whose outcome was later resolved.
+ * Writes stay blocked until each outcome is explicitly acknowledged via
+ * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
+ * state) — except `failed`, which is retry-safe and non-blocking.
+ */
+export type PerpsRecoveredDispatch = {
+  /** Stable id for selective acknowledgment. */
+  recoveryId: string;
+  /** Venue transaction type of the dispatch. */
+  kind: number;
+  /** Human-readable operation intent. */
+  intent: string;
+  txHash: string | null;
+  outcome: 'succeeded' | 'failed' | 'unknown';
+  /** How the outcome was determined (e.g. `tx-status:3`, `rest-advance`). */
+  evidence: string;
 };
 
 export type Position = {
@@ -920,9 +970,28 @@ export type MYXCredentials = {
   brokerAddressMainnet?: string;
 };
 
+export type LighterCredentials = {
+  /** Whether Lighter provider is enabled via local env var. */
+  enabled?: boolean;
+  /** Lighter account index override (testnet tooling). */
+  accountIndexTestnet?: number;
+  accountIndexMainnet?: number;
+  /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
+  apiKeyIndex?: number;
+  /**
+   * Transport for the Lighter Go/WASM signer, provided by the client
+   * (mobile: off-screen WebView bridge; headless: in-process WASM).
+   * Optional — without it the Lighter provider is read-only. Lives on the
+   * Lighter credentials bag, not PerpsPlatformDependencies, so the shared
+   * platform surface stays venue-agnostic.
+   */
+  signerBridge?: LighterSignerBridge;
+};
+
 export type PerpsProviderCredentials = {
   hyperliquid?: HyperLiquidCredentials;
   myx?: MYXCredentials;
+  lighter?: LighterCredentials;
 };
 
 export type PriceUpdate = {
@@ -1441,6 +1510,12 @@ export type PerpsProvider = {
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
+  // Durable-settlement surfacing (optional: providers with durable local
+  // settlement state — Lighter). Read-only listings plus selective,
+  // explicit acknowledgment; never destructive read-all.
+  getPendingManualRecoveries?(): Promise<PerpsPendingManualRecovery[]>;
+  getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
+  acknowledgeRecoveredDispatch?(recoveryId: string): Promise<void>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
   getUserDataSnapshot?(
@@ -1622,7 +1697,7 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx';
+export type PerpsProviderType = 'hyperliquid' | 'myx' | 'lighter';
 
 /**
  * Active provider mode for PerpsController state.

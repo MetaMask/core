@@ -101,6 +101,8 @@ import type {
   OrderResult,
   PerpsControllerConfig,
   PerpsMarketData,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -134,6 +136,10 @@ import type {
   MYXCredentials,
 } from './types/index.js';
 import type { SortDirection } from './types/index.js';
+import type {
+  LighterAuthConfig,
+  LighterSignerBridge,
+} from './types/lighter-types.js';
 import type {
   PerpsControllerAllowedActions,
   PerpsControllerAllowedEvents,
@@ -900,8 +906,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOrderBookGrouping',
   'getOrderFills',
   'getOrders',
+  'getPendingManualRecoveries',
   'getPendingTradeConfiguration',
   'getPositions',
+  'getRecoveredDispatches',
+  'acknowledgeRecoveredDispatch',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
   'getWatchlistMarkets',
@@ -983,6 +992,8 @@ export class PerpsController extends BaseController<
   /** Tracks the async MYX dynamic import so performInitialization can await it. */
   #myxRegistrationPromise: Promise<void> | null = null;
 
+  #lighterRegistrationPromise: Promise<void> | null = null;
+
   protected blockedRegionList: BlockedRegionList = {
     list: [],
     source: 'fallback',
@@ -1051,6 +1062,48 @@ export class PerpsController extends BaseController<
       );
       const remoteFlag =
         remoteState.remoteFeatureFlags?.perpsMyxProviderEnabled;
+
+      if (isVersionGatedFeatureFlag(remoteFlag)) {
+        const validated =
+          this.#options.infrastructure.featureFlags.validateVersionGated(
+            remoteFlag,
+          );
+        return validated ?? false;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if the Lighter provider is enabled.
+   *
+   * Local override (`providerCredentials.lighter.enabled`) wins; otherwise
+   * the remote `perpsLighterProviderEnabled` feature flag decides — but only
+   * for clients that wired the venue signer bridge. A remote flag must not
+   * be able to register a trading provider the client never mounted a
+   * signer for (the gates would otherwise split between core and client).
+   *
+   * @returns True if the condition is met.
+   */
+  #isLighterProviderEnabled(): boolean {
+    const lighter = this.#options.clientConfig?.providerCredentials?.lighter;
+
+    if (lighter?.enabled) {
+      return true;
+    }
+    if (!lighter?.signerBridge) {
+      return false;
+    }
+
+    try {
+      const remoteState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      const remoteFlag =
+        remoteState.remoteFeatureFlags?.perpsLighterProviderEnabled;
 
       if (isVersionGatedFeatureFlag(remoteFlag)) {
         const validated =
@@ -1309,6 +1362,7 @@ export class PerpsController extends BaseController<
       if (
         providerId === 'hyperliquid' ||
         (providerId === 'myx' && this.#isMYXProviderEnabled()) ||
+        (providerId === 'lighter' && this.#isLighterProviderEnabled()) ||
         this.providers.has(providerId as PerpsProviderType)
       ) {
         providerIds.add(providerId);
@@ -2121,8 +2175,10 @@ export class PerpsController extends BaseController<
         await Promise.all([
           wait(PERPS_CONSTANTS.ReconnectionCleanupDelayMs),
           this.#myxRegistrationPromise,
+          this.#lighterRegistrationPromise,
         ]);
         this.#myxRegistrationPromise = null;
+        this.#lighterRegistrationPromise = null;
 
         this.#assignActiveProvider();
 
@@ -2260,6 +2316,24 @@ export class PerpsController extends BaseController<
         })
         .catch((error: unknown) => this.handleMYXImportError(error));
     }
+
+    // Register Lighter provider if enabled (POC). Same dynamic-import pattern
+    // as MYX so clients that do not ship the Lighter files skip registration
+    // silently.
+    const isLighterEnabled = this.#isLighterProviderEnabled();
+    if (isLighterEnabled) {
+      // NOTE: Keep the path in a variable so ts-bridge does not rewrite the
+      // import argument and strip the webpackIgnore magic comment in core dist.
+      const lighterModulePath = './providers/LighterProvider';
+      this.#lighterRegistrationPromise = import(
+        /* webpackIgnore: true */ lighterModulePath
+      )
+        .then(({ LighterProvider }) => {
+          this.registerLighterProvider(LighterProvider);
+          return undefined;
+        })
+        .catch((error: unknown) => this.handleLighterImportError(error));
+    }
   }
 
   /**
@@ -2318,6 +2392,69 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Registers the Lighter provider after dynamic import resolves.
+   *
+   * Extracted from the import().then() callback so it can be tested directly
+   * (Jest cannot resolve dynamic imports without --experimental-vm-modules).
+   *
+   * @param LighterProviderClass - Constructor class for the Lighter provider.
+   */
+  protected registerLighterProvider(
+    LighterProviderClass: new (opts: {
+      isTestnet: boolean;
+      platformDependencies: PerpsPlatformDependencies;
+      messenger: PerpsControllerMessenger;
+      lighterAuthConfig: LighterAuthConfig;
+      signerBridge?: LighterSignerBridge;
+    }) => PerpsProvider,
+  ): void {
+    const lighterIsTestnet =
+      PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || this.state.isTestnet;
+    const lighter =
+      this.#options.clientConfig?.providerCredentials?.lighter ?? {};
+    const lighterProvider = new LighterProviderClass({
+      isTestnet: lighterIsTestnet,
+      platformDependencies: this.#options.infrastructure,
+      messenger: this.messenger,
+      signerBridge: lighter.signerBridge,
+      lighterAuthConfig: {
+        enabled: lighter.enabled,
+        accountIndex: lighterIsTestnet
+          ? lighter.accountIndexTestnet
+          : lighter.accountIndexMainnet,
+        apiKeyIndex: lighter.apiKeyIndex,
+      },
+    });
+    this.providers.set('lighter', lighterProvider);
+    this.#debugLog('PerpsController: Lighter provider registered', {
+      isTestnet: lighterIsTestnet,
+    });
+  }
+
+  /**
+   * Handles errors from the Lighter dynamic import.
+   *
+   * Module-not-found errors are expected (clients may not ship Lighter) →
+   * debug log. Other errors indicate constructor/config problems → Sentry.
+   *
+   * @param error - The caught error from the dynamic import or constructor.
+   */
+  protected handleLighterImportError(error: unknown): void {
+    const isModuleError =
+      (error as Record<string, unknown>)?.code === 'MODULE_NOT_FOUND';
+    if (isModuleError) {
+      this.#debugLog(
+        'PerpsController: Lighter provider module not available, skipping registration',
+      );
+    } else {
+      this.#logError(
+        error instanceof Error ? error : new Error(String(error)),
+        this.#getErrorContext('createProviders.lighter'),
+      );
+    }
+  }
+
+  /**
    * Assigns the active provider instance based on the current activeProvider state.
    * Separated from #createProviders so it runs after async MYX registration settles.
    */
@@ -2346,13 +2483,13 @@ export class PerpsController extends BaseController<
       this.#debugLog(
         `PerpsController: Using direct provider (${activeProvider})`,
       );
-    } else if (activeProvider === 'myx') {
-      const myxProvider = this.providers.get('myx');
-      if (myxProvider) {
-        this.activeProviderInstance = myxProvider;
+    } else if (activeProvider === 'myx' || activeProvider === 'lighter') {
+      const directProvider = this.providers.get(activeProvider);
+      if (directProvider) {
+        this.activeProviderInstance = directProvider;
       } else {
         this.#debugLog(
-          'PerpsController: MYX provider not available, falling back to hyperliquid',
+          `PerpsController: ${activeProvider} provider not available, falling back to hyperliquid`,
         );
         this.activeProviderInstance = hyperLiquidProvider;
         this.update((state) => {
@@ -2364,7 +2501,7 @@ export class PerpsController extends BaseController<
       );
     } else {
       throw new Error(
-        `Unsupported provider: ${String(activeProvider)}. Currently only 'hyperliquid', 'myx', and 'aggregated' are supported.`,
+        `Unsupported provider: ${String(activeProvider)}. Currently only 'hyperliquid', 'myx', 'lighter', and 'aggregated' are supported.`,
       );
     }
   }
@@ -3345,6 +3482,54 @@ export class PerpsController extends BaseController<
       context: this.#createServiceContext('getOrderFills'),
       forceRefresh: options?.forceRefresh,
     });
+  }
+
+  /**
+   * List TP/SL protection changes the active provider parked for
+   * explicit manual re-establishment. Providers without durable
+   * settlement state return an empty list.
+   *
+   * @returns Pending manual-recovery entries.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.getPendingManualRecoveries) {
+      return [];
+    }
+    return provider.getPendingManualRecoveries();
+  }
+
+  /**
+   * READ-ONLY list of the active provider's recovered-dispatch outcomes
+   * (previously ambiguous submissions later resolved). Providers without
+   * durable dispatch state return an empty list.
+   *
+   * @returns Pending recovered-dispatch outcomes.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.getRecoveredDispatches) {
+      return [];
+    }
+    return provider.getRecoveredDispatches();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+   * refreshing venue state. Throws when the active provider has no
+   * durable dispatch state or the id no longer matches.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   * @returns Resolves when the outcome is acknowledged.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (!provider.acknowledgeRecoveredDispatch) {
+      throw new Error(
+        'The active perps provider has no recovered dispatches to acknowledge',
+      );
+    }
+    return provider.acknowledgeRecoveredDispatch(recoveryId);
   }
 
   /**

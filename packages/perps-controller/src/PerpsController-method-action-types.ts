@@ -329,6 +329,43 @@ export type PerpsControllerGetOrderFillsAction = {
 };
 
 /**
+ * List TP/SL protection changes the active provider parked for
+ * explicit manual re-establishment. Providers without durable
+ * settlement state return an empty list.
+ *
+ * @returns Pending manual-recovery entries.
+ */
+export type PerpsControllerGetPendingManualRecoveriesAction = {
+  type: `PerpsController:getPendingManualRecoveries`;
+  handler: PerpsController['getPendingManualRecoveries'];
+};
+
+/**
+ * READ-ONLY list of the active provider's recovered-dispatch outcomes
+ * (previously ambiguous submissions later resolved). Providers without
+ * durable dispatch state return an empty list.
+ *
+ * @returns Pending recovered-dispatch outcomes.
+ */
+export type PerpsControllerGetRecoveredDispatchesAction = {
+  type: `PerpsController:getRecoveredDispatches`;
+  handler: PerpsController['getRecoveredDispatches'];
+};
+
+/**
+ * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+ * refreshing venue state. Throws when the active provider has no
+ * durable dispatch state or the id no longer matches.
+ *
+ * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+ * @returns Resolves when the outcome is acknowledged.
+ */
+export type PerpsControllerAcknowledgeRecoveredDispatchAction = {
+  type: `PerpsController:acknowledgeRecoveredDispatch`;
+  handler: PerpsController['acknowledgeRecoveredDispatch'];
+};
+
+/**
  * Get historical user orders (order lifecycle)
  * Thin delegation to MarketDataService
  *
@@ -1185,6 +1222,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerWithdrawAction
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
+  | PerpsControllerGetPendingManualRecoveriesAction
+  | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction
   | PerpsControllerGetOpenOrdersAction
   | PerpsControllerGetFundingAction
