@@ -9243,16 +9243,50 @@ describe('LighterProvider', () => {
       expect(
         await provider.calculateMaintenanceMargin({} as never),
       ).toBeCloseTo(1 / (2 * 50));
-      // The liquidation preview is capability-gated: Lighter cross-margin
-      // liquidation needs account-level inputs, so a plausible per-position
-      // number would be wrong. Clients render their explicit fallback.
-      await expect(
-        provider.calculateLiquidationPrice({
-          entryPrice: 100,
+      // The liquidation preview uses the ISOLATED formula (positions open
+      // isolated by default) with the venue's own maintenance fraction:
+      // BTC fixture maintenance 120 hundredths of a percent -> 1.2%.
+      // long: 100 - (0.1 - 0.012)*100/(1 - 0.012) = 91.0931...
+      expect(
+        parseFloat(
+          await provider.calculateLiquidationPrice({
+            entryPrice: 100,
+            leverage: 10,
+            direction: 'long',
+            asset: 'BTC',
+          }),
+        ),
+      ).toBeCloseTo(91.0931, 3);
+      // short: 100 + (0.1 - 0.012)*100/(1 + 0.012) = 108.6956...
+      expect(
+        parseFloat(
+          await provider.calculateLiquidationPrice({
+            entryPrice: 100,
+            leverage: 10,
+            direction: 'short',
+            asset: 'BTC',
+          }),
+        ),
+      ).toBeCloseTo(108.6957, 3);
+      // Unknown asset falls back to the constant-derived maintenance
+      // (1 / (2 * 50) = 1%): 100 - 0.09*100/0.99 = 90.9090...
+      expect(
+        parseFloat(
+          await provider.calculateLiquidationPrice({
+            entryPrice: 100,
+            leverage: 10,
+            direction: 'long',
+          }),
+        ),
+      ).toBeCloseTo(90.909, 3);
+      // Malformed inputs report the explicit zero contract.
+      expect(
+        await provider.calculateLiquidationPrice({
+          entryPrice: 0,
           leverage: 10,
           direction: 'long',
         }),
-      ).rejects.toThrow('unavailable');
+      ).toBe('0.00');
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       // Fee rates come from the venue's per-market metadata (currently 0).
       const fees = await provider.calculateFees({
