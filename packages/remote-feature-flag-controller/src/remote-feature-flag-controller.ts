@@ -425,12 +425,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @returns The segmentation identifier, which may be empty when unavailable.
    */
   #getSegmentationId(featureFlagName: string): string {
-    if (
-      Object.prototype.hasOwnProperty.call(
-        this.#metaMetricsFlags,
-        featureFlagName,
-      )
-    ) {
+  if (hasProperty(this.#metaMetricsFlags, featureFlagName)) {
       return this.#getMetaMetricsId();
     }
     return this.#getCanonicalProfileId();
