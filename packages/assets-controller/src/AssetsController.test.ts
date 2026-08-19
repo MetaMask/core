@@ -4055,16 +4055,18 @@ describe('AssetsController', () => {
               },
             };
           });
-        jest.spyOn(RpcDataSource.prototype, 'fetch').mockImplementation(async () => {
-          callOrder.push('rpc');
-          return {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+        jest
+          .spyOn(RpcDataSource.prototype, 'fetch')
+          .mockImplementation(async () => {
+            callOrder.push('rpc');
+            return {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+                },
               },
-            },
-          };
-        });
+            };
+          });
 
         await controller.refreshAccountChainBalancesFromRpc(
           MOCK_ACCOUNT_ID,
@@ -4099,13 +4101,15 @@ describe('AssetsController', () => {
               },
             },
           });
-          jest.spyOn(AccountsApiDataSource.prototype, 'fetch').mockResolvedValue({
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+          jest
+            .spyOn(AccountsApiDataSource.prototype, 'fetch')
+            .mockResolvedValue({
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+                },
               },
-            },
-          });
+            });
 
           await controller.refreshAccountChainBalancesFromRpc(
             MOCK_ACCOUNT_ID,
@@ -4115,7 +4119,7 @@ describe('AssetsController', () => {
           expect(captureException).toHaveBeenCalledWith(
             expect.objectContaining({
               message: expect.stringMatching(
-                /state=1.*accountsApi=2.*rpc=3|accountsApi=2.*rpc=3.*state=1/,
+                /state=1.*accountsApi=2.*rpc=3|accountsApi=2.*rpc=3.*state=1/u,
               ),
             }),
           );
@@ -4145,13 +4149,15 @@ describe('AssetsController', () => {
               },
             },
           });
-          jest.spyOn(AccountsApiDataSource.prototype, 'fetch').mockResolvedValue({
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '5' },
+          jest
+            .spyOn(AccountsApiDataSource.prototype, 'fetch')
+            .mockResolvedValue({
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '5' },
+                },
               },
-            },
-          });
+            });
 
           await controller.refreshAccountChainBalancesFromRpc(
             MOCK_ACCOUNT_ID,
@@ -4188,13 +4194,15 @@ describe('AssetsController', () => {
           jest
             .spyOn(RpcDataSource.prototype, 'fetch')
             .mockRejectedValue(new Error('RPC unavailable'));
-          jest.spyOn(AccountsApiDataSource.prototype, 'fetch').mockResolvedValue({
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+          jest
+            .spyOn(AccountsApiDataSource.prototype, 'fetch')
+            .mockResolvedValue({
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+                },
               },
-            },
-          });
+            });
 
           await controller.refreshAccountChainBalancesFromRpc(
             MOCK_ACCOUNT_ID,
@@ -4211,6 +4219,145 @@ describe('AssetsController', () => {
               MOCK_NATIVE_ASSET_ID
             ],
           ).toStrictEqual({ amount: '1' });
+
+          jest.restoreAllMocks();
+        },
+      );
+    });
+
+    it('does nothing for staking vault assets', async () => {
+      const STAKING_ASSET_ID =
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
+
+      await withController(
+        {
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [STAKING_ASSET_ID]: { amount: '1.5' },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const rpcFetchSpy = jest.spyOn(RpcDataSource.prototype, 'fetch');
+          const accountsApiFetchSpy = jest.spyOn(
+            AccountsApiDataSource.prototype,
+            'fetch',
+          );
+
+          await controller.refreshAccountChainBalancesFromRpc(
+            MOCK_ACCOUNT_ID,
+            STAKING_ASSET_ID,
+          );
+
+          expect(rpcFetchSpy).not.toHaveBeenCalled();
+          expect(accountsApiFetchSpy).not.toHaveBeenCalled();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STAKING_ASSET_ID],
+          ).toStrictEqual({ amount: '1.5' });
+
+          rpcFetchSpy.mockRestore();
+          accountsApiFetchSpy.mockRestore();
+        },
+      );
+    });
+
+    it('does not overwrite state when RPC reports a chain error', async () => {
+      const captureException = jest.fn();
+
+      await withController(
+        {
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '1.5' },
+              },
+            },
+          },
+          controllerOptions: { captureException },
+        },
+        async ({ controller }) => {
+          jest.spyOn(RpcDataSource.prototype, 'fetch').mockResolvedValue({
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+              },
+            },
+            errors: {
+              'eip155:1': 'RPC fetch failed',
+            },
+          });
+          jest
+            .spyOn(AccountsApiDataSource.prototype, 'fetch')
+            .mockResolvedValue({
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '1.5' },
+                },
+              },
+            });
+
+          await controller.refreshAccountChainBalancesFromRpc(
+            MOCK_ACCOUNT_ID,
+            MOCK_NATIVE_ASSET_ID,
+          );
+
+          expect(captureException).not.toHaveBeenCalled();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          ).toStrictEqual({ amount: '1.5' });
+
+          jest.restoreAllMocks();
+        },
+      );
+    });
+
+    it('does not report a mismatch when amounts differ only by formatting', async () => {
+      const captureException = jest.fn();
+
+      await withController(
+        {
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '1.500' },
+              },
+            },
+          },
+          controllerOptions: { captureException },
+        },
+        async ({ controller }) => {
+          jest.spyOn(RpcDataSource.prototype, 'fetch').mockResolvedValue({
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '1.5' },
+              },
+            },
+          });
+          jest
+            .spyOn(AccountsApiDataSource.prototype, 'fetch')
+            .mockResolvedValue({
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '1.5' },
+                },
+              },
+            });
+
+          await controller.refreshAccountChainBalancesFromRpc(
+            MOCK_ACCOUNT_ID,
+            MOCK_NATIVE_ASSET_ID,
+          );
+
+          expect(captureException).not.toHaveBeenCalled();
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          ).toStrictEqual({ amount: '1.5' });
 
           jest.restoreAllMocks();
         },

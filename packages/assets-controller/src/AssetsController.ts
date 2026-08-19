@@ -3907,9 +3907,24 @@ export class AssetsController extends BaseController<
       return;
     }
 
+    if (isStakingContractAssetId(normalizedAssetId)) {
+      return;
+    }
+
     const chainId = extractChainId(normalizedAssetId);
     const stateAmount =
       this.state.assetsBalance[accountId]?.[normalizedAssetId]?.amount;
+    const assetDecimals = (
+      this.state.assetsInfo[normalizedAssetId] as
+        | { decimals?: number }
+        | undefined
+    )?.decimals;
+    const normalizeForCompare = (
+      amount: string | undefined,
+    ): string | undefined =>
+      amount === undefined
+        ? undefined
+        : normalizeAmountString(amount, assetDecimals);
 
     const request = this.#buildDataRequest([account], [chainId], {
       dataTypes: ['balance'],
@@ -3939,8 +3954,17 @@ export class AssetsController extends BaseController<
 
     try {
       const rpcResponse = await this.#rpcDataSource.fetch(request);
-      rpcAmount =
-        rpcResponse.assetsBalance?.[accountId]?.[normalizedAssetId]?.amount;
+      if (rpcResponse.errors?.[chainId] === undefined) {
+        rpcAmount =
+          rpcResponse.assetsBalance?.[accountId]?.[normalizedAssetId]?.amount;
+      } else {
+        log('RPC balance refresh failed for chain during reconciliation', {
+          accountId,
+          assetId: normalizedAssetId,
+          chainId,
+          error: rpcResponse.errors[chainId],
+        });
+      }
     } catch (error) {
       log('RPC balance refresh failed', {
         accountId,
@@ -3949,14 +3973,18 @@ export class AssetsController extends BaseController<
       });
     }
 
+    const normalizedStateAmount = normalizeForCompare(stateAmount);
+    const normalizedAccountsApiAmount = normalizeForCompare(accountsApiAmount);
+    const normalizedRpcAmount = normalizeForCompare(rpcAmount);
+
     const accountsApiRpcMismatch =
-      accountsApiAmount !== undefined &&
-      rpcAmount !== undefined &&
-      accountsApiAmount !== rpcAmount;
+      normalizedAccountsApiAmount !== undefined &&
+      normalizedRpcAmount !== undefined &&
+      normalizedAccountsApiAmount !== normalizedRpcAmount;
     const stateAccountsApiMismatch =
-      stateAmount !== undefined &&
-      accountsApiAmount !== undefined &&
-      stateAmount !== accountsApiAmount;
+      normalizedStateAmount !== undefined &&
+      normalizedAccountsApiAmount !== undefined &&
+      normalizedStateAmount !== normalizedAccountsApiAmount;
 
     if (accountsApiRpcMismatch || stateAccountsApiMismatch) {
       const mismatchMessage = `AssetsController balance mismatch for ${normalizedAssetId} (account ${accountId}): state=${stateAmount ?? 'n/a'}, accountsApi=${accountsApiAmount ?? 'n/a'}, rpc=${rpcAmount ?? 'n/a'}`;

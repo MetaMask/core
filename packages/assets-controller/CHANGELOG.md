@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `refreshAccountChainBalancesFromRpc` to fetch a single asset via RPC and Accounts API, report Sentry mismatches when Accounts API ≠ RPC or state ≠ Accounts API, and merge the RPC balance into state (no-op when basic functionality is off)
+- Add `refreshAccountChainBalancesFromRpc` to fetch a single asset via RPC and Accounts API, report Sentry mismatches when Accounts API ≠ RPC or state ≠ Accounts API, and merge the RPC balance into state (no-op when basic functionality is off or for staking vault assets) ([#9910](https://github.com/MetaMask/core/pull/9910))
 
 ### Changed
 
