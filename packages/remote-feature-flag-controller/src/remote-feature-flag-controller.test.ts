@@ -986,13 +986,14 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { testFlag: true },
       });
 
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      // Malformed entry ignored; hash-based selects groupA
+      // Malformed entry ignored; hash of MOCK_METRICS_ID + 'testFlag' selects groupA
       expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
       expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
         testFlag: 'groupA',
