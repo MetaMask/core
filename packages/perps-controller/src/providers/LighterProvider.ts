@@ -44,6 +44,7 @@ import {
   LIGHTER_TX_TYPE_UPDATE_MARGIN,
   LIGHTER_TX_TYPE_WITHDRAW,
   LIGHTER_MARGIN_MODE_CROSS,
+  LIGHTER_MARGIN_MODE_ISOLATED,
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   LIGHTER_USDC_ASSET_INDEX,
   LIGHTER_DATA_INTEGRITY_PREFIX,
@@ -4940,6 +4941,15 @@ export class LighterProvider implements PerpsProvider {
       const sizeInt = toSignerWireInteger(size, market.supportedSizeDecimals);
 
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
+      // The app manages ISOLATED positions only (there is no cross-margin
+      // management UI, and small cross positions report no liquidation
+      // price), so a flat market opens isolated. The venue refuses
+      // changing the mode of a market with an open position, so an
+      // existing position keeps whatever mode it already has.
+      const leverageMarginMode =
+        leverageImfHundredths === null
+          ? LIGHTER_MARGIN_MODE_ISOLATED
+          : await this.#resolveMarginModeForSymbol(params.symbol);
 
       // Intent validated — only now do signer and account setup run.
       // Re-fence FIRST: the preflight awaited public/account reads during
@@ -4967,7 +4977,7 @@ export class LighterProvider implements PerpsProvider {
                   accountIndex,
                   market.marketId,
                   leverageImfHundredths,
-                  LIGHTER_MARGIN_MODE_CROSS,
+                  leverageMarginMode,
                   await nextNonce(),
                 ],
               });
@@ -6813,6 +6823,37 @@ export class LighterProvider implements PerpsProvider {
     // Fallback: half the initial margin at the max-leverage constant.
     return 1 / (2 * LIGHTER_MAX_LEVERAGE);
   }
+
+  /**
+   * Margin mode the venue will accept for a leverage update on this
+   * market: an existing position's current mode (the venue refuses mode
+   * changes while a position is open; a missing field means the venue
+   * default, cross), otherwise ISOLATED — the only mode the app manages.
+   *
+   * @param symbol - Market symbol.
+   * @returns The wire margin mode for UpdateLeverage.
+   */
+  readonly #resolveMarginModeForSymbol = async (
+    symbol: string,
+  ): Promise<number> => {
+    try {
+      const accountIndex = await this.#ensureAccountIndex();
+      const response =
+        await this.#clientService.getAccountByIndex(accountIndex);
+      const row = response.accounts?.[0]?.positions?.find(
+        (position) =>
+          position.symbol === symbol &&
+          parseFloat(position.position) !== 0,
+      );
+      if (row) {
+        return row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS;
+      }
+    } catch {
+      // Fall through: prefer isolated; a wrong guess surfaces as an
+      // explicit venue rejection of the leverage update, never as state.
+    }
+    return LIGHTER_MARGIN_MODE_ISOLATED;
+  };
 
   /** Per-market margin fractions + last price from orderBookDetails. */
   readonly #marginBySymbol: Map<
