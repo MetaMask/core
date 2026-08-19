@@ -225,6 +225,7 @@ const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
 const TRACE_UPDATE_PARENT = 'AssetsUpdateEnrichment';
 const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
 const TRACE_STATE_SIZE = 'AssetsStateSize';
+const TRACE_BALANCE_MISMATCH = 'AssetsBalanceMismatch';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -3869,6 +3870,137 @@ export class AssetsController extends BaseController<
     });
     this.#ensureNativeBalancesDefaultZero();
     this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
+  }
+
+  /**
+   * Fetch a single asset balance via RPC and a fresh Accounts API snapshot,
+   * report mismatches to Sentry when either (1) Accounts API ≠ RPC or
+   * (2) state ≠ Accounts API, then merge the RPC amount into state.
+   *
+   * No-op when basic functionality is disabled (RPC-only mode).
+   *
+   * @param accountId - Account whose balance should be refreshed.
+   * @param assetId - CAIP-19 asset ID to refresh (chain is derived from this).
+   */
+  async refreshAccountChainBalancesFromRpc(
+    accountId: AccountId,
+    assetId: Caip19AssetId,
+  ): Promise<void> {
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
+
+    this.#assertNonEmptyAccountId(
+      accountId,
+      'refreshAccountChainBalancesFromRpc',
+    );
+
+    const normalizedAssetId = this.#normalizeAssetIdOrThrow(
+      assetId,
+      'refreshAccountChainBalancesFromRpc',
+    );
+
+    const account = this.#getSelectedAccounts().find(
+      (candidate) => candidate.id === accountId,
+    );
+    if (!account) {
+      return;
+    }
+
+    const chainId = extractChainId(normalizedAssetId);
+    const stateAmount =
+      this.state.assetsBalance[accountId]?.[normalizedAssetId]?.amount;
+
+    const request = this.#buildDataRequest([account], [chainId], {
+      dataTypes: ['balance'],
+      ...(this.#getAssetType(normalizedAssetId) === 'erc20'
+        ? { customAssets: [normalizedAssetId] }
+        : {}),
+    });
+
+    let rpcAmount: string | undefined;
+    let accountsApiAmount: string | undefined;
+
+    try {
+      const accountsApiResponse = await this.#accountsApiDataSource.fetch({
+        ...request,
+        forceUpdate: true,
+      });
+      accountsApiAmount =
+        accountsApiResponse.assetsBalance?.[accountId]?.[normalizedAssetId]
+          ?.amount;
+    } catch (error) {
+      log('Accounts API balance fetch failed during RPC reconciliation', {
+        accountId,
+        assetId: normalizedAssetId,
+        error,
+      });
+    }
+
+    try {
+      const rpcResponse = await this.#rpcDataSource.fetch(request);
+      rpcAmount =
+        rpcResponse.assetsBalance?.[accountId]?.[normalizedAssetId]?.amount;
+    } catch (error) {
+      log('RPC balance refresh failed', {
+        accountId,
+        assetId: normalizedAssetId,
+        error,
+      });
+    }
+
+    const accountsApiRpcMismatch =
+      accountsApiAmount !== undefined &&
+      rpcAmount !== undefined &&
+      accountsApiAmount !== rpcAmount;
+    const stateAccountsApiMismatch =
+      stateAmount !== undefined &&
+      accountsApiAmount !== undefined &&
+      stateAmount !== accountsApiAmount;
+
+    if (accountsApiRpcMismatch || stateAccountsApiMismatch) {
+      const mismatchMessage = `AssetsController balance mismatch for ${normalizedAssetId} (account ${accountId}): state=${stateAmount ?? 'n/a'}, accountsApi=${accountsApiAmount ?? 'n/a'}, rpc=${rpcAmount ?? 'n/a'}`;
+
+      log(mismatchMessage, {
+        accountId,
+        assetId: normalizedAssetId,
+        chainId,
+        stateAmount,
+        accountsApiAmount,
+        rpcAmount,
+        accountsApiRpcMismatch,
+        stateAccountsApiMismatch,
+      });
+
+      this.#captureException?.(new Error(mismatchMessage));
+      emitTrace({
+        name: TRACE_BALANCE_MISMATCH,
+        trace: this.#trace,
+        data: {
+          account_id: accountId,
+          asset_id: normalizedAssetId,
+          chain_id: chainId,
+          state_amount: stateAmount ?? 'n/a',
+          accounts_api_amount: accountsApiAmount ?? 'n/a',
+          rpc_amount: rpcAmount ?? 'n/a',
+          accounts_api_rpc_mismatch: accountsApiRpcMismatch,
+          state_accounts_api_mismatch: stateAccountsApiMismatch,
+        },
+      });
+    }
+
+    if (rpcAmount === undefined) {
+      return;
+    }
+
+    await this.#updateState({
+      assetsBalance: {
+        [accountId]: {
+          [normalizedAssetId]: { amount: rpcAmount },
+        },
+      },
+      updateMode: 'merge',
+    });
   }
 
   /**

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `refreshAccountChainBalancesFromRpc` to fetch a single asset via RPC and Accounts API, report Sentry mismatches when Accounts API ≠ RPC or state ≠ Accounts API, and merge the RPC balance into state (no-op when basic functionality is off)
+
 ### Changed
 
 - **BREAKING:** Subscribe to `AccountTreeController:initialized` / `:uninitialized` (typed as `AccountTreeControllerInitializedEvent` / `AccountTreeControllerUninitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()` or on unlock before the tree is ready ([#9892](https://github.com/MetaMask/core/pull/9892))
