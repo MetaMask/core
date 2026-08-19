@@ -21,9 +21,9 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
+  KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
 import type {
   UserStorageGenericFeatureKey,
@@ -37,7 +37,8 @@ import {
   getPrimaryHdKeyringEntropySourceId,
 } from '../../shared/utils/entropy-source.js';
 import { EventQueue } from '../../shared/utils/event-queue.js';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests.js';
+import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
+import { signMessageWithMessageSigningKey } from '../../shared/utils/message-signing.js';
 import type {
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
@@ -169,8 +170,7 @@ export type Actions =
 export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
-  // Snap Requests
-  | SnapControllerHandleRequestAction
+  | KeyringControllerWithKeyringV2UnsafeAction
   // Auth Requests
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction
@@ -251,7 +251,7 @@ export class UserStorageController extends BaseController<
   // signature and leak data across each other's user storage.
   #storageKeyCache: Record<string, string> = {};
 
-  #snapSignMessageCache: Record<string, string> = {};
+  #signMessageCache: Record<string, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -324,10 +324,7 @@ export class UserStorageController extends BaseController<
             );
           },
           signMessage: (message: string, entropySourceId?: string) =>
-            this.#snapSignMessage(
-              message as `metamask:${string}`,
-              entropySourceId,
-            ),
+            this.#signMessage(message, entropySourceId),
         },
       },
       {
@@ -583,34 +580,35 @@ export class UserStorageController extends BaseController<
   }
 
   /**
-   * Signs a specific message using an underlying auth snap.
+   * Signs a `metamask:…` message with the native SIP-6 message-signing key
+   * (same key as `@metamask/message-signing-snap` with empty salt).
    *
    * @param message - A specific tagged message to sign.
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns A Signature created by the snap.
+   * @returns Compact secp256k1 signature hex.
    */
-  async #snapSignMessage(
-    message: `metamask:${string}`,
+  async #signMessage(
+    message: string,
     entropySourceId?: string,
   ): Promise<string> {
     if (!this.#isUnlocked) {
-      throw new Error(
-        '#snapSignMessage - unable to call snap, wallet is locked',
-      );
+      throw new Error('#signMessage - unable to proceed, wallet is locked');
     }
 
-    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
-    if (this.#snapSignMessageCache[cacheKey]) {
-      return this.#snapSignMessageCache[cacheKey];
+    const cacheKey = this.#scopedCacheKey(
+      message as `metamask:${string}`,
+      entropySourceId,
+    );
+    if (this.#signMessageCache[cacheKey]) {
+      return this.#signMessageCache[cacheKey];
     }
 
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapSignMessageRequest(message, entropySourceId),
-    )) as string;
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const seed = await getHdKeyringSeed(this.messenger, resolvedId);
+    const result = await signMessageWithMessageSigningKey(message, seed);
 
-    this.#snapSignMessageCache[cacheKey] = result;
+    this.#signMessageCache[cacheKey] = result;
 
     return result;
   }
