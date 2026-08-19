@@ -6071,7 +6071,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
   bin:
-    bitcoin-regtest-up: ./dist/bin/bitcoin-regtest-up.mjs
+    bitcoin-regtest-up: ./dist/bin/bitcoin-regtest-up.js
   languageName: unknown
   linkType: soft
 
@@ -7174,7 +7174,7 @@ __metadata:
     yargs: "npm:^17.7.2"
     yargs-parser: "npm:^21.1.1"
   bin:
-    mm-foundryup: ./dist/cli.mjs
+    mm-foundryup: ./dist/cli.js
   languageName: unknown
   linkType: soft
 
@@ -7276,7 +7276,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
   bin:
-    java-tron-up: ./dist/bin/java-tron-up.mjs
+    java-tron-up: ./dist/bin/java-tron-up.js
   languageName: unknown
   linkType: soft
 
@@ -7600,7 +7600,7 @@ __metadata:
     prettier:
       optional: true
   bin:
-    messenger-action-types: ./dist/cli.mjs
+    messenger-action-types: ./dist/cli.js
   languageName: unknown
   linkType: soft
 
@@ -8291,7 +8291,7 @@ __metadata:
     typescript: "npm:~5.3.3"
     yargs: "npm:^17.7.2"
   bin:
-    platform-api-docs: ./dist/cli.mjs
+    platform-api-docs: ./dist/cli.js
   languageName: unknown
   linkType: soft
 
@@ -8547,10 +8547,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/safe-event-emitter@npm:^3.0.0, @metamask/safe-event-emitter@npm:^3.1.1":
+"@metamask/safe-event-emitter@npm:3.1.1":
   version: 3.1.1
   resolution: "@metamask/safe-event-emitter@npm:3.1.1"
   checksum: 10/e24db4d7c20764bfc5b025065f92518c805f0ffb1da4820078b8cff7dcae964c0f354cf053fcb7ac659de015d5ffdf21aae5e8d44e191ee8faa9066855f22653
+  languageName: node
+  linkType: hard
+
+"@metamask/safe-event-emitter@patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch":
+  version: 3.1.1
+  resolution: "@metamask/safe-event-emitter@patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch::version=3.1.1&hash=4a033d"
+  checksum: 10/b47560199f61105a5a719b907400395893c52aa6a1d9aa37a4128b054351dd45fb485655dcb71f926e58da406f39f6a93c60396cc00ed1753a97ac3f5a2c7e5e
   languageName: node
   linkType: hard
 
@@ -8966,7 +8973,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
   bin:
-    solana-test-validator-up: ./dist/bin/solana-test-validator-up.mjs
+    solana-test-validator-up: ./dist/bin/solana-test-validator-up.js
   languageName: unknown
   linkType: soft
 
