@@ -1,0 +1,553 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Lighter POC full testnet lifecycle (TAT-3766)",
+  "description": "Proves the LighterProvider POC end-to-end on Lighter testnet: the Go/WASM signer is built from source and runs headless in Node, the venue key derives deterministically from an EIP-191 personal_sign signature and registers on-chain via ChangePubKey (signature injection, no raw EVM key), a REAL resting limit order is placed and canceled through the provider's full signing path, and a real PerpsController surfaces Lighter markets through the AggregatedPerpsProvider abstraction alongside HyperLiquid. Extended with per-channel WebSocket stream proofs: prices (market_stats/all), account (user_stats), positions (account_all_positions, REST-cross-checked), and authenticated orders (account_all_orders, real order in/out of the stream). Further extended with closePosition+fills-stream, order-book and candle WebSocket channels, the withdraw signing path, and mainnet read-path validation. Final additions: authenticated history reads (fills + funding), OCO TP/SL via grouped orders, and the isolated margin/leverage lifecycle.",
+  "workflow": {
+    "entry": "build-wasm",
+    "nodes": {
+      "build-wasm": {
+        "action": "command",
+        "cmd": "bash packages/perps-controller/tests/e2e/lighter/build-wasm.sh --out temp/lighter-wasm",
+        "timeout_ms": 600000,
+        "next": "assert-build-exit",
+        "intent": "Build the Lighter Go/WASM signer from source (elliottech/lighter-go@web-wasm) and stage wasm_exec.js"
+      },
+      "assert-build-exit": {
+        "action": "assert_exit_code",
+        "source": "build-wasm",
+        "expected": 0,
+        "next": "assert-build-output",
+        "intent": "Verify the WASM build completed"
+      },
+      "assert-build-output": {
+        "action": "assert_output",
+        "source": "build-wasm",
+        "stream": "stdout",
+        "contains": "BUILD_WASM_OK",
+        "next": "assert-build-manifest",
+        "intent": "Verify the build script reached its success marker"
+      },
+      "assert-build-manifest": {
+        "action": "assert_file",
+        "path": "temp/lighter-wasm/manifest.json",
+        "contains": "builtSha256",
+        "next": "sign-only",
+        "intent": "Verify the reproducibility manifest (built vs upstream sha256) was written"
+      },
+      "sign-only": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=sign-only --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-sign-only-exit",
+        "intent": "Run the offline signer phase: WASM in Node, deterministic key derivation, ChangePubKey plaintext, auth token, order signature"
+      },
+      "assert-sign-only-exit": {
+        "action": "assert_exit_code",
+        "source": "sign-only",
+        "expected": 0,
+        "next": "assert-sign-only-checks",
+        "intent": "Verify the sign-only phase exited green"
+      },
+      "assert-sign-only-checks": {
+        "action": "assert_output",
+        "source": "sign-only",
+        "stream": "stdout",
+        "contains": "PHASE_PASS: sign-only (7/7 checks)",
+        "next": "assert-sign-only-json",
+        "intent": "Verify all 7 sign-only checks passed"
+      },
+      "assert-sign-only-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/sign-only.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "register",
+        "intent": "Verify the sign-only phase artifact records success"
+      },
+      "register": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=register --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-register-exit",
+        "intent": "Register the derived venue key on Lighter testnet via a REAL ChangePubKey transaction (EIP-191 signature injection)"
+      },
+      "assert-register-exit": {
+        "action": "assert_exit_code",
+        "source": "register",
+        "expected": 0,
+        "next": "assert-register-json",
+        "intent": "Verify the register phase exited green"
+      },
+      "assert-register-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/register.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "assert-register-slot",
+        "intent": "Verify the register phase artifact records success (strict pubkey equality at the key slot)"
+      },
+      "assert-register-slot": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/register.json",
+        "assert": {
+          "path": "$.apiKeyIndex",
+          "operator": "eq",
+          "value": 7
+        },
+        "next": "order-lifecycle",
+        "intent": "Verify the venue key landed at the dedicated MetaMask API key slot"
+      },
+      "order-lifecycle": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=order-lifecycle --market=SOL --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-order-exit",
+        "intent": "Place a REAL resting SOL limit order on Lighter testnet through the provider's full WASM signing path, verify visibility, cancel, verify gone"
+      },
+      "assert-order-exit": {
+        "action": "assert_exit_code",
+        "source": "order-lifecycle",
+        "expected": 0,
+        "next": "assert-order-checks",
+        "intent": "Verify the order lifecycle exited green"
+      },
+      "assert-order-checks": {
+        "action": "assert_output",
+        "source": "order-lifecycle",
+        "stream": "stdout",
+        "contains": "PHASE_PASS: order-lifecycle (7/7 checks)",
+        "next": "assert-order-json",
+        "intent": "Verify all 7 order-lifecycle checks passed (place, visible, cancel, gone)"
+      },
+      "assert-order-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/order-lifecycle.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "controller",
+        "intent": "Verify the order-lifecycle phase artifact records success"
+      },
+      "controller": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=controller --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-controller-exit",
+        "intent": "Prove the abstraction path: a real PerpsController with lighter enabled surfaces lighter-stamped markets through AggregatedPerpsProvider alongside HyperLiquid"
+      },
+      "assert-controller-exit": {
+        "action": "assert_exit_code",
+        "source": "controller",
+        "expected": 0,
+        "next": "assert-controller-checks",
+        "intent": "Verify the controller phase exited green"
+      },
+      "assert-controller-checks": {
+        "action": "assert_output",
+        "source": "controller",
+        "stream": "stdout",
+        "contains": "PASS: aggregated getMarkets returns lighter-stamped markets",
+        "next": "assert-controller-json",
+        "intent": "Verify aggregated reads carry providerId 'lighter'"
+      },
+      "assert-controller-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/controller.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "price-stream",
+        "intent": "Verify the controller phase artifact records success"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "price-stream": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=price-stream --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-price-stream-exit",
+        "intent": "Prove the live price subscription: market_stats/all WebSocket delivers a snapshot plus repeated update cycles with numeric BTC prices"
+      },
+      "assert-price-stream-exit": {
+        "action": "assert_exit_code",
+        "next": "assert-price-stream-json",
+        "intent": "The price-stream phase driver must exit cleanly",
+        "source": "price-stream",
+        "expected": 0
+      },
+      "assert-price-stream-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/price-stream.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "account-stream",
+        "intent": "Verify the price-stream phase artifact records success on every check"
+      },
+      "account-stream": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=account-stream --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-account-stream-exit",
+        "intent": "Prove the live account subscription: user_stats WebSocket delivers positive collateral and balances for the funded testnet account"
+      },
+      "assert-account-stream-exit": {
+        "action": "assert_exit_code",
+        "next": "assert-account-stream-json",
+        "intent": "The account-stream phase driver must exit cleanly",
+        "source": "account-stream",
+        "expected": 0
+      },
+      "assert-account-stream-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/account-stream.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "positions-stream",
+        "intent": "Verify the account-stream phase artifact records success on every check"
+      },
+      "positions-stream": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=positions-stream --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-positions-stream-exit",
+        "intent": "Prove the live positions subscription: account_all_positions WebSocket snapshot matches the REST getPositions read"
+      },
+      "assert-positions-stream-exit": {
+        "action": "assert_exit_code",
+        "next": "assert-positions-stream-json",
+        "intent": "The positions-stream phase driver must exit cleanly",
+        "source": "positions-stream",
+        "expected": 0
+      },
+      "assert-positions-stream-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/positions-stream.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "orders-stream",
+        "intent": "Verify the positions-stream phase artifact records success on every check"
+      },
+      "orders-stream": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=orders-stream --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-orders-stream-exit",
+        "intent": "Prove the authenticated orders subscription end-to-end: a real resting order placed through the WASM signer arrives on the account_all_orders stream and leaves it after cancel"
+      },
+      "assert-orders-stream-exit": {
+        "action": "assert_exit_code",
+        "next": "assert-orders-stream-json",
+        "intent": "The orders-stream phase driver must exit cleanly",
+        "source": "orders-stream",
+        "expected": 0
+      },
+      "assert-orders-stream-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/orders-stream.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "candles",
+        "intent": "Verify the orders-stream phase artifact records success on every check"
+      },
+      "candles": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=candles --out=../../temp/lighter-e2e",
+        "timeout_ms": 300000,
+        "next": "assert-candles-exit",
+        "intent": "Prove the candles endpoint: live OHLCV history with sane ascending values plus the subscription seed used by the mobile chart"
+      },
+      "assert-candles-exit": {
+        "action": "assert_exit_code",
+        "source": "candles",
+        "expected": 0,
+        "next": "assert-candles-json",
+        "intent": "The candles phase driver must exit cleanly"
+      },
+      "assert-candles-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/candles.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "close-position",
+        "intent": "Verify the candles phase artifact records success on every check"
+      },
+      "close-position": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=close-position --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-close-position-exit",
+        "intent": "Prove closePosition end-to-end: a real market order opens a tiny position and closePosition flattens it, with both fills delivered live on the account_all_trades WebSocket stream"
+      },
+      "assert-close-position-exit": {
+        "action": "assert_exit_code",
+        "source": "close-position",
+        "expected": 0,
+        "next": "assert-close-position-json",
+        "intent": "The close-position phase driver must exit cleanly"
+      },
+      "assert-close-position-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/close-position.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "order-book-stream",
+        "intent": "Verify the close-position phase artifact records success on every check"
+      },
+      "order-book-stream": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=order-book-stream --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-order-book-stream-exit",
+        "intent": "Prove the order_book WebSocket channel: live sorted bid/ask levels with a sane spread and repeated delta updates"
+      },
+      "assert-order-book-stream-exit": {
+        "action": "assert_exit_code",
+        "source": "order-book-stream",
+        "expected": 0,
+        "next": "assert-order-book-stream-json",
+        "intent": "The order-book-stream phase driver must exit cleanly"
+      },
+      "assert-order-book-stream-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/order-book-stream.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "candles-stream",
+        "intent": "Verify the order-book-stream phase artifact records success on every check"
+      },
+      "candles-stream": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=candles-stream --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-candles-stream-exit",
+        "intent": "Prove the live candle WebSocket channel: a seeded history window plus at least one live update merged into the series"
+      },
+      "assert-candles-stream-exit": {
+        "action": "assert_exit_code",
+        "source": "candles-stream",
+        "expected": 0,
+        "next": "assert-candles-stream-json",
+        "intent": "The candles-stream phase driver must exit cleanly"
+      },
+      "assert-candles-stream-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/candles-stream.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "withdraw-sign",
+        "intent": "Verify the candles-stream phase artifact records success on every check"
+      },
+      "withdraw-sign": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=withdraw-sign --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-withdraw-sign-exit",
+        "intent": "Prove the withdraw signing path: the WASM signer produces a valid signed L2 withdraw for 1 USDC without submitting it"
+      },
+      "assert-withdraw-sign-exit": {
+        "action": "assert_exit_code",
+        "source": "withdraw-sign",
+        "expected": 0,
+        "next": "assert-withdraw-sign-json",
+        "intent": "The withdraw-sign phase driver must exit cleanly"
+      },
+      "assert-withdraw-sign-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/withdraw-sign.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "mainnet-reads",
+        "intent": "Verify the withdraw-sign phase artifact records success on every check"
+      },
+      "mainnet-reads": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=mainnet-reads --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-mainnet-reads-exit",
+        "intent": "Prove Lighter mainnet read paths: the full 200+ active perp catalog, live WebSocket prices covering it, and BTC candle history \u2014 read-only, no account"
+      },
+      "assert-mainnet-reads-exit": {
+        "action": "assert_exit_code",
+        "source": "mainnet-reads",
+        "expected": 0,
+        "next": "assert-mainnet-reads-json",
+        "intent": "The mainnet-reads phase driver must exit cleanly"
+      },
+      "assert-mainnet-reads-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/mainnet-reads.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "history-reads",
+        "intent": "Verify the mainnet-reads phase artifact records success on every check"
+      },
+      "history-reads": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=history-reads --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-history-reads-exit",
+        "intent": "Prove authenticated history reads: real trade fills and user funding payments for the funded testnet account"
+      },
+      "assert-history-reads-exit": {
+        "action": "assert_exit_code",
+        "source": "history-reads",
+        "expected": 0,
+        "next": "assert-history-reads-json",
+        "intent": "The history-reads phase driver must exit cleanly"
+      },
+      "assert-history-reads-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/history-reads.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "tpsl",
+        "intent": "Verify the history-reads phase artifact records success on every check"
+      },
+      "tpsl": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=tpsl --out=../../temp/lighter-e2e",
+        "timeout_ms": 600000,
+        "next": "assert-tpsl-exit",
+        "intent": "Prove position TP/SL end-to-end: open a real position, attach an OCO take-profit/stop-loss pair via grouped orders, verify both trigger orders, remove them, and close"
+      },
+      "assert-tpsl-exit": {
+        "action": "assert_exit_code",
+        "source": "tpsl",
+        "expected": 0,
+        "next": "assert-tpsl-json",
+        "intent": "The tpsl phase driver must exit cleanly"
+      },
+      "assert-tpsl-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/tpsl.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "margin-leverage",
+        "intent": "Verify the tpsl phase artifact records success on every check"
+      },
+      "margin-leverage": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=margin-leverage --out=../../temp/lighter-e2e",
+        "timeout_ms": 600000,
+        "next": "assert-margin-leverage-exit",
+        "intent": "Prove margin and leverage at protocol level: switch the market to isolated 10x, verify the position margin fraction, add and remove isolated margin, close, and restore cross 20x"
+      },
+      "assert-margin-leverage-exit": {
+        "action": "assert_exit_code",
+        "source": "margin-leverage",
+        "expected": 0,
+        "next": "assert-margin-leverage-json",
+        "intent": "The margin-leverage phase driver must exit cleanly"
+      },
+      "assert-margin-leverage-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/margin-leverage.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "parity-history",
+        "intent": "Verify the margin-leverage phase artifact records success on every check"
+      },
+      "parity-history": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=parity-history --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-parity-history-exit",
+        "intent": "Prove the parity history surface: full historical order lifecycle, deposit/withdrawal user history, the merged non-funding ledger, and bridge routes cross-checked against the venue-reported L1 contracts"
+      },
+      "assert-parity-history-exit": {
+        "action": "assert_exit_code",
+        "source": "parity-history",
+        "expected": 0,
+        "next": "assert-parity-history-json",
+        "intent": "The parity-history phase driver must exit cleanly"
+      },
+      "assert-parity-history-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/parity-history.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "connection-state",
+        "intent": "Verify the parity-history phase artifact records success on every check"
+      },
+      "connection-state": {
+        "action": "command",
+        "cmd": "yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts --phase=connection-state --out=../../temp/lighter-e2e",
+        "timeout_ms": 420000,
+        "next": "assert-connection-state-exit",
+        "intent": "Prove connection-state management over the real venue WebSocket: connecting/connected transitions on subscribe, live state reads, a manual reconnect cycle that resumes price flow, and clean teardown"
+      },
+      "assert-connection-state-exit": {
+        "action": "assert_exit_code",
+        "source": "connection-state",
+        "expected": 0,
+        "next": "assert-connection-state-json",
+        "intent": "The connection-state phase driver must exit cleanly"
+      },
+      "assert-connection-state-json": {
+        "action": "assert_json",
+        "path": "temp/lighter-e2e/connection-state.json",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "next": "done",
+        "intent": "Verify the connection-state phase artifact records success on every check"
+      }
+    }
+  }
+}
