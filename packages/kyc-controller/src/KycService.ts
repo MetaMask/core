@@ -300,7 +300,7 @@ export type CreateUkycSessionParams = {
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
    */
-  vendorId?: KycVendor;
+  vendor?: KycVendor;
   /**
    * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
    * `moonPayUserId`); optional / omitted for other vendors.
@@ -380,7 +380,15 @@ export class KycService extends BaseDataService<
     // Fall back to the runtime's native `fetch`, bound to `globalThis` so it
     // can be invoked as a method of this instance without an illegal-invocation
     // error on platforms that check the receiver.
-    this.#fetch = fetchFunction ?? globalThis.fetch.bind(globalThis);
+    if (fetchFunction) {
+      this.#fetch = fetchFunction;
+    } else if (typeof globalThis.fetch === 'function') {
+      this.#fetch = globalThis.fetch.bind(globalThis);
+    } else {
+      throw new Error(
+        'KycService: fetch is not available globally and was not provided in options. Please inject a fetch implementation.',
+      );
+    }
     if (!baseUrl) {
       throw new Error('KycService: baseUrl is required');
     }
@@ -509,6 +517,21 @@ export class KycService extends BaseDataService<
             capabilities,
           }
         : {};
+
+    // MoonPay requires accessToken and country; validate before making the request.
+    if (vendor === 'moonpay') {
+      if (!params.accessToken) {
+        throw new Error(
+          'checkKycRequired: accessToken is required for vendor "moonpay".',
+        );
+      }
+      if (!params.country) {
+        throw new Error(
+          'checkKycRequired: country is required for vendor "moonpay".',
+        );
+      }
+    }
+
     const data = await this.fetchQuery({
       queryKey: [
         `${this.name}:checkKycRequired`,
@@ -710,7 +733,7 @@ export class KycService extends BaseDataService<
         this.#requestJson(url, {
           method: 'POST',
           body: JSON.stringify({
-            vendorId: params.vendorId ?? 'moonpay',
+            vendorId: params.vendor ?? 'moonpay',
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
             vendorMetadata: params.vendorMetadata ?? {},
@@ -859,12 +882,12 @@ export class KycService extends BaseDataService<
       const bearerToken = await this.messenger.call(
         'AuthenticationController:getBearerToken',
       );
-      assert(bearerToken, string());
       if (!bearerToken) {
         throw new Error(
           'Unable to obtain an authentication bearer token — is the wallet signed in?',
         );
       }
+      assert(bearerToken, string());
       headers.Authorization = `Bearer ${bearerToken}`;
     }
 

@@ -579,6 +579,22 @@ describe('KycService', () => {
       });
     });
 
+    it('throws when accessToken is missing for MoonPay vendor', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.checkKycRequired({ vendor: 'moonpay', country: 'USA' }),
+      ).rejects.toThrow('accessToken is required for vendor "moonpay"');
+    });
+
+    it('throws when country is missing for MoonPay vendor', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.checkKycRequired({ vendor: 'moonpay', accessToken: 'tok' }),
+      ).rejects.toThrow('country is required for vendor "moonpay"');
+    });
+
     it('throws on a malformed response', async () => {
       nock(MOCK_API_URL).post('/vendors/iron/kyc-required').reply(200, {});
       const { service } = getService();
@@ -682,7 +698,7 @@ describe('KycService', () => {
       ).toStrictEqual({ sessionId: 'sid' });
     });
 
-    it('sends vendorId iron with empty vendorMetadata when omitted', async () => {
+    it('sends vendor iron with empty vendorMetadata when omitted', async () => {
       const material = deriveClientMaterial(
         new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(1),
       );
@@ -704,7 +720,7 @@ describe('KycService', () => {
       expect(
         await service.createUkycSession({
           jwtToken: 'jwt',
-          vendorId: 'iron',
+          vendor: 'iron',
           wrappedEncryptionKey: {
             sessionId: 'wk',
             encryptedKey: 'ek',

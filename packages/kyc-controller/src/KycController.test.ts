@@ -107,7 +107,11 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { termsAcceptedAt: 't', acceptedDisclaimerIds: ['1'] },
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['1'],
+              termsAcceptedVendor: 'moonpay',
+            },
           },
         },
         async ({ controller, handlers }) => {
@@ -1014,6 +1018,7 @@ describe('KycController', () => {
               // session (reaching phase `check`) for the second completion.
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['1'],
+              termsAcceptedVendor: 'moonpay',
             },
           },
         },
@@ -2038,6 +2043,8 @@ describe('KycController', () => {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['d1'],
               termsAcceptedVendor: 'iron',
+              sumsubTncAccepted: true,
+              idosTncAccepted: true,
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -2090,6 +2097,36 @@ describe('KycController', () => {
             country: 'USA',
           });
           expect(controller.state.phase).toBe('terms');
+        },
+      );
+    });
+
+    it('requires reacceptance when T&C2 flags are null (pre-migration state)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['d1'],
+              termsAcceptedVendor: 'iron',
+              // T&C2 flags are null, simulating pre-migration state
+              sumsubTncAccepted: null,
+              idosTncAccepted: null,
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T', url: 'u' },
+          ]);
+
+          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+          // T&C2 flags were null; reacceptance required.
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.sumsubTncAccepted).toBeNull();
+          expect(controller.state.idosTncAccepted).toBeNull();
         },
       );
     });
@@ -2262,7 +2299,7 @@ describe('KycController', () => {
             idosTncSigned: true,
           });
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
-            expect.objectContaining({ vendorId: 'iron' }),
+            expect.objectContaining({ vendor: 'iron' }),
           );
           expect(launcher.launch).toHaveBeenCalled();
           expect(controller.buildCheckFrameUrl()).toBeNull();

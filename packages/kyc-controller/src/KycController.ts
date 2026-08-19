@@ -148,6 +148,20 @@ export type KycControllerState = {
    * vendor must not be reused for another. `null` when nothing is accepted.
    */
   termsAcceptedVendor: KycVendor | null;
+  /**
+   * Whether the customer accepted the SumSub T&C (T&C2) during the last
+   * terms acceptance (persisted). Consents-path vendors require this flag
+   * when resuming a session. `null` for acceptance recorded before this
+   * field existed (treated as requiring reacceptance).
+   */
+  sumsubTncAccepted: boolean | null;
+  /**
+   * Whether the customer accepted the idOS T&C (T&C2) during the last
+   * terms acceptance (persisted). Consents-path vendors require this flag
+   * when resuming a session. `null` for acceptance recorded before this
+   * field existed (treated as requiring reacceptance).
+   */
+  idosTncAccepted: boolean | null;
 
   /** Disclaimers fetched for the current country. */
   disclaimers: KycDisclaimer[];
@@ -253,6 +267,18 @@ const kycControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
+  sumsubTncAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  idosTncAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
   disclaimers: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
@@ -353,6 +379,8 @@ export function getDefaultKycControllerState(): KycControllerState {
     termsAcceptedAt: null,
     acceptedDisclaimerIds: [],
     termsAcceptedVendor: null,
+    sumsubTncAccepted: null,
+    idosTncAccepted: null,
     disclaimers: [],
     disclaimersError: null,
     geoCountry: null,
@@ -734,9 +762,21 @@ export class KycController extends BaseController<
 
     if (hasTerms && this.state.email) {
       if (usesConsentsFlow(vendor)) {
+        // Consents-path vendors require T&C2 flags; if they weren't persisted
+        // (i.e. null from pre-migration state), require reacceptance.
+        const sumsubTncSigned = this.state.sumsubTncAccepted;
+        const idosTncSigned = this.state.idosTncAccepted;
+        if (sumsubTncSigned === null || idosTncSigned === null) {
+          this.#applyUpdate((state) => {
+            this.#clearAcceptedTerms(state);
+            state.phase = 'terms';
+          });
+          await this.loadDisclaimers();
+          return;
+        }
         await this.#startConsentsSession({
-          sumsubTncSigned: true,
-          idosTncSigned: true,
+          sumsubTncSigned,
+          idosTncSigned,
         });
       } else {
         await this.#createSession();
@@ -863,6 +903,11 @@ export class KycController extends BaseController<
       state.termsAcceptedAt = termsAcceptedAt;
       state.acceptedDisclaimerIds = disclaimerIds;
       state.termsAcceptedVendor = state.activeVendor;
+      // Persist T&C2 flags so consents-path resume can reuse them. Default to
+      // true for MoonPay (which doesn't use these flags) to avoid forcing
+      // reacceptance on MoonPay→Iron switches.
+      state.sumsubTncAccepted = params?.sumsubTncSigned ?? true;
+      state.idosTncAccepted = params?.idosTncSigned ?? true;
     });
     if (usesConsentsFlow(this.state.activeVendor)) {
       await this.#startConsentsSession({
@@ -1050,18 +1095,24 @@ export class KycController extends BaseController<
     state.termsAcceptedAt = null;
     state.acceptedDisclaimerIds = [];
     state.termsAcceptedVendor = null;
+    state.sumsubTncAccepted = null;
+    state.idosTncAccepted = null;
   }
 
   /**
    * Determines whether the stored terms acceptance belongs to the given
-   * vendor. Acceptance persisted before `termsAcceptedVendor` existed is
-   * treated as MoonPay's, matching the only vendor available at the time.
+   * vendor. Acceptance persisted before `termsAcceptedVendor` existed
+   * (indicated by `null`) is invalidated to force reacceptance, ensuring users
+   * re-review vendor terms after the multi-vendor upgrade.
    *
    * @param vendor - The vendor about to drive the flow.
    * @returns `true` when the stored acceptance can be reused for `vendor`.
    */
   #hasTermsForVendor(vendor: KycVendor): boolean {
-    return (this.state.termsAcceptedVendor ?? 'moonpay') === vendor;
+    if (this.state.termsAcceptedVendor === null) {
+      return false;
+    }
+    return this.state.termsAcceptedVendor === vendor;
   }
 
   /**
@@ -1408,10 +1459,11 @@ export class KycController extends BaseController<
    */
   #buildUkycSessionVendorFields(): Pick<
     CreateUkycSessionParams,
-    'vendorMetadata'
+    'vendor' | 'vendorMetadata'
   > {
     if (this.state.activeVendor === 'moonpay') {
       return {
+        vendor: 'moonpay',
         vendorMetadata: {
           moonPayAccessToken: this.state.accessToken,
           moonPayUserId: this.state.moonpayCustomerId,
@@ -1419,7 +1471,7 @@ export class KycController extends BaseController<
       };
     }
 
-    return {};
+    return { vendor: this.state.activeVendor };
   }
 
   /**
@@ -1531,7 +1583,6 @@ export class KycController extends BaseController<
         'KycService:createUkycSession',
         {
           jwtToken,
-          vendorId: this.state.activeVendor,
           ...this.#buildUkycSessionVendorFields(),
           wrappedEncryptionKey,
           ukycCapabilityToken,

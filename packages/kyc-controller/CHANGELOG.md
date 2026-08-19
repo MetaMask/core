@@ -20,15 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extend `KycProduct` with `'money'` and `KycVendor` with `'iron'`. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Add `KycUserStatus` / `KycUserStatusResponse` types for the simplified `GET /kyc/status` payload. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Add persisted `termsAcceptedVendor` state recording which vendor's disclaimers `acceptedDisclaimerIds` belong to, so stored acceptance is only reused for that vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Add persisted `sumsubTncAccepted` and `idosTncAccepted` state so T&C2 flags can be validated when resuming a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
 
 ### Changed
 
 - Make the `fetch` option on the `KycService` constructor optional; it now defaults to the runtime's native `fetch` (browser, React Native, Node 18+), so consumers no longer need to inject one. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- **BREAKING:** Invalidate terms acceptance when `termsAcceptedVendor` is `null` (pre-migration state), forcing reacceptance after the multi-vendor upgrade to ensure users review current vendor terms. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Rename `CreateUkycSessionParams.vendorId` to `vendor` for consistency with other service methods. ([#9908](https://github.com/MetaMask/core/pull/9908))
 
 ### Fixed
 
 - Clear `moonpayCustomerId` when the active vendor is not MoonPay, so `getCustomerIdentity()` cannot report a MoonPay customer id under another vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Call `unref()` on the user-status poll timer only when it exists. React Native and browser timers are numbers, so an unconditional `unref()` threw when status polling started outside Node. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Skip the `session_not_in_valid_state` completion write when a `reset()` superseded the SumSub flow, so a late vendor response can no longer force `userStatus` to `completed` (and publish `statusChanged`) on an idle controller. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Validate that `accessToken` and `country` are provided when calling `checkKycRequired` with vendor `moonpay`, failing fast with a clear error instead of posting `undefined` values to the API. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Check for global `fetch` availability before binding in `KycService` constructor, throwing a descriptive error if `fetch` is neither provided nor globally available (e.g. older Node environments). ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Check for null bearer token before calling `assert()` in `#requestJson`, ensuring the custom "wallet signed in" error message is shown instead of a generic superstruct error. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Require reacceptance of consents-path terms when `sumsubTncAccepted` or `idosTncAccepted` are `null` (pre-migration state), preventing invalid T&C2 flag submission on session resume. ([#9908](https://github.com/MetaMask/core/pull/9908))
 
 [Unreleased]: https://github.com/MetaMask/core/
