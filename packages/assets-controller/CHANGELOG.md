@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ignore init-time `AccountTreeController:selectedAccountGroupChange` (including same-group re-emits and events before tracking starts) so `:initialized` owns first start; only refresh on real group switches while tracking
   - Skip Accounts API middleware when `dataTypes` does not include `balance` (e.g. price-only refreshes)
 
+### Fixed
+
+- Read token balances from the flat Accounts API v6 `balances` response.
+
 ## [13.1.4]
 
 ### Changed

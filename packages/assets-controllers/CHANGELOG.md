@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `DeFiPositionsControllerV2` for the flat Accounts API v6 balances response: processing polling is driven by the response-level `processingDefiPositions` account-ID array.
+
 ## [111.1.1]
 
 ### Changed
