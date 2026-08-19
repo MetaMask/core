@@ -1,6 +1,6 @@
 import { Struct, validate } from '@metamask/superstruct';
 
-import { QueryKey } from './BaseDataService';
+import type { QueryKey } from './BaseDataService.js';
 
 /**
  * Process query responses, validating them using Superstruct if a struct is defined.
