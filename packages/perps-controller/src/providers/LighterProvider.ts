@@ -6789,18 +6789,41 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async calculateLiquidationPrice(
-    _params: LiquidationPriceParams,
+    params: LiquidationPriceParams,
   ): Promise<string> {
-    // Capability-gated: Lighter cross-margin liquidation depends on total
-    // account value and the aggregate maintenance requirement across all
-    // positions — inputs this preview does not have. A plausible-looking
-    // per-position estimate would feed stop-loss warnings with a wrong
-    // number, so the calculation reports unavailable and clients render
-    // their explicit fallback. Live positions carry the venue's own
-    // liquidationPrice.
-    throw new Error(
-      'Liquidation price preview is unavailable for Lighter: cross-margin liquidation depends on total account value and aggregate maintenance requirements',
-    );
+    // ISOLATED preview: the app opens Lighter positions with isolated
+    // margin by default, so the standard per-position formula applies —
+    // with the venue's own per-market maintenance fraction rather than a
+    // constant approximation. Live positions still carry the venue's own
+    // liquidationPrice (authoritative; cross positions opened elsewhere
+    // may legitimately have none).
+    const { entryPrice, leverage, direction } = params;
+    if (
+      !isFinite(entryPrice) ||
+      !isFinite(leverage) ||
+      entryPrice <= 0 ||
+      leverage <= 0
+    ) {
+      return '0.00';
+    }
+    const maintenanceFraction = await this.calculateMaintenanceMargin({
+      asset: params.asset ?? '',
+    });
+    const initialMargin = 1 / leverage;
+    if (initialMargin <= maintenanceFraction) {
+      throw new Error(
+        `Invalid leverage: ${leverage}x cannot cover the ${maintenanceFraction * 100}% maintenance requirement`,
+      );
+    }
+    const side = direction === 'long' ? 1 : -1;
+    const marginAvailable = initialMargin - maintenanceFraction;
+    const denominator = 1 - maintenanceFraction * side;
+    if (Math.abs(denominator) < 0.0001) {
+      return String(entryPrice);
+    }
+    const liquidationPrice =
+      entryPrice - (side * marginAvailable * entryPrice) / denominator;
+    return String(Math.max(0, liquidationPrice));
   }
 
   async calculateMaintenanceMargin(
@@ -6842,8 +6865,7 @@ export class LighterProvider implements PerpsProvider {
         await this.#clientService.getAccountByIndex(accountIndex);
       const row = response.accounts?.[0]?.positions?.find(
         (position) =>
-          position.symbol === symbol &&
-          parseFloat(position.position) !== 0,
+          position.symbol === symbol && parseFloat(position.position) !== 0,
       );
       if (row) {
         return row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS;
