@@ -4,7 +4,7 @@ import {
 } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { hasProperty, isValidSemVerVersion } from '@metamask/utils';
+import { isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
@@ -182,7 +182,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getCanonicalProfileId: () => string;
 
-  readonly #metaMetricsFlags: Record<string, boolean>;
+  readonly #metaMetricsFlags: ReadonlySet<string>;
 
   readonly #clientVersion: SemVerVersion;
 
@@ -201,7 +201,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
    * @param options.getCanonicalProfileId - Returns the canonical profile identifier used for threshold flags by default. Must return an empty string, rather than throwing, when the identifier is unavailable.
-   * @param options.metaMetricsFlags - Map of feature flag names that should use MetaMetrics ID for threshold assignment.
+   * @param options.metaMetricsFlags - Names of feature flags that should use MetaMetrics ID for threshold assignment.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    * @param options.defaultFeatureFlags - Client-side default feature flags used as the lowest-precedence layer under processed remote flags and local overrides. Not persisted.
@@ -214,7 +214,7 @@ export class RemoteFeatureFlagController extends BaseController<
     disabled = false,
     getMetaMetricsId,
     getCanonicalProfileId,
-    metaMetricsFlags = {},
+    metaMetricsFlags = [],
     clientVersion,
     prevClientVersion,
     defaultFeatureFlags = {},
@@ -224,7 +224,7 @@ export class RemoteFeatureFlagController extends BaseController<
     clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
     getCanonicalProfileId: () => string;
-    metaMetricsFlags?: Record<string, boolean>;
+    metaMetricsFlags?: readonly string[];
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
@@ -269,7 +269,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
     this.#getCanonicalProfileId = getCanonicalProfileId;
-    this.#metaMetricsFlags = metaMetricsFlags;
+    this.#metaMetricsFlags = new Set(metaMetricsFlags);
     this.#clientVersion = clientVersion;
 
     this.messenger.registerMethodActionHandlers(
@@ -425,7 +425,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @returns The segmentation identifier, which may be empty when unavailable.
    */
   #getSegmentationId(featureFlagName: string): string {
-    if (hasProperty(this.#metaMetricsFlags, featureFlagName)) {
+    if (this.#metaMetricsFlags.has(featureFlagName)) {
       return this.#getMetaMetricsId();
     }
     return this.#getCanonicalProfileId();

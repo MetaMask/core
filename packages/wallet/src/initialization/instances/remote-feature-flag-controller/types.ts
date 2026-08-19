@@ -27,8 +27,8 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    */
   getCanonicalProfileId?: RemoteFeatureFlagControllerOptions['getCanonicalProfileId'];
   /**
-   * Map of feature flag names that should use MetaMetrics ID for threshold
-   * assignment. Flags not present in this map use the canonical profile ID.
+   * Names of feature flags that should use MetaMetrics ID for threshold
+   * assignment. Flags not listed here use the canonical profile ID.
    */
   metaMetricsFlags?: RemoteFeatureFlagControllerOptions['metaMetricsFlags'];
   /**
