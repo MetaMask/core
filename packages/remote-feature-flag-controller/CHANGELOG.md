@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` and `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor options to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
-  - Canonical profile ID is used by default, but MetaMetrics ID can be used when the flag name is present in `metaMetricsFlags`, typically for scenarios when canonical profile ID is unavailable.
+- **BREAKING:** Add `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor options to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
+  - By default, canonical profile ID is used, but MetaMetrics ID can be used when the flag name is present in `metaMetricsFlags`, typically for scenarios when canonical profile ID is unavailable.
+- Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor options to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+  - Flags with names present in `metaMetricsFlags` are segmented by MetaMetrics ID; all others segment by canonical profile ID.
 - Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides ([#9747](https://github.com/MetaMask/core/pull/9747))
 
 ### Changed
