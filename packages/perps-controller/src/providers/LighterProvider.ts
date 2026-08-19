@@ -3957,15 +3957,6 @@ export class LighterProvider implements PerpsProvider {
         const registered = await this.#isVenueKeyRegistered(accountIndex);
         this.#assertSession(generation);
         if (!registered) {
-          // Registration can never succeed under the mainnet rollout
-          // gate: refuse BEFORE the L1 personal_sign — never prompt the
-          // user (or a hardware wallet) for a signature that the
-          // dispatch backstop is guaranteed to refuse.
-          if (!this.#isTestnet) {
-            throw new Error(
-              'Lighter mainnet trading is not enabled yet; venue key registration is limited to testnet',
-            );
-          }
           await this.#registerVenueKey(
             accountIndex,
             created.body,
@@ -3977,7 +3968,6 @@ export class LighterProvider implements PerpsProvider {
         }
       },
       generation,
-      true,
     );
     // AUTOMATIC bounded recovery: pending TP/SL journals must be
     // reconciled at startup/reconnect, not only when the next mutation
@@ -4122,9 +4112,6 @@ export class LighterProvider implements PerpsProvider {
    * provided helper (each call returns the next fresh nonce).
    * @param generationAtIntent - Session generation captured when the
    * caller's intent was formed (defaults to now).
-   * @param allowMainnetSignerSetup - Permit entering the lock on mainnet
-   * for signer setup only (bridge-local client creation + read-only
-   * nonce fetch); dispatches remain refused by the gate inside submit.
    * @returns The section's result.
    */
   readonly #withVenueWriteLock = async <Result>(
@@ -4144,21 +4131,7 @@ export class LighterProvider implements PerpsProvider {
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
     generationAtIntent = this.#sessionGeneration,
-    allowMainnetSignerSetup = false,
   ): Promise<Result> => {
-    // INITIAL ROLLOUT GATE: every nonce-consuming venue write is limited
-    // to testnet until mainnet trading is validated end-to-end — the
-    // enablement flags alone must not be able to unlock unvalidated
-    // mainnet trading. Signer SETUP may enter on mainnet (client
-    // creation is bridge-local and the nonce fetch is read-only) so the
-    // auth token can be minted for authenticated mainnet reads; any
-    // dispatch it would attempt (key registration) is refused by the
-    // same gate inside `submit`.
-    if (!this.#isTestnet && !allowMainnetSignerSetup) {
-      throw new Error(
-        'Lighter mainnet trading is not enabled yet; venue writes are limited to testnet',
-      );
-    }
     const criticalSection = async (): Promise<Result> => {
       this.#assertSession(generationAtIntent);
       // Every unresolved prior dispatch (this session OR a previous one —
@@ -4224,14 +4197,6 @@ export class LighterProvider implements PerpsProvider {
         // Last fence before anything reaches the venue: a switch that
         // happened while SIGNING must abort before submission.
         this.#assertSession(generationAtIntent);
-        // Mainnet dispatch backstop: covers the signer-setup path that
-        // is allowed to ENTER the lock on mainnet — nothing may be
-        // submitted there.
-        if (!this.#isTestnet) {
-          throw new Error(
-            'Lighter mainnet trading is not enabled yet; venue writes are limited to testnet',
-          );
-        }
         // Record the dispatch DURABLY BEFORE anything else: a failed
         // ledger read/write means NO dispatch and an UNTOUCHED memory
         // floor — the nonce stays safely unissued at the venue. The

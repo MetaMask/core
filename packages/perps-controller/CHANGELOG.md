@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Lighter as a perps venue (initial implementation, disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889))
-  - `PerpsProviderType` gains `'lighter'`. Enablement requires client opt-in: `providerCredentials.lighter.enabled`, or the `perpsLighterProviderEnabled` remote feature flag combined with a client-supplied `providerCredentials.lighter.signerBridge` (without a bridge the provider is read-only). Venue writes are limited to testnet in this release; mainnet is read-only.
+  - `PerpsProviderType` gains `'lighter'`. Enablement requires client opt-in: `providerCredentials.lighter.enabled`, or the `perpsLighterProviderEnabled` remote feature flag combined with a client-supplied `providerCredentials.lighter.signerBridge` (without a bridge the provider is read-only). Lighter follows the global network toggle on both testnet and mainnet (reads and writes).
   - New Lighter types/constants exports, `KeyringController:signPersonalMessage` in the allowed messenger actions (type-only), and durable-settlement surfacing on the controller: `getPendingManualRecoveries`, `getRecoveredDispatches`, `acknowledgeRecoveredDispatch` actions with `PerpsPendingManualRecovery` / `PerpsRecoveredDispatch` exported types and `OrderResult.partialState`.
 
 ## [13.1.0]

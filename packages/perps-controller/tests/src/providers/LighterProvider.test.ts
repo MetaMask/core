@@ -626,20 +626,20 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('mainnet signer setup may create the bridge client, but key REGISTRATION is refused BEFORE any signature prompt', async () => {
-      // No registered key: registration can never succeed under the
-      // mainnet gate, so it is refused before the L1 personal_sign and
-      // the ChangePubKey signing — no pointless wallet/hardware prompt,
-      // nothing reaches the venue, readiness reports false.
+    it('mainnet signer setup registers the venue key exactly like testnet (rollout gate removed)', async () => {
+      // Mainnet trading is enabled: the ceremony is identical to testnet —
+      // client creation, ChangePubKey signing, and dispatch all proceed.
       const { provider, calls, clientInstance } = buildProvider({
         isTestnet: false,
       });
       const result = await provider.isReadyToTrade();
-      expect(result.ready).toBe(false);
-      expect(clientInstance.sendTx).not.toHaveBeenCalled();
-      expect(calls.map((call) => call.function)).toContain('_createClient');
-      expect(calls.map((call) => call.function)).not.toContain(
-        '_signChangePubKey',
+      expect(result.ready).toBe(true);
+      const callNames = calls.map((call) => call.function);
+      expect(callNames).toContain('_createClient');
+      expect(callNames).toContain('_signChangePubKey');
+      expect(clientInstance.sendTx).toHaveBeenCalledWith(
+        8,
+        expect.stringContaining('"changePubKey":true'),
       );
     });
 
@@ -9836,8 +9836,8 @@ describe('LighterProvider', () => {
       );
     });
   });
-  describe('mainnet rollout gate', () => {
-    it('mainnet venue writes are refused before any signing or dispatch', async () => {
+  describe('mainnet write parity', () => {
+    it('mainnet venue writes sign and dispatch exactly like testnet (rollout gate removed)', async () => {
       const built = buildProvider({
         isTestnet: false,
         registeredKey: '9c'.repeat(40),
@@ -9850,16 +9850,14 @@ describe('LighterProvider', () => {
         orderType: 'limit',
         price: '90000',
       });
-      expect(placed.success).toBe(false);
-      expect(placed.error).toContain('limited to testnet');
-      const withdrawn = await built.provider.withdraw({ amount: '10' });
-      expect(withdrawn.success).toBe(false);
-      expect(withdrawn.error).toContain('limited to testnet');
-      // Nothing was signed and nothing reached the venue.
-      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(placed.success).toBe(true);
       expect(
-        built.calls.filter((call) => call.function.startsWith('_sign')),
-      ).toHaveLength(0);
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+      expect(built.clientInstance.sendTx).toHaveBeenCalledWith(
+        14,
+        expect.stringContaining('"createOrder":true'),
+      );
     });
   });
 });
