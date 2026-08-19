@@ -233,7 +233,10 @@ function findDeclarationFromRootTypeNode(
  * type reads as its name rather than `import("<absolute path>").Name`.
  * @returns The label.
  */
-function summarizeType(type: Type, enclosingNode: TypeAliasDeclaration): string {
+function summarizeType(
+  type: Type,
+  enclosingNode: TypeAliasDeclaration,
+): string {
   const text = type.getText(enclosingNode).replace(/\s+/gu, ' ');
   return text.length > 80 ? `${text.slice(0, 77)}...` : text;
 }
