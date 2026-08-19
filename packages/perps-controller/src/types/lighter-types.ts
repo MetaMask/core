@@ -285,6 +285,8 @@ export type LighterApiPosition = {
   unrealizedPnl: string;
   realizedPnl: string;
   liquidationPrice: string;
+  /** 0 = cross, 1 = isolated. Older captures omit it (venue default cross). */
+  marginMode?: number;
 };
 
 /**

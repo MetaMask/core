@@ -920,6 +920,56 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('requires a price');
     });
 
+    it('opens a FLAT market with ISOLATED margin mode; an existing position keeps its venue mode', async () => {
+      // The app manages isolated positions only (no cross-margin UI): a
+      // flat market opens isolated — which also makes the venue report a
+      // real per-position liquidation price. The venue refuses changing
+      // the mode of a market with an open position, so an existing
+      // position keeps whatever mode it already has.
+      const { provider, clientInstance, bridge } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], position: '0.000' }],
+          },
+        ],
+      });
+      const realImplementation = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_signUpdateLeverage') {
+            return {
+              txInfo: JSON.stringify({
+                updateLeverage: true,
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: 'eeee999900000002',
+            };
+          }
+          return realImplementation(call);
+        },
+      );
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        leverage: 10,
+      });
+      expect(result.success).toBe(true);
+      const leverageCall = (bridge.execute as jest.Mock).mock.calls.find(
+        ([call]: [LighterWasmCall]) => call.function === '_signUpdateLeverage',
+      )?.[0] as LighterWasmCall;
+      expect(leverageCall).toBeDefined();
+      // marginMode param: 1 = isolated on a flat market.
+      expect(leverageCall.params[3]).toBe(1);
+    });
+
     it('rejects unsupported order types', async () => {
       const { provider } = buildProvider();
       const result = await provider.placeOrder({
