@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KycController.getCustomerIdentity()` (and `KycCustomerIdentity`) returning the vendor-scoped `{ vendor, id }` for the current session, or `null` before authentication and after `reset()`. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Extend `KycProduct` with `'money'` and `KycVendor` with `'iron'`. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Add `KycUserStatus` / `KycUserStatusResponse` types for the simplified `GET /kyc/status` payload. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Add persisted `termsAcceptedVendor` state recording which vendor's disclaimers `acceptedDisclaimerIds` belong to, so stored acceptance is only reused for that vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 
 ### Changed
 

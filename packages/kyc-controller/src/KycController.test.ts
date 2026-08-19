@@ -320,6 +320,28 @@ describe('KycController', () => {
       );
     });
 
+    it('creates a session when called without arguments', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
+
+          await controller.acceptTermsAndStartSession();
+
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(controller.state.phase).toBe('check');
+        },
+      );
+    });
+
     it('clears stale auth tokens when a new session is created', async () => {
       await withController(
         {
@@ -2015,6 +2037,7 @@ describe('KycController', () => {
             state: {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['d1'],
+              termsAcceptedVendor: 'iron',
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -2035,6 +2058,133 @@ describe('KycController', () => {
           expect(handlers.submitConsents).toHaveBeenCalled();
           expect(handlers.createSession).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('done');
+          controller.reset();
+        },
+      );
+    });
+
+    it('does not reuse MoonPay terms acceptance for a consents-path vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchDisclaimers.mockResolvedValue([
+            { id: 'iron-d1', display_name: 'T', url: 'u' },
+          ]);
+
+          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+          expect(handlers.submitConsents).not.toHaveBeenCalled();
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.termsAcceptedVendor).toBeNull();
+          expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            country: 'USA',
+          });
+          expect(controller.state.phase).toBe('terms');
+        },
+      );
+    });
+
+    it('does not reuse consents-path terms acceptance for MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['iron-d1'],
+              termsAcceptedVendor: 'iron',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.initialize({ email: 'a@b.co', vendor: 'moonpay' });
+
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.phase).toBe('terms');
+        },
+      );
+    });
+
+    it('drops another vendor terms acceptance when createVendorCustomer switches vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.termsAcceptedVendor).toBeNull();
+        },
+      );
+    });
+
+    it('keeps terms acceptance when createVendorCustomer stays on the same vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['iron-d1'],
+              termsAcceptedVendor: 'iron',
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'iron-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('iron');
+        },
+      );
+    });
+
+    it('stamps the active vendor onto the terms acceptance', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+
+          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+
+          expect(controller.state.termsAcceptedVendor).toBe('iron');
           controller.reset();
         },
       );
@@ -2609,6 +2759,44 @@ describe('KycController', () => {
           expect(result.status).toBe('pending');
         },
       );
+    });
+
+    it('does not restart polling when reset lands during refresh', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          {
+            options: {
+              state: { userStatus: 'pending' },
+              userStatusPollIntervalMs: 1000,
+            },
+          },
+          async ({ controller, handlers, rootMessenger }) => {
+            const listener = jest.fn();
+            rootMessenger.subscribe('KycController:statusChanged', listener);
+            let release: (value: { status: string }) => void = () => {
+              // placeholder
+            };
+            handlers.fetchKycStatus.mockReturnValue(
+              new Promise((resolve) => {
+                release = resolve;
+              }),
+            );
+
+            const pending = controller.refreshKycStatus();
+            controller.reset();
+            release({ status: 'pending' });
+            await pending;
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(3000);
+
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+            expect(listener).not.toHaveBeenCalled();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('defaults superseded refresh status to not-started when unset', async () => {

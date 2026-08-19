@@ -172,6 +172,7 @@ classDiagram
         +string email
         +string termsAcceptedAt [persisted]
         +string[] acceptedDisclaimerIds [persisted]
+        +KycVendor termsAcceptedVendor [persisted]
         +KycDisclaimer[] disclaimers
         +string disclaimersError
         +string geoCountry
@@ -199,8 +200,11 @@ classDiagram
 State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `termsAcceptedAt`, `acceptedDisclaimerIds`,
-  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
-  can skip already-accepted terms and reuse cached results.
+  `termsAcceptedVendor`, `kycRequiredByProduct`, `lastCheckedAt`. These survive
+  restarts so the flow can skip already-accepted terms and reuse cached results.
+  Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
+  the stored acceptance when it belongs to a different vendor, so one vendor's
+  disclaimer ids are never submitted to another.
 - **Secrets, never persisted / never logged**: `sessionToken`, `accessToken`,
   `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
 - Additional non-state secrets kept **off** the state object entirely: the

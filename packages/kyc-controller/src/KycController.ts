@@ -142,6 +142,12 @@ export type KycControllerState = {
   termsAcceptedAt: string | null;
   /** IDs of the disclaimers the customer accepted (persisted). */
   acceptedDisclaimerIds: string[];
+  /**
+   * The vendor whose disclaimers `acceptedDisclaimerIds` belong to (persisted).
+   * Each vendor serves its own disclaimer set, so acceptance recorded for one
+   * vendor must not be reused for another. `null` when nothing is accepted.
+   */
+  termsAcceptedVendor: KycVendor | null;
 
   /** Disclaimers fetched for the current country. */
   disclaimers: KycDisclaimer[];
@@ -236,6 +242,12 @@ const kycControllerMetadata = {
     usedInUi: false,
   },
   acceptedDisclaimerIds: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  termsAcceptedVendor: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -340,6 +352,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     email: null,
     termsAcceptedAt: null,
     acceptedDisclaimerIds: [],
+    termsAcceptedVendor: null,
     disclaimers: [],
     disclaimersError: null,
     geoCountry: null,
@@ -666,6 +679,12 @@ export class KycController extends BaseController<
       if (params?.email) {
         state.email = params.email;
       }
+      // Terms acceptance is vendor-scoped: reusing another vendor's saved
+      // acceptance would skip loading this vendor's disclaimers and submit its
+      // ids to the wrong vendor.
+      if (!this.#hasTermsForVendor(vendor)) {
+        this.#clearAcceptedTerms(state);
+      }
       state.activeVendor = vendor;
       // `moonpayCustomerId` is only ever issued by the MoonPay Check / Auth
       // frames. Leaving it set while the flow switches to another vendor would
@@ -746,10 +765,13 @@ export class KycController extends BaseController<
   }): Promise<void> {
     this.#applyUpdate((state) => {
       state.email = params.email;
+      // See `initialize`: acceptance recorded for another vendor cannot carry
+      // over, and a MoonPay-issued customer id must not survive a switch to
+      // another vendor or `getCustomerIdentity` reports the wrong vendor.
+      if (!this.#hasTermsForVendor(params.vendor)) {
+        this.#clearAcceptedTerms(state);
+      }
       state.activeVendor = params.vendor;
-      // See `initialize`: a MoonPay-issued customer id must not survive a
-      // switch to another vendor, or `getCustomerIdentity` reports the wrong
-      // vendor.
       if (params.vendor !== 'moonpay') {
         state.moonpayCustomerId = null;
       }
@@ -811,7 +833,7 @@ export class KycController extends BaseController<
    * Captures terms acceptance for the currently loaded disclaimers and creates
    * a session.
    *
-   * @param params - The parameters.
+   * @param params - Optional parameters.
    * @param params.email - The account email to associate with the session.
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
@@ -821,7 +843,7 @@ export class KycController extends BaseController<
    * @param params.idosTncSigned - Consents-path vendors: whether idOS T&C
    * were accepted (T&C2). Ignored for MoonPay.
    */
-  async acceptTermsAndStartSession(params: {
+  async acceptTermsAndStartSession(params?: {
     email?: string;
     product?: KycProduct;
     sumsubTncSigned?: boolean;
@@ -832,19 +854,20 @@ export class KycController extends BaseController<
       (disclaimer) => disclaimer.id,
     );
     this.#applyUpdate((state) => {
-      if (params.email) {
+      if (params?.email) {
         state.email = params.email;
       }
-      if (params.product) {
+      if (params?.product) {
         state.activeProduct = params.product;
       }
       state.termsAcceptedAt = termsAcceptedAt;
       state.acceptedDisclaimerIds = disclaimerIds;
+      state.termsAcceptedVendor = state.activeVendor;
     });
     if (usesConsentsFlow(this.state.activeVendor)) {
       await this.#startConsentsSession({
-        sumsubTncSigned: params.sumsubTncSigned ?? true,
-        idosTncSigned: params.idosTncSigned ?? true,
+        sumsubTncSigned: params?.sumsubTncSigned ?? true,
+        idosTncSigned: params?.idosTncSigned ?? true,
       });
       return;
     }
@@ -1026,6 +1049,19 @@ export class KycController extends BaseController<
   #clearAcceptedTerms(state: KycControllerState): void {
     state.termsAcceptedAt = null;
     state.acceptedDisclaimerIds = [];
+    state.termsAcceptedVendor = null;
+  }
+
+  /**
+   * Determines whether the stored terms acceptance belongs to the given
+   * vendor. Acceptance persisted before `termsAcceptedVendor` existed is
+   * treated as MoonPay's, matching the only vendor available at the time.
+   *
+   * @param vendor - The vendor about to drive the flow.
+   * @returns `true` when the stored acceptance can be reused for `vendor`.
+   */
+  #hasTermsForVendor(vendor: KycVendor): boolean {
+    return (this.state.termsAcceptedVendor ?? 'moonpay') === vendor;
   }
 
   /**
@@ -1646,7 +1682,15 @@ export class KycController extends BaseController<
     sumsubSessionId: string | null;
     errorCode: string | null;
   }> {
+    const generation = this.#generation;
     const payload = await this.#fetchAndApplyUserStatus();
+    // A `reset()` landing while the request was in flight already stopped
+    // polling and left the flow idle, and the payload above is the pre-reset
+    // cached status. Starting a loop from it would poll — and publish
+    // `statusChanged` — on a torn-down flow.
+    if (this.#generation !== generation) {
+      return payload;
+    }
     if (payload.status === 'pending') {
       this.#ensureUserStatusPolling();
     } else {

@@ -53,7 +53,7 @@ export type KycControllerLoadDisclaimersAction = {
  * Captures terms acceptance for the currently loaded disclaimers and creates
  * a session.
  *
- * @param params - The parameters.
+ * @param params - Optional parameters.
  * @param params.email - The account email to associate with the session.
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
