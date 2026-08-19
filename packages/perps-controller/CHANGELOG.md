@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `resolvePositionTriggerSummaryPrice` to `@metamask/perps-controller/utils`, which resolves the scalar TP/SL summary price a position reports for one direction from its trigger orders ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `resolvePositionTriggerSummaryPrice` to `@metamask/perps-controller/utils`, which resolves the scalar TP/SL summary price a position reports for one direction from its trigger orders ([#9912](https://github.com/MetaMask/core/pull/9912))
 
 ### Fixed
 
-- Report the take profit (or stop loss) price on a `Position` when its only trigger for that direction is a partial, quantity-scoped one ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Report the take profit (or stop loss) price on a `Position` when its only trigger for that direction is a partial, quantity-scoped one ([#9912](https://github.com/MetaMask/core/pull/9912))
   - `takeProfitPrice`/`stopLossPrice` were only ever scanned from position-bound triggers, so a position whose sole take profit closed it partially reported `takeProfitCount: 1` with no price, and clients rendering the scalar showed none. Applies to the REST `getPositions`, `getUserDataSnapshot`, and WebSocket position paths alike.
   - Two or more triggers in a direction still report the scanned price, because no single price describes them and clients render the count instead.
 
