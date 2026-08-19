@@ -872,7 +872,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // Telemetry failures must not affect quote fetching or state updates.
       }
     };
-    const traceProviderFirstResult = async (
+    const traceProviderFirstResult = (
       providerData: Parameters<typeof formatProviderLabel>[0],
     ) => {
       const provider = formatProviderLabel(providerData);
@@ -880,7 +880,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
       tracedProviders.add(provider);
-      await traceWithoutImpact({
+      traceWithoutImpact({
         name: TraceName.QuoteProviderFirstResult,
         startTime: quoteTraceStartTime,
         data: {
@@ -895,7 +895,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
           result: 'success',
         },
-      });
+      }).catch(() => undefined);
     };
 
     try {
@@ -931,7 +931,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           quoteAbortSignal,
         );
         for (const quote of quotes) {
-          await traceProviderFirstResult(quote.quote);
+          traceProviderFirstResult(quote.quote);
         }
         this.update((state) => {
           // Set the initial load time if this is the first fetch
@@ -1034,7 +1034,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     signal?: AbortSignal;
     traceProviderFirstResult: (
       providerData: Parameters<typeof formatProviderLabel>[0],
-    ) => Promise<void>;
+    ) => void;
   }): Promise<number> => {
     /**
      * Tracks the number of valid quotes received from the current stream, which is used
@@ -1059,7 +1059,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         onQuoteValidationFailure: (validationFailures) =>
           this.#trackQuoteValidationFailures(validationFailures, featureId),
         onValidQuoteReceived: async (quote: QuoteResponse) => {
-          await traceProviderFirstResult(quote.quote);
+          traceProviderFirstResult(quote.quote);
 
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
