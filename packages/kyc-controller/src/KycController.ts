@@ -1458,10 +1458,8 @@ export class KycController extends BaseController<
    */
   #applyUpdate(updater: (state: KycControllerState) => void): void {
     this.update((state) => {
-      // `@ts-expect-error` cannot be used: ts-bridge does not surface
-      // TS2589, so the directive is unused and fails the build.
-      // type issue only happens at the IDE level.
-      updater(state as unknown as KycControllerState);
+      // @ts-expect-error Avoid "type instantiation is excessively deep".
+      updater(state);
     });
   }
 
