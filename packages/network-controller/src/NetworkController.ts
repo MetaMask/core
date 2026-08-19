@@ -42,7 +42,6 @@ import {
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import {
-  add0x,
   hasProperty,
   isPlainObject,
   isStrictHexString,
