@@ -273,6 +273,10 @@ export type AddressScanResult = {
    * Additional label or description for the result
    */
   label: string;
+  /**
+   * The vendors that flagged the address during the scan.
+   */
+  address_alert_response_flagged_by: string[];
 };
 
 /**
@@ -281,6 +285,7 @@ export type AddressScanResult = {
 export type AddressScanCacheData = {
   result_type: AddressScanResultType;
   label: string;
+  address_alert_response_flagged_by: string[];
 };
 
 /**

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `address_alert_response_flagged_by` to address scan results, exposing the security-alert vendors that flagged an address
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
@@ -630,7 +634,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - `src/third-party/PhishingController.ts`
     - `src/third-party/PhishingController.test.ts`
 
