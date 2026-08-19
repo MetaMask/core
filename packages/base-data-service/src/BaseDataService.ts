@@ -101,10 +101,6 @@ export type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
-type AdditionalQueryOptions<QueryFnData> = {
-  struct?: Struct<QueryFnData>;
-};
-
 // Defaults to apply to all data service queries if no default option specified
 const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
   queries: {
@@ -262,7 +258,10 @@ export class BaseDataService<
   protected async fetchQuery<
     TQueryFnData extends Json,
     TError = DefaultError,
-    TData = TQueryFnData,
+    TStruct extends Struct<TQueryFnData> | undefined = undefined,
+    TData = TStruct extends Struct<infer StructType>
+      ? StructType
+      : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
   >({
     struct,
@@ -275,7 +274,8 @@ export class BaseDataService<
     'queryKey'
   > & {
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
-  } & AdditionalQueryOptions<TQueryFnData>): Promise<TData> {
+    struct?: TStruct;
+  }): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: (context) =>
@@ -299,7 +299,10 @@ export class BaseDataService<
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
     TError = DefaultError,
-    TData extends TQueryFnData = TQueryFnData,
+    TStruct extends Struct<TQueryFnData> | undefined = undefined,
+    TData extends TQueryFnData = TStruct extends Struct<infer StructType>
+      ? StructType
+      : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
@@ -321,7 +324,8 @@ export class BaseDataService<
     > &
       InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
         queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
-      } & AdditionalQueryOptions<TQueryFnData>,
+        struct?: TStruct;
+      },
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
