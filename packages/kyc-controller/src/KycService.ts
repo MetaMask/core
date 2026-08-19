@@ -513,8 +513,8 @@ export class KycService extends BaseDataService<
       queryKey: [
         `${this.name}:checkKycRequired`,
         vendor,
-        params.accessToken,
-        params.country,
+        params.accessToken ?? null,
+        params.country ?? null,
         capabilities,
       ],
       queryFn: async () =>
