@@ -610,10 +610,10 @@ export const PROVIDER_CONFIG = {
   MYX_TESTNET_ONLY: false,
   /**
    * Force Lighter to testnet only. Off: Lighter follows the global network
-   * toggle so mainnet reads (full market catalog, prices, candles) work;
-   * every nonce-consuming write is refused on mainnet by the gate at the
-   * top of LighterProvider's venue write lock until mainnet trading is
-   * validated end-to-end.
+   * toggle — mainnet reads AND writes are enabled (the initial rollout
+   * write gate was removed once the write path was validated end-to-end
+   * on testnet). Flip on to pin Lighter to testnet regardless of the
+   * global network toggle.
    */
   LIGHTER_TESTNET_ONLY: false,
 } as const;
