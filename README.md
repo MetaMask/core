@@ -677,6 +677,7 @@ linkStyle default opacity:0.5
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> config_registry_controller;
   wallet_cli --> messenger;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
