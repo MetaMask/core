@@ -53,17 +53,15 @@ export type KycControllerLoadDisclaimersAction = {
  * Captures terms acceptance for the currently loaded disclaimers and creates
  * a session.
  *
- * @param params - Optional parameters.
+ * @param params - The parameters.
  * @param params.email - The account email to associate with the session.
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
- * @param params.sumsubTncSigned - Consents-path vendors: whether Sumsub
- * T&C were accepted (T&C2). Required on the consents path; ignored for
- * MoonPay.
- * @param params.idosTncSigned - Consents-path vendors: whether idOS T&C
- * were accepted (T&C2). Required on the consents path; ignored for
- * MoonPay.
+ * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
+ * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
+ * Required for every vendor so callers explicitly declare acceptance.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;

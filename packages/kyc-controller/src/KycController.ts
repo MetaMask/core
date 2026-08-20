@@ -873,69 +873,53 @@ export class KycController extends BaseController<
    * Captures terms acceptance for the currently loaded disclaimers and creates
    * a session.
    *
-   * @param params - Optional parameters.
+   * @param params - The parameters.
    * @param params.email - The account email to associate with the session.
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
-   * @param params.sumsubTncSigned - Consents-path vendors: whether Sumsub
-   * T&C were accepted (T&C2). Required on the consents path; ignored for
-   * MoonPay.
-   * @param params.idosTncSigned - Consents-path vendors: whether idOS T&C
-   * were accepted (T&C2). Required on the consents path; ignored for
-   * MoonPay.
+   * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
+   * Required for every vendor so callers explicitly declare acceptance.
+   * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
+   * Required for every vendor so callers explicitly declare acceptance.
    */
-  async acceptTermsAndStartSession(params?: {
+  async acceptTermsAndStartSession(params: {
     email?: string;
     product?: KycProduct;
-    sumsubTncSigned?: boolean;
-    idosTncSigned?: boolean;
+    sumsubTncSigned: boolean;
+    idosTncSigned: boolean;
   }): Promise<void> {
-    const persistTerms = (
-      sumsubTncAccepted: boolean | null,
-      idosTncAccepted: boolean | null,
-    ): void => {
-      const termsAcceptedAt = new Date().toISOString();
-      const disclaimerIds = this.state.disclaimers.map(
-        (disclaimer) => disclaimer.id,
-      );
-      this.#applyUpdate((state) => {
-        if (params?.email) {
-          state.email = params.email;
-        }
-        if (params?.product) {
-          state.activeProduct = params.product;
-        }
-        state.termsAcceptedAt = termsAcceptedAt;
-        state.acceptedDisclaimerIds = disclaimerIds;
-        state.termsAcceptedVendor = state.activeVendor;
-        // Persist the caller's T&C2 flags so consents-path resume can reuse
-        // them. Omitted flags stay `null` (MoonPay does not use T&C2) rather
-        // than defaulting to `true`, which would invent acceptance.
-        state.sumsubTncAccepted = sumsubTncAccepted;
-        state.idosTncAccepted = idosTncAccepted;
-      });
-    };
-
-    if (usesConsentsFlow(this.state.activeVendor)) {
-      const sumsubTncSigned = params?.sumsubTncSigned;
-      const idosTncSigned = params?.idosTncSigned;
-      if (
-        typeof sumsubTncSigned !== 'boolean' ||
-        typeof idosTncSigned !== 'boolean'
-      ) {
-        this.#fail('Missing T&C2 acceptance flags.');
-        return;
-      }
-      persistTerms(sumsubTncSigned, idosTncSigned);
-      await this.#startConsentsSession({ sumsubTncSigned, idosTncSigned });
+    const sumsubTncSigned = params?.sumsubTncSigned;
+    const idosTncSigned = params?.idosTncSigned;
+    if (
+      typeof sumsubTncSigned !== 'boolean' ||
+      typeof idosTncSigned !== 'boolean'
+    ) {
+      this.#fail('Missing T&C2 acceptance flags.');
       return;
     }
 
-    persistTerms(
-      params?.sumsubTncSigned ?? null,
-      params?.idosTncSigned ?? null,
+    const termsAcceptedAt = new Date().toISOString();
+    const disclaimerIds = this.state.disclaimers.map(
+      (disclaimer) => disclaimer.id,
     );
+    this.#applyUpdate((state) => {
+      if (params.email) {
+        state.email = params.email;
+      }
+      if (params.product) {
+        state.activeProduct = params.product;
+      }
+      state.termsAcceptedAt = termsAcceptedAt;
+      state.acceptedDisclaimerIds = disclaimerIds;
+      state.termsAcceptedVendor = state.activeVendor;
+      state.sumsubTncAccepted = sumsubTncSigned;
+      state.idosTncAccepted = idosTncSigned;
+    });
+    if (usesConsentsFlow(this.state.activeVendor)) {
+      await this.#startConsentsSession({ sumsubTncSigned, idosTncSigned });
+      return;
+    }
     await this.#createSession();
   }
 

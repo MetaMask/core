@@ -224,7 +224,7 @@ stateDiagram-v2
     idle --> terms : initialize() (no saved terms)
     idle --> session : initialize() (saved terms + email)
 
-    terms --> session : acceptTermsAndStartSession()
+    terms --> session : acceptTermsAndStartSession({ sumsubTncSigned, idosTncSigned })
     session --> check : createSession() ok
     session --> terms : createSession() fails<br/>(clears saved terms, activeProduct + stale tokens)
 
@@ -256,9 +256,10 @@ stateDiagram-v2
 > **Non-MoonPay vendors use a consents path.** `initialize({ vendor: 'iron' })`
 > creates an empty-shell customer, loads vendor disclaimers, and — after terms
 > are accepted — posts consents and launches SumSub. MoonPay Check/Auth frames
-> are skipped; `phase` moves `terms → session → submit → done`. Consents-path
+> are skipped; `phase` moves `terms → session → submit → done`.
 > `acceptTermsAndStartSession` requires `sumsubTncSigned` and `idosTncSigned`
-> (T&C2); omitted flags fail the flow instead of defaulting to `true`.
+> (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
+> `true`.
 
 > **`initialize` never tears down an active flow.** If `phase` is already one of
 > the in-progress phases (`session`, `check`, `auth`, `form`, `submit`), a
@@ -315,7 +316,7 @@ sequenceDiagram
     Svc->>API: GET /disclaimers
     Ctrl-->>UI: phase = terms (+ disclaimers)
 
-    User->>Ctrl: acceptTermsAndStartSession({ email })
+    User->>Ctrl: acceptTermsAndStartSession({ email, sumsubTncSigned, idosTncSigned })
     Ctrl->>Svc: createSession({ email, termsAcceptedAt, disclaimerIds })
     Svc->>API: POST /sessions
     Ctrl-->>UI: phase = check (+ sessionToken)

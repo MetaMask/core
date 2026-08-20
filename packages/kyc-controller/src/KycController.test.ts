@@ -324,7 +324,29 @@ describe('KycController', () => {
       );
     });
 
-    it('creates a session when called without arguments', async () => {
+    it('fails when T&C2 flags are omitted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          // @ts-expect-error T&C2 flags are required
+          await controller.acceptTermsAndStartSession();
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(handlers.createSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('persists required T&C2 flags on a MoonPay session', async () => {
       await withController(
         {
           options: {
@@ -337,12 +359,15 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
 
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
           expect(controller.state.termsAcceptedVendor).toBe('moonpay');
-          expect(controller.state.sumsubTncAccepted).toBeNull();
-          expect(controller.state.idosTncAccepted).toBeNull();
+          expect(controller.state.sumsubTncAccepted).toBe(true);
+          expect(controller.state.idosTncAccepted).toBe(true);
           expect(controller.state.phase).toBe('check');
         },
       );
@@ -2331,6 +2356,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
+          // @ts-expect-error T&C2 flags are required
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
@@ -2355,6 +2381,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
+          // @ts-expect-error both T&C2 flags are required
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             sumsubTncSigned: true,
