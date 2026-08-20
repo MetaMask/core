@@ -851,15 +851,12 @@ describe('PerpsController', () => {
   describe('perps mode', () => {
     it('defaults to lite mode', () => {
       expect(controller.state.mode).toBe(PerpsMode.Lite);
-      expect(controller.state.hasEnteredProMode).toBe(false);
     });
 
-    it('shows the chart on the first switch to pro mode', () => {
+    it('sets the mode to pro', () => {
       controller.setPerpsMode(PerpsMode.Pro);
 
       expect(controller.state.mode).toBe(PerpsMode.Pro);
-      expect(controller.state.hasEnteredProMode).toBe(true);
-      expect(controller.getProLayoutPreferences().chartExpanded).toBe(true);
     });
 
     it('sets the mode back to lite', () => {
@@ -867,55 +864,6 @@ describe('PerpsController', () => {
       controller.setPerpsMode(PerpsMode.Lite);
 
       expect(controller.state.mode).toBe(PerpsMode.Lite);
-    });
-
-    it('preserves a hidden chart on subsequent switches to pro mode', () => {
-      controller.setPerpsMode(PerpsMode.Pro);
-      controller.setProLayoutPreferences({ chartExpanded: false });
-      controller.setPerpsMode(PerpsMode.Lite);
-
-      controller.setPerpsMode(PerpsMode.Pro);
-
-      expect(controller.getProLayoutPreferences().chartExpanded).toBe(false);
-    });
-
-    it('preserves a visible chart on subsequent switches to pro mode', () => {
-      controller.setPerpsMode(PerpsMode.Pro);
-      controller.setPerpsMode(PerpsMode.Lite);
-
-      controller.setPerpsMode(PerpsMode.Pro);
-
-      expect(controller.getProLayoutPreferences().chartExpanded).toBe(true);
-    });
-
-    it('does not overwrite a hidden chart when setting pro mode twice', () => {
-      controller.setPerpsMode(PerpsMode.Pro);
-      controller.setProLayoutPreferences({ chartExpanded: false });
-
-      controller.setPerpsMode(PerpsMode.Pro);
-
-      expect(controller.getProLayoutPreferences().chartExpanded).toBe(false);
-    });
-
-    it('preserves a legacy user hidden-chart preference after upgrading', () => {
-      const legacyController = new TestablePerpsController({
-        messenger: createMockMessenger(),
-        state: {
-          mode: PerpsMode.Lite,
-          proLayoutPreferences: {
-            ...getDefaultPerpsControllerState().proLayoutPreferences,
-            chartExpanded: false,
-          },
-        },
-        infrastructure: mockInfrastructure,
-      });
-
-      legacyController.setPerpsMode(PerpsMode.Pro);
-
-      expect(legacyController.state.hasEnteredProMode).toBe(true);
-      expect(legacyController.getProLayoutPreferences().chartExpanded).toBe(
-        false,
-      );
     });
   });
 
