@@ -372,6 +372,95 @@ describe('TerminalMarketService', () => {
       expect(metadata.get('FOO')?.marketType).toBeUndefined();
     });
 
+    it('maps Terminal category pre_ipo to marketType pre-ipo when marketType is absent', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'xyz:UNITREE',
+              name: 'Unitree Technology',
+              category: 'pre_ipo',
+            },
+            {
+              symbol: 'xyz:CXMT',
+              name: 'ChangXin Technology',
+              category: 'pre_ipo',
+            },
+            {
+              symbol: 'xyz:SKHY',
+              name: 'SK Hynix ADR',
+              category: 'pre_ipo',
+            },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('xyz:UNITREE')?.marketType).toBe('pre-ipo');
+      expect(metadata.get('xyz:CXMT')?.marketType).toBe('pre-ipo');
+      expect(metadata.get('xyz:SKHY')?.marketType).toBe('pre-ipo');
+    });
+
+    it('prefers explicit marketType over category pre_ipo', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'xyz:UNITREE',
+              name: 'Unitree Technology',
+              category: 'pre_ipo',
+              marketType: 'stock',
+            },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('xyz:UNITREE')?.marketType).toBe('stock');
+    });
+
+    it('maps Terminal category stocks to marketType stock when marketType is absent', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'xyz:CBRS',
+              name: 'Cerebras Systems',
+              category: 'stocks',
+            },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('xyz:CBRS')?.marketType).toBe('stock');
+    });
+
+    it('does not map an unknown Terminal category to marketType', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            { symbol: 'xyz:FOO', name: 'Foo', category: 'unknown' },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('xyz:FOO')?.marketType).toBeUndefined();
+    });
+
     it('uses defaults for missing numeric fields', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
