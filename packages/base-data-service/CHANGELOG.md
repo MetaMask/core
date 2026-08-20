@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent `fetchInfiniteQuery` from duplicating a page when re-fetching a page param that is already present in the cache ([#9900](https://github.com/MetaMask/core/issues/9900))
+- Prevent `fetchInfiniteQuery` from duplicating a page when re-fetching a page param that is already present in the cache ([#9915](https://github.com/MetaMask/core/pull/9915), [#9900](https://github.com/MetaMask/core/issues/9900))
   - The fresh page now replaces the cached one in place instead of being appended or prepended, which previously left duplicate, out-of-order pages in the cache.
 
 ## [0.1.3]
