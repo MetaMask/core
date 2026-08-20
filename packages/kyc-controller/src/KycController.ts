@@ -879,9 +879,11 @@ export class KycController extends BaseController<
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
    * @param params.sumsubTncSigned - Consents-path vendors: whether Sumsub
-   * T&C were accepted (T&C2). Ignored for MoonPay.
+   * T&C were accepted (T&C2). Required on the consents path; ignored for
+   * MoonPay.
    * @param params.idosTncSigned - Consents-path vendors: whether idOS T&C
-   * were accepted (T&C2). Ignored for MoonPay.
+   * were accepted (T&C2). Required on the consents path; ignored for
+   * MoonPay.
    */
   async acceptTermsAndStartSession(params?: {
     email?: string;
@@ -889,33 +891,51 @@ export class KycController extends BaseController<
     sumsubTncSigned?: boolean;
     idosTncSigned?: boolean;
   }): Promise<void> {
-    const termsAcceptedAt = new Date().toISOString();
-    const disclaimerIds = this.state.disclaimers.map(
-      (disclaimer) => disclaimer.id,
-    );
-    this.#applyUpdate((state) => {
-      if (params?.email) {
-        state.email = params.email;
-      }
-      if (params?.product) {
-        state.activeProduct = params.product;
-      }
-      state.termsAcceptedAt = termsAcceptedAt;
-      state.acceptedDisclaimerIds = disclaimerIds;
-      state.termsAcceptedVendor = state.activeVendor;
-      // Persist T&C2 flags so consents-path resume can reuse them. Default to
-      // true for MoonPay (which doesn't use these flags) to avoid forcing
-      // reacceptance on MoonPay→Iron switches.
-      state.sumsubTncAccepted = params?.sumsubTncSigned ?? true;
-      state.idosTncAccepted = params?.idosTncSigned ?? true;
-    });
-    if (usesConsentsFlow(this.state.activeVendor)) {
-      await this.#startConsentsSession({
-        sumsubTncSigned: params?.sumsubTncSigned ?? true,
-        idosTncSigned: params?.idosTncSigned ?? true,
+    const persistTerms = (
+      sumsubTncAccepted: boolean | null,
+      idosTncAccepted: boolean | null,
+    ): void => {
+      const termsAcceptedAt = new Date().toISOString();
+      const disclaimerIds = this.state.disclaimers.map(
+        (disclaimer) => disclaimer.id,
+      );
+      this.#applyUpdate((state) => {
+        if (params?.email) {
+          state.email = params.email;
+        }
+        if (params?.product) {
+          state.activeProduct = params.product;
+        }
+        state.termsAcceptedAt = termsAcceptedAt;
+        state.acceptedDisclaimerIds = disclaimerIds;
+        state.termsAcceptedVendor = state.activeVendor;
+        // Persist the caller's T&C2 flags so consents-path resume can reuse
+        // them. Omitted flags stay `null` (MoonPay does not use T&C2) rather
+        // than defaulting to `true`, which would invent acceptance.
+        state.sumsubTncAccepted = sumsubTncAccepted;
+        state.idosTncAccepted = idosTncAccepted;
       });
+    };
+
+    if (usesConsentsFlow(this.state.activeVendor)) {
+      const sumsubTncSigned = params?.sumsubTncSigned;
+      const idosTncSigned = params?.idosTncSigned;
+      if (
+        typeof sumsubTncSigned !== 'boolean' ||
+        typeof idosTncSigned !== 'boolean'
+      ) {
+        this.#fail('Missing T&C2 acceptance flags.');
+        return;
+      }
+      persistTerms(sumsubTncSigned, idosTncSigned);
+      await this.#startConsentsSession({ sumsubTncSigned, idosTncSigned });
       return;
     }
+
+    persistTerms(
+      params?.sumsubTncSigned ?? null,
+      params?.idosTncSigned ?? null,
+    );
     await this.#createSession();
   }
 

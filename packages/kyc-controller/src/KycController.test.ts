@@ -341,6 +341,8 @@ describe('KycController', () => {
 
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
           expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(controller.state.sumsubTncAccepted).toBeNull();
+          expect(controller.state.idosTncAccepted).toBeNull();
           expect(controller.state.phase).toBe('check');
         },
       );
@@ -2219,9 +2221,15 @@ describe('KycController', () => {
             return { ok: true };
           });
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.termsAcceptedVendor).toBe('iron');
+          expect(controller.state.sumsubTncAccepted).toBe(true);
+          expect(controller.state.idosTncAccepted).toBe(true);
           controller.reset();
         },
       );
@@ -2312,7 +2320,54 @@ describe('KycController', () => {
       );
     });
 
-    it('defaults omitted T&C2 flags to true on the consents path', async () => {
+    it('fails the consents path when T&C2 flags are omitted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(handlers.submitConsents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fails the consents path when only one T&C2 flag is provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
+          expect(handlers.submitConsents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('submits explicit T&C2 false flags on the consents path', async () => {
       await withController(
         {
           options: {
@@ -2332,13 +2387,17 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
+            sumsubTncSigned: false,
+            idosTncSigned: false,
           });
 
           expect(handlers.submitConsents).toHaveBeenCalledWith({
             disclaimerIds: ['d1'],
-            sumsubTncSigned: true,
-            idosTncSigned: true,
+            sumsubTncSigned: false,
+            idosTncSigned: false,
           });
+          expect(controller.state.sumsubTncAccepted).toBe(false);
+          expect(controller.state.idosTncAccepted).toBe(false);
           controller.reset();
         },
       );

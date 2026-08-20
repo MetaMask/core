@@ -59,9 +59,11 @@ export type KycControllerLoadDisclaimersAction = {
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
  * @param params.sumsubTncSigned - Consents-path vendors: whether Sumsub
- * T&C were accepted (T&C2). Ignored for MoonPay.
+ * T&C were accepted (T&C2). Required on the consents path; ignored for
+ * MoonPay.
  * @param params.idosTncSigned - Consents-path vendors: whether idOS T&C
- * were accepted (T&C2). Ignored for MoonPay.
+ * were accepted (T&C2). Required on the consents path; ignored for
+ * MoonPay.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
