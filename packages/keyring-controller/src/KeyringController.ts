@@ -1376,6 +1376,7 @@ export class KeyringController<
           try {
             wallet = importers.fromEtherWallet(input, password);
           } catch {
+            // @ts-expect-error: Wallet.fromV3 does not exist?
             wallet = wallet ?? (await Wallet.fromV3(input, password, true));
           }
           privateKey = bytesToHex(new Uint8Array(wallet.getPrivateKey()));

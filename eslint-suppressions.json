@@ -594,7 +594,7 @@
       "count": 25
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
+      "count": 2
     },
     "no-negated-condition": {
       "count": 1
