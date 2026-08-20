@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
 ### Changed
 
 - **BREAKING:** Subscribe to `AccountTreeController:initialized` / `:uninitialized` (typed as `AccountTreeControllerInitializedEvent` / `AccountTreeControllerUninitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()` or on unlock before the tree is ready ([#9892](https://github.com/MetaMask/core/pull/9892))
@@ -922,7 +924,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.4...@metamask/assets-controller@14.0.0
 [13.1.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.3...@metamask/assets-controller@13.1.4
 [13.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.2...@metamask/assets-controller@13.1.3
 [13.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.1...@metamask/assets-controller@13.1.2
