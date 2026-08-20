@@ -32,6 +32,11 @@ import type {
   DataResponse,
   FungibleAssetMetadata,
 } from './types.js';
+import type {
+  DebugLogConfig,
+  DebugLogEntry,
+  DebugLogSummary,
+} from './utils/debugLog.js';
 import {
   formatExchangeRatesForBridge,
   normalizeAssetId,
@@ -161,6 +166,7 @@ type WithControllerOptions = {
     isEnabled: () => boolean;
     captureException: (error: Error) => void;
     tempMigrateAssetsInfoMetadataAssets3346: () => Assets3346MigrationState;
+    debugLogs: DebugLogConfig;
   }>;
 };
 
@@ -307,6 +313,7 @@ describe('AssetsController', () => {
         customAssets: {},
         assetPreferences: {},
         selectedCurrency: 'usd',
+        debugLogs: [],
       });
     });
 
@@ -336,6 +343,7 @@ describe('AssetsController', () => {
           customAssets: {},
           assetPreferences: {},
           selectedCurrency: 'usd',
+          debugLogs: [],
         });
       });
     });
@@ -493,6 +501,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           selectedCurrency: 'usd',
+          debugLogs: [],
         });
 
         // Action handlers should be registered
@@ -2846,6 +2855,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            trigger: 'transaction-confirmed',
           },
         );
 
@@ -3665,6 +3675,198 @@ describe('AssetsController', () => {
       );
 
       controller.destroy();
+    });
+  });
+
+  describe('debug logging', () => {
+    const summaryOf = (entry?: DebugLogEntry): DebugLogSummary | undefined =>
+      entry?.data as DebugLogSummary | undefined;
+
+    it('does not record debug logs when the debugLogs option is omitted', async () => {
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '5' } },
+            },
+          },
+          'AccountActivityDataSource',
+        );
+
+        expect(controller.state.debugLogs).toStrictEqual([]);
+      });
+    });
+
+    it('records a subscription-lane entry attributed to the reporting source', async () => {
+      await withController(
+        {
+          isBasicFunctionality: () => false,
+          controllerOptions: { debugLogs: {} },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000000' } },
+              },
+            },
+            'AccountActivityDataSource',
+          );
+
+          const logs = controller.state.debugLogs;
+          expect(logs).toHaveLength(1);
+          expect(logs[0]?.className).toBe('AssetsController');
+          expect(logs[0]?.context).toMatchObject({
+            trigger: 'subscription',
+            lane: 'subscription',
+            sources: ['AccountActivityDataSource'],
+          });
+          expect(summaryOf(logs[0])?.changedCount).toBe(1);
+          expect(summaryOf(logs[0])?.changes?.[0]).toMatchObject({
+            accountId: MOCK_ACCOUNT_ID,
+            assetId: MOCK_ASSET_ID,
+            newAmount: '1000000',
+          });
+        },
+      );
+    });
+
+    it('stamps a universal epoch + ISO-8601 UTC timestamp', async () => {
+      await withController(
+        {
+          isBasicFunctionality: () => false,
+          controllerOptions: { debugLogs: {} },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '7' } },
+              },
+            },
+            'AccountActivityDataSource',
+          );
+
+          const entry = controller.state.debugLogs[0];
+          expect(typeof entry?.timestampMs).toBe('number');
+          expect(entry?.timestamp).toBe(
+            new Date(entry?.timestampMs ?? 0).toISOString(),
+          );
+          expect(entry?.timestamp).toMatch(/Z$/u);
+        },
+      );
+    });
+
+    it('attributes websocket vs poll writes via distinct sources', async () => {
+      await withController(
+        {
+          isBasicFunctionality: () => false,
+          controllerOptions: { debugLogs: {} },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
+              },
+            },
+            'AccountActivityDataSource',
+          );
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '2' } },
+              },
+            },
+            'AccountsApiDataSource',
+          );
+
+          const logs = controller.state.debugLogs;
+          expect(logs).toHaveLength(2);
+          // Newest-first.
+          expect(logs[0]?.context.sources).toStrictEqual([
+            'AccountsApiDataSource',
+          ]);
+          expect(logs[1]?.context.sources).toStrictEqual([
+            'AccountActivityDataSource',
+          ]);
+        },
+      );
+    });
+
+    it('coalesces consecutive no-change subscription updates', async () => {
+      await withController(
+        {
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000000' } },
+            },
+          },
+          isBasicFunctionality: () => false,
+          controllerOptions: { debugLogs: {} },
+        },
+        async ({ controller }) => {
+          const response: DataResponse = {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000000' } },
+            },
+          };
+          await controller.handleAssetsUpdate(
+            response,
+            'AccountActivityDataSource',
+          );
+          await controller.handleAssetsUpdate(
+            response,
+            'AccountActivityDataSource',
+          );
+
+          const logs = controller.state.debugLogs;
+          expect(logs).toHaveLength(1);
+          expect(summaryOf(logs[0])?.changedCount).toBe(0);
+          expect(logs[0]?.repeatCount).toBe(2);
+        },
+      );
+    });
+
+    it('records a fast-lane entry carrying the getAssets trigger', async () => {
+      await withController(
+        { controllerOptions: { debugLogs: {} } },
+        async ({ controller }) => {
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+            trigger: 'startup',
+          });
+          await flushPromises();
+
+          const fast = controller.state.debugLogs.find(
+            (entry) => entry.context.lane === 'fast',
+          );
+          expect(fast).toBeDefined();
+          expect(fast?.context.trigger).toBe('startup');
+          expect(fast?.context.sources?.length).toBeGreaterThan(0);
+        },
+      );
+    });
+
+    it('prunes stale persisted entries on construction', async () => {
+      const stale: DebugLogEntry = {
+        className: 'AssetsController',
+        methodName: '#updateState',
+        timestampMs: 0,
+        timestamp: new Date(0).toISOString(),
+        repeatCount: 1,
+        context: { trigger: 'action', lane: 'fast', sources: ['AccountsApiDataSource'] },
+        data: { receivedCount: 0, changedCount: 0 },
+      };
+      await withController(
+        {
+          state: { debugLogs: [stale] },
+          controllerOptions: { debugLogs: {} },
+        },
+        async ({ controller }) => {
+          expect(controller.state.debugLogs).toStrictEqual([]);
+        },
+      );
     });
   });
 });

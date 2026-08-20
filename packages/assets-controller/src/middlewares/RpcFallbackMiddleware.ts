@@ -88,10 +88,22 @@ export class RpcFallbackMiddleware {
             chainsRecoveredByRpc.add(assetId.split('/')[0]);
           }
         }
+        const recoveredChains: ChainId[] = [];
         for (const chainId of erroredChains) {
           if (chainsRecoveredByRpc.has(chainId)) {
             delete merged.errors[chainId];
+            recoveredChains.push(chainId);
           }
+        }
+
+        // Record the recovery as a provenance breadcrumb before the errors are
+        // erased, so "API failed and RPC rescued" stays readable in the trace.
+        if (recoveredChains.length > 0) {
+          ctx.provenance ??= {};
+          ctx.provenance.fallbackRecoveredChains = [
+            ...(ctx.provenance.fallbackRecoveredChains ?? []),
+            ...recoveredChains,
+          ];
         }
       }
 

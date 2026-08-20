@@ -158,6 +158,39 @@ describe('RpcFallbackMiddleware', () => {
     expect(finalCtx.response.errors?.['eip155:137']).toBeUndefined();
   });
 
+  it('records recovered chains in ctx.provenance.fallbackRecoveredChains', async () => {
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_POLYGON]: { amount: '5' } },
+      },
+    };
+    const { source } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:137']), {
+      errors: { 'eip155:137': 'Fetch failed: oops' },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(ctx.provenance?.fallbackRecoveredChains).toStrictEqual([
+      'eip155:137',
+    ]);
+  });
+
+  it('does not record fallbackRecoveredChains when RPC recovers nothing', async () => {
+    const { source } = createMockRpcSource({});
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:137']), {
+      errors: { 'eip155:137': 'Fetch failed: oops' },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(ctx.provenance?.fallbackRecoveredChains).toBeUndefined();
+  });
+
   it('keeps errors for chains RPC could not recover', async () => {
     const { source } = createMockRpcSource({});
     const mw = new RpcFallbackMiddleware({ rpcDataSource: source });

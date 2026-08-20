@@ -2,6 +2,8 @@ import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
 
+import type { DebugLogEntry } from './utils/debugLog.js';
+
 /**
  * CAIP-19 compliant asset identifier
  * Format: "{chainId}/{assetNamespace}:{assetReference}[/tokenId]"
@@ -478,6 +480,12 @@ export type AssetsControllerStateInternal = {
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
+  /**
+   * Opt-in, bounded, newest-first debug-log buffer describing recent balance
+   * writes. Empty (and unused) unless the controller is constructed with the
+   * `debugLogs` option.
+   */
+  debugLogs: DebugLogEntry[];
 };
 
 /**
@@ -497,6 +505,14 @@ export type Context = {
    * Merged into the controller's durationByDataSource for tracing.
    */
   durationByDataSource?: Record<string, number>;
+  /**
+   * Optional provenance breadcrumbs written by middlewares and read by the
+   * controller for balance-update tracing (e.g. RPC fallback recovery).
+   */
+  provenance?: {
+    /** Chains where an upstream source errored and RPC fallback recovered a balance. */
+    fallbackRecoveredChains?: ChainId[];
+  };
 };
 
 /**

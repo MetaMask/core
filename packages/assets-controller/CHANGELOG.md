@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add opt-in balance-update provenance tracing that records where every balance write came from (trigger, lane, data sources, changed balances, chain errors, and RPC fallback recovery) into a new persisted, bounded, newest-first `balanceUpdateTrace` state array ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Enable it via the new `balanceUpdateTrace` constructor option (`{ maxEntries?: number; ttlMs?: number }`); omit the option to disable tracing entirely (the default)
+  - Consecutive no-change writes from the same source and lane coalesce into a single entry with `repeatCount`/`firstTimestamp`/`lastTimestamp`; zero-noise seeded-zero changes are dropped; the buffer is capped (default 100 entries) and pruned by TTL (default 24h)
+  - Export the `BalanceUpdateTrigger`, `BalanceUpdateLane`, `BalanceUpdateChange`, `BalanceUpdateTraceEntry`, and `BalanceUpdateTraceConfig` types
+
 ### Changed
+
+- Flip `assetsBalance` state metadata to `includeInStateLogs: true` so balances can be compared against the balance-update trace in state logs ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 - **BREAKING:** Subscribe to `AccountTreeController:initialized` / `:uninitialized` (typed as `AccountTreeControllerInitializedEvent` / `AccountTreeControllerUninitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()` or on unlock before the tree is ready ([#9892](https://github.com/MetaMask/core/pull/9892))
   - Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `AccountTreeController:initialized` and `AccountTreeController:uninitialized`

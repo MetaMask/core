@@ -26,6 +26,20 @@ export {
 } from './utils/snaps-assets-migration.js';
 export type { SnapsAssetsMigrationNamespace } from './utils/snaps-assets-migration.js';
 
+// Debug-log types (strictly for debugging balance writes)
+export type {
+  DebugLogSummary,
+  DebugLogEntry,
+  DebugLogConfig,
+} from './utils/debugLog.js';
+export type {
+  DebugLogTrigger,
+  DebugLogLane,
+  DebugLogChange,
+  DebugLogContext,
+  DebugLogEvent,
+} from './utils/debugLogStore.js';
+
 // State and messenger types
 export type {
   AssetsControllerState,

@@ -141,6 +141,18 @@ import type {
   SubscriptionResponse,
   Asset,
 } from './types.js';
+import {
+  appendDebugLogEntry,
+  pruneDebugLogEntries,
+  summarizeBalanceWrite,
+} from './utils/debugLog.js';
+import type {
+  DebugLogConfig,
+  DebugLogEntry,
+  DebugLogSummary,
+} from './utils/debugLog.js';
+import { debugLog, debugLogStore } from './utils/debugLogStore.js';
+import type { DebugLogTrigger } from './utils/debugLogStore.js';
 import { ZERO_ADDRESS } from './utils/constants.js';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
@@ -253,6 +265,12 @@ export type AssetsControllerState = {
   assetPreferences: { [assetId: string]: AssetPreferences };
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
+  /**
+   * Opt-in, bounded, newest-first debug-log buffer describing recent balance
+   * writes (why they ran, what changed, timing). Strictly for debugging.
+   * Empty unless the `debugLogs` constructor option is provided.
+   */
+  debugLogs: DebugLogEntry[];
 };
 
 /**
@@ -275,6 +293,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     customAssets: {},
     assetPreferences: {},
     selectedCurrency: 'usd',
+    debugLogs: [],
   };
 }
 
@@ -451,6 +470,14 @@ export type AssetsControllerOptions = {
    * Issue: https://consensyssoftware.atlassian.net/browse/ASSETS-3346
    */
   tempMigrateAssetsInfoMetadataAssets3346?: () => Assets3346MigrationState;
+
+  /**
+   * Opt-in debug logging. When provided (even as an empty object), the
+   * controller enables the debug-log store and records recent balance writes
+   * into the persisted, bounded `debugLogs` state. Strictly for debugging;
+   * omit to disable entirely.
+   */
+  debugLogs?: DebugLogConfig;
 };
 
 // ============================================================================
@@ -466,7 +493,7 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
   },
   assetsBalance: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
@@ -493,6 +520,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
+  },
+  debugLogs: {
+    persist: true,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
   },
 };
 
@@ -678,6 +711,12 @@ export class AssetsController extends BaseController<
 
   /** Optional reporter for Issue-style errors (e.g. Sentry.captureException). */
   readonly #captureException?: (error: Error) => void;
+
+  /**
+   * Unsubscribe from the debug-log store. Set only when the `debugLogs`
+   * constructor option enables debug logging; called on destroy.
+   */
+  #unsubscribeDebugLogs: (() => void) | null = null;
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
@@ -868,6 +907,7 @@ export class AssetsController extends BaseController<
     stakedBalanceDataSourceConfig,
     isOnboarded,
     tempMigrateAssetsInfoMetadataAssets3346,
+    debugLogs,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -884,6 +924,37 @@ export class AssetsController extends BaseController<
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
     this.#captureException = captureException;
+
+    // Opt-in debug logging. Presence of the option enables it. The controller
+    // subscribes to the orthogonal debug-log store and folds published events
+    // into persisted state — decorated methods never receive a recorder or
+    // provenance parameter.
+    if (debugLogs) {
+      const debugLogConfig = debugLogs;
+      debugLogStore.enable();
+      this.#unsubscribeDebugLogs = debugLogStore.subscribe((event) => {
+        // Keep this subscriber pure: never call a `@debugLog` method here.
+        this.update((draftState) => {
+          const internalState = draftState as AssetsControllerStateInternal;
+          internalState.debugLogs = appendDebugLogEntry(
+            internalState.debugLogs,
+            event,
+            debugLogConfig,
+          );
+        });
+      });
+
+      // Prune a persisted buffer from a previous session so stale entries
+      // aren't presented as current.
+      this.update((draftState) => {
+        const internalState = draftState as AssetsControllerStateInternal;
+        internalState.debugLogs = pruneDebugLogEntries(
+          internalState.debugLogs ?? [],
+          debugLogConfig,
+          Date.now(),
+        );
+      });
+    }
     this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -1240,6 +1311,7 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      trigger: 'transaction-submitted',
     }).catch((error) => {
       log('Failed to refresh assets after unapproved transaction added', {
         error,
@@ -1269,6 +1341,7 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      trigger: 'transaction-confirmed',
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
@@ -1349,12 +1422,14 @@ export class AssetsController extends BaseController<
       await this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
+        trigger: 'account-added',
       });
       this.#subscribeAssets({ skipInitialFetch: true });
       if (newAccounts.length > 0) {
         await this.getAssets(newAccounts, {
           chainIds: [...this.#enabledChains],
           forceUpdate: true,
+          trigger: 'account-added',
         });
       }
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
@@ -1378,6 +1453,7 @@ export class AssetsController extends BaseController<
       await this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
+        trigger: 'startup',
       });
       // Seed before subscribe so the price poll / update fetch sees natives
       // and default tracked assets that were never returned by balance APIs.
@@ -1487,6 +1563,10 @@ export class AssetsController extends BaseController<
   }): Promise<{
     response: DataResponse;
     durationByDataSource: Record<string, number>;
+    /** Names of middlewares that threw during execution. */
+    failedSources: string[];
+    /** Chains recovered by the RPC fallback after an upstream error. */
+    fallbackChains: ChainId[];
   }> {
     const {
       sources,
@@ -1539,10 +1619,12 @@ export class AssetsController extends BaseController<
       async (ctx) => ctx,
     );
 
+    const provenance: { fallbackRecoveredChains?: ChainId[] } = {};
     const result = await chain({
       request,
       response: initialResponse,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
+      provenance,
     });
 
     const durationByDataSource: Record<string, number> = {};
@@ -1613,7 +1695,12 @@ export class AssetsController extends BaseController<
       });
     }
 
-    return { response: result.response, durationByDataSource };
+    return {
+      response: result.response,
+      durationByDataSource,
+      failedSources: middlewareErrors,
+      fallbackChains: provenance.fallbackRecoveredChains ?? [],
+    };
   }
 
   // ============================================================================
@@ -1630,11 +1717,14 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
+      /** What kicked off this fetch; recorded in the balance-update trace. Defaults to `'action'`. */
+      trigger?: DebugLogTrigger;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
     const assetTypes = options?.assetTypes ?? ['fungible'];
     const dataTypes = options?.dataTypes ?? ['balance', 'metadata', 'price'];
+    const trigger: DebugLogTrigger = options?.trigger ?? 'action';
 
     if (accounts.length === 0 || chainIds.length === 0) {
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
@@ -1705,13 +1795,29 @@ export class AssetsController extends BaseController<
             parentContext,
             trace: pipelineTrace,
           });
-          await this.#updateState({
-            ...result.response,
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-          });
 
           const durationMs = performance.now() - startTime;
+
+          // Set ambient debug-log context around the write; the `@debugLog`
+          // decorator on `#updateState` reads it — no provenance parameter.
+          await debugLogStore.runWithContext(
+            {
+              trigger,
+              lane: 'fast',
+              sources: Object.keys(result.durationByDataSource),
+              chainIds,
+              sourceDurationsMs: result.durationByDataSource,
+              errors: result.response.errors,
+              fallbackChains: result.fallbackChains,
+              failedSources: result.failedSources,
+            },
+            async () =>
+              this.#updateState({
+                ...result.response,
+                updateMode: 'merge',
+                replaceCoveredChainBalances: true,
+              }),
+          );
 
           // Summary fields for Assets Health (nested under the parent span).
           emitTrace({
@@ -1776,7 +1882,12 @@ export class AssetsController extends BaseController<
             account_count: accounts.length,
           },
           fn: async (slowParentContext) => {
-            const { response: slowResponse } = await this.#executeMiddlewares({
+            const {
+              response: slowResponse,
+              durationByDataSource: slowDurations,
+              failedSources: slowFailedSources,
+              fallbackChains: slowFallbackChains,
+            } = await this.#executeMiddlewares({
               sources: [
                 createParallelBalanceMiddleware(slowSources),
                 this.#detectionMiddleware,
@@ -1793,10 +1904,23 @@ export class AssetsController extends BaseController<
               parentContext: slowParentContext,
               trace: pipelineTrace,
             });
-            await this.#updateState({
-              ...slowResponse,
-              updateMode: 'merge',
-            });
+            await debugLogStore.runWithContext(
+              {
+                trigger,
+                lane: 'slow',
+                sources: Object.keys(slowDurations),
+                chainIds: slowPipelineChainIds,
+                sourceDurationsMs: slowDurations,
+                errors: slowResponse.errors,
+                fallbackChains: slowFallbackChains,
+                failedSources: slowFailedSources,
+              },
+              async () =>
+                this.#updateState({
+                  ...slowResponse,
+                  updateMode: 'merge',
+                }),
+            );
           },
         }).catch((error) => log('Background pipeline failed', { error }));
       }
@@ -2171,6 +2295,7 @@ export class AssetsController extends BaseController<
         assetTypes: ['fungible'],
         forceUpdate: true,
         updateMode: 'merge',
+        trigger: 'custom-asset-added',
       });
     }
 
@@ -2681,10 +2806,12 @@ export class AssetsController extends BaseController<
     });
   }
 
-  async #updateState(response: DataResponse): Promise<void> {
+  @debugLog()
+  async #updateState(response: DataResponse): Promise<DebugLogSummary> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
 
+    let summary: DebugLogSummary = { receivedCount: 0, changedCount: 0 };
     const releaseLock = await this.#controllerMutex.acquire();
 
     try {
@@ -2850,6 +2977,11 @@ export class AssetsController extends BaseController<
         }
       });
 
+      summary = summarizeBalanceWrite({
+        assetsBalance: normalizedResponse.assetsBalance,
+        changedBalances,
+      });
+
       // Emit state size trace (throttled to avoid JSON.stringify on every update)
       this.#emitStateSizeTrace();
 
@@ -2927,6 +3059,8 @@ export class AssetsController extends BaseController<
     } finally {
       releaseLock();
     }
+
+    return summary;
   }
 
   #getAssetsFromState(
@@ -3645,6 +3779,7 @@ export class AssetsController extends BaseController<
         await this.getAssets(accounts, {
           chainIds: [...this.#enabledChains],
           forceUpdate: true,
+          trigger: 'account-group-change',
         });
       }
 
@@ -3702,6 +3837,7 @@ export class AssetsController extends BaseController<
         chainIds: addedChains,
         forceUpdate: true,
         updateMode: 'merge',
+        trigger: 'networks-changed',
       });
     }
 
@@ -3818,6 +3954,7 @@ export class AssetsController extends BaseController<
         chainIds: [selectedChainId],
         forceUpdate: true,
         dataTypes: ['balance', 'metadata', 'price'],
+        trigger: 'network-changed',
       });
 
       this.#ensureNativeBalancesDefaultZero();
@@ -3839,6 +3976,7 @@ export class AssetsController extends BaseController<
     this.getAssets(accounts, {
       forceUpdate: true,
       dataTypes: ['balance', 'metadata'],
+      trigger: 'network-removed',
     }).catch((error) => {
       log('Failed to refresh assets after network change', { error });
     });
@@ -3866,6 +4004,7 @@ export class AssetsController extends BaseController<
       chainIds: [caipChainId],
       forceUpdate: true,
       dataTypes: ['balance', 'metadata', 'price'],
+      trigger: 'network-added',
     });
     this.#ensureNativeBalancesDefaultZero();
     this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
@@ -3967,7 +4106,11 @@ export class AssetsController extends BaseController<
           );
         }
 
-        const { response: enrichedResponse } = await this.#executeMiddlewares({
+        const {
+          response: enrichedResponse,
+          failedSources: subscriptionFailedSources,
+          fallbackChains: subscriptionFallbackChains,
+        } = await this.#executeMiddlewares({
           sources: enrichmentSources,
           request: pipelineRequest,
           initialResponse: response,
@@ -3975,10 +4118,21 @@ export class AssetsController extends BaseController<
           trace: pipelineTrace,
         });
 
-        await this.#updateState({
-          ...enrichedResponse,
-          replaceCoveredChainBalances: response.replaceCoveredChainBalances,
-        });
+        await debugLogStore.runWithContext(
+          {
+            trigger: 'subscription',
+            lane: 'subscription',
+            sources: [sourceId],
+            errors: enrichedResponse.errors,
+            fallbackChains: subscriptionFallbackChains,
+            failedSources: subscriptionFailedSources,
+          },
+          async () =>
+            this.#updateState({
+              ...enrichedResponse,
+              replaceCoveredChainBalances: response.replaceCoveredChainBalances,
+            }),
+        );
 
         // Summary fields for Assets Health (nested under the parent span).
         emitTrace({
@@ -4023,6 +4177,12 @@ export class AssetsController extends BaseController<
     if (this.#unsubscribeBasicFunctionality) {
       this.#unsubscribeBasicFunctionality();
       this.#unsubscribeBasicFunctionality = null;
+    }
+
+    if (this.#unsubscribeDebugLogs) {
+      this.#unsubscribeDebugLogs();
+      this.#unsubscribeDebugLogs = null;
+      debugLogStore.disable();
     }
 
     // Unregister action handlers
