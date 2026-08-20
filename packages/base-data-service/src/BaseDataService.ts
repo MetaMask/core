@@ -252,19 +252,19 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
-   * @param options.struct - An optional struct for validating the response of the query function.
+   * @param options.responseStruct - An optional struct for validating the response of the query function.
    * @returns The query results.
    */
   protected async fetchQuery<
     TQueryFnData extends Json,
     TError = DefaultError,
-    TStruct extends Struct<TQueryFnData> | undefined = undefined,
-    TData = TStruct extends Struct<infer StructType>
+    TDataStruct extends Struct<TQueryFnData> | undefined = undefined,
+    TData = TDataStruct extends Struct<infer StructType>
       ? StructType
       : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
   >({
-    struct,
+    responseStruct,
     ...options
   }: WithRequired<
     OmitKeyof<
@@ -274,7 +274,7 @@ export class BaseDataService<
     'queryKey'
   > & {
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
-    struct?: TStruct;
+    responseStruct?: TDataStruct;
   }): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
@@ -282,7 +282,7 @@ export class BaseDataService<
         const response = await this.#policy.execute(() =>
           options.queryFn(context),
         );
-        return processQueryResponse(options.queryKey, response, struct);
+        return processQueryResponse(options.queryKey, response, responseStruct);
       },
     });
   }
@@ -292,22 +292,22 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
-   * @param options.struct - An optional struct for validating the response of the query function.
+   * @param options.responseStruct - An optional struct for validating the response of the query function.
    * @param pageParam - An optional page parameter.
    * @returns The query result, exclusively the requested page is returned.
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
     TError = DefaultError,
-    TStruct extends Struct<TQueryFnData> | undefined = undefined,
-    TData extends TQueryFnData = TStruct extends Struct<infer StructType>
+    TDataStruct extends Struct<TQueryFnData> | undefined = undefined,
+    TData extends TQueryFnData = TDataStruct extends Struct<infer StructType>
       ? StructType
       : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
     {
-      struct,
+      responseStruct,
       ...options
     }: WithRequired<
       OmitKeyof<
@@ -324,7 +324,7 @@ export class BaseDataService<
     > &
       InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
         queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
-        struct?: TStruct;
+        responseStruct?: TDataStruct;
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
@@ -349,7 +349,11 @@ export class BaseDataService<
               pageParam: context.meta?.pageParam ?? context.pageParam,
             }),
           );
-          return processQueryResponse(options.queryKey, response, struct);
+          return processQueryResponse(
+            options.queryKey,
+            response,
+            responseStruct,
+          );
         },
       });
 

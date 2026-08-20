@@ -119,7 +119,7 @@ export class ExampleDataService extends BaseDataService<
       },
       staleTime: inMilliseconds(1, Duration.Day),
       gcTime: inMilliseconds(1, Duration.Day),
-      struct: GetAssetsResponseStruct,
+      responseStruct: GetAssetsResponseStruct,
     });
   }
 
