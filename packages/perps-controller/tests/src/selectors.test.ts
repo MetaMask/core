@@ -12,6 +12,9 @@ import {
   selectOrderBookGrouping,
   selectRecentlyViewedMarkets,
   selectProLayoutPreferences,
+  selectOrderBookPreferences,
+  selectSelectedOrderType,
+  selectVisibleCandleCount,
   selectPerpsMode,
 } from '../../src/selectors.js';
 
@@ -340,6 +343,7 @@ describe('PerpsController selectors', () => {
                 stopLossPrice: '40000',
                 limitPrice: '45000',
                 orderType: 'limit',
+                reduceOnly: true,
                 timestamp: now,
               },
             },
@@ -357,11 +361,12 @@ describe('PerpsController selectors', () => {
         stopLossPrice: '40000',
         limitPrice: '45000',
         orderType: 'limit',
+        reduceOnly: true,
       });
     });
 
-    it('returns undefined for expired pending config (more than 5 minutes)', () => {
-      const fiveMinutesAgo = Date.now() - 6 * 60 * 1000; // 6 minutes ago
+    it('returns undefined for expired pending config (more than 30 seconds)', () => {
+      const expiredAt = Date.now() - 30_001;
       const state = {
         isTestnet: false,
         tradeConfigurations: {
@@ -371,7 +376,7 @@ describe('PerpsController selectors', () => {
               pendingConfig: {
                 amount: '100',
                 leverage: 5,
-                timestamp: fiveMinutesAgo,
+                timestamp: expiredAt,
               },
             },
           },
@@ -384,8 +389,8 @@ describe('PerpsController selectors', () => {
       expect(result).toBeUndefined();
     });
 
-    it('returns pending config for valid config (less than 5 minutes)', () => {
-      const twoMinutesAgo = Date.now() - 2 * 60 * 1000; // 2 minutes ago
+    it('returns pending config for valid config (less than 30 seconds)', () => {
+      const validAt = Date.now() - 29_999;
       const state = {
         isTestnet: false,
         tradeConfigurations: {
@@ -396,7 +401,7 @@ describe('PerpsController selectors', () => {
                 amount: '100',
                 leverage: 5,
                 orderType: 'market',
-                timestamp: twoMinutesAgo,
+                timestamp: validAt,
               },
             },
           },
@@ -689,6 +694,58 @@ describe('PerpsController selectors', () => {
           undefined as unknown as PerpsControllerState,
         ),
       ).toStrictEqual(defaults);
+    });
+  });
+
+  describe('selectOrderBookPreferences', () => {
+    it('merges persisted fields over defaults', () => {
+      const state = {
+        orderBookPreferences: { currency: 'base' },
+      } as unknown as PerpsControllerState;
+
+      expect(selectOrderBookPreferences(state)).toStrictEqual({
+        currency: 'base',
+        metric: 'total',
+      });
+    });
+
+    it('returns defaults when the state slice is missing', () => {
+      expect(
+        selectOrderBookPreferences({} as PerpsControllerState),
+      ).toStrictEqual({
+        currency: 'usd',
+        metric: 'total',
+      });
+    });
+  });
+
+  describe('selectSelectedOrderType', () => {
+    it('returns the persisted market-agnostic order type', () => {
+      const state = {
+        selectedOrderType: 'limit',
+      } as unknown as PerpsControllerState;
+
+      expect(selectSelectedOrderType(state)).toBe('limit');
+    });
+
+    it('defaults to market', () => {
+      expect(selectSelectedOrderType({} as PerpsControllerState)).toBe(
+        'market',
+      );
+    });
+  });
+
+  describe('selectVisibleCandleCount', () => {
+    it('returns the persisted count', () => {
+      const state = {
+        visibleCandleCount: 45,
+      } as unknown as PerpsControllerState;
+
+      expect(selectVisibleCandleCount(state)).toBe(45);
+    });
+
+    it('defaults to 30', () => {
+      expect(selectVisibleCandleCount({} as PerpsControllerState)).toBe(30);
     });
   });
 
