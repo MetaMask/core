@@ -31,11 +31,11 @@ export {
   ApprovalResultType,
   ApprovalFeatureType,
 } from './types.js';
-export type { CacheEntry } from './CacheManager.js';
 export {
   PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
   getPhishingDetectionScanUrlParam,
   isPhishingDetectionPathBasedHostname,
+  resolveChainName,
 } from './utils.js';
 
 export type {
@@ -50,3 +50,29 @@ export type {
   PhishingControllerGetApprovalsAction,
   PhishingControllerCheckAddressPoisoningAction,
 } from './PhishingController-method-action-types.js';
+
+export {
+  PhishingDataService,
+  SCAN_RESULT_STALE_TIME,
+  DEFAULT_PHISHING_PERSISTENCE_CONFIG,
+} from './PhishingDataService.js';
+export type { TokenScanResultResponse } from './PhishingDataService.js';
+export type {
+  PhishingDataServiceActions,
+  PhishingDataServiceEvents,
+  PhishingDataServiceMessenger,
+  PhishingDataServiceInvalidateQueriesAction,
+  PhishingDataServiceCacheUpdatedEvent,
+  PhishingDataServiceGranularCacheUpdatedEvent,
+} from './PhishingDataService.js';
+export type {
+  PhishingDataServiceGetStalelistAction,
+  PhishingDataServiceGetHotlistDiffsAction,
+  PhishingDataServiceGetC2DomainBlocklistAction,
+  PhishingDataServiceScanUrlAction,
+  PhishingDataServiceBulkScanUrlsAction,
+  PhishingDataServiceScanTokenAction,
+  PhishingDataServiceBulkScanTokensAction,
+  PhishingDataServiceScanAddressAction,
+  PhishingDataServiceGetApprovalsAction,
+} from './PhishingDataService-method-action-types.js';

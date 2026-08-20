@@ -1532,16 +1532,6 @@
       "count": 1
     }
   },
-  "packages/phishing-controller/src/CacheManager.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/phishing-controller/src/CacheManager.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 3
-    }
-  },
   "packages/phishing-controller/src/PathTrie.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1549,10 +1539,7 @@
   },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 14
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
+      "count": 11
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
@@ -1583,7 +1570,7 @@
   },
   "packages/phishing-controller/src/utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
+      "count": 4
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1

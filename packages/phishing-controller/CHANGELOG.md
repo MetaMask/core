@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PhishingDataService`, a `BaseDataService` subclass that now performs all network requests for `PhishingController` (stalelist, hotlist diffs, C2 domain blocklist, URL/token/address scans, and approvals)
+  - Exposes the messenger actions `PhishingDataService:getStalelist`, `PhishingDataService:getHotlistDiffs`, `PhishingDataService:getC2DomainBlocklist`, `PhishingDataService:scanUrl`, `PhishingDataService:bulkScanUrls`, `PhishingDataService:scanToken`, `PhishingDataService:bulkScanTokens`, `PhishingDataService:scanAddress`, and `PhishingDataService:getApprovals`, making query results available to the UI via `@metamask/react-data-query`
+  - Requests are wrapped in a shared retry policy, configurable via the `policyOptions` constructor option; circuit breaking is disabled by default because the service spans four independent API hosts and a broken circuit caused by one host would pause phishing-list updates from the others
+  - Scan results are cached per URL hostname, token, and address for `SCAN_RESULT_STALE_TIME` (1 minute, matching the previous cache TTLs); bulk scans only request items without a fresh cached result and coalesce them into batched API calls (up to 50 URLs / 100 tokens per request), and single and bulk URL scans share cache entries; approvals are never cached
+  - The query cache is persisted between sessions by default (`persistenceConfig`, max age 5 minutes), which requires the `StorageService:setItem`, `StorageService:getItem`, and `StorageService:removeItem` messenger actions and an `init` call during client initialization (automatic with `@metamask/wallet`); pass `persistenceConfig: null` to disable
+
+- Export the `resolveChainName` utility, which maps chain IDs to the chain names used in scan query keys, enabling UI consumers to construct `PhishingDataService` query keys
+
 ### Changed
 
+- **BREAKING:** `PhishingController` no longer performs network requests directly; a `PhishingDataService` must be registered and its method actions delegated to the controller's messenger
+  - `PhishingControllerMessenger` now requires the `PhishingDataService` method actions listed above as allowed actions
+- **BREAKING:** Remove the `urlScanCache`, `tokenScanCache`, and `addressScanCache` properties from `PhishingControllerState`; scan results are now cached (and persisted) by `PhishingDataService`'s query cache
+  - Client state migrations should remove these properties from persisted `PhishingController` state
+- **BREAKING:** Remove the `urlScanCacheTTL`, `urlScanCacheMaxSize`, `tokenScanCacheTTL`, `tokenScanCacheMaxSize`, `addressScanCacheTTL`, and `addressScanCacheMaxSize` options from `PhishingControllerOptions`; scan result freshness is now controlled by `SCAN_RESULT_STALE_TIME` in `PhishingDataService`
+- Tokens for which the bulk scanning API returns no result are now negatively cached for `SCAN_RESULT_STALE_TIME` instead of being re-requested on every call
+- `scanUrl` now reports the underlying error message in `fetchError` for network errors instead of `'timeout of 8000ms exceeded'`
+- Malformed API responses (e.g. a stalelist without a numeric `lastUpdated`, or scan results without a `recommendedAction`/`result_type`) are now rejected and treated as request failures instead of being passed through
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+
+### Removed
+
+- **BREAKING:** Remove the `CacheEntry` type; the custom cache manager has been replaced by `PhishingDataService`'s query cache
+- **BREAKING:** Remove the `DEFAULT_URL_SCAN_CACHE_TTL`, `DEFAULT_URL_SCAN_CACHE_MAX_SIZE`, `DEFAULT_TOKEN_SCAN_CACHE_TTL`, `DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE`, `DEFAULT_ADDRESS_SCAN_CACHE_TTL`, and `DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE` constants
 
 ## [17.3.1]
 
