@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Skip `AccountsApiDataSource` subscribe-time initial poll after a forced `getAssets` balance fetch
   - Ignore init-time `AccountTreeController:selectedAccountGroupChange` (including same-group re-emits and events before tracking starts) so `:initialized` owns first start; only refresh on real group switches while tracking
   - Skip Accounts API middleware when `dataTypes` does not include `balance` (e.g. price-only refreshes)
+- Bump `@metamask/config-registry-controller` from `^2.0.1` to `^3.0.0` ([#9923](https://github.com/MetaMask/core/pull/9923))
+- Bump `@metamask/network-enablement-controller` from `^6.0.3` to `^6.0.4` ([#9923](https://github.com/MetaMask/core/pull/9923))
 
 ## [13.1.4]
 

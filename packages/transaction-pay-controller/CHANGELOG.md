@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.4.1]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^13.1.4` to `^14.0.0` ([#9923](https://github.com/MetaMask/core/pull/9923))
+
 ## [26.4.0]
 
 ### Changed
