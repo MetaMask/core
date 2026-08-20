@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `stake` / `unstake` activity kinds and a `PerpsOrderKind` type covering every perps order kind ([#9916](https://github.com/MetaMask/core/pull/9916))
+- Add `ActivityItem` variants for staking, prediction, and perps activity kinds that previously had no matching data shape ([#9916](https://github.com/MetaMask/core/pull/9916))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
