@@ -3,8 +3,8 @@ import type {
   AnalyticsControllerGetStateAction,
   AnalyticsControllerTrackEventAction,
 } from '@metamask/analytics-controller';
-import { Messenger } from '@metamask/messenger';
 import { ConfigRegistryApiEnv } from '@metamask/config-registry-controller';
+import { Messenger } from '@metamask/messenger';
 import {
   ClientConfigApiService,
   ClientType,
