@@ -333,6 +333,11 @@ export class BaseDataService<
     }
 
     const { pages, pageParams } = query.state.data;
+
+    const existingIndex = pageParams.findIndex((param) =>
+      deepEqual(param, pageParam),
+    );
+
     const next = options.getNextPageParam(
       pages[pages.length - 1],
       pages,
@@ -346,6 +351,28 @@ export class BaseDataService<
       { ...query.options, meta: { pageParam } },
       { meta: { fetchMore: { direction } } },
     );
+
+    if (existingIndex !== -1) {
+      // The requested page was already cached. `query.fetch` appended or
+      // prepended a fresh copy instead of replacing it, which would leave
+      // duplicate, out-of-order pages in the cache. Collapse the duplicate
+      // and keep the fresh page at the original position.
+      const isForward = direction === 'forward';
+      const nextPages = [...result.pages];
+      const nextPageParams = [...result.pageParams];
+      const freshPage = isForward ? nextPages.pop() : nextPages.shift();
+      if (isForward) {
+        nextPageParams.pop();
+      } else {
+        nextPageParams.shift();
+      }
+      nextPages[existingIndex] = freshPage as TData;
+      this.#queryClient.setQueryData(options.queryKey, {
+        pages: nextPages,
+        pageParams: nextPageParams,
+      });
+      return freshPage as TData;
+    }
 
     const pageIndex = result.pageParams.findIndex((param) =>
       deepEqual(param, pageParam),
