@@ -2180,8 +2180,7 @@ describe('BridgeController', function () {
         );
 
         // Trigger the fetch + abort rejection
-        jest.advanceTimersByTime(1000);
-        await flushPromises();
+        await jest.advanceTimersByTimeAsync(1000);
 
         // Early return path: no post-fetch updates
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
