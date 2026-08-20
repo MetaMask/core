@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `address_alert_response_flagged_by` to address scan results, exposing the security-alert vendors that flagged an address
+- Add `address_alert_response_flagged_by` to address scan results, exposing the security-alert vendors that flagged an address ([#9921](https://github.com/MetaMask/core/pull/9921))
 
 ### Changed
 

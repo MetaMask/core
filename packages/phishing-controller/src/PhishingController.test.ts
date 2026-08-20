@@ -42,6 +42,7 @@ import {
 } from './tests/utils.js';
 import type {
   PhishingDetectionScanResult,
+  AddressScanCacheData,
   AddressScanResult,
 } from './types.js';
 import {
@@ -3606,6 +3607,37 @@ describe('PhishingController', () => {
         address_alert_response_flagged_by: [],
       });
       expect(scope.isDone()).toBe(true);
+    });
+
+    it('defaults vendor attribution for a legacy cached result', async () => {
+      const cacheKey = `${testChainId}:${testAddress}`;
+      const { rootMessenger: messengerWithLegacyCache } = getPhishingController(
+        {
+          state: {
+            addressScanCache: {
+              [cacheKey]: {
+                data: {
+                  result_type: AddressScanResultType.Benign,
+                  label: '',
+                } as AddressScanCacheData,
+                timestamp: 0,
+              },
+            },
+          },
+        },
+      );
+
+      const response = await messengerWithLegacyCache.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(response).toStrictEqual({
+        result_type: AddressScanResultType.Benign,
+        label: '',
+        address_alert_response_flagged_by: [],
+      });
     });
 
     it.each([
