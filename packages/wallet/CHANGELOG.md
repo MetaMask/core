@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
 - Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor option to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Added an optional `getInfuraAuthToken` property to the `networkController` instance options, which presents the token it returns as a bearer credential on requests to Infura RPC endpoints ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Requests to endpoints served by anyone other than Infura are unaffected, as are requests that already carry an `Authorization` header.
+  - The token is retrieved per request, so one that is refreshed during the lifetime of a network client is picked up on the next request.
+  - Omitting the property leaves request behavior unchanged.
 
 ## [11.0.0]
 
