@@ -87,6 +87,130 @@ describe('orderCalculations - scale ladder', () => {
     });
   });
 
+  describe('splitScaleSizes - skew', () => {
+    // The ticket's worked example, taken all the way onto the size grid: total
+    // 100 over 5 rungs at skew 2 gives weights 1, 1.25, 1.5, 1.75, 2 and ideal
+    // slices 13.33, 16.67, 20, 23.33, 26.67. The two largest discarded
+    // fractions are rungs 1 and 4, so they take the two leftover units.
+    it('ramps the weights linearly and lands the leftover on the largest fractions', () => {
+      expect(
+        splitScaleSizes({
+          totalSize: 100,
+          count: 5,
+          szDecimals: 0,
+          skew: 2,
+        }),
+      ).toStrictEqual(['13', '17', '20', '23', '27']);
+    });
+
+    it('weights the top of the ladder when the skew is above 1', () => {
+      const sizes = splitScaleSizes({
+        totalSize: 1,
+        count: 5,
+        szDecimals: 2,
+        skew: 2,
+      }).map((size) => parseFloat(size));
+
+      // The ladder runs scaleMinPrice -> scaleMaxPrice, so the last rung is the
+      // one at scaleMaxPrice.
+      expect(Math.max(...sizes)).toBe(sizes[sizes.length - 1]);
+      expect(sizes).toStrictEqual([0.13, 0.17, 0.2, 0.23, 0.27]);
+    });
+
+    it('weights the bottom of the ladder when the skew is below 1', () => {
+      const sizes = splitScaleSizes({
+        totalSize: 1,
+        count: 5,
+        szDecimals: 2,
+        skew: 0.5,
+      }).map((size) => parseFloat(size));
+
+      expect(Math.max(...sizes)).toBe(sizes[0]);
+      expect(sizes).toStrictEqual([0.27, 0.23, 0.2, 0.17, 0.13]);
+    });
+
+    // A short ladder is still built low price to high price: the skew weights
+    // the range, not the direction of the trade.
+    it('does not flip for a sell', () => {
+      expect(
+        splitScaleSizes({ totalSize: 100, count: 5, szDecimals: 0, skew: 2 }),
+      ).toStrictEqual(['13', '17', '20', '23', '27']);
+    });
+
+    it('breaks a tie in the discarded fraction by the lower index', () => {
+      // Weights 1 and 3 over 10 units give 2.5 and 7.5 — one leftover unit and
+      // two equal fractions.
+      expect(
+        splitScaleSizes({ totalSize: 10, count: 2, szDecimals: 0, skew: 3 }),
+      ).toStrictEqual(['3', '7']);
+    });
+
+    it.each([
+      ['above 1', 2],
+      ['below 1', 0.5],
+      ['far above 1', 100],
+      ['far below 1', 0.01],
+    ])(
+      'sums to the requested total in grid units with a skew %s',
+      (_label, skew) => {
+        const sizes = splitScaleSizes({
+          totalSize: 1,
+          count: 7,
+          szDecimals: 3,
+          skew,
+        });
+
+        const units = sizes.reduce(
+          (total, size) => total + Math.round(parseFloat(size) * 1000),
+          0,
+        );
+        expect(units).toBe(1000);
+      },
+    );
+
+    it('still fills every rung under a very high skew', () => {
+      // Weights 1, 50.5, 100 over 100 units: the first rung's ideal slice is
+      // 0.66 of a unit, and the leftover unit is what keeps it non-zero.
+      expect(
+        splitScaleSizes({ totalSize: 1, count: 3, szDecimals: 2, skew: 100 }),
+      ).toStrictEqual(['0.01', '0.33', '0.66']);
+    });
+
+    it('rejects a skew that starves a rung of every unit', () => {
+      // Same weights, but three units to go round: the first rung's ideal slice
+      // is 0.02 and there is no leftover left to round it up with.
+      expect(() =>
+        splitScaleSizes({
+          totalSize: 0.03,
+          count: 3,
+          szDecimals: 2,
+          skew: 100,
+        }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+    });
+
+    it.each([
+      ['zero', 0],
+      ['negative', -2],
+      ['NaN', NaN],
+      ['Infinity', Infinity],
+      ['-Infinity', -Infinity],
+    ])('rejects %s', (_label, skew) => {
+      expect(() =>
+        splitScaleSizes({ totalSize: 1, count: 3, szDecimals: 2, skew }),
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    });
+
+    it('splits exactly as an omitted skew does when the skew is 1', () => {
+      const even = splitScaleSizes({ totalSize: 1, count: 3, szDecimals: 2 });
+
+      expect(even).toStrictEqual(['0.34', '0.33', '0.33']);
+      expect(
+        splitScaleSizes({ totalSize: 1, count: 3, szDecimals: 2, skew: 1 }),
+      ).toStrictEqual(even);
+    });
+  });
+
   describe('splitScaleSizes - rung count', () => {
     // Exported on its own, so it cannot rely on computeScalePriceLadder having
     // vetted the count first: zero would return an empty split, and a

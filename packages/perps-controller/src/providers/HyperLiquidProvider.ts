@@ -195,6 +195,7 @@ import {
   isLimitExecutionOrderType,
   isStrategyOrderType,
   isTriggerOrderType,
+  resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
 import {
@@ -322,6 +323,7 @@ const pickStrategyParams = (
   scaleMinPrice: params.scaleMinPrice,
   scaleMaxPrice: params.scaleMaxPrice,
   scaleNumOrders: params.scaleNumOrders,
+  scaleSkew: params.scaleSkew,
   chaseIntervalMs: params.chaseIntervalMs,
   chaseMaxDurationMs: params.chaseMaxDurationMs,
   chaseMaxRepricings: params.chaseMaxRepricings,
@@ -673,16 +675,27 @@ function collectPositionTriggerOrders(params: {
   });
 
   const triggerOrders = Array.from(byOrderId.values());
+  const takeProfitOrders = triggerOrders.filter(
+    (order) => order.direction === 'take_profit',
+  );
+  const stopLossOrders = triggerOrders.filter(
+    (order) => order.direction !== 'take_profit',
+  );
+
+  const takeProfitSummaryPrice = resolvePositionTriggerSummaryPrice({
+    triggerOrders: takeProfitOrders,
+    scannedPrice: takeProfitPrice,
+  });
+  const stopLossSummaryPrice = resolvePositionTriggerSummaryPrice({
+    triggerOrders: stopLossOrders,
+    scannedPrice: stopLossPrice,
+  });
 
   return {
-    takeProfitOrders: triggerOrders.filter(
-      (order) => order.direction === 'take_profit',
-    ),
-    stopLossOrders: triggerOrders.filter(
-      (order) => order.direction !== 'take_profit',
-    ),
-    ...(takeProfitPrice && { takeProfitPrice }),
-    ...(stopLossPrice && { stopLossPrice }),
+    takeProfitOrders,
+    stopLossOrders,
+    ...(takeProfitSummaryPrice && { takeProfitPrice: takeProfitSummaryPrice }),
+    ...(stopLossSummaryPrice && { stopLossPrice: stopLossSummaryPrice }),
   };
 }
 
@@ -4568,8 +4581,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    *   venue-formatted price, which would submit several orders at one price
    *   instead of a ladder spanning the requested range.
    * - **Slices are not the average.** `splitScaleSizes` floors onto the size
-   *   grid and puts the remainder on the first rung, so no rung carries the
-   *   average slice the pre-network check in `validateOrder` approximates with.
+   *   grid, and a `scaleSkew` weights the rungs along the ladder on top of that,
+   *   so no rung carries the average slice the pre-network check in
+   *   `validateOrder` approximates with.
    * - **The cheapest rung decides.** Each rung is an independent order, so the
    *   venue applies its per-order minimum to the smallest slice at the lowest
    *   price, not to the ladder's total.
@@ -4598,11 +4612,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
     }
 
-    // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing.
+    // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing,
+    // which a skew weighted far enough from even can do on its own.
     const sizes = splitScaleSizes({
       totalSize: finalPositionSize,
       count,
       szDecimals,
+      skew: params.scaleSkew,
     });
 
     const minimumOrderSize = this.#getMinimumOrderSize();
@@ -7851,8 +7867,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
             return {
               ...position,
-              takeProfitPrice,
-              stopLossPrice,
+              takeProfitPrice: resolvePositionTriggerSummaryPrice({
+                triggerOrders: takeProfitOrders,
+                scannedPrice: takeProfitPrice,
+              }),
+              stopLossPrice: resolvePositionTriggerSummaryPrice({
+                triggerOrders: stopLossOrders,
+                scannedPrice: stopLossPrice,
+              }),
               takeProfitCount: takeProfitOrders.length,
               stopLossCount: stopLossOrders.length,
               takeProfitOrders,
