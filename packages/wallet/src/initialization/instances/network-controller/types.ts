@@ -19,4 +19,13 @@ export type NetworkControllerInstanceOptions = {
    * back to the controller's defaults (which emit nothing).
    */
   analyticsOptions?: NetworkControllerAnalyticsOptions;
+  /**
+   * Returns an authentication token to present as a bearer credential on
+   * requests to Infura endpoints, or undefined if none is available.
+   *
+   * Optional; when omitted, no credential is presented. Requests to other
+   * endpoints are unaffected either way, as are requests that already carry an
+   * `Authorization` header.
+   */
+  getInfuraAuthToken?: () => Promise<string | undefined>;
 };

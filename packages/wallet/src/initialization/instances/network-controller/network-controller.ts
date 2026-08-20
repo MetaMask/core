@@ -5,6 +5,7 @@ import {
 } from '@metamask/network-controller';
 
 import { InitializationConfiguration } from '../../types.js';
+import { createInfuraAuthRpcServiceOptions } from './infura-auth.js';
 
 export const networkController: InitializationConfiguration<
   NetworkController,
@@ -18,6 +19,9 @@ export const networkController: InitializationConfiguration<
       infuraProjectId: options.infuraProjectId,
       failoverUrls: options.failoverUrls,
       analyticsOptions: options.analyticsOptions,
+      getRpcServiceOptions: createInfuraAuthRpcServiceOptions(
+        options.getInfuraAuthToken,
+      ),
     }),
   getMessenger: (parent) => {
     const networkControllerMessenger: NetworkControllerMessenger =
