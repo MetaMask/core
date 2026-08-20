@@ -355,11 +355,17 @@ export type Position = {
   /**
    * Take profit price (if set).
    *
-   * Legacy summary field: it may also reflect a TP/SL child of a *pending* order
-   * on this market, which `takeProfitOrders` and `takeProfitCount` deliberately
-   * exclude because such a child protects that order rather than the position.
-   * A position can therefore report a price here with an empty array and a count
-   * of `0`. Prefer `takeProfitOrders` for anything that must be exact.
+   * Summary field, resolved for the common case a client renders: when
+   * `takeProfitOrders` holds exactly one order this is that order's trigger
+   * price, whether or not it covers the whole position. With two or more orders
+   * no single price describes them, so this falls back to the position-bound
+   * trigger — clients render `takeProfitCount` there instead.
+   *
+   * It may also reflect a TP/SL child of a *pending* order on this market, which
+   * `takeProfitOrders` and `takeProfitCount` deliberately exclude because such a
+   * child protects that order rather than the position. A position can therefore
+   * report a price here with an empty array and a count of `0`. Prefer
+   * `takeProfitOrders` for anything that must be exact.
    */
   takeProfitPrice?: string;
   /**
@@ -1937,7 +1943,19 @@ export type PerpsStreamManager = {
  */
 export type PerpsPerformance = {
   now(): number;
+  /**
+   * Optional platform hook invoked once after constructor disk hydration.
+   * Receives `performance.now()` — not a Sentry write.
+   */
+  onControllerConstructed?: (monotonicMs: number) => void;
 };
+
+type PerpsSetMeasurement = ((
+  name: string,
+  value: number,
+  unit: string,
+) => void) &
+  ((name: string, value: number, unit: string, id: string) => void);
 
 /**
  * Injectable tracer interface for Sentry/observability tracing.
@@ -1961,7 +1979,7 @@ export type PerpsTracer = {
     data?: Record<string, PerpsTraceValue>;
   }): void;
 
-  setMeasurement(name: string, value: number, unit: string): void;
+  setMeasurement: PerpsSetMeasurement;
 
   addBreadcrumb(breadcrumb: {
     category: string;

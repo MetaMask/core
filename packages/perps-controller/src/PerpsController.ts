@@ -1236,6 +1236,9 @@ export class PerpsController extends BaseController<
     // Eagerly hydrate in-memory caches from disk so hooks see data on first render.
     // Must happen at construction time — before any React component mounts.
     this.#hydrateCacheFromDiskSync();
+    this.#options.infrastructure.performance.onControllerConstructed?.(
+      this.#options.infrastructure.performance.now(),
+    );
   }
 
   // ============================================================================
@@ -4057,6 +4060,7 @@ export class PerpsController extends BaseController<
         PerpsMeasurementName.PerpsMarketDataPreload,
         performance.now() - preloadStart,
         'millisecond',
+        traceId,
       );
     } catch (error) {
       traceData = {
@@ -4198,12 +4202,9 @@ export class PerpsController extends BaseController<
           provider: activeProvider,
           isTestnet,
         },
-        data: { userAddress },
       });
 
-      this.#debugLog('PerpsController: Fetching user data in background', {
-        userAddress,
-      });
+      this.#debugLog('PerpsController: Fetching user data in background');
 
       if (activeProvider === 'hyperliquid') {
         const snapshot = await this.getUserDataSnapshot();
@@ -4221,6 +4222,7 @@ export class PerpsController extends BaseController<
           PerpsMeasurementName.PerpsUserDataPreload,
           performance.now() - preloadStart,
           'millisecond',
+          traceId,
         );
         return;
       }
@@ -4335,6 +4337,7 @@ export class PerpsController extends BaseController<
         PerpsMeasurementName.PerpsUserDataPreload,
         performance.now() - preloadStart,
         'millisecond',
+        traceId,
       );
     } catch (error) {
       traceData = {

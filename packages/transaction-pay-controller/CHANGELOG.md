@@ -7,11 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.4.0]
+
+### Changed
+
+- The `payStrategies.relay.validationEnabled` feature flag (in `confirmations_pay_extended`) is now an object `{ default?: boolean; transactionTypes?: { [type in TransactionType]?: boolean } }` instead of a boolean, adding per-`TransactionType` overrides that match nested transactions ([#9888](https://github.com/MetaMask/core/pull/9888))
+
+### Fixed
+
+- Fix quote simulation for Polymarket Predict withdrawals ([#9891](https://github.com/MetaMask/core/pull/9891))
+
+## [26.3.1]
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^13.1.2` to `^13.1.4` ([#9873](https://github.com/MetaMask/core/pull/9873), [#9886](https://github.com/MetaMask/core/pull/9886))
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 - Bump `@metamask/assets-controllers` from `^111.1.0` to `^111.1.1` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+### Fixed
+
+- Read the `stableTokens` remote feature flag in `getStablecoins` instead of `stable-tokens` ([#9885](https://github.com/MetaMask/core/pull/9885))
 
 ## [26.3.0]
 
@@ -1434,7 +1450,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.0...HEAD
+[26.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.1...@metamask/transaction-pay-controller@26.4.0
+[26.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.0...@metamask/transaction-pay-controller@26.3.1
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.3...@metamask/transaction-pay-controller@26.3.0
 [26.2.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.2...@metamask/transaction-pay-controller@26.2.3
 [26.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.2.1...@metamask/transaction-pay-controller@26.2.2

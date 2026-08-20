@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Subscribe to `AccountTreeController:initialized` / `:uninitialized` (typed as `AccountTreeControllerInitializedEvent` / `AccountTreeControllerUninitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()` or on unlock before the tree is ready ([#9892](https://github.com/MetaMask/core/pull/9892))
+  - Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `AccountTreeController:initialized` and `AccountTreeController:uninitialized`
+- Reduce Accounts API calls on startup and refresh:
+  - Skip `AccountsApiDataSource` subscribe-time initial poll after a forced `getAssets` balance fetch
+  - Ignore init-time `AccountTreeController:selectedAccountGroupChange` (including same-group re-emits and events before tracking starts) so `:initialized` owns first start; only refresh on real group switches while tracking
+  - Skip Accounts API middleware when `dataTypes` does not include `balance` (e.g. price-only refreshes)
+
 ## [13.1.4]
 
 ### Changed
