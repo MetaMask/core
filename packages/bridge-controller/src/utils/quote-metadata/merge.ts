@@ -48,27 +48,38 @@ export function mergeQuoteMetadata(
     );
   }
 
+  // Sanitize the bridge-api's quote response by removing fee and price data that will be replaced with legacy metadata values
   const { quote, ...restQuoteResponse } = quoteResponse;
-  const { feeData, ...restQuote } = quote ?? {};
-  const txFeeGasParams = includeIfTruthy(feeData?.txFee?.[0], {
+  const { feeData, priceData, ...restQuote } = quote ?? {};
+
+  const txFeeGasParams = {
     maxFeePerGas: feeData?.txFee?.[0]?.maxFeePerGas,
     maxPriorityFeePerGas: feeData?.txFee?.[0]?.maxPriorityFeePerGas,
+  };
+  const txFeeData = includeIfTruthy(txFeeGasParams, {
+    txFee: [txFeeGasParams],
   });
 
-  // Omit fields that should be replaced with legacy metadata values
+  const metabridgeFeeData = includeIfTruthy(feeData?.metabridge[0], {
+    metabridge: feeData?.metabridge,
+  });
+
+  const priceImpactData = priceData?.priceImpact?.amount && {
+    priceData: {
+      priceImpact: {
+        amount: priceData?.priceImpact?.amount,
+      },
+    },
+  };
+
   const sanitizedQuoteResponseV2 = {
     quote: {
       ...restQuote,
-      ...(feeData?.metabridge || feeData?.txFee
-        ? {
-            feeData: {
-              metabridge: feeData.metabridge,
-              ...includeIfTruthy(txFeeGasParams, {
-                txFee: txFeeGasParams && [txFeeGasParams],
-              }),
-            },
-          }
-        : {}),
+      feeData: {
+        ...(metabridgeFeeData ?? {}),
+        ...(txFeeData ?? {}),
+      },
+      ...(priceImpactData ?? {}),
     },
   };
   return merge(
