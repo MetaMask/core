@@ -281,6 +281,85 @@ export type RampsControllerRemoveOrderAction = {
 };
 
 /**
+ * Adds or updates a local autoramp account (e.g. after `POST /api/autoramps`).
+ * When Backup & Sync is available, also pushes an incremental User Storage update
+ * unless a full sync is applying remote changes.
+ *
+ * @param accountOrInput - Full account or create fields.
+ * @returns The upserted {@link AutorampAccount}.
+ */
+export type RampsControllerAddAutorampAction = {
+  type: `RampsController:addAutoramp`;
+  handler: RampsController['addAutoramp'];
+};
+
+/**
+ * Removes a local autoramp account by id.
+ * Soft-deletes the remote User Storage entry when sync is available.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ */
+export type RampsControllerRemoveAutorampAction = {
+  type: `RampsController:removeAutoramp`;
+  handler: RampsController['removeAutoramp'];
+};
+
+/**
+ * Marks that the UI has already notified for the autoramp's current status.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ */
+export type RampsControllerMarkAutorampAsNotifiedAction = {
+  type: `RampsController:markAutorampAsNotified`;
+  handler: RampsController['markAutorampAsNotified'];
+};
+
+/**
+ * Applies a remote autoramp snapshot from a websocket / webhook push.
+ * Uses the same compare helper as refresh-on-load.
+ *
+ * @param remote - Remote autoramp snapshot.
+ * @returns The updated local account.
+ */
+export type RampsControllerApplyAutorampStatusFromPushAction = {
+  type: `RampsController:applyAutorampStatusFromPush`;
+  handler: RampsController['applyAutorampStatusFromPush'];
+};
+
+/**
+ * Fetches one autoramp from the Ramp API neo-bank proxy and applies it.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns The updated local account.
+ */
+export type RampsControllerRefreshAutorampAction = {
+  type: `RampsController:refreshAutoramp`;
+  handler: RampsController['refreshAutoramp'];
+};
+
+/**
+ * Refreshes all known local autoramps from remote.
+ * Intended for app load / unlock catch-up when websockets were missed.
+ *
+ * @returns Updated autoramp accounts (failed fetches are skipped).
+ */
+export type RampsControllerRefreshAutorampsAction = {
+  type: `RampsController:refreshAutoramps`;
+  handler: RampsController['refreshAutoramps'];
+};
+
+/**
+ * Bidirectional sync of autoramp accounts with MetaMask User Storage
+ * (feature `rampsAutoramps`). No-ops when Backup & Sync / auth gates fail.
+ *
+ * @param config - Optional error callbacks for Sentry / logging.
+ */
+export type RampsControllerSyncAutorampsWithUserStorageAction = {
+  type: `RampsController:syncAutorampsWithUserStorage`;
+  handler: RampsController['syncAutorampsWithUserStorage'];
+};
+
+/**
  * Starts polling all pending V2 orders at a fixed interval.
  * Each poll cycle iterates orders with non-terminal statuses,
  * respects pollingSecondsMinimum and backoff from error count.
@@ -689,6 +768,13 @@ export type RampsControllerMethodActions =
   | RampsControllerGetQuotesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
+  | RampsControllerAddAutorampAction
+  | RampsControllerRemoveAutorampAction
+  | RampsControllerMarkAutorampAsNotifiedAction
+  | RampsControllerApplyAutorampStatusFromPushAction
+  | RampsControllerRefreshAutorampAction
+  | RampsControllerRefreshAutorampsAction
+  | RampsControllerSyncAutorampsWithUserStorageAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction
