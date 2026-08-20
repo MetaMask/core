@@ -708,7 +708,7 @@ describe('Relay Quotes Utils', () => {
       expect(body.recipient).toBe(TOKEN_TRANSFER_RECIPIENT_MOCK.toLowerCase());
     });
 
-    it('extracts recipient and sets refundTo to sender when nested transactions include token transfer with delegation', async () => {
+    it('extracts recipient and sets refundTo when nested transactions include token transfer with delegation', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,

@@ -23,8 +23,6 @@ export enum TraceName {
   BridgeTransactionCompleted = 'Bridge Transaction Completed',
   SwapTransactionApprovalCompleted = 'Swap Transaction Approval Completed',
   SwapTransactionCompleted = 'Swap Transaction Completed',
-  // For this constant only, "Swap" is the umbrella term for single-chain and cross-chain operations; use `swap_type` to distinguish them.
-  SwapOperationCompleted = 'Swap Operation Completed',
 }
 
 export const ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS = [

@@ -42,8 +42,6 @@ export type DiskCacheUserEntry = {
   orders: Order[];
   accountState: AccountState | null;
   timestamp: number;
-  hip3ConfigVersion?: number;
-  dexes?: string[];
 };
 
 /** Disk payload shape — either a single entry or a multi-provider wrapper. */
@@ -205,15 +203,19 @@ export function persistMarketEntriesToDisk(
  * @param diskCache - Disk cache instance from controller infrastructure.
  * @param entries - Pre-assembled user cache entries to persist.
  */
-export async function persistUserEntriesToDisk(
+export function persistUserEntriesToDisk(
   diskCache: PerpsDiskCache,
   entries: DiskCacheUserEntry[],
-): Promise<void> {
+): void {
   if (entries.length === 0) {
     return;
   }
   const payload = entries.length === 1 ? entries[0] : { entries };
-  await diskCache.setItem(PERPS_DISK_CACHE_USER_DATA, JSON.stringify(payload));
+  diskCache
+    .setItem(PERPS_DISK_CACHE_USER_DATA, JSON.stringify(payload))
+    .catch(() => {
+      // Disk persistence is best-effort and must never block preload.
+    });
 }
 
 /** Computed updates returned by hydrateFromDiskSync. */
@@ -227,8 +229,6 @@ export type HydrateFromDiskResult = {
       accountState: AccountState | null;
       timestamp: number;
       address: string;
-      hip3ConfigVersion?: number;
-      dexes?: string[];
     }
   >;
   stats: {
@@ -294,23 +294,12 @@ export function hydrateFromDiskSync(
           if (entry.providerNetworkKey && Array.isArray(entry.data)) {
             const existing = currentMarketCache[entry.providerNetworkKey];
             if (!existing || existing.timestamp < entry.timestamp) {
-              const strippedData = entry.data.map((market) => {
-                const structuralMarket = { ...market };
-                if (
-                  structuralMarket.dataSource ===
-                  'terminal-global-snapshot-mark'
-                ) {
-                  delete structuralMarket.trend;
-                }
-                delete structuralMarket.dataSource;
-                delete structuralMarket.sourceExpiresAt;
-                return {
-                  ...structuralMarket,
-                  price: PERPS_CONSTANTS.FallbackPriceDisplay,
-                  change24h: PERPS_CONSTANTS.FallbackDataDisplay,
-                  change24hPercent: PERPS_CONSTANTS.FallbackPercentageDisplay,
-                };
-              });
+              const strippedData = entry.data.map((market) => ({
+                ...market,
+                price: PERPS_CONSTANTS.FallbackPriceDisplay,
+                change24h: PERPS_CONSTANTS.FallbackDataDisplay,
+                change24hPercent: PERPS_CONSTANTS.FallbackPercentageDisplay,
+              }));
               marketUpdates[entry.providerNetworkKey] = {
                 data: strippedData,
                 // Disk-hydrated market snapshots are only for structural
@@ -349,8 +338,6 @@ export function hydrateFromDiskSync(
                 accountState: entry.accountState,
                 timestamp: Math.min(entry.timestamp, staleHydratedTimestamp),
                 address: entry.address,
-                hip3ConfigVersion: entry.hip3ConfigVersion,
-                dexes: entry.dexes,
               };
               userPositions += entry.positions.length;
               userOrders += entry.orders.length;

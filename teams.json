@@ -13,6 +13,7 @@
   "metamask/network-enablement-controller": "team-assets",
   "metamask/address-book-controller": "team-confirmations",
   "metamask/approval-controller": "team-confirmations",
+  "metamask/ens-controller": "team-confirmations",
   "metamask/gas-fee-controller": "team-confirmations",
   "metamask/logging-controller": "team-confirmations",
   "metamask/message-manager": "team-confirmations",

@@ -13,7 +13,7 @@ from the same failure start and must be greater than the degraded one.
 The controller stays dormant after construction so the 5s / 30s escalation
 timers do not run before a user is actually looking at the wallet (e.g. while
 the app is still on the lock screen). It manages its own lifecycle by
-subscribing to `ClientController:stateChange` and
+subscribing to `ClientController:stateChanged` and
 `KeyringController:unlock` / `KeyringController:lock`: evaluation runs only
 while the client UI is open on an unlocked wallet. When either condition
 stops holding, pending timers are cancelled and the banner state resets to

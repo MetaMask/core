@@ -23,10 +23,6 @@ import {
   isQuoteError,
 } from '../../utils/validation.js';
 import type { QuoteSimulation } from '../../utils/validation.js';
-import {
-  buildPolymarketDepositWalletSimulation,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
 import { getRelaySubmitCalls } from './relay-submit.js';
 import type { RelayExecuteRequest, RelayQuote } from './types.js';
@@ -43,23 +39,42 @@ export type ValidateRelayQuotesRequest = {
 export async function validateRelayQuotes(
   request: ValidateRelayQuotesRequest,
 ): Promise<void> {
-  if (!isRelayValidationEnabled(request.messenger, request.transaction)) {
+  if (!isRelayValidationEnabled(request.messenger)) {
     return;
   }
 
   for (const quote of request.quotes) {
-    if (shouldSkipValidation(quote, request.transaction)) {
+    if (shouldSkipValidation(quote)) {
       continue;
     }
 
     try {
-      const simulation = await buildValidationSimulation(request, quote);
+      const { calls } = await getRelaySubmitCalls({
+        messenger: request.messenger,
+        quote,
+        transaction: request.transaction,
+      });
+
+      const executeRequest = quote.original.metamask.isExecute
+        ? await getRelayExecuteRequest({
+            allParams: calls,
+            messenger: request.messenger,
+            quote,
+            requestId: quote.original.steps[0].requestId,
+            transaction: request.transaction,
+          })
+        : undefined;
 
       await validateQuoteExecution({
         messenger: request.messenger,
         quote,
         signal: request.signal,
-        simulation,
+        simulation: buildRelayValidationSimulation(
+          request.messenger,
+          quote,
+          calls,
+          executeRequest,
+        ),
       });
     } catch (error) {
       if (request.signal?.aborted) {
@@ -80,67 +95,10 @@ export async function validateRelayQuotes(
   }
 }
 
-function shouldSkipValidation(
-  quote: TransactionPayQuote<RelayQuote>,
-  transaction: TransactionMeta,
-): boolean {
+function shouldSkipValidation(quote: TransactionPayQuote<RelayQuote>): boolean {
   const { request } = quote;
-
-  if (request.isHyperliquidSource) {
-    log('Skipping quote validation: Hyperliquid source', {
-      from: request.from,
-    });
-    return true;
-  }
-
-  // Legacy Safe Predict withdraws convert USDC.e to pUSD outside the calls the
-  // controller can see, so they cannot be faithfully simulated and are skipped.
-  if (
-    isPredictWithdraw(request, transaction) &&
-    !request.isPolymarketDepositWallet
-  ) {
-    log('Skipping quote validation: legacy Safe Predict withdraw', {
-      from: request.from,
-    });
-    return true;
-  }
-
-  return false;
-}
-
-async function buildValidationSimulation(
-  request: ValidateRelayQuotesRequest,
-  quote: TransactionPayQuote<RelayQuote>,
-): Promise<QuoteSimulation> {
-  if (quote.request.isPolymarketDepositWallet) {
-    return await buildPolymarketDepositWalletSimulation(
-      quote,
-      quote.request.from,
-      request.messenger,
-    );
-  }
-
-  const { calls } = await getRelaySubmitCalls({
-    messenger: request.messenger,
-    quote,
-    transaction: request.transaction,
-  });
-
-  const executeRequest = quote.original.metamask.isExecute
-    ? await getRelayExecuteRequest({
-        allParams: calls,
-        messenger: request.messenger,
-        quote,
-        requestId: quote.original.steps[0].requestId,
-        transaction: request.transaction,
-      })
-    : undefined;
-
-  return buildRelayValidationSimulation(
-    request.messenger,
-    quote,
-    calls,
-    executeRequest,
+  return Boolean(
+    request.isHyperliquidSource ?? request.isPolymarketDepositWallet ?? false,
   );
 }
 

@@ -209,18 +209,10 @@ export function toGroupPayloadId(
 }
 
 /** Options accepted by {@link AccountTreeController.exportState}. */
-export type ExportStateOptions =
-  | {
-      /** When `true`, secrets (mnemonic / private keys) are included in the snapshot. */
-      includeSecrets: true;
-      /** Password verified against the vault before any secret is read. */
-      password: string;
-    }
-  | {
-      /** When `false` or omitted, only metadata is exported — no password needed. */
-      includeSecrets?: false;
-      password?: never;
-    };
+export type ExportStateOptions = {
+  /** When `true`, secrets (mnemonic / private keys) are included. Requires the vault to be unlocked. */
+  includeSecrets?: boolean;
+};
 
 const AccountWalletPayloadIdStruct = define<AccountWalletPayloadId>(
   'AccountWalletPayloadId',

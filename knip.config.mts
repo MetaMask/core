@@ -95,6 +95,9 @@ const config: KnipConfig = {
     'packages/eip1193-permission-middleware': {
       ignoreDependencies: ['@metamask/rpc-errors'],
     },
+    'packages/ens-controller': {
+      ignoreDependencies: ['punycode'],
+    },
     'packages/foundryup': {
       // `anvil` and `sysctl` are external system binaries, not npm packages.
       ignoreBinaries: ['anvil', 'sysctl'],

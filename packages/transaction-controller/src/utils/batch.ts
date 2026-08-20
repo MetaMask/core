@@ -85,7 +85,7 @@ type AddTransactionBatchRequest = {
   ) => PendingTransactionTracker;
   getSimulationConfig: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
-  isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
+  isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
   publishTransaction: (transactionMeta: TransactionMeta) => Promise<Hex>;

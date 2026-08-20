@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "12.1.0",
+  "version": "11.0.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -110,7 +110,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/account-tree-controller": "^8.0.0",
+    "@metamask/account-tree-controller": "^7.6.1",
     "@metamask/authenticated-user-storage": "^3.0.1",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/geolocation-controller": "^1.0.0",

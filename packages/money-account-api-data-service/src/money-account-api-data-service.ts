@@ -376,7 +376,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
     const normalizedAddress = address.toLowerCase();
     const normalizedVault = options?.vaultAddress?.toLowerCase() ?? null;
 
-    return this.fetchInfiniteQuery<HistoryResponse>(
+    return this.fetchInfiniteQuery(
       {
         queryKey: [
           `${this.name}:fetchHistory`,
@@ -385,8 +385,6 @@ export class MoneyAccountApiDataService extends BaseDataService<
           options?.chainId ?? null,
           options?.limit ?? null,
         ],
-        initialPageParam: null,
-        getNextPageParam: (result) => result.next_cursor,
         staleTime: DEFAULT_STALE_TIME_MS,
         queryFn: async (context) => {
           const cursor = context.pageParam as string | null | undefined;

@@ -99,14 +99,7 @@ import {
   getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
-import {
-  getSwapOperationCompletedTraceParams,
-  getTraceParams,
-} from './utils/trace.js';
-import type {
-  SwapOperationResult,
-  SwapOperationTerminalStage,
-} from './utils/trace.js';
+import { getTraceParams } from './utils/trace.js';
 import {
   getTransactionMetaById,
   getTransactions,
@@ -346,36 +339,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
-  readonly #traceSwapOperationCompleted = async (
-    historyKey: string | undefined,
-    result: SwapOperationResult,
-    terminalStage: SwapOperationTerminalStage,
-  ): Promise<void> => {
-    if (!historyKey) {
-      return;
-    }
-
-    const historyItem = this.state.txHistory[historyKey];
-    const featureId = historyItem?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE;
-    if (
-      !historyItem ||
-      historyItem.batchSellData ||
-      !ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId)
-    ) {
-      return;
-    }
-
-    await this.#trace(
-      getSwapOperationCompletedTraceParams(
-        historyItem,
-        historyKey,
-        result,
-        terminalStage,
-      ),
-      () => undefined,
-    );
-  };
-
   readonly #onTransactionFailed = ({
     txMeta,
     historyKey,
@@ -385,11 +348,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     historyKey?: string;
     isApprovalTxMeta: boolean;
   }): void => {
+    // Check if the history item is already marked as a failure
     const isHistoryItemAlreadyFailed = historyKey
       ? this.state.txHistory[historyKey]?.status.status === StatusTypes.FAILED
-      : false;
-    const isIntent = historyKey
-      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
       : false;
 
     this.#updateHistoryItem({
@@ -403,14 +364,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    // Skip tracking if this is a duplicate failed event for the same history item
+    // This can happen if the transaction includes an approval tx that fails
     if (isHistoryItemAlreadyFailed) {
       return;
-    }
-
-    if (!isIntent) {
-      this.#traceSwapOperationCompleted(historyKey, 'error', 'source').catch(
-        () => undefined,
-      );
     }
 
     // Report finalized failure for swap/bridge transactions.
@@ -456,9 +413,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyKey,
       txHash: txMeta.hash,
     });
-    const isIntent = historyKey
-      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
-      : false;
 
     const isSwap =
       txMeta.type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
@@ -492,13 +446,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         txMeta.chainId,
         txMeta.hash,
       );
-      if (!isIntent) {
-        this.#traceSwapOperationCompleted(
-          historyKey,
-          'success',
-          'source',
-        ).catch(() => undefined);
-      }
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         historyKey,
@@ -1155,17 +1102,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           settlementTxHash,
         );
 
-        await this.#traceSwapOperationCompleted(
-          bridgeTxMetaId,
-          status.status === StatusTypes.COMPLETE ? 'success' : 'error',
-          isCrossChain(
-            historyItem.quote.srcChainId,
-            historyItem.quote.destChainId,
-          )
-            ? 'destination'
-            : 'source',
-        ).catch(() => undefined);
-
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
@@ -1394,11 +1330,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           case SubmitStep.PublishCompletedEvent: {
             const completedHistoryItem =
               this.state.txHistory[payload.historyKey];
-            this.#traceSwapOperationCompleted(
-              payload.historyKey,
-              'success',
-              'source',
-            ).catch(() => undefined);
             this.#quoteStatusManager.reportFinalised(
               payload.historyKey,
               true,

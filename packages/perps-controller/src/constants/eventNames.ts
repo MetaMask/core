@@ -18,8 +18,6 @@ export const PERPS_EVENT_PROPERTY = {
   // Trade properties
   LEVERAGE: 'leverage',
   LEVERAGE_USED: 'leverage_used',
-  // Perp UI Interaction `leverage_changed`: prior leverage before the user change
-  PREVIOUS_LEVERAGE: 'previous_leverage',
   ORDER_SIZE: 'order_size',
   MARGIN_USED: 'margin_used',
   ORDER_TYPE: 'order_type', // lowercase per dashboard
@@ -233,12 +231,8 @@ export const PERPS_EVENT_PROPERTY = {
   SEARCH_QUERY: 'search_query',
   RESULTS_COUNT: 'results_count',
   RESULT_RANK: 'result_rank',
-  // Search intent (`discovery` / `intent` / `browse`) — not Lite/Pro UI mode
   MODE: 'mode',
   CURRENT_TOKEN: 'current_token',
-
-  // Lite/Pro interface mode (`'lite' | 'pro'`)
-  PERPS_MODE: 'perps_mode',
 
   // Sort / filter properties
   SORT_FIELD: 'sort_field',
@@ -444,10 +438,6 @@ export const PERPS_EVENT_VALUE = {
     ORDER_TYPE_SELECTED: 'order_type_selected',
     /** @deprecated Use LEVERAGE_CHANGED instead for clarity */
     SETTING_CHANGED: 'setting_changed',
-    /**
-     * Perp UI Interaction `leverage_changed`. Properties include `leverage`
-     * and `previous_leverage`.
-     */
     LEVERAGE_CHANGED: 'leverage_changed',
     TUTORIAL_STARTED: 'tutorial_started',
     TUTORIAL_COMPLETED: 'tutorial_completed',
