@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `extractSignatureAddresses` utility, plus `ExtractedSignatureAddresses` and `ExtractSignatureAddressesOptions` types, to collect the `address`-typed values from an EIP-712 typed-data message for real-time address scanning ([#9999](https://github.com/MetaMask/core/pull/9999))
+  - Walks the `types` schema from `primaryType`, matching fields by declared type (`address`/`address[]`, including nested structs and arrays) rather than by field name, so custom and unknown message shapes are covered without per-protocol handling.
+  - Normalizes non-canonical `address` encodings (variable-length hex and decimal strings) into canonical lower-case 20-byte hex, reduced mod 2^160 as the signer does, and de-duplicates case-insensitively.
+  - Excludes the zero address, a caller-provided `exclude` list (e.g. the signer), and caller-provided top-level `excludeFields`.
+  - Bounds work with a distinct-address cap (10), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked.
+  - Returns the field name each address was found under so callers can attribute alerts.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
