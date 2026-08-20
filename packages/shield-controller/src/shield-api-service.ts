@@ -324,7 +324,7 @@ export class ShieldApiService extends BaseDataService<
           req.status,
         ],
         staleTime: 0,
-        gcTime: 0,
+        cacheTime: 0,
         queryFn: async () => {
           const res = await this.#fetch(
             `${this.#baseUrl}/v1/signature/coverage/log`,
@@ -380,7 +380,7 @@ export class ShieldApiService extends BaseDataService<
           req.status,
         ],
         staleTime: 0,
-        gcTime: 0,
+        cacheTime: 0,
         queryFn: async () => {
           const res = await this.#fetch(
             `${this.#baseUrl}/v1/transaction/coverage/log`,
@@ -420,7 +420,7 @@ export class ShieldApiService extends BaseDataService<
       return await this.fetchQuery({
         queryKey: [`${this.name}:initCoverageCheck`, path, requestId],
         staleTime: 0,
-        gcTime: 0,
+        cacheTime: 0,
         queryFn: async () => {
           const res = await this.#fetch(`${this.#baseUrl}/${path}`, {
             method: 'POST',

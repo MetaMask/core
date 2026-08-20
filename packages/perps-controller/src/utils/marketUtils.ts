@@ -6,23 +6,6 @@ import type {
 import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
 
-export function clonePerpsMarketData(
-  markets: PerpsMarketData[],
-): PerpsMarketData[] {
-  return markets.map((market) => ({
-    ...market,
-    ...(market.keywords && { keywords: [...market.keywords] }),
-    ...(market.tags && { tags: [...market.tags] }),
-    ...(market.categories && { categories: [...market.categories] }),
-    ...(market.trend && {
-      trend: market.trend.map(([timestamp, price]): [number, string] => [
-        timestamp,
-        price,
-      ]),
-    }),
-  }));
-}
-
 // ============================================================================
 // Market category classification (pure functions)
 // No service dependencies — pure data transformations that can be tested and

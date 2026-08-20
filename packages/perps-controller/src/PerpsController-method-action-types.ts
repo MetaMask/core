@@ -37,18 +37,6 @@ export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
 };
 
 /**
- * Fetch, validate, and atomically cache a complete user-data snapshot.
- * This remains callable after mount so consumers can seed their live channel
- * from one coherent positions/orders/account result.
- *
- * @returns The accepted user-data snapshot.
- */
-export type PerpsControllerGetUserDataSnapshotAction = {
-  type: `PerpsController:getUserDataSnapshot`;
-  handler: PerpsController['getUserDataSnapshot'];
-};
-
-/**
  * Initialize the PerpsController providers
  * Must be called before using any other methods
  * Prevents double initialization with promise caching
@@ -779,32 +767,6 @@ export type PerpsControllerCalculateFeesAction = {
 };
 
 /**
- * Approve the dedicated subscription builder outside order submission.
- * Until this succeeds, subscription waivers fall back to the ordinary
- * builder at the standard fee.
- *
- * @returns Whether the subscription builder is approved.
- */
-export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
-  type: `PerpsController:approveSubscriptionBuilderFee`;
-  handler: PerpsController['approveSubscriptionBuilderFee'];
-};
-
-/**
- * Drop the cached subscription benefits snapshot.
- *
- * Call this when the identity behind the benefits changes — sign-out, or a
- * profile switch. The snapshot carries no profile identity of its own, so
- * without this it keeps answering for the previous profile until the next
- * successful refresh. The next fee resolution reports the waiver as
- * unavailable, so it is withheld until preview or lifecycle hydration.
- */
-export type PerpsControllerInvalidateSubscriptionBenefitsAction = {
-  type: `PerpsController:invalidateSubscriptionBenefits`;
-  handler: PerpsController['invalidateSubscriptionBenefits'];
-};
-
-/**
  * Disconnect provider and cleanup subscriptions
  * Call this when navigating away from Perps screens to prevent battery drain
  */
@@ -1161,7 +1123,6 @@ export type PerpsControllerIsCurrentlyReinitializingAction = {
 export type PerpsControllerMethodActions =
   | PerpsControllerGetCachedMarketDataForActiveProviderAction
   | PerpsControllerGetCachedUserDataForActiveProviderAction
-  | PerpsControllerGetUserDataSnapshotAction
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
@@ -1223,8 +1184,6 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
-  | PerpsControllerApproveSubscriptionBuilderFeeAction
-  | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction
   | PerpsControllerStopEligibilityMonitoringAction

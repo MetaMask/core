@@ -29,7 +29,6 @@ import {
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
-import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
   GetAvailableDexsParams,
   PerpsProvider,
@@ -828,21 +827,6 @@ describe('PerpsController', () => {
   });
 
   describe('fee calculations', () => {
-    it('approves the subscription builder outside order submission', async () => {
-      mockProvider.approveSubscriptionBuilderFee = jest
-        .fn()
-        .mockResolvedValue(true);
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await expect(controller.approveSubscriptionBuilderFee()).resolves.toBe(
-        true,
-      );
-      expect(mockProvider.approveSubscriptionBuilderFee).toHaveBeenCalledTimes(
-        1,
-      );
-    });
-
     it('calculates fees', async () => {
       const feeParams = {
         orderType: 'market' as const,
@@ -876,101 +860,6 @@ describe('PerpsController', () => {
         params: feeParams,
         context: expect.any(Object),
       });
-    });
-
-    it('passes the cached subscription waiver status to the fee preview', async () => {
-      const feeParams = {
-        orderType: 'market' as const,
-        isMaker: false,
-        amount: '100000',
-        symbol: 'BTC',
-      };
-      const waiverStatus = {
-        eligible: true,
-        reason: 'eligible' as const,
-        remainingNotionalUsd: 2500,
-      };
-      const getStatus = jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'getSubscriptionFeeWaiverStatus',
-        )
-        .mockReturnValue(waiverStatus);
-      const refresh = jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
-
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await controller.calculateFees(feeParams);
-
-      expect(refresh).toHaveBeenCalledTimes(1);
-      expect(refresh.mock.invocationCallOrder[0]).toBeLessThan(
-        getStatus.mock.invocationCallOrder[0],
-      );
-      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
-        expect.objectContaining({
-          context: expect.objectContaining({
-            subscriptionFeeWaiver: waiverStatus,
-          }),
-        }),
-      );
-
-      getStatus.mockRestore();
-      refresh.mockRestore();
-    });
-
-    it('exposes subscription benefits invalidation to clients', async () => {
-      // The service is private to the controller, so a client detecting a
-      // sign-out or profile switch can only reach it through this method.
-      const invalidate = jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'invalidateSubscriptionBenefits',
-        )
-        .mockImplementation(() => undefined);
-
-      controller.invalidateSubscriptionBenefits();
-
-      expect(invalidate).toHaveBeenCalledTimes(1);
-
-      invalidate.mockRestore();
-    });
-
-    it('omits the subscription waiver from the fee preview when no source is wired', async () => {
-      const feeParams = {
-        orderType: 'market' as const,
-        isMaker: false,
-        amount: '100000',
-        symbol: 'BTC',
-      };
-      // The mocked infrastructure wires no `subscription` dependency, so the
-      // real service reports `no-source` and the context field must be absent
-      // rather than carrying a meaningless "not eligible".
-      const getStatus = jest.spyOn(
-        RewardsIntegrationService.prototype,
-        'getSubscriptionFeeWaiverStatus',
-      );
-
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await controller.calculateFees(feeParams);
-
-      expect(getStatus).toHaveReturnedWith({
-        eligible: false,
-        reason: 'no-source',
-      });
-      const { context } = (
-        mockMarketDataServiceInstance.calculateFees as jest.Mock
-      ).mock.calls.at(-1)[0];
-      expect(context.subscriptionFeeWaiver).toBeUndefined();
-
-      getStatus.mockRestore();
     });
   });
 

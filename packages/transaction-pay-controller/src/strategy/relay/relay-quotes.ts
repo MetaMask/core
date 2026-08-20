@@ -2,6 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -57,11 +61,7 @@ import {
 } from '../../utils/token.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import {
-  applyPolymarketDepositWalletOverrides,
-  getPredictWithdrawSafeAddress,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
 import { validateRelayQuotes } from './relay-validation.js';
@@ -968,7 +968,9 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
-  const isPredictWithdrawFlow = isPredictWithdraw(request, transaction);
+  const isPredictWithdraw =
+    request.isPostQuote &&
+    hasTransactionType(transaction, [TransactionType.predictWithdraw]);
 
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
@@ -978,11 +980,9 @@ async function calculateSourceNetworkCost(
   // native balance). Simulating those from the Safe proxy reverts and breaks
   // gas estimation. For swap-only routes, fall back to the relay params'
   // EOA `from` so simulation succeeds.
-  const fromOverride = getPredictWithdrawSafeAddress(
-    request,
-    quote.steps,
-    transaction,
-  );
+  const hasDepositStep = quote.steps.some((step) => step.id === 'deposit');
+  const useFromOverride = isPredictWithdraw && hasDepositStep;
+  const fromOverride = useFromOverride ? request.refundTo : undefined;
 
   // For post-quote flows the original transaction will be prepended to the
   // batch at submission time. Include it in the gas estimation so
@@ -1078,7 +1078,7 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  if (isPredictWithdrawFlow && request.refundTo) {
+  if (isPredictWithdraw && request.refundTo) {
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,
       sourceTokenAddress,

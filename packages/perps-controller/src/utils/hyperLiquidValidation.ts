@@ -522,7 +522,6 @@ export type StrategyOrderValidationParams = {
   scaleMinPrice?: string;
   scaleMaxPrice?: string;
   scaleNumOrders?: number;
-  scaleSkew?: number;
   chaseIntervalMs?: number;
   chaseMaxDurationMs?: number;
   chaseMaxRepricings?: number;
@@ -544,7 +543,6 @@ const STRATEGY_FIELD_OWNER: Record<
   scaleMinPrice: 'scale',
   scaleMaxPrice: 'scale',
   scaleNumOrders: 'scale',
-  scaleSkew: 'scale',
   chaseIntervalMs: 'chase',
   chaseMaxDurationMs: 'chase',
   chaseMaxRepricings: 'chase',
@@ -627,20 +625,6 @@ function validateScaleParams(params: StrategyOrderValidationParams): {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID,
-    };
-  }
-
-  // Omitted is an even ladder, so only a supplied skew is checked. The value is
-  // taken exactly as the caller wrote it: clients coerce their input to two
-  // decimals, and rounding it again here would place a ladder weighted
-  // differently from the one the form previewed.
-  if (
-    params.scaleSkew !== undefined &&
-    (!Number.isFinite(params.scaleSkew) || params.scaleSkew <= 0)
-  ) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
     };
   }
 
@@ -799,7 +783,6 @@ function validateStrategyOrderParams(
  * @param params.scaleMinPrice - Lowest price in a scale ladder
  * @param params.scaleMaxPrice - Highest price in a scale ladder
  * @param params.scaleNumOrders - How many orders a scale ladder fans out into
- * @param params.scaleSkew - How a scale ladder's size is weighted across its rungs
  * @param params.chaseIntervalMs - How often a chase re-reads the touch
  * @param params.chaseMaxDurationMs - How long a chase keeps re-pricing
  * @param params.chaseMaxRepricings - Cap on a chase's cancel/replace cycles

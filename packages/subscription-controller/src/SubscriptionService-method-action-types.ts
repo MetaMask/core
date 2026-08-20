@@ -39,8 +39,7 @@ export type SubscriptionServiceUnCancelSubscriptionAction = {
 };
 
 /**
- * Starts a card-paid subscription checkout session for the requested products
- * (e.g. Shield or Money Account Plus).
+ * Starts a subscription with a card payment method.
  *
  * @param request - The start subscription request.
  * @returns The checkout session response.
@@ -55,9 +54,6 @@ export type SubscriptionServiceStartSubscriptionWithCardAction = {
  *
  * @param request - The start crypto subscription request.
  * @returns The created subscription response.
- * @throws If `products` is empty.
- * @throws If the request does not use exactly one of `rawTransaction`
- * (ERC-20 approval) or `delegationHash` (delegation).
  */
 export type SubscriptionServiceStartSubscriptionWithCryptoAction = {
   type: `SubscriptionService:startSubscriptionWithCrypto`;

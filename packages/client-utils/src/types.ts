@@ -1,18 +1,6 @@
 import type { ValueTransfer as _ValueTransfer } from '@metamask/core-backend';
 import type { CaipChainId } from '@metamask/utils';
 
-export type PerpsOrderKind =
-  | 'marketShort'
-  | 'stopMarketCloseShort'
-  | 'marketCloseShort'
-  | 'limitShort'
-  | 'limitCloseShort'
-  | 'marketLong'
-  | 'stopMarketCloseLong'
-  | 'marketCloseLong'
-  | 'limitLong'
-  | 'limitCloseLong';
-
 export type ActivityKind =
   | 'receive'
   | 'sell'
@@ -37,8 +25,6 @@ export type ActivityKind =
   | 'smartAccountUpgrade'
   | 'lendingDeposit'
   | 'lendingWithdrawal'
-  | 'stake'
-  | 'unstake'
   | 'predictionsAddFunds'
   | 'predictionsWithdrawFunds'
   | 'predictionClaimWinnings'
@@ -58,7 +44,9 @@ export type ActivityKind =
   | 'perpsReceivedFundingFees'
   | 'perpsCloseShortTakeProfit'
   | 'perpsCloseLongTakeProfit'
-  | PerpsOrderKind
+  | 'marketShort'
+  | 'stopMarketCloseShort'
+  | 'marketCloseShort'
   | 'assetActivation'
   | 'assetDeactivation'
   | 'rampBuy'
@@ -174,39 +162,6 @@ export type ActivityItem =
         fiat?: FiatAmount;
         networkFee?: FiatAmount;
         token?: TokenAmount;
-      }
-    >
-  | ActivityData<
-      | 'stake'
-      | 'unstake'
-      | 'sell'
-      | 'contractDeployment'
-      | 'smartAccountUpgrade'
-      | 'predictionsAddFunds'
-      | 'predictionsWithdrawFunds'
-      | 'predictionClaimWinnings'
-      | 'predictionCashedOut'
-      | 'predictionPlaced'
-      | 'perpsOpenLong'
-      | 'perpsCloseLong'
-      | 'perpsCloseLongLiquidated'
-      | 'perpsCloseLongStopLoss'
-      | 'perpsOpenShort'
-      | 'perpsCloseShort'
-      | 'perpsCloseShortLiquidated'
-      | 'perpsCloseShortStopLoss'
-      | 'perpsPaidFundingFees'
-      | 'perpsReceivedFundingFees'
-      | 'perpsCloseShortTakeProfit'
-      | 'perpsCloseLongTakeProfit'
-      | PerpsOrderKind,
-      {
-        from?: string;
-        to?: string;
-        token?: TokenAmount;
-        sourceToken?: TokenAmount;
-        destinationToken?: TokenAmount;
-        fees?: Fee[];
       }
     >
   | ActivityData<

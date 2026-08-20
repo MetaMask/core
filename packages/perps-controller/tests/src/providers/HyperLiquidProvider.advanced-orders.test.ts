@@ -1684,76 +1684,8 @@ describe('HyperLiquidProvider', () => {
           reduceOnly: true,
         },
       ]);
-      // A lone trigger is the position's take profit whether or not it is
-      // position-bound, so the scalar summary field reports its price.
-      expect(position?.takeProfitPrice).toBe('60000');
-      expect(position?.takeProfitCount).toBe(1);
-    });
-
-    it('leaves the summary price unset when two partial take profits share the position', async () => {
-      const partialTakeProfit = (oid: number, triggerPx: string) => ({
-        coin: 'BTC',
-        side: 'A',
-        limitPx: triggerPx,
-        sz: '0.04',
-        origSz: '0.04',
-        oid,
-        timestamp: 1_700_000_000_000,
-        triggerCondition: `Price above ${triggerPx}`,
-        isTrigger: true,
-        triggerPx,
-        children: [],
-        isPositionTpsl: false,
-        reduceOnly: true,
-        orderType: 'Take Profit Limit',
-      });
-
-      mockClientService.getInfoClient.mockReturnValue(
-        createMockInfoClient({
-          clearinghouseState: jest.fn().mockResolvedValue({
-            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
-            crossMarginSummary: {
-              totalMarginUsed: '500',
-              accountValue: '10500',
-            },
-            withdrawable: '9500',
-            assetPositions: [
-              {
-                position: {
-                  coin: 'BTC',
-                  szi: '0.1',
-                  entryPx: '50000',
-                  positionValue: '5000',
-                  unrealizedPnl: '100',
-                  marginUsed: '500',
-                  leverage: { type: 'cross', value: 10 },
-                  liquidationPx: '45000',
-                  maxLeverage: 50,
-                  returnOnEquity: '20',
-                  cumFunding: {
-                    allTime: '10',
-                    sinceOpen: '5',
-                    sinceChange: '2',
-                  },
-                },
-                type: 'oneWay',
-              },
-            ],
-          }),
-          frontendOpenOrders: jest
-            .fn()
-            .mockResolvedValue([
-              partialTakeProfit(701, '60000'),
-              partialTakeProfit(702, '62000'),
-            ]),
-        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
-      );
-
-      const positions = await provider.getPositions({ skipCache: true });
-      const position = positions.find((pos) => pos.symbol === 'BTC');
-
-      // No single price describes two triggers; the count is what a client shows.
-      expect(position?.takeProfitCount).toBe(2);
+      // The scalar summary field stays position-bound-only, which is exactly why
+      // the array exists.
       expect(position?.takeProfitPrice).toBeUndefined();
     });
   });

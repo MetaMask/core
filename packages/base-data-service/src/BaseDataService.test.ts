@@ -1,5 +1,5 @@
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
-import { hashKey } from '@tanstack/query-core';
+import { hashQueryKey } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
 
@@ -131,7 +131,7 @@ describe('BaseDataService', () => {
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
-    const hash = hashKey(queryKey);
+    const hash = hashQueryKey(queryKey);
 
     expect(publishSpy).toHaveBeenNthCalledWith(
       6,
@@ -186,7 +186,7 @@ describe('BaseDataService', () => {
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
-    const hash = hashKey(queryKey);
+    const hash = hashQueryKey(queryKey);
 
     expect(publishSpy).toHaveBeenNthCalledWith(
       8,
@@ -223,33 +223,6 @@ describe('BaseDataService', () => {
     await service.invalidateQueries({ queryKey });
 
     expect(publishSpy).toHaveBeenCalledTimes(8);
-  });
-
-  describe('validation', () => {
-    beforeAll(() => {
-      jest.useRealTimers();
-    });
-
-    afterAll(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-    });
-
-    beforeEach(() => {
-      cleanAll();
-    });
-
-    it('throws when fetchQuery response fails struct validation', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
-      const service = new ExampleDataService(messenger);
-
-      mockAssets({ status: 200, body: { foo: 'bar' } });
-
-      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
-        'Query function for "ExampleDataService:getAssets" returned an unexpected response: Expected an array value, but received: [object Object].',
-      );
-
-      service.destroy();
-    });
   });
 
   describe('service policy', () => {
@@ -360,7 +333,6 @@ describe('BaseDataService', () => {
         state: {
           queries: [
             {
-              dehydratedAt: expect.any(Number),
               queryHash:
                 '["ExampleDataService:getAssets",["eip155:1/slip44:60","bip122:000000000019d6689c085ae165831e93/slip44:0","eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f"]]',
               queryKey: [

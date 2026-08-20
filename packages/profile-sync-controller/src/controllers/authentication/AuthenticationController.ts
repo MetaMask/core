@@ -8,10 +8,10 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
-  KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -34,11 +34,10 @@ import {
   getHdKeyringEntropySourceIds,
   getPrimaryHdKeyringEntropySourceId,
 } from '../../shared/utils/entropy-source.js';
-import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
 import {
-  getMessageSigningPublicKey,
-  signMessageWithMessageSigningKey,
-} from '../../shared/utils/message-signing.js';
+  createSnapPublicKeyRequest,
+  createSnapSignMessageRequest,
+} from './auth-snap-requests.js';
 import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types.js';
 
 const controllerName = 'AuthenticationController';
@@ -156,7 +155,7 @@ export type Events =
 // Allowed Actions
 type AllowedActions =
   | KeyringControllerGetStateAction
-  | KeyringControllerWithKeyringV2UnsafeAction
+  | SnapControllerHandleRequestAction
   | SeedlessOnboardingControllerGetStateAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
@@ -252,8 +251,8 @@ export class AuthenticationController extends BaseController<
           setLoginResponse: this.#setLoginResponseToState.bind(this),
         },
         signing: {
-          getIdentifier: this.#getPublicKey.bind(this),
-          signMessage: this.#signMessage.bind(this),
+          getIdentifier: this.#snapGetPublicKey.bind(this),
+          signMessage: this.#snapSignMessage.bind(this),
         },
         getLoginTag: this.#getLoginTag.bind(this),
         getLoginIdentifierType: this.#getLoginIdentifierType.bind(this),
@@ -681,78 +680,51 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Reads the BIP-39 seed for an HD entropy source from KeyringController.
-   *
-   * @param entropySourceId - Entropy source ID. Defaults to the primary HD
-   * keyring.
-   * @returns The HD keyring seed.
-   */
-  async #getHdKeyringSeed(entropySourceId?: string): Promise<Uint8Array> {
-    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
-    return getHdKeyringSeed(this.messenger, resolvedId);
-  }
-
-  /**
-   * Returns the message-signing public key via native SIP-6 derivation
-   * (same key as `@metamask/message-signing-snap` with empty salt).
+   * Returns the auth snap public key.
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns The public key hex.
+   * @returns The snap public key.
    */
-  async #getPublicKey(entropySourceId?: string): Promise<string> {
-    this.#assertIsUnlocked('#getPublicKey');
-    const seed = await this.#getHdKeyringSeed(entropySourceId);
-    return getMessageSigningPublicKey(seed);
+  async #snapGetPublicKey(entropySourceId?: string): Promise<string> {
+    this.#assertIsUnlocked('#snapGetPublicKey');
+
+    const result = (await this.messenger.call(
+      'SnapController:handleRequest',
+      createSnapPublicKeyRequest(entropySourceId),
+    )) as string;
+
+    return result;
   }
 
-  #_signMessageCache: Record<string, string> = {};
+  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
 
   /**
-   * Builds a cache key scoped to a specific entropy source, so each SRP's
-   * signature stays isolated (same pattern as `UserStorageController`).
-   *
-   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
-   * primary HD keyring's metadata ID rather than a stable literal. Because that
-   * ID is randomly regenerated whenever the vault is recreated (e.g. on
-   * restore), the cached entry is naturally invalidated across vaults — a
-   * different SRP can never inherit the previous primary's cached signature.
-   *
-   * @param message - The tagged message used for signing.
-   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
-   * @returns The scoped cache key.
-   */
-  #scopedCacheKey(
-    message: `metamask:${string}`,
-    entropySourceId?: string,
-  ): string {
-    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
-  }
-
-  /**
-   * Signs a `metamask:…` message with the native SIP-6 message-signing key.
+   * Signs a specific message using an underlying auth snap.
    *
    * @param message - A specific tagged message to sign.
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns Compact secp256k1 signature hex.
+   * @returns A Signature created by the snap.
    */
-  async #signMessage(
+  async #snapSignMessage(
     message: string,
     entropySourceId?: string,
   ): Promise<string> {
     assertMessageStartsWithMetamask(message);
-    this.#assertIsUnlocked('#signMessage');
 
-    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
-    if (this.#_signMessageCache[cacheKey]) {
-      return this.#_signMessageCache[cacheKey];
+    if (this.#_snapSignMessageCache[message]) {
+      return this.#_snapSignMessageCache[message];
     }
 
-    const seed = await this.#getHdKeyringSeed(entropySourceId);
-    const result = await signMessageWithMessageSigningKey(message, seed);
+    this.#assertIsUnlocked('#snapSignMessage');
 
-    this.#_signMessageCache[cacheKey] = result;
+    const result = (await this.messenger.call(
+      'SnapController:handleRequest',
+      createSnapSignMessageRequest(message, entropySourceId),
+    )) as string;
+
+    this.#_snapSignMessageCache[message] = result;
 
     return result;
   }

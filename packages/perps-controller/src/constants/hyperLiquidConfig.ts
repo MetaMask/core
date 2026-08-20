@@ -27,20 +27,6 @@ export const HYPERLIQUID_MAINNET_CAIP_CHAIN_ID = 'eip155:999' as CaipChainId;
 export const HYPERLIQUID_TESTNET_CAIP_CHAIN_ID = 'eip155:998' as CaipChainId;
 export const HYPERLIQUID_NETWORK_NAME = 'Hyperliquid';
 
-/**
- * Return the canonical snapshot identity: main first, then unique DEX ids.
- *
- * @param dexes - DEX identifiers to canonicalize.
- * @returns The canonical DEX identifiers.
- */
-export function canonicalizeHyperLiquidDexes(
-  dexes: Iterable<string>,
-): string[] {
-  const additionalDexes = new Set(dexes);
-  additionalDexes.delete('main');
-  return ['main', ...Array.from(additionalDexes).sort()];
-}
-
 // Token constants
 export const USDC_SYMBOL = 'USDC';
 export const USDC_NAME = 'USD Coin';

@@ -23,7 +23,9 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  '@tanstack/query-core': ['^4.43.0'],
+};
 
 /**
  * These packages are allowed as peer dependencies without requiring installation as

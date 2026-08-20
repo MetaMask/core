@@ -26,6 +26,7 @@ import {
 import type {
   SpotClearinghouseStateResponse,
   HyperLiquidAbstractionMode,
+  UserAbstractionResponse,
 } from '../types/hyperliquid-types.js';
 import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
@@ -68,7 +69,6 @@ import {
 import {
   buildPositionTriggerOrderFromOrder,
   hashTriggerOrders,
-  resolvePositionTriggerSummaryPrice,
 } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
@@ -105,8 +105,6 @@ export class HyperLiquidSubscriptionService {
 
   // Max market-vs-oracle price deviation before a market is reported untradable
   readonly #priceDeviationLimit: number;
-
-  readonly #discoverEnabledDexs?: () => Promise<string[]>;
 
   #discoveredDexNames: string[] = []; // DEX order for mapping webData3 perpDexStates indices
 
@@ -387,7 +385,6 @@ export class HyperLiquidSubscriptionService {
     allowlistMarkets?: string[],
     blocklistMarkets?: string[],
     priceDeviationLimit?: number,
-    discoverEnabledDexs?: () => Promise<string[]>,
   ) {
     this.#clientService = clientService;
     this.#walletService = walletService;
@@ -399,7 +396,6 @@ export class HyperLiquidSubscriptionService {
     this.#blocklistMarkets = blocklistMarkets ?? [];
     this.#priceDeviationLimit =
       priceDeviationLimit ?? HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
-    this.#discoverEnabledDexs = discoverEnabledDexs;
   }
 
   /**
@@ -646,16 +642,6 @@ export class HyperLiquidSubscriptionService {
       });
     }
 
-    const discovery = this.#discoverEnabledDexs
-      ? this.#discoverEnabledDexs()
-          .then((enabledDexs) => {
-            this.#enabledDexs = enabledDexs;
-            this.#discoveredDexNames = enabledDexs;
-            return undefined;
-          })
-          .catch(() => this.#dexDiscoveryPromise ?? Promise.resolve())
-      : this.#dexDiscoveryPromise;
-
     // Wait with timeout
     let timeoutId: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<void>((_resolve, reject) => {
@@ -666,7 +652,7 @@ export class HyperLiquidSubscriptionService {
     });
 
     try {
-      await Promise.race([discovery, timeoutPromise]);
+      await Promise.race([this.#dexDiscoveryPromise, timeoutPromise]);
     } catch {
       this.#deps.debugLogger.log(
         'DEX discovery wait timed out, proceeding with main DEX only',
@@ -1183,16 +1169,8 @@ export class HyperLiquidSubscriptionService {
 
       return {
         ...position,
-        // The scanned prices only ever come from position-bound triggers, so a
-        // lone quantity-scoped trigger has to be read off the array instead.
-        takeProfitPrice: resolvePositionTriggerSummaryPrice({
-          triggerOrders: takeProfitOrders,
-          scannedPrice: tpsl.takeProfitPrice,
-        }),
-        stopLossPrice: resolvePositionTriggerSummaryPrice({
-          triggerOrders: stopLossOrders,
-          scannedPrice: tpsl.stopLossPrice,
-        }),
+        takeProfitPrice: tpsl.takeProfitPrice ?? undefined,
+        stopLossPrice: tpsl.stopLossPrice ?? undefined,
         // Counts come from the same arrays as the REST path, so both transports
         // report one definition. Orders whose placement type the exchange did
         // not name (HyperLiquid's ambiguous 'Trigger') are absent from both,
@@ -1494,7 +1472,7 @@ export class HyperLiquidSubscriptionService {
       // independent of the spot generation, and the post-fetch path below
       // correctly handles the generation-changed case (seal + re-aggregate
       // instead of overwriting WS spot).
-      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+      const infoClient = this.#clientService.getInfoClient();
       const lowerUserAddress = userAddress.toLowerCase();
       // Fetch spot state + abstraction mode in parallel — mode decides
       // whether the spot fold applies in addSpotBalanceToAccountState.

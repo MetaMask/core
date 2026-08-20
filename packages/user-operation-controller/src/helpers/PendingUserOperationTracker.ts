@@ -5,13 +5,13 @@ import type {
   NetworkClientId,
   Provider,
 } from '@metamask/network-controller';
+import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { BlockTrackerPollingControllerOnly } from '../BlockTrackerPollingController.js';
 import { projectLogger } from '../logger.js';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types.js';
 import { UserOperationStatus } from '../types.js';

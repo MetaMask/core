@@ -51,7 +51,6 @@
     "@inquirer/password": "^5.1.1",
     "@metamask/analytics-controller": "^2.0.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/config-registry-controller": "^3.0.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/remote-feature-flag-controller": "^5.0.0",
     "@metamask/rpc-errors": "^7.0.2",
@@ -59,7 +58,7 @@
     "@metamask/storage-service": "^1.0.2",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0",
-    "@metamask/wallet": "^11.0.0",
+    "@metamask/wallet": "^10.0.0",
     "@oclif/core": "^4.10.5",
     "better-sqlite3": "^12.9.0",
     "immer": "^9.0.6"

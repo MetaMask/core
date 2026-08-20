@@ -253,38 +253,6 @@ export function buildPositionTriggerOrderFromOrder(params: {
 }
 
 /**
- * Resolve the scalar TP/SL summary price a position reports for one direction.
- *
- * The scalar fields are only ever scanned from position-bound triggers, so a
- * position whose only take profit (or stop loss) is quantity-scoped reported a
- * count of 1 with no price — and a client that renders the scalar showed
- * nothing. When the direction has exactly one trigger order, that order is the
- * price, whether or not it is position-bound.
- *
- * Two or more triggers keep the scanned value: no single price describes them,
- * and clients render the count instead. Zero triggers keep it too, because it
- * still carries the TP/SL of a *pending* order on the market, which the arrays
- * deliberately exclude.
- *
- * @param params - Resolution parameters
- * @param params.triggerOrders - Trigger orders attached to the position for one direction
- * @param params.scannedPrice - Price scanned from position-bound triggers, if any
- * @returns The price to report, or undefined when there is none
- */
-export function resolvePositionTriggerSummaryPrice(params: {
-  triggerOrders: PositionTriggerOrder[];
-  scannedPrice?: string;
-}): string | undefined {
-  const { triggerOrders, scannedPrice } = params;
-
-  if (triggerOrders.length === 1) {
-    return triggerOrders[0].triggerPrice;
-  }
-
-  return scannedPrice;
-}
-
-/**
  * Build a trigger order type from its two independent dimensions.
  *
  * @param params - Trigger dimensions.

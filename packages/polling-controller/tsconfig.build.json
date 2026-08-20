@@ -10,6 +10,9 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
+      "path": "../network-controller/tsconfig.build.json"
+    },
+    {
       "path": "../messenger/tsconfig.build.json"
     }
   ],

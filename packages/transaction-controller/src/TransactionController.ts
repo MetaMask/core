@@ -374,7 +374,7 @@ export type TransactionControllerOptions = {
   isFirstTimeInteractionEnabled?: () => boolean;
 
   /** Whether new transactions will be automatically simulated. */
-  isSimulationEnabled?: (transactionMeta?: TransactionMeta) => boolean;
+  isSimulationEnabled?: () => boolean;
 
   /** Whether timeout checking is enabled for a transaction. */
   isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
@@ -750,7 +750,7 @@ export class TransactionController extends BaseController<
 
   readonly #isFirstTimeInteractionEnabled: () => boolean;
 
-  readonly #isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
+  readonly #isSimulationEnabled: () => boolean;
 
   readonly #isSwapsDisabled: boolean;
 
@@ -4039,7 +4039,7 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      if (!skipResimulateCheck && this.#isSimulationEnabled(transactionMeta)) {
+      if (!skipResimulateCheck && this.#isSimulationEnabled()) {
         resimulateResponse = shouldResimulate(
           originalTransactionMeta,
           transactionMeta,
@@ -4109,7 +4109,7 @@ export class TransactionController extends BaseController<
     this.#simulationRequestTokens.set(transactionId, simulationRequestToken);
 
     try {
-      const isSimulationEnabled = this.#isSimulationEnabled(transactionMeta);
+      const isSimulationEnabled = this.#isSimulationEnabled();
       const isBalanceChangesSkipped =
         this.#isBalanceChangesSkipped(transactionMeta);
 
@@ -4327,7 +4327,7 @@ export class TransactionController extends BaseController<
 
     await updateGas({
       isCustomNetwork,
-      isSimulationEnabled: this.#isSimulationEnabled(transactionMeta),
+      isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       txMeta: transactionMeta,

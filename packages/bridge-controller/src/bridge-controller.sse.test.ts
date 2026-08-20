@@ -1,6 +1,5 @@
 import { BigNumber } from '@ethersproject/bignumber';
 import * as ethersContractUtils from '@ethersproject/contracts';
-import type { TraceRequest } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -39,7 +38,6 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge.js';
-import { TraceName } from './constants/traces.js';
 import { ChainId, RequestStatus } from './types.js';
 import type { BridgeControllerMessenger } from './types.js';
 import * as balanceUtils from './utils/balance.js';
@@ -49,16 +47,11 @@ import {
 } from './utils/caip-formatters.js';
 import * as featureFlagUtils from './utils/feature-flags.js';
 import * as fetchUtils from './utils/fetch.js';
-import { AbortReason } from './utils/metrics/constants.js';
 import { FeatureId } from './validators/feature-flags.js';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1.js';
 import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js';
 import { TokenFeatureType } from './validators/token-feature.js';
 import type { TxData } from './validators/trade.js';
-
-jest.mock('uuid', () => ({
-  v4: (): string => 'test-uuid-1234',
-}));
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -110,16 +103,6 @@ const metricsContext = {
   warnings: [],
   token_security_type_destination: null,
 };
-
-const createTraceCallback = (traceRequests: TraceRequest[]): jest.Mock =>
-  jest
-    .fn()
-    .mockImplementation(
-      async (request: TraceRequest, callback?: () => unknown) => {
-        traceRequests.push(request);
-        return await callback?.();
-      },
-    );
 
 const assetExchangeRates = {
   'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -257,149 +240,6 @@ describe('BridgeController SSE', function () {
     jest.clearAllMocks();
     jest.clearAllTimers();
     jest.resetAllMocks();
-  });
-
-  describe('quote tracing', () => {
-    const runTraceScenario = async ({
-      response,
-      request = quoteRequest,
-      abort = false,
-    }: {
-      response: () => unknown;
-      request?: typeof quoteRequest;
-      abort?: boolean;
-    }): Promise<TraceRequest[]> => {
-      const traceRequests: TraceRequest[] = [];
-
-      await withController(
-        {
-          options: {
-            traceFn: createTraceCallback(traceRequests),
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          mockFetchFn.mockImplementationOnce(async () => response());
-          await rootMessenger.call(
-            'BridgeController:updateBridgeQuoteRequestParams',
-            request,
-            metricsContext,
-          );
-          jest.advanceTimersByTime(1000);
-          await advanceToNthTimerThenFlush();
-          if (abort) {
-            controller.stopPollingForQuotes(AbortReason.NewQuoteRequest);
-          }
-          jest.advanceTimersByTime(11000);
-          await flushPromises();
-        },
-      );
-
-      return traceRequests;
-    };
-
-    const getTrace = (
-      requests: TraceRequest[],
-      name: TraceName,
-    ): TraceRequest | undefined =>
-      requests.find((request) => request.name === name);
-
-    it('records cross-chain success and the first result from each provider', async () => {
-      const firstQuote = mockBridgeQuotesErc20Erc20V1[0];
-      const secondProviderQuote = {
-        ...firstQuote,
-        quote: {
-          ...firstQuote.quote,
-          requestId: 'second-provider-request',
-          bridgeId: 'hop',
-          bridges: ['hop'],
-          protocols: ['hop'],
-        },
-      };
-
-      const requests = await runTraceScenario({
-        response: (): unknown =>
-          mockSseEventSource([firstQuote, firstQuote, secondProviderQuote]),
-      });
-      const providerTraces = requests.filter(
-        (request) => request.name === TraceName.QuoteProviderFirstResult,
-      );
-
-      expect(
-        getTrace(requests, TraceName.BridgeQuotesFetched)?.data,
-      ).toStrictEqual(
-        expect.objectContaining({
-          request_id: 'test-uuid-1234',
-          feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
-          result: 'success',
-        }),
-      );
-      expect(
-        providerTraces.map((request) => request.data?.provider),
-      ).toStrictEqual(['socket_across', 'hop_hop']);
-      expect(
-        providerTraces.every((request) => Number.isFinite(request.startTime)),
-      ).toBe(true);
-    });
-
-    it.each([
-      {
-        name: 'same-chain success',
-        response: (): unknown =>
-          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
-        request: {
-          ...quoteRequest,
-          destChainId: quoteRequest.srcChainId,
-        },
-        traceName: TraceName.SwapQuotesFetched,
-        result: 'success',
-        providerCount: 1,
-      },
-      {
-        name: 'no quotes',
-        response: (): unknown => mockSseEventSource([]),
-        request: quoteRequest,
-        traceName: TraceName.BridgeQuotesFetched,
-        result: 'no_quotes',
-        providerCount: 0,
-      },
-      {
-        name: 'error',
-        response: (): unknown => mockSseServerError('provider request failed'),
-        request: quoteRequest,
-        traceName: TraceName.BridgeQuotesFetched,
-        result: 'error',
-        providerCount: 0,
-      },
-    ])('records $name', async (scenario) => {
-      const requests = await runTraceScenario(scenario);
-
-      expect(getTrace(requests, scenario.traceName)?.data).toStrictEqual(
-        expect.objectContaining({
-          result: scenario.result,
-        }),
-      );
-      expect(
-        requests.filter(
-          (request) => request.name === TraceName.QuoteProviderFirstResult,
-        ),
-      ).toHaveLength(scenario.providerCount);
-    });
-
-    it('records cancellation for an expected abort', async () => {
-      const requests = await runTraceScenario({
-        response: (): unknown =>
-          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]], 10000),
-        abort: true,
-      });
-
-      expect(
-        getTrace(requests, TraceName.BridgeQuotesFetched)?.data,
-      ).toStrictEqual(
-        expect.objectContaining({
-          result: 'cancelled',
-        }),
-      );
-    });
   });
 
   it('should trigger quote polling if request is valid', async function () {
