@@ -8,7 +8,6 @@ import { BigNumber } from 'bignumber.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
-  PaymentOverride,
   PERPS_DEPOSIT_TYPES,
 } from '../constants.js';
 import type {
@@ -49,8 +48,7 @@ export function updateSourceAmounts(
     return;
   }
 
-  const { isMaxAmount, isPostQuote, paymentOverride, paymentToken, tokens } =
-    transactionData;
+  const { isMaxAmount, isPostQuote, paymentToken, tokens } = transactionData;
 
   if (!tokens.length || !paymentToken) {
     return;
@@ -93,7 +91,6 @@ export function updateSourceAmounts(
         transactionId,
         isMaxAmount ?? false,
         isQuoteRequired,
-        paymentOverride,
         balanceOverride,
       ),
     )
@@ -152,9 +149,7 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => ({
-      sourceAmountHuman: isMaxAmount
-        ? (balanceOverride?.balanceHuman ?? token.balanceHuman)
-        : token.amountHuman,
+      sourceAmountHuman: isMaxAmount ? token.balanceHuman : token.amountHuman,
       sourceAmountRaw: isMaxAmount
         ? (balanceOverride?.balanceRaw ?? token.balanceRaw)
         : token.amountRaw,
@@ -174,7 +169,6 @@ function calculatePostQuoteSourceAmounts(
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
- * @param paymentOverride - Optional payment source override for the transaction.
  * @param balanceOverride - Optional balance override from the `getBalance` callback.
  * @returns The source amount or undefined if calculation failed.
  */
@@ -185,7 +179,6 @@ function calculateSourceAmount(
   transactionId: string,
   isMaxAmount: boolean,
   isQuoteRequired?: boolean,
-  paymentOverride?: PaymentOverride,
   balanceOverride?: GetBalanceResponse,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
@@ -238,22 +231,14 @@ function calculateSourceAmount(
     .shiftedBy(paymentToken.decimals)
     .toFixed(0);
 
-  // Money account Max must not use the pay token's on-chain balance. That
-  // balance is only un-vaulted mUSD, while the typed required amount already
-  // reflects the full withdrawable total (mUSD + vmUSD). Using the typed
-  // fiat-derived source keeps isMaxAmount=true (EXACT_INPUT) correct for
-  // deposits funded from the money account (e.g. Send to Perps).
-  // Exception: when a getBalance callback is provided (balanceOverride is
-  // defined), the callback is authoritative and bypasses the MoneyAccount
-  // guard — all balance complexity lives in the callback.
-  if (
-    isMaxAmount &&
-    (balanceOverride !== undefined ||
-      paymentOverride !== PaymentOverride.MoneyAccount)
-  ) {
+  // On Max, use the exact source balance. The client `getBalance` callback is
+  // authoritative and owns all balance complexity (perps, predict, money
+  // account, payment overrides): when it returns a `balanceOverride`, use it;
+  // when it returns `undefined`, that is a deliberate signal to use the pay
+  // token's on-chain balance. This path is payment-override agnostic.
+  if (isMaxAmount) {
     return {
-      sourceAmountHuman:
-        balanceOverride?.balanceHuman ?? paymentToken.balanceHuman,
+      sourceAmountHuman: paymentToken.balanceHuman,
       sourceAmountRaw: balanceOverride?.balanceRaw ?? paymentToken.balanceRaw,
       targetTokenAddress: token.address,
     };
