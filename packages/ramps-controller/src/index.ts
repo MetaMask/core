@@ -14,6 +14,7 @@ export type {
   NativeProvidersState,
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
+  KycControllerGetCustomerIdentityAction,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,

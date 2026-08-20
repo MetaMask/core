@@ -22,6 +22,7 @@ export type KycServiceGetGeoCountryAction = {
  * created.
  *
  * @param params - The parameters.
+ * @param params.vendor - Identity vendor. Defaults to `moonpay`.
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
@@ -42,7 +43,7 @@ export type KycServiceCreateSessionAction = {
 };
 
 /**
- * Checks whether KYC is required for the given access token, country, and
+ * Checks whether KYC is required for the given vendor, country, and
  * capabilities.
  *
  * @param params - The check parameters.
@@ -54,45 +55,23 @@ export type KycServiceCheckKycRequiredAction = {
 };
 
 /**
- * Creates (or resumes) an Iron empty-shell customer for the authenticated
- * canonical user. Must run before showing Iron T&C so the customer exists in
- * `SigningsRequired` and resume logic can key off Iron status.
+ * Creates (or resumes) an empty-shell customer for the authenticated
+ * canonical user on the given identity vendor. Must run before showing
+ * vendor T&C so the customer exists and resume logic can key off vendor
+ * status.
  *
  * @param params - The parameters.
- * @param params.email - Email associated with the Iron customer.
- * @returns The Iron customer record (subset validated for controller use).
+ * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
+ * @param params.email - Email associated with the customer.
+ * @returns The vendor customer record (subset validated for controller use).
  */
-export type KycServiceCreateIronCustomerAction = {
-  type: `KycService:createIronCustomer`;
-  handler: KycService['createIronCustomer'];
+export type KycServiceCreateVendorCustomerAction = {
+  type: `KycService:createVendorCustomer`;
+  handler: KycService['createVendorCustomer'];
 };
 
 /**
- * Fetches Iron disclaimers / terms the customer must accept before consents
- * and the SumSub sub-flow.
- *
- * @param params - The parameters.
- * @param params.country - ISO 3166-1 alpha-3 country code.
- * @returns The disclaimers.
- */
-export type KycServiceFetchIronDisclaimersAction = {
-  type: `KycService:fetchIronDisclaimers`;
-  handler: KycService['fetchIronDisclaimers'];
-};
-
-/**
- * Checks whether Iron still requires KYC for the authenticated canonical
- * user. Unlike the MoonPay variant, this does not take an access token.
- *
- * @returns Whether KYC is required.
- */
-export type KycServiceCheckIronKycRequiredAction = {
-  type: `KycService:checkIronKycRequired`;
-  handler: KycService['checkIronKycRequired'];
-};
-
-/**
- * Posts T&C1 (Iron signings) and T&C2 (Sumsub + idOS) consents for the
+ * Posts T&C1 (vendor signings) and T&C2 (Sumsub + idOS) consents for the
  * authenticated user. The API responds with 204 No Content on success.
  *
  * @param params - The consent parameters.
@@ -193,9 +172,7 @@ export type KycServiceMethodActions =
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
-  | KycServiceCreateIronCustomerAction
-  | KycServiceFetchIronDisclaimersAction
-  | KycServiceCheckIronKycRequiredAction
+  | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitConsentsAction
   | KycServiceFetchKycStatusAction
   | KycServiceGetWrappingKeyAction
