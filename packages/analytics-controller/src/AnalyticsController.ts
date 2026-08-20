@@ -24,7 +24,7 @@ import type {
   AnalyticsLocationContext,
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
-} from './AnalyticsPlatformAdapter.types';
+} from './AnalyticsPlatformAdapter.types.js';
 import type {
   AnalyticsEventFragment,
   AnalyticsEventFragmentFinalizeOptions,

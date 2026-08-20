@@ -54,6 +54,7 @@ export const Eip1193OnlyMethods = [
 /**
  * All MetaMask methods, except for ones we have specified in the constants above.
  */
+// @ts-expect-error: TODO: `api-specs` is not supported in ESM.
 const Eip155Methods = MetaMaskOpenRPCDocument.methods
   .map(({ name }: { name: string }) => name)
   .filter((method: string) => !WalletEip155Methods.includes(method))

@@ -1,7 +1,7 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 import type { MemoizedFunction } from 'lodash';
-import memoize from 'lodash/memoize';
+import { memoize } from 'lodash';
 
 import type { Caip19AssetId } from '../types.js';
 
