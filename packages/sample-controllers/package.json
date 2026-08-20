@@ -61,7 +61,7 @@
     "@metamask/network-controller": "^35.0.1",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0",
-    "@tanstack/query-core": "^4.43.0"
+    "@tanstack/query-core": "^5.62.16"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
