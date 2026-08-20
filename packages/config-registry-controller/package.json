@@ -61,7 +61,6 @@
     "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
     "@metamask/polling-controller": "^16.0.9",
-    "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^5.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0",

@@ -27,6 +27,7 @@ export type {
   ConfigRegistryApiServiceActions,
   ConfigRegistryApiServiceEvents,
   ConfigRegistryApiServiceMessenger,
+  ConfigRegistryApiEnv
 } from './config-registry-api-service/config-registry-api-service.js';
 export type {
   ConfigRegistryApiServiceFetchConfigAction,

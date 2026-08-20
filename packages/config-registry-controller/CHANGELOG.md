@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ConfigRegistryApiEnv` enum to select the API environment for the service ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
 
+- **BREAKING:** The `env` optional constructor option type is now `ConfigRegistryApiEnv` ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Previously, constructor options were reusing the `SDK.Env` enum from `@metamask/profile-sync-controller`.
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
