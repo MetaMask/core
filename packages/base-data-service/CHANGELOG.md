@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `handleAll`
     - `handleWhen`
 - Export types `DataServiceActions` and `DataServiceEvents` ([#9475](https://github.com/MetaMask/core/pull/9475))
-- Add `struct` option to `fetchQuery` and `fetchInfiniteQuery` for validating query responses using Superstruct ([#9540](https://github.com/MetaMask/core/pull/9540))
+- Add `responseStruct` option to `fetchQuery` and `fetchInfiniteQuery` for validating query responses using Superstruct ([#9540](https://github.com/MetaMask/core/pull/9540))
   - When provided, the struct is used to validate the response and for inferring the return type of the query
 
 ### Changed
