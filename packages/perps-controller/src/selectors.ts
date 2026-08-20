@@ -1,13 +1,17 @@
 import { createSelector } from 'reselect';
 
+import { VISIBLE_CANDLE_COUNT_CONFIG } from './constants/chartConfig.js';
 import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
   SortOptionId,
+  DEFAULT_ORDER_BOOK_PREFERENCES,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
   DEFAULT_PERPS_MODE,
+  DEFAULT_SELECTED_ORDER_TYPE,
 } from './constants/perpsConfig.js';
 import type {
+  OrderBookPreferences,
   PerpsMode,
   ProLayoutPreferences,
 } from './constants/perpsConfig.js';
@@ -136,7 +140,7 @@ export const selectTradeConfiguration = createSelector(
 
 /**
  * Select pending trade configuration for a specific market on the current network.
- * Returns undefined if config doesn't exist or has expired (more than 5 minutes old).
+ * Returns undefined if config doesn't exist or has expired.
  *
  * Usage: selectPendingTradeConfiguration(state, coin)
  *
@@ -167,6 +171,7 @@ export const selectPendingTradeConfiguration = createSelector(
         stopLossPrice?: string;
         limitPrice?: string;
         orderType?: OrderType;
+        reduceOnly?: boolean;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined => {
@@ -177,12 +182,10 @@ export const selectPendingTradeConfiguration = createSelector(
       return undefined;
     }
 
-    // Check if config has expired (5 minutes = 300,000 milliseconds)
     const now = Date.now();
-    const FIVE_MINUTES_MS = 5 * 60 * 1000;
     const age = now - config.timestamp;
 
-    if (age > FIVE_MINUTES_MS) {
+    if (age > PERPS_CONSTANTS.PendingTradeConfigurationTtlMs) {
       // Config expired, return undefined
       return undefined;
     }
@@ -253,6 +256,40 @@ export const selectProLayoutPreferences = (
   ...DEFAULT_PRO_LAYOUT_PREFERENCES,
   ...state?.proLayoutPreferences,
 });
+
+/**
+ * Select market-agnostic Pro order-book display preferences.
+ *
+ * @param state - PerpsController state
+ * @returns The order-book display preferences
+ */
+export const selectOrderBookPreferences = (
+  state: PerpsControllerState,
+): OrderBookPreferences => ({
+  ...DEFAULT_ORDER_BOOK_PREFERENCES,
+  ...state?.orderBookPreferences,
+});
+
+/**
+ * Select the market-agnostic order type.
+ *
+ * @param state - PerpsController state
+ * @returns The selected order type
+ */
+export const selectSelectedOrderType = (
+  state: PerpsControllerState,
+): OrderType => state?.selectedOrderType ?? DEFAULT_SELECTED_ORDER_TYPE;
+
+/**
+ * Select the visible candle count shared by Lite and Pro.
+ *
+ * @param state - PerpsController state
+ * @returns The visible candle count
+ */
+export const selectVisibleCandleCount = (state: PerpsControllerState): number =>
+  Number.isFinite(state?.visibleCandleCount)
+    ? state.visibleCandleCount
+    : VISIBLE_CANDLE_COUNT_CONFIG.Default;
 
 /**
  * Select the current Perps interface mode (lite/pro).
