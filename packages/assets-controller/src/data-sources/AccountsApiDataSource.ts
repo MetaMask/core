@@ -857,10 +857,18 @@ export class AccountsApiDataSource extends AbstractDataSource<
           return;
         }
 
-        // Use stored request (which gets updated on account changes)
+        // Use stored request (which gets updated on account changes).
+        // forceUpdate bypasses the TanStack Query cache (staleTime/gcTime 0/0,
+        // see `fetch` above) so each recurring poll tick issues a real network
+        // request. Without it, `fetchOptions` is `undefined` and the default
+        // `STALE_TIMES.BALANCES` (60s, in `@metamask/core-backend`) applies,
+        // which is longer than the default 30s `pollInterval` — causing every
+        // other poll tick to be silently served a cached response instead of
+        // refreshing balances.
         const fetchResponse = await this.fetch({
           ...subscription.request,
           chainIds: subscription.chains,
+          forceUpdate: true,
         });
 
         // Report update to AssetsController via callback

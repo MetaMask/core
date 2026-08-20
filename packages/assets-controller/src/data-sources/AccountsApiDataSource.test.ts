@@ -1011,6 +1011,31 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('subscribe polling fetch always bypasses the TanStack cache', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    // Both the initial poll (triggered synchronously by `subscribe`) and every
+    // recurring poll tick must set `forceUpdate: true`, otherwise a poll tick
+    // shorter than `STALE_TIMES.BALANCES` (e.g. the default 30s `pollInterval`
+    // vs a 60s balances stale time) can be silently served a cached response
+    // instead of refreshing balances. See `fetch`'s `fetchOptions` branch.
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
   it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
     const { controller, assetsUpdateHandler, apiClient } =
       await setupController();

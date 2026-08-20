@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `AccountsApiDataSource` now passes `forceUpdate: true` on every recurring poll tick, so balance polling always bypasses the TanStack Query cache instead of `STALE_TIMES.BALANCES` (60s, in `@metamask/core-backend`) silently serving a cached response on roughly every other tick when `pollInterval` (default 30s) is shorter than the stale time
+
 ## [14.0.0]
 
 ### Changed
