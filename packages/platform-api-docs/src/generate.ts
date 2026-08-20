@@ -15,6 +15,8 @@ import {
   generateNamespacePage,
   generateSidebars,
 } from './markdown.js';
+import type { RootTypeReference } from './root-messenger-discovery.js';
+import { discoverFromRootMessenger } from './root-messenger-discovery.js';
 import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 /**
@@ -129,6 +131,33 @@ async function resolveRepoBaseUrl(
 }
 
 /**
+ * Options for the `scan` strategy, which reads every `*Messenger` type alias
+ * in every file it can find. Used when no single messenger aggregates every
+ * capability.
+ */
+type ScanStrategyOptions = {
+  strategy?: 'scan';
+  /** Directories (relative to projectPath) to scan for .ts source files. */
+  scanDirs: string[];
+  rootActions?: never;
+  rootEvents?: never;
+};
+
+/**
+ * Options for the `root-messenger` strategy, which resolves the unions a
+ * project declares for its root messenger instead of scanning. Used when one
+ * messenger carries every action and event.
+ */
+type RootMessengerStrategyOptions = {
+  strategy: 'root-messenger';
+  scanDirs?: never;
+  /** Type aliasing the union of every action. */
+  rootActions: RootTypeReference;
+  /** Type aliasing the union of every event. */
+  rootEvents: RootTypeReference;
+};
+
+/**
  * Options for the generate function.
  */
 export type GenerateOptions = {
@@ -136,8 +165,6 @@ export type GenerateOptions = {
   projectPath: string;
   /** Absolute path to the output directory for generated docs. */
   outputDir: string;
-  /** Directories (relative to projectPath) to scan for .ts source files. */
-  scanDirs: string[];
   /**
    * Short label identifying the project the docs were generated from (e.g.
    * "Core", "Extension"). Stamped in the index page title.
@@ -148,7 +175,7 @@ export type GenerateOptions = {
    * intro so engineers know how current the site is.
    */
   commitSha?: string | null;
-};
+} & (ScanStrategyOptions | RootMessengerStrategyOptions);
 
 /**
  * Result returned by the generate function.
@@ -510,16 +537,17 @@ async function writeOutput(
 }
 
 /**
- * Scan a project for messenger action/event types and generate documentation.
+ * Collect capabilities by scanning the project's files.
  *
- * @param options - Generation options.
- * @returns A promise resolving to counts of generated namespaces, actions, and events.
+ * @param projectPath - The project root path.
+ * @param scanDirs - Directories (relative to projectPath) to scan.
+ * @returns The extracted capabilities.
+ * @throws If the project has no scannable directories at all.
  */
-export async function generate(
-  options: GenerateOptions,
-): Promise<GenerateResult> {
-  const { projectPath, outputDir, scanDirs, projectLabel, commitSha } = options;
-
+async function collectByScanning(
+  projectPath: string,
+  scanDirs: string[],
+): Promise<MessengerCapabilityPacket[]> {
   const sources = await discoverScanSources(projectPath, scanDirs);
 
   if (
@@ -535,7 +563,95 @@ export async function generate(
 
   logScanPlan(sources);
 
-  const allItems = await scanSources(projectPath, sources);
+  return await scanSources(projectPath, sources);
+}
+
+/**
+ * Collect capabilities by resolving the project's root messenger unions.
+ *
+ * @param projectPath - The project root path.
+ * @param options - The root-messenger strategy options.
+ * @returns The extracted capabilities.
+ */
+function collectFromRootMessenger(
+  projectPath: string,
+  options: RootMessengerStrategyOptions,
+): MessengerCapabilityPacket[] {
+  const { rootActions, rootEvents } = options;
+
+  console.log(
+    `Resolving actions from ${rootActions.filePath}#${rootActions.typeName} ` +
+      `and events from ${rootEvents.filePath}#${rootEvents.typeName}...`,
+  );
+
+  const { packets, skipped } = discoverFromRootMessenger({
+    projectPath,
+    actions: rootActions,
+    events: rootEvents,
+  });
+
+  // Report rather than drop silently: a jump in any of these usually means the
+  // project changed how it declares its capabilities.
+  warnSkipped('declared inline, with no name to document', skipped.unnamed);
+  warnSkipped('whose shape could not be read', skipped.unextractable);
+
+  // Both unions resolving to nothing is always a misconfiguration — a wrong
+  // type name, or imports that didn't resolve. Failing here matters because
+  // generation would otherwise replace an existing docs directory with an
+  // empty one and exit successfully.
+  if (packets.length === 0) {
+    throw new Error(
+      `No messenger actions or events found in ` +
+        `${rootActions.filePath}#${rootActions.typeName} or ` +
+        `${rootEvents.filePath}#${rootEvents.typeName}. ` +
+        `Check that these types name the unions carrying every capability, ` +
+        `and that their imports resolve.`,
+    );
+  }
+
+  return packets;
+}
+
+/** How many skipped capability types to name before summarizing the rest. */
+const MAX_SKIPPED_SHOWN = 10;
+
+/**
+ * Warn about capability types that couldn't be documented, naming them so the
+ * warning is actionable.
+ *
+ * @param description - Why they were skipped, as a noun phrase.
+ * @param labels - Labels identifying each skipped type.
+ */
+function warnSkipped(description: string, labels: string[]): void {
+  if (labels.length === 0) {
+    return;
+  }
+
+  const shown = labels.slice(0, MAX_SKIPPED_SHOWN);
+  const remaining = labels.length - shown.length;
+  console.warn(
+    `Warning: skipped ${labels.length} capability ` +
+      `${labels.length === 1 ? 'type' : 'types'} ${description}: ` +
+      `${shown.join(', ')}${remaining > 0 ? `, and ${remaining} more` : ''}`,
+  );
+}
+
+/**
+ * Scan a project for messenger action/event types and generate documentation.
+ *
+ * @param options - Generation options.
+ * @returns A promise resolving to counts of generated namespaces, actions, and events.
+ */
+export async function generate(
+  options: GenerateOptions,
+): Promise<GenerateResult> {
+  const { projectPath, outputDir, projectLabel, commitSha } = options;
+
+  const allItems =
+    options.strategy === 'root-messenger'
+      ? collectFromRootMessenger(projectPath, options)
+      : await collectByScanning(projectPath, options.scanDirs);
+
   console.log(
     `Found ${allItems.length} messenger ${allItems.length === 1 ? 'item' : 'items'} total.`,
   );
