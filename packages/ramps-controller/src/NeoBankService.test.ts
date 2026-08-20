@@ -1,3 +1,5 @@
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
@@ -19,6 +21,8 @@ const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
  * @param options.baseUrlOverride - Overrides the environment-derived host.
  * @param options.omitDefaults - Pass `true` to exercise constructor defaulted
  * parameters (`environment`, `policyOptions`).
+ * @param options.policyOptions - Retry/circuit policy overrides. Defaults to
+ * `{ maxRetries: 0 }` so tests fail fast unless they opt into retries.
  * @param options.canonicalProfileId - Canonical profile id returned by the
  * stubbed `AuthenticationController:getSessionProfile` (wallet registration).
  * @returns Service instance for the test.
@@ -27,6 +31,7 @@ function createService(options?: {
   environment?: RampsEnvironment;
   baseUrlOverride?: string;
   omitDefaults?: boolean;
+  policyOptions?: CreateServicePolicyOptions;
   canonicalProfileId?: string;
 }): NeoBankService {
   const rootMessenger = new Messenger({
@@ -75,7 +80,7 @@ function createService(options?: {
     environment: options?.environment ?? RampsEnvironment.Staging,
     context: 'test',
     fetch: globalThis.fetch.bind(globalThis),
-    policyOptions: { maxRetries: 0 },
+    policyOptions: options?.policyOptions ?? { maxRetries: 0 },
     baseUrlOverride: options?.baseUrlOverride,
   });
 }
@@ -164,6 +169,52 @@ describe('NeoBankService', () => {
       await expect(service.getAutoramp('missing')).rejects.toThrow(
         /failed with status '404'/u,
       );
+    });
+
+    it('retries a 429 then succeeds', async () => {
+      const scope = nock(STAGING_BASE)
+        .get(/\/neobank\/autoramps\/ar-1/u)
+        .reply(429)
+        .get(/\/neobank\/autoramps\/ar-1/u)
+        .reply(200, {
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Authorized',
+        });
+
+      const service = createService({
+        policyOptions: {
+          maxRetries: 1,
+          backoff: new ConstantBackoff(0),
+        },
+      });
+      const snapshot = await service.getAutoramp('ar-1');
+
+      expect(scope.isDone()).toBe(true);
+      expect(snapshot.id).toBe('ar-1');
+    });
+
+    it('retries a network error then succeeds', async () => {
+      const scope = nock(STAGING_BASE)
+        .get(/\/neobank\/autoramps\/ar-1/u)
+        .replyWithError('ECONNRESET')
+        .get(/\/neobank\/autoramps\/ar-1/u)
+        .reply(200, {
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Authorized',
+        });
+
+      const service = createService({
+        policyOptions: {
+          maxRetries: 1,
+          backoff: new ConstantBackoff(0),
+        },
+      });
+      const snapshot = await service.getAutoramp('ar-1');
+
+      expect(scope.isDone()).toBe(true);
+      expect(snapshot.id).toBe('ar-1');
     });
 
     it('throws when the response body is malformed', async () => {
