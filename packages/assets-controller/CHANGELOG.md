@@ -7,9 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Subscribe to `AccountTreeController:initialized` / `:uninitialized` (typed as `AccountTreeControllerInitializedEvent` / `AccountTreeControllerUninitializedEvent`) so asset tracking starts only after the account tree is fully built, instead of on intermediate `AccountTreeController:stateChange` events during `init()` or on unlock before the tree is ready ([#9892](https://github.com/MetaMask/core/pull/9892))
+  - Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `AccountTreeController:initialized` and `AccountTreeController:uninitialized`
+- Reduce Accounts API calls on startup and refresh:
+  - Skip `AccountsApiDataSource` subscribe-time initial poll after a forced `getAssets` balance fetch
+  - Ignore init-time `AccountTreeController:selectedAccountGroupChange` (including same-group re-emits and events before tracking starts) so `:initialized` owns first start; only refresh on real group switches while tracking
+  - Skip Accounts API middleware when `dataTypes` does not include `balance` (e.g. price-only refreshes)
+- Bump `@metamask/config-registry-controller` from `^2.0.1` to `^3.0.0` ([#9923](https://github.com/MetaMask/core/pull/9923))
+- Bump `@metamask/network-enablement-controller` from `^6.0.3` to `^6.0.4` ([#9923](https://github.com/MetaMask/core/pull/9923))
+
+## [13.1.4]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.1` to `^8.0.0` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/assets-controllers` from `^111.1.0` to `^111.1.1` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+### Fixed
+
+- Revert `AccountsApiDataSource` `forceUpdate` balance fetch cache window from `staleTime`/`gcTime` of `100`ms back to `0`/`0` (undoes [#9591](https://github.com/MetaMask/core/pull/9591)) so forced refreshes truly bypass the TanStack cache instead of reusing a short-lived entry ([#9870](https://github.com/MetaMask/core/pull/9870))
+- Fix Arc native USDC never appearing until the account receives its first deposit, by default-tracking the native asset id (`eip155:5042/slip44:5042`) instead of the `0x3600...` ERC20 identity so `assetsInfo` metadata is seeded up front ([#9869](https://github.com/MetaMask/core/pull/9869))
+
+## [13.1.3]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+### Fixed
+
+- Properly filter empty (`''`) selected account group event ([#9825](https://github.com/MetaMask/core/pull/9825))
 
 ## [13.1.2]
 
@@ -894,7 +930,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.4...@metamask/assets-controller@14.0.0
+[13.1.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.3...@metamask/assets-controller@13.1.4
+[13.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.2...@metamask/assets-controller@13.1.3
 [13.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.1...@metamask/assets-controller@13.1.2
 [13.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.0...@metamask/assets-controller@13.1.1
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.0.0...@metamask/assets-controller@13.1.0

@@ -5,6 +5,12 @@ import {
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  describe('PREVIOUS_LEVERAGE', () => {
+    it('exports PREVIOUS_LEVERAGE as previous_leverage', () => {
+      expect(PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE).toBe('previous_leverage');
+    });
+  });
+
   describe('advanced chart analytics property keys', () => {
     it('exports CHART_LIBRARY key', () => {
       expect(PERPS_EVENT_PROPERTY.CHART_LIBRARY).toBe('chart_library');
@@ -85,8 +91,13 @@ describe('PERPS_EVENT_PROPERTY', () => {
       expect(PERPS_EVENT_PROPERTY.SEARCH_QUERY).toBe('search_query');
       expect(PERPS_EVENT_PROPERTY.RESULTS_COUNT).toBe('results_count');
       expect(PERPS_EVENT_PROPERTY.RESULT_RANK).toBe('result_rank');
+      // Search intent — distinct from PERPS_MODE (Lite/Pro UI)
       expect(PERPS_EVENT_PROPERTY.MODE).toBe('mode');
       expect(PERPS_EVENT_PROPERTY.CURRENT_TOKEN).toBe('current_token');
+    });
+
+    it('exports PERPS_MODE for Lite/Pro interface mode', () => {
+      expect(PERPS_EVENT_PROPERTY.PERPS_MODE).toBe('perps_mode');
     });
 
     it('exports sort / filter and time-on-screen keys', () => {

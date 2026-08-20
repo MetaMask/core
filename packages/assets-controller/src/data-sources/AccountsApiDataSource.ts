@@ -428,7 +428,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       }
 
       const fetchOptions = request.forceUpdate
-        ? { staleTime: 100, gcTime: 100 }
+        ? { staleTime: 0, gcTime: 0 }
         : undefined;
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
@@ -721,6 +721,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
     return async (context, next) => {
       const { request } = context;
 
+      // Price/metadata-only requests must not hit the Accounts API.
+      if (!request.dataTypes.includes('balance')) {
+        return next(context);
+      }
+
       // If no chains requested, skip to next middleware
       if (request.chainIds.length === 0) {
         return next(context);
@@ -790,7 +795,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
-    const { request, subscriptionId, isUpdate } = subscriptionRequest;
+    const { request, subscriptionId, isUpdate, skipInitialFetch } =
+      subscriptionRequest;
 
     // Store state accessor for filtering when tokenDetectionEnabled is false
     if (subscriptionRequest.getAssetsState) {
@@ -851,10 +857,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
           return;
         }
 
-        // Use stored request (which gets updated on account changes)
+        // Use stored request (which gets updated on account changes).
+        // forceUpdate so we don't get a stale response from the cache
+        // (STALE_TIMES.BALANCES is 60s, longer than our 30s poll interval).
         const fetchResponse = await this.fetch({
           ...subscription.request,
           chainIds: subscription.chains,
+          forceUpdate: true,
         });
 
         // Report update to AssetsController via callback
@@ -879,8 +888,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
-    // Initial fetch
-    await pollFn();
+    // Interval above still polls on the normal cadence. This only skips the
+    // one-shot fetch at subscribe time when the controller already ran a
+    // force getAssets for the same scope (startup / group refresh).
+    if (!skipInitialFetch) {
+      await pollFn();
+    }
   }
 
   // ============================================================================
