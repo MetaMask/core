@@ -10,6 +10,20 @@ import { calcAtomicTokenAmount } from '../number-formatters.js';
 import { includeIfTruthy } from './include-if-truthy.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
 
+const toAmountAndAsset = (
+  asset?: DeepPartial<BridgeAssetV2>,
+  metadata?: Partial<TokenAmountValues>,
+  extraFields?: DeepPartial<AmountsAndAsset>,
+): DeepPartial<AmountsAndAsset> => {
+  return {
+    amount: calcAtomicTokenAmount(metadata?.amount, asset?.decimals),
+    normalizedAmount: metadata?.amount,
+    valueInCurrency: metadata?.valueInCurrency,
+    usd: metadata?.usd,
+    ...extraFields,
+  };
+};
+
 /**
  * Converts a {@link QuoteMetadata} to a partial {@link QuoteResponse} containing only metadata
  *
@@ -52,20 +66,6 @@ export const toQuoteMetadataV2 = (
     valueInCurrency: priceImpact?.valueInCurrency ?? cost?.valueInCurrency,
   };
   const networkFeeToUse = gasFee?.total ?? totalNetworkFee;
-
-  const toAmountAndAsset = (
-    asset?: DeepPartial<BridgeAssetV2>,
-    metadata?: Partial<TokenAmountValues>,
-    extraFields?: DeepPartial<AmountsAndAsset>,
-  ): DeepPartial<AmountsAndAsset> => {
-    return {
-      amount: calcAtomicTokenAmount(metadata?.amount, asset?.decimals),
-      normalizedAmount: metadata?.amount,
-      valueInCurrency: metadata?.valueInCurrency,
-      usd: metadata?.usd,
-      ...extraFields,
-    };
-  };
 
   return {
     ...rest,

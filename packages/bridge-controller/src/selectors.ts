@@ -380,6 +380,13 @@ const selectMetadata = createBridgeSelector(
   },
 );
 
+/**
+ * Selects the USD to fiat exchange rate based on the native asset's price
+ *
+ * @param options - The options for the selector
+ * @param options.quoteRequest - The quote request
+ * @returns The USD to fiat exchange rate in string format
+ */
 const selectUsdToFiatExchangeRate = createBridgeSelector(
   [
     selectExchangeRateSources,
@@ -427,14 +434,14 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
   ],
   (legacyQuoteMetadata, quoteMetadataV2, quotes, migrationPhase) =>
-    quotes.map((quote, index) => {
-      return mergeQuoteMetadata(
+    quotes.map((quote, index) =>
+      mergeQuoteMetadata(
         quote,
         legacyQuoteMetadata[index],
         migrationPhase,
         quoteMetadataV2[index],
-      );
-    }),
+      ),
+    ),
 );
 
 const selectSortedBridgeQuotes = createBridgeSelector(
@@ -531,8 +538,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 
@@ -551,7 +558,7 @@ export const selectIsQuoteExpired = createBridgeSelector(
  *   {
  *     sortOrder: state.bridge.sortOrder,
  *     selectedQuote: state.bridge.selectedQuote,
- *     migrationPhase: '2',
+ *     migrationPhase: '1.5',
  *   }
  * ));
  * ```

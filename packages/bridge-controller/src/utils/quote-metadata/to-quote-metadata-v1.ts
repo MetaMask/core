@@ -10,6 +10,16 @@ import { includeIfTruthy } from './include-if-truthy.js';
 import type { QuoteMetadata, TokenAmountValues } from './types.js';
 import { QuoteMetadataMigrationPhase } from './types.js';
 
+const toTokenAmountValues = (
+  data?: Pick<AmountsAndAsset, 'normalizedAmount' | 'usd' | 'valueInCurrency'>,
+): Partial<TokenAmountValues> => {
+  return {
+    amount: data?.normalizedAmount,
+    usd: data?.usd,
+    valueInCurrency: data?.valueInCurrency,
+  };
+};
+
 /**
  * Extracts legacy {@link QuoteMetadata} values from a {@link QuoteResponse} or {@link QuoteResponseV1}.
  * If a QuoteResponse is provided, this assumes that its `valueInCurrency` properties are set.
@@ -64,29 +74,11 @@ export const toQuoteMetadataV1 = (
     return legacyMetadata;
   }
 
-  const {
-    quote: {
-      src,
-      dest,
-      priceData,
-      feeData: { network, relayer, txFee },
-    },
-  } = quoteResponse;
+  const { quote } = quoteResponse;
+  const { src, dest, priceData, feeData } = quote;
+  const { network, relayer, txFee } = feeData;
 
   const totalNetworkFeeV2 = sumAmounts(network, relayer);
-
-  const toTokenAmountValues = (
-    data?: Pick<
-      AmountsAndAsset,
-      'normalizedAmount' | 'usd' | 'valueInCurrency'
-    >,
-  ): Partial<TokenAmountValues> => {
-    return {
-      amount: data?.normalizedAmount,
-      usd: data?.usd,
-      valueInCurrency: data?.valueInCurrency,
-    };
-  };
 
   // Build V1 from V2 quote
   const v2Metadata: QuoteMetadata = {
@@ -101,7 +93,6 @@ export const toQuoteMetadataV1 = (
         usd: dest.minAmountUsd,
       },
     }),
-    ...(priceData?.swapRate && { swapRate: priceData.swapRate }),
     ...includeIfTruthy(priceData?.adjustedReturn, {
       adjustedReturn: toTokenAmountValues(priceData?.adjustedReturn),
     }),
@@ -113,7 +104,7 @@ export const toQuoteMetadataV1 = (
     ...includeIfTruthy(totalNetworkFeeV2, {
       totalNetworkFee: toTokenAmountValues(totalNetworkFeeV2),
     }),
-    ...(priceData?.priceImpact && {
+    ...includeIfTruthy(priceData?.priceImpact, {
       priceImpact: toTokenAmountValues(priceData?.priceImpact),
       // Use priceImpact as cost
       cost: toTokenAmountValues(priceData?.priceImpact),
@@ -124,6 +115,7 @@ export const toQuoteMetadataV1 = (
     ...includeIfTruthy(txFee?.[0], {
       includedTxFees: toTokenAmountValues(txFee?.[0]),
     }),
+    ...(priceData?.swapRate && { swapRate: priceData.swapRate }),
   };
 
   if (migrationPhase === QuoteMetadataMigrationPhase.V2WithV1Fallback) {

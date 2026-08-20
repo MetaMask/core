@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add migrationPhase to submit handlers, which determines how quote metadata is resolved ([#9744](https://github.com/MetaMask/core/pull/9744))
+- Add optional `migrationPhase` to `submitTx`, `submitIntent`, and `submitBatchSell`, used by `toQuoteMetadataV1` to convert V2 quotes. Defaults to `V1Data` (`'1'`) if omitted ([#9744](https://github.com/MetaMask/core/pull/9744))
 
 ## [75.2.0]
 
