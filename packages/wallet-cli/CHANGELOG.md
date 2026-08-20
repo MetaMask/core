@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Wire the `configRegistryApiService` slot in the daemon wallet's instance options with `env: ConfigRegistryApiEnv.PRD`, required now that `@metamask/wallet` makes this slot mandatory ([#9928](https://github.com/MetaMask/core/pull/9928))
 - Add the `mm wallet send` command and a dedicated daemon `sendTransaction` RPC handler for sending a transaction through the daemon-hosted `TransactionController` ([#9636](https://github.com/MetaMask/core/pull/9636))
   - The command converts the ether `--value` to wei, resolves the network client (`--network-client-id` or `--chain-id`) and sender (defaulting to the selected account), previews the resolved plan, and broadcasts after confirmation, printing the resulting transaction hash. `--yes` skips the prompt; `--dry-run` resolves and validates without broadcasting.
   - The `sendTransaction` handler awaits the broadcast server-side and returns a serializable `{ transactionHash, transactionId, status }`, because `addTransaction`'s `result` promise cannot travel back over the generic `call` dispatch. Transactions are submitted as internal (auto-approved by the daemon).
