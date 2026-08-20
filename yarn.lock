@@ -8916,6 +8916,7 @@ __metadata:
     bignumber.js: "npm:^9.1.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
+    klona: "npm:^2.0.6"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.3.1"
     reselect: "npm:^5.1.1"

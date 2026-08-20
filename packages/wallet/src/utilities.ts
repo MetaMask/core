@@ -1,4 +1,4 @@
-import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english.js';
 
 import { Wallet } from './Wallet.js';
 
