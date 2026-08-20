@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** The `payStrategies.relay.validationEnabled` feature flag (in `confirmations_pay_extended`) is now an object `{ default?: boolean; transactionTypes?: { [type in TransactionType]?: boolean } }` instead of a boolean, adding per-`TransactionType` overrides that match nested transactions ([#9888](https://github.com/MetaMask/core/pull/9888))
+
 ### Fixed
 
 - Fix quote simulation for Polymarket Predict withdrawals ([#9891](https://github.com/MetaMask/core/pull/9891))

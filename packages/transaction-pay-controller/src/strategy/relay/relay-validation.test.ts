@@ -149,7 +149,7 @@ describe('validateRelayQuotes', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay_extended: {
-          payStrategies: { relay: { validationEnabled: true } },
+          payStrategies: { relay: { validationEnabled: { default: true } } },
         },
       },
     });
@@ -587,7 +587,9 @@ describe('validateRelayQuotes', () => {
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
             confirmations_pay_extended: {
-              payStrategies: { relay: { validationEnabled: true } },
+              payStrategies: {
+                relay: { validationEnabled: { default: true } },
+              },
             },
             confirmations_eip_7702: {
               contracts: {
@@ -971,5 +973,60 @@ describe('validateRelayQuotes', () => {
 
     expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('skips validation when per-type override is false', async () => {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_pay_extended: {
+          payStrategies: {
+            relay: {
+              validationEnabled: {
+                default: true,
+                transactionTypes: { simpleSend: false },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [buildQuote()],
+      transaction: { ...TRANSACTION_MOCK, type: 'simpleSend' as never },
+    });
+
+    expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('runs validation when per-type override is true and default is false', async () => {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_pay_extended: {
+          payStrategies: {
+            relay: {
+              validationEnabled: {
+                default: false,
+                transactionTypes: { simpleSend: true },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [buildQuote()],
+      transaction: { ...TRANSACTION_MOCK, type: 'simpleSend' as never },
+    });
+
+    expect(validateQuoteExecutionMock).toHaveBeenCalled();
   });
 });
