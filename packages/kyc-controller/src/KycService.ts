@@ -50,9 +50,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchDisclaimers',
   'createSession',
   'checkKycRequired',
-  'createIronCustomer',
-  'fetchIronDisclaimers',
-  'checkIronKycRequired',
+  'createVendorCustomer',
   'submitConsents',
   'fetchKycStatus',
   'getWrappingKey',
@@ -122,7 +120,12 @@ export type KycServiceMessenger = Messenger<
  */
 export type KycServiceOptions = {
   messenger: KycServiceMessenger;
-  fetch: typeof fetch;
+  /**
+   * A function used to make HTTP requests. Defaults to the runtime's native
+   * `fetch`, so consumers do not need to inject one on platforms where `fetch`
+   * is available globally (browser, React Native, Node 18+).
+   */
+  fetch?: typeof fetch;
   /**
    * Mandatory value that sets the base url to KYC api
    */
@@ -211,14 +214,14 @@ const SessionStatusResponseStruct = type({
   vendorStatus: string(),
 });
 
-// Iron customer subset — `type` (not `object`) keeps extra Iron fields from
+// Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
 // failing validation while still requiring the fields the controller needs.
-const IronCustomerResponseStruct = type({
+const VendorCustomerResponseStruct = type({
   id: string(),
   email: string(),
   status: string(),
 });
-export type IronCustomerResponse = Infer<typeof IronCustomerResponseStruct>;
+export type VendorCustomerResponse = Infer<typeof VendorCustomerResponseStruct>;
 
 const KYC_USER_STATUSES = [
   'not-started',
@@ -243,17 +246,33 @@ export type CreateSessionParams = {
 };
 
 export type CheckKycRequiredParams = {
-  accessToken: string;
-  country: string;
+  /**
+   * Identity vendor to check. Defaults to `moonpay` for the existing
+   * Check/Auth path.
+   */
+  vendor?: KycVendor;
+  /**
+   * MoonPay access token. Required when `vendor` is `moonpay` (or omitted).
+   */
+  accessToken?: string;
+  /**
+   * ISO 3166-1 alpha-3 country code. Required when `vendor` is `moonpay`.
+   */
+  country?: string;
   capabilities?: { product: string }[];
 };
 
-export type CreateIronCustomerParams = {
+export type CreateVendorCustomerParams = {
+  vendor: KycVendor;
   email: string;
 };
 
 export type SubmitConsentsParams = {
-  ironDisclaimerIds: string[];
+  /**
+   * Vendor disclaimer ids the customer accepted (T&C1). Mapped to the UKYC
+   * wire field `ironDisclaimerIds` for the Money/VBA consents contract.
+   */
+  disclaimerIds: string[];
   sumsubTncSigned: boolean;
   idosTncSigned: boolean;
   kycLevel?: 'standard';
@@ -278,13 +297,13 @@ export type CreateUkycSessionParams = {
   jwtToken: string;
   /**
    * Identity vendor for the UKYC session. Defaults to `moonpay` for the
-   * existing Check/Auth flow. Pass `iron` for the Money/VBA path (no MoonPay
-   * metadata required).
+   * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
+   * the consents path (no MoonPay metadata required).
    */
-  vendorId?: KycVendor;
+  vendor?: KycVendor;
   /**
    * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
-   * `moonPayUserId`); optional / omitted for Iron.
+   * `moonPayUserId`); optional / omitted for other vendors.
    */
   vendorMetadata?: Record<string, unknown>;
   wrappedEncryptionKey: WrappedEncryptionKey;
@@ -308,8 +327,9 @@ export type GetSessionStatusParams = {
 /**
  * `KycService` communicates with the Universal KYC (UKYC) backend to drive the
  * identity + document-verification flow. It is stateless and platform-agnostic:
- * HTTP is performed through an injected `fetch`, and the auth bearer token and
- * geolocation come from other controllers via the messenger.
+ * HTTP is performed through the runtime's native `fetch` (or an injected
+ * `fetch` when provided), and the auth bearer token and geolocation come from
+ * other controllers via the messenger.
  *
  * It extends {@link BaseDataService}, so every request is routed through
  * `fetchQuery`: it is wrapped in the shared service policy (retries, circuit
@@ -333,7 +353,8 @@ export class KycService extends BaseDataService<
    *
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this service.
-   * @param options.fetch - A function used to make HTTP requests.
+   * @param options.fetch - A function used to make HTTP requests. Defaults to
+   * the runtime's native `fetch`.
    * @param options.baseUrl - Base URL of the KYC API
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
    * encryption service, from which the JWKS used to verify the wrapping-key
@@ -356,7 +377,18 @@ export class KycService extends BaseDataService<
       queryClientConfig,
       policyOptions,
     });
-    this.#fetch = fetchFunction;
+    // Fall back to the runtime's native `fetch`, bound to `globalThis` so it
+    // can be invoked as a method of this instance without an illegal-invocation
+    // error on platforms that check the receiver.
+    if (fetchFunction) {
+      this.#fetch = fetchFunction;
+    } else if (typeof globalThis.fetch === 'function') {
+      this.#fetch = globalThis.fetch.bind(globalThis);
+    } else {
+      throw new Error(
+        'KycService: fetch is not available globally and was not provided in options. Please inject a fetch implementation.',
+      );
+    }
     if (!baseUrl) {
       throw new Error('KycService: baseUrl is required');
     }
@@ -406,18 +438,21 @@ export class KycService extends BaseDataService<
    * created.
    *
    * @param params - The parameters.
+   * @param params.vendor - Identity vendor. Defaults to `moonpay`.
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The disclaimers.
    */
   async fetchDisclaimers({
+    vendor = 'moonpay',
     country,
   }: {
+    vendor?: KycVendor;
     country: string;
   }): Promise<KycDisclaimer[]> {
-    const url = new URL('/vendors/moonpay/disclaimers', this.#baseUrl);
+    const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
     url.searchParams.set('country', country);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchDisclaimers`, country],
+      queryKey: [`${this.name}:fetchDisclaimers`, vendor, country],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       staleTime: inMilliseconds(5, Duration.Minute),
     });
@@ -462,7 +497,7 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Checks whether KYC is required for the given access token, country, and
+   * Checks whether KYC is required for the given vendor, country, and
    * capabilities.
    *
    * @param params - The check parameters.
@@ -471,23 +506,44 @@ export class KycService extends BaseDataService<
   async checkKycRequired(
     params: CheckKycRequiredParams,
   ): Promise<{ kycRequired: boolean }> {
-    const url = new URL('/vendors/moonpay/kyc-required', this.#baseUrl);
+    const vendor = params.vendor ?? 'moonpay';
+    const url = new URL(`/vendors/${vendor}/kyc-required`, this.#baseUrl);
     const capabilities = params.capabilities ?? [{ product: 'ramps' }];
+    const body =
+      vendor === 'moonpay'
+        ? {
+            accessToken: params.accessToken,
+            country: params.country,
+            capabilities,
+          }
+        : {};
+
+    // MoonPay requires accessToken and country; validate before making the request.
+    if (vendor === 'moonpay') {
+      if (!params.accessToken) {
+        throw new Error(
+          'checkKycRequired: accessToken is required for vendor "moonpay".',
+        );
+      }
+      if (!params.country) {
+        throw new Error(
+          'checkKycRequired: country is required for vendor "moonpay".',
+        );
+      }
+    }
+
     const data = await this.fetchQuery({
       queryKey: [
         `${this.name}:checkKycRequired`,
-        params.accessToken,
-        params.country,
+        vendor,
+        params.accessToken ?? null,
+        params.country ?? null,
         capabilities,
       ],
       queryFn: async () =>
         this.#requestJson(url, {
           method: 'POST',
-          body: JSON.stringify({
-            accessToken: params.accessToken,
-            country: params.country,
-            capabilities,
-          }),
+          body: JSON.stringify(body),
         }),
       // The requirement can change server-side, so always re-check.
       staleTime: 0,
@@ -502,20 +558,26 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Creates (or resumes) an Iron empty-shell customer for the authenticated
-   * canonical user. Must run before showing Iron T&C so the customer exists in
-   * `SigningsRequired` and resume logic can key off Iron status.
+   * Creates (or resumes) an empty-shell customer for the authenticated
+   * canonical user on the given identity vendor. Must run before showing
+   * vendor T&C so the customer exists and resume logic can key off vendor
+   * status.
    *
    * @param params - The parameters.
-   * @param params.email - Email associated with the Iron customer.
-   * @returns The Iron customer record (subset validated for controller use).
+   * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
+   * @param params.email - Email associated with the customer.
+   * @returns The vendor customer record (subset validated for controller use).
    */
-  async createIronCustomer(
-    params: CreateIronCustomerParams,
-  ): Promise<IronCustomerResponse> {
-    const url = new URL('/vendors/iron/customers', this.#baseUrl);
+  async createVendorCustomer(
+    params: CreateVendorCustomerParams,
+  ): Promise<VendorCustomerResponse> {
+    const url = new URL(`/vendors/${params.vendor}/customers`, this.#baseUrl);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:createIronCustomer`, params.email],
+      queryKey: [
+        `${this.name}:createVendorCustomer`,
+        params.vendor,
+        params.email,
+      ],
       queryFn: async () =>
         this.#requestJson(url, {
           method: 'POST',
@@ -527,64 +589,13 @@ export class KycService extends BaseDataService<
     });
     return this.#validateResponse(
       data,
-      IronCustomerResponseStruct,
-      'iron customers',
+      VendorCustomerResponseStruct,
+      'vendor customers',
     );
   }
 
   /**
-   * Fetches Iron disclaimers / terms the customer must accept before consents
-   * and the SumSub sub-flow.
-   *
-   * @param params - The parameters.
-   * @param params.country - ISO 3166-1 alpha-3 country code.
-   * @returns The disclaimers.
-   */
-  async fetchIronDisclaimers({
-    country,
-  }: {
-    country: string;
-  }): Promise<KycDisclaimer[]> {
-    const url = new URL('/vendors/iron/disclaimers', this.#baseUrl);
-    url.searchParams.set('country', country);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchIronDisclaimers`, country],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      staleTime: inMilliseconds(5, Duration.Minute),
-    });
-    return this.#validateResponse(
-      data,
-      DisclaimersResponseStruct,
-      'iron disclaimers',
-    ) as KycDisclaimer[];
-  }
-
-  /**
-   * Checks whether Iron still requires KYC for the authenticated canonical
-   * user. Unlike the MoonPay variant, this does not take an access token.
-   *
-   * @returns Whether KYC is required.
-   */
-  async checkIronKycRequired(): Promise<{ kycRequired: boolean }> {
-    const url = new URL('/vendors/iron/kyc-required', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:checkIronKycRequired`],
-      queryFn: async () =>
-        this.#requestJson(url, { method: 'POST', body: '{}' }),
-      // The requirement can change server-side, so always re-check.
-      staleTime: 0,
-      gcTime: 0,
-    });
-    const { required } = this.#validateResponse(
-      data,
-      KycRequiredResponseStruct,
-      'iron kyc-required',
-    );
-    return { kycRequired: required };
-  }
-
-  /**
-   * Posts T&C1 (Iron signings) and T&C2 (Sumsub + idOS) consents for the
+   * Posts T&C1 (vendor signings) and T&C2 (Sumsub + idOS) consents for the
    * authenticated user. The API responds with 204 No Content on success.
    *
    * @param params - The consent parameters.
@@ -594,7 +605,7 @@ export class KycService extends BaseDataService<
     await this.fetchQuery({
       queryKey: [
         `${this.name}:submitConsents`,
-        params.ironDisclaimerIds,
+        params.disclaimerIds,
         params.sumsubTncSigned,
         params.idosTncSigned,
         params.kycLevel ?? 'standard',
@@ -602,8 +613,9 @@ export class KycService extends BaseDataService<
       queryFn: async () =>
         this.#requestJson(url, {
           method: 'POST',
+          // UKYC Money/VBA consents contract still uses `ironDisclaimerIds`.
           body: JSON.stringify({
-            ironDisclaimerIds: params.ironDisclaimerIds,
+            ironDisclaimerIds: params.disclaimerIds,
             sumsubTncSigned: params.sumsubTncSigned,
             idosTncSigned: params.idosTncSigned,
             kycLevel: params.kycLevel ?? 'standard',
@@ -721,7 +733,7 @@ export class KycService extends BaseDataService<
         this.#requestJson(url, {
           method: 'POST',
           body: JSON.stringify({
-            vendorId: params.vendorId ?? 'moonpay',
+            vendorId: params.vendor ?? 'moonpay',
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
             vendorMetadata: params.vendorMetadata ?? {},
@@ -836,24 +848,6 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Gets the authenticated wallet bearer token.
-   *
-   * @returns The bearer token.
-   */
-  async #getBearerToken(): Promise<string> {
-    const bearerToken = await this.messenger.call(
-      'AuthenticationController:getBearerToken',
-    );
-    assert(bearerToken, string());
-    if (!bearerToken) {
-      throw new Error(
-        'Unable to obtain an authentication bearer token - is the wallet signed in?',
-      );
-    }
-    return bearerToken;
-  }
-
-  /**
    * Performs a single JSON request.
    *
    * This is meant to be used as the `queryFn` for {@link fetchQuery}, which
@@ -885,7 +879,16 @@ export class KycService extends BaseDataService<
     }
 
     if (authenticated) {
-      headers.Authorization = `Bearer ${await this.#getBearerToken()}`;
+      const bearerToken = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      if (!bearerToken) {
+        throw new Error(
+          'Unable to obtain an authentication bearer token — is the wallet signed in?',
+        );
+      }
+      assert(bearerToken, string());
+      headers.Authorization = `Bearer ${bearerToken}`;
     }
 
     const response = await this.#fetch(url.toString(), {

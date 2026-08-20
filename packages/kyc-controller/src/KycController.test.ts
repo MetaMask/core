@@ -107,7 +107,11 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { termsAcceptedAt: 't', acceptedDisclaimerIds: ['1'] },
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['1'],
+              termsAcceptedVendor: 'moonpay',
+            },
           },
         },
         async ({ controller, handlers }) => {
@@ -261,6 +265,7 @@ describe('KycController', () => {
 
           expect(handlers.getGeoCountry).not.toHaveBeenCalled();
           expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+            vendor: 'moonpay',
             country: 'USA',
           });
         },
@@ -276,6 +281,7 @@ describe('KycController', () => {
 
         expect(controller.state.geoCountry).toBe('FRA');
         expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+          vendor: 'moonpay',
           country: 'FRA',
         });
       });
@@ -306,11 +312,62 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'ramps',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
 
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
           expect(controller.state.termsAcceptedAt).not.toBeNull();
           expect(controller.state.activeProduct).toBe('ramps');
+          expect(controller.state.phase).toBe('check');
+        },
+      );
+    });
+
+    it('fails when T&C2 flags are omitted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          // @ts-expect-error T&C2 flags are required
+          await controller.acceptTermsAndStartSession();
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(handlers.createSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('persists required T&C2 flags on a MoonPay session', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
+
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(controller.state.sumsubTncAccepted).toBe(true);
+          expect(controller.state.idosTncAccepted).toBe(true);
           expect(controller.state.phase).toBe('check');
         },
       );
@@ -350,7 +407,10 @@ describe('KycController', () => {
           );
 
           // Creating a new session must invalidate the carried-over auth.
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.accessToken).toBeNull();
           expect(controller.buildAuthFrameUrl()).toBeNull();
@@ -382,7 +442,10 @@ describe('KycController', () => {
             }),
           );
 
-          const pending = controller.acceptTermsAndStartSession();
+          const pending = controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           // While the request is in flight (phase `session`) the stale token
           // must already be gone so no Check frame URL can be built for it.
@@ -416,7 +479,10 @@ describe('KycController', () => {
           handlers.createSession.mockRejectedValue(new Error('nope'));
           handlers.fetchDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
@@ -450,7 +516,10 @@ describe('KycController', () => {
             }),
           );
 
-          const pending = controller.acceptTermsAndStartSession();
+          const pending = controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           // Reset while the create request is in flight, then let it fail. The
           // superseded flow must not force the now-idle controller back to
@@ -481,7 +550,11 @@ describe('KycController', () => {
           handlers.createSession.mockRejectedValue(new Error('nope'));
           handlers.fetchDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({ product: 'ramps' });
+          await controller.acceptTermsAndStartSession({
+            product: 'ramps',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           // The failed flow must not leave a lingering product behind that a
           // later product-less `acceptTermsAndStartSession` would auto-run.
@@ -499,7 +572,10 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing email/u);
@@ -509,7 +585,11 @@ describe('KycController', () => {
 
     it('fails when no disclaimers were accepted', async () => {
       await withController(async ({ controller }) => {
-        await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+        await controller.acceptTermsAndStartSession({
+          email: 'a@b.co',
+          sumsubTncSigned: true,
+          idosTncSigned: true,
+        });
 
         expect(controller.state.phase).toBe('error');
         expect(controller.state.error).toMatch(/Missing terms acceptance/u);
@@ -965,6 +1045,7 @@ describe('KycController', () => {
               // session (reaching phase `check`) for the second completion.
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['1'],
+              termsAcceptedVendor: 'moonpay',
             },
           },
         },
@@ -1283,7 +1364,7 @@ describe('KycController', () => {
       );
     });
 
-    it('drops a MoonPay id when an Iron customer is created', async () => {
+    it('drops a MoonPay id when a non-MoonPay customer is created', async () => {
       await withController(
         {
           options: {
@@ -1291,10 +1372,37 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.createIronCustomer({ email: 'a@b.co' });
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
+
+    it('keeps a MoonPay id when createVendorCustomer stays on MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockResolvedValue({
+            id: 'mp-1',
+            email: 'a@b.co',
+            status: 'active',
+          });
+
+          await controller.createVendorCustomer({
+            vendor: 'moonpay',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.moonpayCustomerId).toBe('cust-1');
         },
       );
     });
@@ -1863,7 +1971,7 @@ describe('KycController', () => {
     it('creates an Iron customer and loads Iron disclaimers on initialize', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getGeoCountry.mockResolvedValue('USA');
-        handlers.fetchIronDisclaimers.mockResolvedValue([
+        handlers.fetchDisclaimers.mockResolvedValue([
           { id: 'd1', display_name: 'Iron T&C', url: 'https://t' },
         ]);
 
@@ -1873,13 +1981,14 @@ describe('KycController', () => {
           product: 'money',
         });
 
-        expect(handlers.createIronCustomer).toHaveBeenCalledWith({
+        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+          vendor: 'iron',
           email: 'a@b.co',
         });
-        expect(handlers.fetchIronDisclaimers).toHaveBeenCalledWith({
+        expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+          vendor: 'iron',
           country: 'USA',
         });
-        expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
         expect(handlers.createSession).not.toHaveBeenCalled();
         expect(controller.state.activeVendor).toBe('iron');
         expect(controller.state.activeProduct).toBe('money');
@@ -1890,13 +1999,13 @@ describe('KycController', () => {
 
     it('fails initialize when Iron customer creation fails', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.createIronCustomer.mockRejectedValue(new Error('iron down'));
+        handlers.createVendorCustomer.mockRejectedValue(new Error('iron down'));
 
         await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
 
         expect(controller.state.phase).toBe('error');
         expect(controller.state.error).toMatch(
-          /Iron customer creation failed/u,
+          /Vendor customer creation failed/u,
         );
       });
     });
@@ -1910,7 +2019,7 @@ describe('KycController', () => {
         }) => void = () => {
           // placeholder
         };
-        handlers.createIronCustomer.mockReturnValue(
+        handlers.createVendorCustomer.mockReturnValue(
           new Promise((resolve) => {
             release = resolve;
           }),
@@ -1934,7 +2043,7 @@ describe('KycController', () => {
         let release: (error: Error) => void = () => {
           // placeholder
         };
-        handlers.createIronCustomer.mockReturnValue(
+        handlers.createVendorCustomer.mockReturnValue(
           new Promise((_resolve, reject) => {
             release = reject;
           }),
@@ -1960,6 +2069,9 @@ describe('KycController', () => {
             state: {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['d1'],
+              termsAcceptedVendor: 'iron',
+              sumsubTncAccepted: true,
+              idosTncAccepted: true,
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -1985,11 +2097,177 @@ describe('KycController', () => {
       );
     });
 
-    it('createIronCustomer sets the vendor and fails on API errors', async () => {
-      await withController(async ({ controller, handlers }) => {
-        handlers.createIronCustomer.mockRejectedValue(new Error('nope'));
+    it('does not reuse MoonPay terms acceptance for a consents-path vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchDisclaimers.mockResolvedValue([
+            { id: 'iron-d1', display_name: 'T', url: 'u' },
+          ]);
 
-        await controller.createIronCustomer({ email: 'a@b.co' });
+          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+          expect(handlers.submitConsents).not.toHaveBeenCalled();
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.termsAcceptedVendor).toBeNull();
+          expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            country: 'USA',
+          });
+          expect(controller.state.phase).toBe('terms');
+        },
+      );
+    });
+
+    it('requires reacceptance when T&C2 flags are null (pre-migration state)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['d1'],
+              termsAcceptedVendor: 'iron',
+              // T&C2 flags are null, simulating pre-migration state
+              sumsubTncAccepted: null,
+              idosTncAccepted: null,
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T', url: 'u' },
+          ]);
+
+          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+          // T&C2 flags were null; reacceptance required.
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.sumsubTncAccepted).toBeNull();
+          expect(controller.state.idosTncAccepted).toBeNull();
+        },
+      );
+    });
+
+    it('does not reuse consents-path terms acceptance for MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['iron-d1'],
+              termsAcceptedVendor: 'iron',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.initialize({ email: 'a@b.co', vendor: 'moonpay' });
+
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.phase).toBe('terms');
+        },
+      );
+    });
+
+    it('drops another vendor terms acceptance when createVendorCustomer switches vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.termsAcceptedVendor).toBeNull();
+        },
+      );
+    });
+
+    it('keeps terms acceptance when createVendorCustomer stays on the same vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['iron-d1'],
+              termsAcceptedVendor: 'iron',
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'iron-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('iron');
+        },
+      );
+    });
+
+    it('stamps the active vendor onto the terms acceptance', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(controller.state.termsAcceptedVendor).toBe('iron');
+          expect(controller.state.sumsubTncAccepted).toBe(true);
+          expect(controller.state.idosTncAccepted).toBe(true);
+          controller.reset();
+        },
+      );
+    });
+
+    it('createVendorCustomer sets the vendor and fails on API errors', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createVendorCustomer.mockRejectedValue(new Error('nope'));
+
+        await controller.createVendorCustomer({
+          vendor: 'iron',
+          email: 'a@b.co',
+        });
 
         expect(controller.state.activeVendor).toBe('iron');
         expect(controller.state.email).toBe('a@b.co');
@@ -1997,18 +2275,21 @@ describe('KycController', () => {
       });
     });
 
-    it('createIronCustomer ignores API errors after reset', async () => {
+    it('createVendorCustomer ignores API errors after reset', async () => {
       await withController(async ({ controller, handlers }) => {
         let release: (error: Error) => void = () => {
           // placeholder
         };
-        handlers.createIronCustomer.mockReturnValue(
+        handlers.createVendorCustomer.mockReturnValue(
           new Promise((_resolve, reject) => {
             release = reject;
           }),
         );
 
-        const pending = controller.createIronCustomer({ email: 'a@b.co' });
+        const pending = controller.createVendorCustomer({
+          vendor: 'iron',
+          email: 'a@b.co',
+        });
         controller.reset();
         release(new Error('late'));
         await pending;
@@ -2046,12 +2327,12 @@ describe('KycController', () => {
 
           expect(handlers.createSession).not.toHaveBeenCalled();
           expect(handlers.submitConsents).toHaveBeenCalledWith({
-            ironDisclaimerIds: ['d1'],
+            disclaimerIds: ['d1'],
             sumsubTncSigned: true,
             idosTncSigned: true,
           });
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
-            expect.objectContaining({ vendorId: 'iron' }),
+            expect.objectContaining({ vendor: 'iron' }),
           );
           expect(launcher.launch).toHaveBeenCalled();
           expect(controller.buildCheckFrameUrl()).toBeNull();
@@ -2059,6 +2340,91 @@ describe('KycController', () => {
           expect(controller.state.userStatus).toBe('pending');
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
+          controller.reset();
+        },
+      );
+    });
+
+    it('fails the consents path when T&C2 flags are omitted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          // @ts-expect-error T&C2 flags are required
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(handlers.submitConsents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fails the consents path when only one T&C2 flag is provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          // @ts-expect-error both T&C2 flags are required
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
+          expect(handlers.submitConsents).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('submits explicit T&C2 false flags on the consents path', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+            sumsubTncSigned: false,
+            idosTncSigned: false,
+          });
+
+          expect(handlers.submitConsents).toHaveBeenCalledWith({
+            disclaimerIds: ['d1'],
+            sumsubTncSigned: false,
+            idosTncSigned: false,
+          });
+          expect(controller.state.sumsubTncAccepted).toBe(false);
+          expect(controller.state.idosTncAccepted).toBe(false);
           controller.reset();
         },
       );
@@ -2075,7 +2441,10 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession();
+          await controller.acceptTermsAndStartSession({
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing email/u);
@@ -2095,10 +2464,16 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('error');
-          expect(controller.state.error).toMatch(/Missing Iron disclaimer/u);
+          expect(controller.state.error).toMatch(
+            /Missing disclaimer acceptance/u,
+          );
         },
       );
     });
@@ -2117,13 +2492,17 @@ describe('KycController', () => {
           handlers.createUkycSession.mockRejectedValue(
             new Error('sumsub down'),
           );
-          handlers.fetchIronDisclaimers.mockResolvedValue([]);
+          handlers.fetchDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
-          expect(controller.state.error).toMatch(/Iron session failed/u);
+          expect(controller.state.error).toMatch(/Consents session failed/u);
         },
       );
     });
@@ -2146,7 +2525,11 @@ describe('KycController', () => {
           });
           handlers.fetchKycStatus.mockRejectedValue(new Error('status down'));
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
@@ -2177,6 +2560,8 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
           controller.reset();
           release();
@@ -2211,6 +2596,8 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
           // Consents + UKYC session run first; wait until launch is pending.
           await Promise.resolve();
@@ -2247,6 +2634,8 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
           });
           controller.reset();
           release(new Error('late consent failure'));
@@ -2311,6 +2700,60 @@ describe('KycController', () => {
             handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
             await controller.refreshKycStatus();
             await controller.refreshKycStatus();
+            controller.reset();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not start a second poll loop when refreshed during an in-flight tick', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            let releaseTick: (value: { status: string }) => void = () => {
+              // placeholder
+            };
+            handlers.fetchKycStatus
+              // Initial refresh starts the loop.
+              .mockResolvedValueOnce({ status: 'pending' })
+              // The first scheduled tick hangs, so the timer handle is null
+              // while the request is in flight.
+              .mockImplementationOnce(
+                async () =>
+                  new Promise((resolve) => {
+                    releaseTick = resolve;
+                  }),
+              )
+              // Any later poll stays pending so the loop keeps scheduling.
+              .mockResolvedValue({ status: 'pending' });
+
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+
+            // Fire the scheduled tick; it clears the timer handle then awaits.
+            jest.advanceTimersByTime(1000);
+            await Promise.resolve();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(2);
+
+            // A concurrent refresh while the tick is in flight (timer handle
+            // null) must not spin up a second loop on the same token.
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(3);
+
+            // Let the in-flight tick resolve and reschedule.
+            releaseTick({ status: 'pending' });
+            await Promise.resolve();
+            await Promise.resolve();
+
+            // A single loop means exactly one fetch per interval; a duplicated
+            // loop would fire twice here.
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(4);
+
             controller.reset();
           },
         );
@@ -2441,6 +2884,44 @@ describe('KycController', () => {
       );
     });
 
+    it('does not restart polling when reset lands during refresh', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          {
+            options: {
+              state: { userStatus: 'pending' },
+              userStatusPollIntervalMs: 1000,
+            },
+          },
+          async ({ controller, handlers, rootMessenger }) => {
+            const listener = jest.fn();
+            rootMessenger.subscribe('KycController:statusChanged', listener);
+            let release: (value: { status: string }) => void = () => {
+              // placeholder
+            };
+            handlers.fetchKycStatus.mockReturnValue(
+              new Promise((resolve) => {
+                release = resolve;
+              }),
+            );
+
+            const pending = controller.refreshKycStatus();
+            controller.reset();
+            release({ status: 'pending' });
+            await pending;
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(3000);
+
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+            expect(listener).not.toHaveBeenCalled();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('defaults superseded refresh status to not-started when unset', async () => {
       await withController(
         { options: { userStatusPollIntervalMs: 60_000 } },
@@ -2532,7 +3013,11 @@ describe('KycController', () => {
           );
           handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
 
-          await controller.acceptTermsAndStartSession({ email: 'a@b.co' });
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
 
           expect(controller.state.phase).toBe('done');
           expect(controller.state.userStatus).toBe('completed');
@@ -2564,9 +3049,7 @@ type ServiceHandlers = {
   fetchDisclaimers: jest.Mock;
   createSession: jest.Mock;
   checkKycRequired: jest.Mock;
-  createIronCustomer: jest.Mock;
-  fetchIronDisclaimers: jest.Mock;
-  checkIronKycRequired: jest.Mock;
+  createVendorCustomer: jest.Mock;
   submitConsents: jest.Mock;
   fetchKycStatus: jest.Mock;
   getWrappingKey: jest.Mock;
@@ -2599,9 +3082,7 @@ const SERVICE_ACTIONS = [
   'KycService:fetchDisclaimers',
   'KycService:createSession',
   'KycService:checkKycRequired',
-  'KycService:createIronCustomer',
-  'KycService:fetchIronDisclaimers',
-  'KycService:checkIronKycRequired',
+  'KycService:createVendorCustomer',
   'KycService:submitConsents',
   'KycService:fetchKycStatus',
   'KycService:getWrappingKey',
@@ -2669,13 +3150,11 @@ function withController<ReturnValue>(
     fetchDisclaimers: jest.fn().mockResolvedValue([]),
     createSession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     checkKycRequired: jest.fn().mockResolvedValue({ kycRequired: false }),
-    createIronCustomer: jest.fn().mockResolvedValue({
+    createVendorCustomer: jest.fn().mockResolvedValue({
       id: 'iron-1',
       email: 'a@b.co',
       status: 'SigningsRequired',
     }),
-    fetchIronDisclaimers: jest.fn().mockResolvedValue([]),
-    checkIronKycRequired: jest.fn().mockResolvedValue({ kycRequired: true }),
     submitConsents: jest.fn().mockResolvedValue(undefined),
     fetchKycStatus: jest.fn().mockResolvedValue({ status: 'pending' }),
     getWrappingKey: jest.fn().mockResolvedValue({
@@ -2713,16 +3192,8 @@ function withController<ReturnValue>(
     handlers.checkKycRequired,
   );
   rootMessenger.registerActionHandler(
-    'KycService:createIronCustomer',
-    handlers.createIronCustomer,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:fetchIronDisclaimers',
-    handlers.fetchIronDisclaimers,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:checkIronKycRequired',
-    handlers.checkIronKycRequired,
+    'KycService:createVendorCustomer',
+    handlers.createVendorCustomer,
   );
   rootMessenger.registerActionHandler(
     'KycService:submitConsents',

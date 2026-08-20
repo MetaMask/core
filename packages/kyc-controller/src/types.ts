@@ -38,9 +38,9 @@ export type KycCustomerIdentity = {
 };
 
 /**
- * User-keyed KYC status returned by `GET /kyc/status` and stored for Money
- * toast / banner rendering. Collapses Iron + SumSub / relay state into the
- * offsite contract.
+ * User-keyed KYC status returned by `GET /kyc/status` and stored for toast /
+ * banner rendering. Collapses vendor + SumSub / relay state into the offsite
+ * contract.
  */
 export type KycUserStatus =
   | 'not-started'
@@ -67,12 +67,13 @@ export type KycUserStatusResponse = {
  * - `idle` — nothing started.
  * - `terms` — waiting for the customer to accept the vendor terms.
  * - `session` — creating the vendor session (MoonPay) or posting consents
- *   (Iron).
+ *   (non-MoonPay vendors).
  * - `check` — running the invisible connection-check frame (MoonPay only).
  * - `auth` — running the visible authentication (OTP) frame (MoonPay only).
  * - `form` — authenticated. When the flow is scoped to a product, the
  *   KYC-required check runs automatically from here; otherwise the consumer
- *   drives it manually via `checkKycRequired`. Iron skips this phase.
+ *   drives it manually via `checkKycRequired`. Consents-path vendors skip
+ *   this phase.
  * - `submit` — submitting the KYC-required check / launching SumSub.
  * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub` /
  *   `userStatus`. When KYC is required, the document-verification sub-flow is

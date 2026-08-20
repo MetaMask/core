@@ -16,8 +16,8 @@ import type { KycController } from './KycController.js';
  * authentication completes (and chains into document verification when KYC
  * is required). When omitted, the flow stops at `form` and the consumer must
  * call `checkKycRequired` manually.
- * @param params.vendor - Identity vendor for this flow. Pass `iron` for the
- * Money/VBA path (no MoonPay Check/Auth frames). Defaults to `moonpay`.
+ * @param params.vendor - Identity vendor for this flow. Non-MoonPay vendors
+ * skip Check/Auth frames and use the consents path. Defaults to `moonpay`.
  */
 export type KycControllerInitializeAction = {
   type: `KycController:initialize`;
@@ -25,16 +25,17 @@ export type KycControllerInitializeAction = {
 };
 
 /**
- * Creates (or resumes) an Iron empty-shell customer. Exposed so Money can
- * ensure the customer exists before showing T&C screens independently of
- * {@link initialize}.
+ * Creates (or resumes) an empty-shell customer for the given identity
+ * vendor. Exposed so a consumer can ensure the customer exists before
+ * showing T&C screens independently of {@link initialize}.
  *
  * @param params - The parameters.
- * @param params.email - Email for the Iron customer.
+ * @param params.vendor - Identity vendor for the customer.
+ * @param params.email - Email for the vendor customer.
  */
-export type KycControllerCreateIronCustomerAction = {
-  type: `KycController:createIronCustomer`;
-  handler: KycController['createIronCustomer'];
+export type KycControllerCreateVendorCustomerAction = {
+  type: `KycController:createVendorCustomer`;
+  handler: KycController['createVendorCustomer'];
 };
 
 /**
@@ -52,15 +53,15 @@ export type KycControllerLoadDisclaimersAction = {
  * Captures terms acceptance for the currently loaded disclaimers and creates
  * a session.
  *
- * @param params - Optional parameters.
+ * @param params - The parameters.
  * @param params.email - The account email to associate with the session.
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
- * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
- * accepted (T&C2). Defaults to `true` when omitted.
- * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
- * (T&C2). Defaults to `true` when omitted.
+ * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
+ * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
+ * Required for every vendor so callers explicitly declare acceptance.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
@@ -229,7 +230,7 @@ export type KycControllerResetAction = {
  */
 export type KycControllerMethodActions =
   | KycControllerInitializeAction
-  | KycControllerCreateIronCustomerAction
+  | KycControllerCreateVendorCustomerAction
   | KycControllerLoadDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction

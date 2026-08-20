@@ -17,6 +17,7 @@ import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import type { CreateUkycSessionParams } from './KycService.js';
 import type {
   KycCustomerIdentity,
   KycDisclaimer,
@@ -141,6 +142,26 @@ export type KycControllerState = {
   termsAcceptedAt: string | null;
   /** IDs of the disclaimers the customer accepted (persisted). */
   acceptedDisclaimerIds: string[];
+  /**
+   * The vendor whose disclaimers `acceptedDisclaimerIds` belong to (persisted).
+   * Each vendor serves its own disclaimer set, so acceptance recorded for one
+   * vendor must not be reused for another. `null` when nothing is accepted.
+   */
+  termsAcceptedVendor: KycVendor | null;
+  /**
+   * Whether the customer accepted the SumSub T&C (T&C2) during the last
+   * terms acceptance (persisted). Consents-path vendors require this flag
+   * when resuming a session. `null` for acceptance recorded before this
+   * field existed (treated as requiring reacceptance).
+   */
+  sumsubTncAccepted: boolean | null;
+  /**
+   * Whether the customer accepted the idOS T&C (T&C2) during the last
+   * terms acceptance (persisted). Consents-path vendors require this flag
+   * when resuming a session. `null` for acceptance recorded before this
+   * field existed (treated as requiring reacceptance).
+   */
+  idosTncAccepted: boolean | null;
 
   /** Disclaimers fetched for the current country. */
   disclaimers: KycDisclaimer[];
@@ -160,7 +181,7 @@ export type KycControllerState = {
   /**
    * The identity vendor driving the current flow. Captured at `initialize`.
    * Defaults to `moonpay` when omitted so existing ramps/card callers keep
-   * the Check/Auth frame path. `iron` skips those frames.
+   * the Check/Auth frame path. Non-MoonPay vendors skip those frames.
    */
   activeVendor: KycVendor;
 
@@ -235,6 +256,24 @@ const kycControllerMetadata = {
     usedInUi: false,
   },
   acceptedDisclaimerIds: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  termsAcceptedVendor: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  sumsubTncAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  idosTncAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -339,6 +378,9 @@ export function getDefaultKycControllerState(): KycControllerState {
     email: null,
     termsAcceptedAt: null,
     acceptedDisclaimerIds: [],
+    termsAcceptedVendor: null,
+    sumsubTncAccepted: null,
+    idosTncAccepted: null,
     disclaimers: [],
     disclaimersError: null,
     geoCountry: null,
@@ -362,13 +404,37 @@ export function getDefaultKycControllerState(): KycControllerState {
   };
 }
 
+/**
+ * Whether an error indicates the applicant already finished KYC — the UKYC /
+ * relay `session_not_in_valid_state` signal — which the controller maps to the
+ * simplified `completed` user status.
+ *
+ * @param error - The caught error.
+ * @returns `true` when the error carries the `session_not_in_valid_state`
+ * marker.
+ */
+function isSessionAlreadyCompletedError(error: unknown): boolean {
+  return String(error).includes(SESSION_NOT_IN_VALID_STATE);
+}
+
+/**
+ * Vendors other than MoonPay skip Check/Auth frames and use the empty-shell
+ * customer + consents path instead.
+ *
+ * @param vendor - The identity vendor for the current flow.
+ * @returns `true` when the vendor uses the consents session path.
+ */
+function usesConsentsFlow(vendor: KycVendor): boolean {
+  return vendor !== 'moonpay';
+}
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
   'initialize',
   'loadDisclaimers',
   'acceptTermsAndStartSession',
-  'createIronCustomer',
+  'createVendorCustomer',
   'clearSavedTerms',
   'handleFrameMessage',
   'buildCheckFrameUrl',
@@ -522,6 +588,15 @@ export class KycController extends BaseController<
   /** Handle for the scheduled next user-status poll, or `null`. */
   #userStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Whether a user-status poll loop is currently active. Tracked separately
+   * from {@link #userStatusPollTimer} because a scheduled tick clears the timer
+   * handle before awaiting `fetchKycStatus`; relying on the handle alone would
+   * let a concurrent {@link refreshKycStatus} start a second loop on the same
+   * token during that in-flight window.
+   */
+  #userStatusPolling = false;
+
   /** Monotonic token for the user-status poll loop (see `#pollToken`). */
   #userStatusPollToken = 0;
 
@@ -605,8 +680,8 @@ export class KycController extends BaseController<
    * authentication completes (and chains into document verification when KYC
    * is required). When omitted, the flow stops at `form` and the consumer must
    * call `checkKycRequired` manually.
-   * @param params.vendor - Identity vendor for this flow. Pass `iron` for the
-   * Money/VBA path (no MoonPay Check/Auth frames). Defaults to `moonpay`.
+   * @param params.vendor - Identity vendor for this flow. Non-MoonPay vendors
+   * skip Check/Auth frames and use the consents path. Defaults to `moonpay`.
    */
   async initialize(params?: {
     email?: string;
@@ -631,6 +706,12 @@ export class KycController extends BaseController<
     this.#applyUpdate((state) => {
       if (params?.email) {
         state.email = params.email;
+      }
+      // Terms acceptance is vendor-scoped: reusing another vendor's saved
+      // acceptance would skip loading this vendor's disclaimers and submit its
+      // ids to the wrong vendor.
+      if (!this.#hasTermsForVendor(vendor)) {
+        this.#clearAcceptedTerms(state);
       }
       state.activeVendor = vendor;
       // `moonpayCustomerId` is only ever issued by the MoonPay Check / Auth
@@ -657,10 +738,10 @@ export class KycController extends BaseController<
       // Ignore; disclaimers loading will surface a country error if needed.
     }
 
-    // Iron: create the empty-shell customer before T&C (offsite decision).
-    if (vendor === 'iron' && this.state.email) {
+    if (usesConsentsFlow(vendor) && this.state.email) {
       try {
-        await this.messenger.call('KycService:createIronCustomer', {
+        await this.messenger.call('KycService:createVendorCustomer', {
+          vendor,
           email: this.state.email,
         });
         if (this.#generation !== generation) {
@@ -670,7 +751,7 @@ export class KycController extends BaseController<
         if (this.#generation !== generation) {
           return;
         }
-        this.#fail(`Iron customer creation failed: ${String(error)}`);
+        this.#fail(`Vendor customer creation failed: ${String(error)}`);
         return;
       }
     }
@@ -680,10 +761,22 @@ export class KycController extends BaseController<
       this.state.acceptedDisclaimerIds.length > 0;
 
     if (hasTerms && this.state.email) {
-      if (vendor === 'iron') {
-        await this.#startIronSession({
-          sumsubTncSigned: true,
-          idosTncSigned: true,
+      if (usesConsentsFlow(vendor)) {
+        // Consents-path vendors require T&C2 flags; if they weren't persisted
+        // (i.e. null from pre-migration state), require reacceptance.
+        const sumsubTncSigned = this.state.sumsubTncAccepted;
+        const idosTncSigned = this.state.idosTncAccepted;
+        if (sumsubTncSigned === null || idosTncSigned === null) {
+          this.#applyUpdate((state) => {
+            this.#clearAcceptedTerms(state);
+            state.phase = 'terms';
+          });
+          await this.loadDisclaimers();
+          return;
+        }
+        await this.#startConsentsSession({
+          sumsubTncSigned,
+          idosTncSigned,
         });
       } else {
         await this.#createSession();
@@ -698,31 +791,42 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Creates (or resumes) an Iron empty-shell customer. Exposed so Money can
-   * ensure the customer exists before showing T&C screens independently of
-   * {@link initialize}.
+   * Creates (or resumes) an empty-shell customer for the given identity
+   * vendor. Exposed so a consumer can ensure the customer exists before
+   * showing T&C screens independently of {@link initialize}.
    *
    * @param params - The parameters.
-   * @param params.email - Email for the Iron customer.
+   * @param params.vendor - Identity vendor for the customer.
+   * @param params.email - Email for the vendor customer.
    */
-  async createIronCustomer(params: { email: string }): Promise<void> {
+  async createVendorCustomer(params: {
+    vendor: KycVendor;
+    email: string;
+  }): Promise<void> {
     this.#applyUpdate((state) => {
       state.email = params.email;
-      state.activeVendor = 'iron';
-      // See `initialize`: a MoonPay-issued customer id must not survive a
-      // switch to Iron, or `getCustomerIdentity` reports the wrong vendor.
-      state.moonpayCustomerId = null;
+      // See `initialize`: acceptance recorded for another vendor cannot carry
+      // over, and a MoonPay-issued customer id must not survive a switch to
+      // another vendor or `getCustomerIdentity` reports the wrong vendor.
+      if (!this.#hasTermsForVendor(params.vendor)) {
+        this.#clearAcceptedTerms(state);
+      }
+      state.activeVendor = params.vendor;
+      if (params.vendor !== 'moonpay') {
+        state.moonpayCustomerId = null;
+      }
     });
     const generation = this.#generation;
     try {
-      await this.messenger.call('KycService:createIronCustomer', {
+      await this.messenger.call('KycService:createVendorCustomer', {
+        vendor: params.vendor,
         email: params.email,
       });
     } catch (error) {
       if (this.#generation !== generation) {
         return;
       }
-      this.#fail(`Iron customer creation failed: ${String(error)}`);
+      this.#fail(`Vendor customer creation failed: ${String(error)}`);
     }
   }
 
@@ -747,14 +851,13 @@ export class KycController extends BaseController<
           state.geoCountry = country;
         });
       }
-      const disclaimers =
-        this.state.activeVendor === 'iron'
-          ? await this.messenger.call('KycService:fetchIronDisclaimers', {
-              country,
-            })
-          : await this.messenger.call('KycService:fetchDisclaimers', {
-              country,
-            });
+      const disclaimers = await this.messenger.call(
+        'KycService:fetchDisclaimers',
+        {
+          vendor: this.state.activeVendor,
+          country,
+        },
+      );
       this.#updateIfCurrent(generation, (state) => {
         state.disclaimers = disclaimers;
         state.disclaimersError = null;
@@ -770,65 +873,75 @@ export class KycController extends BaseController<
    * Captures terms acceptance for the currently loaded disclaimers and creates
    * a session.
    *
-   * @param params - Optional parameters.
+   * @param params - The parameters.
    * @param params.email - The account email to associate with the session.
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
-   * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
-   * accepted (T&C2). Defaults to `true` when omitted.
-   * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
-   * (T&C2). Defaults to `true` when omitted.
+   * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
+   * Required for every vendor so callers explicitly declare acceptance.
+   * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
+   * Required for every vendor so callers explicitly declare acceptance.
    */
-  async acceptTermsAndStartSession(params?: {
+  async acceptTermsAndStartSession(params: {
     email?: string;
     product?: KycProduct;
-    sumsubTncSigned?: boolean;
-    idosTncSigned?: boolean;
+    sumsubTncSigned: boolean;
+    idosTncSigned: boolean;
   }): Promise<void> {
+    const sumsubTncSigned = params?.sumsubTncSigned;
+    const idosTncSigned = params?.idosTncSigned;
+    if (
+      typeof sumsubTncSigned !== 'boolean' ||
+      typeof idosTncSigned !== 'boolean'
+    ) {
+      this.#fail('Missing T&C2 acceptance flags.');
+      return;
+    }
+
     const termsAcceptedAt = new Date().toISOString();
     const disclaimerIds = this.state.disclaimers.map(
       (disclaimer) => disclaimer.id,
     );
     this.#applyUpdate((state) => {
-      if (params?.email) {
+      if (params.email) {
         state.email = params.email;
       }
-      if (params?.product) {
+      if (params.product) {
         state.activeProduct = params.product;
       }
       state.termsAcceptedAt = termsAcceptedAt;
       state.acceptedDisclaimerIds = disclaimerIds;
+      state.termsAcceptedVendor = state.activeVendor;
+      state.sumsubTncAccepted = sumsubTncSigned;
+      state.idosTncAccepted = idosTncSigned;
     });
-    if (this.state.activeVendor === 'iron') {
-      await this.#startIronSession({
-        sumsubTncSigned: params?.sumsubTncSigned ?? true,
-        idosTncSigned: params?.idosTncSigned ?? true,
-      });
+    if (usesConsentsFlow(this.state.activeVendor)) {
+      await this.#startConsentsSession({ sumsubTncSigned, idosTncSigned });
       return;
     }
     await this.#createSession();
   }
 
   /**
-   * Iron-only path: post consents (Iron signings + Sumsub/idOS ack), then
+   * Consents-path vendors: post vendor signings + Sumsub/idOS ack, then
    * launch SumSub — skipping MoonPay Check/Auth frames.
    *
    * @param consents - T&C2 boolean flags.
    * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
    * @param consents.idosTncSigned - Whether idOS T&C were accepted.
    */
-  async #startIronSession(consents: {
+  async #startConsentsSession(consents: {
     sumsubTncSigned: boolean;
     idosTncSigned: boolean;
   }): Promise<void> {
     const { email, acceptedDisclaimerIds } = this.state;
     if (!email) {
-      this.#fail('Missing email for Iron session.');
+      this.#fail('Missing email for consents session.');
       return;
     }
     if (acceptedDisclaimerIds.length === 0) {
-      this.#fail('Missing Iron disclaimer acceptance.');
+      this.#fail('Missing disclaimer acceptance.');
       return;
     }
 
@@ -837,14 +950,14 @@ export class KycController extends BaseController<
       state.error = null;
       state.phase = 'session';
       state.statusMessage = 'Submitting consents...';
-      // Iron has no MoonPay session/access tokens.
+      // Consents-path vendors have no MoonPay session/access tokens.
       state.sessionToken = null;
       state.accessToken = null;
     });
 
     try {
       await this.messenger.call('KycService:submitConsents', {
-        ironDisclaimerIds: acceptedDisclaimerIds,
+        disclaimerIds: acceptedDisclaimerIds,
         sumsubTncSigned: consents.sumsubTncSigned,
         idosTncSigned: consents.idosTncSigned,
       });
@@ -878,14 +991,14 @@ export class KycController extends BaseController<
         }
       });
     } catch (error) {
-      console.error('Iron session failed:', error);
+      console.error('Consents session failed:', error);
       if (this.#generation !== generation) {
         return;
       }
       this.#applyUpdate((state) => {
         this.#clearAcceptedTerms(state);
         state.activeProduct = null;
-        state.error = `Iron session failed: ${String(error)}`;
+        state.error = `Consents session failed: ${String(error)}`;
         state.statusMessage =
           'Consent / verification failed — accept the terms to try again.';
         state.phase = 'terms';
@@ -985,6 +1098,25 @@ export class KycController extends BaseController<
   #clearAcceptedTerms(state: KycControllerState): void {
     state.termsAcceptedAt = null;
     state.acceptedDisclaimerIds = [];
+    state.termsAcceptedVendor = null;
+    state.sumsubTncAccepted = null;
+    state.idosTncAccepted = null;
+  }
+
+  /**
+   * Determines whether the stored terms acceptance belongs to the given
+   * vendor. Acceptance persisted before `termsAcceptedVendor` existed
+   * (indicated by `null`) is invalidated to force reacceptance, ensuring users
+   * re-review vendor terms after the multi-vendor upgrade.
+   *
+   * @param vendor - The vendor about to drive the flow.
+   * @returns `true` when the stored acceptance can be reused for `vendor`.
+   */
+  #hasTermsForVendor(vendor: KycVendor): boolean {
+    if (this.state.termsAcceptedVendor === null) {
+      return false;
+    }
+    return this.state.termsAcceptedVendor === vendor;
   }
 
   /**
@@ -1320,6 +1452,33 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Builds the vendor-specific fields spread into a
+   * `KycService:createUkycSession` call, derived from the active vendor and the
+   * currently captured auth state.
+   *
+   * MoonPay sessions must carry the access token and customer id in
+   * `vendorMetadata`; other vendors carry no vendor metadata.
+   *
+   * @returns The vendor-specific subset of the `createUkycSession` params.
+   */
+  #buildUkycSessionVendorFields(): Pick<
+    CreateUkycSessionParams,
+    'vendor' | 'vendorMetadata'
+  > {
+    if (this.state.activeVendor === 'moonpay') {
+      return {
+        vendor: 'moonpay',
+        vendorMetadata: {
+          moonPayAccessToken: this.state.accessToken,
+          moonPayUserId: this.state.moonpayCustomerId,
+        },
+      };
+    }
+
+    return { vendor: this.state.activeVendor };
+  }
+
+  /**
    * Runs the SumSub document-verification sub-flow end to end:
    *
    *  1. requests a per-session wrapping key from the UKYC backend;
@@ -1424,20 +1583,11 @@ export class KycController extends BaseController<
         expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
       });
 
-      const isIron = this.state.activeVendor === 'iron';
       const { sessionId, kycStatus, finalStatus } = await this.messenger.call(
         'KycService:createUkycSession',
         {
           jwtToken,
-          vendorId: isIron ? 'iron' : 'moonpay',
-          ...(isIron
-            ? {}
-            : {
-                vendorMetadata: {
-                  moonPayAccessToken: this.state.accessToken,
-                  moonPayUserId: this.state.moonpayCustomerId,
-                },
-              }),
+          ...this.#buildUkycSessionVendorFields(),
           wrappedEncryptionKey,
           ukycCapabilityToken,
         },
@@ -1545,7 +1695,7 @@ export class KycController extends BaseController<
       return result;
     } catch (error) {
       // Applicant already finished KYC — treat as completed for Money toast.
-      if (String(error).includes(SESSION_NOT_IN_VALID_STATE)) {
+      if (isSessionAlreadyCompletedError(error)) {
         // A reset() may have landed while `launch` was in flight; forcing
         // `completed` (and publishing `statusChanged`) on an idle controller
         // would resurrect a flow the consumer already tore down.
@@ -1587,7 +1737,15 @@ export class KycController extends BaseController<
     sumsubSessionId: string | null;
     errorCode: string | null;
   }> {
+    const generation = this.#generation;
     const payload = await this.#fetchAndApplyUserStatus();
+    // A `reset()` landing while the request was in flight already stopped
+    // polling and left the flow idle, and the payload above is the pre-reset
+    // cached status. Starting a loop from it would poll — and publish
+    // `statusChanged` — on a torn-down flow.
+    if (this.#generation !== generation) {
+      return payload;
+    }
     if (payload.status === 'pending') {
       this.#ensureUserStatusPolling();
     } else {
@@ -1655,9 +1813,10 @@ export class KycController extends BaseController<
    * still `pending`.
    */
   #ensureUserStatusPolling(): void {
-    if (this.#userStatusPollTimer !== null) {
+    if (this.#userStatusPolling) {
       return;
     }
+    this.#userStatusPolling = true;
     const token = this.#userStatusPollToken;
     const tick = async (): Promise<void> => {
       try {
@@ -1702,6 +1861,7 @@ export class KycController extends BaseController<
    */
   #stopUserStatusPolling(): void {
     this.#userStatusPollToken += 1;
+    this.#userStatusPolling = false;
     if (this.#userStatusPollTimer !== null) {
       clearTimeout(this.#userStatusPollTimer);
       this.#userStatusPollTimer = null;

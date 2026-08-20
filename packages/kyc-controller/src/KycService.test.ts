@@ -23,6 +23,52 @@ describe('KycService', () => {
     cleanAll();
   });
 
+  describe('constructor', () => {
+    it('falls back to the native fetch when no fetch is injected', async () => {
+      const disclaimers = [
+        { id: '1', display_name: 'Terms', url: 'https://t' },
+      ];
+      nock(MOCK_API_URL)
+        .get('/vendors/moonpay/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, disclaimers);
+      const { service } = getService({ omitFetch: true });
+
+      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
+        disclaimers,
+      );
+    });
+
+    it('throws when fetch is not globally available and not provided', () => {
+      const savedFetch = globalThis.fetch;
+      try {
+        // @ts-expect-error - deliberately removing fetch for test
+        delete globalThis.fetch;
+
+        const rootMessenger: RootMessenger = new Messenger({
+          namespace: MOCK_ANY_NAMESPACE,
+        });
+        const messenger: KycServiceMessenger = new Messenger({
+          namespace: 'KycService',
+          parent: rootMessenger,
+        });
+
+        expect(
+          () =>
+            new KycService({
+              messenger:
+                messenger as unknown as MockAnyNamespace<KycServiceMessenger>,
+              baseUrl: MOCK_API_URL,
+            }),
+        ).toThrow(
+          'fetch is not available globally and was not provided in options',
+        );
+      } finally {
+        globalThis.fetch = savedFetch;
+      }
+    });
+  });
+
   describe('getGeoCountry', () => {
     it('maps the geolocation to an ISO alpha-3 country code', async () => {
       const { service } = getService({ geolocation: 'US-NY' });
@@ -479,7 +525,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('createIronCustomer', () => {
+  describe('createVendorCustomer', () => {
     it('creates an Iron customer and returns the validated subset', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/iron/customers', { email: 'a@b.co' })
@@ -498,7 +544,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.createIronCustomer({ email: 'a@b.co' }),
+        await service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
       ).toMatchObject({
         id: 'iron-1',
         email: 'a@b.co',
@@ -511,12 +557,17 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.createIronCustomer({ email: 'a@b.co' }),
-      ).rejects.toThrow(/Malformed response received from iron customers API/u);
+        service.createVendorCustomer({
+          vendor: 'iron',
+          email: 'a@b.co',
+        }),
+      ).rejects.toThrow(
+        /Malformed response received from vendor customers API/u,
+      );
     });
   });
 
-  describe('fetchIronDisclaimers', () => {
+  describe('fetchDisclaimers for a non-MoonPay vendor', () => {
     it('returns Iron disclaimers for a country', async () => {
       const disclaimers = [
         { id: '1', display_name: 'Iron Terms', url: 'https://t' },
@@ -528,7 +579,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchIronDisclaimers({ country: 'USA' }),
+        await service.fetchDisclaimers({ vendor: 'iron', country: 'USA' }),
       ).toStrictEqual(disclaimers);
     });
 
@@ -540,32 +591,46 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchIronDisclaimers({ country: 'USA' }),
-      ).rejects.toThrow(
-        /Malformed response received from iron disclaimers API/u,
-      );
+        service.fetchDisclaimers({ vendor: 'iron', country: 'USA' }),
+      ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
   });
 
-  describe('checkIronKycRequired', () => {
+  describe('checkKycRequired for a non-MoonPay vendor', () => {
     it('returns whether Iron KYC is required', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/iron/kyc-required')
         .reply(200, { required: true });
       const { service } = getService();
 
-      expect(await service.checkIronKycRequired()).toStrictEqual({
+      expect(await service.checkKycRequired({ vendor: 'iron' })).toStrictEqual({
         kycRequired: true,
       });
+    });
+
+    it('throws when accessToken is missing for MoonPay vendor', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.checkKycRequired({ vendor: 'moonpay', country: 'USA' }),
+      ).rejects.toThrow('accessToken is required for vendor "moonpay"');
+    });
+
+    it('throws when country is missing for MoonPay vendor', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.checkKycRequired({ vendor: 'moonpay', accessToken: 'tok' }),
+      ).rejects.toThrow('country is required for vendor "moonpay"');
     });
 
     it('throws on a malformed response', async () => {
       nock(MOCK_API_URL).post('/vendors/iron/kyc-required').reply(200, {});
       const { service } = getService();
 
-      await expect(service.checkIronKycRequired()).rejects.toThrow(
-        /Malformed response received from iron kyc-required API/u,
-      );
+      await expect(
+        service.checkKycRequired({ vendor: 'iron' }),
+      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
     });
   });
 
@@ -583,7 +648,7 @@ describe('KycService', () => {
 
       expect(
         await service.submitConsents({
-          ironDisclaimerIds: ['d1'],
+          disclaimerIds: ['d1'],
           sumsubTncSigned: true,
           idosTncSigned: true,
         }),
@@ -596,7 +661,7 @@ describe('KycService', () => {
 
       await expect(
         service.submitConsents({
-          ironDisclaimerIds: ['d1'],
+          disclaimerIds: ['d1'],
           sumsubTncSigned: true,
           idosTncSigned: true,
         }),
@@ -662,7 +727,7 @@ describe('KycService', () => {
       ).toStrictEqual({ sessionId: 'sid' });
     });
 
-    it('sends vendorId iron with empty vendorMetadata when omitted', async () => {
+    it('sends vendor iron with empty vendorMetadata when omitted', async () => {
       const material = deriveClientMaterial(
         new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(1),
       );
@@ -684,7 +749,7 @@ describe('KycService', () => {
       expect(
         await service.createUkycSession({
           jwtToken: 'jwt',
-          vendorId: 'iron',
+          vendor: 'iron',
           wrappedEncryptionKey: {
             sessionId: 'wk',
             encryptedKey: 'ek',
@@ -753,6 +818,8 @@ type RootMessenger = Messenger<
  * @param args.baseUrl - Base URL of the KYC API.
  * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
  * option so the service falls back to an empty string.
+ * @param args.omitFetch - When true, omit the `fetch` option so the service
+ * falls back to the runtime's native `fetch`.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -763,12 +830,16 @@ function getService({
   // `null` means "omit the option entirely" (exercises the constructor's
   // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
+  // When true, omit the `fetch` option so the service falls back to the
+  // runtime's native `fetch` (which nock intercepts).
+  omitFetch = false,
 }: {
   bearerToken?: string;
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
   fractalEncryptionBaseUrl?: string | null;
+  omitFetch?: boolean;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -799,7 +870,7 @@ function getService({
   );
 
   const service = new KycService({
-    fetch,
+    ...(omitFetch ? {} : { fetch }),
     messenger,
     baseUrl,
     ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
