@@ -195,6 +195,7 @@ import {
   isLimitExecutionOrderType,
   isStrategyOrderType,
   isTriggerOrderType,
+  resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
 import {
@@ -673,16 +674,27 @@ function collectPositionTriggerOrders(params: {
   });
 
   const triggerOrders = Array.from(byOrderId.values());
+  const takeProfitOrders = triggerOrders.filter(
+    (order) => order.direction === 'take_profit',
+  );
+  const stopLossOrders = triggerOrders.filter(
+    (order) => order.direction !== 'take_profit',
+  );
+
+  const takeProfitSummaryPrice = resolvePositionTriggerSummaryPrice({
+    triggerOrders: takeProfitOrders,
+    scannedPrice: takeProfitPrice,
+  });
+  const stopLossSummaryPrice = resolvePositionTriggerSummaryPrice({
+    triggerOrders: stopLossOrders,
+    scannedPrice: stopLossPrice,
+  });
 
   return {
-    takeProfitOrders: triggerOrders.filter(
-      (order) => order.direction === 'take_profit',
-    ),
-    stopLossOrders: triggerOrders.filter(
-      (order) => order.direction !== 'take_profit',
-    ),
-    ...(takeProfitPrice && { takeProfitPrice }),
-    ...(stopLossPrice && { stopLossPrice }),
+    takeProfitOrders,
+    stopLossOrders,
+    ...(takeProfitSummaryPrice && { takeProfitPrice: takeProfitSummaryPrice }),
+    ...(stopLossSummaryPrice && { stopLossPrice: stopLossSummaryPrice }),
   };
 }
 
@@ -7851,8 +7863,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
             return {
               ...position,
-              takeProfitPrice,
-              stopLossPrice,
+              takeProfitPrice: resolvePositionTriggerSummaryPrice({
+                triggerOrders: takeProfitOrders,
+                scannedPrice: takeProfitPrice,
+              }),
+              stopLossPrice: resolvePositionTriggerSummaryPrice({
+                triggerOrders: stopLossOrders,
+                scannedPrice: stopLossPrice,
+              }),
               takeProfitCount: takeProfitOrders.length,
               stopLossCount: stopLossOrders.length,
               takeProfitOrders,

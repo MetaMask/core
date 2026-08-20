@@ -8,6 +8,7 @@ import type {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
+import { Struct } from '@metamask/superstruct';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
@@ -35,6 +36,7 @@ import {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from './createServicePolicy.js';
+import { processQueryResponse } from './utils.js';
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];
@@ -250,26 +252,38 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.responseStruct - An optional struct for validating the response of the query function.
    * @returns The query results.
    */
   protected async fetchQuery<
     TQueryFnData extends Json,
     TError = DefaultError,
-    TData = TQueryFnData,
+    TDataStruct extends Struct<TQueryFnData> | undefined = undefined,
+    TData = TDataStruct extends Struct<infer StructType>
+      ? StructType
+      : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
-  >(
-    options: WithRequired<
-      OmitKeyof<
-        FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay' | 'queryFn'
-      >,
-      'queryKey'
-    > & { queryFn: QueryFunction<TQueryFnData, TQueryKey> },
-  ): Promise<TData> {
+  >({
+    responseStruct,
+    ...options
+  }: WithRequired<
+    OmitKeyof<
+      FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+      'retry' | 'retryDelay' | 'queryFn'
+    >,
+    'queryKey'
+  > & {
+    queryFn: QueryFunction<TQueryFnData, TQueryKey>;
+    responseStruct?: TDataStruct;
+  }): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
-      queryFn: (context) =>
-        this.#policy.execute(() => options.queryFn(context)),
+      queryFn: async (context) => {
+        const response = await this.#policy.execute(() =>
+          options.queryFn(context),
+        );
+        return processQueryResponse(options.queryKey, response, responseStruct);
+      },
     });
   }
 
@@ -278,17 +292,24 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.responseStruct - An optional struct for validating the response of the query function.
    * @param pageParam - An optional page parameter.
    * @returns The query result, exclusively the requested page is returned.
    */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
     TError = DefaultError,
-    TData extends TQueryFnData = TQueryFnData,
+    TDataStruct extends Struct<TQueryFnData> | undefined = undefined,
+    TData extends TQueryFnData = TDataStruct extends Struct<infer StructType>
+      ? StructType
+      : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
-    options: WithRequired<
+    {
+      responseStruct,
+      ...options
+    }: WithRequired<
       OmitKeyof<
         FetchQueryOptions<
           TQueryFnData,
@@ -303,6 +324,7 @@ export class BaseDataService<
     > &
       InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
         queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
+        responseStruct?: TDataStruct;
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
@@ -320,13 +342,19 @@ export class BaseDataService<
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         initialPageParam: pageParam ?? options.initialPageParam,
-        queryFn: (context) =>
-          this.#policy.execute(() =>
+        queryFn: async (context) => {
+          const response = await this.#policy.execute(async () =>
             options.queryFn({
               ...context,
               pageParam: context.meta?.pageParam ?? context.pageParam,
             }),
-          ),
+          );
+          return processQueryResponse(
+            options.queryKey,
+            response,
+            responseStruct,
+          );
+        },
       });
 
       return result.pages[0];

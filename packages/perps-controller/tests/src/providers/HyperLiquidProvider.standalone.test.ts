@@ -871,6 +871,77 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
+      it('reports a lone partial take profit as the position take profit price', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.5',
+                entryPx: '45000',
+                positionValue: '22500',
+                unrealizedPnl: '500',
+                marginUsed: '2250',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '40000',
+                maxLeverage: 50,
+                returnOnEquity: '22.22',
+                cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+              },
+              type: 'oneWay',
+            },
+          ],
+          marginSummary: {
+            totalMarginUsed: '2250',
+            accountValue: '25000',
+          },
+          withdrawable: '22750',
+        });
+        // A quantity-scoped take profit is placed with 'na' grouping, so it is
+        // a standalone reduce-only trigger rather than a position-bound one.
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 301,
+            side: 'A',
+            limitPx: '55000',
+            triggerPx: '55000',
+            sz: '0.2',
+            origSz: '0.2',
+            timestamp: Date.now(),
+            orderType: 'Take Profit Limit',
+            isTrigger: true,
+            reduceOnly: true,
+            isPositionTpsl: false,
+            cloid: undefined,
+            children: [],
+          },
+        ]);
+
+        const result = await provider.getUserDataSnapshot({
+          userAddress: mockUserAddress,
+          identity: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            hip3ConfigVersion: 0,
+            dexes: ['main'],
+          },
+        });
+
+        expect(result.positions[0]).toEqual(
+          expect.objectContaining({
+            takeProfitPrice: '55000',
+            takeProfitCount: 1,
+            stopLossCount: 0,
+            takeProfitOrders: [
+              expect.objectContaining({ orderId: '301', isPartial: true }),
+            ],
+            stopLossOrders: [],
+          }),
+        );
+        expect(result.positions[0].stopLossPrice).toBeUndefined();
+      });
+
       it('ignores child triggers from the inactive TP/SL grouping', async () => {
         mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
           assetPositions: [
