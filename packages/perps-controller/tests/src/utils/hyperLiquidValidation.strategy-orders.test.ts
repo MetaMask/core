@@ -252,7 +252,7 @@ describe('hyperLiquidValidation - strategy order types', () => {
         }),
       ).toStrictEqual({
         isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_SCALE_SKEW_INVALID,
+        error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
       });
     });
 

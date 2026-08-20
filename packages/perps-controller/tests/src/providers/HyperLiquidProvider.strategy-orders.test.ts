@@ -388,11 +388,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
     mockedCache.isInFlight.mockReturnValue(undefined);
     mockedCache.setInFlight.mockReturnValue(jest.fn());
 
-    // Initialize mock stream manager instance
-    mockStreamManagerInstance = {
-      clearAllChannels: jest.fn(),
-    };
-
     // Create mocked service instances using factory functions
     mockClientService = {
       initialize: jest.fn(),
@@ -1943,7 +1938,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_SKEW_INVALID);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 

@@ -495,7 +495,7 @@ export function splitScaleSizes(params: {
   // non-positive skew produces weights that are NaN or run negative, and either
   // one would come back as a ladder of zero-size rungs instead of a rejection.
   if (skew !== undefined && (!Number.isFinite(skew) || skew <= 0)) {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SKEW_INVALID);
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
   }
 
   const multiplier = Math.pow(10, szDecimals);

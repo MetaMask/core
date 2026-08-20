@@ -198,7 +198,7 @@ describe('orderCalculations - scale ladder', () => {
     ])('rejects %s', (_label, skew) => {
       expect(() =>
         splitScaleSizes({ totalSize: 1, count: 3, szDecimals: 2, skew }),
-      ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_SKEW_INVALID);
+      ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
     });
 
     it('splits exactly as an omitted skew does when the skew is 1', () => {

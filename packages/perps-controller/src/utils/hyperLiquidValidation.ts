@@ -640,7 +640,7 @@ function validateScaleParams(params: StrategyOrderValidationParams): {
   ) {
     return {
       isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_SCALE_SKEW_INVALID,
+      error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
     };
   }
 
