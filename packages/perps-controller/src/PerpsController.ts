@@ -30,7 +30,6 @@ import { PerpsMeasurementName } from './constants/performanceMetrics.js';
 import type {
   SortOptionId,
   ProLayoutPreferences,
-  PerpsMode,
 } from './constants/perpsConfig.js';
 import {
   PERPS_CONSTANTS,
@@ -40,6 +39,7 @@ import {
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
+  PerpsMode,
 } from './constants/perpsConfig.js';
 import type { PerpsControllerMethodActions } from './PerpsController-method-action-types.js';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
@@ -475,6 +475,10 @@ export type PerpsControllerState = {
   // Perps interface mode (lite/pro), network-independent global preference.
   mode: PerpsMode;
 
+  // Tracks whether the user has entered Pro mode so its first-use defaults are
+  // applied only once.
+  hasEnteredProMode?: boolean;
+
   // Error handling
   lastError: string | null;
   lastUpdateTimestamp: number;
@@ -577,6 +581,7 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
   },
   proLayoutPreferences: { ...DEFAULT_PRO_LAYOUT_PREFERENCES },
   mode: DEFAULT_PERPS_MODE,
+  hasEnteredProMode: false,
   hip3ConfigVersion: 0,
   selectedPaymentToken: null,
   cachedMarketDataByProvider: {},
@@ -760,6 +765,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     persist: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
+  },
+  hasEnteredProMode: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
   },
   hip3ConfigVersion: {
     includeInStateLogs: true,
@@ -1137,11 +1148,22 @@ export class PerpsController extends BaseController<
     infrastructure,
     deferEligibilityCheck = false,
   }: PerpsControllerOptions) {
+    // A persisted mode without this flag comes from a controller version that
+    // already supported Pro mode. Treat those users as returning users so an
+    // existing hidden-chart preference is not overwritten after upgrading.
+    const hasEnteredProMode =
+      state.hasEnteredProMode ??
+      Object.prototype.hasOwnProperty.call(state, 'mode');
+
     super({
       name: 'PerpsController',
       metadata,
       messenger,
-      state: { ...getDefaultPerpsControllerState(), ...state },
+      state: {
+        ...getDefaultPerpsControllerState(),
+        ...state,
+        hasEnteredProMode,
+      },
     });
 
     this.#eligibilityCheckDeferred = deferEligibilityCheck;
@@ -5814,6 +5836,14 @@ export class PerpsController extends BaseController<
    */
   setPerpsMode(mode: PerpsMode): void {
     this.update((state) => {
+      if (mode === PerpsMode.Pro && !state.hasEnteredProMode) {
+        state.proLayoutPreferences = {
+          ...state.proLayoutPreferences,
+          chartExpanded: true,
+        };
+        state.hasEnteredProMode = true;
+      }
+
       state.mode = mode;
     });
   }
