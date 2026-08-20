@@ -1,6 +1,4 @@
-import {
-  ConfigRegistryController,
-} from '@metamask/config-registry-controller';
+import { ConfigRegistryController } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
 
 import { defaultConfigurations } from '../../defaults.js';

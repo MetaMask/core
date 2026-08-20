@@ -21,9 +21,11 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 }
 
 function makeFetchMock(response = MOCK_API_RESPONSE): jest.Mock {
-  return jest.fn().mockResolvedValue(
-    new globalThis.Response(JSON.stringify(response), { status: 200 }),
-  );
+  return jest
+    .fn()
+    .mockResolvedValue(
+      new globalThis.Response(JSON.stringify(response), { status: 200 }),
+    );
 }
 
 describe('configRegistryApiService', () => {

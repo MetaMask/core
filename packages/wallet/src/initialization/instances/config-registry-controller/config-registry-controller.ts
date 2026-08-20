@@ -1,6 +1,4 @@
-import {
-  ConfigRegistryController,
-} from '@metamask/config-registry-controller';
+import { ConfigRegistryController } from '@metamask/config-registry-controller';
 import type { ConfigRegistryControllerMessenger } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
 
