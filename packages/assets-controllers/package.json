@@ -76,7 +76,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-account-service": "^13.0.2",
     "@metamask/network-controller": "^35.0.1",
-    "@metamask/network-enablement-controller": "^6.0.3",
+    "@metamask/network-enablement-controller": "^6.0.4",
     "@metamask/permission-controller": "^13.1.1",
     "@metamask/phishing-controller": "^17.3.1",
     "@metamask/polling-controller": "^16.0.9",

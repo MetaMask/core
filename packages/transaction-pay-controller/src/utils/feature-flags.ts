@@ -1,4 +1,8 @@
-import type { TransactionType } from '@metamask/transaction-controller';
+import { hasTransactionType } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -186,12 +190,17 @@ export type PayStrategiesConfigRaw = {
   };
 };
 
+export type RelayValidationEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
-      validationEnabled?: boolean;
+      validationEnabled?: RelayValidationEnabledConfig;
     };
     server?: {
       enabled?: boolean;
@@ -637,23 +646,47 @@ export function isRelayExecuteEnabled(
 }
 
 /**
- * Whether Relay quote validation is enabled.
+ * Whether Relay quote validation is enabled for a given transaction.
  *
  * Acts as an emergency kill switch: when disabled (default), Relay quotes are
  * surfaced without being simulated/validated.
  *
+ * Configured via the `payStrategies.relay.validationEnabled` flag, an object
+ * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * `default` is the base toggle applied to all transactions (omitted = `false`);
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any of its nested transactions, has that type.
+ *
  * @param messenger - Controller messenger.
+ * @param transaction - Transaction being validated. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
  * @returns True if Relay quote validation is enabled.
  */
 export function isRelayValidationEnabled(
   messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags =
     (state.remoteFeatureFlags?.confirmations_pay_extended as
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
-  return featureFlags.payStrategies?.relay?.validationEnabled ?? false;
+
+  const validationEnabled =
+    featureFlags.payStrategies?.relay?.validationEnabled;
+
+  const transactionTypes = validationEnabled?.transactionTypes ?? {};
+
+  // A per-type override wins over the global `default` toggle. An override
+  // matches when the transaction, or any nested transaction, has that type.
+  for (const [type, enabled] of Object.entries(transactionTypes)) {
+    if (hasTransactionType(transaction, [type as TransactionType])) {
+      return enabled;
+    }
+  }
+
+  // `?? false`: `default` is optional, so an omitted config disables validation.
+  return validationEnabled?.default ?? false;
 }
 
 /**
