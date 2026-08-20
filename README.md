@@ -661,6 +661,7 @@ linkStyle default opacity:0.5
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> claims_controller;
+  wallet --> config_registry_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
