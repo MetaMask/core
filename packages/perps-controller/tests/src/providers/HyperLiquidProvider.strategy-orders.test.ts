@@ -786,6 +786,73 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toBeCloseTo(1, 8);
     });
 
+    it('weights the rungs along the ladder when a skew is supplied', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+        scaleSkew: 2,
+      } as OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      const sizes = submitted.orders.map((order: { s: string }) => order.s);
+      // The largest rung is the one at scaleMaxPrice, and the ladder still adds
+      // up to the size that was validated.
+      expect(sizes).toStrictEqual(['0.2222', '0.3333', '0.4445']);
+      expect(
+        sizes.reduce(
+          (total: number, size: string) => total + parseFloat(size),
+          0,
+        ),
+      ).toBeCloseTo(1, 8);
+    });
+
+    it('weights the bottom of the ladder for a skew below 1', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+        scaleSkew: 0.5,
+      } as OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      expect(
+        submitted.orders.map((order: { s: string }) => order.s),
+      ).toStrictEqual(['0.4445', '0.3333', '0.2222']);
+    });
+
+    it('splits evenly for a skew of exactly 1', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+        scaleSkew: 1,
+      } as OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      expect(
+        submitted.orders.map((order: { s: string }) => order.s),
+      ).toStrictEqual(['0.3334', '0.3333', '0.3333']);
+    });
+
     it('rests every rung as a plain GTC limit order', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
@@ -1805,6 +1872,78 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result.error).toBe(
         PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
       );
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    // A ladder whose average rung clears the minimum can still carry a rung
+    // that does not once the skew has weighted it.
+    it('never reaches the exchange when a skew starves the cheapest rung', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        usdAmount: '100',
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 5,
+        scaleSkew: 20,
+      } as OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL,
+      );
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('accepts the same ladder without the skew', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { resting: { oid: 11 } },
+                  { resting: { oid: 22 } },
+                  { resting: { oid: 33 } },
+                  { resting: { oid: 44 } },
+                  { resting: { oid: 55 } },
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        usdAmount: '100',
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 5,
+      } as OrderParams);
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    it('never reaches the exchange for an invalid skew', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+        scaleSkew: 0,
+      } as OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_SKEW_INVALID);
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 

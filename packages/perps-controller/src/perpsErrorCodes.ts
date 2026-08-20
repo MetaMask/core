@@ -68,6 +68,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_SCALE_RANGE_REQUIRED: 'ORDER_SCALE_RANGE_REQUIRED', // Scale placed without both ladder bounds
   ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds non-positive or inverted
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
+  ORDER_SCALE_SKEW_INVALID: 'ORDER_SCALE_SKEW_INVALID', // scaleSkew not a finite number greater than zero
   ORDER_SCALE_SIZE_TOO_SMALL: 'ORDER_SCALE_SIZE_TOO_SMALL', // Total size cannot give every ladder rung a non-zero slice
   ORDER_SCALE_NOTIONAL_TOO_SMALL: 'ORDER_SCALE_NOTIONAL_TOO_SMALL', // Ladder notional split across the rungs leaves each below the venue's per-order minimum
   ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size

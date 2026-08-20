@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `OrderParams.scaleSkew`, which weights a `scale` ladder's size across its rungs instead of spreading it evenly ([#9919](https://github.com/MetaMask/core/pull/9919))
+  - Rung weights ramp linearly from 1 at `scaleMinPrice` to `scaleSkew` at `scaleMaxPrice`, in that direction for a buy and a sell alike. Above 1 puts more size at `scaleMaxPrice`, below 1 at `scaleMinPrice`; omitted or exactly 1 is the existing even split, unchanged.
+  - `splitScaleSizes` takes a matching optional `skew` and stays the single source of truth for the sizes, so a client previewing a ladder computes what placement submits. Sizes are allocated in whole size-grid units: each rung floors to its share and the leftover units go to the largest discarded fractions, ties by ascending index. The even split keeps putting its leftover on the first rung.
+  - A `scaleSkew` that is not a finite number above 0 is rejected by `validateOrderParams` with the new `ORDER_SCALE_SKEW_INVALID` error code, and carrying it on any non-`scale` order type is rejected with the existing `ORDER_STRATEGY_PARAMS_NOT_SUPPORTED`.
+  - A skew that pushes a rung below the venue's per-order minimum or onto a zero size-grid slice is rejected before anything is signed, with the existing `ORDER_SCALE_NOTIONAL_TOO_SMALL` / `ORDER_SCALE_SIZE_TOO_SMALL`.
 - Add `resolvePositionTriggerSummaryPrice` to `@metamask/perps-controller/utils`, which resolves the scalar TP/SL summary price a position reports for one direction from its trigger orders ([#9912](https://github.com/MetaMask/core/pull/9912))
 
 ### Fixed
