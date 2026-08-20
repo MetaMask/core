@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Read token balances from the flat Accounts API v6 `balances` response ([#9911](https://github.com/MetaMask/core/pull/9911))
+
 ## [14.0.0]
 
 ### Changed

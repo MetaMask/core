@@ -1,7 +1,4 @@
-import type {
-  V5BalanceItem,
-  V6AccountBalancesEntry,
-} from '@metamask/core-backend';
+import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
@@ -542,7 +539,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     );
 
     const { assetsBalance } = this.#processV6Balances(
-      apiResponse.accounts,
+      apiResponse.balances,
       request,
     );
 
@@ -631,16 +628,16 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   /**
    * Process V6 API balances response.
-   * V6 groups balances per account (`accounts: [{ accountId, balances }]`).
-   * Only `category: 'token'` rows are consumed here to preserve parity with
+   * V6 returns a flat array of rows carrying their `accountId`.
+   * Only `object: 'token'` rows are consumed here to preserve parity with
    * the v5 token-balance behavior; DeFi positions are ignored.
    *
-   * @param accounts - Per-account balance entries from the V6 API response.
+   * @param balances - Flat balance rows from the V6 API response.
    * @param request - The original data request containing accounts to map.
    * @returns Object containing processed asset balances by account.
    */
   #processV6Balances(
-    accounts: V6AccountBalancesEntry[],
+    balances: V6BalanceItem[],
     request: DataRequest,
   ): {
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
@@ -653,9 +650,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
     // Build a map of lowercase addresses to account IDs for efficient lookup
     const addressToAccountId = this.#buildAddressToAccountIdMap(request);
 
-    for (const entry of accounts) {
+    for (const item of balances) {
       // Extract address from CAIP-10 account ID (e.g., "eip155:1:0x1234..." -> "0x1234...")
-      const addressParts = entry.accountId.split(':');
+      const addressParts = item.accountId.split(':');
       if (addressParts.length < 3) {
         continue;
       }
@@ -668,36 +665,32 @@ export class AccountsApiDataSource extends AbstractDataSource<
         continue;
       }
 
-      for (const item of entry.balances) {
-        // Only consume token balances; DeFi positions are handled elsewhere.
-        if (item.category !== 'token') {
-          continue;
-        }
-
-        if (!assetsBalance[accountId]) {
-          assetsBalance[accountId] = Object.create(null) as Record<
-            Caip19AssetId,
-            AssetBalance
-          >;
-        }
-
-        // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
-        const normalizedAssetId = normalizeAssetId(
-          item.assetId as Caip19AssetId,
-        );
-
-        // Staked balances are owned by StakedBalanceDataSource. Accounts API may
-        // return the vault share token as a normal ERC-20 (often 0 or stale),
-        // which would overwrite or wipe the on-chain staked amount on merge.
-        if (isStakingContractAssetId(normalizedAssetId)) {
-          continue;
-        }
-
-        // Store balance as returned by API
-        assetsBalance[accountId][normalizedAssetId] = {
-          amount: item.balance,
-        };
+      // Only consume token balances; DeFi positions are handled elsewhere.
+      if (item.object !== 'token') {
+        continue;
       }
+
+      if (!assetsBalance[accountId]) {
+        assetsBalance[accountId] = Object.create(null) as Record<
+          Caip19AssetId,
+          AssetBalance
+        >;
+      }
+
+      // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
+      const normalizedAssetId = normalizeAssetId(item.assetId as Caip19AssetId);
+
+      // Staked balances are owned by StakedBalanceDataSource. Accounts API may
+      // return the vault share token as a normal ERC-20 (often 0 or stale),
+      // which would overwrite or wipe the on-chain staked amount on merge.
+      if (isStakingContractAssetId(normalizedAssetId)) {
+        continue;
+      }
+
+      // Store balance as returned by API
+      assetsBalance[accountId][normalizedAssetId] = {
+        amount: item.balance,
+      };
     }
 
     return { assetsBalance };
