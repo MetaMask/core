@@ -367,7 +367,6 @@ linkStyle default opacity:0.5
   config_registry_controller --> keyring_controller;
   config_registry_controller --> messenger;
   config_registry_controller --> polling_controller;
-  config_registry_controller --> profile_sync_controller;
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
