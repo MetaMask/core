@@ -267,19 +267,20 @@ describe('ShieldApiService', () => {
 
     const txMeta = generateMockTxMeta();
 
+    let callCount = 0;
     const startTime = 1000;
     const expectedLatency = pollInterval + 50;
-    // Advance the clock only once polling has completed (the third fetch, which
-    // returns the coverage result). Keying off fetch progress rather than the
-    // number of `Date.now()` calls keeps this robust to how many times
-    // query-core reads the clock internally.
-    const nowSpy = jest
-      .spyOn(Date, 'now')
-      .mockImplementation(() =>
-        fetchMock.mock.calls.length >= 3
-          ? startTime + expectedLatency
-          : startTime,
-      );
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+      callCount += 1;
+      // `fetchQuery` during init may call `Date.now()` before polling latency is measured.
+      if (callCount <= 1) {
+        return startTime;
+      }
+      if (callCount === 2) {
+        return startTime;
+      }
+      return startTime + expectedLatency;
+    });
 
     const coverageResult = await service.checkCoverage({ txMeta });
 

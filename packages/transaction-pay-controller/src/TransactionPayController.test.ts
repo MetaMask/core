@@ -16,6 +16,8 @@ import type {
   UpdateTransactionDataCallback,
 } from './types.js';
 import { getStrategyOrder } from './utils/feature-flags.js';
+import { submitMoneyAccountVaultDepositFromPayout } from './utils/ma-vault-payout.js';
+import { submitMoneyAccountVaultWithdraw as submitMoneyAccountVaultWithdrawUtil } from './utils/ma-vault-withdraw.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
@@ -31,6 +33,8 @@ jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
 jest.mock('./utils/feature-flags');
+jest.mock('./utils/ma-vault-payout');
+jest.mock('./utils/ma-vault-withdraw');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -50,6 +54,12 @@ describe('TransactionPayController', () => {
   );
   const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
+  const submitMoneyAccountVaultDepositFromPayoutMock = jest.mocked(
+    submitMoneyAccountVaultDepositFromPayout,
+  );
+  const submitMoneyAccountVaultWithdrawUtilMock = jest.mocked(
+    submitMoneyAccountVaultWithdrawUtil,
+  );
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
 
@@ -103,6 +113,205 @@ describe('TransactionPayController', () => {
 
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
+    });
+  });
+
+  describe('Money Account vault actions', () => {
+    const moneyAccountAddress =
+      '0x1111111111111111111111111111111111111111' as Hex;
+    const transactionHash =
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
+    const recipient = '0x2222222222222222222222222222222222222222' as Hex;
+
+    it('exposes the payout deposit action through the messenger', async () => {
+      submitMoneyAccountVaultDepositFromPayoutMock.mockResolvedValue({
+        transactionHash,
+      });
+      createController();
+
+      const result = await messenger.call(
+        'TransactionPayController:submitMoneyAccountVaultDeposit',
+        {
+          moneyAccountAddress,
+          transactionHash,
+        },
+      );
+
+      expect(submitMoneyAccountVaultDepositFromPayoutMock).toHaveBeenCalledWith(
+        { moneyAccountAddress, transactionHash },
+        messenger,
+      );
+      expect(result).toStrictEqual({ transactionHash });
+    });
+
+    it('deduplicates concurrent payout deposit actions by transaction hash', async () => {
+      let resolveSubmit:
+        | ((value: { transactionHash?: Hex }) => void)
+        | undefined;
+      submitMoneyAccountVaultDepositFromPayoutMock.mockImplementation(
+        async () =>
+          await new Promise((resolve) => {
+            resolveSubmit = resolve;
+          }),
+      );
+      const controller = createController();
+      const request = { moneyAccountAddress, transactionHash };
+
+      const first = controller.submitMoneyAccountVaultDeposit(request);
+      const second = controller.submitMoneyAccountVaultDeposit(request);
+      resolveSubmit?.({ transactionHash });
+
+      expect(await first).toStrictEqual({ transactionHash });
+      expect(await second).toStrictEqual({ transactionHash });
+      expect(
+        submitMoneyAccountVaultDepositFromPayoutMock,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns the prior result on retry after a successful deposit without resubmitting', async () => {
+      submitMoneyAccountVaultDepositFromPayoutMock.mockResolvedValue({
+        transactionHash,
+      });
+      const controller = createController();
+      const request = { moneyAccountAddress, transactionHash };
+
+      const first = await controller.submitMoneyAccountVaultDeposit(request);
+      const second = await controller.submitMoneyAccountVaultDeposit(request);
+
+      expect(first).toStrictEqual({ transactionHash });
+      expect(second).toStrictEqual({ transactionHash });
+      expect(
+        submitMoneyAccountVaultDepositFromPayoutMock,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries after a failed deposit', async () => {
+      submitMoneyAccountVaultDepositFromPayoutMock
+        .mockRejectedValueOnce(new Error('vault failed'))
+        .mockResolvedValueOnce({ transactionHash });
+      const controller = createController();
+      const request = { moneyAccountAddress, transactionHash };
+
+      await expect(
+        controller.submitMoneyAccountVaultDeposit(request),
+      ).rejects.toThrow('vault failed');
+
+      expect(
+        await controller.submitMoneyAccountVaultDeposit(request),
+      ).toStrictEqual({ transactionHash });
+      expect(
+        submitMoneyAccountVaultDepositFromPayoutMock,
+      ).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries after a skipped deposit once vaulting is enabled', async () => {
+      submitMoneyAccountVaultDepositFromPayoutMock
+        .mockResolvedValueOnce({ skipped: true })
+        .mockResolvedValueOnce({ transactionHash });
+      const controller = createController();
+      const request = { moneyAccountAddress, transactionHash };
+
+      expect(
+        await controller.submitMoneyAccountVaultDeposit(request),
+      ).toStrictEqual({ skipped: true });
+
+      expect(
+        await controller.submitMoneyAccountVaultDeposit(request),
+      ).toStrictEqual({ transactionHash });
+      expect(
+        submitMoneyAccountVaultDepositFromPayoutMock,
+      ).toHaveBeenCalledTimes(2);
+    });
+
+    it('exposes the exact-out withdraw action through the messenger', async () => {
+      submitMoneyAccountVaultWithdrawUtilMock.mockResolvedValue({
+        batchId: '0x123' as Hex,
+      });
+      createController();
+      const request = {
+        amountInRaw: '5000000',
+        moneyAccountAddress,
+        recipient,
+        requestId: 'request-id',
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:submitMoneyAccountVaultWithdraw',
+        request,
+      );
+
+      expect(submitMoneyAccountVaultWithdrawUtilMock).toHaveBeenCalledWith(
+        request,
+        messenger,
+      );
+      expect(result).toStrictEqual({ batchId: '0x123' });
+    });
+
+    it('deduplicates concurrent withdraw actions by request ID', async () => {
+      let resolveSubmit: ((value: { batchId: Hex }) => void) | undefined;
+      submitMoneyAccountVaultWithdrawUtilMock.mockImplementation(
+        async () =>
+          await new Promise((resolve) => {
+            resolveSubmit = resolve;
+          }),
+      );
+      const controller = createController();
+      const request = {
+        amountInRaw: '5000000',
+        moneyAccountAddress,
+        recipient,
+        requestId: 'request-id',
+      };
+
+      const first = controller.submitMoneyAccountVaultWithdraw(request);
+      const second = controller.submitMoneyAccountVaultWithdraw(request);
+      resolveSubmit?.({ batchId: '0x123' });
+
+      expect(await first).toStrictEqual({ batchId: '0x123' });
+      expect(await second).toStrictEqual({ batchId: '0x123' });
+      expect(submitMoneyAccountVaultWithdrawUtilMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns the same batchId on retry after approval is created without resubmitting', async () => {
+      submitMoneyAccountVaultWithdrawUtilMock.mockResolvedValue({
+        batchId: '0x123' as Hex,
+      });
+      const controller = createController();
+      const request = {
+        amountInRaw: '5000000',
+        moneyAccountAddress,
+        recipient,
+        requestId: 'request-id',
+      };
+
+      const first = await controller.submitMoneyAccountVaultWithdraw(request);
+      const second = await controller.submitMoneyAccountVaultWithdraw(request);
+
+      expect(first).toStrictEqual({ batchId: '0x123' });
+      expect(second).toStrictEqual({ batchId: '0x123' });
+      expect(submitMoneyAccountVaultWithdrawUtilMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries withdraw after a failed batch setup', async () => {
+      submitMoneyAccountVaultWithdrawUtilMock
+        .mockRejectedValueOnce(new Error('batch failed'))
+        .mockResolvedValueOnce({ batchId: '0x123' as Hex });
+      const controller = createController();
+      const request = {
+        amountInRaw: '5000000',
+        moneyAccountAddress,
+        recipient,
+        requestId: 'request-id',
+      };
+
+      await expect(
+        controller.submitMoneyAccountVaultWithdraw(request),
+      ).rejects.toThrow('batch failed');
+
+      expect(
+        await controller.submitMoneyAccountVaultWithdraw(request),
+      ).toStrictEqual({ batchId: '0x123' });
+      expect(submitMoneyAccountVaultWithdrawUtilMock).toHaveBeenCalledTimes(2);
     });
   });
 

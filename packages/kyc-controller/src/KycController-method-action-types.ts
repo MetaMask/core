@@ -16,10 +16,25 @@ import type { KycController } from './KycController.js';
  * authentication completes (and chains into document verification when KYC
  * is required). When omitted, the flow stops at `form` and the consumer must
  * call `checkKycRequired` manually.
+ * @param params.vendor - Identity vendor for this flow. Pass `iron` for the
+ * Money/VBA path (no MoonPay Check/Auth frames). Defaults to `moonpay`.
  */
 export type KycControllerInitializeAction = {
   type: `KycController:initialize`;
   handler: KycController['initialize'];
+};
+
+/**
+ * Creates (or resumes) an Iron empty-shell customer. Exposed so Money can
+ * ensure the customer exists before showing T&C screens independently of
+ * {@link initialize}.
+ *
+ * @param params - The parameters.
+ * @param params.email - Email for the Iron customer.
+ */
+export type KycControllerCreateIronCustomerAction = {
+  type: `KycController:createIronCustomer`;
+  handler: KycController['createIronCustomer'];
 };
 
 /**
@@ -42,6 +57,10 @@ export type KycControllerLoadDisclaimersAction = {
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
+ * @param params.sumsubTncSigned - Iron path: whether Sumsub T&C were
+ * accepted (T&C2). Defaults to `true` when omitted.
+ * @param params.idosTncSigned - Iron path: whether idOS T&C were accepted
+ * (T&C2). Defaults to `true` when omitted.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
@@ -127,6 +146,23 @@ export type KycControllerGetKycStatusAction = {
 };
 
 /**
+ * Returns the vendor-scoped identity for the currently authenticated
+ * customer, or `null` when the flow has not yet captured a vendor customer
+ * id (before authentication or after {@link reset}).
+ *
+ * Exposed so consumers (e.g. ramps autoramp creation) can attach the vendor
+ * customer id to downstream calls without reading the full KYC state, which
+ * also holds session/access tokens. The id is session-scoped and never
+ * persisted.
+ *
+ * @returns The current {@link KycCustomerIdentity}, or `null`.
+ */
+export type KycControllerGetCustomerIdentityAction = {
+  type: `KycController:getCustomerIdentity`;
+  handler: KycController['getCustomerIdentity'];
+};
+
+/**
  * Runs the SumSub document-verification sub-flow end to end:
  *
  * 1. requests a per-session wrapping key from the UKYC backend;
@@ -152,6 +188,18 @@ export type KycControllerGetKycStatusAction = {
 export type KycControllerStartSumSubAction = {
   type: `KycController:startSumSub`;
   handler: KycController['startSumSub'];
+};
+
+/**
+ * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
+ * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
+ * schedules short-interval polling while the status is `pending`.
+ *
+ * @returns The latest status payload.
+ */
+export type KycControllerRefreshKycStatusAction = {
+  type: `KycController:refreshKycStatus`;
+  handler: KycController['refreshKycStatus'];
 };
 
 /**
@@ -181,6 +229,7 @@ export type KycControllerResetAction = {
  */
 export type KycControllerMethodActions =
   | KycControllerInitializeAction
+  | KycControllerCreateIronCustomerAction
   | KycControllerLoadDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction
@@ -190,6 +239,8 @@ export type KycControllerMethodActions =
   | KycControllerBuildResetFrameUrlAction
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
+  | KycControllerGetCustomerIdentityAction
   | KycControllerStartSumSubAction
+  | KycControllerRefreshKycStatusAction
   | KycControllerGetSessionStatusAction
   | KycControllerResetAction;

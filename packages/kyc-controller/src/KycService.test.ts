@@ -87,6 +87,13 @@ describe('KycService', () => {
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
+    it('throws when no bearer token is available', async () => {
+      const { service } = getService({ bearerToken: '' });
+      await expect(
+        service.fetchDisclaimers({ country: 'USA' }),
+      ).rejects.toThrow(/Unable to obtain an authentication bearer token/u);
+    });
+
     it('throws an HttpError on a non-ok response', async () => {
       nock(MOCK_API_URL)
         .get('/vendors/moonpay/disclaimers')
@@ -230,8 +237,8 @@ describe('KycService', () => {
     });
 
     it('throws when no Fractal base URL is configured', async () => {
-      // An empty base URL exercises the constructor's "not configured" guard.
-      const { service } = getService({ fractalEncryptionBaseUrl: '' });
+      // Omit the option entirely so the constructor falls back to ''.
+      const { service } = getService({ fractalEncryptionBaseUrl: null });
 
       await expect(service.fetchJwks()).rejects.toThrow(
         /fractalEncryptionBaseUrl is not configured/u,
@@ -417,6 +424,276 @@ describe('KycService', () => {
         service.getSessionStatus({ sessionId: 'sid' }),
       ).rejects.toThrow(/failed with status '404'/u);
     });
+
+    it('includes the API error message in HttpError when present', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(409, { message: 'session_not_in_valid_state' });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/session_not_in_valid_state/u);
+    });
+
+    it('includes the API error field in HttpError when message is absent', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(409, { error: 'session_not_in_valid_state' });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/session_not_in_valid_state/u);
+    });
+
+    it('prefers a string error field when message is not a string', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(409, { message: 123, error: 'session_not_in_valid_state' });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/session_not_in_valid_state/u);
+    });
+
+    it('falls back to status-only HttpError when the body has no useful fields', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid/status')
+        .reply(409, { message: 1, error: 2 });
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/failed with status '409'$/u);
+    });
+
+    it('falls back to status-only HttpError when the body is not an object', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, null);
+      const { service } = getService();
+
+      await expect(
+        service.getSessionStatus({ sessionId: 'sid' }),
+      ).rejects.toThrow(/failed with status '409'$/u);
+    });
+  });
+
+  describe('createIronCustomer', () => {
+    it('creates an Iron customer and returns the validated subset', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .reply(200, {
+          id: 'iron-1',
+          email: 'a@b.co',
+          status: 'SigningsRequired',
+          customer_type: 'Person',
+          name: '',
+          partner_id: 'p',
+          identification_ids: [],
+          signing_ids: [],
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-01T00:00:00.000Z',
+        });
+      const { service } = getService();
+
+      expect(
+        await service.createIronCustomer({ email: 'a@b.co' }),
+      ).toMatchObject({
+        id: 'iron-1',
+        email: 'a@b.co',
+        status: 'SigningsRequired',
+      });
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/customers').reply(200, {});
+      const { service } = getService();
+
+      await expect(
+        service.createIronCustomer({ email: 'a@b.co' }),
+      ).rejects.toThrow(/Malformed response received from iron customers API/u);
+    });
+  });
+
+  describe('fetchIronDisclaimers', () => {
+    it('returns Iron disclaimers for a country', async () => {
+      const disclaimers = [
+        { id: '1', display_name: 'Iron Terms', url: 'https://t' },
+      ];
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, disclaimers);
+      const { service } = getService();
+
+      expect(
+        await service.fetchIronDisclaimers({ country: 'USA' }),
+      ).toStrictEqual(disclaimers);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, [{ id: 1 }]);
+      const { service } = getService();
+
+      await expect(
+        service.fetchIronDisclaimers({ country: 'USA' }),
+      ).rejects.toThrow(
+        /Malformed response received from iron disclaimers API/u,
+      );
+    });
+  });
+
+  describe('checkIronKycRequired', () => {
+    it('returns whether Iron KYC is required', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/iron/kyc-required')
+        .reply(200, { required: true });
+      const { service } = getService();
+
+      expect(await service.checkIronKycRequired()).toStrictEqual({
+        kycRequired: true,
+      });
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/kyc-required').reply(200, {});
+      const { service } = getService();
+
+      await expect(service.checkIronKycRequired()).rejects.toThrow(
+        /Malformed response received from iron kyc-required API/u,
+      );
+    });
+  });
+
+  describe('submitConsents', () => {
+    it('posts consents and accepts a 204 response', async () => {
+      nock(MOCK_API_URL)
+        .post('/consents', {
+          ironDisclaimerIds: ['d1'],
+          sumsubTncSigned: true,
+          idosTncSigned: true,
+          kycLevel: 'standard',
+        })
+        .reply(204);
+      const { service } = getService();
+
+      expect(
+        await service.submitConsents({
+          ironDisclaimerIds: ['d1'],
+          sumsubTncSigned: true,
+          idosTncSigned: true,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_API_URL).post('/consents').reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.submitConsents({
+          ironDisclaimerIds: ['d1'],
+          sumsubTncSigned: true,
+          idosTncSigned: true,
+        }),
+      ).rejects.toThrow(/failed with status '500'/u);
+    });
+  });
+
+  describe('fetchKycStatus', () => {
+    it('returns the simplified user-keyed status', async () => {
+      nock(MOCK_API_URL).get('/kyc/status').reply(200, {
+        status: 'pending',
+        sumsubSessionId: 'ss-1',
+      });
+      const { service } = getService();
+
+      expect(await service.fetchKycStatus()).toStrictEqual({
+        status: 'pending',
+        sumsubSessionId: 'ss-1',
+      });
+    });
+
+    it('throws on an unknown status value', async () => {
+      nock(MOCK_API_URL).get('/kyc/status').reply(200, { status: 'weird' });
+      const { service } = getService();
+
+      await expect(service.fetchKycStatus()).rejects.toThrow(
+        /Malformed response received from kyc status API/u,
+      );
+    });
+  });
+
+  describe('createUkycSession vendorId', () => {
+    it('defaults vendorId to moonpay and forwards vendorMetadata', async () => {
+      const material = deriveClientMaterial(
+        new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(1),
+      );
+      const ukycCapabilityToken = signStorageAccessToken({
+        material,
+        operations: ['read'],
+        expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      });
+      nock(MOCK_API_URL)
+        .post('/sessions', (body) => {
+          return (
+            body.vendorId === 'moonpay' &&
+            body.vendorMetadata?.moonPayAccessToken === 'tok'
+          );
+        })
+        .reply(200, { sessionId: 'sid' });
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          jwtToken: 'jwt',
+          vendorMetadata: { moonPayAccessToken: 'tok' },
+          wrappedEncryptionKey: {
+            sessionId: 'wk',
+            encryptedKey: 'ek',
+            nonce: 'n',
+          },
+          ukycCapabilityToken,
+        }),
+      ).toStrictEqual({ sessionId: 'sid' });
+    });
+
+    it('sends vendorId iron with empty vendorMetadata when omitted', async () => {
+      const material = deriveClientMaterial(
+        new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(1),
+      );
+      const ukycCapabilityToken = signStorageAccessToken({
+        material,
+        operations: ['read'],
+        expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      });
+      nock(MOCK_API_URL)
+        .post('/sessions', (body) => {
+          return (
+            body.vendorId === 'iron' &&
+            JSON.stringify(body.vendorMetadata) === '{}'
+          );
+        })
+        .reply(200, { sessionId: 'sid-iron' });
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          jwtToken: 'jwt',
+          vendorId: 'iron',
+          wrappedEncryptionKey: {
+            sessionId: 'wk',
+            encryptedKey: 'ek',
+            nonce: 'n',
+          },
+          ukycCapabilityToken,
+        }),
+      ).toStrictEqual({ sessionId: 'sid-iron' });
+    });
   });
 
   describe('baseUrl', () => {
@@ -433,6 +710,12 @@ describe('KycService', () => {
 
       expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
         disclaimers,
+      );
+    });
+
+    it('throws when baseUrl is empty', () => {
+      expect(() => getService({ baseUrl: '' })).toThrow(
+        'KycService: baseUrl is required',
       );
     });
   });
@@ -468,8 +751,8 @@ type RootMessenger = Messenger<
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
  * @param args.baseUrl - Base URL of the KYC API.
- * @param args.fractalEncryptionBaseUrl - Fractal base URL; pass `''` to
- * exercise the service's "not configured" guard.
+ * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
+ * option so the service falls back to an empty string.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -477,13 +760,15 @@ function getService({
   geolocation = 'US-NY',
   defaultPolicy = false,
   baseUrl = MOCK_API_URL,
+  // `null` means "omit the option entirely" (exercises the constructor's
+  // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
 }: {
   bearerToken?: string;
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
-  fractalEncryptionBaseUrl?: string;
+  fractalEncryptionBaseUrl?: string | null;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -514,9 +799,10 @@ function getService({
   );
 
   const service = new KycService({
+    fetch,
     messenger,
     baseUrl,
-    fractalEncryptionBaseUrl,
+    ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
 

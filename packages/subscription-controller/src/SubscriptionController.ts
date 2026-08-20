@@ -6,6 +6,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -34,7 +35,6 @@ import type {
   SubscriptionServiceUpdatePaymentMethodCryptoAction,
 } from './SubscriptionService-method-action-types.js';
 import {
-  CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   SUBSCRIPTION_STATUSES,
@@ -42,20 +42,17 @@ import {
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
-  CryptoAuthMethod,
   GetCryptoApproveTransactionRequest,
   GetCryptoApproveTransactionResponse,
   GetSubscriptionsEligibilitiesRequest,
   ProductPrice,
   SubscriptionEligibility,
   StartCryptoSubscriptionRequest,
-  SubmitSubscriptionCryptoApprovalRequest,
   SubmitUserEventRequest,
   TokenPaymentInfo,
   UpdatePaymentMethodCardResponse,
   UpdatePaymentMethodOpts,
   CachedLastSelectedPaymentMethod,
-  CacheLastSelectedPaymentMethodRequest,
   SubmitSponsorshipIntentsMethodParams,
   RecurringInterval,
   SubscriptionStatus,
@@ -63,7 +60,6 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
   CancelSubscriptionRequest,
-  PricingCryptoPaymentMethod,
 } from './types.js';
 import type {
   PricingResponse,
@@ -86,8 +82,9 @@ export type SubscriptionControllerState = {
    * This is used to display the last selected payment method in the UI.
    * This state is also meant to be used internally to track the last selected payment method for the user. (e.g. for crypto subscriptions)
    */
-  lastSelectedPaymentMethod?: Partial<
-    Record<ProductType, CachedLastSelectedPaymentMethod>
+  lastSelectedPaymentMethod?: Record<
+    ProductType,
+    CachedLastSelectedPaymentMethod
   >;
 };
 
@@ -224,10 +221,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptionsEligibilities',
   'cancelSubscription',
   'unCancelSubscription',
-  'startSubscriptionWithCard',
+  'startShieldSubscriptionWithCard',
   'startSubscriptionWithCrypto',
   'stopAllPolling',
-  'submitSubscriptionCryptoApproval',
+  'submitShieldSubscriptionCryptoApproval',
   'getCryptoApproveTransactionParams',
   'updatePaymentMethod',
   'getBillingPortalUrl',
@@ -418,114 +415,47 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.triggerAccessTokenRefresh();
   }
 
-  /**
-   * Starts a card-paid subscription checkout session for the requested products
-   * (e.g. Shield or Money Account Plus).
-   *
-   * `isTrialRequested` on the request is ignored and overwritten from pricing
-   * (`trialPeriodDays > 0`) and `trialedProducts`.
-   *
-   * @param request - The start subscription request.
-   * @returns The checkout session response.
-   */
-  async startSubscriptionWithCard(
+  async startShieldSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse> {
-    // get the latest subscriptions state before computing trial eligibility
-    await this.getSubscriptions();
     this.#assertIsUserNotSubscribed({ products: request.products });
 
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCard',
-      {
-        ...request,
-        isTrialRequested: this.#getIsTrialRequested(
-          request.products,
-          request.recurringInterval,
-        ),
-      },
+      request,
     );
     // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
 
     return response;
   }
 
-  /**
-   * Starts a crypto-paid subscription for the requested products
-   * (e.g. Shield or Money Account Plus). Unlike card checkout, this
-   * creates the subscription immediately, so local state is refreshed
-   * afterwards.
-   *
-   * `isTrialRequested` on the request is ignored and overwritten from pricing
-   * (`trialPeriodDays > 0`) and `trialedProducts`.
-   *
-   * @param request - The start crypto subscription request.
-   * @returns The start crypto subscription response.
-   * @throws If `products` is empty.
-   */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
-    if (request.products.length === 0) {
-      throw new Error(
-        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
-      );
-    }
-
-    // get the latest subscriptions state before computing trial eligibility
-    await this.getSubscriptions();
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCrypto',
-      {
-        ...request,
-        isTrialRequested: this.#getIsTrialRequested(
-          request.products,
-          request.recurringInterval,
-        ),
-      },
+      request,
     );
-
-    // Crypto start creates the subscription immediately (unlike card checkout).
-    await this.getSubscriptions();
 
     return response;
   }
 
   /**
-   * Submits a Shield ERC-20 crypto approval transaction to start or update a
-   * crypto subscription.
+   * Handles shield subscription crypto approval transactions.
    *
-   * This handler is Shield / `TransactionType.shieldSubscriptionApprove` only.
-   * Delegation-based products (e.g. Money Account) must call
-   * `startSubscriptionWithCrypto` instead.
-   *
-   * @param request - The crypto approval request.
-   * @param request.productType - The subscription product. Typed as
-   * `typeof PRODUCT_TYPES.SHIELD` only at the moment (future might support more
-   * product).
-   * @param request.txMeta - The transaction metadata. Must have type
-   * `TransactionType.shieldSubscriptionApprove`.
-   * @param request.isSponsored - Whether the transaction is sponsored.
-   * @param request.rewardAccountId - The account ID of the reward subscription
-   * to link.
-   * @throws If `productType` is not Shield or `txMeta.type` is not
-   * `shieldSubscriptionApprove`.
+   * @param txMeta - The transaction metadata.
+   * @param isSponsored - Whether the transaction is sponsored.
+   * @param rewardAccountId - The account ID of the reward subscription to link to the shield subscription.
    * @returns void
    */
-  async submitSubscriptionCryptoApproval(
-    request: SubmitSubscriptionCryptoApprovalRequest,
+  async submitShieldSubscriptionCryptoApproval(
+    txMeta: TransactionMeta,
+    isSponsored?: boolean,
+    rewardAccountId?: CaipAccountId,
   ): Promise<void> {
-    const { productType, txMeta, isSponsored, rewardAccountId } = request;
-    if (
-      // Widen for the runtime guard: JS / unsound callers may still pass a
-      // non-Shield product.
-      (productType as ProductType) !== PRODUCT_TYPES.SHIELD ||
-      txMeta.type !== TransactionType.shieldSubscriptionApprove
-    ) {
-      throw new Error(
-        SubscriptionControllerErrorMessage.CryptoApprovalRequiresShieldApprove,
-      );
+    if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
+      return;
     }
 
     const { chainId, rawTx } = txMeta;
@@ -533,33 +463,34 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Chain ID or raw transaction not found');
     }
 
-    const { pricing, lastSelectedPaymentMethod } = this.state;
+    const { pricing, trialedProducts, lastSelectedPaymentMethod } = this.state;
     if (!pricing) {
       throw new Error('Subscription pricing not found');
     }
     if (!lastSelectedPaymentMethod) {
       throw new Error('Last selected payment method not found');
     }
-    const lastSelectedPaymentMethodForProduct =
-      lastSelectedPaymentMethod[productType];
-    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodForProduct);
+    const lastSelectedPaymentMethodShield =
+      lastSelectedPaymentMethod[PRODUCT_TYPES.SHIELD];
+    this.#assertIsPaymentMethodCrypto(lastSelectedPaymentMethodShield);
 
     const productPrice = this.#getProductPriceByProductAndPlan(
-      productType,
-      lastSelectedPaymentMethodForProduct.plan,
+      PRODUCT_TYPES.SHIELD,
+      lastSelectedPaymentMethodShield.plan,
     );
-    // get the latest subscriptions state before computing trial eligibility
+    const isTrialed = trialedProducts?.includes(PRODUCT_TYPES.SHIELD);
+    // get the latest subscriptions state to check if the user has an active shield subscription
     await this.getSubscriptions();
-    const isTrialRequested = this.#getIsTrialRequested(
-      [productType],
-      lastSelectedPaymentMethodForProduct.plan,
+    const currentSubscription = this.state.subscriptions.find((subscription) =>
+      subscription.products.some(
+        (product) => product.name === PRODUCT_TYPES.SHIELD,
+      ),
     );
-    const currentSubscription = this.getSubscriptionByProduct(productType);
 
     this.#assertValidSubscriptionStateForCryptoApproval({
-      productType,
+      productType: PRODUCT_TYPES.SHIELD,
     });
-    // if subscription exists, this transaction is for changing payment method
+    // if shield subscription exists, this transaction is for changing payment method
     const isChangePaymentMethod = Boolean(currentSubscription);
 
     if (isChangePaymentMethod) {
@@ -568,24 +499,23 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         subscriptionId: (currentSubscription as Subscription).id,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
-        tokenSymbol: lastSelectedPaymentMethodForProduct.paymentTokenSymbol,
+        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
         rawTransaction: rawTx as Hex,
         recurringInterval: productPrice.interval,
         billingCycles: productPrice.minBillingCycles,
       });
     } else {
-      const params: StartCryptoSubscriptionRequest = {
-        products: [productType],
-        isTrialRequested,
+      const params = {
+        products: [PRODUCT_TYPES.SHIELD],
+        isTrialRequested: !isTrialed,
         recurringInterval: productPrice.interval,
         billingCycles: productPrice.minBillingCycles,
         chainId,
         payerAddress: txMeta.txParams.from as Hex,
-        tokenSymbol: lastSelectedPaymentMethodForProduct.paymentTokenSymbol,
+        tokenSymbol: lastSelectedPaymentMethodShield.paymentTokenSymbol,
         rawTransaction: rawTx as Hex,
-        cryptoAuthMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
         isSponsored,
-        useTestClock: lastSelectedPaymentMethodForProduct.useTestClock,
+        useTestClock: lastSelectedPaymentMethodShield.useTestClock,
         rewardAccountId,
       };
       await this.startSubscriptionWithCrypto(params);
@@ -626,9 +556,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Price not found');
     }
 
-    const chainsPaymentInfo = this.#findCryptoPaymentMethod(
-      request.productType,
-      CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
+    const chainsPaymentInfo = pricing.paymentMethods.find(
+      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
@@ -693,17 +622,17 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Cache the last selected payment method for a specific product.
    *
-   * @param request - The request object.
-   * @param request.product - The product to cache the payment method for.
-   * @param request.paymentMethod - The payment method to cache.
-   * @param request.paymentMethod.type - The type of the payment method.
-   * @param request.paymentMethod.paymentTokenAddress - The payment token address.
-   * @param request.paymentMethod.plan - The plan of the payment method.
+   * @param product - The product to cache the payment method for.
+   * @param paymentMethod - The payment method to cache.
+   * @param paymentMethod.type - The type of the payment method.
+   * @param paymentMethod.paymentTokenAddress - The payment token address.
+   * @param paymentMethod.plan - The plan of the payment method.
+   * @param paymentMethod.product - The product of the payment method.
    */
   cacheLastSelectedPaymentMethod(
-    request: CacheLastSelectedPaymentMethodRequest,
+    product: ProductType,
+    paymentMethod: CachedLastSelectedPaymentMethod,
   ): void {
-    const { product, paymentMethod } = request;
     if (
       paymentMethod.type === PAYMENT_TYPES.byCrypto &&
       (!paymentMethod.paymentTokenAddress || !paymentMethod.paymentTokenSymbol)
@@ -749,8 +678,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *   recurringInterval: RecurringInterval.Month,
    *   billingCycles: 1,
    * }
-   * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false if the chain does not support sponsorship or the user has already trialed
-   * @throws If the crypto payment method or chain is missing from pricing
+   * @returns resolves to true if the sponsorship is supported and intents were submitted successfully, false otherwise
    */
   async submitSponsorshipIntents(
     request: SubmitSponsorshipIntentsMethodParams,
@@ -767,14 +695,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       this.state.lastSelectedPaymentMethod?.[request.products[0]];
     this.#assertIsPaymentMethodCrypto(selectedPaymentMethod);
 
-    const cryptoAuthMethod =
-      selectedPaymentMethod.cryptoAuthMethod ??
-      CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
     const isEligibleForTrialedSponsorship =
       this.#getIsEligibleForTrialedSponsorship(
         request.chainId,
         request.products,
-        cryptoAuthMethod,
       );
     if (!isEligibleForTrialedSponsorship) {
       return false;
@@ -894,8 +818,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     tokenPaymentInfo: TokenPaymentInfo,
   ): string {
     const conversionRate =
-      tokenPaymentInfo.conversionRate?.[
-        price.currency as keyof NonNullable<TokenPaymentInfo['conversionRate']>
+      tokenPaymentInfo.conversionRate[
+        price.currency as keyof typeof tokenPaymentInfo.conversionRate
       ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
@@ -922,8 +846,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     tokenPaymentInfo: TokenPaymentInfo,
   ): string {
     const conversionRate =
-      tokenPaymentInfo.conversionRate?.[
-        price.currency as keyof NonNullable<TokenPaymentInfo['conversionRate']>
+      tokenPaymentInfo.conversionRate[
+        price.currency as keyof typeof tokenPaymentInfo.conversionRate
       ];
     if (!conversionRate) {
       throw new Error('Conversion rate not found');
@@ -1030,19 +954,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Asserts that the value is a valid crypto payment method.
    *
-   * After this assert, `cryptoAuthMethod` and `useTestClock` remain optional
-   * because persisted cache entries may omit them.
-   *
    * @param value - The value to assert.
    * @throws an error if the value is not a valid crypto payment method.
    */
   #assertIsPaymentMethodCrypto(
     value: CachedLastSelectedPaymentMethod | undefined,
-  ): asserts value is CachedLastSelectedPaymentMethod & {
-    type: typeof PAYMENT_TYPES.byCrypto;
-    paymentTokenAddress: Hex;
-    paymentTokenSymbol: string;
-  } {
+  ): asserts value is Required<CachedLastSelectedPaymentMethod> {
     if (
       value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||
@@ -1060,19 +977,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * @param chainId - The chain ID
    * @param products - The products to check eligibility for
-   * @param cryptoAuthMethod - The crypto authorization method of the selected payment method
    * @returns True if the user is eligible for trialed sponsorship, false otherwise
    */
   #getIsEligibleForTrialedSponsorship(
     chainId: Hex,
     products: ProductType[],
-    cryptoAuthMethod: CryptoAuthMethod,
   ): boolean {
-    const isSponsorshipSupported = this.#getChainSupportsSponsorship(
-      chainId,
-      products[0],
-      cryptoAuthMethod,
-    );
+    const isSponsorshipSupported = this.#getChainSupportsSponsorship(chainId);
 
     // verify if the user has trialed the provided products before
     const hasTrialedBefore = this.state.trialedProducts.some((product) =>
@@ -1082,145 +993,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return isSponsorshipSupported && !hasTrialedBefore;
   }
 
-  /**
-   * Whether a trial should be requested for the given products and plan.
-   * True only when every product has `trialPeriodDays > 0` and has not
-   * already been trialed.
-   *
-   * @param products - The products to check.
-   * @param plan - The recurring interval to look up pricing for.
-   * @returns Whether a trial should be requested.
-   */
-  #getIsTrialRequested(
-    products: ProductType[],
-    plan: RecurringInterval,
-  ): boolean {
-    return products.every((productType) => {
-      if (this.state.trialedProducts.includes(productType)) {
-        return false;
-      }
-      const productPrice = this.#getProductPriceByProductAndPlan(
-        productType,
-        plan,
-      );
-      return productPrice.trialPeriodDays > 0;
-    });
-  }
-
-  #findCryptoPaymentMethod(
-    productType: ProductType,
-    cryptoAuthMethod: CryptoAuthMethod,
-  ): PricingCryptoPaymentMethod | undefined {
-    const matches: {
-      method: PricingCryptoPaymentMethod;
-      explicit: boolean;
-    }[] = [];
-
-    for (const paymentMethod of this.state.pricing?.paymentMethods ?? []) {
-      if (paymentMethod.type !== PAYMENT_TYPES.byCrypto) {
-        continue;
-      }
-
-      const resolved = this.#resolveCryptoPaymentMethodDefaults(paymentMethod);
-      if (!resolved) {
-        continue;
-      }
-
-      if (
-        resolved.cryptoAuthMethod === cryptoAuthMethod &&
-        resolved.products.includes(productType)
-      ) {
-        matches.push({
-          method: paymentMethod,
-          explicit: resolved.explicit,
-        });
-      }
-    }
-
-    if (matches.length === 0) {
-      return undefined;
-    }
-
-    const explicitMatches = matches.filter((match) => match.explicit);
-    const candidates = explicitMatches.length > 0 ? explicitMatches : matches;
-
-    if (candidates.length > 1) {
-      throw new Error('Multiple matching crypto payment methods found');
-    }
-
-    return candidates[0].method;
-  }
-
-  /**
-   * Resolves omitted `products` / `cryptoAuthMethod` on a crypto pricing row.
-   * Legacy Shield + `erc20_approval` defaults apply only when both fields are
-   * absent. If `products` is present, the list must be non-empty and
-   * `cryptoAuthMethod` must be explicit; otherwise the row is ignored.
-   *
-   * @param paymentMethod - The crypto pricing row.
-   * @returns Resolved products and auth method, or `undefined` if the row is
-   * incomplete.
-   */
-  #resolveCryptoPaymentMethodDefaults(
-    paymentMethod: PricingCryptoPaymentMethod,
-  ):
-    | {
-        products: ProductType[];
-        cryptoAuthMethod: CryptoAuthMethod;
-        explicit: boolean;
-      }
-    | undefined {
-    const productsPresent = paymentMethod.products !== undefined;
-    const authPresent = paymentMethod.cryptoAuthMethod !== undefined;
-
-    if (!productsPresent && !authPresent) {
-      return {
-        products: [PRODUCT_TYPES.SHIELD],
-        cryptoAuthMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
-        explicit: false,
-      };
-    }
-
-    if (!paymentMethod.products?.length || !paymentMethod.cryptoAuthMethod) {
-      return undefined;
-    }
-
-    return {
-      products: paymentMethod.products,
-      cryptoAuthMethod: paymentMethod.cryptoAuthMethod,
-      explicit: true,
-    };
-  }
-
-  /**
-   * Whether the given chain supports sponsorship for the product and auth method.
-   *
-   * @param chainId - The chain ID
-   * @param productType - The product type
-   * @param cryptoAuthMethod - The crypto authorization method to look up
-   * @returns True if the chain row has sponsorship enabled, false if it is explicitly not sponsored
-   * @throws If the crypto payment method or chain row is missing from pricing
-   */
-  #getChainSupportsSponsorship(
-    chainId: Hex,
-    productType: ProductType,
-    cryptoAuthMethod: CryptoAuthMethod,
-  ): boolean {
-    const cryptoPaymentInfo = this.#findCryptoPaymentMethod(
-      productType,
-      cryptoAuthMethod,
+  #getChainSupportsSponsorship(chainId: Hex): boolean {
+    const cryptoPaymentInfo = this.state.pricing?.paymentMethods.find(
+      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
     );
-    if (!cryptoPaymentInfo) {
-      throw new Error('Chains payment info not found');
-    }
 
-    const chainPaymentInfo = cryptoPaymentInfo.chains?.find(
+    const isSponsorshipSupported = cryptoPaymentInfo?.chains?.find(
       (chain) => chain.chainId === chainId,
-    );
-    if (!chainPaymentInfo) {
-      throw new Error('Invalid chain id');
-    }
-    return Boolean(chainPaymentInfo.isSponsorshipSupported);
+    )?.isSponsorshipSupported;
+    return Boolean(isSponsorshipSupported);
   }
 
   /**

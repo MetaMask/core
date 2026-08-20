@@ -480,38 +480,6 @@ describe('HyperLiquidSubscriptionService', () => {
     jest.useRealTimers();
   });
   describe('Subscription Lifecycle', () => {
-    it('uses validated provider DEX discovery without waiting for the timeout', async () => {
-      const discoverEnabledDexs = jest.fn().mockResolvedValue(['xyz']);
-      const discoveryService = new HyperLiquidSubscriptionService(
-        mockClientService,
-        mockWalletService,
-        mockDeps,
-        true,
-        [],
-        [],
-        [],
-        undefined,
-        discoverEnabledDexs,
-      );
-
-      const unsubscribe = discoveryService.subscribeToPositions({
-        callback: jest.fn(),
-      });
-
-      await jest.runAllTimersAsync();
-
-      expect(discoverEnabledDexs).toHaveBeenCalledTimes(1);
-      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
-        { user: '0x123', dex: 'xyz' },
-        expect.any(Function),
-      );
-      expect(mockDeps.debugLogger.log).not.toHaveBeenCalledWith(
-        'DEX discovery wait timed out, proceeding with main DEX only',
-      );
-
-      unsubscribe();
-    });
-
     it('should unsubscribe from position updates successfully', async () => {
       const mockCallback = jest.fn();
       const mockSubscription = {

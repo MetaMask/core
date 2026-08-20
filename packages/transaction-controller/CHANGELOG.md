@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
-- Extend `isSimulationEnabled` option to accept an optional `TransactionMeta` argument, enabling callback consumers to inspect the relevant transaction ([#9800](https://github.com/MetaMask/core/pull/9800))
-
 ## [69.5.2]
 
 ### Changed

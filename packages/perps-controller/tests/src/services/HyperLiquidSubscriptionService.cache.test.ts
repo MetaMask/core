@@ -594,9 +594,6 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ user: expect.stringMatching(/^0x/) }),
         expect.any(Function),
       );
-      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
-        useHttp: true,
-      });
 
       unsubscribe();
     });

@@ -26,14 +26,6 @@ import {
   defaultState,
 } from './UserStorageController.js';
 
-jest.mock('../../shared/utils/message-signing.js', () => ({
-  MESSAGE_SIGNING_SNAP_ID: 'npm:@metamask/message-signing-snap',
-  getMessageSigningPublicKey: jest.fn(async () => 'MOCK_PUBLIC_KEY'),
-  signMessageWithMessageSigningKey: jest.fn(async () => 'mockStorageKey'),
-  deriveMessageSigningPrivateKey: jest.fn(),
-  deriveSip6PrivateKey: jest.fn(),
-}));
-
 describe('UserStorageController', () => {
   describe('constructor', () => {
     const arrangeMocks = () => {
@@ -720,7 +712,7 @@ describe('UserStorageController', () => {
     });
   });
 
-  describe('message signing', () => {
+  describe('snap handling', () => {
     it('leverages a cache', async () => {
       const messengerMocks = mockUserStorageMessenger();
       const controller = new UserStorageController({
@@ -737,7 +729,7 @@ describe('UserStorageController', () => {
       // The signed message (`metamask:${profileId}`) is identical across both
       // calls, so the only thing that can isolate the two vaults is the entropy
       // scope. The HD keyring metadata id is randomly regenerated on restore.
-      messengerMocks.mockSignMessage
+      messengerMocks.mockSnapSignMessage
         .mockResolvedValueOnce('signature-before-restore')
         .mockResolvedValueOnce('signature-after-restore');
 
@@ -764,7 +756,7 @@ describe('UserStorageController', () => {
       // The regenerated id changes the cache scope, so the new primary must
       // re-derive its own key instead of inheriting the previous vault's cached
       // key — proving no `'primary'`-style stable key carries across restores.
-      expect(messengerMocks.mockSignMessage).toHaveBeenCalledTimes(2);
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
       expect(keyAfterRestore).not.toBe(keyBeforeRestore);
       expect(keyAfterRestore).toBe(createSHA256Hash('signature-after-restore'));
     });
@@ -795,7 +787,7 @@ describe('UserStorageController', () => {
 
       mockAPI1.done();
       mockAPI2.done();
-      expect(messengerMocks.mockSignMessage).toHaveBeenCalledTimes(1);
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(1);
     });
 
     it('derives a distinct storage key per entropy source even when both resolve to the same profileId', async () => {
@@ -816,7 +808,7 @@ describe('UserStorageController', () => {
       });
       // Each entropy source signs with its own key, so the identical message
       // yields a different signature — and thus a different derived storage key.
-      messengerMocks.mockSignMessage
+      messengerMocks.mockSnapSignMessage
         .mockResolvedValueOnce('signature-for-entropy-source-1')
         .mockResolvedValueOnce('signature-for-entropy-source-2');
 
@@ -849,7 +841,7 @@ describe('UserStorageController', () => {
       // storage keys despite the shared profileId.
       mockSource1.done();
       mockSource2.done();
-      expect(messengerMocks.mockSignMessage).toHaveBeenCalledTimes(2);
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
     });
 
     it('throws if the wallet is locked', async () => {
@@ -863,7 +855,7 @@ describe('UserStorageController', () => {
       });
 
       await expect(controller.getStorageKey()).rejects.toThrow(
-        '#signMessage - unable to proceed, wallet is locked',
+        '#snapSignMessage - unable to call snap, wallet is locked',
       );
       await expect(controller.listEntropySources()).rejects.toThrow(
         'listEntropySources - unable to list entropy sources, wallet is locked',
@@ -891,7 +883,7 @@ describe('UserStorageController', () => {
       messengerMocks.baseMessenger.publish('KeyringController:lock');
 
       await expect(controller.getStorageKey()).rejects.toThrow(
-        '#signMessage - unable to proceed, wallet is locked',
+        '#snapSignMessage - unable to call snap, wallet is locked',
       );
 
       messengerMocks.baseMessenger.publish('KeyringController:unlock');

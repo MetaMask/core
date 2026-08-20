@@ -1,4 +1,3 @@
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
 /**
@@ -10,41 +9,11 @@ export type SubscriptionApiError = {
   statusCode?: number;
 };
 
-/**
- * Supported subscription products.
- */
 export const PRODUCT_TYPES = {
-  /**
-   * MetaMask Shield.
-   */
   SHIELD: 'shield',
-  /**
-   * Money Account Plus (delegation-based crypto billing).
-   */
-  MONEY_ACCOUNT_PLUS: 'money_account_plus',
 } as const;
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
-
-/**
- * How a crypto subscription is authorized.
- *
- * Use `erc20_approval` with `rawTransaction` (e.g. Shield). Use `delegation`
- * with `delegationHash` (e.g. Money Account Plus).
- */
-export const CRYPTO_AUTH_METHODS = {
-  /**
-   * User signs an ERC-20 approve transaction.
-   */
-  ERC20_APPROVAL: 'erc20_approval',
-  /**
-   * User authorizes via a stored delegation hash.
-   */
-  DELEGATION: 'delegation',
-} as const;
-
-export type CryptoAuthMethod =
-  (typeof CRYPTO_AUTH_METHODS)[keyof typeof CRYPTO_AUTH_METHODS];
 
 export const PAYMENT_TYPES = {
   byCard: 'card',
@@ -189,9 +158,8 @@ export type StartSubscriptionRequest = {
   useTestClock?: boolean;
 
   /**
-   * Optional CAIP account ID of the rewards account to opt in alongside this
-   * subscription. Required when the user wants to link rewards during
-   * subscription creation.
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
    *
    * @example {
    *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -204,7 +172,7 @@ export type StartSubscriptionResponse = {
   checkoutSessionUrl: string;
 };
 
-type StartCryptoSubscriptionRequestBase = {
+export type StartCryptoSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
@@ -215,12 +183,12 @@ type StartCryptoSubscriptionRequestBase = {
    * e.g. "USDC"
    */
   tokenSymbol: string;
+  rawTransaction: Hex;
   isSponsored?: boolean;
   useTestClock?: boolean;
   /**
-   * Optional CAIP account ID of the rewards account to opt in alongside this
-   * subscription. Required when the user wants to link rewards during
-   * subscription creation.
+   * The optional ID of the reward subscription to be opt in along with the main `shield` subscription.
+   * This is required if user wants to opt in to the reward subscription during the `shield` subscription creation.
    *
    * @example {
    *   rewardAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -228,42 +196,6 @@ type StartCryptoSubscriptionRequestBase = {
    */
   rewardAccountId?: CaipAccountId;
 };
-
-/**
- * ERC-20 approval crypto subscription request (e.g. Shield).
- *
- * `cryptoAuthMethod` defaults to `CRYPTO_AUTH_METHODS.ERC20_APPROVAL` when
- * omitted.
- */
-export type StartErc20CryptoSubscriptionRequest =
-  StartCryptoSubscriptionRequestBase & {
-    cryptoAuthMethod?: typeof CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
-    rawTransaction: Hex;
-    delegationHash?: never;
-  };
-
-/**
- * Delegation-based crypto subscription request (e.g. Money Account Plus).
- */
-export type StartDelegationCryptoSubscriptionRequest =
-  StartCryptoSubscriptionRequestBase & {
-    cryptoAuthMethod: typeof CRYPTO_AUTH_METHODS.DELEGATION;
-    delegationHash: Hex;
-    rawTransaction?: never;
-  };
-
-/**
- * Request to start a crypto subscription.
- *
- * Discriminated union of ERC-20 approval vs delegation. Provide
- * `rawTransaction` for ERC-20 approval (the default when `cryptoAuthMethod` is
- * omitted), or `delegationHash` with `cryptoAuthMethod: 'delegation'`.
- * Combining or omitting both is a type error, and is also rejected at runtime
- * by `startSubscriptionWithCrypto`.
- */
-export type StartCryptoSubscriptionRequest =
-  | StartErc20CryptoSubscriptionRequest
-  | StartDelegationCryptoSubscriptionRequest;
 
 export type StartCryptoSubscriptionResponse = {
   subscriptionId: string;
@@ -313,7 +245,7 @@ export type ProductPricing = {
   prices: ProductPrice[];
 };
 
-type TokenPaymentInfoBase = {
+export type TokenPaymentInfo = {
   symbol: string;
   address: Hex;
   decimals: number;
@@ -322,47 +254,14 @@ type TokenPaymentInfoBase = {
       usd: '1.0',
     },
    */
-  conversionRate?: {
+  conversionRate: {
     usd: string;
   };
-  /**
-   * Source tokens that can be converted into this settlement token.
-   */
-  sources?: TokenPaymentInfo[];
 };
-
-/**
- * Spot (non-vault) settlement token. Priced via `conversionRate` when provided.
- * `accountantAddress` is not present on this variant.
- */
-export type SpotTokenPaymentInfo = TokenPaymentInfoBase & {
-  isVaultShare?: false;
-};
-
-/**
- * Yield-bearing vault share priced via an accountant rate.
- */
-export type VaultTokenPaymentInfo = TokenPaymentInfoBase & {
-  isVaultShare: true;
-  /**
-   * Veda accountant address used to value this vault share.
-   */
-  accountantAddress: Hex;
-};
-
-/**
- * A settlement token in a pricing chain. Discriminated by `isVaultShare`:
- * vault shares require `accountantAddress`; spot tokens omit it.
- */
-export type TokenPaymentInfo = SpotTokenPaymentInfo | VaultTokenPaymentInfo;
 
 export type ChainPaymentInfo = {
   chainId: Hex;
   paymentAddress: Hex;
-  /**
-   * Delegate address clients authorize when using the delegation auth method.
-   */
-  delegateAddress?: Hex;
   tokens: TokenPaymentInfo[];
   /**
    * Whether the chain supports sponsorship for the trialed subscription approval transaction.
@@ -371,38 +270,10 @@ export type ChainPaymentInfo = {
   isSponsorshipSupported?: boolean;
 };
 
-export type PricingCardPaymentMethod = {
-  type: Extract<PaymentType, 'card'>;
-  /**
-   * Products that support this payment method.
-   */
-  products?: ProductType[];
-};
-
-export type PricingCryptoPaymentMethod = {
-  type: Extract<PaymentType, 'crypto'>;
-  /**
-   * Crypto authorization method. Omitted together with `products` on persisted
-   * pre-multi-product pricing rows; those rows are treated as Shield + `erc20_approval`.
-   * If `products` is set, this field must be explicit.
-   */
-  cryptoAuthMethod?: CryptoAuthMethod;
-  /**
-   * Products that support this payment method. Omitted together with
-   * `cryptoAuthMethod` on persisted pre-multi-product pricing rows (treated as Shield).
-   * If present, must be non-empty and paired with an explicit `cryptoAuthMethod`.
-   */
-  products?: ProductType[];
+export type PricingPaymentMethod = {
+  type: PaymentType;
   chains?: ChainPaymentInfo[];
 };
-
-/**
- * A pricing payment-method row. Discriminated by `type`: card rows have no
- * crypto fields; crypto rows may include `cryptoAuthMethod` and `chains`.
- */
-export type PricingPaymentMethod =
-  | PricingCardPaymentMethod
-  | PricingCryptoPaymentMethod;
 
 export type PricingResponse = {
   products: ProductPricing[];
@@ -437,30 +308,6 @@ export type GetCryptoApproveTransactionResponse = {
    */
   paymentTokenAddress: Hex;
   chainId: Hex;
-};
-
-/**
- * Request to submit a Shield ERC-20 crypto approval transaction.
- */
-export type SubmitSubscriptionCryptoApprovalRequest = {
-  /**
-   * The subscription product. Typed as `typeof PRODUCT_TYPES.SHIELD` only at
-   * the moment (future might support more product).
-   */
-  productType: typeof PRODUCT_TYPES.SHIELD;
-  /**
-   * The transaction metadata. Must have type
-   * `TransactionType.shieldSubscriptionApprove`.
-   */
-  txMeta: TransactionMeta;
-  /**
-   * Whether the transaction is sponsored.
-   */
-  isSponsored?: boolean;
-  /**
-   * The account ID of the reward subscription to link.
-   */
-  rewardAccountId?: CaipAccountId;
 };
 
 export const COHORT_NAMES = {
@@ -543,13 +390,6 @@ export type ISubscriptionService = {
   unCancelSubscription(request: {
     subscriptionId: string;
   }): Promise<Subscription>;
-  /**
-   * Starts a card-paid subscription checkout session for the requested products
-   * (e.g. Shield or Money Account Plus).
-   *
-   * @param request - The start subscription request.
-   * @returns The checkout session response.
-   */
   startSubscriptionWithCard(
     request: StartSubscriptionRequest,
   ): Promise<StartSubscriptionResponse>;
@@ -650,25 +490,6 @@ export type CachedLastSelectedPaymentMethod = {
   paymentTokenSymbol?: string;
   plan: RecurringInterval;
   useTestClock?: boolean;
-  /**
-   * Crypto authorization method. Omitted on persisted cache entries written
-   * before this field existed; treat as `erc20_approval` when missing.
-   */
-  cryptoAuthMethod?: CryptoAuthMethod;
-};
-
-/**
- * Request to cache the last selected payment method for a product.
- */
-export type CacheLastSelectedPaymentMethodRequest = {
-  /**
-   * The product to cache the payment method for.
-   */
-  product: ProductType;
-  /**
-   * The payment method to cache.
-   */
-  paymentMethod: CachedLastSelectedPaymentMethod;
 };
 
 /**

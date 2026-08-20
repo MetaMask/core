@@ -15,7 +15,6 @@ import type {
   Order,
   UpdatePositionTPSLParams,
   PerpsPlatformDependencies,
-  PerpsFeeResolution,
 } from '../../../src/types/index.js';
 /* eslint-disable */
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
@@ -37,17 +36,7 @@ describe('TradingService', () => {
   let mockGetPositions: jest.Mock;
   let mockGetOpenOrders: jest.Mock;
   let mockSaveTradeConfiguration: jest.Mock;
-  let mockRewardsIntegrationService: {
-    calculateUserFeeDiscount: jest.Mock;
-    resolveFee: jest.Mock;
-  };
-
-  const defaultFeeResolution: PerpsFeeResolution = {
-    feeBips: 10,
-    discountBips: undefined,
-    source: 'default',
-    subscription: { eligible: false, reason: 'no-source' },
-  };
+  let mockRewardsIntegrationService: { calculateUserFeeDiscount: jest.Mock };
 
   const createContextWithRewards = (): ServiceContext =>
     createMockServiceContext({
@@ -63,17 +52,6 @@ describe('TradingService', () => {
     tradingService = new TradingService(mockDeps);
     mockRewardsIntegrationService = {
       calculateUserFeeDiscount: jest.fn().mockResolvedValue(undefined),
-      resolveFee: jest.fn(async () => {
-        const discountBips =
-          await mockRewardsIntegrationService.calculateUserFeeDiscount();
-        return discountBips === undefined
-          ? defaultFeeResolution
-          : {
-              ...defaultFeeResolution,
-              discountBips,
-              source: 'rewards' as const,
-            };
-      }),
     };
     // Set controller dependencies for fee discount calculation
     tradingService.setControllerDependencies({
@@ -103,117 +81,6 @@ describe('TradingService', () => {
   });
 
   describe('placeOrder', () => {
-    it('preserves the subscription source through order construction', async () => {
-      mockProvider.setUserFeeResolution = jest.fn();
-      const subscriptionResolution: PerpsFeeResolution = {
-        feeBips: 0,
-        discountBips: 10000,
-        source: 'subscription',
-        subscription: {
-          eligible: true,
-          reason: 'eligible',
-          remainingNotionalUsd: 1500,
-        },
-      };
-      const orderParams: OrderParams = {
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-      };
-      mockRewardsIntegrationService.resolveFee.mockResolvedValue(
-        subscriptionResolution,
-      );
-      mockProvider.placeOrder.mockResolvedValue({ success: true });
-
-      await tradingService.placeOrder({
-        provider: mockProvider,
-        params: orderParams,
-        context: mockContext,
-        reportOrderToDataLake: mockReportOrderToDataLake,
-      });
-
-      expect(mockProvider.setUserFeeResolution).toHaveBeenCalledWith(
-        subscriptionResolution,
-      );
-      expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
-        undefined,
-      );
-    });
-
-    it('isolates fee resolutions between concurrent orders', async () => {
-      const subscriptionResolution: PerpsFeeResolution = {
-        feeBips: 0,
-        discountBips: 10000,
-        source: 'subscription',
-        subscription: { eligible: true, reason: 'eligible' },
-      };
-      const rewardsResolution: PerpsFeeResolution = {
-        feeBips: 5,
-        discountBips: 5000,
-        source: 'rewards',
-        subscription: { eligible: false, reason: 'not-entitled' },
-      };
-      mockRewardsIntegrationService.resolveFee
-        .mockResolvedValueOnce(subscriptionResolution)
-        .mockResolvedValueOnce(rewardsResolution);
-
-      let activeResolution: PerpsFeeResolution | undefined;
-      mockProvider.setUserFeeResolution = jest.fn((resolution) => {
-        activeResolution = resolution;
-      });
-      let releaseFirst: () => void = () => undefined;
-      const firstPending = new Promise<void>((resolve) => {
-        releaseFirst = resolve;
-      });
-      let markFirstStarted: () => void = () => undefined;
-      const firstStarted = new Promise<void>((resolve) => {
-        markFirstStarted = resolve;
-      });
-      const observed: Array<PerpsFeeResolution | undefined> = [];
-      mockProvider.placeOrder.mockImplementation(async (params) => {
-        observed.push(activeResolution);
-        if (params.symbol === 'BTC') {
-          markFirstStarted();
-          await firstPending;
-        }
-        return { success: true };
-      });
-
-      const first = tradingService.placeOrder({
-        provider: mockProvider,
-        params: {
-          symbol: 'BTC',
-          isBuy: true,
-          size: '0.1',
-          orderType: 'market',
-        },
-        context: mockContext,
-        reportOrderToDataLake: mockReportOrderToDataLake,
-      });
-      const second = tradingService.placeOrder({
-        provider: mockProvider,
-        params: {
-          symbol: 'ETH',
-          isBuy: true,
-          size: '1',
-          orderType: 'market',
-        },
-        context: mockContext,
-        reportOrderToDataLake: mockReportOrderToDataLake,
-      });
-
-      await firstStarted;
-      expect(mockProvider.placeOrder).toHaveBeenCalledTimes(1);
-      releaseFirst();
-      await Promise.all([first, second]);
-
-      expect(observed).toStrictEqual([
-        subscriptionResolution,
-        rewardsResolution,
-      ]);
-    });
-
     it('places order successfully without fee discount', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
@@ -2462,31 +2329,6 @@ describe('TradingService', () => {
       takeProfitCount: 0,
       stopLossCount: 0,
     };
-
-    it('preserves the subscription source for flip orders', async () => {
-      const resolution: PerpsFeeResolution = {
-        feeBips: 0,
-        discountBips: 10000,
-        source: 'subscription',
-        subscription: { eligible: true, reason: 'eligible' },
-      };
-      mockProvider.setUserFeeResolution = jest.fn();
-      mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
-      mockProvider.placeOrder.mockResolvedValue({ success: true });
-
-      await tradingService.flipPosition({
-        provider: mockProvider,
-        position: mockPosition,
-        context: mockContext,
-      });
-
-      expect(mockProvider.setUserFeeResolution).toHaveBeenCalledWith(
-        resolution,
-      );
-      expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
-        undefined,
-      );
-    });
 
     it('places order with 2x position size to flip position', async () => {
       const mockResult: OrderResult = {

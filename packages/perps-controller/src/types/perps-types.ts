@@ -46,9 +46,8 @@ export type TriggerOrderType =
  *
  * - `twap`: slice the size over `OrderParams.twapDuration` minutes. Placed and
  *   cancelled through the venue's own TWAP endpoints, not the order book.
- * - `scale`: fan out `OrderParams.scaleNumOrders` limit orders between
- *   `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, evenly sized
- *   unless `OrderParams.scaleSkew` weights them along the ladder.
+ * - `scale`: fan out `OrderParams.scaleNumOrders` limit orders evenly between
+ *   `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`.
  * - `chase`: rest a post-only order at the near touch and re-price it as the
  *   touch moves, until it fills or the chase window closes.
  *

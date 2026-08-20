@@ -438,47 +438,26 @@ export function computeScalePriceLadder(params: {
  * The split is done in whole units of the asset's size grid rather than in
  * decimal sizes: dividing and re-flooring in floating point loses a sub-unit of
  * dust on every rung, and a ladder that submits less than the size that was
- * validated is not the order the caller placed. Either allocation below sums to
- * exactly `totalSize` in grid units.
- *
- * This is the one place the ladder's sizes are decided. Clients previewing a
- * scale placement must call it rather than reproduce the ramp, or the preview
- * and the placement will disagree at the rounding.
- *
- * **Even (no `skew`, or `skew` exactly 1).** Every rung gets `floor(total /
- * count)` units and whatever does not divide evenly goes onto the first rung —
- * 11 units across 3 rungs is `5, 3, 3`, not three equal slices.
- *
- * **Skewed.** Rung weights ramp linearly from 1 at index 0 to `skew` at the last
- * index, in ladder order — which is ascending price, `scaleMinPrice` to
- * `scaleMaxPrice`, for a buy and a sell alike. Each rung takes
- * `floor(weight / sumOfWeights * totalUnits)` units, and the units left over go
- * to the rungs with the largest discarded fraction, ties broken by ascending
- * index. The leftover is deliberately *not* dumped on the first rung the way the
- * even split does it: on a `skew` above 1 that would push size back to the end
- * of the ladder the caller weighted away from.
+ * validated is not the order the caller placed. Whatever does not divide evenly
+ * goes onto the first rung, so the slices sum to exactly `totalSize`.
  *
  * The total is expected to sit on the grid already — `calculateFinalPositionSize`
  * floors it there — so rounding onto the grid here only absorbs representation
  * error. A total too small to give every rung a whole unit is rejected: placing
- * fewer orders than asked for would silently change the strategy. A `skew` far
- * enough from 1 can starve a rung the same way, and is rejected the same way.
+ * fewer orders than asked for would silently change the strategy.
  *
  * @param params - Split parameters.
  * @param params.totalSize - Total size to distribute.
  * @param params.count - Number of rungs.
  * @param params.szDecimals - The asset's size decimal precision.
- * @param params.skew - Optional size weighting across the ladder; any finite
- * value above 0, used exactly as given.
  * @returns One size string per rung, in ladder order.
  */
 export function splitScaleSizes(params: {
   totalSize: number;
   count: number;
   szDecimals: number;
-  skew?: number;
 }): string[] {
-  const { totalSize, count, szDecimals, skew } = params;
+  const { totalSize, count, szDecimals } = params;
 
   // Checked here as well as in `computeScalePriceLadder`: this is exported on
   // its own, and a count of zero would otherwise return an empty split while a
@@ -491,13 +470,6 @@ export function splitScaleSizes(params: {
     throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
   }
 
-  // Checked here rather than left to the arithmetic: a non-finite or
-  // non-positive skew produces weights that are NaN or run negative, and either
-  // one would come back as a ladder of zero-size rungs instead of a rejection.
-  if (skew !== undefined && (!Number.isFinite(skew) || skew <= 0)) {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
-  }
-
   const multiplier = Math.pow(10, szDecimals);
   const totalUnits = Math.round(totalSize * multiplier);
 
@@ -505,90 +477,16 @@ export function splitScaleSizes(params: {
     throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
   }
 
-  const unitsPerRung =
-    skew === undefined || skew === 1
-      ? splitUnitsEvenly({ totalUnits, count })
-      : splitUnitsBySkew({ totalUnits, count, skew });
-
-  // A rung the ramp starved of every unit would be submitted as a zero-size
-  // order. That is the same failure the total-size check above rejects, and it
-  // is reported the same way, so a caller reads one reason for "this ladder
-  // cannot be cut this finely" rather than two.
-  if (unitsPerRung.some((units) => units === 0)) {
-    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
-  }
-
-  return unitsPerRung.map((units) =>
-    formatHyperLiquidSize({ size: units / multiplier, szDecimals }),
-  );
-}
-
-/**
- * Spread the ladder's units evenly, leftover on the first rung.
- *
- * @param params - Split parameters.
- * @param params.totalUnits - Total size, in whole size-grid units.
- * @param params.count - Number of rungs.
- * @returns Units per rung, in ladder order.
- */
-function splitUnitsEvenly(params: {
-  totalUnits: number;
-  count: number;
-}): number[] {
-  const { totalUnits, count } = params;
-
   const sliceUnits = Math.floor(totalUnits / count);
   const remainderUnits = totalUnits - sliceUnits * count;
 
   return Array.from({ length: count }, (_unused, index) =>
-    index === 0 ? sliceUnits + remainderUnits : sliceUnits,
+    formatHyperLiquidSize({
+      size:
+        (index === 0 ? sliceUnits + remainderUnits : sliceUnits) / multiplier,
+      szDecimals,
+    }),
   );
-}
-
-/**
- * Spread the ladder's units along a linear weight ramp.
- *
- * Flooring every rung leaves up to `count - 1` units unallocated, and they go to
- * the rungs that lost the most to the floor — the standard largest-remainder
- * allocation. Ties go to the lower index, which keeps the result a function of
- * the inputs alone rather than of sort stability.
- *
- * @param params - Split parameters.
- * @param params.totalUnits - Total size, in whole size-grid units.
- * @param params.count - Number of rungs.
- * @param params.skew - Weight of the last rung relative to the first.
- * @returns Units per rung, in ladder order.
- */
-function splitUnitsBySkew(params: {
-  totalUnits: number;
-  count: number;
-  skew: number;
-}): number[] {
-  const { totalUnits, count, skew } = params;
-
-  const weights = Array.from(
-    { length: count },
-    (_unused, index) => 1 + ((skew - 1) * index) / (count - 1),
-  );
-  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
-
-  const ideal = weights.map((weight) => (weight / weightSum) * totalUnits);
-  const unitsPerRung = ideal.map((units) => Math.floor(units));
-  const leftoverUnits =
-    totalUnits - unitsPerRung.reduce((sum, units) => sum + units, 0);
-
-  Array.from({ length: count }, (_unused, index) => index)
-    .sort((left, right) => {
-      const fractionDelta =
-        ideal[right] - unitsPerRung[right] - (ideal[left] - unitsPerRung[left]);
-      return fractionDelta === 0 ? left - right : fractionDelta;
-    })
-    .slice(0, leftoverUnits)
-    .forEach((index) => {
-      unitsPerRung[index] += 1;
-    });
-
-  return unitsPerRung;
 }
 
 /**

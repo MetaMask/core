@@ -234,57 +234,6 @@ describe('hyperLiquidValidation - strategy order types', () => {
         error: PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID,
       });
     });
-
-    it.each([
-      ['zero', 0],
-      ['negative', -1],
-      ['NaN', NaN],
-      ['Infinity', Infinity],
-      ['-Infinity', -Infinity],
-    ])('rejects a %s skew before anything is signed', (_label, scaleSkew) => {
-      expect(
-        validateOrderParams({
-          coin: 'ETH',
-          size: '1',
-          orderType: 'scale',
-          ...VALID_STRATEGY_PARAMS.scale,
-          scaleSkew,
-        }),
-      ).toStrictEqual({
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
-      });
-    });
-
-    it('accepts an omitted skew', () => {
-      expect(
-        validateOrderParams({
-          coin: 'ETH',
-          size: '1',
-          orderType: 'scale',
-          ...VALID_STRATEGY_PARAMS.scale,
-        }),
-      ).toStrictEqual({ isValid: true });
-    });
-
-    // The client coerces its input to two decimals; nothing here re-rounds it.
-    it.each([
-      ['above 1', 2.35],
-      ['below 1', 0.25],
-      ['exactly 1', 1],
-      ['far above 1', 100],
-      ['far below 1', 0.01],
-    ])('accepts a skew %s', (_label, scaleSkew) => {
-      expect(
-        validateOrderParams({
-          coin: 'ETH',
-          size: '1',
-          orderType: 'scale',
-          ...VALID_STRATEGY_PARAMS.scale,
-          scaleSkew,
-        }),
-      ).toStrictEqual({ isValid: true });
-    });
   });
 
   describe('validateOrderParams - chase', () => {
@@ -341,7 +290,6 @@ describe('hyperLiquidValidation - strategy order types', () => {
       ['twapRandomize', { twapRandomize: true }],
       ['scaleMinPrice', { scaleMinPrice: '2000' }],
       ['scaleNumOrders', { scaleNumOrders: 3 }],
-      ['scaleSkew', { scaleSkew: 2 }],
       ['chaseIntervalMs', { chaseIntervalMs: 3000 }],
     ])('rejects %s on a market order', (_label, strategyField) => {
       expect(

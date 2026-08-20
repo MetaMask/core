@@ -124,15 +124,15 @@ describe('user-segmentation-utils', () => {
       expect(threshold).toBeLessThanOrEqual(1);
     });
 
-    it('throws error when segmentation ID is empty', async () => {
+    it('throws error when metaMetricsId is empty', async () => {
       // Arrange
-      const emptySegmentationId = '';
+      const emptyMetaMetricsId = '';
       const flagName = 'testFlag';
 
       // Act & Assert
       await expect(
-        calculateThresholdForFlag(emptySegmentationId, flagName),
-      ).rejects.toThrow('Segmentation ID cannot be empty');
+        calculateThresholdForFlag(emptyMetaMetricsId, flagName),
+      ).rejects.toThrow('MetaMetrics ID cannot be empty');
     });
 
     it('throws error when featureFlagName is empty', async () => {

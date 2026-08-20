@@ -749,7 +749,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:8453",
         "stxEnabled": false,
       },
@@ -760,7 +759,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:8453",
         "stxEnabled": false,
       },
@@ -1067,7 +1065,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
@@ -1078,7 +1075,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
@@ -1691,7 +1687,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -1702,7 +1697,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -2009,7 +2003,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -2020,7 +2013,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -3451,7 +3443,6 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -3462,7 +3453,6 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
   [
     {
       "data": {
-        "feature_id": "unified_swap_bridge",
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },

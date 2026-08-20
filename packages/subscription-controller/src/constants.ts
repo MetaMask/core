@@ -46,7 +46,6 @@ export enum SubscriptionControllerErrorMessage {
   PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
   ProductPriceNotFound = `${controllerName} - Product price not found`,
   SubscriptionNotValidForCryptoApproval = `${controllerName} - Subscription is not valid for crypto approval`,
-  CryptoApprovalRequiresShieldApprove = `${controllerName} - Crypto approval is only supported for Shield ERC-20 approve transactions`,
   LinkRewardsFailed = `${controllerName} - Failed to link rewards`,
 }
 
@@ -56,7 +55,6 @@ export enum SubscriptionServiceErrorMessage {
   FailedToUncancelSubscription = 'Failed to uncancel subscription',
   FailedToStartSubscriptionWithCard = 'Failed to start subscription with card',
   FailedToStartSubscriptionWithCrypto = 'Failed to start subscription with crypto',
-  InvalidCryptoAuthCombo = 'Crypto subscription requires exactly one of rawTransaction (erc20_approval) or delegationHash (delegation)',
   FailedToUpdatePaymentMethodCard = 'Failed to update payment method card',
   FailedToUpdatePaymentMethodCrypto = 'Failed to update payment method crypto',
   FailedToGetSubscriptionsEligibilities = 'Failed to get subscriptions eligibilities',

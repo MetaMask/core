@@ -18,6 +18,7 @@ import type {
 import { prefixError } from '../../utils/error-prefix.js';
 import { getFiatVaultDisabled } from '../../utils/feature-flags.js';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import type { SubmitMoneyAccountVaultDepositResult } from '../../utils/ma-vault-deposit.js';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
@@ -130,7 +131,7 @@ export async function submitDirectMusdAfterFiatCompletion({
 }: {
   order: RampsOrder;
   request: PayStrategyExecuteRequest<FiatQuote>;
-}): Promise<{ transactionHash?: Hex }> {
+}): Promise<SubmitMoneyAccountVaultDepositResult> {
   const { messenger, transaction } = request;
 
   try {

@@ -7,8 +7,6 @@ import type {
 } from './initialization/defaults.js';
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types.js';
 import type { ClaimsServiceInstanceOptions } from './initialization/instances/claims-service/types.js';
-import type { ConfigRegistryApiServiceInstanceOptions } from './initialization/instances/config-registry-api-service/types.js';
-import type { ConfigRegistryControllerInstanceOptions } from './initialization/instances/config-registry-controller/types.js';
 import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types.js';
 import type { GasFeeControllerInstanceOptions } from './initialization/instances/gas-fee-controller/types.js';
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types.js';
@@ -37,8 +35,6 @@ export type WalletOptions = {
 export type InstanceSpecificOptions = {
   approvalController?: ApprovalControllerInstanceOptions;
   claimsService?: ClaimsServiceInstanceOptions;
-  configRegistryApiService: ConfigRegistryApiServiceInstanceOptions;
-  configRegistryController?: ConfigRegistryControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
   gasFeeController: GasFeeControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;

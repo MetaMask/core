@@ -403,14 +403,14 @@ describe('createUIQueryClient', () => {
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,
-      initialPageParam: null,
+      initialPageParam: undefined,
       getNextPageParam,
       getPreviousPageParam,
     });
 
     const observerB = new InfiniteQueryObserver(clientB, {
       queryKey: getActivityQueryKey,
-      initialPageParam: null,
+      initialPageParam: undefined,
       getNextPageParam,
       getPreviousPageParam,
     });

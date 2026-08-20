@@ -78,10 +78,12 @@ export async function validateQuoteExecution({
 
   validateRequiredSourceAmount(messenger, quote, liveBalance);
 
+  log('Quote source amount check passed');
+
   log('Checking decoded source transfers', {
     sourceChainId: quote.request.sourceChainId,
     sourceTokenAddress: quote.request.sourceTokenAddress,
-    transactions: simulation.transactions,
+    transactionCount: simulation.transactions.length,
   });
 
   validateDecodedSourceTransfers(
@@ -91,17 +93,10 @@ export async function validateQuoteExecution({
     simulation.transactions,
   );
 
+  log('Decoded source transfers check passed');
+
   throwIfAborted(signal);
 
-  await validateSimulation(messenger, quote, simulation, signal);
-}
-
-async function validateSimulation(
-  messenger: TransactionPayControllerMessenger,
-  quote: TransactionPayQuote<unknown>,
-  simulation: QuoteSimulation,
-  signal?: AbortSignal,
-): Promise<void> {
   log('Starting simulation', {
     chainId: quote.request.sourceChainId,
     transactions: simulation.transactions,
@@ -223,10 +218,6 @@ function validateRequiredSourceAmount(
   liveBalance: string,
 ): void {
   if (quote.request.isPostQuote || quote.request.paymentOverride) {
-    log('Skipping quote source amount check', {
-      hasPaymentOverride: Boolean(quote.request.paymentOverride),
-      isPostQuote: Boolean(quote.request.isPostQuote),
-    });
     return;
   }
 
@@ -234,7 +225,6 @@ function validateRequiredSourceAmount(
   const balance = new BigNumber(liveBalance);
 
   if (balance.isGreaterThanOrEqualTo(requiredAmount)) {
-    log('Quote source amount check passed');
     return;
   }
 
@@ -256,34 +246,21 @@ function validateDecodedSourceTransfers(
   liveBalance: string,
   transactions: SimulationTransaction[],
 ): void {
-  // Only valid for a single source-token transfer. Multi-step batches produce
-  // or transform the source-token balance mid-batch, so comparing against the
-  // starting balance is wrong; rely on the full simulation instead.
-  if (
-    transactions.length !== 1 ||
-    !isSourceTokenTransfer(quote, transactions[0])
-  ) {
-    log(
-      'Skipping decoded source transfer check: not a single source-token transfer',
-    );
-    return;
-  }
+  const decodedAmounts = getDecodedSourceTransferAmounts(quote, transactions);
 
-  // `isSourceTokenTransfer` has already confirmed the data decodes to a
-  // transfer, so the amount is defined here.
-  const requiredAmount = decodeTransferAmount(
-    transactions[0].data as Hex,
-  ) as string;
+  const requiredAmount = decodedAmounts
+    .reduce((total, amount) => total.plus(amount), new BigNumber(0))
+    .toString(10);
 
   const balance = new BigNumber(liveBalance);
 
-  log('Decoded source transfer amount', {
+  log('Decoded source transfer amounts', {
+    decodedAmounts,
     liveBalance,
     requiredAmount,
   });
 
   if (balance.isGreaterThanOrEqualTo(requiredAmount)) {
-    log('Decoded source transfers check passed');
     return;
   }
 
@@ -299,22 +276,17 @@ function validateDecodedSourceTransfers(
   });
 }
 
-function isSourceTokenTransfer(
+function getDecodedSourceTransferAmounts(
   quote: TransactionPayQuote<unknown>,
-  transaction: SimulationTransaction | undefined,
-): boolean {
-  if (!transaction?.to || !transaction.data) {
-    return false;
-  }
-
+  transactions: SimulationTransaction[],
+): string[] {
   const { sourceChainId, sourceTokenAddress } = quote.request;
-
   const isNativeSource =
     sourceTokenAddress.toLowerCase() ===
     getNativeToken(sourceChainId).toLowerCase();
 
   if (isNativeSource) {
-    return false;
+    return [];
   }
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
@@ -323,17 +295,20 @@ function isSourceTokenTransfer(
     TokenAddressTarget.MetaMask,
   ).toLowerCase();
 
-  const normalizedTo = normalizeTokenAddress(
-    transaction.to,
-    sourceChainId,
-    TokenAddressTarget.MetaMask,
-  ).toLowerCase();
-
-  if (normalizedTo !== normalizedSourceTokenAddress) {
-    return false;
-  }
-
-  return decodeTransferAmount(transaction.data) !== undefined;
+  return transactions
+    .filter(
+      (transaction) =>
+        transaction.to &&
+        normalizeTokenAddress(
+          transaction.to,
+          sourceChainId,
+          TokenAddressTarget.MetaMask,
+        ).toLowerCase() === normalizedSourceTokenAddress,
+    )
+    .map((transaction) =>
+      transaction.data ? decodeTransferAmount(transaction.data) : undefined,
+    )
+    .filter((amount): amount is string => amount !== undefined);
 }
 
 function decodeTransferAmount(data: Hex): string | undefined {
