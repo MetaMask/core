@@ -820,10 +820,7 @@
         }
 
         function renderSummary(data, defiEntries, tree) {
-          var totalBalances = 0;
-          (data.accounts || []).forEach(function (a) {
-            totalBalances += (a.balances || []).length;
-          });
+          var totalBalances = ((data && data.balances) || []).length;
           var protocols = Object.keys(tree).length;
 
           var chains = {};
