@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
 - Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor option to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+- **BREAKING:** Wire `ConfigRegistryApiService` and `ConfigRegistryController` into the default wallet initialization ([#9928](https://github.com/MetaMask/core/pull/9928))
+  - Adds an optional `configRegistryApiService` slot to `instanceOptions` for optional `env` (defaults to production), `fetch`, and `policyOptions`. `fetch` defaults to `globalThis.fetch` via `ConfigRegistryApiService`.
+  - Adds an optional `configRegistryController` slot to `instanceOptions` for optional `pollingInterval` and `fallbackConfig`.
+  - `ConfigRegistryController` delegates `KeyringController:getState`, `RemoteFeatureFlagController:getState`, and `ConfigRegistryApiService:fetchConfig`, and subscribes to `KeyringController:unlock`, `KeyringController:lock`, and `RemoteFeatureFlagController:stateChange`.
+  - Consumers that pass their own root messenger and already wire `ConfigRegistryApiService` / `ConfigRegistryController` must remove their own before upgrading, or the duplicate registration will collide.
 
 ## [11.0.0]
 
