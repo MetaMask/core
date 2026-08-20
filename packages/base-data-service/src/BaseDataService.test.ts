@@ -245,7 +245,7 @@ describe('BaseDataService', () => {
       mockAssets({ status: 200, body: { foo: 'bar' } });
 
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
-        'ExampleDataService:getAssets returned an invalid response: Expected an array value, but received: [object Object].',
+        'Query function for "ExampleDataService:getAssets" returned an unexpected response: Expected an array value, but received: [object Object].',
       );
 
       service.destroy();

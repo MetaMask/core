@@ -24,7 +24,7 @@ export function processQueryResponse<Response>(
 
   if (error) {
     throw new Error(
-      `${queryKey[0]} returned an invalid response: ${error.message}.`,
+      `Query function for "${queryKey[0]}" returned an unexpected response: ${error.message}.`,
     );
   }
 
