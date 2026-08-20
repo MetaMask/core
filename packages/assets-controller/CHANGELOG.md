@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `AccountsApiDataSource` now passes `forceUpdate: true` on every recurring poll tick, so balance polling always bypasses the TanStack Query cache instead of `STALE_TIMES.BALANCES` (60s, in `@metamask/core-backend`) silently serving a cached response on roughly every other tick when `pollInterval` (default 30s) is shorter than the stale time ([#9926](https://github.com/MetaMask/core/pull/9926))
+- Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
 
 ## [14.0.0]
 

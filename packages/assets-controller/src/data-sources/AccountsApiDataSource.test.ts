@@ -1015,11 +1015,6 @@ describe('AccountsApiDataSource', () => {
     const { controller, apiClient, assetsUpdateHandler } =
       await setupController();
 
-    // Both the initial poll (triggered synchronously by `subscribe`) and every
-    // recurring poll tick must set `forceUpdate: true`, otherwise a poll tick
-    // shorter than `STALE_TIMES.BALANCES` (e.g. the default 30s `pollInterval`
-    // vs a 60s balances stale time) can be silently served a cached response
-    // instead of refreshing balances. See `fetch`'s `fetchOptions` branch.
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
