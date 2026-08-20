@@ -1414,8 +1414,10 @@ export class MarketDataService {
    * Merge Terminal API metadata into provider-sourced PerpsMarketData.
    * For each market, if the terminal metadata map contains an entry for its
    * symbol, override name/description/marketType and attach
-   * keywords/tags/categories. Unmatched markets keep their provider-sourced
-   * values.
+   * keywords/tags/categories. Applying a marketType clears a stale
+   * isNewMarket flag so the v1 enrich path matches the v2 snapshot rule
+   * (categorized HIP-3 is not the controller "new" bucket). Unmatched markets
+   * keep their provider-sourced values.
    *
    * @param markets - Markets from the provider.
    * @param metadata - Per-symbol metadata from the Terminal API.
@@ -1437,7 +1439,10 @@ export class MarketDataService {
         ...(meta.description !== undefined && {
           description: meta.description,
         }),
-        ...(meta.marketType !== undefined && { marketType: meta.marketType }),
+        ...(meta.marketType !== undefined && {
+          marketType: meta.marketType,
+          ...(market.isNewMarket === true && { isNewMarket: false }),
+        }),
         ...(meta.keywords !== undefined && { keywords: meta.keywords }),
         ...(meta.tags !== undefined && { tags: meta.tags }),
         ...(meta.categories !== undefined && { categories: meta.categories }),

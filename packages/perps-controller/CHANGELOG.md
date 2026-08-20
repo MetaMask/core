@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `takeProfitPrice`/`stopLossPrice` were only ever scanned from position-bound triggers, so a position whose sole take profit closed it partially reported `takeProfitCount: 1` with no price, and clients rendering the scalar showed none. Applies to the REST `getPositions`, `getUserDataSnapshot`, and WebSocket position paths alike.
   - Two or more triggers in a direction still report the scanned price, because no single price describes them and clients render the count instead.
 - Map Terminal v1 `category` aliases (`pre_ipo` → `pre-ipo`, `stocks` → `stock`) when `marketType` is absent, so Pre-IPO markets such as Unitree appear under that filter without a static symbol list
+- Clear `isNewMarket` on the v1 Terminal enrich path once a `marketType` is applied, matching the v2 snapshot rule so categorized HIP-3 markets are not also in the controller `new` bucket
 - Reclassify `xyz:CBRS` and `xyz:SPCX` from `pre-ipo` to `stock` in `HIP3_ASSET_MARKET_TYPES` now that they are public (Terminal already sends `stocks`). Leave `xyz:IPOP` as Pre-IPO
 
 ## [12.1.0]

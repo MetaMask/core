@@ -19,6 +19,7 @@ import type {
 } from '../../../src/types/index.js';
 import type { CandleData } from '../../../src/types/perps-types.js';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
+import { matchesCategory } from '../../../src/utils/marketUtils.js';
 /* eslint-disable */
 import {
   createMockHyperLiquidProvider,
@@ -1683,9 +1684,83 @@ describe('MarketDataService', () => {
         expect(result[0]?.tags).toEqual(['top-10']);
         expect(result[0]?.categories).toEqual(['crypto']);
         expect(result[0]?.marketType).toBe('crypto');
+        expect(result[0]).not.toHaveProperty('isNewMarket');
         expect(result[1]?.name).toBe('Ethereum');
         expect(result[1]?.keywords).toEqual(['defi']);
         expect(result[1]?.description).toBeUndefined();
+      });
+
+      it('clears isNewMarket when Terminal metadata supplies a marketType', async () => {
+        const unitreeMarket: PerpsMarketData = {
+          symbol: 'xyz:UNITREE',
+          name: 'xyz:UNITREE',
+          maxLeverage: '10x',
+          price: '$1.00',
+          change24h: '+$0.10',
+          change24hPercent: '+10.00%',
+          volume: '$100000',
+          isHip3: true,
+          isNewMarket: true,
+        };
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: [
+            {
+              name: 'xyz:UNITREE',
+              szDecimals: 0,
+              maxLeverage: 10,
+              marginTableId: 0,
+            },
+          ],
+          metadata: new Map<string, TerminalAssetMetadata>([
+            ['xyz:UNITREE', { name: 'Unitree', marketType: 'pre-ipo' }],
+          ]),
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue([unitreeMarket]);
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result[0]?.marketType).toBe('pre-ipo');
+        expect(result[0]?.isNewMarket).toBe(false);
+        expect(matchesCategory(result[0] as PerpsMarketData, 'pre-ipo')).toBe(
+          true,
+        );
+        expect(matchesCategory(result[0] as PerpsMarketData, 'new')).toBe(
+          false,
+        );
+      });
+
+      it('preserves isNewMarket when Terminal metadata has no marketType', async () => {
+        const unitreeMarket: PerpsMarketData = {
+          symbol: 'xyz:UNITREE',
+          name: 'xyz:UNITREE',
+          maxLeverage: '10x',
+          price: '$1.00',
+          change24h: '+$0.10',
+          change24hPercent: '+10.00%',
+          volume: '$100000',
+          isHip3: true,
+          isNewMarket: true,
+        };
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: new Map<string, TerminalAssetMetadata>([
+            ['xyz:UNITREE', { name: 'Unitree' }],
+          ]),
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue([unitreeMarket]);
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result[0]?.marketType).toBeUndefined();
+        expect(result[0]?.isNewMarket).toBe(true);
       });
 
       it('preserves provider name when terminal metadata omits name', async () => {
