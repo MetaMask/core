@@ -19,7 +19,7 @@ export type {
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
-} from './AnalyticsPlatformAdapter.types';
+} from './AnalyticsPlatformAdapter.types.js';
 
 // Export state types
 export type {

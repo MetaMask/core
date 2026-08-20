@@ -218,7 +218,7 @@ jobs:
               echo "Building changed packages:"
               jq -r '"- " + (.references[].path | ltrimstr("./") | rtrimstr("/tsconfig.build.json"))' "$TSCONFIG"
               echo ""
-              yarn ts-bridge --project "$TSCONFIG" --verbose
+              yarn tsc --build --project "$TSCONFIG" --verbose
             else
               echo "No packages to build."
             fi

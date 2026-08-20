@@ -1461,6 +1461,8 @@ export class KycController extends BaseController<
       // `@ts-expect-error` cannot be used: ts-bridge does not surface
       // TS2589, so the directive is unused and fails the build.
       // type issue only happens at the IDE level.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: TODO: Investigate issue.
       updater(state);
     });
   }

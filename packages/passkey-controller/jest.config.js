@@ -3,7 +3,7 @@ const path = require('path');
 
 const baseConfig = require('../../jest.config.packages');
 
-const displayName = path.basename(__dirname);
+const displayName = path.basename(import.meta.dirname);
 
 module.exports = merge(baseConfig, {
   displayName,

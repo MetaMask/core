@@ -287,6 +287,8 @@ export class SnapAccountService {
     );
     this.#tracker = new SnapTracker(messenger);
     this.#client = new KeyringInternalSnapClient({
+      // @ts-expect-error: Property '#private' in type 'Messenger' refers to a
+      // different member that cannot be accessed from within type 'Messenger'.
       messenger: messenger.buildChild({
         namespace: 'KeyringInternalSnapClient',
         actions: ['SnapController:handleRequest'],

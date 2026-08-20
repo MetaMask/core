@@ -22,7 +22,7 @@ import {
   KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type {
   AssetsControllerGetStateAction,

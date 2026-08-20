@@ -22,7 +22,7 @@ export type {
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
-} from './response.types';
+} from './response.types.js';
 export type { BalanceSource, BalanceSourcePolicy } from './constants.js';
 export {
   BALANCE_SOURCE_POLICIES,

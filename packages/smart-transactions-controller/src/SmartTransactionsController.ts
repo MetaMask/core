@@ -34,7 +34,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import cloneDeep from 'lodash/cloneDeep';
+import { klona } from 'klona';
 
 import {
   API_BASE_URL,
@@ -498,9 +498,9 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     smartTransaction: SmartTransaction,
     prevSmartTransaction?: SmartTransaction,
   ) {
-    let updatedSmartTransaction = cloneDeep(smartTransaction);
+    let updatedSmartTransaction = klona(smartTransaction);
     updatedSmartTransaction = {
-      ...cloneDeep(prevSmartTransaction),
+      ...klona(prevSmartTransaction),
       ...updatedSmartTransaction,
     };
 
@@ -646,7 +646,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
           stx.txParams?.nonce === smartTransaction.txParams?.nonce &&
           stx.status?.startsWith('cancelled'),
       );
-      const snapshot = cloneDeep(smartTransaction);
+      const snapshot = klona(smartTransaction);
       const history = [snapshot];
       const historifiedSmartTransaction = { ...smartTransaction, history };
       const nextSmartTransactions =
