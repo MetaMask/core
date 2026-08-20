@@ -1,7 +1,4 @@
-import {
-  ConfigRegistryApiEnv,
-  ConfigRegistryApiService,
-} from '@metamask/config-registry-controller';
+import { ConfigRegistryApiService } from '@metamask/config-registry-controller';
 import type { ConfigRegistryApiServiceMessenger } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
 
@@ -17,7 +14,7 @@ export const configRegistryApiService: InitializationConfiguration<
   init: ({ messenger, options }) =>
     new ConfigRegistryApiService({
       messenger,
-      env: options.env ?? ConfigRegistryApiEnv.PRD,
+      env: options.env,
       fetch: options.fetch,
       policyOptions: options.policyOptions,
     }),

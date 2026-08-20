@@ -11,7 +11,7 @@ type ConfigRegistryApiServiceOptions = ConstructorParameters<
  * Per-instance options for the wallet's `ConfigRegistryApiService`.
  */
 export type ConfigRegistryApiServiceInstanceOptions = {
-  env?: ConfigRegistryApiEnv;
+  env: ConfigRegistryApiEnv;
   fetch?: ConfigRegistryApiServiceOptions['fetch'];
   policyOptions?: ConfigRegistryApiServiceOptions['policyOptions'];
 };

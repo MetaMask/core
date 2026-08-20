@@ -41,28 +41,26 @@ describe('configRegistryApiService', () => {
     const instance = configRegistryApiService.init({
       state: undefined,
       messenger,
-      options: {},
+      options: { env: ConfigRegistryApiEnv.PRD },
     });
 
     expect(instance).toBeInstanceOf(ConfigRegistryApiService);
   });
 
-  it('defaults env to production', async () => {
+  it('uses the provided env to determine the API URL', async () => {
     const fetchMock = makeFetchMock();
     const messenger = configRegistryApiService.getMessenger(getRootMessenger());
 
     const instance = configRegistryApiService.init({
       state: undefined,
       messenger,
-      options: { fetch: fetchMock },
+      options: { env: ConfigRegistryApiEnv.UAT, fetch: fetchMock },
     });
 
     await instance.fetchConfig();
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    // PRD URL has no env prefix - UAT would contain "uat-"
-    expect(url).toContain('client-config.api.cx.metamask.io');
-    expect(url).not.toContain(ConfigRegistryApiEnv.UAT);
+    expect(url).toContain(ConfigRegistryApiEnv.UAT);
   });
 
   it('exposes its actions through the root messenger', async () => {
@@ -72,7 +70,7 @@ describe('configRegistryApiService', () => {
     configRegistryApiService.init({
       state: undefined,
       messenger,
-      options: { fetch: makeFetchMock() },
+      options: { env: ConfigRegistryApiEnv.PRD, fetch: makeFetchMock() },
     });
 
     const result = await rootMessenger.call(
