@@ -27,12 +27,14 @@ export type {
   ConfigRegistryApiServiceActions,
   ConfigRegistryApiServiceEvents,
   ConfigRegistryApiServiceMessenger,
-  ConfigRegistryApiEnv
 } from './config-registry-api-service/config-registry-api-service.js';
 export type {
   ConfigRegistryApiServiceFetchConfigAction,
   ConfigRegistryApiServiceMethodActions,
 } from './config-registry-api-service/config-registry-api-service-method-action-types.js';
 export type { NetworkFilterOptions } from './config-registry-api-service/filters.js';
-export { ConfigRegistryApiService } from './config-registry-api-service/config-registry-api-service.js';
+export {
+  ConfigRegistryApiService,
+  ConfigRegistryApiEnv,
+} from './config-registry-api-service/config-registry-api-service.js';
 export { filterNetworks } from './config-registry-api-service/filters.js';
