@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent `listMultichainAccounts` from throwing a `TypeError` when an internal account has an undefined `scopes` field ([#41962](https://github.com/MetaMask/metamask-extension/issues/41962))
+
 ## [39.1.0]
 
 ### Added
