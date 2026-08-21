@@ -15,6 +15,11 @@ export type {
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
   KycControllerGetCustomerIdentityAction,
+  KycControllerRefreshKycStatusAction,
+  KycControllerStatusChangedEvent,
+  KycStatusPayload,
+  ProvisionMoneyAccountParams,
+  ProvisionMoneyAccountResult,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -35,6 +40,8 @@ export type {
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,
   RampsControllerCreateAutorampAction,
+  RampsControllerSetMoneyAccountProvisioningIntentAction,
+  RampsControllerProvisionMoneyAccountAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerRegisterMoneyAccountWalletAction,
   RampsControllerMarkAutorampAsNotifiedAction,
@@ -81,6 +88,7 @@ export {
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
   RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_EVENTS,
   RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
 } from './RampsController.js';
 export type {
