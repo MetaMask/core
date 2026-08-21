@@ -332,6 +332,45 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
 };
 
 /**
+ * Records the Money Account provision request that should run when KYC
+ * status becomes `completed`.
+ *
+ * Subscribes to `KycController:statusChanged` on the first non-null intent.
+ * Pass `null` to clear the intent; an already-active subscription is left
+ * in place (later `completed` events no-op without an intent).
+ *
+ * Hosts that call this must delegate
+ * {@link RAMPS_CONTROLLER_REQUIRED_CONTROLLER_EVENTS}.
+ *
+ * @param intent - Address + autoramp body, or `null` to clear.
+ */
+export type RampsControllerSetMoneyAccountProvisioningIntentAction = {
+  type: `RampsController:setMoneyAccountProvisioningIntent`;
+  handler: RampsController['setMoneyAccountProvisioningIntent'];
+};
+
+/**
+ * Registers the Money Account wallet and creates an autoramp once KYC is
+ * `completed`.
+ *
+ * Refreshes user-keyed KYC status first so a host that mounts after the
+ * status already flipped (no `statusChanged` event) still provisions.
+ * Concurrent and repeat calls for the same address share one run: one
+ * signature prompt, one autoramp. A rejected run is evicted so a later
+ * retry can recover.
+ *
+ * Also stores `params` as the auto-provision intent, so a later KYC
+ * `completed` event reuses this same work.
+ *
+ * @param params - Destination address and autoramp body.
+ * @returns The registration and created autoramp.
+ */
+export type RampsControllerProvisionMoneyAccountAction = {
+  type: `RampsController:provisionMoneyAccount`;
+  handler: RampsController['provisionMoneyAccount'];
+};
+
+/**
  * Removes a local autoramp account by id.
  * Soft-deletes the remote User Storage entry when sync is available.
  *
@@ -809,6 +848,8 @@ export type RampsControllerMethodActions =
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
   | RampsControllerRegisterMoneyAccountWalletAction
+  | RampsControllerSetMoneyAccountProvisioningIntentAction
+  | RampsControllerProvisionMoneyAccountAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction

@@ -24,6 +24,7 @@ import {
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
   RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_EVENTS,
   RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
 } from './RampsController.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -9855,6 +9856,288 @@ describe('RampsController', () => {
     });
   });
 
+  describe('provisionMoneyAccount', () => {
+    const registration = {
+      id: 'wallet-1',
+      address: '0xabc',
+      blockchain: 'Monad' as const,
+      disabled: false,
+      isSelf: true,
+    };
+
+    const autorampRequest = {
+      source_currencies: [{ type: 'Fiat', code: 'BRL' }],
+    };
+
+    const completedStatus = {
+      status: 'completed',
+      sumsubSessionId: null,
+      errorCode: null,
+    };
+
+    type ProvisionHandlers = {
+      refreshKycStatus: jest.Mock;
+      getCustomerIdentity: jest.Mock;
+      getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
+      getWalletRegistrationStatus: jest.Mock;
+      registerSelfHostedWallet: jest.Mock;
+      signPersonalMessage: jest.Mock;
+      createAutoramp: jest.Mock;
+    };
+
+    /**
+     * Registers KYC, wallet-registration, and autoramp-create handlers used by
+     * {@link RampsController.provisionMoneyAccount}.
+     *
+     * @param rootMessenger - The root messenger of the controller under test.
+     * @returns The registered handler mocks.
+     */
+    function registerProvisionHandlers(
+      rootMessenger: RootMessenger,
+    ): ProvisionHandlers {
+      const handlers: ProvisionHandlers = {
+        refreshKycStatus: jest.fn().mockResolvedValue(completedStatus),
+        getCustomerIdentity: spyOnGetCustomerIdentity(rootMessenger, {
+          vendor: 'iron',
+          id: 'iron-customer-1',
+        }),
+        getSessionProfile: jest.fn().mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          metaMetricsId: 'mm-1',
+        }),
+        getCustomerByExternalId: jest
+          .fn()
+          .mockResolvedValue({ id: 'iron-customer-1' }),
+        getWalletRegistrationStatus: jest
+          .fn()
+          .mockResolvedValue({ type: 'absent' }),
+        registerSelfHostedWallet: jest.fn().mockResolvedValue({
+          type: 'registered',
+          registration,
+        }),
+        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
+        createAutoramp: jest.fn().mockResolvedValue({
+          id: 'ar-1',
+          customerId: 'iron-customer-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        }),
+      };
+      rootMessenger.registerActionHandler(
+        'KycController:refreshKycStatus',
+        handlers.refreshKycStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile',
+        handlers.getSessionProfile,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId',
+        handlers.getCustomerByExternalId,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getWalletRegistrationStatus',
+        handlers.getWalletRegistrationStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:registerSelfHostedWallet',
+        handlers.registerSelfHostedWallet,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signPersonalMessage',
+        handlers.signPersonalMessage,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:createAutoramp',
+        handlers.createAutoramp,
+      );
+      return handlers;
+    }
+
+    it('registers the wallet and creates an autoramp when KYC is completed', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+
+        const result = await controller.provisionMoneyAccount({
+          address: '0xAbC',
+          autoramp: autorampRequest,
+        });
+
+        expect(handlers.refreshKycStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalled();
+        expect(handlers.createAutoramp).toHaveBeenCalledWith(
+          expect.objectContaining({ customer_id: 'iron-customer-1' }),
+          {},
+        );
+        expect(result.registration.type).toBe('registered');
+        expect(result.autoramp.id).toBe('ar-1');
+      });
+    });
+
+    it('throws when KYC status is not completed', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        handlers.refreshKycStatus.mockResolvedValue({
+          status: 'pending',
+          sumsubSessionId: null,
+          errorCode: null,
+        });
+
+        await expect(
+          controller.provisionMoneyAccount({
+            address: '0xabc',
+            autoramp: autorampRequest,
+          }),
+        ).rejects.toThrow(
+          'KYC status is "pending". The wallet can only be registered once it reads completed.',
+        );
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+        expect(handlers.createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('shares one in-flight run for the same address', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        let releaseRefresh: () => void = () => undefined;
+        handlers.refreshKycStatus.mockImplementation(
+          async () =>
+            await new Promise((resolve) => {
+              releaseRefresh = () => resolve(completedStatus);
+            }),
+        );
+
+        const first = controller.provisionMoneyAccount({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+        const second = controller.provisionMoneyAccount({
+          address: '0xABC',
+          autoramp: autorampRequest,
+        });
+        releaseRefresh();
+
+        const [firstResult, secondResult] = await Promise.all([first, second]);
+        expect(firstResult).toBe(secondResult);
+        expect(handlers.refreshKycStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.createAutoramp).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('retries after a failed run', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        handlers.createAutoramp
+          .mockRejectedValueOnce(new Error('proxy down'))
+          .mockResolvedValueOnce({
+            id: 'ar-1',
+            customerId: 'iron-customer-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Created,
+          });
+
+        await expect(
+          controller.provisionMoneyAccount({
+            address: '0xabc',
+            autoramp: autorampRequest,
+          }),
+        ).rejects.toThrow('proxy down');
+
+        const result = await controller.provisionMoneyAccount({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+        expect(result.autoramp.id).toBe('ar-1');
+        expect(handlers.createAutoramp).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('provisions from KycController:statusChanged without refreshing status', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        controller.setMoneyAccountProvisioningIntent({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+
+        rootMessenger.publish('KycController:statusChanged', completedStatus);
+        await waitForMockCalls(handlers.createAutoramp);
+
+        expect(handlers.refreshKycStatus).not.toHaveBeenCalled();
+        expect(handlers.createAutoramp).toHaveBeenCalledTimes(1);
+        expect(
+          controller.state.autoramps.find((account) => account.id === 'ar-1'),
+        ).toBeDefined();
+      });
+    });
+
+    it('ignores a completed KYC event when no provision intent is set', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        controller.setMoneyAccountProvisioningIntent({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+        controller.setMoneyAccountProvisioningIntent(null);
+
+        rootMessenger.publish('KycController:statusChanged', completedStatus);
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(handlers.createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('swallows provision failures from the KYC completed event', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        handlers.createAutoramp.mockRejectedValue(new Error('proxy down'));
+        controller.setMoneyAccountProvisioningIntent({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+
+        rootMessenger.publish('KycController:statusChanged', completedStatus);
+        await waitForMockCalls(handlers.createAutoramp);
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(controller.state.autoramps).toHaveLength(0);
+
+        handlers.createAutoramp.mockResolvedValue({
+          id: 'ar-1',
+          customerId: 'iron-customer-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        const result = await controller.provisionMoneyAccount({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+        expect(result.autoramp.id).toBe('ar-1');
+      });
+    });
+
+    it('ignores non-completed KYC status events', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerProvisionHandlers(rootMessenger);
+        controller.setMoneyAccountProvisioningIntent({
+          address: '0xabc',
+          autoramp: autorampRequest,
+        });
+
+        rootMessenger.publish('KycController:statusChanged', {
+          status: 'pending',
+          sumsubSessionId: null,
+          errorCode: null,
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(handlers.createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('addOrder', () => {
     const mockOrder = {
       id: '/providers/transak-staging/orders/abc-123',
@@ -12769,6 +13052,25 @@ function spyOnGetCustomerIdentity(
 }
 
 /**
+ * Waits until `mock` has been called, so tests can observe fire-and-forget
+ * KYC event orchestration.
+ *
+ * @param mock - Jest mock to wait on.
+ * @param times - Required call count. Defaults to 1.
+ */
+async function waitForMockCalls(mock: jest.Mock, times = 1): Promise<void> {
+  const startedAt = Date.now();
+  while (mock.mock.calls.length < times) {
+    if (Date.now() - startedAt > 1000) {
+      throw new Error(
+        `Timed out waiting for mock to be called ${times} time(s)`,
+      );
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
+/**
  * Constructs the messenger for the controller under test.
  *
  * @param rootMessenger - The root messenger, with all external actions and
@@ -12788,6 +13090,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
       ...RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
       'RemoteFeatureFlagController:getState',
     ],
+    events: [...RAMPS_CONTROLLER_REQUIRED_CONTROLLER_EVENTS],
   });
   return messenger;
 }

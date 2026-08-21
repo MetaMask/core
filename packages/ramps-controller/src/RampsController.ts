@@ -227,14 +227,26 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
  * messenger so the controller can resolve the vendor customer identity:
  * `KycController:getCustomerIdentity` (session-scoped, preferred) then
  * Profile Sync (`AuthenticationController:getSessionProfile`) plus the
- * neo-bank external-id lookup. `KeyringController:signPersonalMessage` is
- * required for Money Account self-hosted wallet registration (EIP-191
- * ownership proof).
+ * neo-bank external-id lookup. `KycController:refreshKycStatus` is required
+ * for {@link RampsController.provisionMoneyAccount} to gate on a completed
+ * identity. `KeyringController:signPersonalMessage` is required for Money
+ * Account self-hosted wallet registration (EIP-191 ownership proof).
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:getCustomerIdentity',
+  'KycController:refreshKycStatus',
   'AuthenticationController:getSessionProfile',
   'KeyringController:signPersonalMessage',
+] as const;
+
+/**
+ * KYC events {@link RampsController} subscribes to when Money Account
+ * auto-provisioning is enabled via
+ * {@link RampsController.setMoneyAccountProvisioningIntent}.
+ * Hosts that call that method must delegate these from the root messenger.
+ */
+export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_EVENTS = [
+  'KycController:statusChanged',
 ] as const;
 
 /**
@@ -247,6 +259,35 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KycControllerGetCustomerIdentityAction = {
   type: 'KycController:getCustomerIdentity';
   handler: () => { vendor: string; id: string } | null;
+};
+
+/**
+ * Structural type for the KYC controller's `refreshKycStatus` messenger
+ * action. Declared locally so this package does not depend on
+ * `@metamask/kyc-controller`.
+ */
+export type KycControllerRefreshKycStatusAction = {
+  type: 'KycController:refreshKycStatus';
+  handler: () => Promise<KycStatusPayload>;
+};
+
+/**
+ * Structural type for `KycController:statusChanged`. Declared locally so this
+ * package does not depend on `@metamask/kyc-controller`.
+ */
+export type KycControllerStatusChangedEvent = {
+  type: 'KycController:statusChanged';
+  payload: [KycStatusPayload];
+};
+
+/**
+ * User-keyed KYC status payload published by `KycController:statusChanged`
+ * and returned by `KycController:refreshKycStatus`.
+ */
+export type KycStatusPayload = {
+  status: string;
+  sumsubSessionId: string | null;
+  errorCode: string | null;
 };
 
 /**
@@ -272,6 +313,28 @@ export type MoneyAccountWalletRegistrationResult =
       type: 'registeredDisabled';
       registration: SelfHostedRegistration;
     };
+
+/**
+ * Input for {@link RampsController.provisionMoneyAccount}.
+ *
+ * `customer_id` is still resolved internally (see
+ * {@link RampsController.createAutoramp}); callers supply only the destination
+ * address and the autoramp body.
+ */
+export type ProvisionMoneyAccountParams = {
+  /** Monad Money Account address to register and pay out to. */
+  address: string;
+  /** Autoramp create body. Any `customer_id` is overwritten. */
+  autoramp: CreateAutorampRequest;
+};
+
+/**
+ * Successful outcome of {@link RampsController.provisionMoneyAccount}.
+ */
+export type ProvisionMoneyAccountResult = {
+  registration: MoneyAccountWalletRegistrationResult;
+  autoramp: AutorampAccount;
+};
 
 /**
  * User Storage / auth actions needed for autoramp Backup & Sync.
@@ -786,6 +849,7 @@ type AllowedActions =
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | KycControllerGetCustomerIdentityAction
+  | KycControllerRefreshKycStatusAction
   | KeyringControllerSignPersonalMessageAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
@@ -836,7 +900,7 @@ export type RampsControllerEvents =
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = KycControllerStatusChangedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -984,6 +1048,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'createAutoramp',
   'removeAutoramp',
   'registerMoneyAccountWallet',
+  'setMoneyAccountProvisioningIntent',
+  'provisionMoneyAccount',
   'markAutorampAsNotified',
   'applyAutorampStatusFromPush',
   'refreshAutoramp',
@@ -1073,6 +1139,25 @@ export class RampsController extends BaseController<
   #isApplyingAutorampSyncChanges = false;
 
   #pendingRemoteAutorampDeletes: AutorampAccount[] = [];
+
+  /**
+   * Last Money Account provision request. When KYC status becomes `completed`,
+   * {@link #onKycStatusChanged} runs {@link provisionMoneyAccount} with this
+   * intent so a host screen does not have to stay mounted.
+   */
+  #moneyAccountProvisioningIntent: ProvisionMoneyAccountParams | null = null;
+
+  /**
+   * In-flight / completed {@link provisionMoneyAccount} runs keyed by
+   * lowercased address, so a KYC `completed` event and an imperative retry
+   * collapse onto one registration + one autoramp.
+   */
+  readonly #moneyAccountProvisioningByAddress = new Map<
+    string,
+    Promise<ProvisionMoneyAccountResult>
+  >();
+
+  #kycStatusChangedSubscribed = false;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -2991,6 +3076,117 @@ export class RampsController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Records the Money Account provision request that should run when KYC
+   * status becomes `completed`.
+   *
+   * Subscribes to `KycController:statusChanged` on the first non-null intent.
+   * Pass `null` to clear the intent; an already-active subscription is left
+   * in place (later `completed` events no-op without an intent).
+   *
+   * Hosts that call this must delegate
+   * {@link RAMPS_CONTROLLER_REQUIRED_CONTROLLER_EVENTS}.
+   *
+   * @param intent - Address + autoramp body, or `null` to clear.
+   */
+  setMoneyAccountProvisioningIntent(
+    intent: ProvisionMoneyAccountParams | null,
+  ): void {
+    this.#moneyAccountProvisioningIntent = intent;
+    if (intent) {
+      this.#ensureKycStatusChangedSubscription();
+    }
+  }
+
+  /**
+   * Registers the Money Account wallet and creates an autoramp once KYC is
+   * `completed`.
+   *
+   * Refreshes user-keyed KYC status first so a host that mounts after the
+   * status already flipped (no `statusChanged` event) still provisions.
+   * Concurrent and repeat calls for the same address share one run: one
+   * signature prompt, one autoramp. A rejected run is evicted so a later
+   * retry can recover.
+   *
+   * Also stores `params` as the auto-provision intent, so a later KYC
+   * `completed` event reuses this same work.
+   *
+   * @param params - Destination address and autoramp body.
+   * @returns The registration and created autoramp.
+   */
+  async provisionMoneyAccount(
+    params: ProvisionMoneyAccountParams,
+  ): Promise<ProvisionMoneyAccountResult> {
+    this.setMoneyAccountProvisioningIntent(params);
+    return await this.#runMoneyAccountProvisioning(params, {
+      refreshStatus: true,
+    });
+  }
+
+  #ensureKycStatusChangedSubscription(): void {
+    if (this.#kycStatusChangedSubscribed) {
+      return;
+    }
+    this.#kycStatusChangedSubscribed = true;
+    this.messenger.subscribe(
+      'KycController:statusChanged',
+      (payload: KycStatusPayload) => {
+        this.#onKycStatusChanged(payload);
+      },
+    );
+  }
+
+  #onKycStatusChanged(payload: KycStatusPayload): void {
+    if (payload.status !== 'completed') {
+      return;
+    }
+    const intent = this.#moneyAccountProvisioningIntent;
+    if (!intent) {
+      return;
+    }
+    // Verification already succeeded; a registration or autoramp error is
+    // retried from {@link provisionMoneyAccount} rather than surfaced here.
+    this.#runMoneyAccountProvisioning(intent, {
+      refreshStatus: false,
+    }).catch(() => undefined);
+  }
+
+  async #runMoneyAccountProvisioning(
+    params: ProvisionMoneyAccountParams,
+    { refreshStatus }: { refreshStatus: boolean },
+  ): Promise<ProvisionMoneyAccountResult> {
+    const addressKey = params.address.toLowerCase();
+    const existing = this.#moneyAccountProvisioningByAddress.get(addressKey);
+    if (existing) {
+      return await existing;
+    }
+
+    const run = (async (): Promise<ProvisionMoneyAccountResult> => {
+      if (refreshStatus) {
+        const { status } = await this.messenger.call(
+          'KycController:refreshKycStatus',
+        );
+        if (status !== 'completed') {
+          throw new Error(
+            `KYC status is "${status}". The wallet can only be registered once it reads completed.`,
+          );
+        }
+      }
+
+      const registration = await this.registerMoneyAccountWallet({
+        address: params.address,
+      });
+      const autoramp = await this.createAutoramp(params.autoramp);
+      return { registration, autoramp };
+    })();
+
+    this.#moneyAccountProvisioningByAddress.set(addressKey, run);
+    run.catch(() => {
+      this.#moneyAccountProvisioningByAddress.delete(addressKey);
+    });
+    return await run;
   }
 
   /**
