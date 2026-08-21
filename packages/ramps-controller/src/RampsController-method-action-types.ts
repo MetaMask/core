@@ -299,8 +299,8 @@ export type RampsControllerAddAutorampAction = {
  *
  * The vendor `customer_id` is not accepted from callers: it is resolved via
  * {@link RampsController.resolveAutorampCustomerId} and injected into the
- * request. This keeps the sensitive customer id owned by Profile Sync /
- * the neo-bank proxy and avoids requiring the UI to know or plumb it.
+ * request. This keeps the sensitive customer id owned by KYC / Profile Sync
+ * / the neo-bank proxy and avoids requiring the UI to know or plumb it.
  *
  * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
  * @param options - Optional idempotency key forwarded to the proxy.
@@ -317,8 +317,8 @@ export type RampsControllerCreateAutorampAction = {
  *
  * Consumers provide only the Monad address. The controller resolves the
  * vendor customer id via {@link RampsController.resolveAutorampCustomerId}
- * (Profile Sync → neobank-proxy external-id lookup) before the first
- * list/lookup because list requires `customer_id`
+ * (KYC session identity, else Profile Sync → neobank-proxy external-id
+ * lookup) before the first list/lookup because list requires `customer_id`
  * in the path. Message construction, EIP-191 signing, submission, and
  * ambiguous-write reconciliation stay internal to this controller.
  *
