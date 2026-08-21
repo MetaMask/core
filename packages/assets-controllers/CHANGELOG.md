@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Correct Somnia (`5031`/`0x13a7`)'s `SPOT_PRICES_SUPPORT_INFO` entry in `codefi-v2.ts` from the invented `slip44:111115031` placeholder to `slip44:5031`, now that Somnia has a real SLIP-44 registry entry ([#9811](https://github.com/MetaMask/core/pull/9811))
+- Fix `addNft` and `addNftVerifyOwnership` not restoring `isCurrentlyOwned` when re-adding an NFT that was previously flagged as not currently owned, which left re-acquired NFTs permanently hidden in the UI ([#9787](https://github.com/MetaMask/core/issues/9787))
 
 ## [111.1.0]
 
