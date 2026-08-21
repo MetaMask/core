@@ -6,11 +6,14 @@ export type {
   RampsControllerState,
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
+  RampsControllerAutorampStatusChangedEvent,
   RampsControllerOptions,
   UserRegion,
   ResourceState,
   TransakState,
   NativeProvidersState,
+  MoneyAccountWalletRegistrationResult,
+  KeyringControllerSignPersonalMessageAction,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -29,6 +32,15 @@ export type {
   RampsControllerGetQuotesAction,
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
+  RampsControllerAddAutorampAction,
+  RampsControllerCreateAutorampAction,
+  RampsControllerRemoveAutorampAction,
+  RampsControllerRegisterMoneyAccountWalletAction,
+  RampsControllerMarkAutorampAsNotifiedAction,
+  RampsControllerApplyAutorampStatusFromPushAction,
+  RampsControllerRefreshAutorampAction,
+  RampsControllerRefreshAutorampsAction,
+  RampsControllerSyncAutorampsWithUserStorageAction,
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
@@ -67,6 +79,8 @@ export {
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
+  RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS,
 } from './RampsController.js';
 export type {
   RampsServiceActions,
@@ -165,6 +179,66 @@ export {
   TERMINAL_ORDER_STATUSES,
   isTerminalOrderStatus,
 } from './orderStatus.js';
+export type {
+  AutorampAccount,
+  AutorampDepositRailsSummary,
+  AutorampRemoteSnapshot,
+  ApplyAutorampRemoteStatusResult,
+  CreateAutorampRequest,
+} from './autorampAccount.js';
+export {
+  AutorampStatus,
+  TERMINAL_AUTORAMP_STATUSES,
+  NOTABLE_AUTORAMP_STATUSES,
+  isTerminalAutorampStatus,
+  normalizeAutorampStatus,
+  createAutorampAccount,
+  applyAutorampRemoteStatus,
+  markAutorampNotified,
+} from './autorampAccount.js';
+export type {
+  UserStorageAutorampEntry,
+  SyncAutorampAccount,
+  AutorampSyncingOptions,
+  SyncAutorampsWithUserStorageConfig,
+} from './autoramp-syncing/index.js';
+export {
+  USER_STORAGE_RAMPS_AUTORAMPS_FEATURE,
+  syncAutorampsWithUserStorage,
+  updateAutorampInRemoteStorage,
+  deleteAutorampInRemoteStorage,
+  canPerformAutorampSyncing,
+  computeAutorampMergePlan,
+  mapAutorampToUserStorageEntry,
+  mapUserStorageEntryToAutoramp,
+} from './autoramp-syncing/index.js';
+export type {
+  NeoBankServiceActions,
+  NeoBankServiceEvents,
+  NeoBankServiceMessenger,
+  NeoBankAutorampResponse,
+  NeoBankRequestOptions,
+  NeoBankQueryParams,
+  GetWalletRegistrationStatusParams,
+  RegisterSelfHostedWalletParams,
+} from './NeoBankService.js';
+export type {
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceRegisterPixAddressAction,
+  NeoBankServiceGetAutorampQuoteAction,
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampQuoteForAutorampAction,
+  NeoBankServiceAttachAutorampQuoteAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetMoonpayCustomerIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
+} from './NeoBankService-method-action-types.js';
+export {
+  NeoBankService,
+  serviceName as neoBankServiceName,
+  mapNeoBankAutorampToRemoteSnapshot,
+} from './NeoBankService.js';
 export type { TypedError } from './errorNormalization.js';
 export {
   getErrorMessage,
@@ -220,3 +294,13 @@ export type {
   TransakServiceGeneratePaymentWidgetUrlAction,
   TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';
+
+export type {
+  Blockchain,
+  RegistrationOutcome,
+  RegistrationStatus,
+  SelfHostedRegistration,
+  WalletRegistrationErrorKind,
+} from './wallet-registration-service.js';
+export { WalletRegistrationError } from './wallet-registration-service.js';
+export { buildOwnershipMessage } from './ownership-message.js';
