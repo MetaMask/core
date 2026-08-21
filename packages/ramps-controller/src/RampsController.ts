@@ -224,16 +224,30 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
 /**
  * Other controller actions RampsController calls via the messenger.
  * Hosts that enable autoramp creation must delegate these from the root
- * messenger so the controller can resolve the vendor customer identity from
+ * messenger so the controller can resolve the vendor customer identity:
+ * `KycController:getCustomerIdentity` (session-scoped, preferred) then
  * Profile Sync (`AuthenticationController:getSessionProfile`) plus the
  * neo-bank external-id lookup. `KeyringController:signPersonalMessage` is
  * required for Money Account self-hosted wallet registration (EIP-191
  * ownership proof).
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
+  'KycController:getCustomerIdentity',
   'AuthenticationController:getSessionProfile',
   'KeyringController:signPersonalMessage',
 ] as const;
+
+/**
+ * Structural type for the KYC controller's `getCustomerIdentity` messenger
+ * action. Declared locally (mirroring `@metamask/kyc-controller`) so this
+ * package does not need a dependency on the KYC package; the messenger only
+ * matches on the action `type` string, so the shapes stay compatible with
+ * the vendor-scoped `{ vendor, id }` session identity.
+ */
+export type KycControllerGetCustomerIdentityAction = {
+  type: 'KycController:getCustomerIdentity';
+  handler: () => { vendor: string; id: string } | null;
+};
 
 /**
  * Structural type for the keyring controller's `signPersonalMessage` messenger
@@ -771,6 +785,7 @@ type AllowedActions =
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
+  | KycControllerGetCustomerIdentityAction
   | KeyringControllerSignPersonalMessageAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
@@ -2727,8 +2742,8 @@ export class RampsController extends BaseController<
    *
    * The vendor `customer_id` is not accepted from callers: it is resolved via
    * {@link RampsController.resolveAutorampCustomerId} and injected into the
-   * request. This keeps the sensitive customer id owned by Profile Sync /
-   * the neo-bank proxy and avoids requiring the UI to know or plumb it.
+   * request. This keeps the sensitive customer id owned by KYC / Profile Sync
+   * / the neo-bank proxy and avoids requiring the UI to know or plumb it.
    *
    * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
    * @param options - Optional idempotency key forwarded to the proxy.
@@ -2753,15 +2768,23 @@ export class RampsController extends BaseController<
   /**
    * Resolves the vendor `customer_id` for autoramp / Money Account operations.
    *
-   * Maps the wallet's Profile Sync id (the partner `external_id`) to the
-   * vendor customer via the neo-bank proxy's
-   * `GET /neobank/customers/{external_id}/external`. Prefers
+   * Prefers the session-scoped identity from
+   * `KycController:getCustomerIdentity` (captured during the current KYC
+   * flow, vendor-neutral `{ vendor, id }`). When that is `null` (before
+   * authentication or after `reset()`), maps the wallet's Profile Sync id
+   * (the partner `external_id`) to the vendor customer via the neo-bank
+   * proxy's `GET /neobank/customers/{external_id}/external`. Prefers
    * `canonicalProfileId` when present, otherwise `profileId`, matching
    * {@link NeoBankService}'s canonical external-id resolution.
    *
    * @returns The vendor customer id.
    */
   async resolveAutorampCustomerId(): Promise<string> {
+    const identity = this.messenger.call('KycController:getCustomerIdentity');
+    if (identity?.id) {
+      return identity.id;
+    }
+
     const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
@@ -2799,8 +2822,8 @@ export class RampsController extends BaseController<
    *
    * Consumers provide only the Monad address. The controller resolves the
    * vendor customer id via {@link RampsController.resolveAutorampCustomerId}
-   * (Profile Sync → neobank-proxy external-id lookup) before the first
-   * list/lookup because list requires `customer_id`
+   * (KYC session identity, else Profile Sync → neobank-proxy external-id
+   * lookup) before the first list/lookup because list requires `customer_id`
    * in the path. Message construction, EIP-191 signing, submission, and
    * ambiguous-write reconciliation stay internal to this controller.
    *
