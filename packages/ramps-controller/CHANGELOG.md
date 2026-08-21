@@ -9,7 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
+- Add `RampsController.createAutoramp(request, options?)` method and the `RampsController:createAutoramp` messenger action (plus the exported `RampsControllerCreateAutorampAction` and `CreateAutorampRequest` types). It resolves the MoonPay `customer_id` from Profile Sync (`AuthenticationController:getSessionProfile`) via `NeoBankService:getCustomerByExternalId`, injects it into the request (overwriting any caller-supplied `customer_id`), forwards the body to `NeoBankService:createAutoramp`, and applies the returned snapshot to local state. Throws when the wallet is not signed in or no MoonPay customer is mapped to the external id. ([#9853](https://github.com/MetaMask/core/pull/9853))
+- Add the exported `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS` constant listing the other-controller actions (`AuthenticationController:getSessionProfile`, `KeyringController:signPersonalMessage`) that hosts must delegate to the `RampsController` messenger to enable autoramp creation and Money Account wallet registration. ([#9853](https://github.com/MetaMask/core/pull/9853))
+- Add NeoBankService Pix / autoramp quote client methods and messenger actions, targeting the neobank-proxy `/neobank` prefix on the Ramp API host: `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, and `getCustomerByExternalId`. Pix/quote helpers return parsed proxy JSON; `createAutoramp` maps autoramp-shaped responses via `mapNeoBankAutorampToRemoteSnapshot` (same as `getAutoramp`). Optional `Idempotency-Key` is supported on mutating calls. ([#9853](https://github.com/MetaMask/core/pull/9853))
+- Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679), [#9853](https://github.com/MetaMask/core/pull/9853))
+- Add `RampsController.registerMoneyAccountWallet({ address })` method and the `RampsController:registerMoneyAccountWallet` messenger action (moved from `@metamask/kyc-controller`). Resolves the MoonPay Iron customer id via Profile Sync → neobank-proxy external-id lookup, signs the Monad ownership message via `KeyringController:signPersonalMessage`, and registers the self-hosted wallet through the neobank-proxy — including `409` disambiguation, transient-failure reconciliation, and UTC date rollover re-signing ([#9850](https://github.com/MetaMask/core/pull/9850), [#9847](https://github.com/MetaMask/core/pull/9847), [#9853](https://github.com/MetaMask/core/pull/9853))
+- Add `NeoBankService.getMoonpayCustomerId`, `NeoBankService.getWalletRegistrationStatus`, and `NeoBankService.registerSelfHostedWallet` methods and messenger actions, targeting the transparent neobank routes (`GET /neobank/customers/{external_id}/external`, `GET /neobank/addresses/crypto/{customer_id}`, `POST /neobank/addresses/crypto/selfhosted`) with client-side Monad filtering, `Idempotency-Key` support, and upstream error bodies mirrored 1:1. ([#9853](https://github.com/MetaMask/core/pull/9853))
+- Export the wallet registration types (`SelfHostedRegistration`, `RegistrationStatus`, `RegistrationOutcome`, `WalletRegistrationError`, `WalletRegistrationErrorKind`, `MoneyAccountWalletRegistrationResult`) and `buildOwnershipMessage` (moved from `@metamask/kyc-controller`). ([#9853](https://github.com/MetaMask/core/pull/9853))
+
+### Changed
+
+- Point `NeoBankService.getAutoramp` at `GET /neobank/autoramps/{id}` (neobank-proxy global `/neobank` prefix) instead of `/api/v2/autoramps/{id}`, so Core matches the proxy that ships. ([#9853](https://github.com/MetaMask/core/pull/9853))
+
+### Fixed
+
+- Keep the local `customerId` / `walletAddress` when a remote autoramp snapshot omits or blanks them. The proxy sends empty identity fields on partial status pushes, and `applyAutorampRemoteStatus` / `mapNeoBankAutorampToRemoteSnapshot` treated those as a clear, wiping valid local values during refresh-on-load and websocket pushes. ([#9861](https://github.com/MetaMask/core/pull/9861), [#9853](https://github.com/MetaMask/core/pull/9853))
 
 ### Changed
 
