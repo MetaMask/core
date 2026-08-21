@@ -281,6 +281,123 @@ export type RampsControllerRemoveOrderAction = {
 };
 
 /**
+ * Adds or updates a local autoramp account (e.g. after `POST /api/autoramps`).
+ * When Backup & Sync is available, also pushes an incremental User Storage update
+ * unless a full sync is applying remote changes.
+ *
+ * @param accountOrInput - Full account or create fields.
+ * @returns The upserted {@link AutorampAccount}.
+ */
+export type RampsControllerAddAutorampAction = {
+  type: `RampsController:addAutoramp`;
+  handler: RampsController['addAutoramp'];
+};
+
+/**
+ * Creates an autoramp via the Ramp API neo-bank proxy and applies the
+ * returned snapshot locally.
+ *
+ * The vendor `customer_id` is not accepted from callers: it is resolved via
+ * {@link RampsController.resolveAutorampCustomerId} and injected into the
+ * request. This keeps the sensitive customer id owned by Profile Sync /
+ * the neo-bank proxy and avoids requiring the UI to know or plumb it.
+ *
+ * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
+ * @param options - Optional idempotency key forwarded to the proxy.
+ * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
+ * @returns The created/updated local {@link AutorampAccount}.
+ */
+export type RampsControllerCreateAutorampAction = {
+  type: `RampsController:createAutoramp`;
+  handler: RampsController['createAutoramp'];
+};
+
+/**
+ * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
+ *
+ * Consumers provide only the Monad address. The controller resolves the
+ * vendor customer id via {@link RampsController.resolveAutorampCustomerId}
+ * (Profile Sync → neobank-proxy external-id lookup) before the first
+ * list/lookup because list requires `customer_id`
+ * in the path. Message construction, EIP-191 signing, submission, and
+ * ambiguous-write reconciliation stay internal to this controller.
+ *
+ * @param params - Money Account wallet registration parameters.
+ * @param params.address - Monad Money Account address.
+ * @returns The successful registration state.
+ */
+export type RampsControllerRegisterMoneyAccountWalletAction = {
+  type: `RampsController:registerMoneyAccountWallet`;
+  handler: RampsController['registerMoneyAccountWallet'];
+};
+
+/**
+ * Removes a local autoramp account by id.
+ * Soft-deletes the remote User Storage entry when sync is available.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ */
+export type RampsControllerRemoveAutorampAction = {
+  type: `RampsController:removeAutoramp`;
+  handler: RampsController['removeAutoramp'];
+};
+
+/**
+ * Marks that the UI has already notified for the autoramp's current status.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ */
+export type RampsControllerMarkAutorampAsNotifiedAction = {
+  type: `RampsController:markAutorampAsNotified`;
+  handler: RampsController['markAutorampAsNotified'];
+};
+
+/**
+ * Applies a remote autoramp snapshot from a websocket / webhook push.
+ * Uses the same compare helper as refresh-on-load.
+ *
+ * @param remote - Remote autoramp snapshot.
+ * @returns The updated local account.
+ */
+export type RampsControllerApplyAutorampStatusFromPushAction = {
+  type: `RampsController:applyAutorampStatusFromPush`;
+  handler: RampsController['applyAutorampStatusFromPush'];
+};
+
+/**
+ * Fetches one autoramp from the Ramp API neo-bank proxy and applies it.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns The updated local account.
+ */
+export type RampsControllerRefreshAutorampAction = {
+  type: `RampsController:refreshAutoramp`;
+  handler: RampsController['refreshAutoramp'];
+};
+
+/**
+ * Refreshes all known local autoramps from remote.
+ * Intended for app load / unlock catch-up when websockets were missed.
+ *
+ * @returns Updated autoramp accounts (failed fetches are skipped).
+ */
+export type RampsControllerRefreshAutorampsAction = {
+  type: `RampsController:refreshAutoramps`;
+  handler: RampsController['refreshAutoramps'];
+};
+
+/**
+ * Bidirectional sync of autoramp accounts with MetaMask User Storage
+ * (feature `rampsAutoramps`). No-ops when Backup & Sync / auth gates fail.
+ *
+ * @param config - Optional error callbacks for Sentry / logging.
+ */
+export type RampsControllerSyncAutorampsWithUserStorageAction = {
+  type: `RampsController:syncAutorampsWithUserStorage`;
+  handler: RampsController['syncAutorampsWithUserStorage'];
+};
+
+/**
  * Starts polling all pending V2 orders at a fixed interval.
  * Each poll cycle iterates orders with non-terminal statuses,
  * respects pollingSecondsMinimum and backoff from error count.
@@ -689,6 +806,15 @@ export type RampsControllerMethodActions =
   | RampsControllerGetQuotesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
+  | RampsControllerAddAutorampAction
+  | RampsControllerCreateAutorampAction
+  | RampsControllerRegisterMoneyAccountWalletAction
+  | RampsControllerRemoveAutorampAction
+  | RampsControllerMarkAutorampAsNotifiedAction
+  | RampsControllerApplyAutorampStatusFromPushAction
+  | RampsControllerRefreshAutorampAction
+  | RampsControllerRefreshAutorampsAction
+  | RampsControllerSyncAutorampsWithUserStorageAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction

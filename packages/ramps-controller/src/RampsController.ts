@@ -6,19 +6,50 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { UserStorageController } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
+  deleteAutorampInRemoteStorage,
+  syncAutorampsWithUserStorage as syncAutorampsWithUserStorageInternal,
+  updateAutorampInRemoteStorage,
+} from './autoramp-syncing/index.js';
+import type { SyncAutorampsWithUserStorageConfig } from './autoramp-syncing/index.js';
+import type {
+  AutorampSyncingController,
+  AutorampSyncingOptions,
+} from './autoramp-syncing/types.js';
+import type {
+  AutorampAccount,
+  AutorampRemoteSnapshot,
+  CreateAutorampRequest,
+} from './autorampAccount.js';
+import {
+  applyAutorampRemoteStatus,
+  createAutorampAccount,
+  markAutorampNotified,
+} from './autorampAccount.js';
+import {
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
+import type {
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
+} from './NeoBankService-method-action-types.js';
+import type { NeoBankServiceActions } from './NeoBankService.js';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
 } from './orderStatus.js';
+import { buildOwnershipMessage } from './ownership-message.js';
 import {
   getProvidersServingAsset,
   providerServesAsset,
@@ -116,6 +147,18 @@ import type {
   TransakOrder,
 } from './TransakService.js';
 import type { TransakServiceActions } from './TransakService.js';
+import {
+  createInitialState as createInitialWalletRegistrationState,
+  transition as transitionWalletRegistration,
+} from './wallet-registration-machine.js';
+import {
+  createIdempotencyKey,
+  WalletRegistrationError,
+} from './wallet-registration-service.js';
+import type {
+  RegistrationStatus,
+  SelfHostedRegistration,
+} from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -131,10 +174,7 @@ export const controllerName = 'RampsController';
  * Any host (e.g. mobile) that creates a RampsController messenger must delegate
  * these actions from the root messenger so the controller can function.
  */
-export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
-  | RampsServiceActions['type']
-  | TransakServiceActions['type']
-)[] = [
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'RampsService:getDefaultRedirectCallbackUrl',
   'RampsService:getGeolocation',
   'RampsService:getCountries',
@@ -170,7 +210,65 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:cancelOrder',
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
-];
+  'NeoBankService:getAutoramp',
+  'NeoBankService:createAutoramp',
+  'NeoBankService:getCustomerByExternalId',
+  'NeoBankService:getWalletRegistrationStatus',
+  'NeoBankService:registerSelfHostedWallet',
+] as const satisfies readonly (
+  | RampsServiceActions['type']
+  | TransakServiceActions['type']
+  | NeoBankServiceActions['type']
+)[];
+
+/**
+ * Other controller actions RampsController calls via the messenger.
+ * Hosts that enable autoramp creation must delegate these from the root
+ * messenger so the controller can resolve the vendor customer identity from
+ * Profile Sync (`AuthenticationController:getSessionProfile`) plus the
+ * neo-bank external-id lookup. `KeyringController:signPersonalMessage` is
+ * required for Money Account self-hosted wallet registration (EIP-191
+ * ownership proof).
+ */
+export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
+  'AuthenticationController:getSessionProfile',
+  'KeyringController:signPersonalMessage',
+] as const;
+
+/**
+ * Structural type for the keyring controller's `signPersonalMessage` messenger
+ * action (EIP-191). Declared locally (mirroring
+ * `@metamask/keyring-controller`) to avoid a package dependency for a single
+ * type-only messenger action.
+ */
+export type KeyringControllerSignPersonalMessageAction = {
+  type: 'KeyringController:signPersonalMessage';
+  handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Successful outcome of {@link RampsController.registerMoneyAccountWallet}.
+ */
+export type MoneyAccountWalletRegistrationResult =
+  | {
+      type: 'registered' | 'alreadyRegistered';
+      registration: SelfHostedRegistration;
+    }
+  | {
+      type: 'registeredDisabled';
+      registration: SelfHostedRegistration;
+    };
+
+/**
+ * User Storage / auth actions needed for autoramp Backup & Sync.
+ * Hosts that enable `syncAutorampsWithUserStorage` must also delegate these.
+ */
+export const RAMPS_CONTROLLER_AUTORAMP_SYNC_ACTIONS = [
+  'UserStorageController:getState',
+  'UserStorageController:performGetStorageAllFeatureEntries',
+  'UserStorageController:performBatchSetStorage',
+  'AuthenticationController:isSignedIn',
+] as const;
 
 /**
  * Default TTL for quotes requests (15 seconds).
@@ -215,6 +313,22 @@ function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
   return (
     error instanceof Error &&
     typeof (error as { httpStatus?: unknown }).httpStatus === 'number'
+  );
+}
+
+/**
+ * Distinguishes an already-materialized {@link AutorampAccount} from the
+ * create-fields shape accepted by {@link RampsController.addAutoramp}.
+ *
+ * @param value - Full account or create fields.
+ * @returns Whether the value already carries the derived account fields.
+ */
+function isFullAutorampAccount(
+  value: AutorampAccount | { id: string; customerId: string },
+): value is AutorampAccount {
+  return (
+    typeof (value as AutorampAccount).updatedAt === 'number' &&
+    (value as AutorampAccount).lastSeenStatus !== undefined
   );
 }
 
@@ -388,6 +502,12 @@ export type RampsControllerState = {
    */
   orders: RampsOrder[];
   /**
+   * MoonPay Enterprise autoramp accounts (standing routes), separate from
+   * {@link RampsOrder} payment instances. Refreshed from remote on load /
+   * push; persisted for rediscovery and transition UX.
+   */
+  autoramps: AutorampAccount[];
+  /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
    * from order history. When true, the UI should silently switch providers on
@@ -443,6 +563,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  autoramps: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -514,6 +640,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       },
     },
     orders: [],
+    autoramps: [],
     providerAutoSelected: false,
   };
 }
@@ -638,7 +765,18 @@ type AllowedActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | NeoBankServiceGetAutorampAction
+  | NeoBankServiceCreateAutorampAction
+  | NeoBankServiceGetCustomerByExternalIdAction
+  | NeoBankServiceGetWalletRegistrationStatusAction
+  | NeoBankServiceRegisterSelfHostedWalletAction
+  | KeyringControllerSignPersonalMessageAction
+  | UserStorageController.UserStorageControllerGetStateAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
+  | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -658,11 +796,27 @@ export type RampsControllerOrderStatusChangedEvent = {
 };
 
 /**
+ * Published when an autoramp account status transitions to a notable state
+ * that the UI has not yet notified for (e.g. Approved / Rejected).
+ */
+export type RampsControllerAutorampStatusChangedEvent = {
+  type: `${typeof controllerName}:autorampStatusChanged`;
+  payload: [
+    {
+      autoramp: AutorampAccount;
+      previousStatus: AutorampAccount['status'];
+      shouldNotify: boolean;
+    },
+  ];
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerEvents =
   | RampsControllerStateChangeEvent
-  | RampsControllerOrderStatusChangedEvent;
+  | RampsControllerOrderStatusChangedEvent
+  | RampsControllerAutorampStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -811,6 +965,15 @@ const MESSENGER_EXPOSED_METHODS = [
   'getQuotes',
   'addOrder',
   'removeOrder',
+  'addAutoramp',
+  'createAutoramp',
+  'removeAutoramp',
+  'registerMoneyAccountWallet',
+  'markAutorampAsNotified',
+  'applyAutorampStatusFromPush',
+  'refreshAutoramp',
+  'refreshAutoramps',
+  'syncAutorampsWithUserStorage',
   'startOrderPolling',
   'stopOrderPolling',
   'getBuyWidgetData',
@@ -889,6 +1052,12 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #isAutorampSyncingInProgress = false;
+
+  #isApplyingAutorampSyncChanges = false;
+
+  #pendingRemoteAutorampDeletes: AutorampAccount[] = [];
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -2435,6 +2604,541 @@ export class RampsController extends BaseController<
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+  }
+
+  // === AUTORAMP ACCOUNT MANAGEMENT ===
+
+  /**
+   * Whether a full autoramp User Storage sync is currently running.
+   *
+   * @returns True when a full autoramp sync is in progress.
+   */
+  get isAutorampSyncingInProgress(): boolean {
+    return this.#isAutorampSyncingInProgress;
+  }
+
+  /**
+   * Sets the autoramp sync semaphore (used by autoramp-syncing module).
+   *
+   * @param value - Whether sync is in progress.
+   */
+  setIsAutorampSyncingInProgress(value: boolean): void {
+    this.#isAutorampSyncingInProgress = value;
+  }
+
+  /**
+   * Sets whether local mutations are applying remote sync results
+   * (suppresses incremental remote pushes).
+   *
+   * @param value - Whether sync changes are being applied locally.
+   */
+  setIsApplyingAutorampSyncChanges(value: boolean): void {
+    this.#isApplyingAutorampSyncChanges = value;
+  }
+
+  /**
+   * Returns autoramps deleted locally while a full sync held the semaphore.
+   *
+   * @returns Pending remote delete queue.
+   */
+  getPendingRemoteAutorampDeletes(): AutorampAccount[] {
+    return [...this.#pendingRemoteAutorampDeletes];
+  }
+
+  /**
+   * Clears acknowledged pending remote deletes after tombstones are written.
+   *
+   * @param accounts - Accounts whose remote tombstones were persisted.
+   */
+  acknowledgePendingRemoteAutorampDeletes(accounts: AutorampAccount[]): void {
+    if (accounts.length === 0) {
+      return;
+    }
+    const keys = new Set(accounts.map((account) => account.id));
+    this.#pendingRemoteAutorampDeletes =
+      this.#pendingRemoteAutorampDeletes.filter(
+        (account) => !keys.has(account.id),
+      );
+  }
+
+  #getAutorampSyncingOptions(): AutorampSyncingOptions {
+    return {
+      getRampsControllerInstance: (): AutorampSyncingController => this,
+      getMessenger: (): RampsControllerMessenger => this.messenger,
+    };
+  }
+
+  /**
+   * Adds or updates a local autoramp account (e.g. after `POST /api/autoramps`).
+   * When Backup & Sync is available, also pushes an incremental User Storage update
+   * unless a full sync is applying remote changes.
+   *
+   * @param accountOrInput - Full account or create fields.
+   * @returns The upserted {@link AutorampAccount}.
+   */
+  addAutoramp(
+    accountOrInput:
+      | AutorampAccount
+      | {
+          id: string;
+          customerId: string;
+          walletAddress: string;
+          status?: AutorampAccount['status'] | string;
+        },
+  ): AutorampAccount {
+    const account: AutorampAccount = isFullAutorampAccount(accountOrInput)
+      ? accountOrInput
+      : createAutorampAccount(accountOrInput);
+
+    this.update((state) => {
+      const idx = state.autoramps.findIndex(
+        (existing) => existing.id === account.id,
+      );
+      if (idx === -1) {
+        state.autoramps.push(account as Draft<AutorampAccount>);
+      } else {
+        state.autoramps[idx] = {
+          ...state.autoramps[idx],
+          ...account,
+        } as Draft<AutorampAccount>;
+      }
+    });
+
+    const upserted =
+      this.state.autoramps.find((existing) => existing.id === account.id) ??
+      account;
+
+    if (
+      !this.#isApplyingAutorampSyncChanges &&
+      !this.#isAutorampSyncingInProgress
+    ) {
+      updateAutorampInRemoteStorage(
+        upserted,
+        this.#getAutorampSyncingOptions(),
+      ).catch(() => undefined);
+    }
+
+    return upserted;
+  }
+
+  /**
+   * Creates an autoramp via the Ramp API neo-bank proxy and applies the
+   * returned snapshot locally.
+   *
+   * The vendor `customer_id` is not accepted from callers: it is resolved via
+   * {@link RampsController.resolveAutorampCustomerId} and injected into the
+   * request. This keeps the sensitive customer id owned by Profile Sync /
+   * the neo-bank proxy and avoids requiring the UI to know or plumb it.
+   *
+   * @param request - CreateAutoramp payload (any `customer_id` is overwritten).
+   * @param options - Optional idempotency key forwarded to the proxy.
+   * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
+   * @returns The created/updated local {@link AutorampAccount}.
+   */
+  async createAutoramp(
+    request: CreateAutorampRequest,
+    options: { idempotencyKey?: string } = {},
+  ): Promise<AutorampAccount> {
+    const customerId = await this.resolveAutorampCustomerId();
+
+    const body = { ...request, customer_id: customerId };
+    const remote = await this.messenger.call(
+      'NeoBankService:createAutoramp',
+      body,
+      options,
+    );
+    return this.#applyAutorampRemoteSnapshot(remote);
+  }
+
+  /**
+   * Resolves the vendor `customer_id` for autoramp / Money Account operations.
+   *
+   * Maps the wallet's Profile Sync id (the partner `external_id`) to the
+   * vendor customer via the neo-bank proxy's
+   * `GET /neobank/customers/{external_id}/external`. Prefers
+   * `canonicalProfileId` when present, otherwise `profileId`, matching
+   * {@link NeoBankService}'s canonical external-id resolution.
+   *
+   * @returns The vendor customer id.
+   */
+  async resolveAutorampCustomerId(): Promise<string> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonical = profile?.canonicalProfileId;
+    const externalId =
+      typeof canonical === 'string' && canonical.length > 0
+        ? canonical
+        : profile?.profileId;
+    if (typeof externalId !== 'string' || externalId.length === 0) {
+      throw new Error(
+        'Cannot create autoramp: wallet is not signed in to Profile Sync.',
+      );
+    }
+
+    const customer = await this.messenger.call(
+      'NeoBankService:getCustomerByExternalId',
+      externalId,
+    );
+    const customerId =
+      customer &&
+      typeof customer === 'object' &&
+      typeof (customer as { id?: unknown }).id === 'string'
+        ? (customer as { id: string }).id
+        : null;
+    if (!customerId) {
+      throw new Error(
+        `Cannot create autoramp: no MoonPay customer is mapped to external id "${externalId}".`,
+      );
+    }
+    return customerId;
+  }
+
+  /**
+   * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
+   *
+   * Consumers provide only the Monad address. The controller resolves the
+   * vendor customer id via {@link RampsController.resolveAutorampCustomerId}
+   * (Profile Sync → neobank-proxy external-id lookup) before the first
+   * list/lookup because list requires `customer_id`
+   * in the path. Message construction, EIP-191 signing, submission, and
+   * ambiguous-write reconciliation stay internal to this controller.
+   *
+   * @param params - Money Account wallet registration parameters.
+   * @param params.address - Monad Money Account address.
+   * @returns The successful registration state.
+   */
+  async registerMoneyAccountWallet({
+    address,
+  }: {
+    address: string;
+  }): Promise<MoneyAccountWalletRegistrationResult> {
+    let machine = transitionWalletRegistration(
+      createInitialWalletRegistrationState(),
+      { type: 'START' },
+    );
+
+    const toExistingResult = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      if (status.type === 'active') {
+        return { type: 'alreadyRegistered', registration: status.registration };
+      }
+      if (status.type === 'disabled') {
+        return {
+          type: 'registeredDisabled',
+          registration: status.registration,
+        };
+      }
+      return undefined;
+    };
+
+    // List requires customer_id in the neobank path, so resolve the vendor
+    // customer id before the first lookup.
+    const customerId = await this.resolveAutorampCustomerId();
+
+    const lookup = async (): Promise<RegistrationStatus> => {
+      try {
+        return await this.messenger.call(
+          'NeoBankService:getWalletRegistrationStatus',
+          { customerId, address },
+        );
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'LOOKUP_FAILED',
+        });
+        throw error;
+      }
+    };
+
+    const applyLookup = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      let eventType: 'LOOKUP_ACTIVE' | 'LOOKUP_DISABLED' | 'LOOKUP_ABSENT' =
+        'LOOKUP_ABSENT';
+      if (status.type === 'active') {
+        eventType = 'LOOKUP_ACTIVE';
+      } else if (status.type === 'disabled') {
+        eventType = 'LOOKUP_DISABLED';
+      }
+      machine = transitionWalletRegistration(machine, {
+        type: eventType,
+      });
+      return toExistingResult(status);
+    };
+
+    const existingStatus = await lookup();
+    const existingResult = applyLookup(existingStatus);
+    if (existingResult) {
+      return existingResult;
+    }
+
+    // Stable across transient retries of the same ownership proof; refreshed
+    // when the UTC-dated message must be rebuilt and re-signed.
+    let idempotencyKey = createIdempotencyKey();
+    let lastMessage: string | undefined;
+
+    while (true) {
+      const message = buildOwnershipMessage({
+        address,
+        customerId,
+        now: new Date(),
+      });
+      if (lastMessage !== undefined && message !== lastMessage) {
+        idempotencyKey = createIdempotencyKey();
+      }
+      lastMessage = message;
+
+      let signature: string;
+      try {
+        signature = await this.messenger.call(
+          'KeyringController:signPersonalMessage',
+          { data: message, from: address },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SIGN_OK' });
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'SIGN_FAILED',
+          retryable: false,
+        });
+        throw error;
+      }
+
+      try {
+        const result = await this.messenger.call(
+          'NeoBankService:registerSelfHostedWallet',
+          {
+            address,
+            customerId,
+            message,
+            signature,
+            idempotencyKey,
+          },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
+        return result;
+      } catch (error) {
+        if (!(error instanceof WalletRegistrationError)) {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+          throw error;
+        }
+
+        if (error.kind === 'conflict') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_CONFLICT',
+          });
+        } else if (error.kind === 'transient') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TRANSIENT',
+          });
+        } else if (error.kind === 'validation') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_VALIDATION',
+            utcRollover:
+              buildOwnershipMessage({
+                address,
+                customerId,
+                now: new Date(),
+              }) !== message,
+          });
+        } else if (error.kind === 'rateLimited') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_RATE_LIMITED',
+          });
+        } else {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+        }
+
+        if (
+          machine.status === 'disambiguate409' ||
+          machine.status === 'checkThenRetry'
+        ) {
+          const reconciledResult = applyLookup(await lookup());
+          if (reconciledResult) {
+            return reconciledResult;
+          }
+        }
+
+        if (machine.status !== 'signing') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
+   * Removes a local autoramp account by id.
+   * Soft-deletes the remote User Storage entry when sync is available.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   */
+  removeAutoramp(autorampId: string): void {
+    const existing = this.state.autoramps.find(
+      (autoramp) => autoramp.id === autorampId,
+    );
+
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter(
+        (autoramp) => autoramp.id !== autorampId,
+      );
+    });
+
+    if (!existing || this.#isApplyingAutorampSyncChanges) {
+      return;
+    }
+
+    if (this.#isAutorampSyncingInProgress) {
+      this.#pendingRemoteAutorampDeletes.push(existing);
+      return;
+    }
+
+    deleteAutorampInRemoteStorage(
+      existing,
+      this.#getAutorampSyncingOptions(),
+    ).catch(() => undefined);
+  }
+
+  /**
+   * Marks that the UI has already notified for the autoramp's current status.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   */
+  markAutorampAsNotified(autorampId: string): void {
+    const existing = this.state.autoramps.find(
+      (autoramp) => autoramp.id === autorampId,
+    );
+    if (!existing) {
+      return;
+    }
+    const notified = markAutorampNotified(existing);
+    this.update((state) => {
+      const idx = state.autoramps.findIndex(
+        (autoramp) => autoramp.id === autorampId,
+      );
+      if (idx !== -1) {
+        state.autoramps[idx] = notified as Draft<AutorampAccount>;
+      }
+    });
+
+    if (
+      !this.#isApplyingAutorampSyncChanges &&
+      !this.#isAutorampSyncingInProgress
+    ) {
+      updateAutorampInRemoteStorage(
+        notified,
+        this.#getAutorampSyncingOptions(),
+      ).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Applies a remote autoramp snapshot from a websocket / webhook push.
+   * Uses the same compare helper as refresh-on-load.
+   *
+   * @param remote - Remote autoramp snapshot.
+   * @returns The updated local account.
+   */
+  applyAutorampStatusFromPush(remote: AutorampRemoteSnapshot): AutorampAccount {
+    return this.#applyAutorampRemoteSnapshot(remote);
+  }
+
+  /**
+   * Fetches one autoramp from the Ramp API neo-bank proxy and applies it.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns The updated local account.
+   */
+  async refreshAutoramp(autorampId: string): Promise<AutorampAccount> {
+    const remote = await this.messenger.call(
+      'NeoBankService:getAutoramp',
+      autorampId,
+    );
+    return this.#applyAutorampRemoteSnapshot(remote);
+  }
+
+  /**
+   * Refreshes all known local autoramps from remote.
+   * Intended for app load / unlock catch-up when websockets were missed.
+   *
+   * @returns Updated autoramp accounts (failed fetches are skipped).
+   */
+  async refreshAutoramps(): Promise<AutorampAccount[]> {
+    const ids = this.state.autoramps.map((autoramp) => autoramp.id);
+    const updated: AutorampAccount[] = [];
+
+    for (const id of ids) {
+      try {
+        updated.push(await this.refreshAutoramp(id));
+      } catch {
+        // Keep local state for this id; continue remaining refreshes.
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Bidirectional sync of autoramp accounts with MetaMask User Storage
+   * (feature `rampsAutoramps`). No-ops when Backup & Sync / auth gates fail.
+   *
+   * @param config - Optional error callbacks for Sentry / logging.
+   */
+  async syncAutorampsWithUserStorage(
+    config: SyncAutorampsWithUserStorageConfig = {},
+  ): Promise<void> {
+    await syncAutorampsWithUserStorageInternal(
+      config,
+      this.#getAutorampSyncingOptions(),
+    );
+  }
+
+  #applyAutorampRemoteSnapshot(
+    remote: AutorampRemoteSnapshot,
+  ): AutorampAccount {
+    const local =
+      this.state.autoramps.find((autoramp) => autoramp.id === remote.id) ??
+      null;
+    const result = applyAutorampRemoteStatus(local, remote);
+
+    this.update((state) => {
+      const idx = state.autoramps.findIndex(
+        (autoramp) => autoramp.id === result.account.id,
+      );
+      if (idx === -1) {
+        state.autoramps.push(result.account as Draft<AutorampAccount>);
+      } else {
+        state.autoramps[idx] = result.account as Draft<AutorampAccount>;
+      }
+    });
+
+    if (result.statusChanged) {
+      this.messenger.publish('RampsController:autorampStatusChanged', {
+        autoramp: result.account,
+        previousStatus: result.previousStatus,
+        shouldNotify: result.shouldNotify,
+      });
+    }
+
+    const upserted =
+      this.state.autoramps.find(
+        (autoramp) => autoramp.id === result.account.id,
+      ) ?? result.account;
+
+    if (
+      !this.#isApplyingAutorampSyncChanges &&
+      !this.#isAutorampSyncingInProgress
+    ) {
+      updateAutorampInRemoteStorage(
+        upserted,
+        this.#getAutorampSyncingOptions(),
+      ).catch(() => undefined);
+    }
+
+    return upserted;
   }
 
   /**
