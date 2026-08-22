@@ -1,4 +1,6 @@
+import { ConfigRegistryControllerState } from '@metamask/config-registry-controller';
 import { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import { CaipChainId, KnownCaipNamespace } from '@metamask/utils';
 
 /**
  * The RPC failover behavior for Infura networks, controlled by the
@@ -25,4 +27,25 @@ export function getRpcFailoverMode(
 ): RpcFailoverMode {
   const mode = state.remoteFeatureFlags.corePlatformRpcFailoverMode;
   return mode === 'enabled' || mode === 'forced' ? mode : 'disabled';
+}
+
+/**
+ * Returns the list of CAIP-2 chain IDs for networks that are auto-enabled in the
+ * config registry.
+ *
+ * @param state - The config registry controller state.
+ * @returns The list of CAIP-2 chain IDs for auto-enabled networks.
+ */
+export function getConfigRegistryEvmAutoEnabledChains(
+  state: ConfigRegistryControllerState,
+): CaipChainId[] {
+  return Object.values(state.configs.networks)
+    .filter(
+      ({ chainId, config }) =>
+        chainId.startsWith(KnownCaipNamespace.Eip155) &&
+        config.isAutoEnabled &&
+        config.isActive &&
+        !config.isDeprecated,
+    )
+    .map((config) => config.chainId);
 }

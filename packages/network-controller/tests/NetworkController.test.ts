@@ -57,6 +57,7 @@ import {
   buildInfuraNetworkClientConfiguration,
   buildInfuraNetworkConfiguration,
   buildInfuraRpcEndpoint,
+  buildMockConfigRegistryControllerNetwork,
   buildNetworkConfiguration,
   buildNetworkControllerMessenger,
   buildRootMessenger,
@@ -991,6 +992,156 @@ describe('NetworkController', () => {
           expect(
             autoManagedNetworkClients[0].setRpcFailoverMode,
           ).not.toHaveBeenCalledWith('enabled');
+        },
+      );
+    });
+  });
+
+  describe('init', () => {
+    it('auto-enables networks that are set as auto-enabled in the config registry', async () => {
+      const networkConfig = buildMockConfigRegistryControllerNetwork({
+        chainId: 'eip155:9999',
+        config: {
+          ...buildMockConfigRegistryControllerNetwork().config,
+          isAutoEnabled: true,
+        },
+      });
+      await withController(
+        {
+          initializeController: false,
+          configRegistryNetworkConfig: networkConfig,
+        },
+        ({ controller }) => {
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).not.toHaveProperty('0x270f');
+
+          controller.init();
+
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfig.name,
+              nativeCurrency: networkConfig.assets.native.symbol,
+              blockExplorerUrls: [networkConfig.blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  networkClientId:
+                    networkConfig.rpcProviders.default.networkClientId,
+                  url: networkConfig.rpcProviders.default.url,
+                  type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
+        },
+      );
+    });
+  });
+
+  describe('ConfigRegistryController:stateChanged', () => {
+    it('enables Infura chains that are set as auto-enabled in the config registry', async () => {
+      const networkConfig = buildMockConfigRegistryControllerNetwork({
+        chainId: 'eip155:9999',
+        config: {
+          ...buildMockConfigRegistryControllerNetwork().config,
+          isAutoEnabled: true,
+        },
+      });
+      await withController(
+        { configRegistryNetworkConfig: networkConfig },
+        async ({ controller, messenger }) => {
+          messenger.publish(
+            'ConfigRegistryController:stateChanged',
+            {
+              configs: { networks: { 'eip155:9999': networkConfig } },
+              lastFetched: 0,
+              etag: 'etag',
+              version: '1',
+            },
+            [],
+          );
+
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfig.name,
+              nativeCurrency: networkConfig.assets.native.symbol,
+              blockExplorerUrls: [networkConfig.blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  networkClientId:
+                    networkConfig.rpcProviders.default.networkClientId,
+                  url: networkConfig.rpcProviders.default.url,
+                  type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
+        },
+      );
+    });
+
+    it('enables custom networks that are set as auto-enabled in the config registry', async () => {
+      const networkConfig = buildMockConfigRegistryControllerNetwork({
+        chainId: 'eip155:9999',
+        rpcProviders: {
+          default: buildCustomRpcEndpoint({
+            url: 'https://test.network/1',
+            type: RpcEndpointType.Custom,
+          }),
+          fallbacks: [],
+        },
+        config: {
+          ...buildMockConfigRegistryControllerNetwork().config,
+          isAutoEnabled: true,
+        },
+      });
+      await withController(
+        { configRegistryNetworkConfig: networkConfig },
+        async ({ controller, messenger }) => {
+          messenger.publish(
+            'ConfigRegistryController:stateChanged',
+            {
+              configs: { networks: { 'eip155:9999': networkConfig } },
+              lastFetched: 0,
+              etag: 'etag',
+              version: '1',
+            },
+            [],
+          );
+
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfig.name,
+              nativeCurrency: networkConfig.assets.native.symbol,
+              blockExplorerUrls: [networkConfig.blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  networkClientId:
+                    networkConfig.rpcProviders.default.networkClientId,
+                  url: networkConfig.rpcProviders.default.url,
+                  type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
         },
       );
     });

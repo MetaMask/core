@@ -29,6 +29,7 @@ import type {
   NetworkClientConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
+  NetworkControllerMessenger,
   NetworkControllerOptions,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
@@ -79,7 +80,7 @@ type AllTransactionControllerEvents =
 
 type AllActions =
   | AllTransactionControllerActions
-  | NetworkControllerActions
+  | MessengerActions<NetworkControllerMessenger>
   | ConnectivityControllerGetStateAction
   | ApprovalControllerActions
   | AccountsControllerActions
@@ -89,7 +90,7 @@ type AllActions =
 
 type AllEvents =
   | AllTransactionControllerEvents
-  | NetworkControllerEvents
+  | MessengerEvents<NetworkControllerMessenger>
   | ApprovalControllerEvents;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
@@ -210,10 +211,8 @@ const setupController = async (
 
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    | NetworkControllerActions
-    | ConnectivityControllerGetStateAction
-    | RemoteFeatureFlagControllerGetStateAction,
-    NetworkControllerEvents,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>,
     typeof rootMessenger
   >({
     namespace: 'NetworkController',
@@ -222,10 +221,20 @@ const setupController = async (
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
     actions: [
+      'ConfigRegistryController:getState',
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],
   });
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: { networks: {} },
+      version: '1',
+      etag: '',
+      lastFetched: 0,
+    }),
+  );
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId,
