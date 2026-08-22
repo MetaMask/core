@@ -33,8 +33,15 @@ describe('util', () => {
     for (const badKey of util.PROTOTYPE_POLLUTION_BLOCKLIST) {
       expect(util.isSafeDynamicKey(badKey)).toBe(false);
     }
-    // @ts-expect-error - ensure that non-string input return false.
+    expect(util.isSafeDynamicKey(0)).toBe(true);
+    expect(util.isSafeDynamicKey(123)).toBe(true);
+    expect(util.isSafeDynamicKey(Number.NaN)).toBe(true);
+    expect(util.isSafeDynamicKey(Symbol('__proto__'))).toBe(true);
+    expect(util.isSafeDynamicKey(Symbol.iterator)).toBe(true);
+    // @ts-expect-error - ensure that non-`PropertyKey` input returns false.
     expect(util.isSafeDynamicKey(null)).toBe(false);
+    // @ts-expect-error - ensure that non-`PropertyKey` input returns false.
+    expect(util.isSafeDynamicKey(undefined)).toBe(false);
   });
   it('isSafeChainId', () => {
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID + 1))).toBe(false);
