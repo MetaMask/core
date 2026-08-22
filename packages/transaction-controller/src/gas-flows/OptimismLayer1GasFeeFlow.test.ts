@@ -1,3 +1,4 @@
+import { GasEstimationStrategy } from '@metamask/config-registry-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -89,6 +90,24 @@ describe('OptimismLayer1GasFeeFlow', () => {
           messenger,
         }),
       ).toBe(true);
+    });
+
+    it('returns true when the config registry lists the gas strategy for the chain as `l1Oracle`', async () => {
+      const flow = new OptimismLayer1GasFeeFlow({
+        getRegistryGasStrategyForChain: (): GasEstimationStrategy => ({
+          type: 'l1Oracle',
+          l1OracleAddress: '0x123',
+        }),
+      });
+      const transactionMeta = createTransaction(CHAIN_IDS.OPTIMISM);
+
+      expect(
+        await flow.matchesTransaction({
+          transactionMeta,
+          messenger,
+        }),
+      ).toBe(true);
+      expect(handleFetchMock).not.toHaveBeenCalled();
     });
 
     it('falls back to static list when remote list omits the chain', async () => {

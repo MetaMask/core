@@ -1,4 +1,5 @@
 import { Interface } from '@ethersproject/abi';
+import type { GasEstimationStrategy } from '@metamask/config-registry-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import BN from 'bn.js';
@@ -70,20 +71,43 @@ const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
 
 const GAS_PRICE_ORACLE_INTERFACE = new Interface(GAS_PRICE_ORACLE_ABI);
 
+type GetRegistryGasStrategyForChain = (
+  chainId: Hex,
+) => GasEstimationStrategy | undefined;
+
 /**
  * Layer 1 gas fee flow that obtains gas fee estimate using an oracle smart contract.
  */
 export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   /**
+   * Optional lookup of the Config Registry network configuration,
+   * used to source the layer 1 oracle address from the registry before
+   * falling back to bundled constants.
+   */
+  protected readonly getRegistryGasStrategyForChain?: GetRegistryGasStrategyForChain;
+
+  constructor({
+    getRegistryGasStrategyForChain,
+  }: {
+    getRegistryGasStrategyForChain?: GetRegistryGasStrategyForChain;
+  } = {}) {
+    this.getRegistryGasStrategyForChain = getRegistryGasStrategyForChain;
+  }
+
+  /**
    * Resolves the oracle address for the given chain. Subclasses can override
    * this method to provide chain-specific oracle addresses. By default, this
-   * returns the standard OP Stack gas price oracle address.
+   * uses the registry-provided oracle address when present, otherwise the
+   * standard OP Stack gas price oracle address.
    *
-   * @param _chainId - The chain ID to resolve the oracle address for.
+   * @param chainId - The chain ID to resolve the oracle address for.
    * @returns The oracle address for the given chain.
    */
-  protected getOracleAddressForChain(_chainId: Hex): Hex {
-    return DEFAULT_GAS_PRICE_ORACLE_ADDRESS;
+  protected getOracleAddressForChain(chainId: Hex): Hex {
+    return (
+      this.getRegistryGasStrategyForChain?.(chainId)?.l1OracleAddress ??
+      DEFAULT_GAS_PRICE_ORACLE_ADDRESS
+    );
   }
 
   /**
