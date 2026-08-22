@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Promote `@metamask/json-rpc-engine` from a dev dependency to a production dependency, so the `ContextConstraint` and `MiddlewareContext` types it contributes to `PollingBlockTracker`'s public declaration files resolve for downstream consumers ([#6864](https://github.com/MetaMask/core/issues/6864))
 - Deduplicate concurrent `checkForLatestBlock()` calls so they share a single ongoing request and resolve to the same promise, instead of each issuing its own `eth_blockNumber` request ([#7905](https://github.com/MetaMask/core/pull/7905))
 
 ## [15.0.1]
