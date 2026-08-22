@@ -74,7 +74,6 @@ import type {
   ToprfKeyDeriver,
 } from './types.js';
 import {
-  compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
@@ -155,8 +154,7 @@ export type SeedlessOnboardingControllerOptions<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
   EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationParams> =
-    DefaultEncryptionResult<SupportedKeyDerivationParams>,
+    EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -346,7 +344,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
-    // stays in vault
+    // RAM-only JWT. Not stored in the vault; refreshed from `refreshToken`
+    // when missing or near expiry, including while the vault is locked.
     accessToken: {
       includeInStateLogs: false,
       persist: false,
@@ -391,8 +390,7 @@ export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
   EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationOptions> =
-    DefaultEncryptionResult<SupportedKeyDerivationOptions>,
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
@@ -1097,42 +1095,20 @@ export class SeedlessOnboardingController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      // get the access token from the state before unlocking, it might be the new token set from the `refreshAuthTokens` method.
-      const { accessToken: accessTokenBeforeUnlock } = this.state;
-
-      const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
+      await this.#unlockVaultAndGetVaultData({
         password,
       });
-
-      const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
-
-      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
-      // than the token stored in the vault.
-      const latestAccessToken = this.#pickLatestAccessToken(
-        accessTokenBeforeUnlock,
-        accessTokenFromDecryptedVault,
-      );
-
-      // update the state and vault with the latest access token `ONLY` if it's different from the current access token in the state.
-      if (latestAccessToken !== accessTokenFromDecryptedVault) {
-        const updatedVaultData = {
-          ...deserializedVaultData,
-          accessToken: latestAccessToken,
-        };
-
-        await this.#updateVault({
-          password,
-          vaultData: updatedVaultData,
-          pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
-        });
-      }
 
       this.#setUnlocked();
     });
   }
 
   /**
-   * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
+   * Set the controller to locked state, and deallocate vault secrets
+   * (`vaultEncryptionKey`, `vaultEncryptionSalt`, and `revokeToken`).
+   *
+   * The access token is left in memory (`persist: false`) so profile-sync
+   * calls can still refresh or reuse it while the vault is locked.
    *
    * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
    *
@@ -1144,7 +1120,6 @@ export class SeedlessOnboardingController<
         delete state.vaultEncryptionKey;
         delete state.vaultEncryptionSalt;
         delete state.revokeToken;
-        delete state.accessToken;
       });
 
       this.#cachedDecryptedVaultData = undefined;
@@ -1251,22 +1226,10 @@ export class SeedlessOnboardingController<
       const { pwEncKey } = res;
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
 
-      // accessToken before unlocking vault and flooding the state with values from the decrypted vault
-      // it might be the new token set from the `refreshAuthTokens` method.
-      const { accessToken: accessTokenBeforeUnlock } = this.state;
-
-      // Unlock the controller
-      const decryptedVaultData = await this.#unlockVaultAndGetVaultData({
+      await this.#unlockVaultAndGetVaultData({
         encryptionKey: vaultKey,
       });
       this.#setUnlocked();
-
-      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
-      // than the token stored in the vault. The vault will be updated later by syncLatestGlobalPassword.
-      this.#pickLatestAccessToken(
-        accessTokenBeforeUnlock,
-        decryptedVaultData.accessToken,
-      );
     } catch (error) {
       if (this.#isAuthTokenError(error)) {
         throw error;
@@ -1365,18 +1328,15 @@ export class SeedlessOnboardingController<
   /**
    * Check if the user is authenticated with the seedless onboarding flow by checking the token values in the state.
    *
-   * This method will check the `accessToken` and `revokeToken` in the state, besides the social login authentication details.
-   * If both are present, the user is authenticated.
-   * If either is missing, the user is not authenticated.
-   *
-   * This method is useful when we want to check if the state has valid authenticated user details to perform vault creations.
+   * This method checks the social login authentication details and that a
+   * `revokeToken` is present (required to persist a vault).
    *
    * @returns True if the user is authenticated, false otherwise.
    */
   async getIsUserAuthenticated(): Promise<boolean> {
     try {
       this.#assertIsAuthenticatedUser(this.state);
-      return Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      return Boolean(this.state.revokeToken);
     } catch {
       return false;
     }
@@ -1384,39 +1344,6 @@ export class SeedlessOnboardingController<
 
   #setUnlocked(): void {
     this.#isUnlocked = true;
-  }
-
-  /**
-   * Compares two access tokens and picks the latest one based on JWT expiration.
-   * If the tokens are different, the state is updated with the latest token.
-   *
-   * @param tokenBeforeUnlock - The access token from state before unlocking (may have been set by refreshAuthTokens).
-   * @param tokenAfterUnlock - The access token from the decrypted vault after unlocking.
-   * @returns The latest access token, or the token after unlock if no reconciliation was needed.
-   */
-  #pickLatestAccessToken(
-    tokenBeforeUnlock: string | undefined,
-    tokenAfterUnlock: string,
-  ): string {
-    let latestToken = tokenAfterUnlock;
-
-    if (
-      tokenBeforeUnlock &&
-      tokenAfterUnlock &&
-      tokenBeforeUnlock !== tokenAfterUnlock
-    ) {
-      latestToken = compareAndGetLatestToken(
-        tokenBeforeUnlock,
-        tokenAfterUnlock,
-      );
-
-      // Update the access token in the state with the latest access token
-      this.update((state) => {
-        state.accessToken = latestToken;
-      });
-    }
-
-    return latestToken;
   }
 
   /**
@@ -1812,7 +1739,6 @@ export class SeedlessOnboardingController<
    * - toprfEncryptionKey: The decrypted TOPRF encryption key
    * - toprfAuthKeyPair: The decrypted TOPRF authentication key pair
    * - revokeToken: The decrypted revoke token
-   * - accessToken: The decrypted access token
    * @throws {Error} If:
    * - The password is invalid or empty
    * - The vault is not initialized
@@ -1835,7 +1761,6 @@ export class SeedlessOnboardingController<
         state.vaultEncryptionKey = vaultEncryptionKey;
         state.vaultEncryptionSalt = vaultEncryptionSalt;
         state.revokeToken = vaultData.revokeToken;
-        state.accessToken = vaultData.accessToken;
       });
 
       const deserializedVaultData = deserializeVaultData(vaultData);
@@ -2031,15 +1956,13 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    const { accessToken, revokeToken } =
-      await this.#getAccessTokenAndRevokeToken(password);
+    const revokeToken = await this.#getRevokeToken(password);
 
     const vaultData: DeserializedVaultData = {
       toprfAuthKeyPair: rawToprfAuthKeyPair,
       toprfEncryptionKey: rawToprfEncryptionKey,
       toprfPwEncryptionKey: rawToprfPwEncryptionKey,
       revokeToken,
-      accessToken,
     };
 
     await this.#updateVault({
@@ -2162,36 +2085,22 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Get the access token and revoke token from the state or the vault.
+   * Get the revoke token from the state or the vault.
    *
    * @param password - The password to decrypt the vault.
-   * @returns The access token and revoke token.
+   * @returns The revoke token.
    */
-  async #getAccessTokenAndRevokeToken(
-    password: string,
-  ): Promise<{ accessToken: string; revokeToken: string }> {
-    let { accessToken, revokeToken } = this.state;
-    // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
+  async #getRevokeToken(password: string): Promise<string> {
+    let { revokeToken } = this.state;
+    // `revokeToken` is available in the state when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
-    if (accessToken && revokeToken) {
-      return { accessToken, revokeToken };
+    if (revokeToken) {
+      return revokeToken;
     }
 
-    // if `password` is provided to decrypt the vault, decrypt the vault and get the access token and revoke token from the vault
     if (this.state.vault) {
-      // if the access token or revoke token is not available in the state, decrypt the vault and get the access token and revoke token from the vault
       const { vaultData } = await this.#decryptAndParseVaultData({ password });
-      accessToken = accessToken ?? vaultData.accessToken;
-      revokeToken = revokeToken ?? vaultData.revokeToken;
-    }
-
-    // we should always throw an error if the access token or revoke token is not available
-    // to prevent the caller from using the controller in an invalid state
-
-    if (!accessToken) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
-      );
+      revokeToken = vaultData.revokeToken;
     }
 
     if (!revokeToken) {
@@ -2200,7 +2109,7 @@ export class SeedlessOnboardingController<
       );
     }
 
-    return { accessToken, revokeToken };
+    return revokeToken;
   }
 
   /**
@@ -2423,20 +2332,8 @@ export class SeedlessOnboardingController<
         metadataAccessToken,
       });
 
-      // update the vault with new access token if wallet is unlocked
+      // Rotate the refresh token now that we have vault access.
       if (this.#isUnlocked && this.#cachedDecryptedVaultData) {
-        const updatedVaultData = {
-          ...this.#cachedDecryptedVaultData,
-          accessToken,
-        };
-        const pwEncKey = this.#cachedDecryptedVaultData.toprfPwEncryptionKey;
-
-        await this.#updateVault({
-          vaultData: updatedVaultData,
-          pwEncKey,
-        });
-
-        // Proactively rotate the refresh token now that we have vault access.
         await this.rotateRefreshToken().catch((error) => {
           // Rotation failure is intentionally non-fatal: the JWT refresh
           // itself succeeded and the caller should not be blocked.
@@ -2530,7 +2427,9 @@ export class SeedlessOnboardingController<
 
   /**
    * Rotate the refresh token — fetch a new refresh/revoke token pair from the
-   * auth service and persist the new revoke token in the vault.
+   * auth service, persist the new revoke token in the vault, and revoke the
+   * previous refresh token. If revocation fails, the old pair is queued for
+   * `revokePendingRefreshTokens` to retry.
    *
    * This method should be called after a successful JWT refresh.
    *
@@ -2573,11 +2472,20 @@ export class SeedlessOnboardingController<
         state.refreshToken = newRefreshToken;
       });
 
-      // add the old refresh token to the list to be revoked later when possible
-      this.#addRefreshTokenToRevokeList({
-        refreshToken,
-        revokeToken,
-      });
+      // Revoke the previous refresh token now that the new pair is persisted.
+      // If revocation fails, queue it so `revokePendingRefreshTokens` can retry.
+      try {
+        await this.#revokeRefreshToken({
+          connection: this.state.authConnection,
+          revokeToken,
+        });
+      } catch (error) {
+        log('Error revoking previous refresh token after rotation', error);
+        this.#addRefreshTokenToRevokeList({
+          refreshToken,
+          revokeToken,
+        });
+      }
     }
   }
 
@@ -2762,12 +2670,7 @@ export class SeedlessOnboardingController<
     // proactively check for expired tokens and refresh them if needed
     const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
     const isMetadataAccessTokenExpired = this.checkMetadataAccessTokenExpired();
-    // access token is only accessible when the vault is unlocked
-    // so skip the check if the vault is locked
-    let isAccessTokenExpired = false;
-    if (this.#isUnlocked) {
-      isAccessTokenExpired = this.checkAccessTokenExpired();
-    }
+    const isAccessTokenExpired = this.checkAccessTokenExpired();
 
     return (
       isNodeAuthTokenExpired ||
@@ -2814,9 +2717,8 @@ export class SeedlessOnboardingController<
 
   /**
    * Check if the current access token should be refreshed.
-   * Returns true when the token is expired or when less than 10% of its
+   * Returns true when the token is missing, expired, or when less than 10% of its
    * lifetime remains (proactive refresh).
-   * When the vault is locked, the access token is not accessible, so we return false.
    *
    * @returns True if the access token should be refreshed, false otherwise.
    */

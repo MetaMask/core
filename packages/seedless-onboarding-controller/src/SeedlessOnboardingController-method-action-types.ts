@@ -172,7 +172,11 @@ export type SeedlessOnboardingControllerSubmitPasswordAction = {
 };
 
 /**
- * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
+ * Set the controller to locked state, and deallocate vault secrets
+ * (`vaultEncryptionKey`, `vaultEncryptionSalt`, and `revokeToken`).
+ *
+ * The access token is left in memory (`persist: false`) so profile-sync
+ * calls can still refresh or reuse it while the vault is locked.
  *
  * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
  *
@@ -228,11 +232,8 @@ export type SeedlessOnboardingControllerCheckIsPasswordOutdatedAction = {
 /**
  * Check if the user is authenticated with the seedless onboarding flow by checking the token values in the state.
  *
- * This method will check the `accessToken` and `revokeToken` in the state, besides the social login authentication details.
- * If both are present, the user is authenticated.
- * If either is missing, the user is not authenticated.
- *
- * This method is useful when we want to check if the state has valid authenticated user details to perform vault creations.
+ * This method checks the social login authentication details and that a
+ * `revokeToken` is present (required to persist a vault).
  *
  * @returns True if the user is authenticated, false otherwise.
  */
@@ -288,7 +289,9 @@ export type SeedlessOnboardingControllerRefreshAuthTokensAction = {
 
 /**
  * Rotate the refresh token — fetch a new refresh/revoke token pair from the
- * auth service and persist the new revoke token in the vault.
+ * auth service, persist the new revoke token in the vault, and revoke the
+ * previous refresh token. If revocation fails, the old pair is queued for
+ * `revokePendingRefreshTokens` to retry.
  *
  * This method should be called after a successful JWT refresh.
  *
@@ -348,9 +351,8 @@ export type SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction =
 
 /**
  * Check if the current access token should be refreshed.
- * Returns true when the token is expired or when less than 10% of its
+ * Returns true when the token is missing, expired, or when less than 10% of its
  * lifetime remains (proactive refresh).
- * When the vault is locked, the access token is not accessible, so we return false.
  *
  * @returns True if the access token should be refreshed, false otherwise.
  */

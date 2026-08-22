@@ -119,10 +119,4 @@ export function assertIsValidVaultData(
       SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
     );
   }
-
-  if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
-    );
-  }
 }
