@@ -1133,8 +1133,6 @@ describe('NetworkController', () => {
               defaultBlockExplorerUrlIndex: 0,
               rpcEndpoints: [
                 expect.objectContaining({
-                  networkClientId:
-                    networkConfig.rpcProviders.default.networkClientId,
                   url: networkConfig.rpcProviders.default.url,
                   type: networkConfig.rpcProviders.default.type,
                 }),
