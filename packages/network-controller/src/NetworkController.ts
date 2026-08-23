@@ -3186,7 +3186,7 @@ export class NetworkController extends BaseController<
         !networkConfiguration ||
         this.state.networkConfigurationsByChainId[hexChainId]
       ) {
-        return;
+        continue;
       }
 
       const rpcEndpoint: InfuraRpcEndpoint | AddNetworkCustomRpcEndpointFields =
