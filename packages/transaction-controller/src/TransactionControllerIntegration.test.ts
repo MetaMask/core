@@ -27,8 +27,6 @@ import {
 } from '@metamask/network-controller';
 import type {
   NetworkClientConfiguration,
-  NetworkControllerActions,
-  NetworkControllerEvents,
   NetworkControllerMessenger,
   NetworkControllerOptions,
 } from '@metamask/network-controller';
