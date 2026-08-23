@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Replace `resolveSourceAmount` with a synchronous `getBalance` callback for max-amount source calculation.
+- **BREAKING:** Replace `resolveSourceAmount` with `getBalance` for max-amount source balance resolution ([#9802](https://github.com/MetaMask/core/pull/9802))
   - Added `GetBalanceCallback`, `GetBalanceRequest`, `GetBalanceResponse`, and the `getBalance` constructor option on `TransactionPayControllerOptions`.
   - Removed `ResolveSourceAmountCallback`, `ResolveSourceAmountRequest`, `ResolveSourceAmountResponse`, and the `resolveSourceAmount` constructor option on `TransactionPayControllerOptions`.
-  ([#9802](https://github.com/MetaMask/core/pull/9802))
-
-### Changed
-
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
 ## [26.4.1]
