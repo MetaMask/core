@@ -67,13 +67,13 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #fiatOptions?: TransactionPayFiatOptions;
+
   readonly #getAmountData?: GetAmountDataCallback;
 
   readonly #getBalance?: GetBalanceCallback;
 
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
-
-  readonly #fiatOptions?: TransactionPayFiatOptions;
 
   readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
@@ -106,10 +106,10 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#fiatOptions = fiatOptions;
     this.#getAmountData = getAmountData;
     this.#getBalance = getBalance;
     this.#getDelegationTransaction = getDelegationTransaction;
-    this.#fiatOptions = fiatOptions;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
