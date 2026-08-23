@@ -941,7 +941,7 @@ describe('TransactionPayController', () => {
     it('forwards getBalance callback to updateSourceAmounts', () => {
       const getBalance = jest
         .fn()
-        .mockReturnValue({ balanceHuman: '9.9', balanceRaw: '9900000' });
+        .mockReturnValue({ balanceRaw: '9900000' });
       const controller = createController({ getBalance });
 
       controller.updatePaymentToken({

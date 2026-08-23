@@ -225,8 +225,6 @@ export type GetBalanceRequest = {
 
 /** Balance override returned by {@link GetBalanceCallback}. */
 export type GetBalanceResponse = {
-  /** Balance in human-readable format factoring token decimals. */
-  balanceHuman: string;
   /** Balance in atomic format without factoring token decimals. */
   balanceRaw: string;
 };

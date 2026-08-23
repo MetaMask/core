@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Add optional `getBalance` callback to `TransactionPayControllerOptions` to override the source balance used for max-amount source-amount calculation ([#9802](https://github.com/MetaMask/core/pull/9802))
+- **BREAKING:** Replace `resolveSourceAmount` with a synchronous `getBalance` callback for max-amount source calculation.
+  - Added `GetBalanceCallback`, `GetBalanceRequest`, `GetBalanceResponse`, and the `getBalance` constructor option on `TransactionPayControllerOptions`.
+  - Removed `ResolveSourceAmountCallback`, `ResolveSourceAmountRequest`, `ResolveSourceAmountResponse`, and the `resolveSourceAmount` constructor option on `TransactionPayControllerOptions`.
+  ([#9802](https://github.com/MetaMask/core/pull/9802))
 
 ### Changed
 
@@ -46,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `resolveSourceAmount` constructor option from `TransactionPayController` and the associated `ResolveSourceAmountCallback`, `ResolveSourceAmountRequest`, and `ResolveSourceAmountResponse` types ([#9802](https://github.com/MetaMask/core/pull/9802))
-  - `resolveSourceAmount` is replaced by the more capable `getBalance` callback, which receives the full transaction and transaction data and returns `{ balanceHuman, balanceRaw }`. Migrate by replacing `resolveSourceAmount: ({ isMaxAmount, paymentOverride }) => ({ sourceAmountRaw })` with `getBalance: ({ transaction, transactionData }) => ({ balanceHuman, balanceRaw })`.
+  - `resolveSourceAmount` is replaced by the more capable `getBalance` callback, which receives the full transaction and transaction data and returns an object (currently `{ balanceRaw }`). Migrate by replacing `resolveSourceAmount: ({ isMaxAmount, paymentOverride }) => ({ sourceAmountRaw })` with `getBalance: ({ transaction, transactionData }) => ({ balanceRaw })`.
 
 ## [26.3.0]
 
