@@ -64,6 +64,7 @@
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typescript": "~5.3.3"

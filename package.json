@@ -55,7 +55,7 @@
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
-    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
+    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
