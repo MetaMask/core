@@ -121,18 +121,19 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchDisclaimers`, `createSession`, `checkKycRequired`,
-`createUkycSession`, `createJourney`.
+`createUkycSession`, `setAuthorizations`, `createJourney`.
 
 Endpoints:
 
-| Method              | HTTP   | Endpoint                                | Purpose                                                                 |
-| ------------------- | ------ | --------------------------------------- | ----------------------------------------------------------------------- |
-| `getGeoCountry`     | —      | (geolocation action)                    | Resolve alpha-3 country                                                 |
-| `fetchDisclaimers`  | `GET`  | `/vendors/moonpay/disclaimers?country=` | Terms to accept                                                         |
-| `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                                   |
-| `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`)                |
-| `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow (wrapped key + read-only `ukyc_capability_token`) |
-| `createJourney`     | `POST` | `/sessions/{id}/journey`                | Create verification journey → applicant token                           |
+| Method              | HTTP   | Endpoint                                | Purpose                                                                  |
+| ------------------- | ------ | --------------------------------------- | ------------------------------------------------------------------------ |
+| `getGeoCountry`     | —      | (geolocation action)                    | Resolve alpha-3 country                                                  |
+| `fetchDisclaimers`  | `GET`  | `/vendors/moonpay/disclaimers?country=` | Terms to accept                                                          |
+| `createSession`     | `POST` | `/vendors/moonpay/sessions`             | Create vendor session                                                    |
+| `checkKycRequired`  | `POST` | `/vendors/moonpay/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`)                 |
+| `createUkycSession` | `POST` | `/sessions`                             | Start SumSub sub-flow; returns encryption schemas for wrapping           |
+| `setAuthorizations` | `POST` | `/sessions/{id}/authorizations`         | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token` |
+| `createJourney`     | `POST` | `/sessions/{id}/journey`                | Create verification journey → applicant token                            |
 
 ### 2.3 `crypto.ts`
 
@@ -330,8 +331,11 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata, wrappedEncryptionKey, ukycCapabilityToken })
+        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata })
         Svc->>API: POST /sessions
+        Note over Ctrl: wrap data_encryption_key and ukyc_capability_token
+        Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })
+        Svc->>API: POST /sessions/{id}/authorizations
         Ctrl->>Svc: createJourney(sessionId)
         Svc->>API: POST /sessions/{id}/journey
         Ctrl->>Launcher: launch({ applicantAccessToken, onTokenExpiration, onStatusChange })
@@ -419,8 +423,8 @@ launcher.
 stateDiagram-v2
     [*] --> idle
     idle --> creatingSession : startSumSub()
-    creatingSession --> fetchingToken : createUkycSession() ok
-    creatingSession --> vendorProcessing : createUkycSession() kycStatus=approved, finalStatus=pending
+    creatingSession --> fetchingToken : setAuthorizations() ok
+    creatingSession --> vendorProcessing : setAuthorizations() kycStatus=approved, finalStatus=pending
     fetchingToken --> launching : createJourney() ok
     launching --> inProgress : onStatusChange (non-Completed)
     launching --> complete : onStatusChange = Completed
@@ -435,7 +439,7 @@ stateDiagram-v2
 > **Already processing on the vendor.** A user who already finished the journey
 > can return to a session the relay has approved (`kycStatus: approved`) while
 > the vendor is still finalizing its decision (`finalStatus: pending`). When
-> session creation reports this, the sub-flow stops at `vendorProcessing`
+> authorizations report this, the sub-flow stops at `vendorProcessing`
 > (setting `statusMessage`) instead of launching the SDK, so an already-approved
 > applicant is not asked to verify again.
 
@@ -476,7 +480,7 @@ graph LR
         C_ext["Allowed (delegated):<br/>KycService:*"]
     end
     subgraph SvcMsgr["KycServiceMessenger"]
-        S_own["Own actions:<br/>KycService: 6 methods"]
+        S_own["Own actions:<br/>KycService: 9 methods"]
         S_ext["Allowed (delegated):<br/>AuthenticationController:getBearerToken<br/>GeolocationController:getGeolocation"]
     end
 
@@ -551,7 +555,7 @@ graph TB
   state slice and injects `reactNativeSumSubLauncher`.
 - **`kyc-service-init.ts`** constructs `KycService` with the global `fetch`, an
   `env` derived from `isProduction()`, and (currently) a dev `baseUrl` override.
-- **`kyc-controller-messenger.ts`** delegates the six `KycService:*` actions to
+- **`kyc-controller-messenger.ts`** delegates `KycService:*` actions to
   the controller's messenger.
 - **`kyc-service-messenger.ts`** delegates
   `AuthenticationController:getBearerToken` and
