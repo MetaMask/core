@@ -5,6 +5,20 @@ import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { FeeType } from '../../validators/quote.js';
 
+const toFiat = (
+  fee?: Pick<AmountsAndAsset, 'usd' | 'valueInCurrency'>,
+  usdToFiatExchangeRate?: BigNumber,
+): Pick<AmountsAndAsset, 'valueInCurrency'> | undefined => {
+  const { usd, valueInCurrency } = fee ?? {};
+  if (usd && usdToFiatExchangeRate) {
+    return { valueInCurrency: usdToFiatExchangeRate.times(usd).toFixed() };
+  }
+  if (valueInCurrency) {
+    return { valueInCurrency };
+  }
+  return undefined;
+};
+
 /**
  * Builds a partial {@link QuoteResponse} object with fiat values derived from the usd values provided by the bridge-api
  *
@@ -22,36 +36,22 @@ export const toCurrencyValues = (
 
   const { adjustedReturn, priceImpact } = priceData ?? {};
 
-  const toFiat = ({
-    usd,
-    valueInCurrency,
-  }: Pick<AmountsAndAsset, 'usd' | 'valueInCurrency'>):
-    | Pick<AmountsAndAsset, 'valueInCurrency'>
-    | undefined => {
-    if (usd && usdToFiatExchangeRate) {
-      return { valueInCurrency: usdToFiatExchangeRate.times(usd).toFixed() };
-    }
-    if (valueInCurrency) {
-      return { valueInCurrency };
-    }
-    return undefined;
-  };
+  const priceImpactFiat = toFiat(priceImpact, usdToFiatExchangeRate);
+  const adjustedReturnFiat = toFiat(adjustedReturn, usdToFiatExchangeRate);
 
-  const priceImpactFiat = priceImpact ? toFiat(priceImpact) : undefined;
-  const adjustedReturnFiat = adjustedReturn
-    ? toFiat(adjustedReturn)
-    : undefined;
-
-  const minAmountValueInCurrency = toFiat({
-    usd: dest.minAmountUsd,
-    valueInCurrency: dest.minAmountValueInCurrency,
-  })?.valueInCurrency;
+  const minAmountValueInCurrency = toFiat(
+    {
+      usd: dest.minAmountUsd,
+      valueInCurrency: dest.minAmountValueInCurrency,
+    },
+    usdToFiatExchangeRate,
+  )?.valueInCurrency;
 
   return {
     quote: {
-      src: toFiat(src),
+      src: toFiat(src, usdToFiatExchangeRate),
       dest: {
-        ...toFiat(dest),
+        ...toFiat(dest, usdToFiatExchangeRate),
         ...(minAmountValueInCurrency && {
           minAmountValueInCurrency,
         }),
@@ -61,7 +61,12 @@ export const toCurrencyValues = (
         Object.fromEntries(
           Object.values(FeeType)
             .filter((feeType) => feeData[feeType])
-            .map((feeType) => [feeType, feeData[feeType]?.map(toFiat)]),
+            .map((feeType) => [
+              feeType,
+              feeData[feeType]?.map((fee) =>
+                toFiat(fee, usdToFiatExchangeRate),
+              ),
+            ]),
         ),
       ...((priceImpactFiat ?? adjustedReturnFiat) && {
         priceData: {
