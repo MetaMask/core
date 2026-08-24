@@ -31,11 +31,12 @@ export type {
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
+  CapabilityAuthorization,
   CheckKycRequiredParams,
   CreateSessionParams,
   CreateUkycSessionParams,
+  EncryptionSchema,
   GetSessionStatusParams,
-  GetWrappingKeyParams,
   JwksResponse,
   KycServiceActions,
   KycServiceCacheUpdatedEvent,
@@ -44,9 +45,8 @@ export type {
   KycServiceInvalidateQueriesAction,
   KycServiceMessenger,
   KycServiceOptions,
+  SetAuthorizationsParams,
   UkycSessionResponse,
-  WrappedEncryptionKey,
-  WrappingKeyResponse,
 } from './KycService.js';
 export type {
   KycServiceCheckKycRequiredAction,
@@ -57,7 +57,7 @@ export type {
   KycServiceFetchJwksAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
-  KycServiceGetWrappingKeyAction,
+  KycServiceSetAuthorizationsAction,
 } from './KycService-method-action-types.js';
 
 export {
