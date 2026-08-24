@@ -3174,44 +3174,55 @@ export class NetworkController extends BaseController<
    */
   #autoEnableChains(chainIds: CaipChainId[]): void {
     for (const chainId of chainIds) {
-      const networkConfiguration = this.messenger.call(
-        'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
-        chainId,
-      );
-      const hexChainId = numberToHex(
-        Number(parseCaipChainId(chainId).reference),
-      );
+      try {
+        const networkConfiguration = this.messenger.call(
+          'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+          chainId,
+        );
+        const hexChainId = numberToHex(
+          Number(parseCaipChainId(chainId).reference),
+        );
 
-      if (
-        !networkConfiguration ||
-        this.state.networkConfigurationsByChainId[hexChainId]
-      ) {
-        continue;
+        if (
+          !networkConfiguration ||
+          this.state.networkConfigurationsByChainId[hexChainId]
+        ) {
+          continue;
+        }
+
+        const rpcEndpoint:
+          | InfuraRpcEndpoint
+          | AddNetworkCustomRpcEndpointFields =
+          networkConfiguration.rpcProviders.default.type === 'infura'
+            ? {
+                type: RpcEndpointType.Infura,
+                networkClientId:
+                  networkConfiguration.rpcProviders.default.networkClientId,
+                url: networkConfiguration.rpcProviders.default
+                  .url as InfuraRpcEndpoint['url'],
+              }
+            : {
+                type: RpcEndpointType.Custom,
+                url: networkConfiguration.rpcProviders.default.url,
+              };
+
+        this.addNetwork({
+          chainId: hexChainId,
+          name: networkConfiguration.name,
+          nativeCurrency: networkConfiguration.assets.native.symbol,
+          rpcEndpoints: [rpcEndpoint],
+          defaultRpcEndpointIndex: 0,
+          blockExplorerUrls: [networkConfiguration.blockExplorerUrls.default],
+          defaultBlockExplorerUrlIndex: 0,
+        });
+      } catch (error) {
+        const capturedError =
+          error instanceof Error ? error : new Error(String(error));
+        this.#log?.error(
+          `Failed to auto-enable network for chain ID ${chainId}: ${capturedError}`,
+        );
+        this.messenger.captureException?.(capturedError);
       }
-
-      const rpcEndpoint: InfuraRpcEndpoint | AddNetworkCustomRpcEndpointFields =
-        networkConfiguration.rpcProviders.default.type === 'infura'
-          ? {
-              type: RpcEndpointType.Infura,
-              networkClientId:
-                networkConfiguration.rpcProviders.default.networkClientId,
-              url: networkConfiguration.rpcProviders.default
-                .url as InfuraRpcEndpoint['url'],
-            }
-          : {
-              type: RpcEndpointType.Custom,
-              url: networkConfiguration.rpcProviders.default.url,
-            };
-
-      this.addNetwork({
-        chainId: hexChainId,
-        name: networkConfiguration.name,
-        nativeCurrency: networkConfiguration.assets.native.symbol,
-        rpcEndpoints: [rpcEndpoint],
-        defaultRpcEndpointIndex: 0,
-        blockExplorerUrls: [networkConfiguration.blockExplorerUrls.default],
-        defaultBlockExplorerUrlIndex: 0,
-      });
     }
   }
 }

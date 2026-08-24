@@ -16,7 +16,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
@@ -98,7 +98,7 @@ export const TESTNET = {
  * @param options.trackEvent - The handler registered for
  * `AnalyticsController:trackEvent`. Defaults to a Jest mock so tests can assert
  * on it.
- * @param options.configRegistryNetworkConfig - The network config that
+ * @param options.configRegistryNetworkConfigs - The network config that
  * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
  * a mock network config for the chain ID `eip155:9999`.
  * @returns The messenger.
@@ -108,13 +108,13 @@ export function buildRootMessenger({
   rpcFailoverMode = 'disabled',
   analyticsId = '11111111-1111-4111-8111-111111111111',
   trackEvent = jest.fn(),
-  configRegistryNetworkConfig = buildMockConfigRegistryControllerNetwork(),
+  configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
   trackEvent?: jest.Mock;
-  configRegistryNetworkConfig?: RegistryNetworkConfig;
+  configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -151,16 +151,22 @@ export function buildRootMessenger({
 
   rootMessenger.registerActionHandler(
     'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
-    () => configRegistryNetworkConfig,
+    (caipChainId) =>
+      configRegistryNetworkConfigs.find(
+        (config) => config.chainId === caipChainId,
+      ),
   );
 
   rootMessenger.registerActionHandler(
     'ConfigRegistryController:getState',
     () => ({
       configs: {
-        networks: {
-          [configRegistryNetworkConfig.chainId]: configRegistryNetworkConfig,
-        },
+        networks: configRegistryNetworkConfigs.reduce<
+          Record<CaipChainId, RegistryNetworkConfig>
+        >((acc, config) => {
+          acc[config.chainId] = config;
+          return acc;
+        }, {}),
       },
       version: '0',
       lastFetched: 0,
@@ -734,7 +740,7 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = Partial<NetworkControllerOptions> & {
   rpcFailoverMode?: RpcFailoverMode;
-  configRegistryNetworkConfig?: RegistryNetworkConfig;
+  configRegistryNetworkConfigs?: RegistryNetworkConfig[];
   initializeController?: boolean;
 };
 
@@ -759,12 +765,12 @@ export async function withController<ReturnValue>(
   const {
     rpcFailoverMode,
     initializeController = true,
-    configRegistryNetworkConfig = buildMockConfigRegistryControllerNetwork(),
+    configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
     ...controllerOptions
   } = rest;
   const messenger = buildRootMessenger({
     rpcFailoverMode,
-    configRegistryNetworkConfig,
+    configRegistryNetworkConfigs,
   });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({

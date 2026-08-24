@@ -1009,7 +1009,7 @@ describe('NetworkController', () => {
       await withController(
         {
           initializeController: false,
-          configRegistryNetworkConfig: networkConfig,
+          configRegistryNetworkConfigs: [networkConfig],
         },
         ({ controller }) => {
           expect(
@@ -1054,7 +1054,7 @@ describe('NetworkController', () => {
         },
       });
       await withController(
-        { configRegistryNetworkConfig: networkConfig },
+        { configRegistryNetworkConfigs: [networkConfig] },
         async ({ controller, messenger }) => {
           messenger.publish(
             'ConfigRegistryController:stateChanged',
@@ -1108,7 +1108,7 @@ describe('NetworkController', () => {
         },
       });
       await withController(
-        { configRegistryNetworkConfig: networkConfig },
+        { configRegistryNetworkConfigs: [networkConfig] },
         async ({ controller, messenger }) => {
           messenger.publish(
             'ConfigRegistryController:stateChanged',
@@ -1135,6 +1135,94 @@ describe('NetworkController', () => {
                 expect.objectContaining({
                   url: networkConfig.rpcProviders.default.url,
                   type: networkConfig.rpcProviders.default.type,
+                }),
+              ],
+              defaultRpcEndpointIndex: 0,
+            }),
+          );
+        },
+      );
+    });
+
+    it('gracefully handles errors thrown when enabling networks from the config registry', async () => {
+      const networkConfigs = [
+        buildMockConfigRegistryControllerNetwork({
+          chainId: 'eip155:9997',
+          rpcProviders: {
+            default: buildCustomRpcEndpoint({
+              url: 'https://test.network/2',
+              type: RpcEndpointType.Custom,
+            }),
+            fallbacks: [],
+          },
+          config: {
+            ...buildMockConfigRegistryControllerNetwork().config,
+            isAutoEnabled: true,
+          },
+        }),
+        buildMockConfigRegistryControllerNetwork({
+          chainId: 'eip155:9998',
+          rpcProviders: {
+            default: buildCustomRpcEndpoint({
+              url: 'https://test.network/2',
+              type: RpcEndpointType.Custom,
+            }),
+            fallbacks: [],
+          },
+          config: {
+            ...buildMockConfigRegistryControllerNetwork().config,
+            isAutoEnabled: true,
+          },
+        }),
+        buildMockConfigRegistryControllerNetwork({
+          chainId: 'eip155:9999',
+          rpcProviders: {
+            default: buildCustomRpcEndpoint({
+              url: 'https://test.network/1',
+              type: RpcEndpointType.Custom,
+            }),
+            fallbacks: [],
+          },
+          config: {
+            ...buildMockConfigRegistryControllerNetwork().config,
+            isAutoEnabled: true,
+          },
+        }),
+      ];
+      await withController(
+        { configRegistryNetworkConfigs: networkConfigs },
+        async ({ controller, messenger, networkControllerMessenger }) => {
+          messenger.publish(
+            'ConfigRegistryController:stateChanged',
+            {
+              configs: { networks: { 'eip155:9999': networkConfigs[1] } },
+              lastFetched: 0,
+              etag: 'etag',
+              version: '1',
+            },
+            [],
+          );
+
+          expect(
+            networkControllerMessenger.captureException,
+          ).toHaveBeenCalled();
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).not.toHaveProperty('0x270e');
+          expect(
+            controller.state.networkConfigurationsByChainId,
+          ).toHaveProperty(
+            '0x270f',
+            expect.objectContaining({
+              chainId: '0x270f',
+              name: networkConfigs[2].name,
+              nativeCurrency: networkConfigs[2].assets.native.symbol,
+              blockExplorerUrls: [networkConfigs[2].blockExplorerUrls.default],
+              defaultBlockExplorerUrlIndex: 0,
+              rpcEndpoints: [
+                expect.objectContaining({
+                  url: networkConfigs[2].rpcProviders.default.url,
+                  type: networkConfigs[2].rpcProviders.default.type,
                 }),
               ],
               defaultRpcEndpointIndex: 0,
