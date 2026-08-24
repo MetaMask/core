@@ -694,10 +694,10 @@ describe('PerpsController', () => {
   });
 
   describe('pro layout preferences', () => {
-    it('defaults to collapsed order book, collapsed chart, reserved positions, and positions/orders sort/filter defaults', () => {
+    it('defaults to collapsed order book, expanded chart, reserved positions, and positions/orders sort/filter defaults', () => {
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: false,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
@@ -714,7 +714,7 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
@@ -743,7 +743,7 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'right',
         orderFormPosition: 'left',
         positionsSideFilter: 'long',
@@ -766,7 +766,7 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: false,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
@@ -789,7 +789,7 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: false,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
@@ -807,7 +807,7 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: false,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'long',
@@ -820,9 +820,9 @@ describe('PerpsController', () => {
     });
 
     it('persists the update to controller state', () => {
-      controller.setProLayoutPreferences({ chartExpanded: true });
+      controller.setProLayoutPreferences({ chartExpanded: false });
 
-      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(true);
+      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(false);
     });
 
     it('fills in defaults for fields missing from persisted state', () => {
@@ -835,7 +835,7 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
         positionsSideFilter: 'all',
