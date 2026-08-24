@@ -1,0 +1,1477 @@
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+} from '@metamask/profile-sync-controller/user-storage';
+import type { Json } from '@metamask/utils';
+import { x25519 } from '@noble/curves/ed25519';
+
+import { decryptCredentials, generateKeyPair } from './crypto.js';
+import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
+import type { KycControllerMethodActions } from './KycController-method-action-types.js';
+import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import type {
+  KycDisclaimer,
+  KycPhase,
+  KycProduct,
+  KycSessionStatus,
+  KycSumSubLauncher,
+  KycSumSubStatus,
+} from './types.js';
+import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
+import { verifyJwtChain } from './ukyc/jwtChain.js';
+import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
+import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
+import { signStorageAccessToken } from './ukyc/storageAccessToken.js';
+import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+
+// === GENERAL ===
+
+export const controllerName = 'KycController';
+
+const FRAMES_BASE_URL = 'https://blocks.moonpay.com/platform/v1';
+const CHANNEL_CHECK = 'ch_1';
+const CHANNEL_AUTH = 'ch_2';
+const CHANNEL_RESET = 'ch_reset';
+
+// Placeholder credentials for the SumSub sub-flow. These are demo values that
+// must be replaced with real UKYC-issued material before production use.
+const MOCK_JWT_TOKEN = 'mock-jwt-token';
+
+// Lifetime of the read-only `ukyc_capability_token` minted when creating a
+// UKYC session. The storage-and-auth spec requires the token's `expires_at` to
+// cover the KYC session's expected lifetime — including the provider journey —
+// rather than a fixed short window, so this is a session-scoped window.
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+
+// The SumSub SDK status that signals the applicant finished the flow
+// successfully. Any other resolution (abandonment, failure, or a non-success
+// outcome) must not be recorded as `complete`.
+const SUMSUB_COMPLETED_STATUS = 'Completed';
+
+// Phases that represent an active vendor-session flow (tokens issued and/or
+// Check/Auth frames in progress). A repeat `initialize` while in one of these
+// must not restart the session and disrupt the in-flight flow.
+const IN_PROGRESS_PHASES: KycPhase[] = [
+  'session',
+  'check',
+  'auth',
+  'form',
+  'submit',
+];
+
+// How often to poll the UKYC session status after the SumSub SDK completes,
+// until a terminal status is reached. Overridable via the constructor.
+const DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
+
+// UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
+// (the vendor-side outcome) draw from the same vocabulary, so they are defined
+// once here and composed into the sets/checks below rather than repeated as
+// literals.
+const KYC_STATUSES = {
+  approved: 'approved',
+  completed: 'completed',
+  rejected: 'rejected',
+  failed: 'failed',
+  blocked: 'blocked',
+  pending: 'pending',
+} as const;
+
+// `finalStatus` values that end the polling loop. Anything else (e.g.
+// `KYC_STATUSES.pending`) keeps polling.
+const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+  KYC_STATUSES.approved,
+  KYC_STATUSES.completed,
+  KYC_STATUSES.rejected,
+  KYC_STATUSES.failed,
+  KYC_STATUSES.blocked,
+]);
+
+// Terminal `finalStatus` values that represent a successful verification. Any
+// other terminal status resolves the sub-flow to `failed`.
+const SUCCESSFUL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+  KYC_STATUSES.approved,
+  KYC_STATUSES.completed,
+]);
+
+// Session creation can report that the applicant is already approved on the
+// relay (`kycStatus === KYC_STATUSES.approved`) while the vendor is still
+// finalizing its decision (`finalStatus === KYC_STATUSES.pending`, a
+// non-terminal status). In that case there is nothing left for the applicant
+// to do, so the sub-flow stops before launching the SDK and surfaces this
+// message.
+const VENDOR_PROCESSING_MESSAGE =
+  'Your KYC has been submitted and is being processed by the vendor.';
+
+// === STATE ===
+
+/**
+ * Describes the shape of the state object for {@link KycController}.
+ */
+export type KycControllerState = {
+  /** Current phase of the identity flow. */
+  phase: KycPhase;
+  /** Human-readable status message for the current phase. */
+  statusMessage: string;
+  /** The current error message, or `null`. */
+  error: string | null;
+
+  /** Email associated with the session (sourced from the account). */
+  email: string | null;
+
+  /** ISO-8601 timestamp of the customer's terms acceptance (persisted). */
+  termsAcceptedAt: string | null;
+  /** IDs of the disclaimers the customer accepted (persisted). */
+  acceptedDisclaimerIds: string[];
+
+  /** Disclaimers fetched for the current country. */
+  disclaimers: KycDisclaimer[];
+  /** Error encountered while loading disclaimers, or `null`. */
+  disclaimersError: string | null;
+
+  /** Resolved ISO 3166-1 alpha-3 country code. */
+  geoCountry: string | null;
+
+  /** Vendor session token (not persisted, not logged). */
+  sessionToken: string | null;
+  /** Vendor access token (not persisted, not logged). */
+  accessToken: string | null;
+  /** Vendor customer id, used for the SumSub hand-off. */
+  moonpayCustomerId: string | null;
+
+  /**
+   * The product the current flow is running for. Captured at `initialize`
+   * (or `acceptTermsAndStartSession`) and used to automatically run the
+   * KYC-required check once authentication completes. `null` outside a
+   * product-scoped flow (in which case the flow stops at `form` and the
+   * consumer drives the check manually).
+   */
+  activeProduct: KycProduct | null;
+
+  /** Cached "is KYC required" result per product (persisted). */
+  kycRequiredByProduct: Partial<Record<KycProduct, boolean>>;
+  /** ISO-8601 timestamp of the last KYC-required check (persisted). */
+  lastCheckedAt: string | null;
+
+  /** SumSub document-verification sub-flow state. */
+  sumsub: {
+    status: KycSumSubStatus;
+    result: Json | null;
+    sessionId: string | null;
+    applicantAccessToken: string | null;
+    /**
+     * The latest UKYC session status, populated while polling after the SDK
+     * completes. `null` until the first successful poll.
+     */
+    sessionStatus: KycSessionStatus | null;
+  };
+};
+
+const kycControllerMetadata = {
+  phase: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  statusMessage: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  error: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  email: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: false,
+  },
+  termsAcceptedAt: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  acceptedDisclaimerIds: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  disclaimers: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: true,
+  },
+  disclaimersError: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  geoCountry: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  sessionToken: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: false,
+  },
+  accessToken: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: false,
+  },
+  moonpayCustomerId: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: false,
+  },
+  activeProduct: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  kycRequiredByProduct: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  lastCheckedAt: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  sumsub: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: true,
+  },
+} satisfies StateMetadata<KycControllerState>;
+
+/**
+ * Constructs the default {@link KycController} state.
+ *
+ * @returns The default state.
+ */
+export function getDefaultKycControllerState(): KycControllerState {
+  return {
+    phase: 'idle',
+    statusMessage: '',
+    error: null,
+    email: null,
+    termsAcceptedAt: null,
+    acceptedDisclaimerIds: [],
+    disclaimers: [],
+    disclaimersError: null,
+    geoCountry: null,
+    sessionToken: null,
+    accessToken: null,
+    moonpayCustomerId: null,
+    activeProduct: null,
+    kycRequiredByProduct: {},
+    lastCheckedAt: null,
+    sumsub: {
+      status: 'idle',
+      result: null,
+      sessionId: null,
+      applicantAccessToken: null,
+      sessionStatus: null,
+    },
+  };
+}
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'initialize',
+  'loadDisclaimers',
+  'acceptTermsAndStartSession',
+  'clearSavedTerms',
+  'handleFrameMessage',
+  'buildCheckFrameUrl',
+  'buildAuthFrameUrl',
+  'buildResetFrameUrl',
+  'checkKycRequired',
+  'getKycStatus',
+  'startSumSub',
+  'getSessionStatus',
+  'reset',
+] as const;
+
+export type KycControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  KycControllerState
+>;
+
+export type KycControllerActions =
+  | KycControllerGetStateAction
+  | KycControllerMethodActions;
+
+type AllowedActions =
+  | KycServiceMethodActions
+  | UserStorageControllerPerformGetStorageAction
+  | UserStorageControllerPerformSetStorageAction;
+
+export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  KycControllerState
+>;
+
+export type KycControllerEvents = KycControllerStateChangeEvent;
+
+type AllowedEvents = never;
+
+export type KycControllerMessenger = Messenger<
+  typeof controllerName,
+  KycControllerActions | AllowedActions,
+  KycControllerEvents | AllowedEvents
+>;
+
+/**
+ * Options for constructing a {@link KycController}.
+ */
+export type KycControllerOptions = {
+  messenger: KycControllerMessenger;
+  state?: Partial<KycControllerState>;
+  /**
+   * Platform adapter that presents the SumSub SDK. Injected by each client so
+   * the controller stays platform-agnostic.
+   */
+  sumsubLauncher: KycSumSubLauncher;
+  /**
+   * How often, in milliseconds, to poll the UKYC session status after the
+   * SumSub SDK completes. Defaults to
+   * {@link DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS}.
+   */
+  sessionStatusPollIntervalMs?: number;
+};
+
+/**
+ * The shape of a message posted by a Check/Auth frame.
+ */
+type FrameMessage = {
+  meta?: { channelId?: string };
+  kind?: string;
+  payload?: {
+    status?:
+      | 'active'
+      | 'connectionRequired'
+      | 'termsAcceptanceRequired'
+      | 'pending'
+      | 'unavailable'
+      | 'failed';
+    credentials?: EncryptedCredentialsEnvelope | string;
+    customer?: { id?: string };
+  };
+};
+
+// === CONTROLLER DEFINITION ===
+
+/**
+ * `KycController` orchestrates the vendor-backed KYC / identity-verification
+ * flow (MoonPay identity + SumSub documents) behind a vendor-neutral, per
+ * product surface used by ramps and card. It owns all state, HTTP
+ * orchestration (via `KycService`), crypto, and the frame message protocol;
+ * platform-specific presentation (WebView/iframe, SumSub SDK) is injected.
+ */
+export class KycController extends BaseController<
+  typeof controllerName,
+  KycControllerState,
+  KycControllerMessenger
+> {
+  readonly #sumsubLauncher: KycSumSubLauncher;
+
+  /** Ephemeral X25519 keypair for the frame key exchange (never persisted). */
+  readonly #keypair: X25519KeyPair;
+
+  /** Auth-frame client token, kept out of state. */
+  #authClientToken: string | null = null;
+
+  /**
+   * Monotonic flow generation. Incremented by {@link reset} so in-flight async
+   * work (e.g. the KYC-required check) can detect that it was superseded and
+   * avoid writing stale results onto a reset controller.
+   */
+  #generation = 0;
+
+  /** Interval, in milliseconds, between session-status polls. */
+  readonly #sessionStatusPollIntervalMs: number;
+
+  /** Handle for the scheduled next session-status poll, or `null`. */
+  #pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Monotonic polling token. Bumped by {@link #stopPolling} (called on reset, a
+   * new sub-flow, and once a terminal status is reached) so an in-flight poll
+   * `tick` can detect it was superseded and neither write state nor schedule a
+   * follow-up. This closes the gap where clearing the timer alone would still
+   * let an already-awaiting request finish and reschedule.
+   */
+  #pollToken = 0;
+
+  /**
+   * Constructs a new {@link KycController}.
+   *
+   * @param options - The constructor options.
+   * @param options.messenger - The messenger suited for this controller.
+   * @param options.state - Partial initial state; merged over defaults.
+   * @param options.sumsubLauncher - The platform SumSub launcher adapter.
+   * @param options.sessionStatusPollIntervalMs - How often to poll the UKYC
+   * session status after the SumSub SDK completes.
+   */
+  constructor({
+    messenger,
+    state,
+    sumsubLauncher,
+    sessionStatusPollIntervalMs = DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS,
+  }: KycControllerOptions) {
+    super({
+      messenger,
+      metadata: kycControllerMetadata,
+      name: controllerName,
+      state: { ...getDefaultKycControllerState(), ...state },
+    });
+
+    this.#sumsubLauncher = sumsubLauncher;
+    this.#sessionStatusPollIntervalMs = sessionStatusPollIntervalMs;
+    this.#keypair = generateKeyPair();
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Builds an adapter over `UserStorageController` that the platform-agnostic
+   * `getOrCreateLocalUserSecret` helper uses to persist/load the UKYC
+   * `local_user_secret`.
+   *
+   * @returns The Encrypted User Storage adapter.
+   */
+  #localUserSecretStore(): UkycLocalUserSecretStore {
+    return {
+      get: async (
+        path: string,
+        entropySourceId?: string,
+      ): Promise<string | null> =>
+        this.messenger.call(
+          'UserStorageController:performGetStorage',
+          path as `${string}.${string}`,
+          entropySourceId,
+        ),
+      set: async (
+        path: string,
+        value: string,
+        entropySourceId?: string,
+      ): Promise<void> =>
+        this.messenger.call(
+          'UserStorageController:performSetStorage',
+          path as `${string}.${string}`,
+          value,
+          entropySourceId,
+        ),
+    };
+  }
+
+  /**
+   * Resolves persisted terms + geolocation, and auto-creates a session when
+   * terms are already accepted and an email is available.
+   *
+   * @param params - Optional parameters.
+   * @param params.email - The account email to associate with the session.
+   * @param params.product - The consuming feature the flow runs for. When
+   * provided, the controller automatically runs the KYC-required check once
+   * authentication completes (and chains into document verification when KYC
+   * is required). When omitted, the flow stops at `form` and the consumer must
+   * call `checkKycRequired` manually.
+   */
+  async initialize(params?: {
+    email?: string;
+    product?: KycProduct;
+  }): Promise<void> {
+    // A repeat `initialize` while a session flow is already in progress must
+    // not tear it down: creating a new vendor session clears the tokens and
+    // forces `phase` back through `session`/`check`, breaking an in-flight
+    // Check/Auth frame flow. Leave the active flow untouched and let the
+    // consumer drive it (or call `reset` first to start over).
+    if (IN_PROGRESS_PHASES.includes(this.state.phase)) {
+      return;
+    }
+
+    // `initialize` starts a fresh flow, so `activeProduct` is always reset to
+    // this call's product (or `null`). Otherwise a prior run's product could
+    // linger and cause `#continueAfterAuthentication` to auto-run the check /
+    // sub-flow when the caller intended the manual (product-less) flow.
+    this.#applyUpdate((state) => {
+      if (params?.email) {
+        state.email = params.email;
+      }
+      state.activeProduct = params?.product ?? null;
+    });
+
+    // Capture the flow generation so a `reset()` landing while the async
+    // geolocation / session steps below are in flight cannot write results
+    // onto an idle controller.
+    const generation = this.#generation;
+
+    // Resolve country for display; non-blocking.
+    try {
+      const country = await this.messenger.call('KycService:getGeoCountry');
+      this.#updateIfCurrent(generation, (state) => {
+        state.geoCountry = country;
+      });
+    } catch {
+      // Ignore; disclaimers loading will surface a country error if needed.
+    }
+
+    const hasTerms =
+      Boolean(this.state.termsAcceptedAt) &&
+      this.state.acceptedDisclaimerIds.length > 0;
+
+    if (hasTerms && this.state.email) {
+      await this.#createSession();
+      return;
+    }
+
+    this.#applyUpdate((state) => {
+      state.phase = 'terms';
+    });
+    await this.loadDisclaimers();
+  }
+
+  /**
+   * Loads the disclaimers for the resolved (or provided) country.
+   *
+   * @param params - Optional parameters.
+   * @param params.country - ISO 3166-1 alpha-3 country code override.
+   */
+  async loadDisclaimers(params?: { country?: string }): Promise<void> {
+    // Capture the flow generation so a `reset()` landing while the geo /
+    // disclaimers requests are in flight cannot write results onto an idle
+    // controller.
+    const generation = this.#generation;
+    try {
+      const country =
+        params?.country ??
+        this.state.geoCountry ??
+        (await this.messenger.call('KycService:getGeoCountry'));
+      if (country !== this.state.geoCountry) {
+        this.#updateIfCurrent(generation, (state) => {
+          state.geoCountry = country;
+        });
+      }
+      const disclaimers = await this.messenger.call(
+        'KycService:fetchDisclaimers',
+        { country },
+      );
+      this.#updateIfCurrent(generation, (state) => {
+        state.disclaimers = disclaimers;
+        state.disclaimersError = null;
+      });
+    } catch (error) {
+      this.#updateIfCurrent(generation, (state) => {
+        state.disclaimersError = `Failed to load disclaimers: ${String(error)}`;
+      });
+    }
+  }
+
+  /**
+   * Captures terms acceptance for the currently loaded disclaimers and creates
+   * a session.
+   *
+   * @param params - Optional parameters.
+   * @param params.email - The account email to associate with the session.
+   * @param params.product - The consuming feature the flow runs for. See
+   * {@link initialize} for how the product drives the automatic post
+   * authentication continuation.
+   */
+  async acceptTermsAndStartSession(params?: {
+    email?: string;
+    product?: KycProduct;
+  }): Promise<void> {
+    const termsAcceptedAt = new Date().toISOString();
+    const disclaimerIds = this.state.disclaimers.map(
+      (disclaimer) => disclaimer.id,
+    );
+    this.#applyUpdate((state) => {
+      if (params?.email) {
+        state.email = params.email;
+      }
+      if (params?.product) {
+        state.activeProduct = params.product;
+      }
+      state.termsAcceptedAt = termsAcceptedAt;
+      state.acceptedDisclaimerIds = disclaimerIds;
+    });
+    await this.#createSession();
+  }
+
+  /**
+   * Creates a vendor session from the currently stored terms + email.
+   */
+  async #createSession(): Promise<void> {
+    const { email, termsAcceptedAt, acceptedDisclaimerIds } = this.state;
+    if (!email) {
+      this.#fail('Missing email for session creation.');
+      return;
+    }
+    if (!termsAcceptedAt || acceptedDisclaimerIds.length === 0) {
+      this.#fail('Missing terms acceptance for session creation.');
+      return;
+    }
+
+    // A new session invalidates any authentication carried over from a prior
+    // session. Clear the stale session token, access token, and auth-frame
+    // client token so `buildCheckFrameUrl` cannot return a URL bound to an old
+    // (or, on failure, invalid) session token, `buildAuthFrameUrl` cannot
+    // return a URL tied to an old client token, and `checkKycRequired` cannot
+    // run with an access token from an earlier authentication. The Check/Auth
+    // frames re-populate these for the new session. Because `sessionToken` is
+    // cleared here and only re-set on success, a failed creation leaves it
+    // `null` rather than resurrecting the previous session.
+    // Capture the flow generation so a `reset()` landing while the create
+    // request is in flight cannot resurrect a session (success) or overwrite
+    // the now-idle controller (failure). The synchronous update below runs
+    // before any `await`, so it needs no guard.
+    const generation = this.#generation;
+    this.#authClientToken = null;
+    this.#applyUpdate((state) => {
+      state.error = null;
+      state.phase = 'session';
+      state.statusMessage = 'Creating session...';
+      state.sessionToken = null;
+      state.accessToken = null;
+    });
+
+    try {
+      const { sessionToken } = await this.messenger.call(
+        'KycService:createSession',
+        { email, termsAcceptedAt, disclaimerIds: acceptedDisclaimerIds },
+      );
+      this.#updateIfCurrent(generation, (state) => {
+        state.sessionToken = sessionToken;
+        state.phase = 'check';
+        state.statusMessage = 'Authenticating via Check frame...';
+      });
+    } catch (error) {
+      console.error('Session creation failed:', error);
+      // A reset() superseded this flow while the request was in flight; leave
+      // the idle controller alone rather than forcing it back to `terms`.
+      if (this.#generation !== generation) {
+        return;
+      }
+      // Invalidate the stored acceptance so the customer can retry. Also clear
+      // `activeProduct` so a later `acceptTermsAndStartSession` that omits a
+      // product cannot auto-run the KYC check / SumSub chain for this failed
+      // flow's product — matching how `initialize` starts from a clean product.
+      this.#applyUpdate((state) => {
+        this.#clearAcceptedTerms(state);
+        state.activeProduct = null;
+        state.error = `Session creation failed: ${String(error)}`;
+        state.statusMessage =
+          'Session creation failed — accept the terms to try again.';
+        state.phase = 'terms';
+      });
+      await this.loadDisclaimers();
+    }
+  }
+
+  /**
+   * Clears the persisted terms acceptance.
+   */
+  clearSavedTerms(): void {
+    this.#applyUpdate((state) => {
+      this.#clearAcceptedTerms(state);
+    });
+  }
+
+  /**
+   * Clears the stored terms acceptance on the given draft state. Shared by the
+   * paths that must invalidate acceptance — explicit clear, vendor terms
+   * update, and session-creation failure — so they stay in sync. This is a
+   * targeted invalidation and, unlike {@link reset}, deliberately leaves the
+   * rest of the flow (geolocation, disclaimers, phase) untouched.
+   *
+   * @param state - The state to mutate.
+   */
+  #clearAcceptedTerms(state: KycControllerState): void {
+    state.termsAcceptedAt = null;
+    state.acceptedDisclaimerIds = [];
+  }
+
+  /**
+   * Handles a message posted by a Check/Auth frame and advances the flow.
+   *
+   * The transport-agnostic caller (WebView on mobile, iframe on web) forwards
+   * the raw message and injects the returned `reply` back into the frame.
+   *
+   * @param params - The parameters.
+   * @param params.message - The raw message posted by the frame.
+   * @returns An object whose optional `reply` should be posted back.
+   */
+  async handleFrameMessage(params: {
+    message: unknown;
+  }): Promise<{ reply?: unknown }> {
+    const payload = params.message as FrameMessage | undefined;
+
+    if (!payload) {
+      return {};
+    }
+
+    if (payload.kind === 'handshake') {
+      const channelId = payload.meta?.channelId;
+      return { reply: { version: 2, meta: { channelId }, kind: 'ack' } };
+    }
+
+    if (payload.kind !== 'complete') {
+      return {};
+    }
+
+    const channelId = payload.meta?.channelId;
+
+    // Only honor a Check/Auth `complete` for the frame the flow is currently
+    // waiting on. This drops stale or duplicate messages — e.g. a late post
+    // after `reset()` (phase `idle`) or after the flow already advanced past
+    // this frame — so they cannot resurrect tokens or rewind `phase` on a
+    // controller that has moved on. Frame messages are external input and,
+    // unlike the async steps, are not covered by the `#generation` guard.
+    let expectedPhase: KycPhase | null = null;
+    if (channelId === CHANNEL_CHECK) {
+      expectedPhase = 'check';
+    } else if (channelId === CHANNEL_AUTH) {
+      expectedPhase = 'auth';
+    }
+    if (!expectedPhase || this.state.phase !== expectedPhase) {
+      return {};
+    }
+
+    const status = payload.payload?.status;
+    const credsEnvelope = payload.payload?.credentials;
+
+    const customerId = payload.payload?.customer?.id ?? null;
+    if (customerId) {
+      this.#applyUpdate((state) => {
+        state.moonpayCustomerId = customerId;
+      });
+    }
+
+    if (!status) {
+      return {};
+    }
+
+    let accessToken: string | undefined;
+    let clientToken: string | undefined;
+    if (credsEnvelope) {
+      try {
+        const { credentials } = decryptCredentials(
+          credsEnvelope,
+          this.#keypair.privateKey,
+        );
+        accessToken = credentials.accessToken;
+        clientToken = credentials.clientToken;
+      } catch (error) {
+        this.#fail(`Failed to decrypt frame credentials: ${String(error)}`);
+        return {};
+      }
+    }
+
+    if (channelId === CHANNEL_CHECK) {
+      await this.#handleCheckOutcome(status, accessToken, clientToken);
+      return {};
+    }
+
+    // channelId === CHANNEL_AUTH, guaranteed by the expectedPhase guard above.
+    await this.#handleAuthOutcome(status, accessToken);
+    return {};
+  }
+
+  /**
+   * Applies a Check-frame outcome.
+   *
+   * @param status - The frame status.
+   * @param accessToken - The decrypted access token, if any.
+   * @param clientToken - The decrypted client token, if any.
+   */
+  async #handleCheckOutcome(
+    status: NonNullable<FrameMessage['payload']>['status'],
+    accessToken?: string,
+    clientToken?: string,
+  ): Promise<void> {
+    if (status === 'active' && accessToken) {
+      this.#applyUpdate((state) => {
+        state.accessToken = accessToken;
+        state.phase = 'form';
+        state.statusMessage = 'Already authenticated. Review to submit.';
+      });
+      await this.#continueAfterAuthentication();
+      return;
+    }
+    if (status === 'connectionRequired' && clientToken) {
+      this.#authClientToken = clientToken;
+      this.#applyUpdate((state) => {
+        state.phase = 'auth';
+        state.statusMessage = 'Verify your email via OTP in the Auth frame.';
+      });
+      return;
+    }
+    if (status === 'termsAcceptanceRequired') {
+      this.#requireTermsReacceptance();
+      return;
+    }
+    this.#fail(`Check frame returned status: ${status}`);
+  }
+
+  /**
+   * Applies an Auth-frame outcome.
+   *
+   * @param status - The frame status.
+   * @param accessToken - The decrypted access token, if any.
+   */
+  async #handleAuthOutcome(
+    status: NonNullable<FrameMessage['payload']>['status'],
+    accessToken?: string,
+  ): Promise<void> {
+    if (status === 'active' && accessToken) {
+      this.#applyUpdate((state) => {
+        state.accessToken = accessToken;
+        state.phase = 'form';
+        state.statusMessage = 'Authenticated. Review to submit.';
+      });
+      await this.#continueAfterAuthentication();
+      return;
+    }
+    if (status === 'termsAcceptanceRequired') {
+      this.#requireTermsReacceptance();
+      return;
+    }
+    this.#fail(`Auth frame returned status: ${status}`);
+  }
+
+  /**
+   * Continues the flow once authentication has completed (phase `form`).
+   *
+   * When the flow is scoped to a product (see {@link initialize}), the
+   * KYC-required check runs automatically, and — when KYC is required — the
+   * document-verification sub-flow is launched. When no product is set, this is
+   * a no-op and the flow stays at `form` for the consumer to drive manually.
+   *
+   * Errors are already recorded on state by `checkKycRequired` (`error`
+   * phase) and `startSumSub` (`sumsub.status = 'failed'`); this method swallows
+   * them so it can be awaited safely from the frame-message handler.
+   */
+  async #continueAfterAuthentication(): Promise<void> {
+    const product = this.state.activeProduct;
+    if (!product) {
+      return;
+    }
+
+    // Re-entry protection lives at the frame boundary: `handleFrameMessage`
+    // only honors a Check/Auth `complete` while `phase` matches, and both
+    // outcome handlers move `phase` to `form` before awaiting this method. A
+    // duplicate or late `complete` therefore lands after the phase moved on and
+    // is dropped before it can start a second continuation. Any writes here are
+    // additionally guarded by `#generation` (see `checkKycRequired` /
+    // `startSumSub`) so a `reset()` mid-continuation cannot corrupt state.
+    const kycRequired = await this.checkKycRequired({ product });
+    if (!kycRequired) {
+      return;
+    }
+
+    try {
+      await this.startSumSub();
+    } catch {
+      // `startSumSub` already records `sumsub.status = 'failed'`; swallow the
+      // rethrown error (e.g. SDK unavailable) so the awaited continuation
+      // resolves cleanly rather than surfacing as an unhandled rejection.
+    }
+  }
+
+  /**
+   * Invalidates stored terms and returns to the terms phase.
+   */
+  #requireTermsReacceptance(): void {
+    this.#applyUpdate((state) => {
+      this.#clearAcceptedTerms(state);
+      state.phase = 'terms';
+      state.statusMessage =
+        'The vendor updated its Terms of Use — please re-accept.';
+    });
+  }
+
+  /**
+   * Builds the Check-frame URL, or `null` when no session exists yet.
+   *
+   * @returns The Check-frame URL or `null`.
+   */
+  buildCheckFrameUrl(): string | null {
+    if (!this.state.sessionToken) {
+      return null;
+    }
+    const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
+    url.searchParams.set('sessionToken', this.state.sessionToken);
+    url.searchParams.set('publicKey', this.#keypair.publicKeyHex);
+    url.searchParams.set('channelId', CHANNEL_CHECK);
+    url.searchParams.set('skipKyc', 'true');
+    return url.toString();
+  }
+
+  /**
+   * Builds the Auth-frame URL, or `null` when no client token is available.
+   *
+   * @returns The Auth-frame URL or `null`.
+   */
+  buildAuthFrameUrl(): string | null {
+    if (!this.#authClientToken) {
+      return null;
+    }
+    const url = new URL(`${FRAMES_BASE_URL}/auth`);
+    url.searchParams.set('clientToken', this.#authClientToken);
+    url.searchParams.set('publicKey', this.#keypair.publicKeyHex);
+    url.searchParams.set('channelId', CHANNEL_AUTH);
+    return url.toString();
+  }
+
+  /**
+   * Builds the Reset-frame URL.
+   *
+   * @returns The Reset-frame URL.
+   */
+  buildResetFrameUrl(): string {
+    const url = new URL(`${FRAMES_BASE_URL}/reset`);
+    url.searchParams.set('channelId', CHANNEL_RESET);
+    return url.toString();
+  }
+
+  /**
+   * Checks whether KYC is required for a product and caches the result.
+   *
+   * @param params - The parameters.
+   * @param params.product - The consuming feature.
+   * @param params.country - Optional alpha-3 country override.
+   * @returns Whether KYC is required.
+   */
+  async checkKycRequired(params: {
+    product: KycProduct;
+    country?: string;
+  }): Promise<boolean> {
+    const { accessToken } = this.state;
+    if (!accessToken) {
+      this.#fail('Missing accessToken — repeat the authentication step.');
+      return false;
+    }
+    const country = params.country ?? this.state.geoCountry;
+    if (!country) {
+      this.#fail('Missing country for KYC-required check.');
+      return false;
+    }
+
+    // Capture the flow generation so we can detect a `reset()` that happens
+    // while the HTTP call is in flight and avoid writing stale results.
+    const generation = this.#generation;
+
+    this.#applyUpdate((state) => {
+      state.phase = 'submit';
+      state.statusMessage = 'Checking KYC status...';
+    });
+
+    try {
+      const { kycRequired } = await this.messenger.call(
+        'KycService:checkKycRequired',
+        { accessToken, country, capabilities: [{ product: params.product }] },
+      );
+      // The flow was reset while the check was in flight; discard the result
+      // rather than resurrecting a done/cached state on an idle controller.
+      const applied = this.#updateIfCurrent(generation, (state) => {
+        state.kycRequiredByProduct[params.product] = kycRequired;
+        state.lastCheckedAt = new Date().toISOString();
+        state.phase = 'done';
+        state.statusMessage = 'KYC check complete.';
+      });
+      if (!applied) {
+        return false;
+      }
+      return kycRequired;
+    } catch (error) {
+      if (this.#generation !== generation) {
+        return false;
+      }
+      this.#fail(`KYC check failed: ${String(error)}`);
+      return false;
+    }
+  }
+
+  /**
+   * Reads the cached "is KYC required" result for a product.
+   *
+   * @param params - The parameters.
+   * @param params.product - The consuming feature.
+   * @returns The cached value, or `undefined` if not yet checked.
+   */
+  getKycStatus(params: { product: KycProduct }): boolean | undefined {
+    return this.state.kycRequiredByProduct[params.product];
+  }
+
+  /**
+   * Runs the SumSub document-verification sub-flow end to end:
+   *
+   *  1. requests a per-session wrapping key from the UKYC backend;
+   *  2. verifies its `jwtChain` against the Fractal JWKS and confirms the
+   *     attested session server public key;
+   *  3. derives the `data_encryption_key` from the wallet's UKYC
+   *     `local_user_secret` and wraps it for the session server;
+   *  4. mints a client-signed, read-only `ukyc_capability_token` and creates
+   *     the UKYC session (handing over the wrapped key and the token);
+   *  5. fetches the SumSub applicant access token; and
+   *  6. presents the SDK via the injected launcher.
+   *
+   * If session creation reports the applicant is already approved on the relay
+   * while the vendor is still finalizing (`kycStatus: approved`,
+   * `finalStatus: pending`), the sub-flow stops at step 4 with a
+   * `vendorProcessing` status and a message rather than launching the SDK.
+   *
+   * @param params - Optional parameters.
+   * @param params.locale - BCP-47 locale for the SDK UI.
+   * @param params.debug - Enables SDK debug logging.
+   * @returns The SDK result.
+   */
+  async startSumSub(params?: {
+    locale?: string;
+    debug?: boolean;
+  }): Promise<Record<string, unknown>> {
+    // A new sub-flow supersedes any polling still running from a prior run.
+    this.#stopPolling();
+
+    if (!this.#sumsubLauncher.isAvailable()) {
+      const error = 'SumSub SDK is not available in this runtime.';
+      this.#applyUpdate((state) => {
+        state.sumsub.status = 'failed';
+        state.sumsub.result = { error };
+      });
+      throw new Error(error);
+    }
+
+    // Capture the flow generation so each async step can detect a `reset()`
+    // that lands mid-flight and avoid writing stale sub-flow state (or, worse,
+    // presenting the SDK) on a controller that is now idle.
+    const generation = this.#generation;
+
+    try {
+      this.#applyUpdate((state) => {
+        state.sumsub.status = 'creatingSession';
+        state.sumsub.result = null;
+        state.sumsub.sessionStatus = null;
+      });
+
+      const jwtToken = MOCK_JWT_TOKEN;
+
+      // Establish a per-session X25519 keypair and exchange our public half for
+      // the server's wrapping key. The private half stays on the device and is
+      // used to derive the shared secret that seals the data_encryption_key.
+      const sessionClientPrivateKey = x25519.utils.randomSecretKey();
+      const sessionClientPublicKey = x25519.getPublicKey(
+        sessionClientPrivateKey,
+      );
+      const wrappingKey = await this.messenger.call(
+        'KycService:getWrappingKey',
+        { sessionClientPublicKey: toBase64Url(sessionClientPublicKey) },
+      );
+
+      // Verify the jwtChain against Fractal's JWKS, then confirm the returned
+      // sessionServerPublicKey matches the value attested inside the verified
+      // JWT payload before trusting it for key wrapping.
+      const { keys } = await this.messenger.call('KycService:fetchJwks');
+      const jwtChainPayload = verifyJwtChain(keys, wrappingKey.jwtChain);
+      if (
+        jwtChainPayload.sessionServerPublicKeyX !==
+        wrappingKey.sessionServerPublicKey.x
+      ) {
+        throw new Error(
+          'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
+        );
+      }
+
+      // Derive the data_encryption_key from the local_user_secret and wrap it
+      // for the session server. Only the wrapped (encrypted) key ever leaves
+      // the device.
+      const localUserSecret = await getOrCreateLocalUserSecret(
+        this.#localUserSecretStore(),
+      );
+      const clientMaterial = deriveClientMaterial(localUserSecret);
+      const wrappedEncryptionKey = {
+        sessionId: wrappingKey.id,
+        ...wrapEncryptionKey(
+          sessionClientPrivateKey,
+          wrappingKey.sessionServerPublicKey.x,
+          clientMaterial.dataEncryptionKey,
+        ),
+      };
+
+      // Mint a read-only `ukyc_capability_token` for the session. Only the
+      // client holds the signing key derived from `local_user_secret`, so only
+      // the client can mint it; scoping it to `read` means it authorizes later
+      // storage reads without granting write or delete access.
+      const ukycCapabilityToken = signStorageAccessToken({
+        material: clientMaterial,
+        operations: ['read'],
+        expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
+      });
+
+      const { sessionId, kycStatus, finalStatus } = await this.messenger.call(
+        'KycService:createUkycSession',
+        {
+          jwtToken,
+          vendorMetadata: {
+            moonPayAccessToken: this.state.accessToken,
+            moonPayUserId: this.state.moonpayCustomerId,
+          },
+          wrappedEncryptionKey,
+          ukycCapabilityToken,
+        },
+      );
+
+      // A user who already finished the journey can return to a session the
+      // relay has already approved (`kycStatus`) while the vendor is still
+      // finalizing its own decision (`finalStatus`). There is nothing left to
+      // verify, so stop here and surface a message rather than launching the
+      // SDK again.
+      if (
+        kycStatus === KYC_STATUSES.approved &&
+        finalStatus === KYC_STATUSES.pending
+      ) {
+        const stillCurrent = this.#updateIfCurrent(generation, (state) => {
+          state.sumsub.status = 'vendorProcessing';
+          state.sumsub.sessionId = sessionId;
+          state.statusMessage = VENDOR_PROCESSING_MESSAGE;
+        });
+        return stillCurrent ? { kycStatus, finalStatus } : {};
+      }
+
+      this.#updateIfCurrent(generation, (state) => {
+        state.sumsub.status = 'fetchingToken';
+        state.sumsub.sessionId = sessionId;
+      });
+
+      const { applicantAccessToken } = await this.messenger.call(
+        'KycService:createJourney',
+        sessionId,
+      );
+
+      // A reset() may have landed while the session/token was being prepared.
+      // Gate the `launching` write and the decision to open the SDK behind a
+      // single generation check: `#updateIfCurrent` only writes when still
+      // current and reports whether it did. Since there is no `await` between
+      // this check and `launch` below, a successful result guarantees the SDK
+      // is never presented on a flow that a concurrent reset() returned to idle.
+      const stillCurrent = this.#updateIfCurrent(generation, (state) => {
+        state.sumsub.status = 'launching';
+        state.sumsub.applicantAccessToken = applicantAccessToken;
+      });
+      if (!stillCurrent) {
+        return {};
+      }
+
+      // Track whether the SDK ever reported a successful completion. A resolved
+      // `launch` alone does not imply success — the applicant may have
+      // abandoned the flow or the SDK may have reported a non-success outcome.
+      let reachedCompletion = false;
+
+      const result = await this.#sumsubLauncher.launch({
+        applicantAccessToken,
+        onTokenExpiration: async () => {
+          // A reset() may have superseded this flow while the SDK stayed open.
+          // Refuse to refresh against the now-stale UKYC session rather than
+          // silently keeping an orphaned SDK alive.
+          if (this.#generation !== generation) {
+            throw new Error(
+              'KYC flow was reset; SumSub session is no longer active.',
+            );
+          }
+          const refreshed = await this.messenger.call(
+            'KycService:createJourney',
+            sessionId,
+          );
+          return refreshed.applicantAccessToken;
+        },
+        onStatusChange: (_prev, next) => {
+          if (next === SUMSUB_COMPLETED_STATUS) {
+            reachedCompletion = true;
+          }
+          this.#updateIfCurrent(generation, (state) => {
+            state.sumsub.status =
+              next === SUMSUB_COMPLETED_STATUS ? 'complete' : 'inProgress';
+          });
+        },
+        locale: params?.locale ?? 'en',
+        debug: params?.debug ?? false,
+      });
+
+      // A resolved `launch` alone is not the final outcome: only a SDK-reported
+      // completion is worth polling for a verification decision. Anything else
+      // (abandonment, non-success) is `failed` and must not be polled.
+      const applied = this.#updateIfCurrent(generation, (state) => {
+        state.sumsub.status = reachedCompletion ? 'polling' : 'failed';
+        state.sumsub.result = result as Json;
+      });
+
+      // Once the SDK completes, the authoritative verification decision comes
+      // from the UKYC backend, not the SDK result. Poll the session status
+      // until it reaches a terminal decision. Guard on `applied` so a `reset()`
+      // that landed during `launch` cannot start polling on an idle flow.
+      if (applied && reachedCompletion) {
+        if (sessionId) {
+          await this.#startSessionStatusPolling(sessionId);
+        } else {
+          // No session id to poll against; fall back to treating the SDK
+          // completion as the final outcome.
+          this.#updateIfCurrent(generation, (state) => {
+            state.sumsub.status = 'complete';
+          });
+        }
+      }
+      return result;
+    } catch (error) {
+      const result = { error: String(error) };
+      this.#updateIfCurrent(generation, (state) => {
+        state.sumsub.status = 'failed';
+        state.sumsub.result = result;
+      });
+      return result;
+    }
+  }
+
+  /**
+   * Fetches the current UKYC session status for the active sub-flow and records
+   * it on state. Useful for a one-off refresh outside the automatic polling
+   * loop that {@link startSumSub} runs.
+   *
+   * @returns The fetched session status.
+   * @throws If there is no active SumSub session to query.
+   */
+  async getSessionStatus(): Promise<KycSessionStatus> {
+    const { sessionId } = this.state.sumsub;
+    if (!sessionId) {
+      throw new Error('Cannot fetch session status: no active SumSub session.');
+    }
+
+    // Capture the flow generation so a `reset()` landing while the request is
+    // in flight cannot write the result onto an idle controller.
+    const generation = this.#generation;
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId },
+    );
+    this.#updateIfCurrent(generation, (state) => {
+      state.sumsub.sessionStatus = sessionStatus;
+    });
+    return sessionStatus;
+  }
+
+  /**
+   * Begins polling the UKYC session status until a terminal decision is
+   * reached. The first poll runs immediately (and is awaited by
+   * {@link startSumSub}); subsequent polls are scheduled every
+   * `#sessionStatusPollIntervalMs`.
+   *
+   * @param sessionId - The UKYC session id to poll.
+   * @returns A promise that resolves once the first poll settles.
+   */
+  async #startSessionStatusPolling(sessionId: string): Promise<void> {
+    // Supersede any prior loop and claim a fresh token for this one. Because
+    // `#stopPolling` bumps the token, any in-flight poll from a previous loop
+    // sees a mismatch and neither writes state nor reschedules.
+    this.#stopPolling();
+    const token = this.#pollToken;
+
+    const tick = async (): Promise<void> => {
+      const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
+      if (shouldStop) {
+        return;
+      }
+      this.#pollTimer = setTimeout(() => {
+        this.#pollTimer = null;
+        // `tick` swallows its own errors (see `#pollSessionStatusOnce`) and
+        // therefore never rejects, so this fire-and-forget scheduled poll
+        // cannot surface as an unhandled rejection.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        tick();
+      }, this.#sessionStatusPollIntervalMs);
+    };
+
+    await tick();
+  }
+
+  /**
+   * Performs a single session-status poll: fetches the status, records it, and
+   * resolves the sub-flow when the status is terminal.
+   *
+   * Transient errors are swallowed so the loop keeps polling; the last good
+   * `sessionStatus` is deliberately preserved rather than being overwritten
+   * with the error.
+   *
+   * @param sessionId - The UKYC session id to poll.
+   * @param token - The polling token captured when the loop started.
+   * @returns `true` when the loop should stop (terminal status or superseded
+   * by a reset / new sub-flow), `false` when it should keep polling.
+   */
+  async #pollSessionStatusOnce(
+    sessionId: string,
+    token: number,
+  ): Promise<boolean> {
+    try {
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatus',
+        { sessionId },
+      );
+      // Superseded while the request was in flight — drop the result.
+      if (this.#pollToken !== token) {
+        return true;
+      }
+      const isTerminal = TERMINAL_SESSION_STATUSES.has(
+        sessionStatus.finalStatus,
+      );
+      this.#applyUpdate((state) => {
+        state.sumsub.sessionStatus = sessionStatus;
+        if (isTerminal) {
+          state.sumsub.status = SUCCESSFUL_SESSION_STATUSES.has(
+            sessionStatus.finalStatus,
+          )
+            ? 'complete'
+            : 'failed';
+        }
+      });
+      if (isTerminal) {
+        this.#stopPolling();
+      }
+      return isTerminal;
+    } catch {
+      // Keep polling on transient errors, preserving the last good status.
+      // Stop only when a reset / new sub-flow superseded this loop.
+      return this.#pollToken !== token;
+    }
+  }
+
+  /**
+   * Stops the session-status polling loop: bumps the polling token (so any
+   * in-flight `tick` bows out) and clears any scheduled poll.
+   */
+  #stopPolling(): void {
+    this.#pollToken += 1;
+    if (this.#pollTimer !== null) {
+      clearTimeout(this.#pollTimer);
+      this.#pollTimer = null;
+    }
+  }
+
+  /**
+   * Resets the flow to idle, clearing session tokens and sub-flow state while
+   * preserving persisted terms acceptance and the per-product cache.
+   */
+  reset(): void {
+    this.#authClientToken = null;
+    // Stop any session-status polling so a late poll cannot write onto the
+    // now-idle controller.
+    this.#stopPolling();
+    // Invalidate any in-flight async work started before this reset so its
+    // results are discarded rather than written onto the now-idle controller.
+    this.#generation += 1;
+    this.#applyUpdate((state) => {
+      state.phase = 'idle';
+      state.statusMessage = '';
+      state.error = null;
+      state.disclaimers = [];
+      state.disclaimersError = null;
+      state.sessionToken = null;
+      state.accessToken = null;
+      state.moonpayCustomerId = null;
+      state.activeProduct = null;
+      state.sumsub = {
+        status: 'idle',
+        result: null,
+        sessionId: null,
+        applicantAccessToken: null,
+        sessionStatus: null,
+      };
+    });
+  }
+
+  /**
+   * Applies a state update only when the flow has not been reset since
+   * `generation` was captured. Prevents an in-flight async step from writing
+   * stale results onto a controller that a concurrent {@link reset} has
+   * returned to idle.
+   *
+   * @param generation - The flow generation captured before the async work.
+   * @param updater - The state mutation to apply when still current.
+   * @returns `true` if the update was applied, `false` if it was superseded.
+   */
+  #updateIfCurrent(
+    generation: number,
+    updater: (state: KycControllerState) => void,
+  ): boolean {
+    if (this.#generation !== generation) {
+      return false;
+    }
+    this.#applyUpdate(updater);
+    return true;
+  }
+
+  /**
+   * The single state-update path for this controller. All mutations go through
+   * here (rather than calling `this.update` directly) so the mechanism stays
+   * consistent and one subtlety is handled in a single place:
+   *
+   * `sumsub.result` is typed as the recursive `Json`, and expanding
+   * `Draft<Json>` (which happens whenever an updater touches `sumsub.result`)
+   * can trip TypeScript's "type instantiation is excessively deep" guard. By
+   * typing the callback parameter as the plain {@link KycControllerState}
+   * instead of Immer's `Draft`, we avoid expanding the draft type while keeping
+   * the same mutate-in-place semantics (the underlying value is still the Immer
+   * draft at runtime).
+   *
+   * @param updater - The state mutation to apply.
+   */
+  #applyUpdate(updater: (state: KycControllerState) => void): void {
+    this.update((state) => {
+      // @ts-expect-error Avoid "type instantiation is excessively deep".
+      updater(state);
+    });
+  }
+
+  /**
+   * Transitions to the error phase with a message.
+   *
+   * @param message - The error message.
+   */
+  #fail(message: string): void {
+    this.#applyUpdate((state) => {
+      state.error = message;
+      state.phase = 'error';
+    });
+  }
+}

@@ -8,10 +8,10 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
+  KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
-import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -31,10 +31,14 @@ import {
 } from '../../sdk/index.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
-  createSnapPublicKeyRequest,
-  createSnapAllPublicKeysRequest,
-  createSnapSignMessageRequest,
-} from './auth-snap-requests.js';
+  getHdKeyringEntropySourceIds,
+  getPrimaryHdKeyringEntropySourceId,
+} from '../../shared/utils/entropy-source.js';
+import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
+import {
+  getMessageSigningPublicKey,
+  signMessageWithMessageSigningKey,
+} from '../../shared/utils/message-signing.js';
 import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types.js';
 
 const controllerName = 'AuthenticationController';
@@ -152,7 +156,7 @@ export type Events =
 // Allowed Actions
 type AllowedActions =
   | KeyringControllerGetStateAction
-  | SnapControllerHandleRequestAction
+  | KeyringControllerWithKeyringV2UnsafeAction
   | SeedlessOnboardingControllerGetStateAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
@@ -182,8 +186,6 @@ export class AuthenticationController extends BaseController<
   };
 
   #isUnlocked = false;
-
-  #cachedPrimaryEntropySourceId?: string;
 
   // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
   // before its first await; if it changes mid-flight we must NOT clear
@@ -250,8 +252,8 @@ export class AuthenticationController extends BaseController<
           setLoginResponse: this.#setLoginResponseToState.bind(this),
         },
         signing: {
-          getIdentifier: this.#snapGetPublicKey.bind(this),
-          signMessage: this.#snapSignMessage.bind(this),
+          getIdentifier: this.#getPublicKey.bind(this),
+          signMessage: this.#signMessage.bind(this),
         },
         getLoginTag: this.#getLoginTag.bind(this),
         getLoginIdentifierType: this.#getLoginIdentifierType.bind(this),
@@ -270,8 +272,7 @@ export class AuthenticationController extends BaseController<
   async #getLoginResponseFromState(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     if (!this.state.srpSessionData?.[resolvedId]) {
       return null;
     }
@@ -282,8 +283,7 @@ export class AuthenticationController extends BaseController<
     loginResponse: LoginResponse,
     entropySourceId?: string,
   ) {
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
       state.isSignedIn = true;
@@ -306,27 +306,28 @@ export class AuthenticationController extends BaseController<
     }
   }
 
-  async #getPrimaryEntropySourceId(): Promise<string> {
-    if (this.#cachedPrimaryEntropySourceId) {
-      return this.#cachedPrimaryEntropySourceId;
-    }
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
+  /**
+   * Reads the HD keyring entropy source IDs from KeyringController.
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getHdKeyringEntropySourceIds(keyrings);
+  }
 
-    if (allPublicKeys.length === 0) {
-      throw new Error(
-        '#getPrimaryEntropySourceId - No entropy sources found from snap',
-      );
-    }
-
-    const primaryId = allPublicKeys[0][0];
-    if (!primaryId) {
-      throw new Error(
-        '#getPrimaryEntropySourceId - Primary entropy source ID is undefined',
-      );
-    }
-
-    this.#cachedPrimaryEntropySourceId = primaryId;
-    return this.#cachedPrimaryEntropySourceId;
+  /**
+   * Resolves the primary SRP's entropy source ID from KeyringController rather
+   * than the message-signing snap, so callers like `getBearerToken()` are not
+   * blocked on snap boot.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve while
+   * the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getPrimaryHdKeyringEntropySourceId(keyrings);
   }
 
   /**
@@ -339,7 +340,7 @@ export class AuthenticationController extends BaseController<
    * @returns The login tag to append to the signed message.
    */
   async #getLoginTag(entropySourceId?: string): Promise<SrpLoginTag> {
-    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     const resolvedId = entropySourceId ?? primaryEntropySourceId;
 
     return resolvedId === primaryEntropySourceId ? 'primary' : 'secondary';
@@ -366,7 +367,7 @@ export class AuthenticationController extends BaseController<
   async #getLoginIdentifierType(
     entropySourceId?: string,
   ): Promise<LoginIdentifierType> {
-    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     const resolvedId = entropySourceId ?? primaryEntropySourceId;
 
     // Social vault authConnection is only associated with the primary source.
@@ -417,17 +418,17 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('performSignIn');
 
     const epochAtStart = this.#profilePairingRequestEpoch;
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
+    const entropySourceIds = this.#getHdKeyringEntropySourceIds();
     const accessTokens: string[] = [];
 
     // We iterate sequentially in order to be sure that the first entry
     // is the primary SRP LoginResponse.
-    for (const [entropySourceId] of allPublicKeys) {
+    for (const entropySourceId of entropySourceIds) {
       const accessToken = await this.#auth.getAccessToken(entropySourceId);
       accessTokens.push(accessToken);
     }
 
-    if (allPublicKeys.length < 2) {
+    if (entropySourceIds.length < 2) {
       // Single-SRP wallet: nothing to pair.
       this.#tryClearNeedsProfilePairing(epochAtStart);
     } else {
@@ -486,10 +487,10 @@ export class AuthenticationController extends BaseController<
    * pair API call was in-flight.
    */
   async #doPair(accessTokens: string[], epochAtStart: number): Promise<void> {
-    const previousCanonical = await this.#getCanonicalProfileId();
+    const previousCanonical = this.#getCanonicalProfileId();
 
     const profileAliases = await this.#pairSrpProfiles(accessTokens);
-    const newCanonical = await this.#getCanonicalProfileId();
+    const newCanonical = this.#getCanonicalProfileId();
 
     // If somehow we cannot compute the new canonical profile ID after pairing,
     // we just return now and do not update the `needsProfilePairing` flag.
@@ -549,8 +550,8 @@ export class AuthenticationController extends BaseController<
    *
    * @returns The canonical profile id, or `null` if unavailable.
    */
-  async #getCanonicalProfileId(): Promise<string | null> {
-    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+  #getCanonicalProfileId(): string | null {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     return (
       this.state.srpSessionData?.[primaryEntropySourceId]?.profile
         ?.canonicalProfileId ?? null
@@ -558,7 +559,6 @@ export class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
-    this.#cachedPrimaryEntropySourceId = undefined;
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
@@ -578,8 +578,7 @@ export class AuthenticationController extends BaseController<
    */
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getAccessToken(resolvedId);
   }
 
@@ -600,8 +599,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfile(resolvedId);
   }
 
@@ -624,11 +622,11 @@ export class AuthenticationController extends BaseController<
   public async refreshCanonicalProfileId(): Promise<string> {
     this.#assertIsUnlocked('refreshCanonicalProfileId');
 
-    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     this.#invalidateSrpSession(primaryEntropySourceId);
     await this.#auth.getAccessToken(primaryEntropySourceId);
 
-    const canonical = await this.#getCanonicalProfileId();
+    const canonical = this.#getCanonicalProfileId();
     if (!canonical) {
       throw new Error(
         'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
@@ -655,8 +653,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfileLineage(resolvedId);
   }
 
@@ -675,8 +672,7 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<string> {
     this.#assertIsUnlocked('getCustomerServiceToken');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getCustomerServiceToken(resolvedId);
   }
 
@@ -685,67 +681,78 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Returns the auth snap public key.
+   * Reads the BIP-39 seed for an HD entropy source from KeyringController.
+   *
+   * @param entropySourceId - Entropy source ID. Defaults to the primary HD
+   * keyring.
+   * @returns The HD keyring seed.
+   */
+  async #getHdKeyringSeed(entropySourceId?: string): Promise<Uint8Array> {
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    return getHdKeyringSeed(this.messenger, resolvedId);
+  }
+
+  /**
+   * Returns the message-signing public key via native SIP-6 derivation
+   * (same key as `@metamask/message-signing-snap` with empty salt).
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns The snap public key.
+   * @returns The public key hex.
    */
-  async #snapGetPublicKey(entropySourceId?: string): Promise<string> {
-    this.#assertIsUnlocked('#snapGetPublicKey');
-
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapPublicKeyRequest(entropySourceId),
-    )) as string;
-
-    return result;
+  async #getPublicKey(entropySourceId?: string): Promise<string> {
+    this.#assertIsUnlocked('#getPublicKey');
+    const seed = await this.#getHdKeyringSeed(entropySourceId);
+    return getMessageSigningPublicKey(seed);
   }
 
+  #_signMessageCache: Record<string, string> = {};
+
   /**
-   * Returns a mapping of entropy source IDs to auth snap public keys.
+   * Builds a cache key scoped to a specific entropy source, so each SRP's
+   * signature stays isolated (same pattern as `UserStorageController`).
    *
-   * @returns A mapping of entropy source IDs to public keys.
+   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
+   * primary HD keyring's metadata ID rather than a stable literal. Because that
+   * ID is randomly regenerated whenever the vault is recreated (e.g. on
+   * restore), the cached entry is naturally invalidated across vaults — a
+   * different SRP can never inherit the previous primary's cached signature.
+   *
+   * @param message - The tagged message used for signing.
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The scoped cache key.
    */
-  async #snapGetAllPublicKeys(): Promise<[string, string][]> {
-    this.#assertIsUnlocked('#snapGetAllPublicKeys');
-
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapAllPublicKeysRequest(),
-    )) as [string, string][];
-
-    return result;
+  #scopedCacheKey(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): string {
+    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
   }
 
-  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
-
   /**
-   * Signs a specific message using an underlying auth snap.
+   * Signs a `metamask:…` message with the native SIP-6 message-signing key.
    *
    * @param message - A specific tagged message to sign.
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns A Signature created by the snap.
+   * @returns Compact secp256k1 signature hex.
    */
-  async #snapSignMessage(
+  async #signMessage(
     message: string,
     entropySourceId?: string,
   ): Promise<string> {
     assertMessageStartsWithMetamask(message);
+    this.#assertIsUnlocked('#signMessage');
 
-    if (this.#_snapSignMessageCache[message]) {
-      return this.#_snapSignMessageCache[message];
+    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
+    if (this.#_signMessageCache[cacheKey]) {
+      return this.#_signMessageCache[cacheKey];
     }
 
-    this.#assertIsUnlocked('#snapSignMessage');
+    const seed = await this.#getHdKeyringSeed(entropySourceId);
+    const result = await signMessageWithMessageSigningKey(message, seed);
 
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapSignMessageRequest(message, entropySourceId),
-    )) as string;
-
-    this.#_snapSignMessageCache[message] = result;
+    this.#_signMessageCache[cacheKey] = result;
 
     return result;
   }

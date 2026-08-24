@@ -98,6 +98,11 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'claims-controller': {
     teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-controller',
+  },
+  'claims-service': {
+    teams: ['@MetaMask/web3auth'],
+    initializationPath: 'claims-service',
   },
   'client-controller': {
     teams: [
@@ -142,9 +147,6 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'eip1193-permission-middleware': {
     teams: ['@MetaMask/core-platform'],
-  },
-  'ens-controller': {
-    teams: ['@MetaMask/confirmations'],
   },
   'eth-block-tracker': {
     teams: ['@MetaMask/core-platform'],
@@ -445,7 +447,6 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [
         buildRuleForPackage('address-book-controller'),
         buildRuleForPackage('approval-controller'),
-        buildRuleForPackage('ens-controller'),
         buildRuleForPackage('gas-fee-controller'),
         buildRuleForPackage('logging-controller'),
         buildRuleForPackage('message-manager'),
@@ -508,6 +509,10 @@ function buildTeamSections(): CodeownersSection[] {
     {
       title: 'Product Safety Team',
       rules: [buildRuleForPackage('phishing-controller')],
+    },
+    {
+      title: 'Universal KYC Team',
+      rules: [buildRuleForPackage('kyc-controller')],
     },
     {
       title: 'Swaps-Bridge Team',
@@ -662,7 +667,6 @@ function buildPackageReleaseSection(): CodeownersSection {
     'earn-controller',
     'money-account-balance-service',
     'money-account-api-data-service',
-    'ens-controller',
     'gas-fee-controller',
     'gator-permissions-controller',
     'geolocation-controller',

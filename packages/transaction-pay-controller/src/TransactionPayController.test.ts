@@ -924,6 +924,7 @@ describe('TransactionPayController', () => {
           sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         }),
         messenger,
+        undefined,
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
@@ -935,6 +936,32 @@ describe('TransactionPayController', () => {
         transactionId: TRANSACTION_ID_MOCK,
         updateTransactionData: expect.any(Function),
       });
+    });
+
+    it('forwards the resolveSourceAmount option to updateSourceAmounts', () => {
+      const resolveSourceAmount = jest.fn();
+      const controller = createController({ resolveSourceAmount });
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.sourceAmounts = [
+          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
+        ];
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        expect.any(Object),
+        messenger,
+        resolveSourceAmount,
+      );
     });
   });
 

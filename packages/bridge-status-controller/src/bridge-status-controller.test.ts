@@ -22,6 +22,7 @@ import {
   validateQuoteResponseV1,
   toQuoteResponseV2,
 } from '@metamask/bridge-controller';
+import type { TraceRequest } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -52,6 +53,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
+  TraceName,
 } from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
@@ -588,6 +590,21 @@ const MockTxHistory = {
 };
 
 const addTransactionBatchFn = jest.fn();
+
+const createTraceCallback = (traceRequests: TraceRequest[]) =>
+  jest
+    .fn()
+    .mockImplementation(
+      async (request: TraceRequest, callback?: () => unknown) => {
+        traceRequests.push(request);
+        return await callback?.();
+      },
+    );
+
+const getSwapOperationCompletedTrace = (
+  traceRequests: TraceRequest[],
+): TraceRequest | undefined =>
+  traceRequests.find(({ name }) => name === TraceName.SwapOperationCompleted);
 
 function getRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
@@ -1768,6 +1785,157 @@ describe('BridgeStatusController', () => {
         // Cleanup
         jest.restoreAllMocks();
       });
+    });
+
+    describe('swap operation completion tracing', () => {
+      it.each([
+        {
+          name: 'success',
+          result: 'success',
+          response: (): StatusResponse => MockStatusResponse.getComplete(),
+          destinationTxHash: '0xdestTxHash1',
+        },
+        {
+          name: 'failure',
+          result: 'error',
+          response: (): StatusResponse => MockStatusResponse.getFailed(),
+          destinationTxHash: undefined,
+        },
+      ])('records $name', async (scenario) => {
+        jest.useFakeTimers();
+        const startTime = 1729964825189;
+        const completionTime = 1736277625746;
+        jest.spyOn(Date, 'now').mockImplementation(() => completionTime);
+        const traceRequests: TraceRequest[] = [];
+
+        await withController(
+          {
+            options: {
+              traceFn: createTraceCallback(traceRequests),
+            },
+          },
+          async ({ rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            jest
+              .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+              .mockResolvedValueOnce({
+                status: scenario.response(),
+                validationFailures: [],
+              });
+
+            rootMessenger.call(
+              'BridgeStatusController:startPollingForBridgeTxStatus',
+              getMockStartPollingForBridgeTxStatusArgs(),
+            );
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            const trace = getSwapOperationCompletedTrace(traceRequests);
+            expect(trace).toStrictEqual(
+              expect.objectContaining({
+                name: TraceName.SwapOperationCompleted,
+                startTime,
+                data: expect.objectContaining({
+                  srcChainId: 'eip155:42161',
+                  destChainId: 'eip155:10',
+                  provider: 'lifi_across',
+                  swap_type: 'crosschain',
+                  terminal_stage: 'destination',
+                  quote_id: '197c402f-cb96-4096-9f8c-54aed84ca776',
+                  transaction_id: 'bridgeTxMetaId1',
+                  src_tx_hash: '0xsrcTxHash1',
+                  result: scenario.result,
+                }),
+              }),
+            );
+            expect(trace?.data?.dest_tx_hash ?? null).toBe(
+              scenario.destinationTxHash ?? null,
+            );
+            expect(
+              traceRequests.filter(
+                ({ name }) => name === TraceName.SwapOperationCompleted,
+              ),
+            ).toHaveLength(1);
+          },
+        );
+      });
+
+      it.each([
+        {
+          name: 'same-chain success',
+          history: () => MockTxHistory.getPendingSwap(),
+          transactionId: 'swapTxMetaId1',
+          transactionType: TransactionType.swap,
+          transactionStatus: TransactionStatus.confirmed,
+          result: 'success',
+          swapType: 'single_chain',
+        },
+        {
+          name: 'cross-chain source failure',
+          history: () => MockTxHistory.getPending(),
+          transactionId: 'bridgeTxMetaId1',
+          transactionType: TransactionType.bridge,
+          transactionStatus: TransactionStatus.failed,
+          result: 'error',
+          swapType: 'crosschain',
+        },
+      ])(
+        'records $name',
+        async ({
+          history,
+          transactionId,
+          transactionType,
+          transactionStatus,
+          result,
+          swapType,
+        }) => {
+          const traceRequests: TraceRequest[] = [];
+
+          await withController(
+            {
+              options: {
+                state: {
+                  txHistory: history(),
+                },
+                traceFn: createTraceCallback(traceRequests),
+              },
+            },
+            async ({ rootMessenger }) => {
+              registerDefaultActionHandlers(rootMessenger);
+              rootMessenger.publish(
+                'TransactionController:transactionStatusUpdated',
+                {
+                  transactionMeta: {
+                    chainId: CHAIN_IDS.ARBITRUM,
+                    hash: '0xsourceTxHash',
+                    networkClientId: 'eth-id',
+                    time: Date.now(),
+                    txParams: {} as unknown as TransactionParams,
+                    type: transactionType,
+                    status: transactionStatus,
+                    id: transactionId,
+                  } as TransactionMeta,
+                },
+              );
+              await flushPromises();
+
+              expect(
+                getSwapOperationCompletedTrace(traceRequests),
+              ).toStrictEqual(
+                expect.objectContaining({
+                  name: TraceName.SwapOperationCompleted,
+                  data: expect.objectContaining({
+                    result,
+                    swap_type: swapType,
+                    terminal_stage: 'source',
+                    transaction_id: transactionId,
+                  }),
+                }),
+              );
+            },
+          );
+        },
+      );
     });
 
     it.each([
@@ -4396,6 +4564,7 @@ describe('BridgeStatusController', () => {
         ...quoteWithoutApproval,
         quote: {
           ...quoteWithoutApproval.quote,
+          slippage: 0.01,
           gasIncluded: true,
           gasIncluded7702: false,
           feeData: {
