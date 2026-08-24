@@ -81,5 +81,8 @@
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }

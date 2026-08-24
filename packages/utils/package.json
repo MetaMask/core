@@ -81,5 +81,15 @@
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "eslint-plugin-import-x>unrs-resolver": false,
+      "jest>@jest/core>jest-haste-map>@parcel/watcher": false
+    }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }

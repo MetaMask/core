@@ -77,5 +77,8 @@
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }

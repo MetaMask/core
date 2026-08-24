@@ -82,5 +82,8 @@
       "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>secp256k1": false,
       "eslint-plugin-import-x>unrs-resolver": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }

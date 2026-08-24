@@ -1,0 +1,14 @@
+{
+  "notes": "Should prevent basic malicious behavior of writing to locations outside the project and sending network requests, but not break any of the advanced packages in use. Everything below the net permission can be used to bypass the restrictions by a more sophisticated attacker.",
+  "nodeOptions": {
+    "--permission": true,
+    "--allow-fs-read": ["./"],
+    "--allow-fs-write": ["./"],
+    "--allow-child-process": true,
+    "--allow-net": false,
+    "--allow-worker": false,
+    "--allow-addons": false,
+    "--allow-wasi": false,
+    "--allow-inspector": false
+  }
+}
