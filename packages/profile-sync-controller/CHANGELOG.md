@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [30.0.0]
 
-### Uncategorized
-
-- chore: bump accounts deps ([#9754](https://github.com/MetaMask/core/pull/9754))
-
 ### Changed
 
 - **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))
@@ -20,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Add `@metamask/key-tree` and `@noble/curves`; remove unused `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, and `@metamask/snaps-utils` dependencies ([#9824](https://github.com/MetaMask/core/pull/9824))
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/keyring-internal-api` from `^11.0.2` to `^12.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ## [29.0.0]
 
