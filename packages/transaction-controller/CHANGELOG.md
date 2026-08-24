@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `getSendRecipients`, which returns user-chosen send payees for a transaction (native `simpleSend` recipients, decoded ERC-20/721/1155 transfer payees, `swapAndSendRecipient`, and nested batch sends) and omits protocol addresses such as token, Permit2, and router contracts
+
 ### Changed
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))

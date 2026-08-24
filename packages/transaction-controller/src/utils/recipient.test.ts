@@ -1,6 +1,6 @@
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
-import { getEffectiveRecipient } from './recipient.js';
+import { getEffectiveRecipient, getSendRecipients } from './recipient.js';
 
 const FROM_ADDRESS = '0x0987654321098765432109876543210987654321';
 const TOKEN_CONTRACT = '0x1234567890123456789012345678901234567890';
@@ -104,5 +104,140 @@ describe('getEffectiveRecipient', () => {
     );
 
     expect(getEffectiveRecipient(transactionMeta)).toBe(TOKEN_CONTRACT);
+  });
+});
+
+describe('getSendRecipients', () => {
+  it('returns the native recipient for simple sends', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.simpleSend,
+      undefined,
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('prefers txParamsOriginal.to when container wrapping replaced the recipient', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.simpleSend,
+        undefined,
+        TOKEN_CONTRACT,
+      ),
+      txParamsOriginal: {
+        from: FROM_ADDRESS,
+        to: TOKEN_RECIPIENT,
+        value: '0x0',
+      },
+    };
+
+    expect(getSendRecipients(transactionMeta)).toEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for token transfers and ignores the token contract', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodTransfer,
+      TRANSFER_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for transferFrom transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodTransferFrom,
+      TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns no recipients when token transfer calldata cannot be decoded', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodTransfer,
+      '0x01',
+    );
+
+    expect(getSendRecipients(transactionMeta)).toEqual([]);
+  });
+
+  it('returns no recipients for approve transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodApprove,
+      '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
+    );
+
+    expect(getSendRecipients(transactionMeta)).toEqual([]);
+  });
+
+  it('returns no recipients for contract interactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      TRANSFER_DATA,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toEqual([]);
+  });
+
+  it('returns swapAndSendRecipient for swap-and-send transactions', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.swapAndSend, TRANSFER_DATA),
+      swapAndSendRecipient: TOKEN_RECIPIENT,
+    };
+
+    expect(getSendRecipients(transactionMeta)).toEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('includes nested send and transfer payees from a batch', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.batch,
+        '0xdeadbeef',
+        TOKEN_CONTRACT,
+      ),
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+        {
+          data: TRANSFER_DATA,
+          to: TOKEN_CONTRACT,
+          type: TransactionType.tokenMethodTransfer,
+        },
+        {
+          to: TOKEN_CONTRACT,
+          type: TransactionType.tokenMethodApprove,
+        },
+      ],
+    };
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toEqual([nestedSendRecipient, TOKEN_RECIPIENT]);
+  });
+
+  it('treats untyped transactions with no calldata as native sends', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.simpleSend,
+      undefined,
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients({ ...transactionMeta, type: undefined })).toEqual([
+      TOKEN_RECIPIENT,
+    ]);
   });
 });

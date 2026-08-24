@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
 
+### Fixed
+
+- Restrict address poisoning known recipients to user-chosen send payees (`simpleSend`, decoded token transfer recipients, `swapAndSendRecipient`, and nested batch sends) so confirmed approves, swaps, and contract interactions no longer add token or protocol addresses to the comparison set
+
 ## [17.3.1]
 
 ### Changed
