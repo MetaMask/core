@@ -814,12 +814,14 @@ export class AssetsController extends BaseController<
   readonly #accountActivityDataSource: AccountActivityDataSource;
 
   /**
-   * Coordinates the race between `transactionConfirmed` and the WS
-   * `transactionUpdated` push for a given transaction, keyed by
-   * `${chain}:${txId}`. Whichever arrives first records an entry; whichever
-   * arrives second consumes it. A `pending` entry means we're about to force
-   * an Accounts API refetch unless the WS beats the clock; an `arrived`
-   * entry means the WS already confirmed and is just waiting to be noticed.
+   * Tracks coordination between `TransactionController:transactionConfirmed`
+   * and `AccountActivityService:transactionUpdated` for the same transaction,
+   * keyed by `${chain}:${txId}`.
+   *
+   * - `pending`: confirmation arrived first; a timed Accounts API refetch is
+   *   scheduled unless the WebSocket reports the transaction first.
+   * - `arrived`: the WebSocket reported the transaction first; the entry
+   *   expires if confirmation never arrives.
    */
   readonly #wsConfirmations = new Map<
     string,
@@ -1240,9 +1242,8 @@ export class AssetsController extends BaseController<
       this.#updateActive();
     });
 
-    // Got here first? `transactionConfirmed` hasn't fired yet, so just note
-    // that the WS confirmed and let it find out later. Got here second? Then
-    // `transactionConfirmed` is already waiting on a timer - cancel it.
+    // Cancel a scheduled refetch when the WebSocket confirms first, or record
+    // that the WebSocket confirmed before `transactionConfirmed` fires.
     this.messenger.subscribe(
       'AccountActivityService:transactionUpdated',
       ({ chain, id }: WsTransaction) => {
@@ -1367,7 +1368,7 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    // The WS may have already confirmed this before we got here.
+    // WebSocket confirmation may have arrived before this handler ran.
     const key = `${chainId}:${transactionHash.toLowerCase()}`;
     if (this.#takeWsConfirmation(key) === 'arrived') {
       return;
@@ -4128,7 +4129,7 @@ export class AssetsController extends BaseController<
     // Stop all active subscriptions
     this.#stop();
 
-    // Cancel any pending WS/API race timers (see `#wsConfirmations`).
+    // Clear pending `#wsConfirmations` timers.
     for (const { timeout } of this.#wsConfirmations.values()) {
       clearTimeout(timeout);
     }
