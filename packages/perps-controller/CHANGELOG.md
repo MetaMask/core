@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
+
+## [12.2.0]
+
 ### Added
 
 - Add `OrderParams.scaleSkew`, which weights a `scale` ladder's size across its rungs instead of spreading it evenly ([#9919](https://github.com/MetaMask/core/pull/9919))
@@ -747,7 +753,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...@metamask/perps-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...@metamask/perps-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...@metamask/perps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@10.0.0...@metamask/perps-controller@11.0.0
