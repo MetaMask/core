@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
 
+### Fixed
+
+- Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection.
+
 ## [12.2.0]
 
 ### Added
