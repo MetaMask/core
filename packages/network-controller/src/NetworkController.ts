@@ -7,12 +7,12 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import {
-  type ConfigRegistryControllerStateChangedEvent,
-  type ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
-  type ConfigRegistryControllerGetStateAction,
-  selectEvmAutoEnabledNetworksChainIds,
+import type {
+  ConfigRegistryControllerStateChangedEvent,
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+  ConfigRegistryControllerGetStateAction,
 } from '@metamask/config-registry-controller';
+import { selectEvmAutoEnabledNetworksChainIds } from '@metamask/config-registry-controller';
 import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
