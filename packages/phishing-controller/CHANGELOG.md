@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isAddressScanSupportedChainId` so clients can check whether `scanAddress` will call the Security Alerts API for a chain ID, without duplicating `DEFAULT_CHAIN_ID_TO_NAME` and `ADDRESS_SCAN_SUPPORTED_CHAINS`
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
