@@ -198,7 +198,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@13.0.0...HEAD
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@13.0.0
-[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...@metamask/wallet@12.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@12.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
