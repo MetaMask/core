@@ -1644,7 +1644,7 @@ export class NetworkController extends BaseController<
    * Initialize the NetworkController:
    *   - Apply the RPC failover mode from the `corePlatformRpcFailoverMode` remote feature flag;
    *   - Apply the network selection.
-   *   - Auto-enable any chains that are configured to be auto-enabled in ConfigRegistryController.
+   *   - Auto-add networks for any chains that are configured to be auto-enabled in ConfigRegistryController.
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
@@ -1652,7 +1652,7 @@ export class NetworkController extends BaseController<
 
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
 
-    this.#autoEnableChains(
+    this.#autoAddNetworksFromConfigRegistry(
       getConfigRegistryEvmAutoEnabledChains(
         this.messenger.call('ConfigRegistryController:getState'),
       ),
@@ -3164,15 +3164,14 @@ export class NetworkController extends BaseController<
 
     this.#ethQuery = new EthQuery(this.#providerProxy);
   }
-
   /**
-   * Enables networks for the given CAIP-2 chain IDs by adding
-   * them to state if they are not already present. Configurations for
-   * these networks are retrieved from ConfigRegistryController.
+   * Adds networks to state and registers network clients for the given CAIP-2
+   * chain IDs if they are not already present. Configurations for these
+   * networks are retrieved from ConfigRegistryController.
    *
-   * @param chainIds - The CAIP-2 chain IDs of the networks to enable.
+   * @param caipChainIds - The CAIP-2 chain IDs of the networks to enable.
    */
-  #autoEnableChains(chainIds: CaipChainId[]): void {
+  #autoAddNetworksFromConfigRegistry(caipChainIds: CaipChainId[]): void {
     for (const chainId of chainIds) {
       try {
         const networkConfiguration = this.messenger.call(
