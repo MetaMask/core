@@ -51,6 +51,7 @@
     "@inquirer/password": "^5.1.1",
     "@metamask/analytics-controller": "^2.0.0",
     "@metamask/base-controller": "^9.1.0",
+    "@metamask/config-registry-controller": "^3.0.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/remote-feature-flag-controller": "^5.0.0",
     "@metamask/rpc-errors": "^7.0.2",

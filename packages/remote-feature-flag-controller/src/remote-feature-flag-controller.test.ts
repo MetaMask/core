@@ -42,11 +42,17 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
       scope: { type: 'threshold', value: 0.5 },
       value: 'valueB',
     },
-    { name: 'groupC', scope: { type: 'threshold', value: 1 }, value: 'valueC' },
+    {
+      name: 'groupC',
+      scope: { type: 'threshold', value: 1 },
+      value: 'valueC',
+    },
   ],
 };
 
 const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+const MOCK_CANONICAL_ID =
+  '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420';
 const MOCK_BASE_VERSION = '13.10.0';
 
 /**
@@ -57,6 +63,8 @@ const MOCK_BASE_VERSION = '13.10.0';
  * @param options.clientConfigApiService - The client config API service instance
  * @param options.disabled - Whether the controller should start disabled
  * @param options.getMetaMetricsId - Returns metaMetricsId
+ * @param options.getCanonicalProfileId - Returns canonicalProfileId
+ * @param options.metaMetricsFlags - Names of feature flags that should use MetaMetrics ID
  * @param options.clientVersion - The client version string
  * @param options.prevClientVersion - The previous client version string
  * @param options.defaultFeatureFlags - Client-side default feature flags
@@ -68,6 +76,8 @@ function createController(
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
+    getCanonicalProfileId: () => string;
+    metaMetricsFlags: readonly string[];
     clientVersion: string;
     prevClientVersion: string;
     defaultFeatureFlags: FeatureFlags;
@@ -83,6 +93,10 @@ function createController(
     getMetaMetricsId:
       options.getMetaMetricsId ??
       ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
+    getCanonicalProfileId:
+      options.getCanonicalProfileId ??
+      ((): typeof MOCK_CANONICAL_ID => MOCK_CANONICAL_ID),
+    metaMetricsFlags: options.metaMetricsFlags,
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
     prevClientVersion: options.prevClientVersion,
     defaultFeatureFlags: options.defaultFeatureFlags,
@@ -474,6 +488,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlagForThreshold'],
       });
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -509,6 +524,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
@@ -575,6 +591,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -619,6 +636,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['featureA', 'featureB'],
       });
 
       // Act
@@ -651,6 +669,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       // Act
@@ -687,6 +706,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['mixedArray'],
       });
 
       // Act
@@ -728,6 +748,7 @@ describe('RemoteFeatureFlagController', () => {
         createController({
           clientConfigApiService,
           getMetaMetricsId: () => MOCK_METRICS_ID,
+          metaMetricsFlags: ['testFlag'],
         });
       await messenger1.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -738,6 +759,7 @@ describe('RemoteFeatureFlagController', () => {
         createController({
           clientConfigApiService,
           getMetaMetricsId: () => MOCK_METRICS_ID,
+          metaMetricsFlags: ['testFlag'],
         });
       await messenger2.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -752,10 +774,74 @@ describe('RemoteFeatureFlagController', () => {
         testFlag: 'control',
       });
     });
+
+    it('uses getCanonicalProfileId for threshold flags absent from metaMetricsFlags', async () => {
+      const mockFlags = {
+        canonicalThresholdFlag: [
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'canonicalA',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'canonicalB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+        getCanonicalProfileId: () => MOCK_CANONICAL_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toBe(
+        'canonicalB',
+      );
+      expect(controller.state.thresholdCache).toStrictEqual({
+        [`${MOCK_CANONICAL_ID}:canonicalThresholdFlag`]: expect.any(Number),
+      });
+    });
+
+    it('preserves threshold arrays when canonical profile id is empty', async () => {
+      const mockFlags = {
+        canonicalThresholdFlag: [
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'canonicalA',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+        getCanonicalProfileId: () => '',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        controller.state.remoteFeatureFlags.canonicalThresholdFlag,
+      ).toStrictEqual(mockFlags.canonicalThresholdFlag);
+    });
   });
 
   describe('metaMetricsIds explicit targeting', () => {
-    const MOCK_FLAGS_WITH_EXPLICIT_IDS = {
+    const MOCK_FLAGS_WITH_EXPLICIT_IDS: FeatureFlags = {
       testFlag: [
         {
           name: 'qaGroup',
@@ -783,6 +869,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
@@ -796,7 +883,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('first entry with a matching metaMetricsId wins when multiple entries match', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             name: 'first',
@@ -818,6 +905,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
@@ -831,7 +919,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('falls back to hash-based threshold when no entry matches the metaMetricsId', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             name: 'qaGroup',
@@ -857,6 +945,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
@@ -871,7 +960,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('ignores entries with a malformed metaMetricsIds (non-array) and falls back to hash-based threshold', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             name: 'badGroup',
@@ -897,13 +986,14 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      // Malformed entry ignored; hash-based selects groupA
+      // Malformed entry ignored; hash of MOCK_METRICS_ID + 'testFlag' selects groupA
       expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
       expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
         testFlag: 'groupA',
@@ -911,7 +1001,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('ignores non-string items within metaMetricsIds when matching', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             name: 'badGroup',
@@ -946,7 +1036,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('normalizes metaMetricsId with trim and toLowerCase before matching', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             name: 'qaGroup',
@@ -1000,7 +1090,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('still populates the threshold cache for hash-based fallback when no explicit ID matches', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             name: 'qaGroup',
@@ -1021,6 +1111,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
@@ -1054,9 +1145,12 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
       });
+      // This flag segments by MetaMetrics ID, so an unavailable ID leaves the
+      // threshold array unprocessed.
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '',
+        metaMetricsFlags: ['testFlag'],
       });
 
       await messenger.call(
@@ -1091,7 +1185,7 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('supports ThresholdVersion.DirectValue entries with explicit-ID matching', async () => {
-      const mockFlags = {
+      const mockFlags: FeatureFlags = {
         testFlag: [
           {
             thresholdName: 'qaGroup',
@@ -1424,6 +1518,7 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService: mockApiService,
         clientVersion: '13.1.5', // Qualifies for 13.1.0 version but not 13.2.0
         getMetaMetricsId: () => MOCK_METRICS_ID, // This generates threshold > 0.7
+        metaMetricsFlags: ['multiVersionABFlag'],
       });
 
       await messenger.call(
@@ -2110,6 +2205,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['flagA', 'flagB'],
       });
 
       // Act - First update: both flags processed
@@ -2240,6 +2336,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['persistentFlag'],
       });
 
       // Act - Multiple updates with same flag
@@ -2286,6 +2383,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['testFlag'],
         state: {
           thresholdCache: {
             [`${differentUserId}:oldFlag`]: 0.123, // Different user's cache
@@ -2322,6 +2420,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['newFlag'],
       });
 
       // Act - Process with empty cache
@@ -2351,6 +2450,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['oldFlag', 'newFlag'],
       });
 
       await messenger.call(
@@ -2413,6 +2513,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '', // Empty metaMetricsId
+        metaMetricsFlags: ['thresholdFlag'],
       });
 
       // Act
@@ -2443,6 +2544,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['feature:v2'],
       });
 
       // Act
@@ -2491,6 +2593,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: ['flagA', 'flagB'],
       });
 
       // Act - First update populates cache

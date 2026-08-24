@@ -850,10 +850,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
           return;
         }
 
-        // Use stored request (which gets updated on account changes)
+        // Use stored request (which gets updated on account changes).
+        // forceUpdate so we don't get a stale response from the cache
+        // (STALE_TIMES.BALANCES is 60s, longer than our 30s poll interval).
         const fetchResponse = await this.fetch({
           ...subscription.request,
           chainIds: subscription.chains,
+          forceUpdate: true,
         });
 
         // Report update to AssetsController via callback
