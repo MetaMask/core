@@ -373,10 +373,8 @@ class TestablePerpsController extends PerpsController {
     return this.hasStandaloneProvider();
   }
 
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
+  public testRegisterMYXProvider(MYXProvider: unknown) {
+    this.registerMYXProvider(MYXProvider);
   }
 
   public testHandleMYXImportError(error: unknown) {
@@ -842,6 +840,12 @@ describe('PerpsController', () => {
       expect(MockMYXConstructor).toHaveBeenCalledWith(
         expect.objectContaining({ isTestnet: false }),
       );
+    });
+
+    it('registerMYXProvider ignores a missing optional constructor', () => {
+      controller.testRegisterMYXProvider(undefined);
+
+      expect(controller.testGetProviders().has('myx')).toBe(false);
     });
 
     it('handleMYXImportError logs debug for MODULE_NOT_FOUND errors', () => {
