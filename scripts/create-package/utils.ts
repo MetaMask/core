@@ -1,6 +1,7 @@
 import * as commentJson from 'comment-json';
 import execa from 'execa';
 import { promises as fs } from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 import { format as prettierFormat } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
@@ -21,9 +22,9 @@ const allPlaceholdersRegex = new RegExp(
   'gu',
 );
 
-// Our lint config really hates this, but it works.
-// eslint-disable-next-line
-const prettierRc = require(
+// The Prettier config is CommonJS, so it is loaded through `createRequire`
+// rather than an `import`, which would need to be asynchronous.
+const prettierRc = createRequire(import.meta.url)(
   path.join(REPO_ROOT, '.prettierrc.cjs'),
 ) as PrettierOptions;
 

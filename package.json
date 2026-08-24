@@ -63,6 +63,7 @@
   "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
+    "@jest/globals": "^30.4.1",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
@@ -111,6 +112,7 @@
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3",
     "typescript-eslint": "^8.48.0",

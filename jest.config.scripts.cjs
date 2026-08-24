@@ -42,6 +42,15 @@ module.exports = {
 
   preset: 'ts-jest',
 
+  // Unlike the packages, the scripts use `import.meta`, which has no CommonJS
+  // equivalent, so their tests run as ESM. Jest only treats TypeScript as ESM
+  // when the extension is listed here.
+  extensionsToTreatAsEsm: ['.ts', '.mts'],
+
+  transform: {
+    '^.+\\.m?tsx?$': ['ts-jest', { useESM: true }],
+  },
+
   // "resetMocks" resets all mocks, including mocked modules, to jest.fn(),
   // between each test case.
   resetMocks: true,

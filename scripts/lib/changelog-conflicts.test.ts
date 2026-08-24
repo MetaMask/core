@@ -1,15 +1,19 @@
-import execa from 'execa';
+import { jest } from '@jest/globals';
 import { promises as fs } from 'fs';
 
-import {
+// `jest.mock` does not apply to ES modules, so the module registry is stubbed
+// with `jest.unstable_mockModule` and the modules under test are imported
+// dynamically afterwards.
+jest.unstable_mockModule('execa', () => ({ default: jest.fn() }));
+
+const { default: execa } = await import('execa');
+const {
   findConflictingChangelogFiles,
   mergeChangelogs,
   readGitBlob,
   resolveChangelogConflicts,
   resolvePackageMetadata,
-} from './changelog-conflicts.js';
-
-jest.mock('execa');
+} = await import('./changelog-conflicts.js');
 
 const REPO_URL = 'https://github.com/MetaMask/core';
 const TAG_PREFIX = '@metamask/example@';
@@ -456,7 +460,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 describe('findConflictedChangelogFiles', () => {
   it('filters unmerged paths down to package changelogs', async () => {
-    (execa as unknown as jest.Mock).mockResolvedValue({
+    jest.mocked(execa).mockResolvedValue({
+      // @ts-expect-error: Partial mock.
       stdout: [
         'packages/foo/CHANGELOG.md',
         'packages/foo/package.json',
@@ -475,7 +480,8 @@ describe('findConflictedChangelogFiles', () => {
   });
 
   it('returns an empty array when there are no unmerged paths', async () => {
-    (execa as unknown as jest.Mock).mockResolvedValue({ stdout: '' });
+    // @ts-expect-error: Partial mock.
+    jest.mocked(execa).mockResolvedValue({ stdout: '' });
 
     expect(await findConflictingChangelogFiles()).toStrictEqual([]);
   });
@@ -483,7 +489,8 @@ describe('findConflictedChangelogFiles', () => {
 
 describe('readGitBlob', () => {
   it('reads a file at the given ref', async () => {
-    (execa as unknown as jest.Mock).mockResolvedValue({ stdout: 'content' });
+    // @ts-expect-error: Partial mock.
+    jest.mocked(execa).mockResolvedValue({ stdout: 'content' });
 
     const result = await readGitBlob(':2', 'packages/foo/CHANGELOG.md');
 
@@ -527,7 +534,8 @@ describe('resolvePackageMetadata', () => {
 
   it('falls back to the "ours" conflict stage if package.json is not parseable in the working tree', async () => {
     jest.spyOn(fs, 'readFile').mockResolvedValue('<<<<<<< HEAD\nconflict');
-    (execa as unknown as jest.Mock).mockResolvedValue({
+    jest.mocked(execa).mockResolvedValue({
+      // @ts-expect-error: Partial mokc.
       stdout: JSON.stringify({
         name: '@metamask/example',
         repository: { url: 'https://github.com/MetaMask/core' },
@@ -596,8 +604,10 @@ describe('resolveChangelogConflicts', () => {
 - Added theirs entry ([#11](${REPO_URL}/pull/11))`,
     );
 
-    (execa as unknown as jest.Mock).mockImplementation(
-      async (command: string, args: string[]) => {
+    jest
+      .mocked(execa)
+      // @ts-expect-error: Partial mock.
+      .mockImplementation(async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
           return { stdout: changelogPath };
         }
@@ -611,8 +621,7 @@ describe('resolveChangelogConflicts', () => {
           return { stdout: '' };
         }
         throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
-      },
-    );
+      });
 
     jest.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
@@ -638,7 +647,8 @@ describe('resolveChangelogConflicts', () => {
   it('skips a file that cannot be parsed and leaves it unresolved', async () => {
     const changelogPath = 'packages/example/CHANGELOG.md';
 
-    (execa as unknown as jest.Mock).mockImplementation(
+    jest.mocked(execa).mockImplementation(
+      // @ts-expect-error: Partial mock.
       async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
           return { stdout: changelogPath };

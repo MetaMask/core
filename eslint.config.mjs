@@ -181,6 +181,10 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
+
+      // `import { jest } from '@jest/globals'` is required in ESM test files
+      // and intentionally shadows the Jest-injected global.
+      '@typescript-eslint/no-shadow': ['error', { allow: ['jest'] }],
     },
     settings: {
       node: {
