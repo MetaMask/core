@@ -122,5 +122,8 @@
   },
   "lavamoat": {
     "allowScripts": {}
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }
