@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `NetworkControllerMessenger` now requires the `ConfigRegistryController:stateChanged` event and `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated from the root messenger ([#9879](https://github.com/MetaMask/core/pull/9879))
-  - `NetworkController` now depends on the `ConfigRegistryController` to auto-enable default networks from the registry.
+  - `NetworkController` now depends on the `ConfigRegistryController` to auto-register default networks from the registry.
+- Update `init` to auto-register default networks from `ConfigRegistryController` ([#9879](https://github.com/MetaMask/core/pull/9879))
 
 ## [35.0.1]
 
