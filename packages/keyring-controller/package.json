@@ -101,5 +101,8 @@
       "ethereumjs-wallet>ethereum-cryptography>keccak": false,
       "ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }

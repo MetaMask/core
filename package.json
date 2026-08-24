@@ -124,6 +124,13 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": ">=4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+      "onFail": "error"
+    }
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
@@ -139,5 +146,9 @@
       "tsx>esbuild": false,
       "jest>@jest/core>jest-resolve>unrs-resolver": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json",
+    "skills:postinstall": "lavamoat/scripts.skills.json"
   }
 }

@@ -85,5 +85,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }
