@@ -6,14 +6,8 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
-import type { KycServiceMessenger } from './KycService.js';
+import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
-import { UKYC_LOCAL_USER_SECRET_SIZE_BYTES } from './ukyc/constants.js';
-import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import {
-  encodeStorageAccessTokenForHeader,
-  signStorageAccessToken,
-} from './ukyc/storageAccessToken.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
@@ -191,33 +185,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('getWrappingKey', () => {
-    it('requests a wrapping key and returns the attested server key', async () => {
-      const response = {
-        id: 'wk',
-        jwtChain: 'jwt.chain.sig',
-        sessionServerPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
-      };
-      nock(MOCK_API_URL)
-        .post('/wrapping-key', { sessionClientPublicKey: 'cpk' })
-        .reply(200, response);
-      const { service } = getService();
-
-      expect(
-        await service.getWrappingKey({ sessionClientPublicKey: 'cpk' }),
-      ).toStrictEqual(response);
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/wrapping-key').reply(200, { id: 'wk' });
-      const { service } = getService();
-
-      await expect(
-        service.getWrappingKey({ sessionClientPublicKey: 'cpk' }),
-      ).rejects.toThrow(/Malformed response received from wrapping-key API/u);
-    });
-  });
-
   describe('fetchJwks', () => {
     it('fetches the JWKS from the Fractal well-known path', async () => {
       const response = {
@@ -234,7 +201,7 @@ describe('KycService', () => {
       const { service } = getService({ fractalEncryptionBaseUrl: '' });
 
       await expect(service.fetchJwks()).rejects.toThrow(
-        /fractalEncryptionBaseUrl is not configured/u,
+        /fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify encryption schemas/u,
       );
     });
 
@@ -251,39 +218,28 @@ describe('KycService', () => {
   });
 
   describe('createUkycSession', () => {
-    const wrappedEncryptionKey = {
-      sessionId: 'wk',
-      encryptedKey: 'enc',
-      nonce: 'nonce',
+    const encryptionSchema: EncryptionSchema = {
+      serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+      jwtChain: 'jwt.chain.sig',
+    };
+    const response = {
+      sessionId: 'sid',
+      encryptionDataKey: encryptionSchema,
+      ukycCapabilityToken: {
+        ...encryptionSchema,
+        jwtChain: 'capability.jwt.chain',
+      },
     };
 
-    // A genuinely signed, read-only capability token: minted from real derived
-    // client material and signed with the Ed25519 `signingKey`, not a
-    // hand-written plain object.
-    const material = deriveClientMaterial(
-      new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(42),
-    );
-    const ukycCapabilityToken = signStorageAccessToken({
-      material,
-      operations: ['read'],
-      issuedAt: new Date('2026-07-07T00:00:00.000Z'),
-      expiresAt: new Date('2026-07-07T04:00:00.000Z'),
-    });
-    // The service base64url-encodes the envelope into a compact string before
-    // sending it in the request body.
-    const encodedCapabilityToken =
-      encodeStorageAccessTokenForHeader(ukycCapabilityToken);
-
-    it('creates a UKYC session and forwards the wrapped key and capability token', async () => {
-      const response = {
-        sessionId: 'sid',
-      };
+    it('creates a UKYC session and returns encryption schemas for wrapping', async () => {
       nock(MOCK_API_URL)
         .post(
           '/sessions',
-          (body) =>
-            body.wrappedEncryptionKey !== undefined &&
-            body.ukycCapabilityToken === encodedCapabilityToken,
+          (body: Record<string, unknown>) =>
+            body.jwtToken === 'jwt' &&
+            body.vendorId === 'moonpay' &&
+            body.wrappedEncryptionKey === undefined &&
+            body.ukycCapabilityToken === undefined,
         )
         .reply(200, response);
       const { service } = getService();
@@ -292,27 +248,6 @@ describe('KycService', () => {
         await service.createUkycSession({
           jwtToken: 'jwt',
           vendorMetadata: { foo: 'bar' },
-          wrappedEncryptionKey,
-          ukycCapabilityToken,
-        }),
-      ).toStrictEqual(response);
-    });
-
-    it('returns the relay and vendor statuses when present', async () => {
-      const response = {
-        sessionId: 'sid',
-        kycStatus: 'approved',
-        finalStatus: 'pending',
-      };
-      nock(MOCK_API_URL).post('/sessions').reply(200, response);
-      const { service } = getService();
-
-      expect(
-        await service.createUkycSession({
-          jwtToken: 'jwt',
-          vendorMetadata: { foo: 'bar' },
-          wrappedEncryptionKey,
-          ukycCapabilityToken,
         }),
       ).toStrictEqual(response);
     });
@@ -325,10 +260,73 @@ describe('KycService', () => {
         service.createUkycSession({
           jwtToken: 'jwt',
           vendorMetadata: {},
-          wrappedEncryptionKey,
-          ukycCapabilityToken,
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
+    });
+  });
+
+  describe('setAuthorizations', () => {
+    const wrappedEncryptionDataKey = { nonce: 'nonce-1', data: 'data-1' };
+    const wrappedUkycCapabilityToken = { nonce: 'nonce-2', data: 'data-2' };
+    const statusResponse = {
+      finalStatus: 'approved',
+      statusMessage: 'All good',
+      externalUserId: 'ext-1',
+      kycStatus: 'approved',
+      vendor: 'sumsub',
+      vendorStatus: 'GREEN',
+    };
+
+    it('posts the wrapped secrets and returns the session status', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions/sid/authorizations',
+          (body: Record<string, unknown>) =>
+            JSON.stringify(body.wrappedEncryptionDataKey) ===
+              JSON.stringify(wrappedEncryptionDataKey) &&
+            JSON.stringify(body.wrappedUkycCapabilityToken) ===
+              JSON.stringify(wrappedUkycCapabilityToken),
+        )
+        .reply(200, statusResponse);
+      const { service } = getService();
+
+      expect(
+        await service.setAuthorizations({
+          sessionId: 'sid',
+          wrappedEncryptionDataKey,
+          wrappedUkycCapabilityToken,
+        }),
+      ).toStrictEqual(statusResponse);
+    });
+
+    it('url-encodes the session id', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/a%2Fb/authorizations')
+        .reply(200, statusResponse);
+      const { service } = getService();
+
+      expect(
+        await service.setAuthorizations({
+          sessionId: 'a/b',
+          wrappedEncryptionDataKey,
+          wrappedUkycCapabilityToken,
+        }),
+      ).toStrictEqual(statusResponse);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/authorizations')
+        .reply(200, { unexpected: true });
+      const { service } = getService();
+
+      await expect(
+        service.setAuthorizations({
+          sessionId: 'sid',
+          wrappedEncryptionDataKey,
+          wrappedUkycCapabilityToken,
+        }),
+      ).rejects.toThrow(/Malformed response received from authorizations API/u);
     });
   });
 

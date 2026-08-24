@@ -54,27 +54,8 @@ export type KycServiceCheckKycRequiredAction = {
 };
 
 /**
- * Requests a per-session wrapping key from the UKYC backend.
- *
- * The client sends its ephemeral X25519 public key; the backend responds with
- * its session public key (`sessionServerPublicKey`) and a `jwtChain` that
- * attests it. The caller must verify `jwtChain` against the Fractal JWKS
- * (see {@link KycService.fetchJwks}) before trusting the key to wrap the
- * `data_encryption_key`.
- *
- * @param params - The parameters.
- * @param params.sessionClientPublicKey - Our ephemeral X25519 public key
- * (base64url).
- * @returns The wrapping key id, `jwtChain`, and session server public key.
- */
-export type KycServiceGetWrappingKeyAction = {
-  type: `KycService:getWrappingKey`;
-  handler: KycService['getWrappingKey'];
-};
-
-/**
- * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`
- * returned by {@link KycService.getWrappingKey}.
+ * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`s
+ * returned inside encryption schemas from {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the Fractal
  * host, distinct from the UKYC base URL.
@@ -87,17 +68,33 @@ export type KycServiceFetchJwksAction = {
 };
 
 /**
- * Creates a UKYC session for the SumSub document-verification sub-flow,
- * handing over the wrapped `data_encryption_key` and the client-signed,
- * read-only `ukyc_capability_token` that authorizes later storage access for
- * the session.
+ * Creates a UKYC session for the SumSub document-verification sub-flow.
+ *
+ * The response carries per-secret encryption schemas (`encryptionDataKey` and
+ * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
+ * the read-only `ukyc_capability_token` and submit them via
+ * {@link KycService.setAuthorizations}.
  *
  * @param params - The session parameters.
- * @returns The UKYC session identifiers.
+ * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {
   type: `KycService:createUkycSession`;
   handler: KycService['createUkycSession'];
+};
+
+/**
+ * Submits the wrapped `data_encryption_key` and wrapped
+ * `ukyc_capability_token` for a UKYC session. Both secrets are sealed with
+ * `wrapEncryptionKey` against the encryption schemas returned by
+ * {@link KycService.createUkycSession}.
+ *
+ * @param params - The wrapped authorizations.
+ * @returns The session status after the authorizations are applied.
+ */
+export type KycServiceSetAuthorizationsAction = {
+  type: `KycService:setAuthorizations`;
+  handler: KycService['setAuthorizations'];
 };
 
 /**
@@ -133,8 +130,8 @@ export type KycServiceMethodActions =
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
-  | KycServiceGetWrappingKeyAction
   | KycServiceFetchJwksAction
   | KycServiceCreateUkycSessionAction
+  | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction;

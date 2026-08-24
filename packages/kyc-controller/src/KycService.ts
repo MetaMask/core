@@ -27,8 +27,6 @@ import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycDisclaimer, KycSessionStatus } from './types.js';
 import { UKYC_JWKS_PATH } from './ukyc/constants.js';
-import { encodeStorageAccessTokenForHeader } from './ukyc/storageAccessToken.js';
-import type { UkycStorageAccessToken } from './ukyc/storageAccessToken.js';
 
 // === GENERAL ===
 
@@ -44,9 +42,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchDisclaimers',
   'createSession',
   'checkKycRequired',
-  'getWrappingKey',
   'fetchJwks',
   'createUkycSession',
+  'setAuthorizations',
   'createJourney',
   'getSessionStatus',
 ] as const;
@@ -143,20 +141,23 @@ const CreateSessionResponseStruct = type({ sessionToken: string() });
 // this to `kycRequired` for consumers (see `checkKycRequired`).
 const KycRequiredResponseStruct = type({ required: boolean() });
 
-// The session server's X25519 public key, in JWK-like form, returned by
-// `/wrapping-key`. `x` is the base64url public key used to wrap the user key.
-const SessionServerPublicKeyStruct = type({
+// The session server's public key, in JWK-like form, returned inside an
+// encryption schema from `POST /sessions`. `x` is the base64url public key
+// used to wrap a secret for that schema.
+const ServerPublicKeyStruct = type({
   kty: string(),
   crv: string(),
   x: string(),
+  kid: optional(string()),
+  alg: optional(string()),
+  use: optional(string()),
 });
 
-const WrappingKeyResponseStruct = type({
-  id: string(),
+const EncryptionSchemaStruct = type({
+  serverPublicKey: ServerPublicKeyStruct,
   jwtChain: string(),
-  sessionServerPublicKey: SessionServerPublicKeyStruct,
 });
-export type WrappingKeyResponse = Infer<typeof WrappingKeyResponseStruct>;
+export type EncryptionSchema = Infer<typeof EncryptionSchemaStruct>;
 
 // A single Ed25519 (OKP) JWK. `type` (not `object`) keeps optional/extra JWK
 // fields (`use`, `alg`) from failing validation.
@@ -171,11 +172,10 @@ export type JwksResponse = Infer<typeof JwksResponseStruct>;
 
 const UkycSessionResponseStruct = type({
   sessionId: string(),
-  // The relay-side KYC decision (e.g. `approved`) and the vendor-side final
-  // status (e.g. `pending`) at session-creation time. Present when the applicant
-  // already has a session in flight; absent for a brand-new session.
-  kycStatus: optional(string()),
-  finalStatus: optional(string()),
+  // Per-secret wrapping material so the client can seal the
+  // `data_encryption_key` and the `ukyc_capability_token` independently.
+  encryptionDataKey: EncryptionSchemaStruct,
+  ukycCapabilityToken: EncryptionSchemaStruct,
 });
 export type UkycSessionResponse = Infer<typeof UkycSessionResponseStruct>;
 
@@ -210,34 +210,26 @@ export type CheckKycRequiredParams = {
   capabilities?: { product: string }[];
 };
 
-export type GetWrappingKeyParams = {
-  sessionClientPublicKey: string;
-};
-
-/**
- * The wrapped `data_encryption_key` sent to the UKYC backend when creating a
- * session. `encryptedKey` and `nonce` are produced by `wrapEncryptionKey`;
- * `sessionId` is the wrapping key id returned by `getWrappingKey`.
- */
-export type WrappedEncryptionKey = {
-  sessionId: string;
-  encryptedKey: string;
-  nonce: string;
-};
-
 export type CreateUkycSessionParams = {
   jwtToken: string;
   vendorMetadata: Record<string, unknown>;
-  wrappedEncryptionKey: WrappedEncryptionKey;
-  /**
-   * The client-signed `ukyc_capability_token` (envelope: payload + Ed25519
-   * signature) authorizing later storage access for this session. It is minted
-   * by the client with `read`-only scope — see the UKYC storage-and-auth spec
-   * for how it is formed. Only the client holds the signing key, so only the
-   * client can mint it. The envelope is base64url-encoded into a compact string
-   * before it is sent to the backend.
-   */
-  ukycCapabilityToken: UkycStorageAccessToken;
+};
+
+/**
+ * Encrypted capability authorization payload (base64url nonce + ciphertext)
+ * accepted by `POST /sessions/:sessionId/authorizations`. Produced by
+ * `wrapEncryptionKey` for both the `data_encryption_key` and the
+ * `ukyc_capability_token`.
+ */
+export type CapabilityAuthorization = {
+  nonce: string;
+  data: string;
+};
+
+export type SetAuthorizationsParams = {
+  sessionId: string;
+  wrappedEncryptionDataKey: CapabilityAuthorization;
+  wrappedUkycCapabilityToken: CapabilityAuthorization;
 };
 
 export type GetSessionStatusParams = {
@@ -274,8 +266,8 @@ export class KycService extends BaseDataService<
    * @param options.messenger - The messenger suited for this service.
    * @param options.baseUrl - Base URL of the KYC API
    * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
-   * encryption service, from which the JWKS used to verify the wrapping-key
-   * `jwtChain` is fetched.
+   * encryption service, from which the JWKS used to verify encryption-schema
+   * `jwtChain`s is fetched.
    * @param options.queryClientConfig - Shared configuration for all queries
    * exposed by the service.
    * @param options.policyOptions - Options for the request service policy.
@@ -435,46 +427,8 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Requests a per-session wrapping key from the UKYC backend.
-   *
-   * The client sends its ephemeral X25519 public key; the backend responds with
-   * its session public key (`sessionServerPublicKey`) and a `jwtChain` that
-   * attests it. The caller must verify `jwtChain` against the Fractal JWKS
-   * (see {@link KycService.fetchJwks}) before trusting the key to wrap the
-   * `data_encryption_key`.
-   *
-   * @param params - The parameters.
-   * @param params.sessionClientPublicKey - Our ephemeral X25519 public key
-   * (base64url).
-   * @returns The wrapping key id, `jwtChain`, and session server public key.
-   */
-  async getWrappingKey(
-    params: GetWrappingKeyParams,
-  ): Promise<WrappingKeyResponse> {
-    const url = new URL('/wrapping-key', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:getWrappingKey`, params.sessionClientPublicKey],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify({
-            sessionClientPublicKey: params.sessionClientPublicKey,
-          }),
-        }),
-      // A per-session key exchange must always run fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
-    return this.#validateResponse(
-      data,
-      WrappingKeyResponseStruct,
-      'wrapping-key',
-    );
-  }
-
-  /**
-   * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`
-   * returned by {@link KycService.getWrappingKey}.
+   * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`s
+   * returned inside encryption schemas from {@link KycService.createUkycSession}.
    *
    * This is an unauthenticated request to a well-known path on the Fractal
    * host, distinct from the UKYC base URL.
@@ -484,7 +438,7 @@ export class KycService extends BaseDataService<
   async fetchJwks(): Promise<JwksResponse> {
     if (!this.#fractalEncryptionBaseUrl) {
       throw new Error(
-        'KycService: fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify the wrapping key.',
+        'KycService: fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify encryption schemas.',
       );
     }
     const url = new URL(UKYC_JWKS_PATH, this.#fractalEncryptionBaseUrl);
@@ -498,23 +452,22 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Creates a UKYC session for the SumSub document-verification sub-flow,
-   * handing over the wrapped `data_encryption_key` and the client-signed,
-   * read-only `ukyc_capability_token` that authorizes later storage access for
-   * the session.
+   * Creates a UKYC session for the SumSub document-verification sub-flow.
+   *
+   * The response carries per-secret encryption schemas (`encryptionDataKey` and
+   * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
+   * the read-only `ukyc_capability_token` and submit them via
+   * {@link KycService.setAuthorizations}.
    *
    * @param params - The session parameters.
-   * @returns The UKYC session identifiers.
+   * @returns The UKYC session id and encryption schemas.
    */
   async createUkycSession(
     params: CreateUkycSessionParams,
   ): Promise<UkycSessionResponse> {
     const url = new URL('/sessions', this.#baseUrl);
     const data = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:createUkycSession`,
-        params.wrappedEncryptionKey.sessionId,
-      ],
+      queryKey: [`${this.name}:createUkycSession`, params.jwtToken],
       queryFn: async () =>
         this.#requestJson(url, {
           method: 'POST',
@@ -523,10 +476,6 @@ export class KycService extends BaseDataService<
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
             vendorMetadata: params.vendorMetadata,
-            wrappedEncryptionKey: params.wrappedEncryptionKey,
-            ukycCapabilityToken: encodeStorageAccessTokenForHeader(
-              params.ukycCapabilityToken,
-            ),
           }),
         }),
       // A session-creating mutation must never serve a stale/cached result.
@@ -537,6 +486,42 @@ export class KycService extends BaseDataService<
       data,
       UkycSessionResponseStruct,
       'UKYC sessions',
+    );
+  }
+
+  /**
+   * Submits the wrapped `data_encryption_key` and wrapped
+   * `ukyc_capability_token` for a UKYC session. Both secrets are sealed with
+   * `wrapEncryptionKey` against the encryption schemas returned by
+   * {@link KycService.createUkycSession}.
+   *
+   * @param params - The wrapped authorizations.
+   * @returns The session status after the authorizations are applied.
+   */
+  async setAuthorizations(
+    params: SetAuthorizationsParams,
+  ): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/authorizations`,
+      this.#baseUrl,
+    );
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:setAuthorizations`, params.sessionId],
+      queryFn: async () =>
+        this.#requestJson(url, {
+          method: 'POST',
+          body: JSON.stringify({
+            wrappedEncryptionDataKey: params.wrappedEncryptionDataKey,
+            wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
+          }),
+        }),
+      staleTime: 0,
+      gcTime: 0,
+    });
+    return this.#validateResponse(
+      data,
+      SessionStatusResponseStruct,
+      'authorizations',
     );
   }
 
