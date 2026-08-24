@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Restrict address poisoning known recipients to user-chosen send payees (`simpleSend`, decoded token transfer recipients, `swapAndSendRecipient`, and nested batch sends) so confirmed approves, swaps, and contract interactions no longer add token or protocol addresses to the comparison set
+- Restrict address poisoning known recipients to user-chosen send payees (`simpleSend`, decoded token transfer recipients, `swapAndSendRecipient`, and nested batch sends) so confirmed approves, swaps, and contract interactions no longer add token or protocol addresses to the comparison set ([#9943](https://github.com/MetaMask/core/pull/9943))
 
 ## [17.3.1]
 

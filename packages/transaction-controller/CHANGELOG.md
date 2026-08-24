@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `getSendRecipients`, which returns user-chosen send payees for a transaction (native `simpleSend` recipients, decoded ERC-20/721/1155 transfer payees, `swapAndSendRecipient`, and nested batch sends) and omits protocol addresses such as token, Permit2, and router contracts
+- Export `getSendRecipients`, which returns user-chosen send payees for a transaction (native `simpleSend` recipients, decoded ERC-20/721/1155 transfer payees, `swapAndSendRecipient`, and nested batch sends) and omits protocol addresses such as token, Permit2, and router contracts ([#9943](https://github.com/MetaMask/core/pull/9943))
 
 ### Changed
 
