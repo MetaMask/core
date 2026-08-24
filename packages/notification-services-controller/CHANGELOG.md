@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#9936](https://github.com/MetaMask/core/pull/9936))
 
 ## [26.0.1]
 

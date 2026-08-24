@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^6.0.3` to `^6.0.4` ([#9923](https://github.com/MetaMask/core/pull/9923))
+- Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.0.1` ([#9936](https://github.com/MetaMask/core/pull/9936))
+- Bump `@metamask/core-backend` from `^8.1.2` to `^8.1.3` ([#9936](https://github.com/MetaMask/core/pull/9936))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#9936](https://github.com/MetaMask/core/pull/9936))
 
 ## [111.1.1]
 

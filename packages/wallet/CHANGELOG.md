@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ConfigRegistryController` delegates `KeyringController:getState`, `RemoteFeatureFlagController:getState`, and `ConfigRegistryApiService:fetchConfig`, and subscribes to `KeyringController:unlock`, `KeyringController:lock`, and `RemoteFeatureFlagController:stateChange`.
   - Consumers that pass their own root messenger and already wire `ConfigRegistryApiService` / `ConfigRegistryController` must remove their own before upgrading, or the duplicate registration will collide.
 
+### Changed
+
+- Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9936](https://github.com/MetaMask/core/pull/9936))
+- Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9936](https://github.com/MetaMask/core/pull/9936))
+- Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9936](https://github.com/MetaMask/core/pull/9936))
+
 ## [11.0.0]
 
 ### Changed

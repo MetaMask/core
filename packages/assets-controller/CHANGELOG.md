@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.0.1` ([#9936](https://github.com/MetaMask/core/pull/9936))
+- Bump `@metamask/assets-controllers` from `^111.1.1` to `^111.1.2` ([#9936](https://github.com/MetaMask/core/pull/9936))
+- Bump `@metamask/core-backend` from `^8.1.2` to `^8.1.3` ([#9936](https://github.com/MetaMask/core/pull/9936))
+
 ### Fixed
 
 - Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
