@@ -353,25 +353,33 @@ export class BaseDataService<
     );
 
     if (existingIndex !== -1) {
-      // The requested page was already cached. `query.fetch` appended or
-      // prepended a fresh copy instead of replacing it, which would leave
+      // The requested page was already cached. `query.fetch` appends or
+      // prepends a fresh copy instead of replacing it, which would leave
       // duplicate, out-of-order pages in the cache. Collapse the duplicate
       // and keep the fresh page at the original position.
-      const isForward = direction === 'forward';
-      const nextPages = [...result.pages];
-      const nextPageParams = [...result.pageParams];
-      const freshPage = isForward ? nextPages.pop() : nextPages.shift();
-      if (isForward) {
-        nextPageParams.pop();
-      } else {
-        nextPageParams.shift();
+      //
+      // `query.fetch` may skip the fetch entirely when
+      // `getNextPageParam`/`getPreviousPageParam` returns null (no more
+      // pages in that direction). In that case `result.pages` is the
+      // existing data unchanged, so there is no duplicate to collapse.
+      if (result.pages.length > pages.length) {
+        const isForward = direction === 'forward';
+        const nextPages = [...result.pages];
+        const nextPageParams = [...result.pageParams];
+        const freshPage = isForward ? nextPages.pop() : nextPages.shift();
+        if (isForward) {
+          nextPageParams.pop();
+        } else {
+          nextPageParams.shift();
+        }
+        nextPages[existingIndex] = freshPage as TData;
+        this.#queryClient.setQueryData(options.queryKey, {
+          pages: nextPages,
+          pageParams: nextPageParams,
+        });
+        return freshPage as TData;
       }
-      nextPages[existingIndex] = freshPage as TData;
-      this.#queryClient.setQueryData(options.queryKey, {
-        pages: nextPages,
-        pageParams: nextPageParams,
-      });
-      return freshPage as TData;
+      return pages[existingIndex];
     }
 
     const pageIndex = result.pageParams.findIndex((param) =>
