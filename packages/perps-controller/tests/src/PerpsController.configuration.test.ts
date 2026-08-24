@@ -848,6 +848,81 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('order book preferences', () => {
+    it('defaults to USD totals', () => {
+      expect(controller.getOrderBookPreferences()).toEqual({
+        currency: 'usd',
+        metric: 'total',
+      });
+    });
+
+    it('updates a single preference without clobbering the other', () => {
+      controller.setOrderBookPreferences({ currency: 'base' });
+
+      expect(controller.getOrderBookPreferences()).toEqual({
+        currency: 'base',
+        metric: 'total',
+      });
+    });
+
+    it('fills in defaults for fields missing from persisted state', () => {
+      controller.testUpdate((state) => {
+        state.orderBookPreferences = {
+          metric: 'size',
+        } as PerpsControllerState['orderBookPreferences'];
+      });
+
+      expect(controller.getOrderBookPreferences()).toEqual({
+        currency: 'usd',
+        metric: 'size',
+      });
+    });
+  });
+
+  describe('selected order type', () => {
+    it('defaults to market and persists independently of market', () => {
+      expect(controller.getSelectedOrderType()).toBe('market');
+
+      controller.setSelectedOrderType('limit');
+
+      expect(controller.getSelectedOrderType()).toBe('limit');
+      controller.saveTradeConfiguration('ETH', 5);
+      expect(controller.getSelectedOrderType()).toBe('limit');
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+      });
+      expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+  });
+
+  describe('visible candle count', () => {
+    it('defaults to 30 and persists a valid count', () => {
+      expect(controller.getVisibleCandleCount()).toBe(30);
+
+      controller.setVisibleCandleCount(45);
+
+      expect(controller.getVisibleCandleCount()).toBe(45);
+    });
+
+    it('clamps to the supported range and rounds to a whole candle', () => {
+      controller.setVisibleCandleCount(9);
+      expect(controller.getVisibleCandleCount()).toBe(10);
+
+      controller.setVisibleCandleCount(251);
+      expect(controller.getVisibleCandleCount()).toBe(250);
+
+      controller.setVisibleCandleCount(42.6);
+      expect(controller.getVisibleCandleCount()).toBe(43);
+    });
+
+    it('ignores non-finite values', () => {
+      controller.setVisibleCandleCount(45);
+      controller.setVisibleCandleCount(Number.NaN);
+
+      expect(controller.getVisibleCandleCount()).toBe(45);
+    });
+  });
+
   describe('perps mode', () => {
     it('defaults to lite mode', () => {
       expect(controller.state.mode).toBe(PerpsMode.Lite);
@@ -1054,12 +1129,14 @@ describe('PerpsController', () => {
         stopLossPrice: '40000',
         limitPrice: '45000',
         orderType: 'limit' as const,
+        reduceOnly: true,
       };
 
       controller.savePendingTradeConfiguration('BTC', config);
 
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toEqual(config);
+      expect(controller.getSelectedOrderType()).toBe('limit');
     });
 
     it('returns undefined for non-existent pending configuration', () => {
@@ -1068,7 +1145,7 @@ describe('PerpsController', () => {
       expect(result).toBeUndefined();
     });
 
-    it('returns undefined for expired pending configuration (more than 5 minutes)', () => {
+    it('returns undefined for expired pending configuration (more than 30 seconds)', () => {
       const config = {
         amount: '100',
         leverage: 5,
@@ -1076,15 +1153,14 @@ describe('PerpsController', () => {
 
       controller.savePendingTradeConfiguration('BTC', config);
 
-      // Fast-forward 6 minutes (more than 5 minutes)
-      jest.advanceTimersByTime(6 * 60 * 1000);
+      jest.advanceTimersByTime(30_001);
 
       const result = controller.getPendingTradeConfiguration('BTC');
 
       expect(result).toBeUndefined();
     });
 
-    it('returns configuration for valid pending configuration (less than 5 minutes)', () => {
+    it('returns configuration for valid pending configuration (less than 30 seconds)', () => {
       const config = {
         amount: '100',
         leverage: 5,
@@ -1094,8 +1170,7 @@ describe('PerpsController', () => {
 
       controller.savePendingTradeConfiguration('BTC', config);
 
-      // Fast-forward 4 minutes (less than 5 minutes)
-      jest.advanceTimersByTime(4 * 60 * 1000);
+      jest.advanceTimersByTime(29_999);
 
       const result = controller.getPendingTradeConfiguration('BTC');
 
@@ -1110,8 +1185,7 @@ describe('PerpsController', () => {
 
       controller.savePendingTradeConfiguration('BTC', config);
 
-      // Fast-forward 6 minutes
-      jest.advanceTimersByTime(6 * 60 * 1000);
+      jest.advanceTimersByTime(30_001);
 
       // First call should clear expired config
       controller.getPendingTradeConfiguration('BTC');
@@ -1140,6 +1214,70 @@ describe('PerpsController', () => {
 
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toBeUndefined();
+    });
+
+    it('clears only the draft while retaining leverage and selected order type', () => {
+      controller.saveTradeConfiguration('BTC', 10);
+      controller.setSelectedOrderType('limit');
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        leverage: 5,
+        orderType: 'limit',
+        reduceOnly: true,
+      });
+
+      controller.clearPendingTradeConfiguration('BTC');
+
+      expect(controller.getPendingTradeConfiguration('BTC')).toBeUndefined();
+      expect(controller.getTradeConfiguration('BTC')).toEqual({
+        leverage: 10,
+      });
+      expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+
+    it('clears the draft after a successful order', async () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockTradingServiceInstance.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-1',
+      });
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        reduceOnly: true,
+      });
+
+      await controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(controller.getPendingTradeConfiguration('BTC')).toBeUndefined();
+    });
+
+    it('retains the draft after an unsuccessful order', async () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockTradingServiceInstance.placeOrder.mockResolvedValue({
+        success: false,
+        error: 'Order failed',
+      });
+      const config = {
+        amount: '100',
+        reduceOnly: true,
+      };
+      controller.savePendingTradeConfiguration('BTC', config);
+
+      await controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(controller.getPendingTradeConfiguration('BTC')).toEqual(config);
     });
 
     it('saves pending config per network (testnet vs mainnet)', () => {
