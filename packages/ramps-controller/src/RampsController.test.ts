@@ -1843,7 +1843,10 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async (_regionCode: string) => ({
+            providers: mockProviders,
+            sorted: [{ sortBy: '1', ids: mockProviders.map(({ id }) => id) }],
+          }),
         );
 
         expect(controller.state.providers.data).toStrictEqual([]);
@@ -1854,6 +1857,9 @@ describe('RampsController', () => {
         );
 
         expect(result.providers).toStrictEqual(mockProviders);
+        expect(result.sorted).toStrictEqual([
+          { sortBy: '1', ids: mockProviders.map(({ id }) => id) },
+        ]);
         expect(controller.state.providers.data).toStrictEqual(mockProviders);
       });
     });
@@ -1862,7 +1868,10 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async (_regionCode: string) => ({
+            providers: mockProviders,
+            sorted: [],
+          }),
         );
 
         await rootMessenger.call('RampsController:getProviders', 'us-ca');
@@ -1884,7 +1893,10 @@ describe('RampsController', () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
-          async (_regionCode: string) => ({ providers: mockProviders }),
+          async (_regionCode: string) => ({
+            providers: mockProviders,
+            sorted: [],
+          }),
         );
 
         await rootMessenger.call('RampsController:getProviders', 'us-ca');
@@ -1900,7 +1912,7 @@ describe('RampsController', () => {
           'RampsService:getProviders',
           async (_regionCode: string) => {
             callCount += 1;
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -1919,7 +1931,7 @@ describe('RampsController', () => {
           async (regionCode: string) => {
             callCount += 1;
             expect(regionCode).toBe('us-ca');
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -1937,7 +1949,7 @@ describe('RampsController', () => {
           'RampsService:getProviders',
           async (_regionCode: string) => {
             callCount += 1;
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -1963,7 +1975,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               receivedRegion = regionCode;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -1989,7 +2001,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               receivedRegion = regionCode;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2014,7 +2026,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               expect(regionCode).toBe('us-ca');
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2060,7 +2072,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async (regionCode: string) => {
               expect(regionCode).toBe('fr');
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2098,7 +2110,7 @@ describe('RampsController', () => {
             },
           ) => {
             receivedOptions = options;
-            return { providers: mockProviders };
+            return { providers: mockProviders, sorted: [] };
           },
         );
 
@@ -2142,7 +2154,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async () => {
               serviceCalled = true;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 
@@ -2173,7 +2185,7 @@ describe('RampsController', () => {
             'RampsService:getProviders',
             async () => {
               serviceCalled = true;
-              return { providers: mockProviders };
+              return { providers: mockProviders, sorted: [] };
             },
           );
 

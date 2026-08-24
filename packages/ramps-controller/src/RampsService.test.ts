@@ -1255,6 +1255,12 @@ describe('RampsService', () => {
             },
           },
         ],
+        sorted: [
+          {
+            sortBy: '1',
+            ids: ['/providers/paypal-staging'],
+          },
+        ],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
@@ -1275,6 +1281,7 @@ describe('RampsService', () => {
       expect(providersResponse.providers[0]?.id).toBe(
         '/providers/paypal-staging',
       );
+      expect(providersResponse.sorted).toStrictEqual(mockProviders.sorted);
     });
 
     it('normalizes region case', async () => {
@@ -1297,6 +1304,7 @@ describe('RampsService', () => {
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
+      expect(providersResponse.sorted).toStrictEqual([]);
     });
 
     it('preserves provider limits from the API response', async () => {
