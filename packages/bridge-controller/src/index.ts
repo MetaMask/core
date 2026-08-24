@@ -9,6 +9,8 @@ export {
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   PollingStatus,
+  FailurePhase,
+  SwapBridgeErrorCode,
 } from './utils/metrics/constants.js';
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants.js';
@@ -25,6 +27,8 @@ export type {
   QuoteFetchData,
   QuoteWarning,
   InputPrimaryDenominationData,
+  HashPresenceData,
+  FailureTelemetryData,
 } from './utils/metrics/types.js';
 
 export {
@@ -36,6 +40,15 @@ export {
   isCustomSlippage,
   getQuotesReceivedProperties,
 } from './utils/metrics/properties.js';
+
+export {
+  getHashPresenceProperties,
+  getQuoteFetchErrorCode,
+  getStatusFailurePhase,
+  getStatusFailureTelemetry,
+  getSubmitErrorCode,
+  getSubmitFailureTelemetry,
+} from './utils/metrics/failure-telemetry.js';
 
 export type {
   ChainConfiguration,

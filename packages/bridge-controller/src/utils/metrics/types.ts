@@ -16,6 +16,8 @@ import type {
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
+  FailurePhase,
+  SwapBridgeErrorCode,
 } from './constants.js';
 
 /**
@@ -80,6 +82,16 @@ export type TxStatusData = {
   approval_transaction?: StatusTypes;
   source_transaction?: StatusTypes;
   destination_transaction?: StatusTypes;
+};
+
+export type HashPresenceData = {
+  source_hash_present?: boolean;
+  destination_hash_present?: boolean;
+};
+
+export type FailureTelemetryData = HashPresenceData & {
+  failure_phase?: FailurePhase;
+  error_code?: SwapBridgeErrorCode;
 };
 
 export type InputPrimaryDenominationData = {
@@ -242,7 +254,8 @@ type RequiredEventContextFromClientBase = {
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
-  } & Pick<RequestMetadata, 'security_warnings'>;
+  } & Pick<RequestMetadata, 'security_warnings'> &
+    Pick<FailureTelemetryData, 'failure_phase' | 'error_code'>;
   // Emitted by BridgeStatusController
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -259,7 +272,8 @@ type RequiredEventContextFromClientBase = {
     > & {
       action_type: MetricsActionType;
       batch_id?: string;
-    } & InputPrimaryDenominationData;
+    } & InputPrimaryDenominationData &
+    HashPresenceData;
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -273,7 +287,8 @@ type RequiredEventContextFromClientBase = {
       action_type: MetricsActionType;
       batch_id?: string;
       transaction_internal_id?: string;
-    } & InputPrimaryDenominationData;
+    } & InputPrimaryDenominationData &
+    HashPresenceData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
       (Pick<
@@ -302,7 +317,7 @@ type RequiredEventContextFromClientBase = {
     Pick<QuoteFetchData, 'price_impact'> & {
       error_message: string;
       batch_id?: string;
-    };
+    } & FailureTelemetryData;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: {
     polling_status: PollingStatus;
     retry_attempts: number;
