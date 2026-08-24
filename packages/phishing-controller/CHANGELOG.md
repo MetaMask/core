@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isAddressScanSupportedChainId` so clients can check whether `scanAddress` will call the Security Alerts API for a chain ID, without duplicating `DEFAULT_CHAIN_ID_TO_NAME` and `ADDRESS_SCAN_SUPPORTED_CHAINS`
+- Add `isAddressScanSupportedChainId` so clients can check whether `scanAddress` will call the Security Alerts API for a chain ID, without duplicating `DEFAULT_CHAIN_ID_TO_NAME` and `ADDRESS_SCAN_SUPPORTED_CHAINS` ([#9946](https://github.com/MetaMask/core/pull/9946))
 
 ### Changed
 
