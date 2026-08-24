@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Skip the forced Accounts API balance refetch on `TransactionController:transactionConfirmed` when `AccountActivityService` (WebSocket) already reports the transaction's chain as active: `AssetsController` now waits up to 1.5s for a matching `AccountActivityService:transactionUpdated` event (correlated by transaction hash) before falling back to the API call, avoiding a redundant HTTP request when the WebSocket already delivered the same balance update
+- **BREAKING:** Subscribe to `AccountActivityService:transactionUpdated` (typed as `AccountActivityServiceTransactionUpdatedEvent`) to skip the forced Accounts API balance refetch on `TransactionController:transactionConfirmed` when `AccountActivityService` (WebSocket) already reports the transaction's chain as active and confirms the same transaction (correlated by transaction hash) within 1.5s of the confirmation, avoiding a redundant HTTP request when the WebSocket already delivered the same balance update ([#9940](https://github.com/MetaMask/core/pull/9940))
+  - Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `AccountActivityService:transactionUpdated`
 
 ### Fixed
 
