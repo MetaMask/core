@@ -261,6 +261,15 @@ export type OrderParams = {
   scaleMinPrice?: string; // Lowest limit price in the scale ladder
   scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
   scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
+  /**
+   * How the ladder's size is weighted across its rungs. Rung weights ramp
+   * linearly from 1 at `scaleMinPrice` to this value at `scaleMaxPrice`, in that
+   * direction for both sides — a short does not flip it. Above 1 puts more size
+   * at `scaleMaxPrice`, below 1 at `scaleMinPrice`. Omitted or exactly 1 spreads
+   * the size evenly. Any finite value above 0 is accepted as given; see
+   * `splitScaleSizes` for how the sizes are allocated.
+   */
+  scaleSkew?: number;
   chaseIntervalMs?: number; // How often the chase re-reads the touch (default 3000, min 1000)
   chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
   chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
