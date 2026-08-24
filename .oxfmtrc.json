@@ -16,5 +16,5 @@
   },
   "tabWidth": 2,
   "trailingComma": "all",
-  "ignorePatterns": [".yarnrc.yml", "merged-packages/**"]
+  "ignorePatterns": [".yarnrc.yml", "merged-packages/**", "lavamoat"]
 }
