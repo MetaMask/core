@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `V2WithV1Fallback` (`'1.5'`): prefer API V2 metadata (plus fiat from `usd`); fall back to legacy
   - `V2Only` (`'2'`): API V2 metadata only
 - **BREAKING:** `mergeQuoteMetadata` only accepts `QuoteResponse` V2, and takes optional `migrationPhase` and `currencyValues` ([#9744](https://github.com/MetaMask/core/pull/9744))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
 ## [79.3.0]
 
