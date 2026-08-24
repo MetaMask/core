@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection.
+- Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
 
 ## [12.2.0]
 
