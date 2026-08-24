@@ -3164,6 +3164,7 @@ export class NetworkController extends BaseController<
 
     this.#ethQuery = new EthQuery(this.#providerProxy);
   }
+
   /**
    * Adds networks to state and registers network clients for the given CAIP-2
    * chain IDs if they are not already present. Configurations for these
@@ -3172,18 +3173,18 @@ export class NetworkController extends BaseController<
    * @param caipChainIds - The CAIP-2 chain IDs of the networks to enable.
    */
   #autoAddNetworksFromConfigRegistry(caipChainIds: CaipChainId[]): void {
-    for (const chainId of chainIds) {
+    for (const caipChainId of caipChainIds) {
       try {
-        const networkConfiguration = this.messenger.call(
+        const registryNetworkConfig = this.messenger.call(
           'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
-          chainId,
+          caipChainId,
         );
         const hexChainId = numberToHex(
-          Number(parseCaipChainId(chainId).reference),
+          Number(parseCaipChainId(caipChainId).reference),
         );
 
         if (
-          !networkConfiguration ||
+          !registryNetworkConfig ||
           this.state.networkConfigurationsByChainId[hexChainId]
         ) {
           continue;
@@ -3192,33 +3193,33 @@ export class NetworkController extends BaseController<
         const rpcEndpoint:
           | InfuraRpcEndpoint
           | AddNetworkCustomRpcEndpointFields =
-          networkConfiguration.rpcProviders.default.type === 'infura'
+          registryNetworkConfig.rpcProviders.default.type === 'infura'
             ? {
                 type: RpcEndpointType.Infura,
                 networkClientId:
-                  networkConfiguration.rpcProviders.default.networkClientId,
-                url: networkConfiguration.rpcProviders.default
+                  registryNetworkConfig.rpcProviders.default.networkClientId,
+                url: registryNetworkConfig.rpcProviders.default
                   .url as InfuraRpcEndpoint['url'],
               }
             : {
                 type: RpcEndpointType.Custom,
-                url: networkConfiguration.rpcProviders.default.url,
+                url: registryNetworkConfig.rpcProviders.default.url,
               };
 
         this.addNetwork({
           chainId: hexChainId,
-          name: networkConfiguration.name,
-          nativeCurrency: networkConfiguration.assets.native.symbol,
+          name: registryNetworkConfig.name,
+          nativeCurrency: registryNetworkConfig.assets.native.symbol,
           rpcEndpoints: [rpcEndpoint],
           defaultRpcEndpointIndex: 0,
-          blockExplorerUrls: [networkConfiguration.blockExplorerUrls.default],
+          blockExplorerUrls: [registryNetworkConfig.blockExplorerUrls.default],
           defaultBlockExplorerUrlIndex: 0,
         });
       } catch (error) {
         const capturedError =
           error instanceof Error ? error : new Error(String(error));
         this.#log?.error(
-          `Failed to auto-enable network for chain ID ${chainId}: ${capturedError}`,
+          `Failed to auto-enable network for chain ID ${caipChainId}: ${capturedError}`,
         );
         this.messenger.captureException?.(capturedError);
       }
