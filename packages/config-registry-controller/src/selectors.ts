@@ -1,9 +1,9 @@
+import { CaipChainId, KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import { filterNetworks } from './config-registry-api-service/filters.js';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
 import type { ConfigRegistryControllerState } from './ConfigRegistryController.js';
-import { CaipChainId, KnownCaipNamespace } from '@metamask/utils';
 
 /**
  * Base selector to get all networks from the controller state.
