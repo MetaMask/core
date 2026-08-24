@@ -1011,6 +1011,26 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('subscribe polling fetch always bypasses the TanStack cache', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
   it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
     const { controller, assetsUpdateHandler, apiClient } =
       await setupController();

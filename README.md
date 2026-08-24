@@ -367,7 +367,6 @@ linkStyle default opacity:0.5
   config_registry_controller --> keyring_controller;
   config_registry_controller --> messenger;
   config_registry_controller --> polling_controller;
-  config_registry_controller --> profile_sync_controller;
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
@@ -662,6 +661,7 @@ linkStyle default opacity:0.5
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> claims_controller;
+  wallet --> config_registry_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
@@ -677,6 +677,7 @@ linkStyle default opacity:0.5
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> config_registry_controller;
   wallet_cli --> messenger;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
