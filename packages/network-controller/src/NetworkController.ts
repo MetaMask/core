@@ -7,10 +7,11 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  ConfigRegistryControllerStateChangedEvent,
-  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
-  ConfigRegistryControllerGetStateAction,
+import {
+  type ConfigRegistryControllerStateChangedEvent,
+  type ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+  type ConfigRegistryControllerGetStateAction,
+  selectEvmAutoEnabledNetworksChainIds,
 } from '@metamask/config-registry-controller';
 import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
@@ -82,10 +83,7 @@ import type {
   ResolvedNetworkControllerAnalyticsOptions,
 } from './rpc-service-analytics.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
-import {
-  getConfigRegistryEvmAutoEnabledChains,
-  getRpcFailoverMode,
-} from './selectors.js';
+import { getRpcFailoverMode } from './selectors.js';
 import type { RpcFailoverMode } from './selectors.js';
 import { NetworkClientType } from './types.js';
 import type {
@@ -1439,8 +1437,8 @@ export class NetworkController extends BaseController<
 
     this.messenger.subscribe(
       'ConfigRegistryController:stateChanged',
-      (autoEnabledChains) => this.#autoEnableChains(autoEnabledChains),
-      getConfigRegistryEvmAutoEnabledChains,
+      (caipChainIds) => this.#autoAddNetworksFromConfigRegistry(caipChainIds),
+      selectEvmAutoEnabledNetworksChainIds,
     );
   }
 
@@ -1653,7 +1651,7 @@ export class NetworkController extends BaseController<
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
 
     this.#autoAddNetworksFromConfigRegistry(
-      getConfigRegistryEvmAutoEnabledChains(
+      selectEvmAutoEnabledNetworksChainIds(
         this.messenger.call('ConfigRegistryController:getState'),
       ),
     );

@@ -3,6 +3,7 @@ import { createSelector } from 'reselect';
 import { filterNetworks } from './config-registry-api-service/filters.js';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
 import type { ConfigRegistryControllerState } from './ConfigRegistryController.js';
+import { CaipChainId, KnownCaipNamespace } from '@metamask/utils';
 
 /**
  * Base selector to get all networks from the controller state.
@@ -37,3 +38,24 @@ export const selectFeaturedNetworks = createSelector(
     return result;
   },
 );
+
+/**
+ * Returns the list of CAIP-2 chain IDs for networks that are auto-enabled in the
+ * config registry.
+ *
+ * @param state - The config registry controller state.
+ * @returns The list of CAIP-2 chain IDs for auto-enabled networks.
+ */
+export function selectEvmAutoEnabledNetworksChainIds(
+  state: ConfigRegistryControllerState,
+): CaipChainId[] {
+  return Object.values(state.configs.networks)
+    .filter(
+      ({ chainId, config }) =>
+        chainId.startsWith(KnownCaipNamespace.Eip155) &&
+        config.isAutoEnabled &&
+        config.isActive &&
+        !config.isDeprecated,
+    )
+    .map((config) => config.chainId);
+}

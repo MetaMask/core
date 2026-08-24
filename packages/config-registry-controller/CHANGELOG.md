@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `isAutoEnabled?: boolean` property to `RegistryNetworkConfig.config` ([#9879](https://github.com/MetaMask/core/pull/9879))
+- Add `selectEvmAutoEnabledNetworksChainIds` selector to retrieve the CAIP-2 chain IDs of all EVM networks that are auto-enabled ([#9879](https://github.com/MetaMask/core/pull/9879))
 
 ## [3.0.0]
 
