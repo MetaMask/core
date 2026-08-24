@@ -1,5 +1,8 @@
 /* eslint-disable */
-import { MARKET_SORTING_CONFIG } from '../../src/constants/perpsConfig.js';
+import {
+  MARKET_SORTING_CONFIG,
+  PERPS_CONSTANTS,
+} from '../../src/constants/perpsConfig.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import {
   selectIsFirstTimeUser,
@@ -479,6 +482,67 @@ describe('PerpsController selectors', () => {
       const result = selectPendingTradeConfiguration(state, 'BTC');
 
       expect(result).toBeUndefined();
+    });
+
+    it('applies the TTL on every call even when the memoized inputs are unchanged', () => {
+      const now = Date.now();
+      const state = {
+        isTestnet: false,
+        tradeConfigurations: {
+          mainnet: {
+            BTC: {
+              leverage: 10,
+              pendingConfig: {
+                amount: '100',
+                leverage: 5,
+                timestamp: now,
+              },
+            },
+          },
+          testnet: {},
+        },
+      } as unknown as PerpsControllerState;
+
+      // First read while the draft is valid populates the memoized cache.
+      expect(selectPendingTradeConfiguration(state, 'BTC')).toEqual({
+        amount: '100',
+        leverage: 5,
+      });
+
+      // Time passes beyond the TTL without any change to isTestnet,
+      // tradeConfigurations, or coin (same state reference).
+      jest.advanceTimersByTime(
+        PERPS_CONSTANTS.PendingTradeConfigurationTtlMs + 1,
+      );
+
+      // Re-reading with the identical inputs must still reflect expiry rather
+      // than returning the stale memoized draft.
+      expect(selectPendingTradeConfiguration(state, 'BTC')).toBeUndefined();
+    });
+
+    it('returns a stable reference across re-selection while the draft is valid', () => {
+      const now = Date.now();
+      const state = {
+        isTestnet: false,
+        tradeConfigurations: {
+          mainnet: {
+            BTC: {
+              leverage: 10,
+              pendingConfig: {
+                amount: '100',
+                leverage: 5,
+                timestamp: now,
+              },
+            },
+          },
+          testnet: {},
+        },
+      } as unknown as PerpsControllerState;
+
+      const first = selectPendingTradeConfiguration(state, 'BTC');
+      const second = selectPendingTradeConfiguration(state, 'BTC');
+
+      expect(second).toBe(first);
     });
   });
 
