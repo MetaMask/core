@@ -9542,7 +9542,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/wallet@npm:^13.0.0, @metamask/wallet@workspace:packages/wallet":
+"@metamask/wallet@npm:^12.0.1, @metamask/wallet@workspace:packages/wallet":
   version: 0.0.0-use.local
   resolution: "@metamask/wallet@workspace:packages/wallet"
   dependencies:
