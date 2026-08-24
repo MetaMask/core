@@ -46,16 +46,24 @@ export const selectFeaturedNetworks = createSelector(
  * @param state - The config registry controller state.
  * @returns The list of CAIP-2 chain IDs for auto-enabled networks.
  */
-export function selectEvmAutoEnabledNetworksChainIds(
-  state: ConfigRegistryControllerState,
-): CaipChainId[] {
-  return Object.values(state.configs.networks)
-    .filter(
-      ({ chainId, config }) =>
-        chainId.startsWith(KnownCaipNamespace.Eip155) &&
-        config.isAutoEnabled &&
-        config.isActive &&
-        !config.isDeprecated,
-    )
-    .map((config) => config.chainId);
-}
+export const selectEvmAutoEnabledNetworksChainIds = createSelector(
+  selectNetworks,
+  (networks): CaipChainId[] =>
+    Object.values(networks)
+      .filter(
+        ({ chainId, config }) =>
+          chainId.startsWith(KnownCaipNamespace.Eip155) &&
+          config.isAutoEnabled &&
+          config.isActive &&
+          !config.isDeprecated,
+      )
+      .map((config) => config.chainId),
+  {
+    // Messenger selector subscriptions only skip work when the result is
+    // referentially equal, so keep the previous array when the IDs are the same.
+    memoizeOptions: {
+      resultEqualityCheck: (a: CaipChainId[], b: CaipChainId[]) =>
+        a.length === b.length && a.every((chainId, i) => chainId === b[i]),
+    },
+  },
+);

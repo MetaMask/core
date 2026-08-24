@@ -148,5 +148,35 @@ describe('selectors', () => {
       const result = selectEvmAutoEnabledNetworksChainIds(state);
       expect(result).toStrictEqual(['eip155:1', 'eip155:6']);
     });
+
+    it('returns the same array reference when the chain IDs have not changed', () => {
+      const networks = {
+        'eip155:1': createMockNetworkConfig({
+          chainId: 'eip155:1',
+          config: { isAutoEnabled: true, isActive: true, isDeprecated: false },
+        }),
+      };
+      const state: ConfigRegistryControllerState = {
+        configs: { networks },
+        version: '1.0.0',
+        lastFetched: 1,
+        etag: null,
+      };
+
+      const first = selectEvmAutoEnabledNetworksChainIds(state);
+      // Unrelated state change, same `networks` object.
+      const second = selectEvmAutoEnabledNetworksChainIds({
+        ...state,
+        lastFetched: 2,
+      });
+      // New `networks` object with the same auto-enabled chain IDs.
+      const third = selectEvmAutoEnabledNetworksChainIds({
+        ...state,
+        configs: { networks: { ...networks } },
+      });
+
+      expect(second).toBe(first);
+      expect(third).toBe(first);
+    });
   });
 });
