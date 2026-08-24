@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add `config-registry-{controller, api-service}` to `wallet` ([#9928](https://github.com/MetaMask/core/pull/9928))
-
 ### Added
 
 - Add the `mm wallet send` command and a dedicated daemon `sendTransaction` RPC handler for sending a transaction through the daemon-hosted `TransactionController` ([#9636](https://github.com/MetaMask/core/pull/9636))
@@ -26,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a wallet factory and daemon entry point that construct a `@metamask/wallet` `Wallet` backed by the SQLite key-value store, hydrate it from persisted state, run controller initialization (aborting startup if any step fails), import the secret recovery phrase on first run, and expose a `dispose` teardown handle ([#9226](https://github.com/MetaMask/core/pull/9226))
 - Add a daemon transport layer: a JSON-RPC client and server over a Unix socket, plus daemon spawn/stop lifecycle helpers ([#9108](https://github.com/MetaMask/core/pull/9108))
 - Add SQLite-backed persistence for wallet controller state ([#9067](https://github.com/MetaMask/core/pull/9067))
-- Initial package scaffold for `@metamask/wallet-cli`, an [oclif](https://oclif.io)-based `mm` CLI for `@metamask/wallet`. ([#9065](https://github.com/MetaMask/core/pull/9065))
+- Initial package scaffold for `@metamask/wallet-cli`, an [oclif](https://oclif.io)-based `mm` CLI for `@metamask/wallet` ([#9065](https://github.com/MetaMask/core/pull/9065)).
 - Register no-op `AnalyticsController` handlers on the daemon wallet so `NetworkController`'s RPC service analytics calls resolve; the daemon does not report analytics ([#9270](https://github.com/MetaMask/core/pull/9270))
 
 ### Changed
