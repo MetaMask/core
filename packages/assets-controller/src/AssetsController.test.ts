@@ -2853,6 +2853,222 @@ describe('AssetsController', () => {
       });
     });
 
+    it('does not force refresh when transaction hash is missing, chain not WS-active', async () => {
+      // Default AccountActivityDataSource state has no active chains, so the
+      // WS gate should be skipped and the API refetch should happen right away.
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0xa4b1',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            chainIds: ['eip155:42161'],
+            forceUpdate: true,
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('skips the forced Accounts API refetch when the WebSocket already confirmed the same transaction', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        // Mark the chain as WS-active (AccountActivityService reported "up").
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['eip155:42161'],
+          status: 'up',
+        });
+
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0xa4b1',
+          hash: '0xDEADBEEF',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        // The WebSocket delivers the matching transaction confirmation before
+        // the bounded wait times out.
+        messenger.publish('AccountActivityService:transactionUpdated', {
+          id: '0xdeadbeef',
+          chain: 'eip155:42161',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0x1234567890123456789012345678901234567890',
+          to: '0x9876543210987654321098765432109876543210',
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('skips the forced Accounts API refetch when the WebSocket update arrives before transactionConfirmed (race)', async () => {
+      // Regression test: `AccountActivityService:transactionUpdated` and
+      // `TransactionController:transactionConfirmed` are independent
+      // signals that can arrive in either order. If the WS message arrives
+      // first, a naive "listen only for future events" wait would miss it.
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['eip155:42161'],
+          status: 'up',
+        });
+
+        // The WebSocket delivers the matching transaction confirmation
+        // *before* transactionConfirmed fires.
+        messenger.publish('AccountActivityService:transactionUpdated', {
+          id: '0xdeadbeef',
+          chain: 'eip155:42161',
+          status: 'confirmed',
+          timestamp: Date.now(),
+          from: '0x1234567890123456789012345678901234567890',
+          to: '0x9876543210987654321098765432109876543210',
+        });
+
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0xa4b1',
+          hash: '0xDEADBEEF',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('does not double-refetch when transactionConfirmed fires twice for the same transaction', async () => {
+      // Regression test: a second `transactionConfirmed` for the same hash
+      // used to leave the first wait's timer running unclaimed, which could
+      // fire later and either double-refetch or clear the wrong wait.
+      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+
+      try {
+        await withController(async ({ controller, messenger }) => {
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockResolvedValue({});
+
+          messenger.publish('AccountActivityService:statusChanged', {
+            chainIds: ['eip155:42161'],
+            status: 'up',
+          });
+
+          const confirmedEvent = {
+            chainId: '0xa4b1',
+            hash: '0xdeadbeef',
+            txParams: { from: '0x1234567890123456789012345678901234567890' },
+          };
+          messenger.publish('TransactionController:transactionConfirmed', confirmedEvent);
+          messenger.publish('TransactionController:transactionConfirmed', confirmedEvent);
+
+          await flushPromises();
+          await jest.advanceTimersByTimeAsync(1_500);
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+
+          getAssetsSpy.mockRestore();
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('falls back to the forced Accounts API refetch when the WebSocket confirmation times out', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+
+      try {
+        await withController(async ({ controller, messenger }) => {
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockResolvedValue({});
+
+          // Mark the chain as WS-active, but never publish a matching
+          // transactionUpdated event, simulating a dropped/late message.
+          messenger.publish('AccountActivityService:statusChanged', {
+            chainIds: ['eip155:42161'],
+            status: 'up',
+          });
+
+          messenger.publish('TransactionController:transactionConfirmed', {
+            chainId: '0xa4b1',
+            hash: '0xdeadbeef',
+            txParams: { from: '0x1234567890123456789012345678901234567890' },
+          });
+
+          await flushPromises();
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+
+          await jest.advanceTimersByTimeAsync(1_500);
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+            },
+          );
+
+          getAssetsSpy.mockRestore();
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not wait for the WebSocket when the confirmed transaction has no hash', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        // Chain is WS-active, but there's no hash to correlate against.
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['eip155:42161'],
+          status: 'up',
+        });
+
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0xa4b1',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            chainIds: ['eip155:42161'],
+            forceUpdate: true,
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
         const balanceChangedHandler = jest.fn();

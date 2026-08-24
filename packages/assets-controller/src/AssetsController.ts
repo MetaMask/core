@@ -20,7 +20,9 @@ import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
+  AccountActivityServiceTransactionUpdatedEvent,
   SupportedCurrency,
+  Transaction as WsTransaction,
 } from '@metamask/core-backend';
 import type {
   KeyringControllerLockEvent,
@@ -210,6 +212,12 @@ const MESSENGER_EXPOSED_METHODS = [
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 
+/**
+ * How long to wait for a WebSocket transaction confirmation before falling
+ * back to a forced Accounts API refetch (see `#refreshAssetsAfterTransactionConfirmed`).
+ */
+const WS_TRANSACTION_CONFIRMATION_TIMEOUT_MS = 1_500;
+
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
@@ -372,6 +380,8 @@ type AllowedEvents =
   // AccountActivityService (real-time balance updates + chain status for unified assets)
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
+  // AccountActivityService (skip redundant Accounts API refetch on tx confirm)
+  | AccountActivityServiceTransactionUpdatedEvent
   // AccountsApiDataSource subscribes to react to Snaps → AssetsController
   // migration flag changes (which gate the chains it surfaces as active)
   | RemoteFeatureFlagControllerStateChangeEvent;
@@ -803,6 +813,19 @@ export class AssetsController extends BaseController<
 
   readonly #accountActivityDataSource: AccountActivityDataSource;
 
+  /**
+   * Coordinates the race between `transactionConfirmed` and the WS
+   * `transactionUpdated` push for a given transaction, keyed by
+   * `${chain}:${txId}`. Whichever arrives first records an entry; whichever
+   * arrives second consumes it. A `pending` entry means we're about to force
+   * an Accounts API refetch unless the WS beats the clock; an `arrived`
+   * entry means the WS already confirmed and is just waiting to be noticed.
+   */
+  readonly #wsConfirmations = new Map<
+    string,
+    { kind: 'pending' | 'arrived'; timeout: NodeJS.Timeout }
+  >();
+
   readonly #accountsApiDataSource: AccountsApiDataSource;
 
   readonly #snapDataSource: SnapDataSource;
@@ -1216,6 +1239,42 @@ export class AssetsController extends BaseController<
       this.#accountTreeInitialized = false;
       this.#updateActive();
     });
+
+    // Got here first? `transactionConfirmed` hasn't fired yet, so just note
+    // that the WS confirmed and let it find out later. Got here second? Then
+    // `transactionConfirmed` is already waiting on a timer - cancel it.
+    this.messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      ({ chain, id }: WsTransaction) => {
+        const key = `${chain}:${id.toLowerCase()}`;
+        if (this.#takeWsConfirmation(key) !== 'pending') {
+          this.#wsConfirmations.set(key, {
+            kind: 'arrived',
+            timeout: setTimeout(
+              () => this.#wsConfirmations.delete(key),
+              WS_TRANSACTION_CONFIRMATION_TIMEOUT_MS,
+            ),
+          });
+        }
+      },
+    );
+  }
+
+  /**
+   * Removes and returns the kind of an existing `#wsConfirmations` entry,
+   * clearing its timeout so it can be safely replaced or dropped.
+   *
+   * @param key - The `${chain}:${txId}` key to look up.
+   * @returns The entry's kind, or `undefined` if there was no entry.
+   */
+  #takeWsConfirmation(key: string): 'pending' | 'arrived' | undefined {
+    const existing = this.#wsConfirmations.get(key);
+    if (!existing) {
+      return undefined;
+    }
+    clearTimeout(existing.timeout);
+    this.#wsConfirmations.delete(key);
+    return existing.kind;
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1266,11 +1325,60 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    this.getAssets([matchedAccount], {
-      chainIds: [caipChainId],
-      forceUpdate: true,
-    }).catch((error) => {
-      log('Failed to refresh assets after transaction confirmed', { error });
+    this.#refreshAssetsAfterTransactionConfirmed(
+      matchedAccount,
+      caipChainId,
+      transactionMeta.hash,
+    );
+  }
+
+  /**
+   * Refreshes balances for a confirmed transaction. Skips the forced
+   * Accounts API call if the chain's WebSocket is active and confirms the
+   * same transaction within {@link WS_TRANSACTION_CONFIRMATION_TIMEOUT_MS},
+   * since that push already delivered the same balance update.
+   *
+   * @param account - The account whose balances should be refreshed.
+   * @param chainId - The CAIP-2 chain ID the transaction was confirmed on.
+   * @param transactionHash - The confirmed transaction's hash, used to match
+   * against the WebSocket. If undefined, the API is always called.
+   */
+  #refreshAssetsAfterTransactionConfirmed(
+    account: InternalAccount,
+    chainId: ChainId,
+    transactionHash: string | undefined,
+  ): void {
+    const forceRefetch = (): void => {
+      this.getAssets([account], { chainIds: [chainId], forceUpdate: true }).catch(
+        (error) => {
+          log('Failed to refresh assets after transaction confirmed', {
+            error,
+          });
+        },
+      );
+    };
+
+    const isChainWsActive = this.#accountActivityDataSource
+      .getActiveChainsSync()
+      .includes(chainId);
+
+    if (!transactionHash || !isChainWsActive) {
+      forceRefetch();
+      return;
+    }
+
+    // The WS may have already confirmed this before we got here.
+    const key = `${chainId}:${transactionHash.toLowerCase()}`;
+    if (this.#takeWsConfirmation(key) === 'arrived') {
+      return;
+    }
+
+    this.#wsConfirmations.set(key, {
+      kind: 'pending',
+      timeout: setTimeout(() => {
+        this.#wsConfirmations.delete(key);
+        forceRefetch();
+      }, WS_TRANSACTION_CONFIRMATION_TIMEOUT_MS),
     });
   }
 
@@ -4019,6 +4127,12 @@ export class AssetsController extends BaseController<
 
     // Stop all active subscriptions
     this.#stop();
+
+    // Cancel any pending WS/API race timers (see `#wsConfirmations`).
+    for (const { timeout } of this.#wsConfirmations.values()) {
+      clearTimeout(timeout);
+    }
+    this.#wsConfirmations.clear();
 
     if (this.#unsubscribeBasicFunctionality) {
       this.#unsubscribeBasicFunctionality();

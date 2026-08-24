@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Skip the forced Accounts API balance refetch on `TransactionController:transactionConfirmed` when `AccountActivityService` (WebSocket) already reports the transaction's chain as active: `AssetsController` now waits up to 1.5s for a matching `AccountActivityService:transactionUpdated` event (correlated by transaction hash) before falling back to the API call, avoiding a redundant HTTP request when the WebSocket already delivered the same balance update
+
 ### Fixed
 
 - Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
