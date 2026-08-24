@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
 - Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
 
+### Fixed
+
+- Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
+
 ## [12.2.0]
 
 ### Added
