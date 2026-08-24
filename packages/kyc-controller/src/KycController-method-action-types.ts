@@ -129,17 +129,17 @@ export type KycControllerGetKycStatusAction = {
 /**
  * Runs the SumSub document-verification sub-flow end to end:
  *
- * 1. requests a per-session wrapping key from the UKYC backend;
- * 2. verifies its `jwtChain` against the Fractal JWKS and confirms the
- * attested session server public key;
+ * 1. creates a UKYC session, receiving per-secret encryption schemas;
+ * 2. verifies each schema's `jwtChain` against the Fractal JWKS and confirms
+ * the attested session server public key;
  * 3. derives the `data_encryption_key` from the wallet's UKYC
  * `local_user_secret` and wraps it for the session server;
- * 4. mints a client-signed, read-only `ukyc_capability_token` and creates
- * the UKYC session (handing over the wrapped key and the token);
+ * 4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the
+ * same way as the encryption key, and submits both via authorizations;
  * 5. fetches the SumSub applicant access token; and
  * 6. presents the SDK via the injected launcher.
  *
- * If session creation reports the applicant is already approved on the relay
+ * If authorizations report the applicant is already approved on the relay
  * while the vendor is still finalizing (`kycStatus: approved`,
  * `finalStatus: pending`), the sub-flow stops at step 4 with a
  * `vendorProcessing` status and a message rather than launching the SDK.

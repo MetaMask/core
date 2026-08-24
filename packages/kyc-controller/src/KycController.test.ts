@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { bytesToString } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { x25519 } from '@noble/curves/ed25519';
 import { hkdf } from '@noble/hashes/hkdf';
@@ -1246,23 +1247,42 @@ describe('KycController', () => {
         expect(result).toStrictEqual({ ok: true });
         expect(controller.state.sumsub.status).toBe('complete');
         expect(controller.state.sumsub.applicantAccessToken).toBe('aat');
-        // The wrapped key and a read-only capability token are handed over
-        // once at session creation.
+        // Session creation returns encryption schemas; wrapping happens on
+        // the client and both secrets are posted via authorizations.
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
-            wrappedEncryptionKey: expect.objectContaining({
-              sessionId: 'wk',
-              encryptedKey: 'enc',
-            }),
-            ukycCapabilityToken: expect.objectContaining({
-              payload: expect.objectContaining({
-                operations: ['read'],
-                presenter: 'client',
-              }),
-              signature: expect.any(String),
+            jwtToken: 'mock-jwt-token',
+            vendorMetadata: expect.objectContaining({
+              moonPayAccessToken: null,
+              moonPayUserId: null,
             }),
           }),
         );
+        expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
+          'wrappedEncryptionKey',
+        );
+        expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
+          'ukycCapabilityToken',
+        );
+        expect(mockWrapEncryptionKey).toHaveBeenCalledTimes(2);
+        // First wrap is the 32-byte data_encryption_key; second is the
+        // encoded capability token (longer than a raw key).
+        expect(mockWrapEncryptionKey.mock.calls[0][1]).toBe('spk-x');
+        expect(mockWrapEncryptionKey.mock.calls[0][2]).toHaveLength(32);
+        expect(mockWrapEncryptionKey.mock.calls[1][1]).toBe('spk-x');
+        expect(mockWrapEncryptionKey.mock.calls[1][2].length).toBeGreaterThan(
+          32,
+        );
+        // The capability token is wrapped as the UTF-8 bytes of the same
+        // compact header encoding previously sent as a plaintext field.
+        expect(bytesToString(mockWrapEncryptionKey.mock.calls[1][2])).toMatch(
+          /^[A-Za-z0-9\-_]+$/u,
+        );
+        expect(handlers.setAuthorizations).toHaveBeenCalledWith({
+          sessionId: 'sid',
+          wrappedEncryptionDataKey: { data: 'enc', nonce: 'nonce' },
+          wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
+        });
         // onTokenExpiration re-fetches the applicant access token.
         expect(handlers.createJourney).toHaveBeenCalledTimes(2);
       });
@@ -1272,8 +1292,8 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // The applicant already finished the journey: the relay reports
         // `approved` while the vendor is still finalizing (`pending`).
-        handlers.createUkycSession.mockResolvedValue({
-          sessionId: 'sid',
+        handlers.setAuthorizations.mockResolvedValue({
+          ...sessionStatus('pending'),
           kycStatus: 'approved',
           finalStatus: 'pending',
         });
@@ -1299,8 +1319,8 @@ describe('KycController', () => {
     it('continues the flow when approved and the vendor is not pending', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // A terminal vendor status (not `pending`) must not short-circuit.
-        handlers.createUkycSession.mockResolvedValue({
-          sessionId: 'sid',
+        handlers.setAuthorizations.mockResolvedValue({
+          ...sessionStatus('approved'),
           kycStatus: 'approved',
           finalStatus: 'approved',
         });
@@ -1321,8 +1341,41 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers, launcher }) => {
         handlers.createUkycSession.mockImplementation(async () => {
           controller.reset();
+          return ukycSessionResponse();
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        expect(controller.state.sumsub.status).toBe('idle');
+        expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not submit authorizations when reset() runs while preparing wrapped secrets', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.fetchJwks.mockImplementation(async () => {
+          controller.reset();
+          return { keys: [] };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('idle');
+      });
+    });
+
+    it('does not write vendorProcessing state when reset() runs while setting authorizations', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.setAuthorizations.mockImplementation(async () => {
+          controller.reset();
           return {
-            sessionId: 'sid',
+            ...sessionStatus('pending'),
             kycStatus: 'approved',
             finalStatus: 'pending',
           };
@@ -1337,13 +1390,36 @@ describe('KycController', () => {
       });
     });
 
+    it('does not create a journey when reset() runs during a non-pending authorizations response', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.setAuthorizations.mockImplementation(async () => {
+          controller.reset();
+          return sessionStatus('approved');
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('idle');
+      });
+    });
+
     it('aborts when the attested session server public key does not match', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
-        handlers.getWrappingKey.mockResolvedValue({
-          id: 'wk',
-          jwtChain: 'jwt.chain.sig',
-          sessionServerPublicKey: { kty: 'OKP', crv: 'X25519', x: 'tampered' },
-        });
+        handlers.createUkycSession.mockResolvedValue(
+          ukycSessionResponse({
+            encryptionDataKey: {
+              serverPublicKey: {
+                kty: 'OKP',
+                crv: 'X25519',
+                x: 'tampered',
+              },
+              jwtChain: 'jwt.chain.sig',
+            },
+          }),
+        );
 
         const result = await controller.startSumSub();
 
@@ -1354,6 +1430,35 @@ describe('KycController', () => {
         });
         expect(controller.state.sumsub.status).toBe('failed');
         expect(launcher.launch).not.toHaveBeenCalled();
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it('aborts when the capability-token schema public key does not match', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.createUkycSession.mockResolvedValue(
+          ukycSessionResponse({
+            ukycCapabilityToken: {
+              serverPublicKey: {
+                kty: 'OKP',
+                crv: 'X25519',
+                x: 'tampered-token-key',
+              },
+              jwtChain: 'jwt.chain.sig',
+            },
+          }),
+        );
+
+        const result = await controller.startSumSub();
+
+        expect(result).toMatchObject({
+          error: expect.stringContaining(
+            'sessionServerPublicKey does not match',
+          ),
+        });
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
       });
     });
 
@@ -1408,9 +1513,7 @@ describe('KycController', () => {
         // Simulate a reset() landing while the UKYC session is being created.
         handlers.createUkycSession.mockImplementation(async () => {
           controller.reset();
-          return {
-            sessionId: 'sid',
-          };
+          return ukycSessionResponse();
         });
 
         const result = await controller.startSumSub();
@@ -1546,7 +1649,9 @@ describe('KycController', () => {
     it('treats SDK completion as final when the UKYC session has no id to poll', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // A session created without an id leaves nothing to poll against.
-        handlers.createUkycSession.mockResolvedValue({ sessionId: '' });
+        handlers.createUkycSession.mockResolvedValue(
+          ukycSessionResponse({ sessionId: '' }),
+        );
         completeSdk(launcher);
 
         await controller.startSumSub();
@@ -1791,9 +1896,9 @@ type ServiceHandlers = {
   fetchDisclaimers: jest.Mock;
   createSession: jest.Mock;
   checkKycRequired: jest.Mock;
-  getWrappingKey: jest.Mock;
   fetchJwks: jest.Mock;
   createUkycSession: jest.Mock;
+  setAuthorizations: jest.Mock;
   createJourney: jest.Mock;
   getSessionStatus: jest.Mock;
   performGetStorage: jest.Mock;
@@ -1821,14 +1926,44 @@ const SERVICE_ACTIONS = [
   'KycService:fetchDisclaimers',
   'KycService:createSession',
   'KycService:checkKycRequired',
-  'KycService:getWrappingKey',
   'KycService:fetchJwks',
   'KycService:createUkycSession',
+  'KycService:setAuthorizations',
   'KycService:createJourney',
   'KycService:getSessionStatus',
   'UserStorageController:performGetStorage',
   'UserStorageController:performSetStorage',
 ] as const;
+
+const ENCRYPTION_SCHEMA = {
+  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+  jwtChain: 'jwt.chain.sig',
+};
+
+/**
+ * Builds a UKYC session-creation payload with encryption schemas.
+ *
+ * @param overrides - Fields to overlay on the default session response.
+ * @returns A complete session-creation response.
+ */
+function ukycSessionResponse(
+  overrides: Partial<{
+    sessionId: string;
+    encryptionDataKey: typeof ENCRYPTION_SCHEMA;
+    ukycCapabilityToken: typeof ENCRYPTION_SCHEMA;
+  }> = {},
+): {
+  sessionId: string;
+  encryptionDataKey: typeof ENCRYPTION_SCHEMA;
+  ukycCapabilityToken: typeof ENCRYPTION_SCHEMA;
+} {
+  return {
+    sessionId: 'sid',
+    encryptionDataKey: ENCRYPTION_SCHEMA,
+    ukycCapabilityToken: ENCRYPTION_SCHEMA,
+    ...overrides,
+  };
+}
 
 /**
  * Builds a UKYC session status payload with a given `finalStatus`.
@@ -1886,17 +2021,9 @@ function withController<ReturnValue>(
     fetchDisclaimers: jest.fn().mockResolvedValue([]),
     createSession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     checkKycRequired: jest.fn().mockResolvedValue({ kycRequired: false }),
-    getWrappingKey: jest.fn().mockResolvedValue({
-      id: 'wk',
-      jwtChain: 'jwt.chain.sig',
-      // Matches the `sessionServerPublicKeyX` returned by the mocked
-      // `verifyJwtChain`, so the attestation check passes.
-      sessionServerPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
-    }),
     fetchJwks: jest.fn().mockResolvedValue({ keys: [] }),
-    createUkycSession: jest.fn().mockResolvedValue({
-      sessionId: 'sid',
-    }),
+    createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
+    setAuthorizations: jest.fn().mockResolvedValue(sessionStatus('approved')),
     createJourney: jest
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
@@ -1921,16 +2048,16 @@ function withController<ReturnValue>(
     handlers.checkKycRequired,
   );
   rootMessenger.registerActionHandler(
-    'KycService:getWrappingKey',
-    handlers.getWrappingKey,
-  );
-  rootMessenger.registerActionHandler(
     'KycService:fetchJwks',
     handlers.fetchJwks,
   );
   rootMessenger.registerActionHandler(
     'KycService:createUkycSession',
     handlers.createUkycSession,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:setAuthorizations',
+    handlers.setAuthorizations,
   );
   rootMessenger.registerActionHandler(
     'KycService:createJourney',
@@ -1956,7 +2083,7 @@ function withController<ReturnValue>(
     nonce: 'n',
   });
   mockWrapEncryptionKey.mockReturnValue({
-    encryptedKey: 'enc',
+    data: 'enc',
     nonce: 'nonce',
   });
 
