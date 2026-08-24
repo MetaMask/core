@@ -45,6 +45,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
     "@types/yargs": "^17.0.32",

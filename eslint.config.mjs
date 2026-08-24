@@ -125,7 +125,7 @@ const config = createConfig([
     extends: [nodejs],
   },
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.cjs'],
     languageOptions: {
       sourceType: 'script',
       ecmaVersion: 2020,
@@ -221,14 +221,14 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/jest.environment.js'],
+    files: ['**/jest.environment.cjs'],
     rules: {
       // These files run under Node, and thus `require(...)` is expected.
       'n/global-require': 'off',
     },
   },
   {
-    files: ['**/*.mjs'],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       sourceType: 'module',
     },

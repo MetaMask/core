@@ -190,7 +190,7 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/jest.environment.js": {
+  "packages/assets-controllers/jest.environment.cjs": {
     "n/prefer-global/text-decoder": {
       "count": 1
     },

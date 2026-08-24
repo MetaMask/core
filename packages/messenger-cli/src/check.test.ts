@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -27,7 +28,9 @@ describe('checkActionTypesFiles', () => {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
 
@@ -52,8 +55,12 @@ describe('checkActionTypesFiles', () => {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -73,8 +80,12 @@ describe('checkActionTypesFiles', () => {
         methods: [{ name: 'doStuff', jsDoc: '' }],
       };
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -101,8 +112,12 @@ describe('checkActionTypesFiles', () => {
           Object.assign(new Error('EPERM'), { code: 'EPERM' }),
         );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
