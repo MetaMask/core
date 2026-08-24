@@ -63,6 +63,9 @@ export const PERPS_CONSTANTS = {
   // Recently viewed markets
   RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
   RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
+
+  // Temporary order form draft
+  PendingTradeConfigurationTtlMs: 30_000, // Restore a draft only during a brief navigation away from the form
 } as const;
 
 /**
@@ -541,6 +544,32 @@ export type ProOrdersSortField = 'orderValue' | 'size' | 'price' | 'time';
 export type ProOrdersSortDirection = 'asc' | 'desc';
 
 /**
+ * Currency used by the Pro order-book size/total column.
+ */
+export type OrderBookListCurrency = 'base' | 'usd';
+
+/**
+ * Value shown by the Pro order-book size/total column.
+ */
+export type OrderBookListMetric = 'size' | 'total';
+
+/**
+ * Market-agnostic Pro order-book display preferences.
+ */
+export type OrderBookPreferences = {
+  currency: OrderBookListCurrency;
+  metric: OrderBookListMetric;
+};
+
+/**
+ * Default Pro order-book display preferences.
+ */
+export const DEFAULT_ORDER_BOOK_PREFERENCES: OrderBookPreferences = {
+  currency: 'usd',
+  metric: 'total',
+};
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
@@ -586,6 +615,11 @@ export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
  * Default Perps interface mode.
  */
 export const DEFAULT_PERPS_MODE: PerpsMode = PerpsMode.Lite;
+
+/**
+ * Default market-agnostic order type.
+ */
+export const DEFAULT_SELECTED_ORDER_TYPE = 'market' as const;
 
 /**
  * Funding rate display configuration

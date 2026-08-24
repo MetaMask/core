@@ -68,7 +68,7 @@ export type GetUserHistoryParams = {
 // Trade configuration saved per market per network
 export type TradeConfiguration = {
   leverage?: number; // Last used leverage for this market
-  // Pending trade configuration (temporary, expires after 5 minutes)
+  // Pending trade configuration (temporary, expires after 30 seconds)
   pendingConfig?: {
     amount?: string; // Order size in USD
     leverage?: number; // Leverage
@@ -76,6 +76,7 @@ export type TradeConfiguration = {
     stopLossPrice?: string; // Stop loss price
     limitPrice?: string; // Limit price (for limit orders)
     orderType?: OrderType; // Market vs limit
+    reduceOnly?: boolean; // Whether the order may only reduce a position
     timestamp: number; // When the config was saved (for expiration check)
   };
 };
