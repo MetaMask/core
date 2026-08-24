@@ -2979,8 +2979,14 @@ describe('AssetsController', () => {
             hash: '0xdeadbeef',
             txParams: { from: '0x1234567890123456789012345678901234567890' },
           };
-          messenger.publish('TransactionController:transactionConfirmed', confirmedEvent);
-          messenger.publish('TransactionController:transactionConfirmed', confirmedEvent);
+          messenger.publish(
+            'TransactionController:transactionConfirmed',
+            confirmedEvent,
+          );
+          messenger.publish(
+            'TransactionController:transactionConfirmed',
+            confirmedEvent,
+          );
 
           await flushPromises();
           await jest.advanceTimersByTimeAsync(1_500);

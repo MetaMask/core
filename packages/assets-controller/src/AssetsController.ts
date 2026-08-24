@@ -1350,13 +1350,14 @@ export class AssetsController extends BaseController<
     transactionHash: string | undefined,
   ): void {
     const forceRefetch = (): void => {
-      this.getAssets([account], { chainIds: [chainId], forceUpdate: true }).catch(
-        (error) => {
-          log('Failed to refresh assets after transaction confirmed', {
-            error,
-          });
-        },
-      );
+      this.getAssets([account], {
+        chainIds: [chainId],
+        forceUpdate: true,
+      }).catch((error) => {
+        log('Failed to refresh assets after transaction confirmed', {
+          error,
+        });
+      });
     };
 
     const isChainWsActive = this.#accountActivityDataSource
