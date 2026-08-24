@@ -24,7 +24,7 @@ const allPlaceholdersRegex = new RegExp(
 // Our lint config really hates this, but it works.
 // eslint-disable-next-line
 const prettierRc = require(
-  path.join(REPO_ROOT, '.prettierrc.js'),
+  path.join(REPO_ROOT, '.prettierrc.cjs'),
 ) as PrettierOptions;
 
 /**

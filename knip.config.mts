@@ -7,7 +7,7 @@ const config: KnipConfig = {
         'scripts/**/*.{ts,js,sh}',
         'tests/**/*.ts',
         '*.config.{js,cjs,mjs,ts}',
-        '.prettierrc.js',
+        '.prettierrc.cjs',
       ],
       project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
       ignore: ['scripts/create-package/package-template/**'],
