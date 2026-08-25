@@ -7639,6 +7639,263 @@ describe('RampsController', () => {
       );
     });
 
+    it('does not let an older region overwrite repopulated matching asset and provider state', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+      const frenchMethod: PaymentMethod = {
+        ...cardMethod,
+        id: '/payments/french-card',
+        name: 'French Card',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], moonpay),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let resolveUsRequest: (value: {
+            payments: PaymentMethod[];
+          }) => void = () => undefined;
+          let resolveFrRequest: (value: {
+            payments: PaymentMethod[];
+          }) => void = () => undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => tokenCatalog,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [moonpay] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async ({ region }: { region: string }) =>
+              new Promise((resolve) => {
+                if (region === 'us-ca') {
+                  resolveUsRequest = resolve;
+                } else {
+                  resolveFrRequest = resolve;
+                }
+              }),
+          );
+
+          const usRequest = controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+          await Promise.resolve();
+
+          await controller.setUserRegion('fr');
+          await controller.getTokens('fr', 'buy', { forceRefresh: true });
+          controller.setSelectedToken(depositToken.assetId);
+          await controller.getProviders('fr', { forceRefresh: true });
+          controller.setSelectedProvider(moonpay);
+
+          const frRequest = controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'fr',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+          await Promise.resolve();
+          resolveFrRequest({ payments: [frenchMethod] });
+          await frRequest;
+
+          resolveUsRequest({ payments: [cardMethod] });
+          await usRequest;
+
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            frenchMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            frenchMethod,
+          );
+        },
+      );
+    });
+
+    it.each([
+      ['canonical casing', 'US-CA'],
+      ['surrounding whitespace', ' us-ca '],
+    ])(
+      'commits with stored region using %s',
+      async (_description, storedRegion) => {
+        const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: {
+                  ...createMockUserRegion('us-ca'),
+                  regionCode: storedRegion,
+                },
+                tokens: createResourceState(tokenCatalog, depositToken),
+                providers: createResourceState([moonpay], moonpay),
+                paymentMethods: createResourceState(
+                  [buySelectedMethod],
+                  buySelectedMethod,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getPaymentMethods',
+              async () => ({ payments: [cardMethod] }),
+            );
+
+            await controller.getPaymentMethodsForContext({
+              assetId: DEPOSIT_ASSET,
+              region: 'us-ca',
+              providers: [MOONPAY],
+              updateState: true,
+            });
+
+            expect(controller.state.paymentMethods.data).toStrictEqual([
+              cardMethod,
+            ]);
+            expect(controller.state.paymentMethods.selected).toStrictEqual(
+              cardMethod,
+            );
+          },
+        );
+      },
+    );
+
+    it('keeps the region guard fail-closed when stored region is missing', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], moonpay),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [cardMethod] }),
+          );
+
+          await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            buySelectedMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            buySelectedMethod,
+          );
+        },
+      );
+    });
+
+    it('allows a fresh request after overlapping same-context success and failure', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], moonpay),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let rejectFirst: (reason: Error) => void = () => undefined;
+          let resolveSecond: (value: {
+            payments: PaymentMethod[];
+          }) => void = () => undefined;
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async ({ assetId }: { assetId: string }) => {
+              callCount += 1;
+              if (callCount === 1) {
+                return new Promise((_resolve, reject) => {
+                  rejectFirst = reject;
+                });
+              }
+              if (callCount === 2) {
+                return new Promise((resolve) => {
+                  resolveSecond = resolve;
+                });
+              }
+              expect(assetId).toBe(depositToken.assetId);
+              return { payments: [cardMethod] };
+            },
+          );
+
+          const failingRequest = controller.getPaymentMethodsForContext({
+            assetId: depositToken.assetId,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+          await Promise.resolve();
+          const successfulRequest = controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+          await Promise.resolve();
+
+          resolveSecond({ payments: [applePayMethod] });
+          await successfulRequest;
+          rejectFirst(new Error('older request failed'));
+          await expect(failingRequest).rejects.toThrow('older request failed');
+
+          const freshResult = await controller.getPaymentMethodsForContext({
+            assetId: depositToken.assetId,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+            forceRefresh: true,
+          });
+
+          expect(callCount).toBe(3);
+          expect(freshResult.methods).toStrictEqual([cardMethod]);
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            cardMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            cardMethod,
+          );
+        },
+      );
+    });
+
     it('preserves a valid payment method selected while a stateful request is pending', async () => {
       const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
 

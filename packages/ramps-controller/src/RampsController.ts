@@ -1983,7 +1983,8 @@ export class RampsController extends BaseController<
         if (updateState) {
           this.update((state) => {
             const regionMatches =
-              state.userRegion?.regionCode === normalizedRegion;
+              state.userRegion?.regionCode?.trim().toLowerCase() ===
+              normalizedRegion;
             const assetMatches =
               normalizeAssetIdForContext(
                 state.tokens.selected?.assetId ?? '',
@@ -2068,7 +2069,8 @@ export class RampsController extends BaseController<
       if (updateState) {
         this.update((state) => {
           const regionMatches =
-            state.userRegion?.regionCode === normalizedRegion;
+            state.userRegion?.regionCode?.trim().toLowerCase() ===
+            normalizedRegion;
           const assetMatches =
             normalizeAssetIdForContext(state.tokens.selected?.assetId ?? '') ===
             normalizedAssetContext;
