@@ -7,16 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: auto-add networks from `config-registry` ([#9879](https://github.com/MetaMask/core/pull/9879))
+## [111.1.2]
 
 ### Changed
 
 - Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
-- Update `DeFiPositionsControllerV2` for the flat Accounts API v6 balances response: processing polling is driven by the response-level `processingDefiPositions` account-ID array ([#9911](https://github.com/MetaMask/core/pull/9911))
 - Bump `@metamask/network-enablement-controller` from `^6.0.3` to `^6.0.4` ([#9923](https://github.com/MetaMask/core/pull/9923))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
+### Fixed
+
+- Read DeFi balances from the flat Accounts API v6 `balances` response ([#9911](https://github.com/MetaMask/core/pull/9911))
 
 ## [111.1.1]
 
@@ -3436,7 +3437,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.2...HEAD
+[111.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.1...@metamask/assets-controllers@111.1.2
 [111.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.0...@metamask/assets-controllers@111.1.1
 [111.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.0.0...@metamask/assets-controllers@111.1.0
 [111.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.1...@metamask/assets-controllers@111.0.0

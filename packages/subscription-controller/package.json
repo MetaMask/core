@@ -62,7 +62,7 @@
     "@metamask/polling-controller": "^16.0.9",
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^69.5.2",
+    "@metamask/transaction-controller": "^69.6.0",
     "@metamask/utils": "^11.11.0",
     "@tanstack/query-core": "^5.62.16",
     "bignumber.js": "^9.1.2"

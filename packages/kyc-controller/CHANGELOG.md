@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Parameterize Universal KYC vendor HTTP on `KycService` so identity vendors share one client surface instead of vendor-branded methods: ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Parameterize Universal KYC vendor HTTP on `KycService` so identity vendors share one client surface instead of vendor-branded methods ([#9908](https://github.com/MetaMask/core/pull/9908)):
   - `fetchDisclaimers({ vendor, country })` and `checkKycRequired({ vendor, ... })` call `/vendors/{vendor}/disclaimers` and `/vendors/{vendor}/kyc-required` (`vendor` defaults to `moonpay`)
   - `createVendorCustomer({ vendor, email })` calls `POST /vendors/{vendor}/customers`
   - `submitConsents({ disclaimerIds, ... })` posts `POST /consents` (wire body still uses `ironDisclaimerIds`)
