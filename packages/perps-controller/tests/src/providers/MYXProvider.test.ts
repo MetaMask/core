@@ -761,22 +761,18 @@ describe('MYXProvider', () => {
       });
     });
 
-    it('returns zero fee amounts for an invalid amount quote', async () => {
-      await expect(
-        provider.calculateFees({
-          orderType: 'market',
-          symbol: 'RHEA',
-          amount: 'abc',
-        }),
-      ).resolves.toStrictEqual({
-        feeRate: 0.0005,
-        feeAmount: 0,
-        protocolFeeRate: 0.0005,
-        protocolFeeAmount: 0,
-        metamaskFeeRate: 0,
-        metamaskFeeAmount: 0,
-      });
-    });
+    it.each(['abc', '-1', 'Infinity', '1abc', ''])(
+      'rejects invalid amount quote %p',
+      async (amount) => {
+        await expect(
+          provider.calculateFees({
+            orderType: 'market',
+            symbol: 'RHEA',
+            amount,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      },
+    );
 
     it.each(['twap', 'scale', 'chase'] as const)(
       'rejects an unsupported %s strategy fee quote',

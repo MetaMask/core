@@ -2713,22 +2713,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
     });
 
-    it('uses the safe builder fee for an unknown runtime order type', async () => {
-      useStrategyClients();
+    it.each(['future_order', 'constructor', 'toString', '__proto__'] as const)(
+      'uses the safe builder fee for unknown runtime order type %s',
+      async (orderType) => {
+        useStrategyClients();
 
-      const fees = await provider.calculateFees({
-        // @ts-expect-error Runtime fallback protects JavaScript consumers.
-        orderType: 'future_order',
-        amount: '1000',
-        symbol: 'ETH',
-      });
+        const fees = await provider.calculateFees({
+          // @ts-expect-error Runtime fallback protects JavaScript consumers.
+          orderType,
+          amount: '1000',
+          symbol: 'ETH',
+        });
 
-      expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
-      expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
-        'HyperLiquid: Unknown order type used the safe builder-fee policy',
-        { orderType: 'future_order' },
-      );
-    });
+        expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+        expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+          'HyperLiquid: Unknown order type used the safe builder-fee policy',
+          { orderType },
+        );
+      },
+    );
 
     it('keeps a discounted TWAP quote at zero MetaMask builder fee', async () => {
       useStrategyClients();
@@ -3537,6 +3540,46 @@ describe('HyperLiquidProvider - strategy order types', () => {
         0.0006,
       );
       expect(infoClient.userFees).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retain builder approval that finishes after disconnect', async () => {
+      let markVerificationStarted = (): void => undefined;
+      const verificationStarted = new Promise<void>((resolve): void => {
+        markVerificationStarted = resolve;
+      });
+      let resolveVerification = (_fee: number): void => undefined;
+      const pendingVerification = new Promise<number>((resolve): void => {
+        resolveVerification = resolve;
+      });
+      const maxBuilderFee = jest
+        .fn()
+        .mockResolvedValueOnce(0)
+        .mockImplementationOnce(() => {
+          markVerificationStarted();
+          return pendingVerification;
+        })
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      const { exchangeClient } = useStrategyClients({
+        info: { maxBuilderFee },
+      });
+      const params = {
+        ...baseOrder,
+        orderType: 'market' as const,
+      };
+
+      const stalePlacement = provider.placeOrder(params);
+      await verificationStarted;
+      const disconnect = provider.disconnect();
+      resolveVerification(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      await Promise.all([stalePlacement, disconnect]);
+
+      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+
+      await provider.initialize();
+      await provider.placeOrder(params);
+
+      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(2);
     });
   });
 

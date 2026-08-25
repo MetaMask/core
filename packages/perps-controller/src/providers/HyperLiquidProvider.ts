@@ -1136,7 +1136,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: HyperLiquidOrderFeeContext,
   ): HyperLiquidOrderFeePolicy {
     const policy = this.#orderFeeConfiguration[params.orderType];
-    if (policy) {
+    if (typeof policy?.chargesMetamaskBuilderFee === 'boolean') {
       return policy;
     }
 
@@ -3330,10 +3330,15 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Note: This is network-specific - testnet and mainnet have separate builder fee states
    */
   async #ensureBuilderFeeApproval(): Promise<void> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const builderAddress = this.#getBuilderAddress(isTestnet);
     const userAddress = await this.#walletService.getUserAddressWithDefault();
+    this.#assertProviderLifecycleCurrent(
+      lifecycleGeneration,
+      'Builder fee approval',
+    );
     const cacheKey = this.#getCacheKey(network, userAddress);
 
     // Check GLOBAL cache first to avoid repeated signing requests across reconnections
@@ -3393,6 +3398,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         builderAddress,
         userAddress,
       );
+      this.#assertProviderLifecycleCurrent(
+        lifecycleGeneration,
+        'Builder fee approval',
+      );
 
       if (isApproved) {
         // User already has approval on-chain
@@ -3437,6 +3446,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             '[HyperLiquidProvider] Builder fee approval verification failed',
           );
         }
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'Builder fee approval',
+        );
 
         // Cache success in BOTH global and instance caches
         PerpsSigningCache.setBuilderFee(network, userAddress, {
@@ -3458,6 +3471,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       completeInFlight();
     } catch (error) {
+      if (
+        ensureError(error, 'HyperLiquidProvider.ensureBuilderFeeApproval')
+          .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
+        completeInFlight();
+        return;
+      }
+
       // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
       // in `cause`, so classify the full chain and leave retry caches empty.
       if (isKeyringLockedError(error)) {

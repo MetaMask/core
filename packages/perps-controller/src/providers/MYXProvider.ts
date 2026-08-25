@@ -994,15 +994,20 @@ export class MYXProvider implements PerpsProvider {
     if (isStrategyOrderType(params.orderType)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
     }
-    const parsedAmount = params.amount ? parseFloat(params.amount) : 0;
-    let protocolFeeAmount: number | undefined;
-    if (params.amount === undefined) {
-      protocolFeeAmount = undefined;
-    } else if (Number.isNaN(parsedAmount)) {
-      protocolFeeAmount = 0;
-    } else {
-      protocolFeeAmount = parsedAmount * MYX_PROTOCOL_FEE_RATE;
+    const parsedAmount =
+      params.amount === undefined ? undefined : Number(params.amount);
+    if (
+      parsedAmount !== undefined &&
+      (params.amount?.trim().length === 0 ||
+        !Number.isFinite(parsedAmount) ||
+        parsedAmount < 0)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     }
+    const protocolFeeAmount =
+      parsedAmount === undefined
+        ? undefined
+        : parsedAmount * MYX_PROTOCOL_FEE_RATE;
 
     return {
       feeRate: MYX_FEE_RATE,
