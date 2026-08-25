@@ -137,7 +137,9 @@
       "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
-      "jest>@jest/core>jest-resolve>unrs-resolver": false
+      "jest>@jest/core>jest-resolve>unrs-resolver": false,
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
   }
 }
