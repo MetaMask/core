@@ -2361,6 +2361,32 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Fee quoting for strategy placements', () => {
+    const builderFeeOrderTypes: OrderType[] = [
+      'market',
+      'limit',
+      'stop_market',
+      'stop_limit',
+      'take_profit_market',
+      'take_profit_limit',
+      'scale',
+      'chase',
+    ];
+
+    it.each(builderFeeOrderTypes)(
+      'quotes a %s with the builder fee',
+      async (orderType) => {
+        useStrategyClients();
+
+        const fees = await provider.calculateFees({
+          orderType,
+          amount: '1000',
+          symbol: 'ETH',
+        });
+
+        expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      },
+    );
+
     it('quotes a chase at the maker rate even when isMaker is false', async () => {
       useStrategyClients();
 
@@ -2444,11 +2470,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toStrictEqual({ supportedStrategies: [] });
     });
 
-    it('does not advertise strategies for an empty market symbol', () => {
-      expect(provider.getOrderCapabilities({ symbol: '' })).toStrictEqual({
-        supportedStrategies: [],
-      });
-    });
+    it.each(['', 'BTC:', ':BTC', 'DOGE'])(
+      'does not advertise strategies for malformed or unknown market %s',
+      (symbol) => {
+        expect(provider.getOrderCapabilities({ symbol })).toStrictEqual({
+          supportedStrategies: [],
+        });
+      },
+    );
   });
 
   describe('Strategy notional minimums', () => {

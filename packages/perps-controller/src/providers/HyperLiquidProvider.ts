@@ -738,6 +738,8 @@ type HyperLiquidOrderFeePolicy = Readonly<{
   chargesMetamaskBuilderFee: boolean;
 }>;
 
+const NO_METAMASK_BUILDER_FEE_RATE = 0;
+
 type HyperLiquidOrderFeeConfiguration = Readonly<
   Record<OrderType, HyperLiquidOrderFeePolicy>
 >;
@@ -1084,8 +1086,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): PerpsOrderCapabilities {
-    const { dex, symbol } = parseAssetName(params.symbol);
-    if (dex !== null || !symbol) {
+    const { dex } = parseAssetName(params.symbol);
+    if (dex !== null || !this.#symbolToAssetId.has(params.symbol)) {
       return EMPTY_ORDER_CAPABILITIES;
     }
     return HYPERLIQUID_ORDER_CAPABILITIES;
@@ -11331,22 +11333,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       resolveHyperLiquidOrderFeePolicy(params);
     const baseMetamaskFeeRate = chargesMetamaskBuilderFee
       ? BUILDER_FEE_CONFIG.MaxFeeDecimal
-      : 0;
+      : NO_METAMASK_BUILDER_FEE_RATE;
     const metamaskFeeDiscount =
       this.#userFeeDiscountBips === undefined
         ? 0
         : this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR;
     const metamaskFeeRate = baseMetamaskFeeRate * (1 - metamaskFeeDiscount);
 
-    // Apply MetaMask reward discount if active
-    if (chargesMetamaskBuilderFee && this.#userFeeDiscountBips !== undefined) {
-      this.#deps.debugLogger.log('HyperLiquid: Applied MetaMask fee discount', {
-        originalRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-        discountBips: this.#userFeeDiscountBips,
-        discountPercentage: this.#userFeeDiscountBips / 100,
-        adjustedRate: metamaskFeeRate,
-        discountAmount: BUILDER_FEE_CONFIG.MaxFeeDecimal * metamaskFeeDiscount,
-      });
+    if (this.#userFeeDiscountBips !== undefined) {
+      this.#deps.debugLogger.log(
+        chargesMetamaskBuilderFee
+          ? 'HyperLiquid: Applied MetaMask fee discount'
+          : 'HyperLiquid: Skipped MetaMask fee discount for fee-free order',
+        {
+          originalRate: baseMetamaskFeeRate,
+          discountBips: this.#userFeeDiscountBips,
+          discountPercentage: this.#userFeeDiscountBips / 100,
+          adjustedRate: metamaskFeeRate,
+          discountAmount: baseMetamaskFeeRate * metamaskFeeDiscount,
+        },
+      );
     }
 
     const validAmountForMetamaskFee = isNaN(parsedAmount)

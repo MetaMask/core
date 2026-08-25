@@ -849,23 +849,17 @@ describe('PerpsController', () => {
       });
     });
 
-    it('resolves an explicit provider route in direct-provider mode', () => {
-      const myxProvider = createMockHyperLiquidProvider();
-      myxProvider.getOrderCapabilities = jest.fn().mockReturnValue({
-        supportedStrategies: [],
+    it('delegates an explicit provider route through the active provider', () => {
+      mockProvider.getOrderCapabilities = jest.fn().mockReturnValue({
+        supportedStrategies: ['twap'],
       });
       markControllerAsInitialized();
-      controller.testSetProviders(
-        new Map([
-          ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
-        ]),
-      );
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
 
       expect(
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
-      ).toStrictEqual({ supportedStrategies: [] });
-      expect(myxProvider.getOrderCapabilities).toHaveBeenCalledWith({
+      ).toStrictEqual({ supportedStrategies: ['twap'] });
+      expect(mockProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'RHEA',
         providerId: 'myx',
       });

@@ -865,6 +865,28 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
+    it('uses the default provider when an explicit provider is unavailable', () => {
+      mockHLProvider.getOrderCapabilities.mockReturnValue({
+        supportedStrategies: ['twap'],
+      });
+      const providerWithoutMyx = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      expect(
+        providerWithoutMyx.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'myx',
+        }),
+      ).toStrictEqual({ supportedStrategies: ['twap'] });
+      expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'myx',
+      });
+    });
+
     it('returns no capabilities for a provider without the additive method', () => {
       mockHLProvider.getOrderCapabilities = undefined;
 

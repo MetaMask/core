@@ -86,10 +86,9 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 };
 
 /**
- * Get strategy capabilities from the provider selected for a market route.
- * An explicit provider route resolves from the provider registry in every
- * active-provider mode. Unavailable or not-yet-compatible providers safely
- * return no optional strategies.
+ * Get strategy capabilities through the active provider route used by order
+ * placement. Unavailable or not-yet-compatible providers safely return no
+ * optional strategies.
  *
  * @param params - Market and optional provider route.
  * @returns Provider-owned order capabilities.

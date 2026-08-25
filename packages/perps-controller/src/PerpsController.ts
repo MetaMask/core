@@ -2642,10 +2642,9 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Get strategy capabilities from the provider selected for a market route.
-   * An explicit provider route resolves from the provider registry in every
-   * active-provider mode. Unavailable or not-yet-compatible providers safely
-   * return no optional strategies.
+   * Get strategy capabilities through the active provider route used by order
+   * placement. Unavailable or not-yet-compatible providers safely return no
+   * optional strategies.
    *
    * @param params - Market and optional provider route.
    * @returns Provider-owned order capabilities.
@@ -2658,10 +2657,9 @@ export class PerpsController extends BaseController<
       return EMPTY_ORDER_CAPABILITIES;
     }
 
-    const provider = params.providerId
-      ? this.providers.get(params.providerId)
-      : activeProvider;
-    return provider?.getOrderCapabilities?.(params) ?? EMPTY_ORDER_CAPABILITIES;
+    return (
+      activeProvider.getOrderCapabilities?.(params) ?? EMPTY_ORDER_CAPABILITIES
+    );
   }
 
   /**
