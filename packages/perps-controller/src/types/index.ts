@@ -1046,6 +1046,8 @@ export type HyperLiquidConfigurableOrderFeeType = Extract<
  * HyperLiquid defaults. TWAP is excluded because its native action has no
  * builder field. A standalone trigger is configurable as a whole action.
  * Attached trigger children inherit the policy of their parent order batch.
+ * A position TP/SL update charges its single batch when any included trigger
+ * policy charges.
  */
 export type HyperLiquidOrderFeeConfiguration = Readonly<
   Partial<

@@ -2840,6 +2840,37 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Resolve one routed order operation after any in-flight initialization.
+   *
+   * @param params - Routed operation context.
+   * @param params.operation - Operation name for fallback diagnostics.
+   * @param params.orderType - Order type, when the operation carries one.
+   * @param params.providerId - Explicit provider route, when supplied.
+   * @returns The initialized provider that owns the operation.
+   */
+  async #resolveRoutedOrderProvider(params: {
+    operation: string;
+    orderType: OrderType | undefined;
+    providerId: PerpsProviderType | undefined;
+  }): Promise<ActivePerpsProvider> {
+    const { operation, orderType, providerId } = params;
+    const isStrategy =
+      orderType !== undefined && isStrategyOrderType(orderType);
+    if (isStrategy && !providerId) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
+
+    const provider = await this.#getActiveProviderWhenReady();
+    if (isStrategy && this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
+    }
+    if (!isStrategy) {
+      this.#logIgnoredOrdinaryProviderRoute(operation, providerId, provider);
+    }
+    return provider;
+  }
+
+  /**
    * Place a new order
    * Thin delegation to TradingService
    *
@@ -2849,23 +2880,11 @@ export class PerpsController extends BaseController<
   async placeOrder<const Params extends OrderParams>(
     params: RoutedOrderParams<Params>,
   ): Promise<OrderResult> {
-    if (isStrategyOrderType(params.orderType) && !params.providerId) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-    }
-    const provider = await this.#getActiveProviderWhenReady();
-    if (
-      isStrategyOrderType(params.orderType) &&
-      this.#hasConflictingProviderRoute(params.providerId, provider)
-    ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
-    }
-    if (!isStrategyOrderType(params.orderType)) {
-      this.#logIgnoredOrdinaryProviderRoute(
-        'placeOrder',
-        params.providerId,
-        provider,
-      );
-    }
+    const provider = await this.#resolveRoutedOrderProvider({
+      operation: 'placeOrder',
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({
@@ -2913,31 +2932,11 @@ export class PerpsController extends BaseController<
   async cancelOrder<const Params extends CancelOrderParams>(
     params: RoutedCancelOrderParams<Params>,
   ): Promise<CancelOrderResult> {
-    if (
-      params.orderType !== undefined &&
-      isStrategyOrderType(params.orderType) &&
-      !params.providerId
-    ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-    }
-    const provider = await this.#getActiveProviderWhenReady();
-    if (
-      params.orderType !== undefined &&
-      isStrategyOrderType(params.orderType) &&
-      this.#hasConflictingProviderRoute(params.providerId, provider)
-    ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
-    }
-    if (
-      params.orderType === undefined ||
-      !isStrategyOrderType(params.orderType)
-    ) {
-      this.#logIgnoredOrdinaryProviderRoute(
-        'cancelOrder',
-        params.providerId,
-        provider,
-      );
-    }
+    const provider = await this.#resolveRoutedOrderProvider({
+      operation: 'cancelOrder',
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
 
     return this.#tradingService.cancelOrder({
       provider,
@@ -4074,6 +4073,12 @@ export class PerpsController extends BaseController<
    * Watches for isTestnet and hip3ConfigVersion changes to re-preload.
    */
   startMarketDataPreload(): void {
+    if (this.#disconnectOperationPromise) {
+      this.#debugLog(
+        'PerpsController: Disconnect in progress, skipping market data preload',
+      );
+      return;
+    }
     if (this.#preloadTimer) {
       this.#debugLog('PerpsController: Preload already started, skipping');
       return;
@@ -4804,23 +4809,11 @@ export class PerpsController extends BaseController<
   async validateOrder<const Params extends OrderParams>(
     params: RoutedOrderParams<Params>,
   ): Promise<{ isValid: boolean; error?: string }> {
-    if (isStrategyOrderType(params.orderType) && !params.providerId) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-    }
-    const provider = this.getActiveProvider();
-    if (
-      isStrategyOrderType(params.orderType) &&
-      this.#hasConflictingProviderRoute(params.providerId, provider)
-    ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
-    }
-    if (!isStrategyOrderType(params.orderType)) {
-      this.#logIgnoredOrdinaryProviderRoute(
-        'validateOrder',
-        params.providerId,
-        provider,
-      );
-    }
+    const provider = await this.#resolveRoutedOrderProvider({
+      operation: 'validateOrder',
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     const context = this.#createServiceContext('validateOrder');
     return this.#marketDataService.validateOrder({ provider, params, context });
   }
@@ -5579,23 +5572,11 @@ export class PerpsController extends BaseController<
   async calculateFees<const Params extends FeeCalculationParams>(
     params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
-    if (isStrategyOrderType(params.orderType) && !params.providerId) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-    }
-    const provider = await this.#getActiveProviderWhenReady();
-    if (
-      isStrategyOrderType(params.orderType) &&
-      this.#hasConflictingProviderRoute(params.providerId, provider)
-    ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
-    }
-    if (!isStrategyOrderType(params.orderType)) {
-      this.#logIgnoredOrdinaryProviderRoute(
-        'calculateFees',
-        params.providerId,
-        provider,
-      );
-    }
+    const provider = await this.#resolveRoutedOrderProvider({
+      operation: 'calculateFees',
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     // Preview owns subscription hydration. The submit resolver remains a pure
     // cache read and can therefore never start a benefits request while an
     // order is being signed.

@@ -521,6 +521,28 @@ describe('HyperLiquidProvider', () => {
   });
   describe('Additional Error Handling and Edge Cases', () => {
     describe('ensureReady and buildAssetMapping', () => {
+      it('retries readiness after initialization rejects', async () => {
+        mockClientService.initialize
+          .mockRejectedValueOnce(new Error('Initialization failed'))
+          .mockResolvedValueOnce(undefined);
+        const orderParams: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        };
+
+        await expect(provider.placeOrder(orderParams)).resolves.toMatchObject({
+          success: false,
+          error: 'Initialization failed',
+        });
+        await expect(provider.placeOrder(orderParams)).resolves.toMatchObject({
+          success: true,
+        });
+        expect(mockClientService.initialize).toHaveBeenCalledTimes(2);
+      });
+
       it('handles meta fetch failure in buildAssetMapping', async () => {
         // Create a fresh provider to test buildAssetMapping
         const freshProvider = createTestProvider();

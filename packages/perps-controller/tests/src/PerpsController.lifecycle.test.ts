@@ -1031,6 +1031,29 @@ describe('PerpsController', () => {
   });
 
   describe('action calls during initialization', () => {
+    it('does not restart market preloading while disconnect is in flight', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(async () => {
+        disconnectStarted.resolve();
+        await pendingDisconnect.promise;
+        return { success: true };
+      });
+
+      const disconnectPromise = controller.disconnect();
+      await disconnectStarted.promise;
+      controller.startMarketDataPreload();
+
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Disconnect in progress, skipping market data preload',
+      );
+      expect(mockProvider.getMarketDataWithPrices).not.toHaveBeenCalled();
+
+      pendingDisconnect.resolve();
+      await disconnectPromise;
+    });
+
     it('initializes only after an in-flight disconnect finishes', async () => {
       await controller.init();
       const disconnectStarted = createDeferred<void>();
@@ -1372,6 +1395,42 @@ describe('PerpsController', () => {
       const result = await orderPromise;
 
       expect(result).toEqual(expect.objectContaining({ orderId: '123' }));
+    });
+
+    it('waits for init before validating an order', async () => {
+      const pendingRetry = createDeferred<void>();
+      let attempt = 0;
+      jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+        attempt += 1;
+        if (attempt === 1) {
+          throw new Error('Transient failure');
+        }
+        return mockProvider;
+      });
+      jest.mocked(mockWait).mockImplementationOnce(() => pendingRetry.promise);
+      mockMarketDataServiceInstance.validateOrder.mockResolvedValue({
+        isValid: true,
+      });
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      const validationPromise = controller.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(
+        mockMarketDataServiceInstance.validateOrder,
+      ).not.toHaveBeenCalled();
+      pendingRetry.resolve();
+      await initPromise;
+      await expect(validationPromise).resolves.toStrictEqual({ isValid: true });
+      expect(mockMarketDataServiceInstance.validateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: mockProvider }),
+      );
     });
 
     it('waits for init before selecting the capability provider', async () => {

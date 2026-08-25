@@ -3673,14 +3673,14 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
     });
 
-    it('omits builder setup when the market fee policy is disabled', async () => {
+    it('omits builder setup when the take-profit fee policy is disabled', async () => {
       const exchangeClient = createMockExchangeClient();
       mockClientService.getExchangeClient = jest
         .fn()
         .mockReturnValue(exchangeClient);
       provider = createTestProvider({
         orderFeeConfiguration: {
-          market: { chargesMetamaskBuilderFee: false },
+          take_profit_limit: { chargesMetamaskBuilderFee: false },
         },
       });
 

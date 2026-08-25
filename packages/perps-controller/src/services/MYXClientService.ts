@@ -204,7 +204,7 @@ export class MYXClientService {
       this.#marketsCache.length > 0 &&
       now - this.#marketsCacheTimestamp < maxCacheAgeMs
     ) {
-      return this.#marketsCache;
+      return [...this.#marketsCache];
     }
 
     let refreshPromise = this.#marketsRefreshPromise;
@@ -221,14 +221,14 @@ export class MYXClientService {
           throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
         }
 
-        this.#marketsCache = pools || [];
+        this.#marketsCache = [...(pools || [])];
         this.#marketsCacheTimestamp = Date.now();
 
         this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
           count: this.#marketsCache.length,
         });
 
-        return this.#marketsCache;
+        return [...this.#marketsCache];
       })();
       this.#marketsRefreshPromise = refreshPromise;
     }
@@ -240,14 +240,17 @@ export class MYXClientService {
         caughtError,
         'MYXClientService.getMarkets',
       );
+      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        this.#deps.debugLogger.log(
+          '[MYXClientService] Ignoring stale market refresh after disconnect',
+        );
+        throw wrappedError;
+      }
+
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('getMarkets'),
       );
-
-      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
-        throw wrappedError;
-      }
 
       // Return stale cache if available
       if (
@@ -257,7 +260,7 @@ export class MYXClientService {
         this.#deps.debugLogger.log(
           '[MYXClientService] Returning stale cache after error',
         );
-        return this.#marketsCache;
+        return [...this.#marketsCache];
       }
 
       throw wrappedError;

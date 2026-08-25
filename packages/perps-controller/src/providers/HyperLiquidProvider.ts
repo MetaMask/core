@@ -749,11 +749,6 @@ type HyperLiquidOrderFeeContext =
 const MAX_API_FEE_RATE = 1;
 const MAX_API_FEE_DISCOUNT = 1;
 
-type ResolvedHyperLiquidOrderFeeConfiguration = ReadonlyMap<
-  OrderType,
-  HyperLiquidOrderFeePolicy
->;
-
 /**
  * Fee applicability by canonical order type.
  *
@@ -783,70 +778,6 @@ function resolveConfiguredOrderFeePolicy(
     : fallback;
 }
 
-function resolveHyperLiquidOrderFeeConfiguration(
-  configured: HyperLiquidOrderFeeConfiguration | undefined,
-): ResolvedHyperLiquidOrderFeeConfiguration {
-  return new Map<OrderType, HyperLiquidOrderFeePolicy>([
-    [
-      'market',
-      resolveConfiguredOrderFeePolicy(
-        configured?.market,
-        HYPERLIQUID_ORDER_FEE_CONFIG.market,
-      ),
-    ],
-    [
-      'limit',
-      resolveConfiguredOrderFeePolicy(
-        configured?.limit,
-        HYPERLIQUID_ORDER_FEE_CONFIG.limit,
-      ),
-    ],
-    [
-      'stop_market',
-      resolveConfiguredOrderFeePolicy(
-        configured?.stop_market,
-        HYPERLIQUID_ORDER_FEE_CONFIG.stop_market,
-      ),
-    ],
-    [
-      'stop_limit',
-      resolveConfiguredOrderFeePolicy(
-        configured?.stop_limit,
-        HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit,
-      ),
-    ],
-    [
-      'take_profit_market',
-      resolveConfiguredOrderFeePolicy(
-        configured?.take_profit_market,
-        HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market,
-      ),
-    ],
-    [
-      'take_profit_limit',
-      resolveConfiguredOrderFeePolicy(
-        configured?.take_profit_limit,
-        HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit,
-      ),
-    ],
-    ['twap', HYPERLIQUID_ORDER_FEE_CONFIG.twap],
-    [
-      'scale',
-      resolveConfiguredOrderFeePolicy(
-        configured?.scale,
-        HYPERLIQUID_ORDER_FEE_CONFIG.scale,
-      ),
-    ],
-    [
-      'chase',
-      resolveConfiguredOrderFeePolicy(
-        configured?.chase,
-        HYPERLIQUID_ORDER_FEE_CONFIG.chase,
-      ),
-    ],
-  ]);
-}
-
 /**
  * HyperLiquid provider implementation
  *
@@ -864,7 +795,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Platform dependencies for logging and debugging
   readonly #deps: PerpsPlatformDependencies;
 
-  readonly #orderFeeConfiguration: ResolvedHyperLiquidOrderFeeConfiguration;
+  readonly #orderFeeConfiguration: HyperLiquidOrderFeeConfiguration;
 
   // Service instances
   readonly #clientService: HyperLiquidClientService;
@@ -1077,9 +1008,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
   }) {
     this.#deps = options.platformDependencies;
-    this.#orderFeeConfiguration = resolveHyperLiquidOrderFeeConfiguration(
-      options.orderFeeConfiguration,
-    );
+    this.#orderFeeConfiguration = options.orderFeeConfiguration ?? {};
     this.#messenger = options.messenger;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
@@ -1178,9 +1107,18 @@ export class HyperLiquidProvider implements PerpsProvider {
   #resolveOrderFeePolicy(
     params: HyperLiquidOrderFeeContext,
   ): HyperLiquidOrderFeePolicy {
-    const policy = this.#orderFeeConfiguration.get(params.orderType);
-    if (typeof policy?.chargesMetamaskBuilderFee === 'boolean') {
-      return policy;
+    const fallbackPolicy = Object.prototype.hasOwnProperty.call(
+      HYPERLIQUID_ORDER_FEE_CONFIG,
+      params.orderType,
+    )
+      ? HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType]
+      : undefined;
+    if (fallbackPolicy) {
+      const configuredPolicy =
+        params.orderType === 'twap'
+          ? undefined
+          : this.#orderFeeConfiguration[params.orderType];
+      return resolveConfiguredOrderFeePolicy(configuredPolicy, fallbackPolicy);
     }
 
     this.#deps.debugLogger.log(
@@ -1287,6 +1225,22 @@ export class HyperLiquidProvider implements PerpsProvider {
     generation: number,
     operation: string,
   ): void {
+    if (!this.#isCacheWriteLifecycleCurrent(generation, operation)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
+  /**
+   * Check whether fetched data may still populate provider caches.
+   *
+   * @param generation - Provider lifecycle generation captured before work.
+   * @param operation - Operation name included in the cancellation log.
+   * @returns Whether a cache write is safe.
+   */
+  #isCacheWriteLifecycleCurrent(
+    generation: number,
+    operation: string,
+  ): boolean {
     if (
       this.#disconnectOperationsInFlight > 0 ||
       generation !== this.#lifecycleGeneration
@@ -1295,8 +1249,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         'HyperLiquid: Cache write became stale during disconnect',
         { operation },
       );
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      return false;
     }
+    return true;
   }
 
   /**
@@ -2015,7 +1970,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Await initialization - keep the promise so subsequent calls resolve immediately
     // The promise is only reset in disconnect() for clean reconnection,
     // or when DEX discovery was degraded so the next caller retries.
-    await this.#ensureReadyPromise;
+    try {
+      await this.#ensureReadyPromise;
+    } catch (error) {
+      this.#ensureReadyPromise = null;
+      throw error;
+    }
     if (!this.#dexDiscoveryComplete) {
       // DEX discovery failed transiently — reset so next call retries.
       // Trading still works (main DEX mapping is populated), but HIP-3 markets
@@ -2467,27 +2427,21 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Cache miss or skipCache=true - fetch from API.
     const meta = await this.#fetchMeta(dexName);
-    this.#assertCacheWriteLifecycleCurrent(
-      lifecycleGeneration,
-      'DEX metadata fetch',
-    );
-
-    // Store raw meta response for reuse
-    this.#cacheDexMetadata({
+    const cached = await this.#cacheDexMetadataFromRead({
       dex: dexName,
       meta,
       lifecycleGeneration,
     });
-    await this.#backfillAssetMapForDex(dexName, meta, lifecycleGeneration);
-
-    this.#deps.debugLogger.log(
-      '[getCachedMeta] Fetched and cached meta response',
-      {
-        dex: dexDisplayName,
-        universeSize: meta.universe.length,
-        skipCache,
-      },
-    );
+    if (cached) {
+      this.#deps.debugLogger.log(
+        '[getCachedMeta] Fetched and cached meta response',
+        {
+          dex: dexDisplayName,
+          universeSize: meta.universe.length,
+          skipCache,
+        },
+      );
+    }
 
     return meta;
   }
@@ -2555,6 +2509,52 @@ export class HyperLiquidProvider implements PerpsProvider {
         subscriptionDexKey,
         assetCtxs,
       );
+    }
+  }
+
+  /**
+   * Cache metadata fetched for a read without discarding a valid response.
+   *
+   * @param params - Metadata and lifecycle context.
+   * @param params.dex - DEX name, or null for the main DEX.
+   * @param params.meta - Validated DEX metadata.
+   * @param params.assetCtxs - Asset contexts shared with subscriptions, if any.
+   * @param params.lifecycleGeneration - Lifecycle that produced the metadata.
+   * @returns Whether the fetched metadata was cached.
+   */
+  async #cacheDexMetadataFromRead(params: {
+    dex: string | null;
+    meta: MetaResponse;
+    assetCtxs?: PerpsAssetCtx[];
+    lifecycleGeneration: number;
+  }): Promise<boolean> {
+    const { dex, meta, assetCtxs, lifecycleGeneration } = params;
+    if (
+      !this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'DEX metadata read cache write',
+      )
+    ) {
+      return false;
+    }
+
+    try {
+      this.#cacheDexMetadata({
+        dex,
+        meta,
+        assetCtxs,
+        lifecycleGeneration,
+      });
+      await this.#backfillAssetMapForDex(dex, meta, lifecycleGeneration);
+      return true;
+    } catch (error) {
+      if (
+        ensureError(error, 'HyperLiquidProvider.cacheDexMetadataFromRead')
+          .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
+        return false;
+      }
+      throw error;
     }
   }
 
@@ -2708,18 +2708,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     const infoClient = this.#clientService.getInfoClient();
     const spotMeta = await infoClient.spotMeta();
 
-    this.#assertCacheWriteLifecycleCurrent(
-      lifecycleGeneration,
-      'Spot metadata cache write',
-    );
-    this.#cachedSpotMeta = spotMeta;
-    this.#deps.debugLogger.log(
-      '[getCachedSpotMeta] Fetched and cached spotMeta',
-      {
-        tokensCount: spotMeta.tokens.length,
-        universeCount: spotMeta.universe.length,
-      },
-    );
+    if (
+      this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'Spot metadata cache write',
+      )
+    ) {
+      this.#cachedSpotMeta = spotMeta;
+      this.#deps.debugLogger.log(
+        '[getCachedSpotMeta] Fetched and cached spotMeta',
+        {
+          tokensCount: spotMeta.tokens.length,
+          universeCount: spotMeta.universe.length,
+        },
+      );
+    }
 
     return spotMeta;
   }
@@ -2758,25 +2761,28 @@ export class HyperLiquidProvider implements PerpsProvider {
     const perpDexs =
       (await infoClient.perpDexs()) as unknown as ExtendedPerpDex[];
 
-    this.#assertCacheWriteLifecycleCurrent(
-      lifecycleGeneration,
-      'Perp DEX cache write',
-    );
-    // Atomically update unified state (raw + validated + timestamp)
-    this.#dexDiscoveryCache.update(perpDexs);
+    if (
+      this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'Perp DEX cache write',
+      )
+    ) {
+      // Atomically update unified state (raw + validated + timestamp)
+      this.#dexDiscoveryCache.update(perpDexs);
 
-    this.#deps.debugLogger.log(
-      '[getCachedPerpDexs] Fetched and cached perpDexs data',
-      {
-        count: perpDexs.length,
-        dexes: perpDexs
-          .filter((dex) => dex !== null)
-          .map((dex) => ({
-            name: dex.name,
-            deployerFeeScale: dex.deployerFeeScale,
-          })),
-      },
-    );
+      this.#deps.debugLogger.log(
+        '[getCachedPerpDexs] Fetched and cached perpDexs data',
+        {
+          count: perpDexs.length,
+          dexes: perpDexs
+            .filter((dex) => dex !== null)
+            .map((dex) => ({
+              name: dex.name,
+              deployerFeeScale: dex.deployerFeeScale,
+            })),
+        },
+      );
+    }
 
     return perpDexs;
   }
@@ -7376,9 +7382,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Keep each position's full context. Today's injected policy is keyed by
-      // order type, but this preserves correct batch behavior if a later policy
-      // varies by market or route.
+      // HyperLiquid accepts one builder context for the whole close batch.
+      // Resolve every position context and charge the batch when any included
+      // policy charges, preserving deterministic behavior for future policies
+      // that vary by market or route.
       const chargesMetamaskBuilderFee = feePolicyContexts.some(
         (context) =>
           this.#resolveOrderFeePolicy(context).chargesMetamaskBuilderFee,
@@ -7868,17 +7875,40 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // HyperLiquid accepts one builder context for the whole TP/SL action.
-      // Standalone position triggers use the configurable market-order policy
-      // because there is no parent placement whose policy they can inherit.
-      const feePolicyContext = {
-        symbol,
-        isBuy: !isLong,
-        size: positionSize.toString(),
-        orderType: 'market',
-        reduceOnly: true,
-      } satisfies OrderParams;
-      const { chargesMetamaskBuilderFee } =
-        this.#resolveOrderFeePolicy(feePolicyContext);
+      // Position TP/SL has no parent policy to inherit, so resolve every
+      // included trigger and charge the batch when any child policy charges.
+      const feePolicyContexts = [
+        ...(takeProfitPrice
+          ? [
+              {
+                symbol,
+                isBuy: !isLong,
+                size: resolveTpslSize(takeProfitSize),
+                orderType: 'take_profit_limit',
+                price: takeProfitPrice,
+                triggerPrice: takeProfitPrice,
+                reduceOnly: true,
+              } satisfies OrderParams,
+            ]
+          : []),
+        ...(stopLossPrice
+          ? [
+              {
+                symbol,
+                isBuy: !isLong,
+                size: resolveTpslSize(stopLossSize),
+                orderType: 'stop_market',
+                triggerPrice: stopLossPrice,
+                reduceOnly: true,
+              } satisfies OrderParams,
+            ]
+          : []),
+      ];
+      const chargesMetamaskBuilderFee = feePolicyContexts.some(
+        (feePolicyContext) =>
+          this.#resolveOrderFeePolicy(feePolicyContext)
+            .chargesMetamaskBuilderFee,
+      );
       if (chargesMetamaskBuilderFee) {
         await this.#ensureReadyForTrading({ requiresBuilderFee: true });
       }
@@ -10036,13 +10066,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (meta?.universe) {
-      this.#cacheDexMetadata({
+      await this.#cacheDexMetadataFromRead({
         dex,
         meta,
         assetCtxs,
         lifecycleGeneration,
       });
-      await this.#backfillAssetMapForDex(dex, meta, lifecycleGeneration);
     }
 
     return {
@@ -10268,17 +10297,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
             metaForDex = freshMeta;
             assetCtxs = freshAssetCtxs;
-            this.#cacheDexMetadata({
+            await this.#cacheDexMetadataFromRead({
               dex,
               meta: freshMeta,
               assetCtxs,
               lifecycleGeneration,
             });
-            await this.#backfillAssetMapForDex(
-              dex,
-              freshMeta,
-              lifecycleGeneration,
-            );
           } catch (error) {
             return {
               dex,
@@ -10463,10 +10487,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       HIP3_ASSET_MARKET_TYPES,
       HYPERLIQUID_ASSET_NAMES,
     );
-    this.#assertCacheWriteLifecycleCurrent(
-      lifecycleGeneration,
-      'Market data cache write',
-    );
+    if (
+      !this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'Market data cache write',
+      )
+    ) {
+      return transformedMarketData;
+    }
     return this.#cacheFreshMarketDataSnapshot(
       transformedMarketData,
       latestDexResults,
@@ -11489,6 +11517,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the numeric result.
    */
   async getMaxLeverage(asset: string): Promise<number> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Check cache first
       const cached = this.#maxLeverageCache.get(asset);
@@ -11537,11 +11566,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         return PERPS_CONSTANTS.DefaultMaxLeverage;
       }
 
-      // Cache the result
-      this.#maxLeverageCache.set(asset, {
-        value: assetInfo.maxLeverage,
-        timestamp: now,
-      });
+      if (
+        this.#isCacheWriteLifecycleCurrent(
+          lifecycleGeneration,
+          'Maximum leverage cache write',
+        )
+      ) {
+        this.#maxLeverageCache.set(asset, {
+          value: assetInfo.maxLeverage,
+          timestamp: now,
+        });
+      }
 
       return assetInfo.maxLeverage;
     } catch (error) {

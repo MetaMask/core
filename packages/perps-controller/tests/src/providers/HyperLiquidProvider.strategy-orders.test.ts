@@ -17,6 +17,7 @@ import type {
   PerpsPlatformDependencies,
   OrderParams,
   OrderResult,
+  UpdatePositionTPSLParams,
 } from '../../../src/types/index.js';
 import type { OrderType } from '../../../src/types/perps-types.js';
 import {
@@ -675,6 +676,86 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(3);
     });
+
+    it.each([
+      {
+        label: 'take profit when enabled',
+        params: { symbol: 'ETH', takeProfitPrice: '3500' },
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+          take_profit_limit: { chargesMetamaskBuilderFee: true },
+        },
+        expectedBuilder: {
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        },
+      },
+      {
+        label: 'take profit when disabled',
+        params: { symbol: 'ETH', takeProfitPrice: '3500' },
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: true },
+          take_profit_limit: { chargesMetamaskBuilderFee: false },
+        },
+        expectedBuilder: undefined,
+      },
+      {
+        label: 'stop loss when enabled',
+        params: { symbol: 'ETH', stopLossPrice: '2500' },
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+          stop_market: { chargesMetamaskBuilderFee: true },
+        },
+        expectedBuilder: {
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        },
+      },
+      {
+        label: 'stop loss when disabled',
+        params: { symbol: 'ETH', stopLossPrice: '2500' },
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: true },
+          stop_market: { chargesMetamaskBuilderFee: false },
+        },
+        expectedBuilder: undefined,
+      },
+      {
+        label: 'mixed TP/SL when either trigger policy charges',
+        params: {
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          stopLossPrice: '2500',
+        },
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+          take_profit_limit: { chargesMetamaskBuilderFee: false },
+          stop_market: { chargesMetamaskBuilderFee: true },
+        },
+        expectedBuilder: {
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        },
+      },
+    ] satisfies readonly {
+      label: string;
+      params: UpdatePositionTPSLParams;
+      orderFeeConfiguration: HyperLiquidOrderFeeConfiguration;
+      expectedBuilder?: { b: string; f: number };
+    }[])(
+      'applies the position trigger policy for $label',
+      async ({ params, orderFeeConfiguration, expectedBuilder }) => {
+        provider = createTestProvider({ orderFeeConfiguration });
+        const { exchangeClient } = useStrategyClients();
+
+        const result = await provider.updatePositionTPSL(params);
+
+        expect(result.success).toBe(true);
+        expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual(
+          expectedBuilder,
+        );
+      },
+    );
 
     it('omits the builder context from a configured limit order', async () => {
       provider = createTestProvider({
@@ -3518,11 +3599,45 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const disconnectResult = provider.disconnect();
       pendingMeta.resolve({ universe });
 
-      await staleLeverage;
+      expect(await staleLeverage).toBe(50);
+      expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       expect(await disconnectResult).toStrictEqual({ success: true });
       await provider.initialize();
       expect(await provider.getMaxLeverage('ETH')).toBe(50);
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns market data that finishes during disconnect without caching it', async () => {
+      const requestStarted = createDeferred<void>();
+      const pendingMids = createDeferred<Record<string, string>>();
+      const { infoClient } = useStrategyClients({
+        info: {
+          allMids: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              requestStarted.resolve();
+              return pendingMids.promise;
+            })
+            .mockResolvedValue({ ETH: '3000' }),
+        },
+      });
+
+      const marketDataPromise = provider.getMarketDataWithPrices();
+      await requestStarted.promise;
+      await provider.disconnect();
+      pendingMids.resolve({ ETH: '3000' });
+
+      expect(await marketDataPromise).toStrictEqual(
+        expect.arrayContaining([expect.objectContaining({ symbol: 'ETH' })]),
+      );
+      expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+
+      const callsAfterStaleRead = infoClient.metaAndAssetCtxs.mock.calls.length;
+      await provider.initialize();
+      await provider.getMarketDataWithPrices();
+      expect(infoClient.metaAndAssetCtxs.mock.calls.length).toBeGreaterThan(
+        callsAfterStaleRead,
+      );
     });
 
     it('does not cache Perp DEX metadata that resolves after disconnect', async () => {

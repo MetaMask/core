@@ -298,18 +298,22 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
         ...params,
         providerId,
       });
-      if (
-        capabilities.providerId !== undefined &&
-        capabilities.providerId !== providerId
-      ) {
+      if (capabilities.providerId !== providerId) {
         return {
           status: 'unavailable',
           providerId,
           reason: 'provider_not_routable',
         };
       }
-      return { ...capabilities, providerId };
-    } catch {
+      return capabilities;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Order capabilities unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
       return {
         status: 'unavailable',
         providerId,

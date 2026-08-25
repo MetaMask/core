@@ -212,6 +212,17 @@ describe('MYXClientService', () => {
       expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
     });
 
+    it('does not expose the mutable market cache array', async () => {
+      const pools = [makePool(), makePool({ poolId: '0xpool2' })];
+      mockGetPoolSymbolAll.mockResolvedValueOnce(pools);
+
+      const firstResult = await service.getMarkets();
+      firstResult.splice(0, firstResult.length);
+
+      await expect(service.getMarkets()).resolves.toStrictEqual(pools);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
+    });
+
     it('shares one refresh across concurrent callers', async () => {
       const pools = [makePool()];
       const pendingPools = createDeferred<MYXPoolSymbol[]>();
@@ -638,6 +649,7 @@ describe('MYXClientService', () => {
       await expect(staleRequest).rejects.toThrow(
         PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
       );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
       await expect(
         service.getMarkets({ allowStaleOnError: false }),
       ).resolves.toStrictEqual(freshPools);

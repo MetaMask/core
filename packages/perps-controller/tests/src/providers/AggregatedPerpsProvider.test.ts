@@ -1124,19 +1124,16 @@ describe('AggregatedPerpsProvider', () => {
     );
 
     it('gets order capabilities from the default provider', async () => {
-      mockHLProvider.getOrderCapabilities.mockResolvedValue({
+      const capabilities = Object.freeze({
         status: 'ready',
         providerId: 'hyperliquid',
-        supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedStrategies: Object.freeze(['twap', 'scale', 'chase']),
       });
+      mockHLProvider.getOrderCapabilities.mockResolvedValue(capabilities);
 
       await expect(
         aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
-      ).resolves.toStrictEqual({
-        status: 'ready',
-        providerId: 'hyperliquid',
-        supportedStrategies: ['twap', 'scale', 'chase'],
-      });
+      ).resolves.toBe(capabilities);
       expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'BTC',
         providerId: 'hyperliquid',
@@ -1171,6 +1168,24 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: [],
+      });
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'myx',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_not_routable',
+      });
+    });
+
+    it('rejects capabilities that omit their provider identity', async () => {
+      mockMYXProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'unavailable',
+        reason: 'market_not_found',
       });
 
       await expect(
@@ -1229,6 +1244,10 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        '[AggregatedPerpsProvider] Order capabilities unavailable',
+        { providerId: 'hyperliquid', error: 'offline' },
+      );
     });
   });
 

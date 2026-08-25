@@ -234,6 +234,23 @@ describe('MYXProvider', () => {
       });
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
+
+    it('does not report stale initialization during disconnect as an error', async () => {
+      mockClientService.getMarkets.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+      );
+
+      const result = await provider.initialize();
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXProvider] Ignoring stale initialization after disconnect',
+      );
+    });
   });
 
   describe('disconnect', () => {

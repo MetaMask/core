@@ -748,12 +748,10 @@ describe('PerpsController', () => {
       providers.set('myx', mockMYXProvider as any);
       controller.testSetProviders(providers);
 
-      // Make init set state to Failed so switchProvider detects failure
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
-        controller.testUpdate((state) => {
-          state.initializationState = InitializationState.Failed;
-          state.initializationError = 'MYX init failed';
-        });
+      // Reinitialization now runs through the private serialized lifecycle,
+      // so fail provider reconstruction rather than spying on public init().
+      jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+        throw new Error('MYX init failed');
       });
 
       const result = await controller.switchProvider('myx');

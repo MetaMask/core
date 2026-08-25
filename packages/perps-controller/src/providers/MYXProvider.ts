@@ -302,6 +302,12 @@ export class MYXProvider implements PerpsProvider {
       return { success: true };
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.initialize');
+      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale initialization after disconnect',
+        );
+        return { success: false, error: wrappedError.message };
+      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('initialize'),
