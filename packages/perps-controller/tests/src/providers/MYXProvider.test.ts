@@ -403,6 +403,25 @@ describe('MYXProvider', () => {
       expect(result).toEqual([]);
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
+
+    it('does not repopulate market caches after disconnect', async () => {
+      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
+      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
+        resolveMarkets = resolve;
+      });
+      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
+
+      const markets = provider.getMarkets();
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+
+      await expect(markets).resolves.toStrictEqual([]);
+      expect(mockAdaptMarketFromMYX).not.toHaveBeenCalled();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXProvider] Ignoring stale market metadata after disconnect',
+      );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMarketDataWithPrices', () => {

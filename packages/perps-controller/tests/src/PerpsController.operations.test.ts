@@ -1160,20 +1160,22 @@ describe('PerpsController', () => {
       });
     });
 
-    it('rejects a fee route that conflicts with the resolved provider', async () => {
+    it('preserves legacy routing for an ordinary fee quote', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockMarketDataServiceInstance.calculateFees.mockResolvedValue({
+        totalFee: 0,
+      });
 
-      await expect(
-        controller.calculateFees({
-          orderType: 'market',
-          symbol: 'RHEA',
-          providerId: 'myx',
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(
-        mockMarketDataServiceInstance.calculateFees,
-      ).not.toHaveBeenCalled();
+      await controller.calculateFees({
+        orderType: 'market',
+        symbol: 'RHEA',
+        providerId: 'myx',
+      });
+
+      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: mockProvider }),
+      );
     });
 
     it('rejects a strategy fee quote without an explicit provider route', async () => {

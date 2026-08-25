@@ -67,7 +67,7 @@ import type {
   OrderResult,
   PerpsPlatformDependencies,
   PerpsMarketData,
-  PerpsOrderCapabilities,
+  DirectProviderOrderCapabilities,
   PerpsProvider,
   Position,
   PriceUpdate,
@@ -127,7 +127,7 @@ const MYX_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
   providerId: PROVIDER_CONFIG.MYXProvider,
   supportedStrategies: Object.freeze([]),
-}) satisfies PerpsOrderCapabilities;
+}) satisfies DirectProviderOrderCapabilities;
 
 // ============================================================================
 // MYXProvider
@@ -204,7 +204,7 @@ export class MYXProvider implements PerpsProvider {
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
-  ): Promise<PerpsOrderCapabilities> {
+  ): Promise<DirectProviderOrderCapabilities> {
     if (
       !isValidCapabilitySymbol(params.symbol) ||
       params.symbol.includes(':')
@@ -506,19 +506,31 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
+    const disconnectGeneration = this.#disconnectGeneration;
     try {
       // Delegate cache freshness to MYXClientService
       const pools = await this.#clientService.getMarkets();
-      this.#poolsCache = filterMYXExclusiveMarkets(pools);
-      this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
+      const poolsCache = filterMYXExclusiveMarkets(pools);
+      const poolSymbolMap = buildPoolSymbolMap(poolsCache);
+      if (disconnectGeneration !== this.#disconnectGeneration) {
+        throw new MYXMarketMetadataStaleError();
+      }
+      this.#poolsCache = poolsCache;
+      this.#poolSymbolMap = poolSymbolMap;
 
       return this.#poolsCache.map((pool) => adaptMarketFromMYX(pool));
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.getMarkets');
-      this.#deps.logger.error(
-        wrappedError,
-        this.#getErrorContext('getMarkets'),
-      );
+      if (wrappedError instanceof MYXMarketMetadataStaleError) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale market metadata after disconnect',
+        );
+      } else {
+        this.#deps.logger.error(
+          wrappedError,
+          this.#getErrorContext('getMarkets'),
+        );
+      }
       return [];
     }
   }

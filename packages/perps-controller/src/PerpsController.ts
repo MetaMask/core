@@ -74,7 +74,7 @@ import {
 import type {
   AccountState,
   AssetRoute,
-  CancelOrderParams,
+  RoutedCancelOrderParams,
   CancelOrderResult,
   CancelOrdersParams,
   CancelOrdersResult,
@@ -84,7 +84,7 @@ import type {
   ClosePositionsResult,
   DepositWithConfirmationParams,
   EditOrderParams,
-  FeeCalculationParams,
+  RoutedFeeCalculationParams,
   FeeCalculationResult,
   FlipPositionParams,
   Funding,
@@ -107,6 +107,7 @@ import type {
   OrderCapabilitiesUnavailableReason,
   OrderFill,
   OrderParams,
+  RoutedOrderParams,
   OrderResult,
   PerpsControllerConfig,
   PerpsMarketData,
@@ -2711,13 +2712,9 @@ export class PerpsController extends BaseController<
     if (provider.routesOrdersByProviderId) {
       return undefined;
     }
-    if (provider.protocolId === PROVIDER_CONFIG.DefaultProvider) {
-      return PROVIDER_CONFIG.DefaultProvider;
-    }
-    if (provider.protocolId === PROVIDER_CONFIG.MYXProvider) {
-      return PROVIDER_CONFIG.MYXProvider;
-    }
-    return undefined;
+    return PROVIDER_CONFIG.SupportedProviders.find(
+      (providerId) => providerId === provider.protocolId,
+    );
   }
 
   /**
@@ -2746,7 +2743,7 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The order result with order ID and status.
    */
-  async placeOrder(params: OrderParams): Promise<OrderResult> {
+  async placeOrder(params: RoutedOrderParams): Promise<OrderResult> {
     const provider = await this.#getActiveProviderWhenReady();
     if (
       isStrategyOrderType(params.orderType) &&
@@ -2799,7 +2796,9 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The cancellation result with status.
    */
-  async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+  async cancelOrder(
+    params: RoutedCancelOrderParams,
+  ): Promise<CancelOrderResult> {
     const provider = await this.#getActiveProviderWhenReady();
     if (
       params.orderType !== undefined &&
@@ -5396,12 +5395,13 @@ export class PerpsController extends BaseController<
    * @returns The fee calculation result for the trade.
    */
   async calculateFees(
-    params: FeeCalculationParams,
+    params: RoutedFeeCalculationParams,
   ): Promise<FeeCalculationResult> {
     const provider = this.getActiveProvider();
     if (
-      (isStrategyOrderType(params.orderType) && !params.providerId) ||
-      this.#hasConflictingProviderRoute(params.providerId, provider)
+      isStrategyOrderType(params.orderType) &&
+      (!params.providerId ||
+        this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }

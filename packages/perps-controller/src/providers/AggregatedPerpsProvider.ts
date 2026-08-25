@@ -689,10 +689,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    const [, provider] =
-      isStrategyOrderType(params.orderType) || params.providerId
-        ? this.#getRequiredProvider(params.providerId)
-        : [this.#defaultProvider, this.#getDefaultProvider()];
+    const [, provider] = isStrategyOrderType(params.orderType)
+      ? this.#getRequiredProvider(params.providerId)
+      : this.#getProviderOrDefault(params.providerId);
     return provider.calculateFees(params);
   }
 

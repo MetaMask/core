@@ -191,6 +191,9 @@ export const PERFORMANCE_CONFIG = {
   // Prevents excessive validation calls during rapid form input changes
   ValidationDebounceMs: 300,
 
+  // Freshness window for provider market metadata used by strategy capability reads
+  OrderCapabilitiesMetaFreshnessMs: 30_000,
+
   // Liquidation price debounce delay (milliseconds)
   // Prevents excessive liquidation price calls during rapid form input changes
   LiquidationPriceDebounceMs: 500,
@@ -652,6 +655,8 @@ export const FUNDING_RATE_CONFIG = {
  * Provider configuration for multi-provider support
  */
 export const PROVIDER_CONFIG = {
+  /** Every provider ID accepted by public routing contracts */
+  SupportedProviders: ['hyperliquid', 'myx'] as const,
   /** Default perpetual DEX provider when no explicit selection exists */
   DefaultProvider: 'hyperliquid' as const,
   /** MYX perpetual DEX provider */

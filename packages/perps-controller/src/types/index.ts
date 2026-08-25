@@ -7,7 +7,10 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
+import {
+  PROVIDER_CONFIG,
+  type CHASE_ORDER_STATUS,
+} from '../constants/perpsConfig.js';
 import type {
   CandleData,
   OrderType,
@@ -307,6 +310,22 @@ export type OrderParams = {
   // runtime; ordinary orders default to the active/default provider.
   providerId?: PerpsProviderType;
 };
+
+/**
+ * Controller order request. Direct provider calls keep `OrderParams` because
+ * they already identify their venue; routed strategy calls must name it.
+ */
+export type RoutedOrderParams = OrderParams &
+  (
+    | Readonly<{
+        orderType: StrategyOrderType;
+        providerId: PerpsProviderType;
+      }>
+    | Readonly<{
+        orderType: Exclude<OrderType, StrategyOrderType>;
+        providerId?: PerpsProviderType;
+      }>
+  );
 
 export type OrderResult = {
   success?: boolean;
@@ -779,6 +798,19 @@ export type CancelOrderParams = {
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
 };
+
+/** Routed cancellation request with a required venue for strategy handles. */
+export type RoutedCancelOrderParams = CancelOrderParams &
+  (
+    | Readonly<{
+        orderType: StrategyOrderType;
+        providerId: PerpsProviderType;
+      }>
+    | Readonly<{
+        orderType?: Exclude<OrderType, StrategyOrderType>;
+        providerId?: PerpsProviderType;
+      }>
+  );
 
 export type CancelOrderResult = {
   success: boolean;
@@ -1295,20 +1327,36 @@ export type GetOrderCapabilitiesParams = {
 };
 
 /** Provider-owned strategy capabilities for the selected market route. */
-export type OrderCapabilitiesUnavailableReason =
+export type DirectProviderOrderCapabilitiesUnavailableReason =
   | 'provider_unavailable'
+  | 'invalid_symbol'
+  | 'market_not_found';
+
+export type RoutedOrderCapabilitiesUnavailableReason =
   | 'provider_not_found'
   | 'provider_not_routable'
-  | 'invalid_symbol'
-  | 'market_not_found'
   | 'not_implemented';
 
-export type PerpsOrderCapabilities =
+export type OrderCapabilitiesUnavailableReason =
+  | DirectProviderOrderCapabilitiesUnavailableReason
+  | RoutedOrderCapabilitiesUnavailableReason;
+
+type ReadyPerpsOrderCapabilities = Readonly<{
+  status: 'ready';
+  providerId: PerpsProviderType;
+  supportedStrategies: readonly StrategyOrderType[];
+}>;
+
+export type DirectProviderOrderCapabilities =
+  | ReadyPerpsOrderCapabilities
   | Readonly<{
-      status: 'ready';
-      providerId: PerpsProviderType;
-      supportedStrategies: readonly StrategyOrderType[];
-    }>
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: DirectProviderOrderCapabilitiesUnavailableReason;
+    }>;
+
+export type PerpsOrderCapabilities =
+  | ReadyPerpsOrderCapabilities
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
@@ -1326,6 +1374,19 @@ export type FeeCalculationParams = {
   // boundary so preview and placement cannot resolve different providers.
   providerId?: PerpsProviderType;
 };
+
+/** Routed fee quote with a required venue for strategy pricing. */
+export type RoutedFeeCalculationParams = FeeCalculationParams &
+  (
+    | Readonly<{
+        orderType: StrategyOrderType;
+        providerId: PerpsProviderType;
+      }>
+    | Readonly<{
+        orderType: Exclude<OrderType, StrategyOrderType>;
+        providerId?: PerpsProviderType;
+      }>
+  );
 
 export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
@@ -1729,7 +1790,8 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx';
+export type PerpsProviderType =
+  (typeof PROVIDER_CONFIG.SupportedProviders)[number];
 
 /**
  * Active provider mode for PerpsController state.

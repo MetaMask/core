@@ -1,15 +1,16 @@
-import {
-  BUILDER_FEE_CONFIG,
-  HYPERLIQUID_ORDER_CAPABILITIES_CONFIG,
-} from '../../../src/constants/hyperLiquidConfig.js';
+import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
+  PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
   PROVIDER_CONFIG,
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import {
+  HYPERLIQUID_ORDER_FEE_CONFIG,
+  HyperLiquidProvider,
+} from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
@@ -649,6 +650,26 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
+    it('approves the builder fee when a standard order follows a TWAP', async () => {
+      const { exchangeClient } = useStrategyClients({
+        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      });
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'market',
+      });
+
+      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+    });
+
     it('still approves the builder fee when a standard order joins TWAP setup', async () => {
       let startSpotMetaRequest = (): void => undefined;
       const spotMetaRequestStarted = new Promise<void>((resolve): void => {
@@ -806,7 +827,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           orderId,
-          error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_INVALID,
+          error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
         });
         expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
         expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
@@ -2487,48 +2508,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Fee quoting for strategy placements', () => {
-    const builderFeeByOrderType = {
-      market: {
-        orderType: 'market',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      limit: {
-        orderType: 'limit',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      stop_market: {
-        orderType: 'stop_market',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      stop_limit: {
-        orderType: 'stop_limit',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      take_profit_market: {
-        orderType: 'take_profit_market',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      take_profit_limit: {
-        orderType: 'take_profit_limit',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      twap: { orderType: 'twap', expectedRate: 0 },
-      scale: {
-        orderType: 'scale',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      chase: {
-        orderType: 'chase',
-        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-    } satisfies Record<
-      OrderType,
-      { orderType: OrderType; expectedRate: number }
-    >;
+    const configuredOrderTypes = {
+      market: { orderType: 'market' },
+      limit: { orderType: 'limit' },
+      stop_market: { orderType: 'stop_market' },
+      stop_limit: { orderType: 'stop_limit' },
+      take_profit_market: { orderType: 'take_profit_market' },
+      take_profit_limit: { orderType: 'take_profit_limit' },
+      twap: { orderType: 'twap' },
+      scale: { orderType: 'scale' },
+      chase: { orderType: 'chase' },
+    } satisfies Record<OrderType, { orderType: OrderType }>;
 
-    it.each(Object.values(builderFeeByOrderType))(
+    it.each(Object.values(configuredOrderTypes))(
       'quotes $orderType with its provider-owned builder fee policy',
-      async ({ orderType, expectedRate }) => {
+      async ({ orderType }) => {
         useStrategyClients();
 
         const fees = await provider.calculateFees({
@@ -2537,6 +2531,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
           symbol: 'ETH',
         });
 
+        const expectedRate = HYPERLIQUID_ORDER_FEE_CONFIG[orderType]
+          .chargesMetamaskBuilderFee
+          ? BUILDER_FEE_CONFIG.MaxFeeDecimal
+          : BUILDER_FEE_CONFIG.NoBuilderFieldFeeDecimal;
         expect(fees.metamaskFeeRate).toBe(expectedRate);
       },
     );
@@ -2862,7 +2860,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
       jest.advanceTimersByTime(
-        HYPERLIQUID_ORDER_CAPABILITIES_CONFIG.MetaFreshnessMs - 1,
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs - 1,
       );
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
@@ -2884,7 +2882,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
       jest.advanceTimersByTime(
-        HYPERLIQUID_ORDER_CAPABILITIES_CONFIG.MetaFreshnessMs - 1,
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs - 1,
       );
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
 
@@ -2908,7 +2906,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ],
       });
       jest.advanceTimersByTime(
-        HYPERLIQUID_ORDER_CAPABILITIES_CONFIG.MetaFreshnessMs,
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       );
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
@@ -3002,11 +3000,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
-    it('refreshes metadata after disconnect', async () => {
+    it('refreshes metadata after reconnect', async () => {
       const { infoClient } = useStrategyClients();
 
       await provider.getOrderCapabilities({ symbol: 'ETH' });
       await provider.disconnect();
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      await provider.initialize();
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -3039,6 +3045,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       finishDisconnect();
       await disconnectPromise;
 
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      await provider.initialize();
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
@@ -3079,6 +3093,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       finishSecondDisconnect();
       await secondResult;
 
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      await provider.initialize();
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
@@ -3294,6 +3316,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
+      await provider.initialize();
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
@@ -3424,6 +3447,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           providerId: 'hyperliquid',
           reason: 'provider_unavailable',
         });
+        await capabilityProvider.initialize();
         expect(
           await capabilityProvider.getOrderCapabilities({ symbol }),
         ).toStrictEqual({
@@ -3517,6 +3541,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
+      await capabilityProvider.initialize();
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
       expect(spotMeta).toHaveBeenCalledTimes(2);
     });
