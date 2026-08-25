@@ -2,7 +2,6 @@ import { QueryKey } from '@metamask/base-data-service';
 import {
   useQuery as useQueryTanStack,
   useInfiniteQuery as useInfiniteQueryTanStack,
-  InfiniteData,
   OmitKeyof,
   UseQueryOptions,
   InitialDataFunction,
@@ -10,6 +9,7 @@ import {
   UseInfiniteQueryOptions,
   UseQueryResult,
   UseInfiniteQueryResult,
+  DefaultError,
 } from '@tanstack/react-query';
 
 /**
@@ -31,7 +31,7 @@ const DATA_SERVICE_QUERY_DEFAULTS = {
  */
 export function useQuery<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
 >(
@@ -57,8 +57,8 @@ export function useQuery<
  */
 export function useInfiniteQuery<
   TQueryFnData = unknown,
-  TError = unknown,
-  TData = InfiniteData<TQueryFnData>,
+  TError = DefaultError,
+  TData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
   TPageParam = unknown,
 >(
