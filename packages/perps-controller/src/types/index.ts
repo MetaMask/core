@@ -1510,9 +1510,10 @@ export type PerpsProvider = {
   readonly protocolId: string;
 
   /**
-   * Return strategy capabilities for the provider/market route.
+   * Return strategy capabilities for the provider/market route. Providers may
+   * omit this hook; the controller then reports capabilities as unavailable.
    */
-  getOrderCapabilities(
+  getOrderCapabilities?(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities>;
 

@@ -945,9 +945,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMarkets',
   'getMaxLeverage',
   'getOpenOrders',
-  'getOrderCapabilities',
   'getOrderBookGrouping',
   'getOrderBookPreferences',
+  'getOrderCapabilities',
   'getOrderFills',
   'getOrders',
   'getPendingTradeConfiguration',
@@ -2662,6 +2662,9 @@ export class PerpsController extends BaseController<
 
     try {
       const activeProvider = await this.#getActiveProviderWhenReady();
+      if (!activeProvider.getOrderCapabilities) {
+        return UNAVAILABLE_ORDER_CAPABILITIES;
+      }
       return await activeProvider.getOrderCapabilities(params);
     } catch (error) {
       this.#debugLog('PerpsController: Order capabilities unavailable', {

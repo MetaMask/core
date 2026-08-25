@@ -1076,8 +1076,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Return provider-owned strategy support for a routed market.
    * HyperLiquid currently supports the same strategies on every main-DEX
-   * market. HIP-3 strategies are rejected by placement and therefore omitted
-   * here rather than exposed optimistically.
+   * market present in its current metadata. HIP-3 strategies are rejected by
+   * placement and therefore omitted here rather than exposed optimistically.
    *
    * @param params - Required market route context.
    * @returns Supported strategy order types.
@@ -1085,16 +1085,27 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
+    if (!params.symbol) {
+      return HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
+    }
+
     const { dex } = parseAssetName(params.symbol);
-    if (dex !== null || !params.symbol) {
+    if (dex !== null) {
       return HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
     }
 
     try {
-      const meta = await this.#getCachedMeta({ dexName: null });
-      const marketExists = meta.universe.some(
+      const hadCachedMeta = this.#cachedMetaByDex.has('');
+      let meta = await this.#getCachedMeta({ dexName: null });
+      let marketExists = meta.universe.some(
         (market) => market.name === params.symbol,
       );
+      if (!marketExists && hadCachedMeta) {
+        meta = await this.#getCachedMeta({ dexName: null, skipCache: true });
+        marketExists = meta.universe.some(
+          (market) => market.name === params.symbol,
+        );
+      }
       return marketExists
         ? HYPERLIQUID_ORDER_CAPABILITIES
         : HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
@@ -11351,7 +11362,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       resolveHyperLiquidOrderFeePolicy(params);
     const baseMetamaskFeeRate = chargesMetamaskBuilderFee
       ? BUILDER_FEE_CONFIG.MaxFeeDecimal
-      : BUILDER_FEE_CONFIG.NoFeeDecimal;
+      : 0;
     const metamaskFeeDiscount =
       this.#userFeeDiscountBips === undefined
         ? 0

@@ -186,8 +186,6 @@ export const BUILDER_FEE_CONFIG = {
   TestnetBuilder: '0x724e57771ba749650875bd8adb2e29a85d0cacfa' as Hex,
   // Production builder wallet
   MainnetBuilder: '0xe95a5e31904e005066614247d309e00d8ad753aa' as Hex,
-  // Explicit rate for order actions that cannot carry a builder fee
-  NoFeeDecimal: 0,
   // Fee in decimal (10 bp = 0.1%)
   MaxFeeDecimal: BUILDER_FEE_MAX_FEE_DECIMAL,
   MaxFeeTenthsBps: BUILDER_FEE_MAX_FEE_DECIMAL * 100000,

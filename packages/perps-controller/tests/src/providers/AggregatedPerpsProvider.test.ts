@@ -879,7 +879,12 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
-    it('reports unavailable when an explicit provider route is missing', async () => {
+    it('uses the default capabilities when an explicit provider route is missing', async () => {
+      mockHLProvider.getOrderCapabilities?.mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
       const providerWithoutMyx = new AggregatedPerpsProvider({
         providers: new Map([['hyperliquid', mockHLProvider]]),
         defaultProvider: 'hyperliquid',
@@ -892,10 +897,25 @@ describe('AggregatedPerpsProvider', () => {
           providerId: 'myx',
         }),
       ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'myx',
+      });
+    });
+
+    it('reports unavailable when the routed provider omits the optional hook', async () => {
+      mockHLProvider.getOrderCapabilities = undefined;
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
         status: 'unavailable',
         supportedStrategies: [],
       });
-      expect(mockHLProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
   });
 

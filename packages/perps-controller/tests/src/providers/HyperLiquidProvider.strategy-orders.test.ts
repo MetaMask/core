@@ -2474,9 +2474,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients();
       const coldProvider = createTestProvider();
 
-      await expect(
-        coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
-      ).resolves.toStrictEqual({
+      expect(
+        await coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
@@ -2484,29 +2484,64 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not advertise strategies on an unsupported HIP-3 market', async () => {
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-      ).resolves.toStrictEqual({
+      useStrategyClients();
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: [],
       });
     });
 
-    it.each(['', 'BTC:', ':BTC', 'DOGE'])(
-      'does not advertise strategies for malformed or unknown market %s',
+    it.each(['', 'BTC:', ':BTC'])(
+      'does not advertise strategies for malformed market %s',
       async (symbol) => {
-        useStrategyClients();
+        const { infoClient } = useStrategyClients();
 
-        await expect(
-          provider.getOrderCapabilities({ symbol }),
-        ).resolves.toStrictEqual({
+        expect(await provider.getOrderCapabilities({ symbol })).toStrictEqual({
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: [],
         });
+        expect(infoClient.meta).not.toHaveBeenCalled();
       },
     );
+
+    it('does not advertise strategies for an unknown main-DEX market', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'DOGE' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes cached metadata before rejecting a newly listed market', async () => {
+      const { infoClient } = useStrategyClients();
+      await provider.getOrderCapabilities({ symbol: 'ETH' });
+      infoClient.meta.mockResolvedValueOnce({
+        universe: [
+          { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+          { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+          { name: 'DOGE', szDecimals: 0, maxLeverage: 20 },
+        ],
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'DOGE' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
 
     it('reports unavailable when market metadata cannot be loaded', async () => {
       useStrategyClients({
@@ -2514,9 +2549,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       const coldProvider = createTestProvider();
 
-      await expect(
-        coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
-      ).resolves.toStrictEqual({
+      expect(
+        await coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
         status: 'unavailable',
         supportedStrategies: [],
       });

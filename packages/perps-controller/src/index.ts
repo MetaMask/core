@@ -96,9 +96,9 @@ export type {
   PerpsControllerGetMarketsAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
-  PerpsControllerGetOrderCapabilitiesAction,
   PerpsControllerGetOrderBookGroupingAction,
   PerpsControllerGetOrderBookPreferencesAction,
+  PerpsControllerGetOrderCapabilitiesAction,
   PerpsControllerGetOrderFillsAction,
   PerpsControllerGetOrdersAction,
   PerpsControllerGetPendingTradeConfigurationAction,
@@ -173,6 +173,7 @@ export {
   PerpsAnalyticsEvent,
   MARKET_CATEGORIES,
   MarketCategory,
+  UNAVAILABLE_ORDER_CAPABILITIES,
 } from './types/index.js';
 export type {
   RawLedgerUpdate,

@@ -851,6 +851,23 @@ describe('PerpsController', () => {
     });
 
     it('reports unavailable while no provider can answer', async () => {
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Uninitialized,
+      );
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        supportedStrategies: [],
+      });
+    });
+
+    it('reports unavailable when the provider omits the optional hook', async () => {
+      mockProvider.getOrderCapabilities = undefined;
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
       await expect(
         controller.getOrderCapabilities({ symbol: 'BTC' }),
       ).resolves.toStrictEqual({
