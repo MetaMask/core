@@ -380,7 +380,7 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/core-platform'],
   },
   'wallet-cli': {
-    teams: ['@MetaMask/core-platform', '@MetaMask/ocap-kernel'],
+    teams: ['@MetaMask/core-platform'],
   },
   'wallet-framework-docs': {
     teams: ['@MetaMask/core-platform'],
