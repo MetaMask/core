@@ -315,17 +315,24 @@ export type OrderParams = {
  * Controller order request. Direct provider calls keep `OrderParams` because
  * they already identify their venue; routed strategy calls must name it.
  */
-export type RoutedOrderParams = OrderParams &
-  (
-    | Readonly<{
-        orderType: StrategyOrderType;
-        providerId: PerpsProviderType;
-      }>
-    | Readonly<{
-        orderType: Exclude<OrderType, StrategyOrderType>;
-        providerId?: PerpsProviderType;
-      }>
-  );
+export type RoutedOrderParams<Params extends OrderParams = never> = [
+  Params,
+] extends [never]
+  ? OrderParams &
+      (
+        | Readonly<{
+            orderType: StrategyOrderType;
+            providerId: PerpsProviderType;
+          }>
+        | Readonly<{
+            orderType: Exclude<OrderType, StrategyOrderType>;
+            providerId?: PerpsProviderType;
+          }>
+      )
+  : Params &
+      (Params['orderType'] extends StrategyOrderType
+        ? Readonly<{ providerId: PerpsProviderType }>
+        : unknown);
 
 export type OrderResult = {
   success?: boolean;
@@ -800,17 +807,23 @@ export type CancelOrderParams = {
 };
 
 /** Routed cancellation request with a required venue for strategy handles. */
-export type RoutedCancelOrderParams = CancelOrderParams &
-  (
-    | Readonly<{
-        orderType: StrategyOrderType;
-        providerId: PerpsProviderType;
-      }>
-    | Readonly<{
-        orderType?: Exclude<OrderType, StrategyOrderType>;
-        providerId?: PerpsProviderType;
-      }>
-  );
+export type RoutedCancelOrderParams<Params extends CancelOrderParams = never> =
+  [Params] extends [never]
+    ? CancelOrderParams &
+        (
+          | Readonly<{
+              orderType: StrategyOrderType;
+              providerId: PerpsProviderType;
+            }>
+          | Readonly<{
+              orderType?: Exclude<OrderType, StrategyOrderType>;
+              providerId?: PerpsProviderType;
+            }>
+        )
+    : Params &
+        (Params['orderType'] extends StrategyOrderType
+          ? Readonly<{ providerId: PerpsProviderType }>
+          : unknown);
 
 export type CancelOrderResult = {
   success: boolean;
@@ -1376,17 +1389,24 @@ export type FeeCalculationParams = {
 };
 
 /** Routed fee quote with a required venue for strategy pricing. */
-export type RoutedFeeCalculationParams = FeeCalculationParams &
-  (
-    | Readonly<{
-        orderType: StrategyOrderType;
-        providerId: PerpsProviderType;
-      }>
-    | Readonly<{
-        orderType: Exclude<OrderType, StrategyOrderType>;
-        providerId?: PerpsProviderType;
-      }>
-  );
+export type RoutedFeeCalculationParams<
+  Params extends FeeCalculationParams = never,
+> = [Params] extends [never]
+  ? FeeCalculationParams &
+      (
+        | Readonly<{
+            orderType: StrategyOrderType;
+            providerId: PerpsProviderType;
+          }>
+        | Readonly<{
+            orderType: Exclude<OrderType, StrategyOrderType>;
+            providerId?: PerpsProviderType;
+          }>
+      )
+  : Params &
+      (Params['orderType'] extends StrategyOrderType
+        ? Readonly<{ providerId: PerpsProviderType }>
+        : unknown);
 
 export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)

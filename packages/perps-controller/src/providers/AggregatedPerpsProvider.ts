@@ -86,6 +86,9 @@ import type {
   RawLedgerUpdate,
   PerpsReadOptions,
   PerpsFeeResolution,
+  RoutedCancelOrderParams,
+  RoutedFeeCalculationParams,
+  RoutedOrderParams,
 } from '../types/index.js';
 
 /**
@@ -483,7 +486,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   // Write Operations (Route to specific provider)
   // ============================================================================
 
-  async placeOrder(params: OrderParams): Promise<OrderResult> {
+  async placeOrder<const Params extends OrderParams>(
+    params: RoutedOrderParams<Params>,
+  ): Promise<OrderResult> {
     const [providerId, provider] = isStrategyOrderType(params.orderType)
       ? this.#getRequiredProvider(params.providerId)
       : this.#getProviderOrDefault(params.providerId);
@@ -561,7 +566,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return { ...result, providerId };
   }
 
-  async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+  async cancelOrder<const Params extends CancelOrderParams>(
+    params: RoutedCancelOrderParams<Params>,
+  ): Promise<CancelOrderResult> {
     const [providerId, provider] =
       params.orderType !== undefined && isStrategyOrderType(params.orderType)
         ? this.#getRequiredProvider(params.providerId)
@@ -686,8 +693,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#getDefaultProvider().getMaxLeverage(asset);
   }
 
-  async calculateFees(
-    params: FeeCalculationParams,
+  async calculateFees<const Params extends FeeCalculationParams>(
+    params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
     const [, provider] = isStrategyOrderType(params.orderType)
       ? this.#getRequiredProvider(params.providerId)

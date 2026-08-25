@@ -74,6 +74,7 @@ import {
 import type {
   AccountState,
   AssetRoute,
+  CancelOrderParams,
   RoutedCancelOrderParams,
   CancelOrderResult,
   CancelOrdersParams,
@@ -84,6 +85,7 @@ import type {
   ClosePositionsResult,
   DepositWithConfirmationParams,
   EditOrderParams,
+  FeeCalculationParams,
   RoutedFeeCalculationParams,
   FeeCalculationResult,
   FlipPositionParams,
@@ -2743,7 +2745,9 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The order result with order ID and status.
    */
-  async placeOrder(params: RoutedOrderParams): Promise<OrderResult> {
+  async placeOrder<const Params extends OrderParams>(
+    params: RoutedOrderParams<Params>,
+  ): Promise<OrderResult> {
     const provider = await this.#getActiveProviderWhenReady();
     if (
       isStrategyOrderType(params.orderType) &&
@@ -2796,8 +2800,8 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The cancellation result with status.
    */
-  async cancelOrder(
-    params: RoutedCancelOrderParams,
+  async cancelOrder<const Params extends CancelOrderParams>(
+    params: RoutedCancelOrderParams<Params>,
   ): Promise<CancelOrderResult> {
     const provider = await this.#getActiveProviderWhenReady();
     if (
@@ -5394,8 +5398,8 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The fee calculation result for the trade.
    */
-  async calculateFees(
-    params: RoutedFeeCalculationParams,
+  async calculateFees<const Params extends FeeCalculationParams>(
+    params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
     const provider = this.getActiveProvider();
     if (

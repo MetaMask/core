@@ -10,6 +10,8 @@ jest.mock('@myx-trade/sdk', () => ({
 }));
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { MYXProvider } from '../../../src/providers/MYXProvider.js';
 import {
   MYXClientService,
@@ -820,15 +822,25 @@ describe('MYXProvider', () => {
     });
 
     it('calculateFees returns default fee rates', async () => {
-      const result = await provider.calculateFees(
-        {} as Parameters<typeof provider.calculateFees>[0],
-      );
+      const result = await provider.calculateFees({
+        orderType: 'market',
+        symbol: 'RHEA',
+      });
 
       expect(result).toEqual({
         feeRate: 0.0005,
         protocolFeeRate: 0.0005,
       });
     });
+
+    it.each(['twap', 'scale', 'chase'] as const)(
+      'rejects an unsupported %s strategy fee quote',
+      async (orderType) => {
+        await expect(
+          provider.calculateFees({ orderType, symbol: 'RHEA' }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
+      },
+    );
   });
 
   describe('getOrderCapabilities', () => {
@@ -846,6 +858,7 @@ describe('MYXProvider', () => {
       });
       expect(mockClientService.getMarkets).toHaveBeenCalledWith({
         allowStaleOnError: false,
+        maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
       expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
     });

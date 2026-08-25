@@ -208,6 +208,32 @@ describe('MYXClientService', () => {
       expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
     });
 
+    it('honours a caller-specific maximum cache age', async () => {
+      const pools = [makePool()];
+      const updatedPools = [makePool({ poolId: '0xpool2' })];
+      mockGetPoolSymbolAll
+        .mockResolvedValueOnce(pools)
+        .mockResolvedValueOnce(updatedPools);
+
+      await service.getMarkets();
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs - 1,
+      );
+      await expect(
+        service.getMarkets({
+          maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
+        }),
+      ).resolves.toStrictEqual(pools);
+      jest.advanceTimersByTime(1);
+
+      await expect(
+        service.getMarkets({
+          maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
+        }),
+      ).resolves.toStrictEqual(updatedPools);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
+    });
+
     it('refetches markets after cache TTL expires', async () => {
       const pools = [makePool()];
       const updatedPools = [makePool(), makePool({ poolId: '0xpool2' })];

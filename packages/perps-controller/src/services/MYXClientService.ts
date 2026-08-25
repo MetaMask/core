@@ -194,16 +194,22 @@ export class MYXClientService {
    *
    * @param options - Cache fallback behavior.
    * @param options.allowStaleOnError - Whether a failed refresh may return stale markets.
+   * @param options.maxCacheAgeMs - Maximum age accepted by this caller.
    * @returns The array of available MYX pool symbols.
    */
   async getMarkets(options?: {
     allowStaleOnError?: boolean;
+    maxCacheAgeMs?: number;
   }): Promise<MYXPoolSymbol[]> {
     // Return cache if valid
     const now = Date.now();
+    const maxCacheAgeMs = Math.min(
+      this.#marketsCacheTtlMs,
+      options?.maxCacheAgeMs ?? this.#marketsCacheTtlMs,
+    );
     if (
       this.#marketsCache.length > 0 &&
-      now - this.#marketsCacheTimestamp < this.#marketsCacheTtlMs
+      now - this.#marketsCacheTimestamp < maxCacheAgeMs
     ) {
       return this.#marketsCache;
     }

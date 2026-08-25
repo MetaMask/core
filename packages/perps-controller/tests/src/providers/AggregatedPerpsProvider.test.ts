@@ -2,6 +2,9 @@ import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
+  CancelOrderParams,
+  FeeCalculationParams,
+  OrderParams,
   PerpsProvider,
   PerpsProviderType,
   Position,
@@ -526,6 +529,19 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('Write Operations - placeOrder', () => {
+    it('accepts an ordinary order held as the base parameter type', async () => {
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+
+      await aggregatedProvider.placeOrder(params);
+
+      expect(mockHLProvider.placeOrder).toHaveBeenCalledWith(params);
+    });
+
     it('routes to default provider when no providerId specified', async () => {
       await aggregatedProvider.placeOrder({
         symbol: 'BTC',
@@ -598,6 +614,7 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects a strategy order without an explicit provider route', async () => {
       await expect(
+        // @ts-expect-error Routed strategy placement requires providerId.
         aggregatedProvider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
@@ -610,6 +627,17 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('Write Operations - cancelOrder', () => {
+    it('accepts an ordinary cancel held as the base parameter type', async () => {
+      const params: CancelOrderParams = {
+        orderId: 'order-123',
+        symbol: 'BTC',
+      };
+
+      await aggregatedProvider.cancelOrder(params);
+
+      expect(mockHLProvider.cancelOrder).toHaveBeenCalledWith(params);
+    });
+
     it('routes to specified provider', async () => {
       await aggregatedProvider.cancelOrder({
         orderId: 'order-123',
@@ -664,6 +692,7 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects a strategy cancel without an explicit provider route', async () => {
       await expect(
+        // @ts-expect-error Routed strategy cancellation requires providerId.
         aggregatedProvider.cancelOrder({
           orderId: 'strategy-123',
           symbol: 'BTC',
@@ -899,6 +928,17 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
     });
 
+    it('accepts an ordinary fee request held as the base parameter type', async () => {
+      const params: FeeCalculationParams = {
+        orderType: 'market',
+        symbol: 'BTC',
+      };
+
+      await aggregatedProvider.calculateFees(params);
+
+      expect(mockHLProvider.calculateFees).toHaveBeenCalledWith(params);
+    });
+
     it('routes calculateFees to an explicit provider', async () => {
       mockMYXProvider.calculateFees.mockResolvedValue({ feeRate: 0.002 });
 
@@ -919,6 +959,7 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects a strategy fee quote without an explicit provider route', async () => {
       await expect(
+        // @ts-expect-error Routed strategy fee quotes require providerId.
         aggregatedProvider.calculateFees({
           orderType: 'twap',
           symbol: 'BTC',
@@ -926,6 +967,26 @@ describe('AggregatedPerpsProvider', () => {
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
       expect(mockMYXProvider.calculateFees).not.toHaveBeenCalled();
+    });
+
+    it('routes a strategy fee quote to its explicit provider', async () => {
+      mockMYXProvider.calculateFees.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED),
+      );
+
+      await expect(
+        aggregatedProvider.calculateFees({
+          orderType: 'twap',
+          symbol: 'RHEA',
+          providerId: 'myx',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
+      expect(mockMYXProvider.calculateFees).toHaveBeenCalledWith({
+        orderType: 'twap',
+        symbol: 'RHEA',
+        providerId: 'myx',
+      });
+      expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
     });
 
     it('gets order capabilities from the default provider', async () => {

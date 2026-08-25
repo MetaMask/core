@@ -20,7 +20,12 @@ import {
   MYX_FEE_RATE,
   MYX_PROTOCOL_FEE_RATE,
 } from '../constants/myxConfig.js';
-import { PERPS_CONSTANTS, PROVIDER_CONFIG } from '../constants/perpsConfig.js';
+import {
+  PERFORMANCE_CONFIG,
+  PERPS_CONSTANTS,
+  PROVIDER_CONFIG,
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import {
   MYXClientService,
@@ -98,7 +103,10 @@ import type {
 } from '../types/myx-types.js';
 import type { CandleData } from '../types/perps-types.js';
 import { ensureError } from '../utils/errorUtils.js';
-import { isValidCapabilitySymbol } from '../utils/orderTypes.js';
+import {
+  isStrategyOrderType,
+  isValidCapabilitySymbol,
+} from '../utils/orderTypes.js';
 import {
   adaptMarketFromMYX,
   adaptMarketDataFromMYX,
@@ -227,6 +235,7 @@ export class MYXProvider implements PerpsProvider {
     try {
       const pools = await this.#clientService.getMarkets({
         allowStaleOnError: false,
+        maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
       if (this.#isDisconnected) {
         this.#deps.debugLogger.log(
@@ -1043,8 +1052,11 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async calculateFees(
-    _params: FeeCalculationParams,
+    params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
+    if (isStrategyOrderType(params.orderType)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
+    }
     return {
       feeRate: MYX_FEE_RATE,
       protocolFeeRate: MYX_PROTOCOL_FEE_RATE,
