@@ -927,7 +927,10 @@ export class RampsController extends BaseController<
 
   readonly #latestPaymentMethodsContextSequence = new Map<string, number>();
 
-  readonly #pendingPaymentMethodsContextCount = new Map<string, number>();
+  readonly #pendingPaymentMethodsContextSequences = new Map<
+    string,
+    Set<number>
+  >();
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -1258,9 +1261,13 @@ export class RampsController extends BaseController<
     this.#paymentMethodsContextSequence += 1;
     const sequence = this.#paymentMethodsContextSequence;
     this.#latestPaymentMethodsContextSequence.set(contextKey, sequence);
-    const pendingCount =
-      this.#pendingPaymentMethodsContextCount.get(contextKey) ?? 0;
-    this.#pendingPaymentMethodsContextCount.set(contextKey, pendingCount + 1);
+    const pendingSequences =
+      this.#pendingPaymentMethodsContextSequences.get(contextKey) ?? new Set();
+    pendingSequences.add(sequence);
+    this.#pendingPaymentMethodsContextSequences.set(
+      contextKey,
+      pendingSequences,
+    );
     return sequence;
   }
 
@@ -1273,15 +1280,50 @@ export class RampsController extends BaseController<
     );
   }
 
-  #finishPaymentMethodsContextRequest(contextKey: string): void {
-    const pendingCount =
-      this.#pendingPaymentMethodsContextCount.get(contextKey) ?? 0;
-    if (pendingCount <= 1) {
-      this.#pendingPaymentMethodsContextCount.delete(contextKey);
-      this.#latestPaymentMethodsContextSequence.delete(contextKey);
+  #failPaymentMethodsContextRequest(
+    contextKey: string,
+    sequence: number,
+  ): void {
+    if (
+      this.#latestPaymentMethodsContextSequence.get(contextKey) !== sequence
+    ) {
       return;
     }
-    this.#pendingPaymentMethodsContextCount.set(contextKey, pendingCount - 1);
+
+    const pendingSequences =
+      this.#pendingPaymentMethodsContextSequences.get(contextKey);
+    let latestEarlierSequence: number | undefined;
+    for (const pendingSequence of pendingSequences ?? []) {
+      if (
+        pendingSequence < sequence &&
+        (latestEarlierSequence === undefined ||
+          pendingSequence > latestEarlierSequence)
+      ) {
+        latestEarlierSequence = pendingSequence;
+      }
+    }
+
+    if (latestEarlierSequence === undefined) {
+      this.#latestPaymentMethodsContextSequence.delete(contextKey);
+    } else {
+      this.#latestPaymentMethodsContextSequence.set(
+        contextKey,
+        latestEarlierSequence,
+      );
+    }
+  }
+
+  #finishPaymentMethodsContextRequest(
+    contextKey: string,
+    sequence: number,
+  ): void {
+    const pendingSequences =
+      this.#pendingPaymentMethodsContextSequences.get(contextKey);
+    pendingSequences?.delete(sequence);
+    if (!pendingSequences || pendingSequences.size === 0) {
+      this.#pendingPaymentMethodsContextSequences.delete(contextKey);
+      this.#latestPaymentMethodsContextSequence.delete(contextKey);
+    }
   }
 
   /**
@@ -2108,9 +2150,20 @@ export class RampsController extends BaseController<
       }
 
       return { methods, selected, providerIds };
+    } catch (error) {
+      if (requestSequence !== null) {
+        this.#failPaymentMethodsContextRequest(
+          stateContextKey,
+          requestSequence,
+        );
+      }
+      throw error;
     } finally {
       if (requestSequence !== null) {
-        this.#finishPaymentMethodsContextRequest(stateContextKey);
+        this.#finishPaymentMethodsContextRequest(
+          stateContextKey,
+          requestSequence,
+        );
       }
     }
   }

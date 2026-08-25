@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns a single provider's payment-method list unchanged; collision merging applies only to multi-provider fan-out.
   - Normalizes stored region codes before stateful context writes while keeping missing-region checks fail-closed.
   - Partial provider failures still return methods from successful fetches.
+  - Restores an older pending same-context request as the state-write candidate when a newer stateful request fails, while successful newer requests still take precedence.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ## [20.0.0]

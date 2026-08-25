@@ -8150,6 +8150,81 @@ describe('RampsController', () => {
       );
     });
 
+    it('allows an older same-context success to commit after a newer request fails', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], moonpay),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let resolveOlder: (value: {
+            payments: PaymentMethod[];
+          }) => void = () => undefined;
+          let rejectNewer: (reason: Error) => void = () => undefined;
+          const serviceHandler = jest.fn(
+            async ({ assetId }: { assetId: string }) =>
+              new Promise<{ payments: PaymentMethod[] }>((resolve, reject) => {
+                if (assetId === DEPOSIT_ASSET) {
+                  resolveOlder = resolve;
+                } else {
+                  rejectNewer = reject;
+                }
+              }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            serviceHandler,
+          );
+
+          const olderRequest = controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+          await Promise.resolve();
+          const newerRequest = controller.getPaymentMethodsForContext({
+            assetId: depositToken.assetId,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+          await Promise.resolve();
+
+          rejectNewer(new Error('newer request failed'));
+          await expect(newerRequest).rejects.toThrow('newer request failed');
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            buySelectedMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            buySelectedMethod,
+          );
+
+          resolveOlder({ payments: [cardMethod] });
+          await olderRequest;
+
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            cardMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            cardMethod,
+          );
+          expect(serviceHandler).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
     it('partial provider failure still returns methods from successful providers', async () => {
       const native = buildProvider(NATIVE, 'native', [DEPOSIT_ASSET]);
       const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
@@ -8194,7 +8269,12 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
               providers: createResourceState([native], native),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
             },
           },
         },
@@ -8212,8 +8292,17 @@ describe('RampsController', () => {
           );
 
           await expect(
-            controller.getPaymentMethodsForContext(headlessOptions),
+            controller.getPaymentMethodsForContext({
+              ...headlessOptions,
+              updateState: true,
+            }),
           ).rejects.toThrow('native down');
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            buySelectedMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            buySelectedMethod,
+          );
         },
       );
     });
