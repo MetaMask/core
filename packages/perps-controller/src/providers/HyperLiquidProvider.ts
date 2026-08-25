@@ -181,6 +181,10 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../utils/hyperLiquidValidation.js';
+import {
+  parseBoundedNonNegativeDecimal,
+  parseBoundedPositiveDecimal,
+} from '../utils/stringParseUtils.js';
 import type { StrategyOrderValidationParams } from '../utils/hyperLiquidValidation.js';
 import { generatePerpsId } from '../utils/idUtils.js';
 import { transformMarketData } from '../utils/marketDataTransform.js';
@@ -742,23 +746,12 @@ type HyperLiquidOrderFeeContext =
   | Readonly<OrderParams>
   | Readonly<FeeCalculationParams>;
 
-const NON_NEGATIVE_DECIMAL_PATTERN = /^\d+(?:\.\d+)?$/u;
 const MAX_API_FEE_RATE = 1;
 const MAX_API_FEE_DISCOUNT = 1;
 
-function parseBoundedNonNegativeDecimal(
-  value: unknown,
-  upperBound = Number.MAX_VALUE,
-): number | null {
-  if (typeof value !== 'string' || !NON_NEGATIVE_DECIMAL_PATTERN.test(value)) {
-    return null;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed <= upperBound ? parsed : null;
-}
-
-type ResolvedHyperLiquidOrderFeeConfiguration = Readonly<
-  Record<OrderType, HyperLiquidOrderFeePolicy>
+type ResolvedHyperLiquidOrderFeeConfiguration = ReadonlyMap<
+  OrderType,
+  HyperLiquidOrderFeePolicy
 >;
 
 /**
@@ -769,7 +762,7 @@ type ResolvedHyperLiquidOrderFeeConfiguration = Readonly<
  * action has no builder field; every other current placement uses the standard
  * order action.
  */
-const HYPERLIQUID_ORDER_FEE_CONFIG: ResolvedHyperLiquidOrderFeeConfiguration = {
+const HYPERLIQUID_ORDER_FEE_CONFIG = {
   market: { chargesMetamaskBuilderFee: true },
   limit: { chargesMetamaskBuilderFee: true },
   stop_market: { chargesMetamaskBuilderFee: true },
@@ -779,7 +772,7 @@ const HYPERLIQUID_ORDER_FEE_CONFIG: ResolvedHyperLiquidOrderFeeConfiguration = {
   twap: { chargesMetamaskBuilderFee: false },
   scale: { chargesMetamaskBuilderFee: true },
   chase: { chargesMetamaskBuilderFee: true },
-};
+} satisfies Record<OrderType, HyperLiquidOrderFeePolicy>;
 
 function resolveConfiguredOrderFeePolicy(
   configured: HyperLiquidOrderFeePolicy | undefined,
@@ -793,32 +786,44 @@ function resolveConfiguredOrderFeePolicy(
 function resolveHyperLiquidOrderFeeConfiguration(
   configured: HyperLiquidOrderFeeConfiguration | undefined,
 ): ResolvedHyperLiquidOrderFeeConfiguration {
-  return {
-    market: resolveConfiguredOrderFeePolicy(
-      configured?.market,
-      HYPERLIQUID_ORDER_FEE_CONFIG.market,
-    ),
-    limit: resolveConfiguredOrderFeePolicy(
-      configured?.limit,
-      HYPERLIQUID_ORDER_FEE_CONFIG.limit,
-    ),
+  return new Map<OrderType, HyperLiquidOrderFeePolicy>([
+    [
+      'market',
+      resolveConfiguredOrderFeePolicy(
+        configured?.market,
+        HYPERLIQUID_ORDER_FEE_CONFIG.market,
+      ),
+    ],
+    [
+      'limit',
+      resolveConfiguredOrderFeePolicy(
+        configured?.limit,
+        HYPERLIQUID_ORDER_FEE_CONFIG.limit,
+      ),
+    ],
     // HyperLiquid supplies one builder context for an order action, including
     // every attached TP/SL child. Trigger policies therefore remain fixed until
     // a future configuration can model the whole batch rather than one child.
-    stop_market: HYPERLIQUID_ORDER_FEE_CONFIG.stop_market,
-    stop_limit: HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit,
-    take_profit_market: HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market,
-    take_profit_limit: HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit,
-    twap: HYPERLIQUID_ORDER_FEE_CONFIG.twap,
-    scale: resolveConfiguredOrderFeePolicy(
-      configured?.scale,
-      HYPERLIQUID_ORDER_FEE_CONFIG.scale,
-    ),
-    chase: resolveConfiguredOrderFeePolicy(
-      configured?.chase,
-      HYPERLIQUID_ORDER_FEE_CONFIG.chase,
-    ),
-  };
+    ['stop_market', HYPERLIQUID_ORDER_FEE_CONFIG.stop_market],
+    ['stop_limit', HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit],
+    ['take_profit_market', HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market],
+    ['take_profit_limit', HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit],
+    ['twap', HYPERLIQUID_ORDER_FEE_CONFIG.twap],
+    [
+      'scale',
+      resolveConfiguredOrderFeePolicy(
+        configured?.scale,
+        HYPERLIQUID_ORDER_FEE_CONFIG.scale,
+      ),
+    ],
+    [
+      'chase',
+      resolveConfiguredOrderFeePolicy(
+        configured?.chase,
+        HYPERLIQUID_ORDER_FEE_CONFIG.chase,
+      ),
+    ],
+  ]);
 }
 
 /**
@@ -1152,7 +1157,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   #resolveOrderFeePolicy(
     params: HyperLiquidOrderFeeContext,
   ): HyperLiquidOrderFeePolicy {
-    const policy = this.#orderFeeConfiguration[params.orderType];
+    const policy = this.#orderFeeConfiguration.get(params.orderType);
     if (typeof policy?.chargesMetamaskBuilderFee === 'boolean') {
       return policy;
     }
@@ -2070,6 +2075,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
 
     if (!this.#tradingSetupComplete && !this.#tradingSetupPromise) {
+      const lifecycleGeneration = this.#lifecycleGeneration;
       this.#deps.debugLogger.log(
         '[ensureReadyForTrading] Starting shared trading setup',
       );
@@ -2091,6 +2097,11 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Set up referral code independently from builder-fee applicability.
         await this.#ensureReferralSet();
+
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'Trading setup completion',
+        );
 
         // Only mark complete if keyring was unlocked (signing could actually happen)
         if (this.#walletService.isKeyringUnlocked()) {
@@ -2668,9 +2679,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       return this.#cachedSpotMeta;
     }
 
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const infoClient = this.#clientService.getInfoClient();
     const spotMeta = await infoClient.spotMeta();
 
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Spot metadata cache write',
+    );
     this.#cachedSpotMeta = spotMeta;
     this.#deps.debugLogger.log(
       '[getCachedSpotMeta] Fetched and cached spotMeta',
@@ -3531,16 +3547,20 @@ export class HyperLiquidProvider implements PerpsProvider {
             '[HyperLiquidProvider] Builder fee approval verification failed',
           );
         }
+
+        // The approval is already confirmed on-chain. Preserve that fact for
+        // the next provider lifecycle even if this instance became stale while
+        // the approval request was in flight.
+        PerpsSigningCache.setBuilderFee(network, userAddress, {
+          attempted: true,
+          success: true,
+        });
         this.#assertProviderLifecycleCurrent(
           lifecycleGeneration,
           'Builder fee approval',
         );
 
-        // Cache success in BOTH global and instance caches
-        PerpsSigningCache.setBuilderFee(network, userAddress, {
-          attempted: true,
-          success: true,
-        });
+        // Cache success in the current instance after the lifecycle check.
         this.#builderFeeCheckCache.set(cacheKey, true);
         this.#approvedBuilderAddresses.add(
           this.#getApprovedBuilderKey(network, userAddress, builderAddress),
@@ -7317,6 +7337,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
+      // Keep each position's full context. Today's injected policy is keyed by
+      // order type, but this preserves correct batch behavior if a later policy
+      // varies by market or route.
       const chargesMetamaskBuilderFee = feePolicyContexts.some(
         (context) =>
           this.#resolveOrderFeePolicy(context).chargesMetamaskBuilderFee,
@@ -7724,7 +7747,6 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
-      const feePolicyContexts: OrderParams[] = [];
 
       const fullSize =
         TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
@@ -7768,14 +7790,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         };
         orders.push(tpOrder);
-        feePolicyContexts.push({
-          symbol,
-          isBuy: !isLong,
-          size: takeProfitSize ?? positionSize.toString(),
-          orderType: 'take_profit_limit',
-          triggerPrice: takeProfitPrice,
-          reduceOnly: true,
-        });
       }
 
       // Stop Loss order
@@ -7801,14 +7815,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         };
         orders.push(slOrder);
-        feePolicyContexts.push({
-          symbol,
-          isBuy: !isLong,
-          size: stopLossSize ?? positionSize.toString(),
-          orderType: 'stop_market',
-          triggerPrice: stopLossPrice,
-          reduceOnly: true,
-        });
       }
 
       // If no new orders, we've just cancelled existing ones (clearing TP/SL)
@@ -7822,13 +7828,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      const chargesMetamaskBuilderFee = feePolicyContexts.some(
-        (context) =>
-          this.#resolveOrderFeePolicy(context).chargesMetamaskBuilderFee,
-      );
-      await this.#ensureReadyForTrading({
-        requiresBuilderFee: chargesMetamaskBuilderFee,
-      });
+      // HyperLiquid accepts one builder context for the whole TP/SL action.
+      // Standalone position triggers therefore always use the standard builder.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
       // partial TP/SL must be standalone reduce-only triggers ('na'), since a
@@ -7836,9 +7838,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const result = await exchangeClient.order({
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
-        ...(chargesMetamaskBuilderFee && {
-          builder: await this.#getBuilderOrderContext(),
-        }),
+        builder: await this.#getBuilderOrderContext(),
       });
 
       if (result.status !== 'ok') {
@@ -11528,7 +11528,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
     const parsedAmount =
-      amount === undefined ? undefined : parseBoundedNonNegativeDecimal(amount);
+      amount === undefined ? undefined : parseBoundedPositiveDecimal(amount);
     if (parsedAmount === null) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     }
@@ -11800,6 +11800,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
         'HyperLiquidProvider.getFeeSchedule',
       );
+      if (safeError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        throw safeError;
+      }
       this.#deps.debugLogger.log(
         'Fee API Call Failed - Falling Back to Base Rates',
         {
@@ -11811,6 +11814,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         },
       );
     }
+
+    this.#assertProviderLifecycleCurrent(
+      lifecycleGeneration,
+      'Fee calculation',
+    );
 
     // Protocol base fee (HyperLiquid's fee)
     const protocolFeeRate = feeRate;

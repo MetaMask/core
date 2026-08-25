@@ -28,6 +28,7 @@ import {
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -599,7 +600,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
     infoOverrides: MockClient = {},
     providerOptions: {
       allowlistMarkets?: string[];
-      blocklistMarkets?: string[];
     } = {},
   ): {
     capabilityProvider: HyperLiquidProvider;
@@ -633,6 +633,69 @@ describe('HyperLiquidProvider - strategy order types', () => {
     currentPrice: 3000,
     providerId: PROVIDER_CONFIG.DefaultProvider,
   };
+
+  describe('Builder fee policy', () => {
+    it('applies the parent fee policy to its attached TP/SL batch', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      const { exchangeClient } = useStrategyClients();
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'market',
+        takeProfitPrice: '3500',
+      } satisfies OrderParams);
+
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(2);
+      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+        'builder',
+      );
+    });
+
+    it('applies one builder context to a default parent and TP/SL batch', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'market',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      } satisfies OrderParams);
+
+      expect(exchangeClient.order.mock.calls[0][0]).toMatchObject({
+        orders: expect.any(Array),
+        builder: {
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        },
+      });
+      expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(3);
+    });
+
+    it('omits the builder context from a configured limit order', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          limit: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      const { exchangeClient } = useStrategyClients();
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'limit',
+        price: '3000',
+      } satisfies OrderParams);
+
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+        'builder',
+      );
+    });
+  });
 
   describe('TWAP placement', () => {
     it('does not request builder-fee approval', async () => {
@@ -669,30 +732,44 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+      [undefined, PERPS_ERROR_CODES.ORDER_TWAP_DURATION_REQUIRED],
+      [1.5, PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID],
+      [0, PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID],
+      [
+        HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes + 1,
+        PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID,
+      ],
+      [2 ** 53, PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID],
+    ])(
+      'rejects provider-level TWAP duration %p before submission',
+      async (twapDuration, expectedError) => {
+        const { exchangeClient } = useStrategyClients();
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'twap',
+          twapDuration,
+        } satisfies OrderParams);
+
+        expect(result.error).toBe(expectedError);
+        expect(exchangeClient.twapOrder).not.toHaveBeenCalled();
+      },
+    );
+
     it('still approves the builder fee when a standard order joins TWAP setup', async () => {
-      let startSpotMetaRequest = (): void => undefined;
-      const spotMetaRequestStarted = new Promise<void>((resolve): void => {
-        startSpotMetaRequest = resolve;
-      });
-      let resolveSpotMeta = (): void => undefined;
-      const pendingSpotMeta = new Promise<{
+      const spotMetaRequestStarted = createDeferred<void>();
+      const pendingSpotMeta = createDeferred<{
         tokens: { name: string; tokenId: string; index: number }[];
         universe: never[];
-      }>((resolve): void => {
-        resolveSpotMeta = (): void => {
-          resolve({
-            tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
-            universe: [],
-          });
-        };
-      });
+      }>();
       const { exchangeClient } = useStrategyClients({
         info: {
           maxBuilderFee: jest.fn().mockResolvedValue(0),
           perpDexs: jest.fn().mockResolvedValue([null]),
           spotMeta: jest.fn().mockImplementation(() => {
-            startSpotMetaRequest();
-            return pendingSpotMeta;
+            spotMetaRequestStarted.resolve();
+            return pendingSpotMeta.promise;
           }),
         },
       });
@@ -703,36 +780,69 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'twap',
         twapDuration: 30,
       });
-      await spotMetaRequestStarted;
+      await spotMetaRequestStarted.promise;
       const standardOrder = provider.placeOrder({
         ...baseOrder,
         orderType: 'market',
       });
-      resolveSpotMeta();
+      pendingSpotMeta.resolve({
+        tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+        universe: [],
+      });
 
       await Promise.all([twapOrder, standardOrder]);
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
     });
 
-    it('applies the parent fee policy to its attached TP/SL batch', async () => {
+    it('does not restore spot metadata after disconnect', async () => {
       provider = createTestProvider({
-        orderFeeConfiguration: {
-          market: { chargesMetamaskBuilderFee: false },
-        },
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
       });
-      const { exchangeClient } = useStrategyClients();
+      const spotMetaRequestStarted = createDeferred<void>();
+      const pendingSpotMeta = createDeferred<{
+        tokens: { name: string; tokenId: string; index: number }[];
+        universe: never[];
+      }>();
+      const spotMeta = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          spotMetaRequestStarted.resolve();
+          return pendingSpotMeta.promise;
+        })
+        .mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        });
+      useStrategyClients({ info: { spotMeta } });
 
-      await provider.placeOrder({
+      const staleOrder = provider.placeOrder({
         ...baseOrder,
         orderType: 'market',
-        takeProfitPrice: '3500',
-      } satisfies OrderParams);
+      });
+      await spotMetaRequestStarted.promise;
+      const disconnectPromise = provider.disconnect();
+      pendingSpotMeta.resolve({
+        tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+        universe: [],
+      });
 
-      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
-      expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(2);
-      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
-        'builder',
-      );
+      expect(await staleOrder).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(await disconnectPromise).toStrictEqual({ success: true });
+
+      expect(await provider.initialize()).toMatchObject({
+        success: true,
+      });
+      expect(
+        await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'market',
+        }),
+      ).toMatchObject({ success: true });
+      expect(spotMeta).toHaveBeenCalledTimes(2);
     });
 
     it('submits the venue TWAP action rather than an order', async () => {
@@ -837,6 +947,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
         expect(result.success).toBe(false);
         expect(result.orderId).toBeUndefined();
+        expect(result.error).toBe('TWAP order rejected');
       },
     );
   });
@@ -947,6 +1058,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const submitted = exchangeClient.order.mock.calls[0][0];
       expect(submitted.grouping).toBe('na');
       expect(submitted.orders).toHaveLength(3);
+      expect(submitted.builder).toStrictEqual({
+        b: BUILDER_FEE_CONFIG.MainnetBuilder,
+        f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+      });
       expect(
         submitted.orders.map((order: { p: string }) => order.p),
       ).toStrictEqual(['2000', '2500', '3000']);
@@ -1717,38 +1832,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Rejections happen before any exchange call', () => {
-    it.each<[string, Partial<OrderParams>]>([
-      ['twap', { orderType: 'twap', twapDuration: 0 }],
-      [
-        'scale',
-        {
-          orderType: 'scale',
-          scaleMinPrice: '3000',
-          scaleMaxPrice: '2000',
-          scaleNumOrders: 3,
-        },
-      ],
-    ])(
-      'never reaches the exchange for an invalid %s',
-      async (_label, strategyParams) => {
-        const { exchangeClient, infoClient } = useStrategyClients();
-        mockValidateOrderParams.mockReturnValue({
-          isValid: false,
-          error: PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID,
-        });
+    it('does not reach the exchange when shared validation rejects', async () => {
+      const { exchangeClient, infoClient } = useStrategyClients();
+      mockValidateOrderParams.mockReturnValue({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID,
+      });
 
-        const result = await provider.placeOrder({
-          ...baseOrder,
-          ...strategyParams,
-        } satisfies OrderParams);
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
 
-        expect(result.success).toBe(false);
-        expect(exchangeClient.order).not.toHaveBeenCalled();
-        expect(exchangeClient.twapOrder).not.toHaveBeenCalled();
-        expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
-        expect(infoClient.l2Book).not.toHaveBeenCalled();
-      },
-    );
+      expect(result.success).toBe(false);
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+      expect(exchangeClient.twapOrder).not.toHaveBeenCalled();
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(infoClient.l2Book).not.toHaveBeenCalled();
+    });
 
     it('refuses a strategy placement on a sub-exchange market', async () => {
       const { exchangeClient } = useStrategyClients();
@@ -2581,51 +2683,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Fee quoting for strategy placements', () => {
-    const configuredOrderTypes = {
-      market: {
-        orderType: 'market',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      limit: {
-        orderType: 'limit',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      stop_market: {
-        orderType: 'stop_market',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      stop_limit: {
-        orderType: 'stop_limit',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      take_profit_market: {
-        orderType: 'take_profit_market',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      take_profit_limit: {
-        orderType: 'take_profit_limit',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      twap: {
-        orderType: 'twap',
-        expectedMetamaskFeeRate: 0,
-      },
-      scale: {
-        orderType: 'scale',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-      chase: {
-        orderType: 'chase',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
-      },
-    } satisfies Record<
-      OrderType,
-      { orderType: OrderType; expectedMetamaskFeeRate: number }
-    >;
+    const configuredOrderTypes = [
+      ['market', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['limit', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['stop_market', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['stop_limit', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['take_profit_market', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['take_profit_limit', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['twap', 0],
+      ['scale', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+      ['chase', BUILDER_FEE_CONFIG.MaxFeeDecimal],
+    ] as const satisfies readonly (readonly [OrderType, number])[];
 
-    it.each(Object.values(configuredOrderTypes))(
-      'quotes $orderType with its provider-owned builder fee policy',
-      async ({ orderType, expectedMetamaskFeeRate }) => {
+    it.each(configuredOrderTypes)(
+      'quotes %s with its provider-owned builder fee policy',
+      async (orderType, expectedMetamaskFeeRate) => {
         useStrategyClients();
 
         const fees = await provider.calculateFees({
@@ -2638,23 +2710,27 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
     );
 
-    it('uses an injected policy when quoting a strategy fee', async () => {
-      provider = createTestProvider({
-        orderFeeConfiguration: {
-          scale: { chargesMetamaskBuilderFee: false },
-        },
-      });
-      useStrategyClients();
+    it.each([
+      ['market', { market: { chargesMetamaskBuilderFee: false } }],
+      ['limit', { limit: { chargesMetamaskBuilderFee: false } }],
+      ['scale', { scale: { chargesMetamaskBuilderFee: false } }],
+      ['chase', { chase: { chargesMetamaskBuilderFee: false } }],
+    ] as const)(
+      'uses an injected policy when quoting %s fees',
+      async (orderType, orderFeeConfiguration) => {
+        provider = createTestProvider({ orderFeeConfiguration });
+        useStrategyClients();
 
-      const fees = await provider.calculateFees({
-        orderType: 'scale',
-        amount: '1000',
-        symbol: 'ETH',
-      });
+        const fees = await provider.calculateFees({
+          orderType,
+          amount: '1000',
+          symbol: 'ETH',
+        });
 
-      expect(fees.metamaskFeeRate).toBe(0);
-      expect(fees.metamaskFeeAmount).toBe(0);
-    });
+        expect(fees.metamaskFeeRate).toBe(0);
+        expect(fees.metamaskFeeAmount).toBe(0);
+      },
+    );
 
     it('falls back when an injected policy is invalid', async () => {
       provider = createTestProvider({
@@ -3005,25 +3081,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('isolates capability metadata from overlapping shared cache writes', async () => {
-      let startSharedRequest = (): void => undefined;
-      const sharedRequestStarted = new Promise<void>((resolve): void => {
-        startSharedRequest = resolve;
-      });
-      let resolveSharedMeta = (_meta: {
+      const sharedRequestStarted = createDeferred<void>();
+      const pendingSharedMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }): void => undefined;
-      const pendingSharedMeta = new Promise<{
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }>((resolve): void => {
-        resolveSharedMeta = resolve;
-      });
+      }>();
       const { infoClient } = useStrategyClients({
         info: {
           meta: jest
             .fn()
             .mockImplementationOnce(() => {
-              startSharedRequest();
-              return pendingSharedMeta;
+              sharedRequestStarted.resolve();
+              return pendingSharedMeta.promise;
             })
             .mockResolvedValueOnce({
               universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
@@ -3032,7 +3100,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
 
       const sharedRead = provider.getMaxLeverage('PUMP');
-      await sharedRequestStarted;
+      await sharedRequestStarted.promise;
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
@@ -3041,7 +3109,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
 
-      resolveSharedMeta({
+      pendingSharedMeta.resolve({
         universe: [{ name: 'PUMP', szDecimals: 0, maxLeverage: 20 }],
       });
       await sharedRead;
@@ -3057,23 +3125,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('deduplicates concurrent metadata refreshes', async () => {
-      let startMetaRequest = (): void => undefined;
-      const metaRequestStarted = new Promise<void>((resolve): void => {
-        startMetaRequest = resolve;
-      });
-      let resolveMeta = (_meta: {
+      const metaRequestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }): void => undefined;
-      const pendingMeta = new Promise<{
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }>((resolve): void => {
-        resolveMeta = resolve;
-      });
+      }>();
       const { infoClient } = useStrategyClients({
         info: {
           meta: jest.fn().mockImplementation(() => {
-            startMetaRequest();
-            return pendingMeta;
+            metaRequestStarted.resolve();
+            return pendingMeta.promise;
           }),
         },
       });
@@ -3082,16 +3142,27 @@ describe('HyperLiquidProvider - strategy order types', () => {
         provider.getOrderCapabilities({ symbol: 'BTC' }),
         provider.getOrderCapabilities({ symbol: 'ETH' }),
       ];
-      await metaRequestStarted;
+      await metaRequestStarted.promise;
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
-      resolveMeta({
+      pendingMeta.resolve({
         universe: [
           { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
           { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
         ],
       });
-      await Promise.all(reads);
+      expect(await Promise.all(reads)).toStrictEqual([
+        {
+          status: 'ready',
+          providerId: 'hyperliquid',
+          supportedStrategies: ['twap', 'scale', 'chase'],
+        },
+        {
+          status: 'ready',
+          providerId: 'hyperliquid',
+          supportedStrategies: ['twap', 'scale', 'chase'],
+        },
+      ]);
     });
 
     it('refreshes metadata after reconnect', async () => {
@@ -3114,21 +3185,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('reports capabilities unavailable during disconnect', async () => {
       const { infoClient } = useStrategyClients();
-      let startDisconnect = (): void => undefined;
-      const disconnectStarted = new Promise<void>((resolve): void => {
-        startDisconnect = resolve;
-      });
-      let finishDisconnect = (): void => undefined;
-      const pendingDisconnect = new Promise<void>((resolve): void => {
-        finishDisconnect = resolve;
-      });
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
       mockClientService.disconnect.mockImplementationOnce(() => {
-        startDisconnect();
-        return pendingDisconnect;
+        disconnectStarted.resolve();
+        return pendingDisconnect.promise;
       });
 
       const disconnectPromise = provider.disconnect();
-      await disconnectStarted;
+      await disconnectStarted.promise;
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
@@ -3136,7 +3201,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
-      finishDisconnect();
+      pendingDisconnect.resolve();
       await disconnectPromise;
 
       expect(
@@ -3158,41 +3223,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not reconnect when initialization overlaps a disconnect', async () => {
-      let startInitialize = (): void => undefined;
-      const initializeStarted = new Promise<void>((resolve): void => {
-        startInitialize = resolve;
-      });
-      let finishInitialize = (): void => undefined;
-      const pendingInitialize = new Promise<void>((resolve): void => {
-        finishInitialize = resolve;
-      });
-      let startClientDisconnect = (): void => undefined;
-      const clientDisconnectStarted = new Promise<void>((resolve): void => {
-        startClientDisconnect = resolve;
-      });
-      let finishClientDisconnect = (): void => undefined;
-      const pendingClientDisconnect = new Promise<void>((resolve): void => {
-        finishClientDisconnect = resolve;
-      });
+      const initializeStarted = createDeferred<void>();
+      const pendingInitialize = createDeferred<void>();
+      const clientDisconnectStarted = createDeferred<void>();
+      const pendingClientDisconnect = createDeferred<void>();
       mockClientService.initialize.mockImplementationOnce(() => {
-        startInitialize();
-        return pendingInitialize;
+        initializeStarted.resolve();
+        return pendingInitialize.promise;
       });
       mockClientService.disconnect.mockImplementationOnce(() => {
-        startClientDisconnect();
-        return pendingClientDisconnect;
+        clientDisconnectStarted.resolve();
+        return pendingClientDisconnect.promise;
       });
 
       const initializeResult = provider.initialize();
-      await initializeStarted;
+      await initializeStarted.promise;
       const disconnectResult = provider.disconnect();
-      finishInitialize();
+      pendingInitialize.resolve();
 
       expect(await initializeResult).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
       });
-      await clientDisconnectStarted;
+      await clientDisconnectStarted.promise;
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
@@ -3201,27 +3254,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reason: 'provider_unavailable',
       });
 
-      finishClientDisconnect();
+      pendingClientDisconnect.resolve();
       expect(await disconnectResult).toStrictEqual({ success: true });
     });
 
     it('does not initialize while a disconnect is in progress', async () => {
       useStrategyClients();
-      let startClientDisconnect = (): void => undefined;
-      const clientDisconnectStarted = new Promise<void>((resolve): void => {
-        startClientDisconnect = resolve;
-      });
-      let finishClientDisconnect = (): void => undefined;
-      const pendingClientDisconnect = new Promise<void>((resolve): void => {
-        finishClientDisconnect = resolve;
-      });
+      const clientDisconnectStarted = createDeferred<void>();
+      const pendingClientDisconnect = createDeferred<void>();
       mockClientService.disconnect.mockImplementationOnce(() => {
-        startClientDisconnect();
-        return pendingClientDisconnect;
+        clientDisconnectStarted.resolve();
+        return pendingClientDisconnect.promise;
       });
 
       const disconnectResult = provider.disconnect();
-      await clientDisconnectStarted;
+      await clientDisconnectStarted.promise;
 
       expect(await provider.initialize()).toStrictEqual({
         success: false,
@@ -3229,7 +3276,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       expect(mockClientService.initialize).not.toHaveBeenCalled();
 
-      finishClientDisconnect();
+      pendingClientDisconnect.resolve();
       expect(await disconnectResult).toStrictEqual({ success: true });
       expect(await provider.initialize()).toStrictEqual({
         success: true,
@@ -3239,21 +3286,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('keeps capabilities unavailable until overlapping disconnects finish', async () => {
       const { infoClient } = useStrategyClients();
-      let finishFirstDisconnect = (): void => undefined;
-      const firstDisconnect = new Promise<void>((resolve): void => {
-        finishFirstDisconnect = resolve;
-      });
-      let finishSecondDisconnect = (): void => undefined;
-      const secondDisconnect = new Promise<void>((resolve): void => {
-        finishSecondDisconnect = resolve;
-      });
+      const firstDisconnect = createDeferred<void>();
+      const secondDisconnect = createDeferred<void>();
       mockClientService.disconnect
-        .mockReturnValueOnce(firstDisconnect)
-        .mockReturnValueOnce(secondDisconnect);
+        .mockReturnValueOnce(firstDisconnect.promise)
+        .mockReturnValueOnce(secondDisconnect.promise);
 
       const firstResult = provider.disconnect();
       const secondResult = provider.disconnect();
-      finishFirstDisconnect();
+      firstDisconnect.resolve();
       await firstResult;
 
       expect(
@@ -3264,7 +3305,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reason: 'provider_unavailable',
       });
 
-      finishSecondDisconnect();
+      secondDisconnect.resolve();
       await secondResult;
 
       expect(
@@ -3286,25 +3327,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('invalidates an in-flight refresh when client disconnect fails', async () => {
-      let startRequest = (): void => undefined;
-      const requestStarted = new Promise<void>((resolve): void => {
-        startRequest = resolve;
-      });
-      let resolveMeta = (_meta: {
+      const requestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }): void => undefined;
-      const pendingMeta = new Promise<{
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }>((resolve): void => {
-        resolveMeta = resolve;
-      });
+      }>();
       const { infoClient } = useStrategyClients({
         info: {
           meta: jest
             .fn()
             .mockImplementationOnce(() => {
-              startRequest();
-              return pendingMeta;
+              requestStarted.resolve();
+              return pendingMeta.promise;
             })
             .mockResolvedValueOnce({
               universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
@@ -3316,9 +3349,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
 
       const staleRead = provider.getOrderCapabilities({ symbol: 'ETH' });
-      await requestStarted;
+      await requestStarted.promise;
       const disconnectResult = await provider.disconnect();
-      resolveMeta({
+      pendingMeta.resolve({
         universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
       });
 
@@ -3373,22 +3406,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('discards an in-flight main-DEX refresh after disconnect', async () => {
       const universe = [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }];
-      let startRequest = (): void => undefined;
-      const requestStarted = new Promise<void>((resolve): void => {
-        startRequest = resolve;
-      });
-      let resolveMeta = (_meta: { universe: typeof universe }): void =>
-        undefined;
-      const pendingMeta = new Promise<{ universe: typeof universe }>(
-        (resolve): void => {
-          resolveMeta = resolve;
-        },
-      );
+      const requestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{ universe: typeof universe }>();
       const meta = jest
         .fn()
         .mockImplementationOnce(() => {
-          startRequest();
-          return pendingMeta;
+          requestStarted.resolve();
+          return pendingMeta.promise;
         })
         .mockResolvedValueOnce({ universe });
       const { infoClient } = useStrategyClients({ info: { meta } });
@@ -3396,9 +3420,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const capabilitiesPromise = provider.getOrderCapabilities({
         symbol: 'ETH',
       });
-      await requestStarted;
+      await requestStarted.promise;
       await provider.disconnect();
-      resolveMeta({ universe });
+      pendingMeta.resolve({ universe });
 
       expect(await capabilitiesPromise).toStrictEqual({
         status: 'unavailable',
@@ -3417,25 +3441,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not cache capability metadata that resolves after disconnect', async () => {
-      let startRequest = (): void => undefined;
-      const requestStarted = new Promise<void>((resolve): void => {
-        startRequest = resolve;
-      });
-      let resolveMeta = (_meta: {
+      const requestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }): void => undefined;
-      const pendingMeta = new Promise<{
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }>((resolve): void => {
-        resolveMeta = resolve;
-      });
+      }>();
       const { infoClient } = useStrategyClients({
         info: {
           meta: jest
             .fn()
             .mockImplementationOnce(() => {
-              startRequest();
-              return pendingMeta;
+              requestStarted.resolve();
+              return pendingMeta.promise;
             })
             .mockResolvedValueOnce({
               universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
@@ -3446,9 +3462,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const capabilitiesPromise = provider.getOrderCapabilities({
         symbol: 'ETH',
       });
-      await requestStarted;
+      await requestStarted.promise;
       await provider.disconnect();
-      resolveMeta({
+      pendingMeta.resolve({
         universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 99 }],
       });
 
@@ -3463,33 +3479,24 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('does not cache general metadata that resolves after disconnect', async () => {
       const universe = [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }];
-      let startRequest = (): void => undefined;
-      const requestStarted = new Promise<void>((resolve): void => {
-        startRequest = resolve;
-      });
-      let resolveMeta = (_meta: { universe: typeof universe }): void =>
-        undefined;
-      const pendingMeta = new Promise<{ universe: typeof universe }>(
-        (resolve): void => {
-          resolveMeta = resolve;
-        },
-      );
+      const requestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{ universe: typeof universe }>();
       const { infoClient } = useStrategyClients({
         info: {
           meta: jest
             .fn()
             .mockImplementationOnce(() => {
-              startRequest();
-              return pendingMeta;
+              requestStarted.resolve();
+              return pendingMeta.promise;
             })
             .mockResolvedValueOnce({ universe }),
         },
       });
 
       const staleLeverage = provider.getMaxLeverage('ETH');
-      await requestStarted;
+      await requestStarted.promise;
       const disconnectResult = provider.disconnect();
-      resolveMeta({ universe });
+      pendingMeta.resolve({ universe });
 
       await staleLeverage;
       expect(await disconnectResult).toStrictEqual({ success: true });
@@ -3525,23 +3532,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not cache capability metadata that resolves after a network change', async () => {
-      let startRequest = (): void => undefined;
-      const requestStarted = new Promise<void>((resolve): void => {
-        startRequest = resolve;
-      });
-      let resolveMeta = (_meta: {
+      const requestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }): void => undefined;
-      const pendingMeta = new Promise<{
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-      }>((resolve): void => {
-        resolveMeta = resolve;
-      });
+      }>();
       const meta = jest
         .fn()
         .mockImplementationOnce(() => {
-          startRequest();
-          return pendingMeta;
+          requestStarted.resolve();
+          return pendingMeta.promise;
         })
         .mockResolvedValueOnce({
           universe: [{ name: 'BTC', szDecimals: 5, maxLeverage: 40 }],
@@ -3551,9 +3550,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const staleCapabilities = provider.getOrderCapabilities({
         symbol: 'ETH',
       });
-      await requestStarted;
+      await requestStarted.promise;
       await provider.toggleTestnet();
-      resolveMeta({
+      pendingMeta.resolve({
         universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
       });
 
@@ -3623,21 +3622,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not cache user fee rates that resolve after a network change', async () => {
-      let startRequest = (): void => undefined;
-      const requestStarted = new Promise<void>((resolve): void => {
-        startRequest = resolve;
-      });
-      let resolveUserFees = (_fees: typeof mainnetFees): void => undefined;
-      const pendingUserFees = new Promise<typeof mainnetFees>(
-        (resolve): void => {
-          resolveUserFees = resolve;
-        },
-      );
+      const requestStarted = createDeferred<void>();
+      const pendingUserFees = createDeferred<typeof mainnetFees>();
       const userFees = jest
         .fn()
         .mockImplementationOnce(() => {
-          startRequest();
-          return pendingUserFees;
+          requestStarted.resolve();
+          return pendingUserFees.promise;
         })
         .mockResolvedValueOnce(testnetFees);
       const { infoClient } = useStrategyClients({ info: { userFees } });
@@ -3648,10 +3639,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       };
 
       const staleFees = provider.calculateFees(params);
-      await requestStarted;
+      await requestStarted.promise;
       await provider.toggleTestnet();
-      resolveUserFees(mainnetFees);
-      await staleFees;
+      pendingUserFees.resolve(mainnetFees);
+      await expect(staleFees).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
 
       expect((await provider.calculateFees(params)).protocolFeeRate).toBe(
         0.0006,
@@ -3659,21 +3652,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.userFees).toHaveBeenCalledTimes(2);
     });
 
-    it('does not retain builder approval that finishes after disconnect', async () => {
-      let markVerificationStarted = (): void => undefined;
-      const verificationStarted = new Promise<void>((resolve): void => {
-        markVerificationStarted = resolve;
-      });
-      let resolveVerification = (_fee: number): void => undefined;
-      const pendingVerification = new Promise<number>((resolve): void => {
-        resolveVerification = resolve;
-      });
+    it('retains confirmed builder approval that finishes after disconnect', async () => {
+      let cachedBuilderFee:
+        | { attempted: boolean; success: boolean }
+        | undefined;
+      const mockedCache = jest.mocked(TradingReadinessCache);
+      mockedCache.getBuilderFee.mockImplementation(() => cachedBuilderFee);
+      mockedCache.setBuilderFee.mockImplementation(
+        (_network, _userAddress, status) => {
+          cachedBuilderFee = status;
+        },
+      );
+      const verificationStarted = createDeferred<void>();
+      const pendingVerification = createDeferred<number>();
       const maxBuilderFee = jest
         .fn()
         .mockResolvedValueOnce(0)
         .mockImplementationOnce(() => {
-          markVerificationStarted();
-          return pendingVerification;
+          verificationStarted.resolve();
+          return pendingVerification.promise;
         })
         .mockResolvedValueOnce(0)
         .mockResolvedValueOnce(BUILDER_FEE_CONFIG.MaxFeeDecimal);
@@ -3686,9 +3683,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       };
 
       const stalePlacement = provider.placeOrder(params);
-      await verificationStarted;
+      await verificationStarted.promise;
       const disconnect = provider.disconnect();
-      resolveVerification(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      pendingVerification.resolve(BUILDER_FEE_CONFIG.MaxFeeDecimal);
       await Promise.all([stalePlacement, disconnect]);
 
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
@@ -3696,7 +3693,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.initialize();
       await provider.placeOrder(params);
 
-      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -4382,6 +4379,56 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].builder.f).toBe(quotedFee);
+    });
+
+    it('omits the builder from initial and repriced configured chase orders', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          chase: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[0][0]).not.toHaveProperty('builder');
+      expect(order.mock.calls[1][0]).not.toHaveProperty('builder');
     });
   });
 
@@ -5244,6 +5291,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       mockClientService.getExchangeClient.mockReturnValue(
         exchangeClient as never,
       );
+      await provider.initialize();
       const cancelled = await provider.cancelOrder({
         orderId: (placed.childOrderIds as string[])[0],
         symbol: 'ETH',

@@ -34,6 +34,7 @@ import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js'
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 import type {
+  ActivePerpsProvider,
   GetAvailableDexsParams,
   PerpsProvider,
   PerpsPlatformDependencies,
@@ -272,6 +273,15 @@ class TestablePerpsController extends PerpsController {
     if (firstProvider) {
       this.activeProviderInstance = firstProvider;
     }
+  }
+
+  /**
+   * Set a routed provider independently from the direct-provider registry.
+   *
+   * @param provider - Active direct or routed provider.
+   */
+  public testSetActiveProvider(provider: ActivePerpsProvider) {
+    this.activeProviderInstance = provider;
   }
 
   /**
@@ -919,22 +929,6 @@ describe('PerpsController', () => {
       });
     });
 
-    it('reports a provider route that capability discovery cannot find', async () => {
-      mockProvider.getOrderCapabilities = jest
-        .fn()
-        .mockRejectedValue(new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND));
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await expect(
-        controller.getOrderCapabilities({ symbol: 'BTC' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'hyperliquid',
-        reason: 'provider_not_found',
-      });
-    });
-
     it('preserves the requested provider when provider resolution fails', async () => {
       await expect(
         controller.getOrderCapabilities({
@@ -972,8 +966,12 @@ describe('PerpsController', () => {
         state.activeProvider = 'aggregated';
       });
       controller.testSetProviders(
-        new Map([['hyperliquid', aggregatedProvider]]),
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
       );
+      controller.testSetActiveProvider(aggregatedProvider);
 
       await expect(
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),

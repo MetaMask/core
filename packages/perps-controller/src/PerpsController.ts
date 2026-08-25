@@ -1041,6 +1041,10 @@ export class PerpsController extends BaseController<
 
   #isReinitializing = false;
 
+  #reinitializationOperationPromise: Promise<void> | null = null;
+
+  #disconnectOperationPromise: Promise<void> | null = null;
+
   /** Tracks the async MYX dynamic import so performInitialization can await it. */
   #myxRegistrationPromise: Promise<void> | null = null;
 
@@ -2119,6 +2123,21 @@ export class PerpsController extends BaseController<
    * @returns A promise that resolves when the operation completes.
    */
   async init(): Promise<void> {
+    const pendingDisconnect = this.#disconnectOperationPromise;
+    if (pendingDisconnect) {
+      await pendingDisconnect;
+    }
+
+    return this.#initWithoutDisconnectWait();
+  }
+
+  /**
+   * Initialize without waiting for disconnect. Reinitialization operations use
+   * this after they have claimed the controller lifecycle.
+   *
+   * @returns A promise that resolves when initialization finishes.
+   */
+  async #initWithoutDisconnectWait(): Promise<void> {
     if (!this.#handlersRegistered) {
       this.messenger.registerMethodActionHandlers(
         this,
@@ -2137,6 +2156,29 @@ export class PerpsController extends BaseController<
 
     this.#initializationPromise = this.#performInitialization();
     return this.#initializationPromise;
+  }
+
+  /**
+   * Track a network or provider reinitialization so disconnect can serialize
+   * behind the whole operation, including work before and after init().
+   *
+   * @returns A callback that releases the lifecycle operation.
+   */
+  #beginReinitialization(): () => void {
+    this.#isReinitializing = true;
+    let resolveOperation = (): void => undefined;
+    const operation = new Promise<void>((resolve) => {
+      resolveOperation = resolve;
+    });
+    this.#reinitializationOperationPromise = operation;
+
+    return (): void => {
+      this.#isReinitializing = false;
+      resolveOperation();
+      if (this.#reinitializationOperationPromise === operation) {
+        this.#reinitializationOperationPromise = null;
+      }
+    };
   }
 
   /**
@@ -2702,15 +2744,10 @@ export class PerpsController extends BaseController<
       this.#debugLog('PerpsController: Order capabilities unavailable', {
         error: safeError.message,
       });
-      let reason: OrderCapabilitiesUnavailableReason = 'provider_unavailable';
-      if (safeError.message === PERPS_ERROR_CODES.PROVIDER_NOT_FOUND) {
-        reason = 'provider_not_found';
-      } else if (
-        safeError.message === PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED
-      ) {
-        reason = 'provider_not_routable';
-      }
-      return this.#getUnavailableOrderCapabilities(reason, resolvedProviderId);
+      return this.#getUnavailableOrderCapabilities(
+        'provider_unavailable',
+        resolvedProviderId,
+      );
     }
   }
 
@@ -4884,6 +4921,11 @@ export class PerpsController extends BaseController<
    * @returns The toggle result with success status and current network mode.
    */
   async toggleTestnet(): Promise<ToggleTestnetResult> {
+    const pendingDisconnect = this.#disconnectOperationPromise;
+    if (pendingDisconnect) {
+      await pendingDisconnect;
+    }
+
     // Prevent concurrent reinitializations
     if (this.isCurrentlyReinitializing()) {
       this.#debugLog(
@@ -4899,7 +4941,7 @@ export class PerpsController extends BaseController<
       };
     }
 
-    this.#isReinitializing = true;
+    const completeReinitialization = this.#beginReinitialization();
 
     // Store previous isTestnet for rollback on failure
     const previousIsTestnet = this.state.isTestnet;
@@ -4924,7 +4966,7 @@ export class PerpsController extends BaseController<
       // Reset initialization state and reinitialize provider with new testnet setting
       this.isInitialized = false;
       this.#initializationPromise = null;
-      await this.init();
+      await this.#initWithoutDisconnectWait();
 
       // Check if initialization actually succeeded — performInitialization()
       // does not throw on failure, it sets state to Failed and resolves.
@@ -4954,7 +4996,7 @@ export class PerpsController extends BaseController<
         error: ensureError(error, 'PerpsController.toggleTestnet').message,
       };
     } finally {
-      this.#isReinitializing = false;
+      completeReinitialization();
 
       // Re-trigger preload now that reinit is complete and the
       // activeProviderInstance points to the correct network.
@@ -4982,6 +5024,11 @@ export class PerpsController extends BaseController<
   async switchProvider(
     providerId: PerpsActiveProviderMode,
   ): Promise<SwitchProviderResult> {
+    const pendingDisconnect = this.#disconnectOperationPromise;
+    if (pendingDisconnect) {
+      await pendingDisconnect;
+    }
+
     // No-op if already on this provider (regardless of init state)
     if (this.state.activeProvider === providerId) {
       return { success: true, providerId };
@@ -5009,7 +5056,7 @@ export class PerpsController extends BaseController<
       };
     }
 
-    this.#isReinitializing = true;
+    const completeReinitialization = this.#beginReinitialization();
 
     // Store previous provider for rollback on failure
     const previousProvider = this.state.activeProvider;
@@ -5024,8 +5071,7 @@ export class PerpsController extends BaseController<
       });
 
       // Provider disconnect is handled by performInitialization() during
-      // reinitialization. The disconnect() method skips provider teardown
-      // when isReinitializing is true to prevent double-disconnect.
+      // reinitialization.
 
       // Update state with new provider (market data cache preserved per-provider)
       this.update((state) => {
@@ -5037,7 +5083,7 @@ export class PerpsController extends BaseController<
       // Reset initialization state and reinitialize
       this.isInitialized = false;
       this.#initializationPromise = null;
-      await this.init();
+      await this.#initWithoutDisconnectWait();
 
       // Check if initialization actually succeeded — performInitialization()
       // does not throw on failure, it sets state to Failed and resolves.
@@ -5069,7 +5115,7 @@ export class PerpsController extends BaseController<
       try {
         this.isInitialized = false;
         this.#initializationPromise = null;
-        await this.init();
+        await this.#initWithoutDisconnectWait();
 
         this.#debugLog(
           'PerpsController: Rollback to previous provider succeeded',
@@ -5100,7 +5146,7 @@ export class PerpsController extends BaseController<
             : PERPS_ERROR_CODES.UNKNOWN_ERROR,
       };
     } finally {
-      this.#isReinitializing = false;
+      completeReinitialization();
 
       // Re-trigger preload now that reinit is complete.
       if (this.#preloadTimer) {
@@ -5547,6 +5593,33 @@ export class PerpsController extends BaseController<
    * Call this when navigating away from Perps screens to prevent battery drain
    */
   async disconnect(): Promise<void> {
+    if (this.#disconnectOperationPromise) {
+      await this.#disconnectOperationPromise;
+      return;
+    }
+
+    let resolveOperation = (): void => undefined;
+    const operation = new Promise<void>((resolve) => {
+      resolveOperation = resolve;
+    });
+    this.#disconnectOperationPromise = operation;
+
+    try {
+      await this.#performDisconnect();
+    } finally {
+      resolveOperation();
+      if (this.#disconnectOperationPromise === operation) {
+        this.#disconnectOperationPromise = null;
+      }
+    }
+  }
+
+  /**
+   * Disconnect after this call has claimed the controller lifecycle.
+   *
+   * @returns A promise that resolves when teardown finishes.
+   */
+  async #performDisconnect(): Promise<void> {
     this.#debugLog(
       'PerpsController: Disconnecting provider to cleanup subscriptions',
       {
@@ -5571,17 +5644,30 @@ export class PerpsController extends BaseController<
     this.#previousIsTestnet = null;
     this.#previousHip3ConfigVersion = null;
 
+    const pendingReinitialization = this.#reinitializationOperationPromise;
+    if (pendingReinitialization) {
+      await pendingReinitialization;
+    }
+
     // Initialization owns provider creation. Let it finish before teardown so
     // it cannot repopulate providers after this method clears the references.
     const pendingInitialization = this.#initializationPromise;
     if (pendingInitialization) {
-      await pendingInitialization;
+      try {
+        await pendingInitialization;
+      } catch (error) {
+        this.#logError(
+          ensureError(error, 'PerpsController.disconnect.initialization'),
+          this.#getErrorContext('disconnect', {
+            operation: 'awaitInitialization',
+          }),
+        );
+      }
     }
 
-    // Only disconnect the provider if we're initialized
-    if (this.isInitialized && !this.isCurrentlyReinitializing()) {
+    const provider = this.activeProviderInstance;
+    if (provider) {
       try {
-        const provider = this.getActiveProvider();
         await provider.disconnect();
       } catch (error) {
         this.#logError(

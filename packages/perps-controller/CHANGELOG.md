@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preserve compatibility through an optional provider hook and explicit unavailable reasons.
   - Capability reads wait for in-flight controller initialization before resolving the active provider, so discovery uses the provider selected when initialization completes.
   - Capability reads return a typed unavailable result instead of throwing.
+- Add `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND` and `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE` for missing explicit routes and async provider work invalidated by disconnect or a network change ([#9948](https://github.com/MetaMask/core/pull/9948))
 
 ### Changed
 
@@ -40,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Resolve HyperLiquid builder-fee applicability through an exhaustive provider-owned order policy and exclude the MetaMask builder fee from TWAP quotes ([#9948](https://github.com/MetaMask/core/pull/9948))
   - `calculateFees` now returns a `metamaskFeeRate` and `metamaskFeeAmount` of `0` for TWAP instead of `0.001` and its derived amount. The HyperLiquid protocol/taker fee is unchanged. Fee discounts do not add a MetaMask fee because the native TWAP action has no builder field, so native TWAP produces no MetaMask builder-fee revenue.
   - Clients may override builder-fee applicability for HyperLiquid market, limit, scale, and chase actions through optional provider configuration. Quotes and placement use the same policy. Native TWAP cannot be overridden, and attached trigger children inherit their parent action because HyperLiquid accepts one builder context per batch.
+- **BREAKING:** Reject non-positive or non-plain-decimal `calculateFees` amounts with `ORDER_SIZE_POSITIVE` in HyperLiquid and MYX providers instead of returning a zero or partially parsed quote ([#9948](https://github.com/MetaMask/core/pull/9948))
+  - Amount strings must use digits with an optional decimal fraction. Exponential notation, hexadecimal notation, leading or trailing whitespace, and leading-dot decimals are rejected.
 - Wait for in-flight `PerpsController` initialization before calculating ordinary or strategy fee quotes instead of throwing `CLIENT_NOT_INITIALIZED`; placement already waited for the same initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))

@@ -8,6 +8,7 @@
 
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
@@ -1030,6 +1031,101 @@ describe('PerpsController', () => {
   });
 
   describe('action calls during initialization', () => {
+    it('initializes only after an in-flight disconnect finishes', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return pendingDisconnect.promise;
+      });
+
+      const disconnectPromise = controller.disconnect();
+      await disconnectStarted.promise;
+      let initSettled = false;
+      const initPromise = controller.init().then(() => {
+        initSettled = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(initSettled).toBe(false);
+      pendingDisconnect.resolve();
+      await disconnectPromise;
+      await initPromise;
+
+      expect(controller.testGetInitialized()).toBe(true);
+      expect(mockProvider.disconnect).toHaveBeenCalledTimes(2);
+    });
+
+    it('disconnects the provider created by an in-flight network toggle', async () => {
+      await controller.init();
+      const replacementProvider = createMockHyperLiquidProvider();
+      jest
+        .mocked(HyperLiquidProvider)
+        .mockImplementationOnce(() => replacementProvider);
+      const pendingReinitialization = createDeferred<void>();
+      jest
+        .mocked(mockWait)
+        .mockImplementationOnce(() => pendingReinitialization.promise);
+
+      const togglePromise = controller.toggleTestnet();
+      await Promise.resolve();
+      await Promise.resolve();
+      let disconnectSettled = false;
+      const disconnectPromise = controller.disconnect().then(() => {
+        disconnectSettled = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(disconnectSettled).toBe(false);
+      expect(replacementProvider.disconnect).not.toHaveBeenCalled();
+      pendingReinitialization.resolve();
+      await expect(togglePromise).resolves.toStrictEqual({
+        success: true,
+        isTestnet: true,
+      });
+      await disconnectPromise;
+
+      expect(replacementProvider.disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.testGetInitialized()).toBe(false);
+    });
+
+    it('disconnects the provider created by an in-flight provider switch', async () => {
+      await controller.init();
+      const replacementProvider = createMockHyperLiquidProvider();
+      jest
+        .mocked(HyperLiquidProvider)
+        .mockImplementationOnce(() => replacementProvider);
+      const pendingReinitialization = createDeferred<void>();
+      jest
+        .mocked(mockWait)
+        .mockImplementationOnce(() => pendingReinitialization.promise);
+
+      const switchPromise = controller.switchProvider('aggregated');
+      await Promise.resolve();
+      await Promise.resolve();
+      let disconnectSettled = false;
+      const disconnectPromise = controller.disconnect().then(() => {
+        disconnectSettled = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(disconnectSettled).toBe(false);
+      expect(replacementProvider.disconnect).not.toHaveBeenCalled();
+      pendingReinitialization.resolve();
+      await expect(switchPromise).resolves.toStrictEqual({
+        success: true,
+        providerId: 'aggregated',
+      });
+      await disconnectPromise;
+
+      expect(replacementProvider.disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.testGetInitialized()).toBe(false);
+    });
+
     it('waits for initialization before disconnecting the created provider', async () => {
       let resolveBlock!: () => void;
       const blockingPromise = new Promise<void>((resolve) => {
@@ -1065,6 +1161,22 @@ describe('PerpsController', () => {
       resolveBlock();
       await initPromise;
       await disconnectPromise;
+
+      expect(mockProvider.disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.testGetInitialized()).toBe(false);
+      expect(controller.getActiveProviderOrNull()).toBeNull();
+    });
+
+    it('tears down an active provider when initialization rejects', async () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockInfrastructure.debugLogger.log.mockImplementationOnce(() => {
+        throw new Error('Initialization logging failed');
+      });
+
+      await expect(controller.init()).rejects.toThrow(
+        'Initialization logging failed',
+      );
+      await expect(controller.disconnect()).resolves.toBeUndefined();
 
       expect(mockProvider.disconnect).toHaveBeenCalledTimes(1);
       expect(controller.testGetInitialized()).toBe(false);

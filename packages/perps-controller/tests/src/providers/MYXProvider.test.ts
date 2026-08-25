@@ -761,7 +761,7 @@ describe('MYXProvider', () => {
       });
     });
 
-    it.each(['abc', '-1', 'Infinity', '1abc', ''])(
+    it.each(['abc', '-1', 'Infinity', '1abc', '', '0', '.5', '1e5', '0x10'])(
       'rejects invalid amount quote %p',
       async (amount) => {
         await expect(

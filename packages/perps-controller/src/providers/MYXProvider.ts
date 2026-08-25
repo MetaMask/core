@@ -118,6 +118,7 @@ import {
 } from '../utils/myxAdapter.js';
 import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import { isStrategyOrderType } from '../utils/orderTypes.js';
+import { parseBoundedPositiveDecimal } from '../utils/stringParseUtils.js';
 
 // ============================================================================
 // Constants
@@ -995,13 +996,10 @@ export class MYXProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
     }
     const parsedAmount =
-      params.amount === undefined ? undefined : Number(params.amount);
-    if (
-      parsedAmount !== undefined &&
-      (params.amount?.trim().length === 0 ||
-        !Number.isFinite(parsedAmount) ||
-        parsedAmount < 0)
-    ) {
+      params.amount === undefined
+        ? undefined
+        : parseBoundedPositiveDecimal(params.amount);
+    if (parsedAmount === null) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     }
     const protocolFeeAmount =

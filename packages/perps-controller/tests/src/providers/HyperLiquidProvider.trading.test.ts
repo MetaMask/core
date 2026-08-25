@@ -1289,6 +1289,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('closes a position successfully', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
       const closeParams: ClosePositionParams = {
         symbol: 'BTC',
         orderType: 'market',
@@ -1297,6 +1298,10 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(true);
+      expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual({
+        b: BUILDER_FEE_CONFIG.MainnetBuilder,
+        f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+      });
     });
 
     it('closes a position without builder setup when the market fee is disabled', async () => {
@@ -3184,17 +3189,18 @@ describe('HyperLiquidProvider', () => {
           }),
         );
 
-        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
-          createMockExchangeClient({
-            order: jest.fn().mockResolvedValue({
-              response: {
-                data: {
-                  statuses: [{ filled: {} }, { filled: {} }],
-                },
+        const exchangeClient = createMockExchangeClient({
+          order: jest.fn().mockResolvedValue({
+            response: {
+              data: {
+                statuses: [{ filled: {} }, { filled: {} }],
               },
-            }),
+            },
           }),
-        );
+        });
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(exchangeClient);
 
         const result = await provider.closePositions({ closeAll: true });
 
@@ -3204,6 +3210,10 @@ describe('HyperLiquidProvider', () => {
         expect(result.results).toHaveLength(2);
         expect(result.results[0].symbol).toBe('BTC');
         expect(result.results[1].symbol).toBe('ETH');
+        expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual({
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        });
       });
 
       it('closes a batch without builder setup when the market fee is disabled', async () => {
