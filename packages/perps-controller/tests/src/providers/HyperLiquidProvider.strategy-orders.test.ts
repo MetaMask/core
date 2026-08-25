@@ -7,10 +7,7 @@ import {
   PROVIDER_CONFIG,
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import {
-  HYPERLIQUID_ORDER_FEE_CONFIG,
-  HyperLiquidProvider,
-} from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
@@ -2509,20 +2506,50 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Fee quoting for strategy placements', () => {
     const configuredOrderTypes = {
-      market: { orderType: 'market' },
-      limit: { orderType: 'limit' },
-      stop_market: { orderType: 'stop_market' },
-      stop_limit: { orderType: 'stop_limit' },
-      take_profit_market: { orderType: 'take_profit_market' },
-      take_profit_limit: { orderType: 'take_profit_limit' },
-      twap: { orderType: 'twap' },
-      scale: { orderType: 'scale' },
-      chase: { orderType: 'chase' },
-    } satisfies Record<OrderType, { orderType: OrderType }>;
+      market: {
+        orderType: 'market',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      limit: {
+        orderType: 'limit',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      stop_market: {
+        orderType: 'stop_market',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      stop_limit: {
+        orderType: 'stop_limit',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      take_profit_market: {
+        orderType: 'take_profit_market',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      take_profit_limit: {
+        orderType: 'take_profit_limit',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      twap: {
+        orderType: 'twap',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.NoBuilderFieldFeeDecimal,
+      },
+      scale: {
+        orderType: 'scale',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      chase: {
+        orderType: 'chase',
+        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+    } satisfies Record<
+      OrderType,
+      { orderType: OrderType; expectedMetamaskFeeRate: number }
+    >;
 
     it.each(Object.values(configuredOrderTypes))(
       'quotes $orderType with its provider-owned builder fee policy',
-      async ({ orderType }) => {
+      async ({ orderType, expectedMetamaskFeeRate }) => {
         useStrategyClients();
 
         const fees = await provider.calculateFees({
@@ -2531,11 +2558,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           symbol: 'ETH',
         });
 
-        const expectedRate = HYPERLIQUID_ORDER_FEE_CONFIG[orderType]
-          .chargesMetamaskBuilderFee
-          ? BUILDER_FEE_CONFIG.MaxFeeDecimal
-          : BUILDER_FEE_CONFIG.NoBuilderFieldFeeDecimal;
-        expect(fees.metamaskFeeRate).toBe(expectedRate);
+        expect(fees.metamaskFeeRate).toBe(expectedMetamaskFeeRate);
       },
     );
 
@@ -2974,30 +2997,77 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('deduplicates concurrent metadata refreshes', async () => {
-      const { infoClient } = useStrategyClients();
+      let startMetaRequest = (): void => undefined;
+      const metaRequestStarted = new Promise<void>((resolve): void => {
+        startMetaRequest = resolve;
+      });
+      let resolveMeta = (_meta: {
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }): void => undefined;
+      const pendingMeta = new Promise<{
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }>((resolve): void => {
+        resolveMeta = resolve;
+      });
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest.fn().mockImplementation(() => {
+            startMetaRequest();
+            return pendingMeta;
+          }),
+        },
+      });
 
-      await Promise.all([
+      const reads = [
         provider.getOrderCapabilities({ symbol: 'BTC' }),
         provider.getOrderCapabilities({ symbol: 'ETH' }),
-      ]);
+      ];
+      await metaRequestStarted;
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
+      resolveMeta({
+        universe: [
+          { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+          { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+        ],
+      });
+      await Promise.all(reads);
     });
 
     it('deduplicates concurrent HIP-3 metadata refreshes', async () => {
+      let startMetaRequest = (): void => undefined;
+      const metaRequestStarted = new Promise<void>((resolve): void => {
+        startMetaRequest = resolve;
+      });
+      let resolveMeta = (_meta: {
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+        collateralToken: number;
+      }): void => undefined;
+      const pendingMeta = new Promise<{
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+        collateralToken: number;
+      }>((resolve): void => {
+        resolveMeta = resolve;
+      });
       const { capabilityProvider, infoClient } = useHip3Capabilities({
-        meta: jest.fn().mockResolvedValue({
-          universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
-          collateralToken: 0,
+        meta: jest.fn().mockImplementation(() => {
+          startMetaRequest();
+          return pendingMeta;
         }),
       });
 
-      await Promise.all([
+      const reads = [
         capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
         capabilityProvider.getOrderCapabilities({ symbol: 'xyz:NVDA' }),
-      ]);
+      ];
+      await metaRequestStarted;
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
+      resolveMeta({
+        universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+        collateralToken: 0,
+      });
+      await Promise.all(reads);
     });
 
     it('refreshes metadata after reconnect', async () => {

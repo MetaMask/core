@@ -26,6 +26,7 @@ import type {
   LiquidationPriceParams,
   MaintenanceMarginParams,
   FeeCalculationParams,
+  RoutedFeeCalculationParams,
   FeeCalculationResult,
   OrderParams,
   ClosePositionParams,
@@ -1281,9 +1282,9 @@ export class MarketDataService {
    * @param options.context - The service context for dependencies.
    * @returns The result of the operation.
    */
-  async calculateFees(options: {
+  async calculateFees<const Params extends FeeCalculationParams>(options: {
     provider: ActivePerpsProvider;
-    params: FeeCalculationParams;
+    params: RoutedFeeCalculationParams<Params>;
     context: ServiceContext;
   }): Promise<FeeCalculationResult> {
     const { provider, params, context } = options;

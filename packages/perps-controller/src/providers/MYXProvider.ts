@@ -213,6 +213,7 @@ export class MYXProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
+    // MYX market IDs are never DEX-prefixed.
     if (
       !isValidCapabilitySymbol(params.symbol) ||
       params.symbol.includes(':')
@@ -249,9 +250,9 @@ export class MYXProvider implements PerpsProvider {
         };
       }
       const capabilityPools = filterMYXExclusiveMarkets(pools);
-      const market = capabilityPools
-        .map((pool) => adaptMarketFromMYX(pool))
-        .find(({ name }) => name === params.symbol);
+      const market = capabilityPools.find(
+        (pool) => adaptMarketFromMYX(pool).name === params.symbol,
+      );
 
       return market
         ? MYX_ORDER_CAPABILITIES

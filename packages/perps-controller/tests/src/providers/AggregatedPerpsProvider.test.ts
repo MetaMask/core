@@ -2,11 +2,11 @@ import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
-  CancelOrderParams,
-  FeeCalculationParams,
-  OrderParams,
   PerpsProvider,
   PerpsProviderType,
+  RoutedCancelOrderParams,
+  RoutedFeeCalculationParams,
+  RoutedOrderParams,
   RoutedPerpsProvider,
   Position,
   MarketInfo,
@@ -539,8 +539,8 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('Write Operations - placeOrder', () => {
-    it('accepts an ordinary order held as the base parameter type', async () => {
-      const params: OrderParams = {
+    it('accepts an ordinary order held as the routed parameter type', async () => {
+      const params: RoutedOrderParams = {
         symbol: 'BTC',
         isBuy: true,
         size: '0.1',
@@ -596,7 +596,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('preserves legacy fallback for an unregistered explicit provider', async () => {
-      await aggregatedProvider.placeOrder({
+      const result = await aggregatedProvider.placeOrder({
         symbol: 'BTC',
         isBuy: true,
         size: '0.1',
@@ -605,7 +605,19 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'unknown-provider',
       });
 
-      expect(mockHLProvider.placeOrder).toHaveBeenCalled();
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: 'order-123',
+        providerId: 'hyperliquid',
+      });
+      expect(mockHLProvider.placeOrder).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        providerId: 'unknown-provider',
+      });
+      expect(mockMYXProvider.placeOrder).not.toHaveBeenCalled();
     });
 
     it('rejects an unregistered explicit provider for a strategy order', async () => {
@@ -624,12 +636,13 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects a strategy order without an explicit provider route', async () => {
       await expect(
-        // @ts-expect-error Routed strategy placement requires providerId.
         routedProvider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
           size: '0.1',
           orderType: 'twap',
+          // @ts-expect-error Routed strategy placement requires providerId.
+          providerId: undefined,
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
@@ -637,8 +650,8 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('Write Operations - cancelOrder', () => {
-    it('accepts an ordinary cancel held as the base parameter type', async () => {
-      const params: CancelOrderParams = {
+    it('accepts an ordinary cancel held as the routed parameter type', async () => {
+      const params: RoutedCancelOrderParams = {
         orderId: 'order-123',
         symbol: 'BTC',
       };
@@ -676,7 +689,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('preserves legacy fallback for an unregistered ordinary-order route', async () => {
-      await aggregatedProvider.cancelOrder({
+      const result = await aggregatedProvider.cancelOrder({
         orderId: 'order-123',
         symbol: 'BTC',
         orderType: 'limit',
@@ -684,7 +697,17 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'unknown-provider',
       });
 
-      expect(mockHLProvider.cancelOrder).toHaveBeenCalled();
+      expect(result).toStrictEqual({
+        success: true,
+        providerId: 'hyperliquid',
+      });
+      expect(mockHLProvider.cancelOrder).toHaveBeenCalledWith({
+        orderId: 'order-123',
+        symbol: 'BTC',
+        orderType: 'limit',
+        providerId: 'unknown-provider',
+      });
+      expect(mockMYXProvider.cancelOrder).not.toHaveBeenCalled();
     });
 
     it('rejects an unregistered explicit provider for a strategy cancel', async () => {
@@ -702,11 +725,12 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects a strategy cancel without an explicit provider route', async () => {
       await expect(
-        // @ts-expect-error Routed strategy cancellation requires providerId.
         routedProvider.cancelOrder({
           orderId: 'strategy-123',
           symbol: 'BTC',
           orderType: 'twap',
+          // @ts-expect-error Routed strategy cancellation requires providerId.
+          providerId: undefined,
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
@@ -938,8 +962,8 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
     });
 
-    it('accepts an ordinary fee request held as the base parameter type', async () => {
-      const params: FeeCalculationParams = {
+    it('accepts an ordinary fee request held as the routed parameter type', async () => {
+      const params: RoutedFeeCalculationParams = {
         orderType: 'market',
         symbol: 'BTC',
       };
@@ -967,12 +991,32 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
     });
 
+    it('falls back for an unregistered ordinary fee route', async () => {
+      mockHLProvider.calculateFees.mockResolvedValue({ feeRate: 0.001 });
+
+      const result = await routedProvider.calculateFees({
+        orderType: 'market',
+        symbol: 'BTC',
+        // @ts-expect-error Testing legacy fallback with an invalid provider.
+        providerId: 'unknown-provider',
+      });
+
+      expect(result).toStrictEqual({ feeRate: 0.001 });
+      expect(mockHLProvider.calculateFees).toHaveBeenCalledWith({
+        orderType: 'market',
+        symbol: 'BTC',
+        providerId: 'unknown-provider',
+      });
+      expect(mockMYXProvider.calculateFees).not.toHaveBeenCalled();
+    });
+
     it('rejects a strategy fee quote without an explicit provider route', async () => {
       await expect(
-        // @ts-expect-error Routed strategy fee quotes require providerId.
         routedProvider.calculateFees({
           orderType: 'twap',
           symbol: 'BTC',
+          // @ts-expect-error Routed strategy fee quotes require providerId.
+          providerId: undefined,
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();

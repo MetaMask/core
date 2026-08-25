@@ -330,9 +330,9 @@ export type RoutedOrderParams<Params extends OrderParams = never> = [
           }>
       )
   : Params &
-      (Params['orderType'] extends StrategyOrderType
-        ? Readonly<{ providerId: PerpsProviderType }>
-        : unknown);
+      ([Extract<Params['orderType'], StrategyOrderType>] extends [never]
+        ? unknown
+        : Readonly<{ providerId: PerpsProviderType }>);
 
 export type OrderResult = {
   success?: boolean;
@@ -821,8 +821,10 @@ export type RoutedCancelOrderParams<Params extends CancelOrderParams = never> =
             }>
         )
     : Params &
-        (Params['orderType'] extends StrategyOrderType
-          ? Readonly<{ providerId: PerpsProviderType }>
+        ('orderType' extends keyof Params
+          ? [Extract<Params['orderType'], StrategyOrderType>] extends [never]
+            ? unknown
+            : Readonly<{ providerId: PerpsProviderType }>
           : unknown);
 
 export type CancelOrderResult = {
@@ -1404,9 +1406,9 @@ export type RoutedFeeCalculationParams<
           }>
       )
   : Params &
-      (Params['orderType'] extends StrategyOrderType
-        ? Readonly<{ providerId: PerpsProviderType }>
-        : unknown);
+      ([Extract<Params['orderType'], StrategyOrderType>] extends [never]
+        ? unknown
+        : Readonly<{ providerId: PerpsProviderType }>);
 
 export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
@@ -1612,7 +1614,7 @@ export type PerpsProvider = {
    */
   getOrderCapabilities?(
     params: GetOrderCapabilitiesParams,
-  ): Promise<PerpsOrderCapabilities>;
+  ): Promise<DirectProviderOrderCapabilities>;
 
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
@@ -1809,9 +1811,16 @@ export type PerpsProvider = {
  */
 export type RoutedPerpsProvider = Omit<
   PerpsProvider,
-  'routesOrdersByProviderId' | 'placeOrder' | 'cancelOrder' | 'calculateFees'
+  | 'routesOrdersByProviderId'
+  | 'getOrderCapabilities'
+  | 'placeOrder'
+  | 'cancelOrder'
+  | 'calculateFees'
 > & {
   readonly routesOrdersByProviderId: true;
+  getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities>;
   placeOrder<const Params extends OrderParams>(
     params: RoutedOrderParams<Params>,
   ): Promise<OrderResult>;

@@ -756,7 +756,7 @@ type HyperLiquidOrderFeeConfiguration = Readonly<
  * action has no builder field; every other current placement uses the standard
  * order action.
  */
-export const HYPERLIQUID_ORDER_FEE_CONFIG: HyperLiquidOrderFeeConfiguration = {
+const HYPERLIQUID_ORDER_FEE_CONFIG: HyperLiquidOrderFeeConfiguration = {
   market: { chargesMetamaskBuilderFee: true },
   limit: { chargesMetamaskBuilderFee: true },
   stop_market: { chargesMetamaskBuilderFee: true },
@@ -1108,7 +1108,6 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
-    const { dex, symbol } = parseAssetName(params.symbol);
     if (!isValidCapabilitySymbol(params.symbol)) {
       return {
         status: 'unavailable',
@@ -1116,6 +1115,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         reason: 'invalid_symbol',
       };
     }
+    const { dex, symbol } = parseAssetName(params.symbol);
 
     if (this.#isDisconnected || this.#disconnectDepth > 0) {
       return {
