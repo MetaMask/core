@@ -1026,9 +1026,6 @@ describe('PerpsController', () => {
       async (orderType) => {
         markControllerAsInitialized();
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-        controller.testUpdate((state) => {
-          state.activeProvider = 'myx';
-        });
 
         await expect(
           controller.placeOrder({
@@ -1038,7 +1035,7 @@ describe('PerpsController', () => {
             isBuy: true,
             size: '1',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
         expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
       },
     );
@@ -1104,9 +1101,6 @@ describe('PerpsController', () => {
       async (orderType) => {
         markControllerAsInitialized();
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-        controller.testUpdate((state) => {
-          state.activeProvider = 'myx';
-        });
 
         await expect(
           controller.cancelOrder({
@@ -1115,7 +1109,7 @@ describe('PerpsController', () => {
             providerId: 'myx',
             orderType,
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
         expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
       },
     );
@@ -1145,9 +1139,6 @@ describe('PerpsController', () => {
       async (orderType) => {
         markControllerAsInitialized();
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-        controller.testUpdate((state) => {
-          state.activeProvider = 'myx';
-        });
 
         await expect(
           controller.validateOrder({
@@ -1157,7 +1148,7 @@ describe('PerpsController', () => {
             isBuy: true,
             size: '1',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
         expect(
           mockMarketDataServiceInstance.validateOrder,
         ).not.toHaveBeenCalled();
@@ -1294,9 +1285,6 @@ describe('PerpsController', () => {
       async (orderType) => {
         markControllerAsInitialized();
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-        controller.testUpdate((state) => {
-          state.activeProvider = 'myx';
-        });
 
         await expect(
           controller.calculateFees({
@@ -1304,7 +1292,7 @@ describe('PerpsController', () => {
             symbol: 'RHEA',
             providerId: 'myx',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
         expect(
           mockMarketDataServiceInstance.calculateFees,
         ).not.toHaveBeenCalled();

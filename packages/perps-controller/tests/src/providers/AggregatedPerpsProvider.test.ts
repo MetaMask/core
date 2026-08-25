@@ -1166,7 +1166,7 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
-    it('attributes capabilities to the provider route that resolved them', async () => {
+    it('rejects capabilities attributed to a different provider', async () => {
       mockMYXProvider.getOrderCapabilities.mockResolvedValue({
         status: 'ready',
         providerId: 'hyperliquid',
@@ -1179,9 +1179,9 @@ describe('AggregatedPerpsProvider', () => {
           providerId: 'myx',
         }),
       ).resolves.toStrictEqual({
-        status: 'ready',
+        status: 'unavailable',
         providerId: 'myx',
-        supportedStrategies: [],
+        reason: 'provider_not_routable',
       });
     });
 

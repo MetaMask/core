@@ -5,7 +5,10 @@ import { MYX_PRICE_POLLING_INTERVAL_MS } from '../../../src/constants/myxConfig.
 import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { MYXClientService } from '../../../src/services/MYXClientService.js';
 import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 // ============================================================================
 // Mock @myx-trade/sdk
@@ -206,6 +209,45 @@ describe('MYXClientService', () => {
 
       expect(cachedResult).toEqual(pools);
       expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares one refresh across concurrent callers', async () => {
+      const pools = [makePool()];
+      const pendingPools = createDeferred<MYXPoolSymbol[]>();
+      mockGetPoolSymbolAll.mockReturnValueOnce(pendingPools.promise);
+
+      const firstRequest = service.getMarkets();
+      const secondRequest = service.getMarkets({ allowStaleOnError: false });
+
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
+      pendingPools.resolve(pools);
+      await expect(
+        Promise.all([firstRequest, secondRequest]),
+      ).resolves.toStrictEqual([pools, pools]);
+    });
+
+    it('shares a failed refresh while preserving fallback and retry behavior', async () => {
+      const pools = [makePool()];
+      const updatedPools = [makePool({ poolId: '0xpool2' })];
+      mockGetPoolSymbolAll.mockResolvedValueOnce(pools);
+      await service.getMarkets();
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
+      );
+      mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
+
+      const fallbackRequest = service.getMarkets();
+      const strictRequest = service.getMarkets({ allowStaleOnError: false });
+
+      await expect(fallbackRequest).resolves.toStrictEqual(pools);
+      await expect(strictRequest).rejects.toThrow('API down');
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
+
+      mockGetPoolSymbolAll.mockResolvedValueOnce(updatedPools);
+      await expect(
+        service.getMarkets({ allowStaleOnError: false }),
+      ).resolves.toStrictEqual(updatedPools);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(3);
     });
 
     it('honours a caller-specific maximum cache age', async () => {

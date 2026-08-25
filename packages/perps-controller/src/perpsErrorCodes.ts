@@ -63,6 +63,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_STRATEGY_FIELD_UNSUPPORTED: 'ORDER_STRATEGY_FIELD_UNSUPPORTED', // price / triggerPrice / timeInForce / attached TP/SL supplied on a strategy placement
   ORDER_STRATEGY_MARKET_UNSUPPORTED: 'ORDER_STRATEGY_MARKET_UNSUPPORTED', // The provider cannot run a strategy placement on this market
   ORDER_STRATEGY_ROUTE_REQUIRED: 'ORDER_STRATEGY_ROUTE_REQUIRED', // Strategy placement, validation, cancellation, and fee quotes require their provider route
+  ORDER_STRATEGY_ROUTE_UNAVAILABLE: 'ORDER_STRATEGY_ROUTE_UNAVAILABLE', // The requested strategy provider route does not match the active direct provider
   ORDER_STRATEGY_HANDLE_UNKNOWN: 'ORDER_STRATEGY_HANDLE_UNKNOWN', // Strategy cancel handle is invalid or this provider session does not hold it
   ORDER_EDIT_STRATEGY_UNSUPPORTED: 'ORDER_EDIT_STRATEGY_UNSUPPORTED', // editOrder cannot modify a strategy placement; cancel by its handle and place again
   ORDER_STRATEGY_CANCEL_INCOMPLETE: 'ORDER_STRATEGY_CANCEL_INCOMPLETE', // Part of a strategy placement is still resting after a cancel; the handle stays valid for a retry

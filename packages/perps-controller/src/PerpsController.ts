@@ -2128,6 +2128,11 @@ export class PerpsController extends BaseController<
       await pendingDisconnect;
     }
 
+    const pendingReinitialization = this.#reinitializationOperationPromise;
+    if (pendingReinitialization) {
+      await pendingReinitialization;
+    }
+
     return this.#initWithoutDisconnectWait();
   }
 
@@ -2841,12 +2846,14 @@ export class PerpsController extends BaseController<
     params: RoutedOrderParams<Params>,
   ): Promise<OrderResult> {
     const provider = await this.#getActiveProviderWhenReady();
+    if (isStrategyOrderType(params.orderType) && !params.providerId) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
     if (
       isStrategyOrderType(params.orderType) &&
-      (!params.providerId ||
-        this.#hasConflictingProviderRoute(params.providerId, provider))
+      this.#hasConflictingProviderRoute(params.providerId, provider)
     ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
     }
     if (!isStrategyOrderType(params.orderType)) {
       this.#logIgnoredOrdinaryProviderRoute(
@@ -2906,10 +2913,16 @@ export class PerpsController extends BaseController<
     if (
       params.orderType !== undefined &&
       isStrategyOrderType(params.orderType) &&
-      (!params.providerId ||
-        this.#hasConflictingProviderRoute(params.providerId, provider))
+      !params.providerId
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
+    if (
+      params.orderType !== undefined &&
+      isStrategyOrderType(params.orderType) &&
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
     }
     if (
       params.orderType === undefined ||
@@ -4788,12 +4801,14 @@ export class PerpsController extends BaseController<
     params: RoutedOrderParams<Params>,
   ): Promise<{ isValid: boolean; error?: string }> {
     const provider = this.getActiveProvider();
+    if (isStrategyOrderType(params.orderType) && !params.providerId) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
     if (
       isStrategyOrderType(params.orderType) &&
-      (!params.providerId ||
-        this.#hasConflictingProviderRoute(params.providerId, provider))
+      this.#hasConflictingProviderRoute(params.providerId, provider)
     ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
     }
     if (!isStrategyOrderType(params.orderType)) {
       this.#logIgnoredOrdinaryProviderRoute(
@@ -4941,6 +4956,19 @@ export class PerpsController extends BaseController<
       };
     }
 
+    const pendingInitialization = this.#initializationPromise;
+    if (pendingInitialization) {
+      await pendingInitialization;
+    }
+
+    if (this.isCurrentlyReinitializing()) {
+      return {
+        success: false,
+        isTestnet: this.state.isTestnet,
+        error: PERPS_ERROR_CODES.CLIENT_REINITIALIZING,
+      };
+    }
+
     const completeReinitialization = this.#beginReinitialization();
 
     // Store previous isTestnet for rollback on failure
@@ -5034,8 +5062,31 @@ export class PerpsController extends BaseController<
       return { success: true, providerId };
     }
 
-    // Validate provider is available
-    // 'aggregated' is always valid, individual providers must exist in the map
+    // Prevent concurrent switches
+    if (this.isCurrentlyReinitializing()) {
+      return {
+        success: false,
+        providerId: this.state.activeProvider,
+        error: PERPS_ERROR_CODES.CLIENT_REINITIALIZING,
+      };
+    }
+
+    const pendingInitialization = this.#initializationPromise;
+    if (pendingInitialization) {
+      await pendingInitialization;
+    }
+
+    if (this.isCurrentlyReinitializing()) {
+      return {
+        success: false,
+        providerId: this.state.activeProvider,
+        error: PERPS_ERROR_CODES.CLIENT_REINITIALIZING,
+      };
+    }
+
+    // Validate provider only after a pending initialization has rebuilt the
+    // registry. Otherwise a switch queued behind disconnect can observe the
+    // intentionally empty teardown state.
     const isValidProvider =
       providerId === 'aggregated' || this.providers.has(providerId);
 
@@ -5044,15 +5095,6 @@ export class PerpsController extends BaseController<
         success: false,
         providerId: this.state.activeProvider,
         error: `Provider ${providerId} not available`,
-      };
-    }
-
-    // Prevent concurrent switches
-    if (this.isCurrentlyReinitializing()) {
-      return {
-        success: false,
-        providerId: this.state.activeProvider,
-        error: PERPS_ERROR_CODES.CLIENT_REINITIALIZING,
       };
     }
 
@@ -5534,12 +5576,14 @@ export class PerpsController extends BaseController<
     params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
     const provider = await this.#getActiveProviderWhenReady();
+    if (isStrategyOrderType(params.orderType) && !params.providerId) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
     if (
       isStrategyOrderType(params.orderType) &&
-      (!params.providerId ||
-        this.#hasConflictingProviderRoute(params.providerId, provider))
+      this.#hasConflictingProviderRoute(params.providerId, provider)
     ) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
     }
     if (!isStrategyOrderType(params.orderType)) {
       this.#logIgnoredOrdinaryProviderRoute(

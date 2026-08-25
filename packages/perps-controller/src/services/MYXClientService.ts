@@ -96,6 +96,8 @@ export class MYXClientService {
 
   readonly #marketsCacheTtlMs = PERFORMANCE_CONFIG.MarketDataCacheDurationMs;
 
+  #marketsRefreshPromise: Promise<MYXPoolSymbol[]> | null = null;
+
   // globalId cache: poolId → globalId (for WS subscriptions)
   readonly #globalIdCache: Map<string, number> = new Map();
 
@@ -202,19 +204,29 @@ export class MYXClientService {
       return this.#marketsCache;
     }
 
+    let refreshPromise = this.#marketsRefreshPromise;
+    if (!refreshPromise) {
+      refreshPromise = (async (): Promise<MYXPoolSymbol[]> => {
+        this.#deps.debugLogger.log(
+          '[MYXClientService] Fetching markets via SDK',
+        );
+
+        const pools = await this.#myxClient.markets.getPoolSymbolAll();
+
+        this.#marketsCache = pools || [];
+        this.#marketsCacheTimestamp = Date.now();
+
+        this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
+          count: this.#marketsCache.length,
+        });
+
+        return this.#marketsCache;
+      })();
+      this.#marketsRefreshPromise = refreshPromise;
+    }
+
     try {
-      this.#deps.debugLogger.log('[MYXClientService] Fetching markets via SDK');
-
-      const pools = await this.#myxClient.markets.getPoolSymbolAll();
-
-      this.#marketsCache = pools || [];
-      this.#marketsCacheTimestamp = Date.now();
-
-      this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
-        count: this.#marketsCache.length,
-      });
-
-      return this.#marketsCache;
+      return await refreshPromise;
     } catch (caughtError) {
       const wrappedError = ensureError(
         caughtError,
@@ -237,6 +249,10 @@ export class MYXClientService {
       }
 
       throw wrappedError;
+    } finally {
+      if (this.#marketsRefreshPromise === refreshPromise) {
+        this.#marketsRefreshPromise = null;
+      }
     }
   }
 

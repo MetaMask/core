@@ -5119,12 +5119,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     finalPositionSize: number;
   }): ScaleLadder {
     const { params, szDecimals, finalPositionSize } = options;
-    const count = params.scaleNumOrders as number;
+    const { scaleMinPrice, scaleMaxPrice, scaleNumOrders } = params;
+    if (scaleMinPrice === undefined || scaleMaxPrice === undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED);
+    }
+    if (scaleNumOrders === undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+    }
 
     const prices = computeScalePriceLadder({
-      minPrice: parseFloat(params.scaleMinPrice as string),
-      maxPrice: parseFloat(params.scaleMaxPrice as string),
-      count,
+      minPrice: parseFloat(scaleMinPrice),
+      maxPrice: parseFloat(scaleMaxPrice),
+      count: scaleNumOrders,
     }).map((price) => formatHyperLiquidPrice({ price, szDecimals }));
 
     if (new Set(prices).size !== prices.length) {
@@ -5135,7 +5141,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // which a skew weighted far enough from even can do on its own.
     const sizes = splitScaleSizes({
       totalSize: finalPositionSize,
-      count,
+      count: scaleNumOrders,
       szDecimals,
       skew: params.scaleSkew,
     });
@@ -5251,7 +5257,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Built and validated in `#prepareStrategyPlacement`, before anything was
     // signed, so what is submitted here is exactly what the minimums were
     // applied to.
-    const { prices, sizes } = ladder as ScaleLadder;
+    if (!ladder) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED);
+    }
+    const { prices, sizes } = ladder;
     const count = prices.length;
 
     const orders: SDKOrderParams[] = prices.map((price, index) => ({
@@ -7834,8 +7843,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // HyperLiquid accepts one builder context for the whole TP/SL action.
-      // Standalone position triggers therefore always use the standard builder.
-      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+      // Standalone position triggers use the configurable market-order policy
+      // because there is no parent placement whose policy they can inherit.
+      const feePolicyContext = {
+        symbol,
+        isBuy: !isLong,
+        size: positionSize.toString(),
+        orderType: 'market',
+        reduceOnly: true,
+      } satisfies OrderParams;
+      const { chargesMetamaskBuilderFee } =
+        this.#resolveOrderFeePolicy(feePolicyContext);
+      if (chargesMetamaskBuilderFee) {
+        await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+      }
 
       // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
       // partial TP/SL must be standalone reduce-only triggers ('na'), since a
@@ -7843,7 +7864,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       const result = await exchangeClient.order({
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
-        builder: await this.#getBuilderOrderContext(),
+        ...(chargesMetamaskBuilderFee && {
+          builder: await this.#getBuilderOrderContext(),
+        }),
       });
 
       if (result.status !== 'ok') {

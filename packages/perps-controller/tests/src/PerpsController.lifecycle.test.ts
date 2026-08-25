@@ -1058,6 +1058,102 @@ describe('PerpsController', () => {
       expect(mockProvider.disconnect).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps init queued behind a network toggle released by disconnect', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return pendingDisconnect.promise;
+      });
+      const disconnectPromise = controller.disconnect();
+      await disconnectStarted.promise;
+
+      const replacementProvider = createMockHyperLiquidProvider();
+      const reinitializationStarted = createDeferred<void>();
+      jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+        reinitializationStarted.resolve();
+        return replacementProvider;
+      });
+      const pendingReinitialization = createDeferred<void>();
+      jest
+        .mocked(mockWait)
+        .mockImplementationOnce(() => pendingReinitialization.promise);
+      const togglePromise = controller.toggleTestnet();
+      let initSettled = false;
+      const initPromise = controller.init().then(() => {
+        initSettled = true;
+      });
+
+      pendingDisconnect.resolve();
+      await disconnectPromise;
+      await reinitializationStarted.promise;
+
+      expect(initSettled).toBe(false);
+      expect(HyperLiquidProvider).toHaveBeenCalledTimes(2);
+      pendingReinitialization.resolve();
+      await expect(togglePromise).resolves.toStrictEqual({
+        success: true,
+        isTestnet: true,
+      });
+      await initPromise;
+
+      expect(HyperLiquidProvider).toHaveBeenCalledTimes(2);
+      expect(controller.testGetInitialized()).toBe(true);
+    });
+
+    it('keeps a provider switch queued behind init released by disconnect', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return pendingDisconnect.promise;
+      });
+      const disconnectPromise = controller.disconnect();
+      await disconnectStarted.promise;
+
+      const initializedProvider = createMockHyperLiquidProvider();
+      const switchedProvider = createMockHyperLiquidProvider();
+      const initializationStarted = createDeferred<void>();
+      jest
+        .mocked(HyperLiquidProvider)
+        .mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return initializedProvider;
+        })
+        .mockImplementationOnce(() => switchedProvider);
+      const pendingInitialization = createDeferred<void>();
+      jest
+        .mocked(mockWait)
+        .mockImplementationOnce(() => pendingInitialization.promise);
+      const initPromise = controller.init();
+      let switchSettled = false;
+      const switchPromise = controller
+        .switchProvider('aggregated')
+        .then((result) => {
+          switchSettled = true;
+          return result;
+        });
+
+      pendingDisconnect.resolve();
+      await disconnectPromise;
+      await initializationStarted.promise;
+
+      expect(switchSettled).toBe(false);
+      expect(HyperLiquidProvider).toHaveBeenCalledTimes(2);
+      pendingInitialization.resolve();
+      await initPromise;
+      await expect(switchPromise).resolves.toStrictEqual({
+        success: true,
+        providerId: 'aggregated',
+      });
+
+      expect(initializedProvider.disconnect).toHaveBeenCalledTimes(1);
+      expect(HyperLiquidProvider).toHaveBeenCalledTimes(3);
+      expect(controller.testGetInitialized()).toBe(true);
+    });
+
     it('disconnects the provider created by an in-flight network toggle', async () => {
       await controller.init();
       const replacementProvider = createMockHyperLiquidProvider();

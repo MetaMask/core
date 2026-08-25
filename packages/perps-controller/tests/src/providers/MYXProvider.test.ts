@@ -801,7 +801,8 @@ describe('MYXProvider', () => {
         allowStaleOnError: false,
         maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
-      expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
+      expect(mockBuildPoolSymbolMap).toHaveBeenCalledWith(pools);
+      expect(mockAdaptMarketFromMYX).not.toHaveBeenCalled();
     });
 
     it('reports an unknown market as unavailable', async () => {

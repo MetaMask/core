@@ -222,11 +222,13 @@ export class MYXProvider implements PerpsProvider {
         maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
       const capabilityPools = filterMYXExclusiveMarkets(pools);
-      const market = capabilityPools.find(
-        (pool) => adaptMarketFromMYX(pool).name === params.symbol,
+      this.#poolsCache = capabilityPools;
+      this.#poolSymbolMap = buildPoolSymbolMap(capabilityPools);
+      const hasMarket = capabilityPools.some(
+        (pool) => this.#poolSymbolMap.get(pool.poolId) === params.symbol,
       );
 
-      return market
+      return hasMarket
         ? MYX_ORDER_CAPABILITIES
         : {
             status: 'unavailable',
@@ -1006,10 +1008,12 @@ export class MYXProvider implements PerpsProvider {
       parsedAmount === undefined
         ? undefined
         : parsedAmount * MYX_PROTOCOL_FEE_RATE;
+    const feeAmount =
+      parsedAmount === undefined ? undefined : parsedAmount * MYX_FEE_RATE;
 
     return {
       feeRate: MYX_FEE_RATE,
-      feeAmount: protocolFeeAmount,
+      feeAmount,
       protocolFeeRate: MYX_PROTOCOL_FEE_RATE,
       protocolFeeAmount,
       metamaskFeeRate: 0,

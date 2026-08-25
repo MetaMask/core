@@ -3672,5 +3672,28 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('omits builder setup when the market fee policy is disabled', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+        'builder',
+      );
+    });
   });
 });
