@@ -1110,7 +1110,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       if (dex !== null) {
         const meta = await this.#getFreshOrderCapabilitiesMeta(dex);
-        return meta.universe.some((market) => market.name === params.symbol)
+        return meta.universe.some(
+          (market) =>
+            market.name === params.symbol && market.isDelisted !== true,
+        )
           ? HYPERLIQUID_NO_STRATEGY_CAPABILITIES
           : {
               status: 'unavailable',
@@ -1120,7 +1123,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const meta = await this.#getFreshOrderCapabilitiesMeta(null);
-      return meta.universe.some((market) => market.name === symbol)
+      return meta.universe.some(
+        (market) => market.name === symbol && market.isDelisted !== true,
+      )
         ? HYPERLIQUID_ORDER_CAPABILITIES
         : {
             status: 'unavailable',

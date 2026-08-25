@@ -2554,6 +2554,46 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it.each([
+      {
+        route: 'main DEX',
+        symbol: 'ETH',
+        universe: [
+          {
+            name: 'ETH',
+            szDecimals: 4,
+            maxLeverage: 50,
+            isDelisted: true,
+          },
+        ],
+      },
+      {
+        route: 'HIP-3 DEX',
+        symbol: 'xyz:TSLA',
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 20,
+            isDelisted: true,
+          },
+        ],
+      },
+    ])(
+      'reports a delisted $route market as unavailable',
+      async ({ symbol, universe }) => {
+        useStrategyClients({
+          info: { meta: jest.fn().mockResolvedValue({ universe }) },
+        });
+
+        expect(await provider.getOrderCapabilities({ symbol })).toStrictEqual({
+          status: 'unavailable',
+          providerId: 'hyperliquid',
+          reason: 'market_not_found',
+        });
+      },
+    );
+
     it('reports an empty symbol as invalid', async () => {
       const { infoClient } = useStrategyClients();
 

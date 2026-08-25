@@ -568,13 +568,26 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.orderId).toBe('myx-order-123');
     });
 
-    it('rejects an explicit provider that is not registered', async () => {
+    it('preserves legacy fallback for an unregistered explicit provider', async () => {
+      await aggregatedProvider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        // @ts-expect-error Testing legacy fallback with an invalid provider
+        providerId: 'unknown-provider',
+      });
+
+      expect(mockHLProvider.placeOrder).toHaveBeenCalled();
+    });
+
+    it('rejects an unregistered explicit provider for a strategy order', async () => {
       await expect(
         aggregatedProvider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
           size: '0.1',
-          orderType: 'market',
+          orderType: 'twap',
           // @ts-expect-error Testing an invalid explicit provider route
           providerId: 'unknown-provider',
         }),

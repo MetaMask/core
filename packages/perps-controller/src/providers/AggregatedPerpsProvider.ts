@@ -19,6 +19,7 @@ import type { CaipAccountId } from '@metamask/utils';
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { WebSocketConnectionState } from '../types/index.js';
+import { isStrategyOrderType } from '../utils/orderTypes.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -478,7 +479,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   // ============================================================================
 
   async placeOrder(params: OrderParams): Promise<OrderResult> {
-    const [providerId, provider] = this.#getOrderProvider(params.providerId);
+    const [providerId, provider] = isStrategyOrderType(params.orderType)
+      ? this.#getOrderProvider(params.providerId)
+      : this.#getProviderOrDefault(params.providerId);
 
     this.#deps.debugLogger.log('[AggregatedPerpsProvider] placeOrder routing', {
       requestedProvider: params.providerId,

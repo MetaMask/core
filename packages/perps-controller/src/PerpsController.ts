@@ -161,6 +161,7 @@ import {
   shouldIncludeMarket,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
+import { isStrategyOrderType } from './utils/orderTypes.js';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
@@ -2651,12 +2652,13 @@ export class PerpsController extends BaseController<
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    if (this.#hasConflictingProviderRoute(params.providerId)) {
-      return { status: 'unavailable', reason: 'provider_not_routable' };
-    }
-
     try {
       const activeProvider = await this.#getActiveProviderWhenReady();
+      if (
+        this.#hasConflictingProviderRoute(params.providerId, activeProvider)
+      ) {
+        return { status: 'unavailable', reason: 'provider_not_routable' };
+      }
       if (!activeProvider.getOrderCapabilities) {
         return { status: 'unavailable', reason: 'not_implemented' };
       }
@@ -2671,17 +2673,21 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Check whether a direct-provider controller received a different explicit
-   * provider route. Aggregated mode owns its own per-operation routing.
+   * Check whether a resolved direct provider conflicts with an explicit route.
+   * Aggregated mode owns its own per-operation routing.
    *
    * @param providerId - Explicit provider route, if any.
+   * @param provider - Provider resolved after any in-flight initialization.
    * @returns Whether the route conflicts with the active provider mode.
    */
-  #hasConflictingProviderRoute(providerId?: PerpsProviderType): boolean {
+  #hasConflictingProviderRoute(
+    providerId: PerpsProviderType | undefined,
+    provider: PerpsProvider,
+  ): boolean {
     return Boolean(
       providerId &&
-        this.state.activeProvider !== 'aggregated' &&
-        providerId !== this.state.activeProvider,
+        provider.protocolId !== 'aggregated' &&
+        providerId !== provider.protocolId,
     );
   }
 
@@ -2693,11 +2699,13 @@ export class PerpsController extends BaseController<
    * @returns The order result with order ID and status.
    */
   async placeOrder(params: OrderParams): Promise<OrderResult> {
-    if (this.#hasConflictingProviderRoute(params.providerId)) {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (
+      isStrategyOrderType(params.orderType) &&
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
-
-    const provider = await this.#getActiveProviderWhenReady();
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({

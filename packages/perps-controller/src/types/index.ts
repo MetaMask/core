@@ -1281,7 +1281,7 @@ export type MaintenanceMarginParams = {
  * `providerId` follows the same explicit-over-default routing as placement.
  */
 export type GetOrderCapabilitiesParams = {
-  /** Main-DEX symbol (`BTC`) or routed HIP-3 symbol (`dex:SYMBOL`). */
+  /** Provider-specific market identifier, including any routing prefix. */
   symbol: string;
   providerId?: PerpsProviderType;
 };

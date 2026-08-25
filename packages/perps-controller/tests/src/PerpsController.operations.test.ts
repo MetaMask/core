@@ -913,9 +913,12 @@ describe('PerpsController', () => {
       });
     });
 
-    it('rejects an explicit route that conflicts with direct-provider mode', async () => {
+    it('rejects an explicit route that conflicts with the resolved provider', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'myx';
+      });
 
       await expect(
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
@@ -926,20 +929,43 @@ describe('PerpsController', () => {
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
 
-    it('rejects order placement for a conflicting direct-provider route', async () => {
+    it('rejects strategy placement that conflicts with the resolved provider', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'myx';
+      });
 
       await expect(
         controller.placeOrder({
           symbol: 'RHEA',
           providerId: 'myx',
-          orderType: 'market',
+          orderType: 'twap',
           isBuy: true,
           size: '1',
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+    });
+
+    it('preserves legacy placement routing for ordinary orders', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockTradingServiceInstance.placeOrder.mockResolvedValue({
+        success: true,
+      });
+
+      await controller.placeOrder({
+        symbol: 'RHEA',
+        providerId: 'myx',
+        orderType: 'market',
+        isBuy: true,
+        size: '1',
+      });
+
+      expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: mockProvider }),
+      );
     });
   });
 
