@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Align the Accounts API v6 balance response types with the flat `/v6/multiaccount/balances` response: `V6BalancesResponse.accounts` is replaced by `balances`, `V6BalanceItem` now includes `accountId`, `object`, and `type`, `V6BalanceMetadata.protocolIconUrl` is optional, `processingDefiPositions` is now an optional response-level array of CAIP-10 account IDs, and `V6AccountBalancesEntry` is removed ([#9911](https://github.com/MetaMask/core/pull/9911))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
 ## [8.1.2]

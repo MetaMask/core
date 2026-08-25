@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Read token balances from the flat Accounts API v6 `balances` response ([#9911](https://github.com/MetaMask/core/pull/9911))
 - Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
 
 ## [14.0.0]
