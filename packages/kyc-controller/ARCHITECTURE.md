@@ -204,7 +204,10 @@ State metadata highlights (`kycControllerMetadata`):
   restarts so the flow can skip already-accepted terms and reuse cached results.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
   the stored acceptance when it belongs to a different vendor, so one vendor's
-  disclaimer ids are never submitted to another.
+  disclaimer ids are never submitted to another. The drop waits until the
+  vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
+  path proceeds); a failed or reset switch leaves the previous vendor's
+  acceptance in place.
 - **Secrets, never persisted / never logged**: `sessionToken`, `accessToken`,
   `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
 - Additional non-state secrets kept **off** the state object entirely: the

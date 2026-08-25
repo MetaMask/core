@@ -707,12 +707,6 @@ export class KycController extends BaseController<
       if (params?.email) {
         state.email = params.email;
       }
-      // Terms acceptance is vendor-scoped: reusing another vendor's saved
-      // acceptance would skip loading this vendor's disclaimers and submit its
-      // ids to the wrong vendor.
-      if (!this.#hasTermsForVendor(vendor)) {
-        this.#clearAcceptedTerms(state);
-      }
       state.activeVendor = vendor;
       // `moonpayCustomerId` is only ever issued by the MoonPay Check / Auth
       // frames. Leaving it set while the flow switches to another vendor would
@@ -744,9 +738,6 @@ export class KycController extends BaseController<
           vendor,
           email: this.state.email,
         });
-        if (this.#generation !== generation) {
-          return;
-        }
       } catch (error) {
         if (this.#generation !== generation) {
           return;
@@ -755,6 +746,15 @@ export class KycController extends BaseController<
         return;
       }
     }
+
+    // Drop another vendor's persisted acceptance only after this flow has
+    // committed (customer creation succeeded, or there was none to wait for).
+    // Clearing earlier would permanently lose ramps/card terms if Iron
+    // customer creation failed or a reset landed while it was in flight.
+    if (this.#generation !== generation) {
+      return;
+    }
+    this.#dropTermsUnlessForVendor(vendor);
 
     const hasTerms =
       Boolean(this.state.termsAcceptedAt) &&
@@ -805,12 +805,10 @@ export class KycController extends BaseController<
   }): Promise<void> {
     this.#applyUpdate((state) => {
       state.email = params.email;
-      // See `initialize`: acceptance recorded for another vendor cannot carry
-      // over, and a MoonPay-issued customer id must not survive a switch to
-      // another vendor or `getCustomerIdentity` reports the wrong vendor.
-      if (!this.#hasTermsForVendor(params.vendor)) {
-        this.#clearAcceptedTerms(state);
-      }
+      // A MoonPay-issued customer id must not survive a switch to another
+      // vendor or `getCustomerIdentity` reports the wrong vendor. Terms for
+      // another vendor are dropped only after this request succeeds — see
+      // `initialize`.
       state.activeVendor = params.vendor;
       if (params.vendor !== 'moonpay') {
         state.moonpayCustomerId = null;
@@ -822,6 +820,10 @@ export class KycController extends BaseController<
         vendor: params.vendor,
         email: params.email,
       });
+      if (this.#generation !== generation) {
+        return;
+      }
+      this.#dropTermsUnlessForVendor(params.vendor);
     } catch (error) {
       if (this.#generation !== generation) {
         return;
@@ -1101,6 +1103,23 @@ export class KycController extends BaseController<
     state.termsAcceptedVendor = null;
     state.sumsubTncAccepted = null;
     state.idosTncAccepted = null;
+  }
+
+  /**
+   * Drops persisted terms acceptance when it does not belong to `vendor`.
+   * Callers must invoke this only after the vendor switch has committed
+   * (e.g. `createVendorCustomer` succeeded) so a failed or reset switch
+   * cannot erase another vendor's stored acceptance.
+   *
+   * @param vendor - The vendor that now owns the flow.
+   */
+  #dropTermsUnlessForVendor(vendor: KycVendor): void {
+    if (this.#hasTermsForVendor(vendor)) {
+      return;
+    }
+    this.#applyUpdate((state) => {
+      this.#clearAcceptedTerms(state);
+    });
   }
 
   /**

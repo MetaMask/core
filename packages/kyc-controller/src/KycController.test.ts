@@ -2010,6 +2010,73 @@ describe('KycController', () => {
       });
     });
 
+    it('preserves MoonPay terms when Iron customer creation fails on initialize', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockRejectedValue(
+            new Error('iron down'),
+          );
+
+          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
+    });
+
+    it('preserves MoonPay terms when reset lands during Iron customer creation', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (error: Error) => void = () => {
+            // placeholder
+          };
+          handlers.createVendorCustomer.mockReturnValue(
+            new Promise((_resolve, reject) => {
+              release = reject;
+            }),
+          );
+
+          const pending = controller.initialize({
+            email: 'a@b.co',
+            vendor: 'iron',
+          });
+          controller.reset();
+          release(new Error('late'));
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
+    });
+
     it('does not fail initialize when reset lands during Iron customer creation', async () => {
       await withController(async ({ controller, handlers }) => {
         let release: (value: {
@@ -2273,6 +2340,78 @@ describe('KycController', () => {
         expect(controller.state.email).toBe('a@b.co');
         expect(controller.state.phase).toBe('error');
       });
+    });
+
+    it('preserves MoonPay terms when createVendorCustomer fails after a vendor switch', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockRejectedValue(new Error('nope'));
+
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
+    });
+
+    it('preserves MoonPay terms when reset lands during createVendorCustomer', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (value: {
+            id: string;
+            email: string;
+            status: string;
+          }) => void = () => {
+            // placeholder
+          };
+          handlers.createVendorCustomer.mockReturnValue(
+            new Promise((resolve) => {
+              release = resolve;
+            }),
+          );
+
+          const pending = controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+          controller.reset();
+          release({ id: '1', email: 'a@b.co', status: 'SigningsRequired' });
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
     });
 
     it('createVendorCustomer ignores API errors after reset', async () => {
