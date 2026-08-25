@@ -738,12 +738,78 @@ describe('MYXProvider', () => {
     });
 
     it('advertises no strategy order capabilities', async () => {
+      const pools = [makePool()];
+      mockClientService.getMarkets.mockResolvedValueOnce(pools);
+      mockFilterMYXExclusiveMarkets.mockReturnValueOnce(pools);
+
       await expect(
         provider.getOrderCapabilities({ symbol: 'RHEA' }),
       ).resolves.toStrictEqual({
         status: 'ready',
         providerId: 'myx',
         supportedStrategies: [],
+      });
+    });
+
+    it('reports an unknown market as unavailable', async () => {
+      const pools = [makePool()];
+      mockClientService.getMarkets.mockResolvedValueOnce(pools);
+      mockFilterMYXExclusiveMarkets.mockReturnValueOnce(pools);
+
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'UNKNOWN' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'market_not_found',
+      });
+    });
+
+    it.each(['', ' RHEA', 'RHEA ', 'RHEA USDT', 'myx:RHEA'])(
+      'reports malformed symbol %p as invalid',
+      async (symbol) => {
+        await expect(
+          provider.getOrderCapabilities({ symbol }),
+        ).resolves.toStrictEqual({
+          status: 'unavailable',
+          providerId: 'myx',
+          reason: 'invalid_symbol',
+        });
+        expect(mockClientService.getMarkets).not.toHaveBeenCalled();
+      },
+    );
+
+    it('reports a delisted market as unavailable', async () => {
+      const pools = [makePool()];
+      mockClientService.getMarkets.mockResolvedValueOnce(pools);
+      mockFilterMYXExclusiveMarkets.mockReturnValueOnce(pools);
+      mockAdaptMarketFromMYX.mockReturnValueOnce({
+        name: 'RHEA',
+        szDecimals: 18,
+        maxLeverage: 100,
+        marginTableId: 0,
+        isDelisted: true,
+        providerId: 'myx',
+      });
+
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'market_not_found',
+      });
+    });
+
+    it('reports unavailable when markets cannot be loaded', async () => {
+      mockClientService.getMarkets.mockRejectedValueOnce(new Error('offline'));
+
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
       });
     });
   });

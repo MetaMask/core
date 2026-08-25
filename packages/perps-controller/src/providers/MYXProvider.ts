@@ -188,16 +188,60 @@ export class MYXProvider implements PerpsProvider {
   }
 
   /**
-   * MYX does not currently implement strategy placement, so its capability
-   * result is deliberately market-independent.
+   * MYX does not currently implement strategy placement, so confirmed markets
+   * report an empty strategy set.
    *
-   * @param _params - Required market route context.
-   * @returns An empty strategy capability set.
+   * @param params - Required market route context.
+   * @returns Provider-owned capabilities for the requested market.
    */
   async getOrderCapabilities(
-    _params: GetOrderCapabilitiesParams,
+    params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    return MYX_ORDER_CAPABILITIES;
+    if (
+      params.symbol.length === 0 ||
+      params.symbol !== params.symbol.trim() ||
+      /\s/u.test(params.symbol) ||
+      params.symbol.includes(':')
+    ) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'invalid_symbol',
+      };
+    }
+
+    try {
+      const pools = await this.#clientService.getMarkets();
+      this.#poolsCache = filterMYXExclusiveMarkets(pools);
+      this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
+      const market = this.#poolsCache
+        .map((pool) => adaptMarketFromMYX(pool))
+        .find(({ name }) => name === params.symbol);
+
+      return market && market.isDelisted !== true
+        ? MYX_ORDER_CAPABILITIES
+        : {
+            status: 'unavailable',
+            providerId: this.protocolId,
+            reason: 'market_not_found',
+          };
+    } catch (caughtError) {
+      const wrappedError = ensureError(
+        caughtError,
+        'MYXProvider.getOrderCapabilities',
+      );
+      this.#deps.logger.error(
+        wrappedError,
+        this.#getErrorContext('getOrderCapabilities', {
+          symbol: params.symbol,
+        }),
+      );
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
   }
 
   // ============================================================================

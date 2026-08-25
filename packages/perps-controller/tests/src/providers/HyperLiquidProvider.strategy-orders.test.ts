@@ -2633,6 +2633,20 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).not.toHaveBeenCalled();
     });
 
+    it.each([' ETH', 'ETH ', 'ETH BTC', 'a:b:c'])(
+      'reports malformed symbol %p as invalid',
+      async (symbol) => {
+        const { infoClient } = useStrategyClients();
+
+        expect(await provider.getOrderCapabilities({ symbol })).toStrictEqual({
+          status: 'unavailable',
+          providerId: 'hyperliquid',
+          reason: 'invalid_symbol',
+        });
+        expect(infoClient.meta).not.toHaveBeenCalled();
+      },
+    );
+
     it('reports an unknown main-DEX market as unavailable', async () => {
       const { infoClient } = useStrategyClients();
 
@@ -2794,6 +2808,43 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.disconnect();
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates a capability refresh started during disconnect', async () => {
+      const { infoClient } = useStrategyClients();
+      let startDisconnect = (): void => undefined;
+      const disconnectStarted = new Promise<void>((resolve): void => {
+        startDisconnect = resolve;
+      });
+      let finishDisconnect = (): void => undefined;
+      const pendingDisconnect = new Promise<void>((resolve): void => {
+        finishDisconnect = resolve;
+      });
+      mockClientService.disconnect.mockImplementationOnce(() => {
+        startDisconnect();
+        return pendingDisconnect;
+      });
+
+      const disconnectPromise = provider.disconnect();
+      await disconnectStarted;
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      finishDisconnect();
+      await disconnectPromise;
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 

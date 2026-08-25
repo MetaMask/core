@@ -878,12 +878,16 @@ describe('PerpsController', () => {
     });
 
     it('routes an explicit provider through the active aggregator', async () => {
-      const myxProvider = createMockHyperLiquidProvider();
-      myxProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+      const getMyxOrderCapabilities = jest.fn().mockResolvedValue({
         status: 'ready',
         providerId: 'myx',
         supportedStrategies: [],
       });
+      const myxProvider: PerpsProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'myx',
+        getOrderCapabilities: getMyxOrderCapabilities,
+      };
       const aggregatedProvider = new AggregatedPerpsProvider({
         providers: new Map([
           ['hyperliquid', mockProvider],
@@ -907,7 +911,7 @@ describe('PerpsController', () => {
         providerId: 'myx',
         supportedStrategies: [],
       });
-      expect(myxProvider.getOrderCapabilities).toHaveBeenCalledWith({
+      expect(getMyxOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'RHEA',
         providerId: 'myx',
       });

@@ -1098,6 +1098,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { dex, symbol } = parseAssetName(params.symbol);
     if (
       params.symbol !== params.symbol.trim() ||
+      /\s/u.test(params.symbol) ||
       !symbol ||
       symbol.includes(':') ||
       (dex !== null && !dex)
@@ -11673,6 +11674,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Disconnect client service
       await this.#clientService.disconnect();
+
+      // A read can begin while the asynchronous teardown above is in flight.
+      // Invalidate again so it cannot leave initialized clients or capability
+      // metadata attached to a provider that has finished disconnecting.
+      this.#clientsInitialized = false;
+      this.#orderCapabilitiesMetaByDex.clear();
+      this.#orderCapabilitiesMetaFreshAtByDex.clear();
+      this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
+      this.#orderCapabilitiesMetaGeneration += 1;
 
       this.#deps.debugLogger.log('HyperLiquid: Provider fully disconnected', {
         timestamp: new Date().toISOString(),
