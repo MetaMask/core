@@ -115,6 +115,7 @@ export type ActivityItem =
       'approveSpendingCap' | 'revokeSpendingCap' | 'increaseSpendingCap',
       {
         from?: string;
+        to?: string;
         token?: TokenAmount;
         fees?: Fee[];
       }
@@ -123,6 +124,7 @@ export type ActivityItem =
       'assetActivation' | 'assetDeactivation',
       {
         from?: string;
+        to?: string;
         token?: TokenAmount;
         fees?: Fee[];
       }
@@ -155,6 +157,7 @@ export type ActivityItem =
       | 'unwrap',
       {
         from?: string;
+        to?: string;
         sourceToken?: TokenAmount;
         destinationToken?: TokenAmount;
         fees?: Fee[];
@@ -164,6 +167,7 @@ export type ActivityItem =
       'buy' | 'claim' | 'deposit' | 'claimMusdBonus',
       {
         from?: string;
+        to?: string;
         token?: TokenAmount;
       }
     >
@@ -171,6 +175,7 @@ export type ActivityItem =
       'perpsAddFunds' | 'perpsWithdraw',
       {
         from?: string;
+        to?: string;
         fiat?: FiatAmount;
         networkFee?: FiatAmount;
         token?: TokenAmount;
@@ -225,6 +230,7 @@ export type ActivityItem =
       'rampBuy' | 'rampSell',
       {
         from?: string;
+        to?: string;
         fiat?: FiatAmount;
         token?: TokenAmount;
         fees?: Fee[];
