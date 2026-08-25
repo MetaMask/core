@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `getAAGUIDFromRegistrationResponse` to read the authenticator AAGUID from a `navigator.credentials.create()` result, returned as a dashed UUID string, or `undefined` when the authenticator data carries no attested credential data. Throws if the attestation object or its authenticator data is malformed
+  - The response is parsed as-is without verification, so treat the value as untrusted until `protectVaultKeyWithPasskey` verifies the attestation; the verified AAGUID is persisted on `passkeyRecord.credential.aaguid`.
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
