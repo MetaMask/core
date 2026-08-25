@@ -477,9 +477,9 @@ describe('AggregatedPerpsProvider', () => {
         new Error('suspension failed'),
       );
 
-      await expect(
-        aggregatedProvider.suspendChaseOrders(),
-      ).rejects.toThrow('suspension failed');
+      await expect(aggregatedProvider.suspendChaseOrders()).rejects.toThrow(
+        'suspension failed',
+      );
     });
   });
 
