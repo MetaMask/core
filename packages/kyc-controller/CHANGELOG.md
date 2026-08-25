@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KycUserStatus` / `KycUserStatusResponse` types for the simplified `GET /kyc/status` payload. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Add persisted `termsAcceptedVendor` state recording which vendor's disclaimers `acceptedDisclaimerIds` belong to, so stored acceptance is only reused for that vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Add persisted `sumsubTncAccepted` and `idosTncAccepted` state so T&C2 flags can be validated when resuming a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Add `KycController.clearState()` (and the `KycController:clearState` action) restoring the default state, including the fields `reset()` preserves: the session email, terms acceptance, the per-product KYC-required cache and the user-keyed status. Intended for a full wallet reset. ([#9908](https://github.com/MetaMask/core/pull/9908))
 
 ### Changed
 
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clear `moonpayCustomerId` when the active vendor is not MoonPay, so `getCustomerIdentity()` cannot report a MoonPay customer id under another vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Call `unref()` on the user-status poll timer only when it exists. React Native and browser timers are numbers, so an unconditional `unref()` threw when status polling started outside Node. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Skip the `session_not_in_valid_state` completion write when a `reset()` superseded the SumSub flow, so a late vendor response can no longer force `userStatus` to `completed` (and publish `statusChanged`) on an idle controller. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Stop `initialize()` once a `reset()` or `clearState()` has superseded it, so a geolocation response arriving afterwards can no longer move the controller into the `terms` phase or reload disclaimers onto a controller that was just reset. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Validate that `accessToken` and `country` are provided when calling `checkKycRequired` with vendor `moonpay`, failing fast with a clear error instead of posting `undefined` values to the API. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Check for global `fetch` availability before binding in `KycService` constructor, throwing a descriptive error if `fetch` is neither provided nor globally available (e.g. older Node environments). ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Check for null bearer token before calling `assert()` in `#requestJson`, ensuring the custom "wallet signed in" error message is shown instead of a generic superstruct error. ([#9908](https://github.com/MetaMask/core/pull/9908))

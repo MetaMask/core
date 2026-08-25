@@ -226,6 +226,19 @@ export type KycControllerResetAction = {
 };
 
 /**
+ * Restores the controller to its default state, discarding everything
+ * {@link reset} deliberately keeps: the session email, the persisted terms
+ * acceptance, the per-product KYC-required cache and the user-keyed status.
+ *
+ * Intended for a full wallet reset, where no trace of the previous
+ * customer may survive into the next wallet.
+ */
+export type KycControllerClearStateAction = {
+  type: `KycController:clearState`;
+  handler: KycController['clearState'];
+};
+
+/**
  * Union of all KycController action types.
  */
 export type KycControllerMethodActions =
@@ -244,4 +257,5 @@ export type KycControllerMethodActions =
   | KycControllerStartSumSubAction
   | KycControllerRefreshKycStatusAction
   | KycControllerGetSessionStatusAction
-  | KycControllerResetAction;
+  | KycControllerResetAction
+  | KycControllerClearStateAction;
