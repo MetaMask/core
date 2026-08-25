@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0`
+- Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
 ### Fixed
