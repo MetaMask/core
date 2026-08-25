@@ -3,6 +3,7 @@ import type { CaipAssetId, Hex } from '@metamask/utils';
 
 import {
   HYPERLIQUID_ASSET_CONFIGS,
+  BASIS_POINTS_DIVISOR,
   getSupportedAssets,
   TRADING_DEFAULTS,
 } from '../constants/hyperLiquidConfig.js';
@@ -698,7 +699,8 @@ function validateChaseParams(params: StrategyOrderValidationParams): {
   if (
     params.chaseMaxDistanceBps !== undefined &&
     (!Number.isFinite(params.chaseMaxDistanceBps) ||
-      params.chaseMaxDistanceBps <= 0)
+      params.chaseMaxDistanceBps <= 0 ||
+      params.chaseMaxDistanceBps >= BASIS_POINTS_DIVISOR)
   ) {
     return {
       isValid: false,

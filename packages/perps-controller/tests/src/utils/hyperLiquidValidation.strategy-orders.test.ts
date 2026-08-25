@@ -334,7 +334,14 @@ describe('hyperLiquidValidation - strategy order types', () => {
       },
     );
 
-    it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    it.each([
+      0,
+      -1,
+      10_000,
+      10_001,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ])(
       'rejects an invalid %s bps max distance',
       (chaseMaxDistanceBps) => {
         expect(

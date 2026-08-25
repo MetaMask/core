@@ -1272,6 +1272,27 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(second.success).toBe(false);
     });
 
+    it('stops the owning session when its child is cancelled directly', async () => {
+      useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(
+        await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
+      ).toMatchObject({ success: true });
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({
+          restingOrderId: null,
+          status: 'failed',
+        }),
+      ]);
+    });
+
     it('reports an incomplete chase cancel and keeps the handle for a retry', async () => {
       const cancel = jest
         .fn()

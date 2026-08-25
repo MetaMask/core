@@ -460,7 +460,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
-    const results = await Promise.allSettled(
+    const results = await Promise.all(
       this.#getActiveProviders().map(async ([providerId, provider]) =>
         provider.suspendChaseOrders
           ? (await provider.suspendChaseOrders()).map((order) => ({
@@ -471,7 +471,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       ),
     );
 
-    return this.#extractSuccessfulResults(results, 'suspendChaseOrders').flat();
+    return results.flat();
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {

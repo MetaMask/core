@@ -471,6 +471,16 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'hyperliquid',
       });
     });
+
+    it('rejects suspension when any provider cannot suspend safely', async () => {
+      mockMYXProvider.suspendChaseOrders?.mockRejectedValue(
+        new Error('suspension failed'),
+      );
+
+      await expect(
+        aggregatedProvider.suspendChaseOrders(),
+      ).rejects.toThrow('suspension failed');
+    });
   });
 
   describe('Write Operations - placeOrder', () => {
