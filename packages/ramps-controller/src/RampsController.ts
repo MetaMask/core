@@ -275,6 +275,13 @@ function normalizeRampsErrorForRethrow(
   });
 }
 
+function normalizeAssetIdForContext(assetId: string): string {
+  const trimmedAssetId = assetId.trim();
+  return trimmedAssetId.startsWith('eip155:')
+    ? trimmedAssetId.toLowerCase()
+    : trimmedAssetId;
+}
+
 // === STATE ===
 
 /**
@@ -916,6 +923,12 @@ export class RampsController extends BaseController<
 
   #initPromise: Promise<void> | null = null;
 
+  #paymentMethodsContextSequence = 0;
+
+  readonly #latestPaymentMethodsContextSequence = new Map<string, number>();
+
+  readonly #pendingPaymentMethodsContextCount = new Map<string, number>();
+
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
    * defensive path when get() returns undefined in the finally block.
@@ -1239,6 +1252,36 @@ export class RampsController extends BaseController<
   #isProviderCurrent(normalizedProviderId: string): boolean {
     const current = this.state.providers.selected?.id ?? '';
     return current === normalizedProviderId;
+  }
+
+  #beginPaymentMethodsContextRequest(contextKey: string): number {
+    this.#paymentMethodsContextSequence += 1;
+    const sequence = this.#paymentMethodsContextSequence;
+    this.#latestPaymentMethodsContextSequence.set(contextKey, sequence);
+    const pendingCount =
+      this.#pendingPaymentMethodsContextCount.get(contextKey) ?? 0;
+    this.#pendingPaymentMethodsContextCount.set(contextKey, pendingCount + 1);
+    return sequence;
+  }
+
+  #isLatestPaymentMethodsContextRequest(
+    contextKey: string,
+    sequence: number,
+  ): boolean {
+    return (
+      this.#latestPaymentMethodsContextSequence.get(contextKey) === sequence
+    );
+  }
+
+  #finishPaymentMethodsContextRequest(contextKey: string): void {
+    const pendingCount =
+      this.#pendingPaymentMethodsContextCount.get(contextKey) ?? 0;
+    if (pendingCount <= 1) {
+      this.#pendingPaymentMethodsContextCount.delete(contextKey);
+      this.#latestPaymentMethodsContextSequence.delete(contextKey);
+      return;
+    }
+    this.#pendingPaymentMethodsContextCount.set(contextKey, pendingCount - 1);
   }
 
   /**
@@ -1910,89 +1953,164 @@ export class RampsController extends BaseController<
     if (assetId === '') {
       throw new Error('assetId is required.');
     }
+    const normalizedAssetContext = normalizeAssetIdForContext(assetId);
+    const updateState = options.updateState === true;
+    const providerIdForState =
+      options.providers?.length === 1
+        ? options.providers[0].trim()
+        : (this.state.providers.selected?.id.trim() ?? '');
+    const stateContextKey = createCacheKey('paymentMethodsStateContext', [
+      normalizedRegion,
+      normalizedAssetContext,
+      providerIdForState,
+    ]);
+    const requestSequence = updateState
+      ? this.#beginPaymentMethodsContextRequest(stateContextKey)
+      : null;
 
-    const providerIds = await this.#resolveProviderIdsForPaymentMethods({
-      assetId,
-      region: normalizedRegion,
-      providers: options.providers,
-      autoSelectProvider: options.autoSelectProvider,
-      preferredProviderIds: options.preferredProviderIds,
-      restrictToKnownOrNativeProviders:
-        options.restrictToKnownOrNativeProviders,
-    });
+    try {
+      const providerIds = await this.#resolveProviderIdsForPaymentMethods({
+        assetId,
+        region: normalizedRegion,
+        providers: options.providers,
+        autoSelectProvider: options.autoSelectProvider,
+        preferredProviderIds: options.preferredProviderIds,
+        restrictToKnownOrNativeProviders:
+          options.restrictToKnownOrNativeProviders,
+      });
 
-    if (providerIds.length === 0) {
-      if (options.updateState === true) {
+      if (providerIds.length === 0) {
+        if (updateState) {
+          this.update((state) => {
+            const regionMatches =
+              state.userRegion?.regionCode === normalizedRegion;
+            const assetMatches =
+              normalizeAssetIdForContext(
+                state.tokens.selected?.assetId ?? '',
+              ) === normalizedAssetContext;
+            const providerMatches =
+              (state.providers.selected?.id.trim() ?? '') ===
+              providerIdForState;
+            const requestIsCurrent =
+              requestSequence !== null &&
+              this.#isLatestPaymentMethodsContextRequest(
+                stateContextKey,
+                requestSequence,
+              );
+            if (
+              regionMatches &&
+              assetMatches &&
+              providerMatches &&
+              requestIsCurrent
+            ) {
+              state.paymentMethods.data = [];
+              state.paymentMethods.selected = null;
+            }
+          });
+        }
+        return { methods: [], selected: null, providerIds };
+      }
+
+      const settled = await Promise.allSettled(
+        providerIds.map(async (providerId) => {
+          const cacheKey = createCacheKey('getPaymentMethodsForContext', [
+            normalizedRegion,
+            assetId,
+            providerId,
+          ]);
+          return this.executeRequest(
+            cacheKey,
+            async () => {
+              return this.messenger.call('RampsService:getPaymentMethods', {
+                region: normalizedRegion,
+                assetId,
+                provider: providerId,
+              });
+            },
+            {
+              forceRefresh: options.forceRefresh,
+              ttl: options.ttl,
+              // Intentionally omit resourceType / isResultCurrent so this
+              // request-only path never drives Buy paymentMethods loading or
+              // selection state unless `updateState` is explicitly set below.
+            },
+          );
+        }),
+      );
+
+      const successfulLists: PaymentMethod[][] = [];
+      const failures: unknown[] = [];
+      for (const result of settled) {
+        if (result.status === 'fulfilled') {
+          successfulLists.push(result.value.payments);
+        } else {
+          failures.push(result.reason);
+        }
+      }
+
+      if (successfulLists.length === 0) {
+        const firstFailure = failures[0];
+        throw firstFailure instanceof Error
+          ? firstFailure
+          : new Error('Failed to fetch payment methods for context.');
+      }
+
+      const methods = mergePaymentMethodsById(successfulLists);
+      const preferredId =
+        options.preferPaymentMethodId ?? this.state.paymentMethods.selected?.id;
+      let selected =
+        (preferredId
+          ? (methods.find((method) => method.id === preferredId) ?? null)
+          : null) ??
+        methods[0] ??
+        null;
+
+      if (updateState) {
         this.update((state) => {
-          state.paymentMethods.data = [];
-          state.paymentMethods.selected = null;
+          const regionMatches =
+            state.userRegion?.regionCode === normalizedRegion;
+          const assetMatches =
+            normalizeAssetIdForContext(state.tokens.selected?.assetId ?? '') ===
+            normalizedAssetContext;
+          const providerMatches =
+            (state.providers.selected?.id.trim() ?? '') === providerIdForState;
+          const requestIsCurrent =
+            requestSequence !== null &&
+            this.#isLatestPaymentMethodsContextRequest(
+              stateContextKey,
+              requestSequence,
+            );
+          if (
+            regionMatches &&
+            assetMatches &&
+            providerMatches &&
+            requestIsCurrent
+          ) {
+            const currentSelection = state.paymentMethods.selected?.id;
+            selected =
+              (currentSelection
+                ? (methods.find((method) => method.id === currentSelection) ??
+                  null)
+                : null) ??
+              (options.preferPaymentMethodId
+                ? (methods.find(
+                    (method) => method.id === options.preferPaymentMethodId,
+                  ) ?? null)
+                : null) ??
+              methods[0] ??
+              null;
+            state.paymentMethods.data = methods;
+            state.paymentMethods.selected = selected;
+          }
         });
       }
-      return { methods: [], selected: null, providerIds };
-    }
 
-    const settled = await Promise.allSettled(
-      providerIds.map(async (providerId) => {
-        const cacheKey = createCacheKey('getPaymentMethodsForContext', [
-          normalizedRegion,
-          assetId,
-          providerId,
-        ]);
-        return this.executeRequest(
-          cacheKey,
-          async () => {
-            return this.messenger.call('RampsService:getPaymentMethods', {
-              region: normalizedRegion,
-              assetId,
-              provider: providerId,
-            });
-          },
-          {
-            forceRefresh: options.forceRefresh,
-            ttl: options.ttl,
-            // Intentionally omit resourceType / isResultCurrent so this
-            // request-only path never drives Buy paymentMethods loading or
-            // selection state unless `updateState` is explicitly set below.
-          },
-        );
-      }),
-    );
-
-    const successfulLists: PaymentMethod[][] = [];
-    const failures: unknown[] = [];
-    for (const result of settled) {
-      if (result.status === 'fulfilled') {
-        successfulLists.push(result.value.payments);
-      } else {
-        failures.push(result.reason);
+      return { methods, selected, providerIds };
+    } finally {
+      if (requestSequence !== null) {
+        this.#finishPaymentMethodsContextRequest(stateContextKey);
       }
     }
-
-    if (successfulLists.length === 0) {
-      const firstFailure = failures[0];
-      throw firstFailure instanceof Error
-        ? firstFailure
-        : new Error('Failed to fetch payment methods for context.');
-    }
-
-    const methods = mergePaymentMethodsById(successfulLists);
-    const preferredId =
-      options.preferPaymentMethodId ?? this.state.paymentMethods.selected?.id;
-    const selected =
-      (preferredId
-        ? (methods.find((method) => method.id === preferredId) ?? null)
-        : null) ??
-      methods[0] ??
-      null;
-
-    if (options.updateState === true) {
-      this.update((state) => {
-        state.paymentMethods.data = methods;
-        state.paymentMethods.selected = selected;
-      });
-    }
-
-    return { methods, selected, providerIds };
   }
 
   /**
