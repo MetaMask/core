@@ -1200,6 +1200,49 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ]);
     });
 
+    it('refreshes the snapshot remaining size after a partial fill', async () => {
+      const { infoClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      infoClient.orderStatus.mockResolvedValueOnce({
+        status: 'order',
+        order: {
+          status: 'open',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0.2',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+            tif: 'Alo',
+            cloid: null,
+          },
+        },
+      });
+
+      const snapshots = await provider.getChaseOrders();
+
+      expect(snapshots).toContainEqual(
+        expect.objectContaining({
+          handle: result.orderId,
+          remainingSize: '0.2',
+        }),
+      );
+    });
+
     it('backgrounds every active session without cancelling its resting child', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(chaseRested) },

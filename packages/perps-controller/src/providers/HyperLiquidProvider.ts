@@ -235,14 +235,6 @@ const ALREADY_GONE_CANCEL_MARKERS = [
   'order not found',
 ];
 
-const isAlreadyGoneCancelError = (error: unknown): boolean => {
-  const message = ensureError(
-    error,
-    'HyperLiquidProvider.cancelOrder',
-  ).message.toLowerCase();
-  return ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker));
-};
-
 const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
   'post only order would have immediately matched',
   'price too far from oracle',
@@ -566,6 +558,8 @@ type ChaseSession = {
   startedAt: number;
   maxDistanceBps?: number;
   intervalMs: number;
+  /** Last live remainder refresh used by client-facing snapshots. */
+  lastSnapshotSizeRefreshAt: number;
   /**
    * Builder fee this chase was quoted at, in tenths of a basis point.
    *
@@ -4997,6 +4991,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       startedAt: Date.now(),
       maxDistanceBps: params.chaseMaxDistanceBps,
       intervalMs,
+      lastSnapshotSizeRefreshAt: 0,
       builderFee: builder.f,
       builderAddress: builder.b,
       deadline:
@@ -5768,33 +5763,59 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Current Chase session snapshots.
    */
   async getChaseOrders(): Promise<ChaseOrder[]> {
-    return [...this.#chaseSessions.entries()].map(([handle, session]) => {
-      const arrival = Number.parseFloat(session.arrivalPrice);
-      const resting = Number.parseFloat(session.restingPrice);
-      const measuredDistance =
-        Number.isFinite(arrival) && arrival > 0 && Number.isFinite(resting)
-          ? Math.round(
-              (Math.abs(resting - arrival) / arrival) * BASIS_POINTS_DIVISOR,
-            )
-          : 0;
-      return {
-        handle,
-        symbol: session.symbol,
-        side: session.isBuy ? 'buy' : 'sell',
-        originalSize: session.originalSize,
-        remainingSize: session.size,
-        arrivalPrice: session.arrivalPrice,
-        restingPrice: session.restingPrice,
-        restingOrderId: session.orderId,
-        distanceChasedBps: measuredDistance,
-        ...(session.maxDistanceBps === undefined
-          ? {}
-          : { maxDistanceBps: session.maxDistanceBps }),
-        repricings: session.repricings,
-        startedAt: session.startedAt,
-        status: session.status,
-      };
-    });
+    return await Promise.all(
+      [...this.#chaseSessions.entries()].map(async ([handle, session]) => {
+        const now = Date.now();
+        let snapshotRemainingSize = session.size;
+        if (
+          session.orderId !== null &&
+          session.pendingReplacement === null &&
+          now - session.lastSnapshotSizeRefreshAt >= session.intervalMs
+        ) {
+          session.lastSnapshotSizeRefreshAt = now;
+          try {
+            const liveRemainder = await this.#readOrderRemainder(
+              session.orderId,
+            );
+            if (liveRemainder !== null) {
+              snapshotRemainingSize = liveRemainder;
+            }
+          } catch (error) {
+            this.#deps.debugLogger.log('Chase snapshot size refresh failed', {
+              orderId: session.orderId,
+              error: ensureError(error, 'HyperLiquidProvider.getChaseOrders')
+                .message,
+            });
+          }
+        }
+
+        const arrival = Number.parseFloat(session.arrivalPrice);
+        const resting = Number.parseFloat(session.restingPrice);
+        const measuredDistance =
+          Number.isFinite(arrival) && arrival > 0 && Number.isFinite(resting)
+            ? Math.round(
+                (Math.abs(resting - arrival) / arrival) * BASIS_POINTS_DIVISOR,
+              )
+            : 0;
+        return {
+          handle,
+          symbol: session.symbol,
+          side: session.isBuy ? 'buy' : 'sell',
+          originalSize: session.originalSize,
+          remainingSize: snapshotRemainingSize,
+          arrivalPrice: session.arrivalPrice,
+          restingPrice: session.restingPrice,
+          restingOrderId: session.orderId,
+          distanceChasedBps: measuredDistance,
+          ...(session.maxDistanceBps === undefined
+            ? {}
+            : { maxDistanceBps: session.maxDistanceBps }),
+          repricings: session.repricings,
+          startedAt: session.startedAt,
+          status: session.status,
+        };
+      }),
+    );
   }
 
   /**
@@ -6034,15 +6055,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // been cancelled is reported as a rejection too, but nothing of it is
     // resting — treating that as a failure would pin the handle open forever on
     // a chase that is entirely finished.
-    let cancelOutcome: CancelChildOutcome;
-    try {
-      cancelOutcome = await this.#cancelChaseChild(session);
-    } catch (error) {
-      if (!isAlreadyGoneCancelError(error)) {
-        throw error;
-      }
-      cancelOutcome = 'gone';
-    }
+    const cancelOutcome = await this.#cancelChaseChild(session);
 
     if (cancelOutcome === 'refused') {
       // The order is still resting. The session stays registered — stopped, but
