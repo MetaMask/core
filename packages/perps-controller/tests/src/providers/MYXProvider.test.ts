@@ -13,10 +13,7 @@ import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { MYXProvider } from '../../../src/providers/MYXProvider.js';
-import {
-  MYXClientService,
-  MYXMarketMetadataStaleError,
-} from '../../../src/services/MYXClientService.js';
+import { MYXClientService } from '../../../src/services/MYXClientService.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
@@ -40,16 +37,7 @@ jest.mock(
   }),
   { virtual: true },
 );
-jest.mock('../../../src/services/MYXClientService', () => {
-  const actual = jest.requireActual('../../../src/services/MYXClientService');
-  const mocked = jest.createMockFromModule(
-    '../../../src/services/MYXClientService',
-  );
-  return {
-    ...mocked,
-    MYXMarketMetadataStaleError: actual.MYXMarketMetadataStaleError,
-  };
-});
+jest.mock('../../../src/services/MYXClientService');
 jest.mock('../../../src/services/MYXWalletService', () => ({
   MYXWalletService: jest.fn().mockImplementation(() => ({
     createEthersSigner: jest.fn().mockReturnValue({}),
@@ -246,68 +234,6 @@ describe('MYXProvider', () => {
       });
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
-
-    it('restores capability discovery after disconnect', async () => {
-      const pools = [makePool()];
-      await provider.disconnect();
-      mockClientService.getMarkets.mockResolvedValue(pools);
-
-      await expect(provider.initialize()).resolves.toStrictEqual({
-        success: true,
-      });
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'ready',
-        providerId: 'myx',
-        supportedStrategies: [],
-      });
-      expect(mockClientService.getMarkets).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not restore capability discovery when initialization overlaps disconnect', async () => {
-      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
-      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
-        resolveMarkets = resolve;
-      });
-      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
-
-      const initialization = provider.initialize();
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-
-      await expect(initialization).resolves.toStrictEqual({
-        success: false,
-        error:
-          '[MYXClientService] Market metadata became stale during disconnect',
-      });
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'provider_unavailable',
-      });
-      expect(mockClientService.getMarkets).toHaveBeenCalledTimes(1);
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXProvider] Ignoring stale initialization after disconnect',
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-    });
-
-    it('does not report stale initialization metadata as an error', async () => {
-      const staleError = new MYXMarketMetadataStaleError();
-      mockClientService.getMarkets.mockRejectedValueOnce(staleError);
-
-      await expect(provider.initialize()).resolves.toStrictEqual({
-        success: false,
-        error: staleError.message,
-      });
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXProvider] Ignoring stale initialization after disconnect',
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-    });
   });
 
   describe('disconnect', () => {
@@ -404,25 +330,6 @@ describe('MYXProvider', () => {
       const result = await provider.getMarkets();
       expect(result).toEqual([]);
       expect(mockDeps.logger.error).toHaveBeenCalled();
-    });
-
-    it('does not repopulate market caches after disconnect', async () => {
-      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
-      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
-        resolveMarkets = resolve;
-      });
-      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
-
-      const markets = provider.getMarkets();
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-
-      await expect(markets).resolves.toStrictEqual([]);
-      expect(mockAdaptMarketFromMYX).not.toHaveBeenCalled();
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXProvider] Ignoring stale market metadata after disconnect',
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });
 
@@ -854,6 +761,23 @@ describe('MYXProvider', () => {
       });
     });
 
+    it('returns zero fee amounts for an invalid amount quote', async () => {
+      await expect(
+        provider.calculateFees({
+          orderType: 'market',
+          symbol: 'RHEA',
+          amount: 'abc',
+        }),
+      ).resolves.toStrictEqual({
+        feeRate: 0.0005,
+        feeAmount: 0,
+        protocolFeeRate: 0.0005,
+        protocolFeeAmount: 0,
+        metamaskFeeRate: 0,
+        metamaskFeeAmount: 0,
+      });
+    });
+
     it.each(['twap', 'scale', 'chase'] as const)(
       'rejects an unsupported %s strategy fee quote',
       async (orderType) => {
@@ -922,75 +846,6 @@ describe('MYXProvider', () => {
         providerId: 'myx',
         reason: 'provider_unavailable',
       });
-    });
-
-    it('logs lifecycle-stale capability metadata without reporting an error', async () => {
-      mockClientService.getMarkets.mockRejectedValueOnce(
-        new MYXMarketMetadataStaleError(),
-      );
-
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'provider_unavailable',
-      });
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXProvider] Ignoring stale capability metadata after disconnect',
-        { symbol: 'RHEA' },
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-    });
-
-    it('does not fetch markets after disconnect', async () => {
-      await provider.disconnect();
-
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'provider_unavailable',
-      });
-      expect(mockClientService.getMarkets).not.toHaveBeenCalled();
-    });
-
-    it('invalidates a capability read that overlaps disconnect', async () => {
-      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
-      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
-        resolveMarkets = resolve;
-      });
-      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
-
-      const capabilities = provider.getOrderCapabilities({ symbol: 'RHEA' });
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-
-      await expect(capabilities).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'provider_unavailable',
-      });
-    });
-
-    it('logs lifecycle-stale capability reads at debug level', async () => {
-      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
-      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
-        resolveMarkets = resolve;
-      });
-      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
-
-      const capabilities = provider.getOrderCapabilities({ symbol: 'RHEA' });
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-      await capabilities;
-
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXProvider] Ignoring stale capability metadata after disconnect',
-        { symbol: 'RHEA' },
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });
 

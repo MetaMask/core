@@ -27,10 +27,7 @@ import {
 } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
-import {
-  MYXClientService,
-  MYXMarketMetadataStaleError,
-} from '../services/MYXClientService.js';
+import { MYXClientService } from '../services/MYXClientService.js';
 import { MYXWalletService } from '../services/MYXWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
@@ -119,8 +116,8 @@ import {
   buildPoolSymbolMap,
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
-import { isStrategyOrderType } from '../utils/orderTypes.js';
 import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
+import { isStrategyOrderType } from '../utils/orderTypes.js';
 
 // ============================================================================
 // Constants
@@ -167,12 +164,6 @@ export class MYXProvider implements PerpsProvider {
   #poolsCache: MYXPoolSymbol[] = [];
 
   #poolSymbolMap: Map<string, string> = new Map();
-
-  // Sticky for this instance. PerpsController discards disconnected providers
-  // during initialization; direct callers must call initialize() before reuse.
-  #isDisconnected = false;
-
-  #disconnectGeneration = 0;
 
   // Ticker cache for price data
   readonly #tickersCache: Map<string, MYXTicker> = new Map();
@@ -224,30 +215,11 @@ export class MYXProvider implements PerpsProvider {
       };
     }
 
-    if (this.#isDisconnected) {
-      return {
-        status: 'unavailable',
-        providerId: this.protocolId,
-        reason: 'provider_unavailable',
-      };
-    }
-
     try {
       const pools = await this.#clientService.getMarkets({
         allowStaleOnError: false,
         maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
-      if (this.#isDisconnected) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale capability metadata after disconnect',
-          { symbol: params.symbol },
-        );
-        return {
-          status: 'unavailable',
-          providerId: this.protocolId,
-          reason: 'provider_unavailable',
-        };
-      }
       const capabilityPools = filterMYXExclusiveMarkets(pools);
       const market = capabilityPools.find(
         (pool) => adaptMarketFromMYX(pool).name === params.symbol,
@@ -265,19 +237,12 @@ export class MYXProvider implements PerpsProvider {
         caughtError,
         'MYXProvider.getOrderCapabilities',
       );
-      if (wrappedError instanceof MYXMarketMetadataStaleError) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale capability metadata after disconnect',
-          { symbol: params.symbol },
-        );
-      } else {
-        this.#deps.logger.error(
-          wrappedError,
-          this.#getErrorContext('getOrderCapabilities', {
-            symbol: params.symbol,
-          }),
-        );
-      }
+      this.#deps.logger.error(
+        wrappedError,
+        this.#getErrorContext('getOrderCapabilities', {
+          symbol: params.symbol,
+        }),
+      );
       return {
         status: 'unavailable',
         providerId: this.protocolId,
@@ -318,21 +283,14 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async initialize(): Promise<InitializeResult> {
-    const disconnectGeneration = this.#disconnectGeneration;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Initializing...');
 
       // Fetch initial markets
       const pools = await this.#clientService.getMarkets();
       // Filter to MYX-exclusive markets
-      const poolsCache = filterMYXExclusiveMarkets(pools);
-      const poolSymbolMap = buildPoolSymbolMap(poolsCache);
-      if (disconnectGeneration !== this.#disconnectGeneration) {
-        throw new MYXMarketMetadataStaleError();
-      }
-      this.#poolsCache = poolsCache;
-      this.#poolSymbolMap = poolSymbolMap;
-      this.#isDisconnected = false;
+      this.#poolsCache = filterMYXExclusiveMarkets(pools);
+      this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
 
       this.#deps.debugLogger.log('[MYXProvider] Initialized successfully', {
         totalPools: pools.length,
@@ -342,27 +300,22 @@ export class MYXProvider implements PerpsProvider {
       return { success: true };
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.initialize');
-      if (wrappedError instanceof MYXMarketMetadataStaleError) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale initialization after disconnect',
-        );
-      } else {
-        this.#deps.logger.error(
-          wrappedError,
-          this.#getErrorContext('initialize'),
-        );
-      }
+      this.#deps.logger.error(
+        wrappedError,
+        this.#getErrorContext('initialize'),
+      );
       return { success: false, error: wrappedError.message };
     }
   }
 
   async disconnect(): Promise<DisconnectResult> {
-    this.#isDisconnected = true;
-    this.#disconnectGeneration += 1;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Disconnecting...');
 
       this.#clientService.disconnect();
+      this.#poolsCache = [];
+      this.#poolSymbolMap.clear();
+      this.#tickersCache.clear();
 
       return { success: true };
     } catch (caughtError) {
@@ -372,10 +325,6 @@ export class MYXProvider implements PerpsProvider {
         this.#getErrorContext('disconnect'),
       );
       return { success: false, error: wrappedError.message };
-    } finally {
-      this.#poolsCache = [];
-      this.#poolSymbolMap.clear();
-      this.#tickersCache.clear();
     }
   }
 
@@ -515,31 +464,19 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
-    const disconnectGeneration = this.#disconnectGeneration;
     try {
       // Delegate cache freshness to MYXClientService
       const pools = await this.#clientService.getMarkets();
-      const poolsCache = filterMYXExclusiveMarkets(pools);
-      const poolSymbolMap = buildPoolSymbolMap(poolsCache);
-      if (disconnectGeneration !== this.#disconnectGeneration) {
-        throw new MYXMarketMetadataStaleError();
-      }
-      this.#poolsCache = poolsCache;
-      this.#poolSymbolMap = poolSymbolMap;
+      this.#poolsCache = filterMYXExclusiveMarkets(pools);
+      this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
 
       return this.#poolsCache.map((pool) => adaptMarketFromMYX(pool));
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.getMarkets');
-      if (wrappedError instanceof MYXMarketMetadataStaleError) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale market metadata after disconnect',
-        );
-      } else {
-        this.#deps.logger.error(
-          wrappedError,
-          this.#getErrorContext('getMarkets'),
-        );
-      }
+      this.#deps.logger.error(
+        wrappedError,
+        this.#getErrorContext('getMarkets'),
+      );
       return [];
     }
   }

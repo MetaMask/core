@@ -55,14 +55,6 @@ export type MYXClientConfig = {
  */
 export type PricePollingCallback = (tickers: MYXTicker[]) => void;
 
-/** Expected lifecycle cancellation for market metadata reads. */
-export class MYXMarketMetadataStaleError extends Error {
-  constructor() {
-    super('[MYXClientService] Market metadata became stale during disconnect');
-    this.name = 'MYXMarketMetadataStaleError';
-  }
-}
-
 // ============================================================================
 // MYXClientService
 // ============================================================================
@@ -103,10 +95,6 @@ export class MYXClientService {
   #marketsCacheTimestamp = 0;
 
   readonly #marketsCacheTtlMs = PERFORMANCE_CONFIG.MarketDataCacheDurationMs;
-
-  #marketsRefreshPromise: Promise<MYXPoolSymbol[]> | null = null;
-
-  #marketsCacheGeneration = 0;
 
   // globalId cache: poolId → globalId (for WS subscriptions)
   readonly #globalIdCache: Map<string, number> = new Map();
@@ -215,18 +203,23 @@ export class MYXClientService {
     }
 
     try {
-      return await this.#refreshMarkets();
+      this.#deps.debugLogger.log('[MYXClientService] Fetching markets via SDK');
+
+      const pools = await this.#myxClient.markets.getPoolSymbolAll();
+
+      this.#marketsCache = pools || [];
+      this.#marketsCacheTimestamp = Date.now();
+
+      this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
+        count: this.#marketsCache.length,
+      });
+
+      return this.#marketsCache;
     } catch (caughtError) {
       const wrappedError = ensureError(
         caughtError,
         'MYXClientService.getMarkets',
       );
-      if (wrappedError instanceof MYXMarketMetadataStaleError) {
-        this.#deps.debugLogger.log(
-          '[MYXClientService] Ignoring stale market metadata after disconnect',
-        );
-        throw wrappedError;
-      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('getMarkets'),
@@ -244,43 +237,6 @@ export class MYXClientService {
       }
 
       throw wrappedError;
-    }
-  }
-
-  /**
-   * Refresh and cache market metadata. Disconnect clears the shared promise so
-   * callers after teardown cannot join an earlier lifecycle generation.
-   *
-   * @returns Current market metadata.
-   */
-  async #refreshMarkets(): Promise<MYXPoolSymbol[]> {
-    if (this.#marketsRefreshPromise) {
-      return await this.#marketsRefreshPromise;
-    }
-
-    const generation = this.#marketsCacheGeneration;
-    const refreshPromise = (async (): Promise<MYXPoolSymbol[]> => {
-      this.#deps.debugLogger.log('[MYXClientService] Fetching markets via SDK');
-      const pools = (await this.#myxClient.markets.getPoolSymbolAll()) || [];
-      if (generation !== this.#marketsCacheGeneration) {
-        throw new MYXMarketMetadataStaleError();
-      }
-
-      this.#marketsCache = pools;
-      this.#marketsCacheTimestamp = Date.now();
-      this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
-        count: this.#marketsCache.length,
-      });
-      return this.#marketsCache;
-    })();
-    this.#marketsRefreshPromise = refreshPromise;
-
-    try {
-      return await refreshPromise;
-    } finally {
-      if (this.#marketsRefreshPromise === refreshPromise) {
-        this.#marketsRefreshPromise = null;
-      }
     }
   }
 
@@ -1108,20 +1064,15 @@ export class MYXClientService {
    * Disconnect and cleanup
    */
   disconnect(): void {
-    this.#marketsCacheGeneration += 1;
-    this.#marketsRefreshPromise = null;
     this.stopPricePolling();
-    try {
-      this.#myxClient.subscription.disconnect();
-    } finally {
-      this.#marketsCache = [];
-      this.#marketsCacheTimestamp = 0;
-      this.#globalIdCache.clear();
-      this.#authenticatedAddress = null;
-      this.#authenticating = null;
+    this.#myxClient.subscription.disconnect();
+    this.#marketsCache = [];
+    this.#marketsCacheTimestamp = 0;
+    this.#globalIdCache.clear();
+    this.#authenticatedAddress = null;
+    this.#authenticating = null;
 
-      this.#deps.debugLogger.log('[MYXClientService] Disconnected');
-    }
+    this.#deps.debugLogger.log('[MYXClientService] Disconnected');
   }
 
   /**

@@ -4685,7 +4685,6 @@ export class HyperLiquidSubscriptionService {
     this.#spotStateGeneration += 1;
     this.#spotStatePromise = undefined;
     this.#spotStatePromiseUserAddress = undefined;
-    this.#dexMetaCache.clear();
     this.#dexAssetCtxsCache.clear();
 
     // Unsubscribe all active subscriptions before clearing references.

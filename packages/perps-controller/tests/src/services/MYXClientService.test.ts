@@ -285,50 +285,6 @@ describe('MYXClientService', () => {
       ).rejects.toThrow('API down');
     });
 
-    it('deduplicates concurrent market refreshes', async () => {
-      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
-      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
-        resolveMarkets = resolve;
-      });
-      mockGetPoolSymbolAll.mockReturnValueOnce(pendingMarkets);
-
-      const first = service.getMarkets();
-      const second = service.getMarkets();
-      resolveMarkets([makePool()]);
-
-      await expect(Promise.all([first, second])).resolves.toStrictEqual([
-        [makePool()],
-        [makePool()],
-      ]);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
-    });
-
-    it('invalidates a market refresh that overlaps disconnect', async () => {
-      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
-      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
-        resolveMarkets = resolve;
-      });
-      mockGetPoolSymbolAll
-        .mockReturnValueOnce(pendingMarkets)
-        .mockResolvedValueOnce([makePool({ poolId: '0xfresh' })]);
-
-      const staleRead = service.getMarkets({ allowStaleOnError: false });
-      service.disconnect();
-      resolveMarkets([makePool({ poolId: '0xstale' })]);
-
-      await expect(staleRead).rejects.toThrow(
-        'Market metadata became stale during disconnect',
-      );
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXClientService] Ignoring stale market metadata after disconnect',
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-      await expect(
-        service.getMarkets({ allowStaleOnError: false }),
-      ).resolves.toStrictEqual([makePool({ poolId: '0xfresh' })]);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
-    });
-
     it('throws error when fetch fails with no cache', async () => {
       mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('Network error'));
 
@@ -638,21 +594,6 @@ describe('MYXClientService', () => {
       const result = await service.getMarkets();
 
       expect(result).toEqual([makePool({ poolId: '0xnew' })]);
-    });
-
-    it('clears local state when the SDK disconnect throws', async () => {
-      mockGetPoolSymbolAll.mockResolvedValueOnce([makePool()]);
-      await service.getMarkets();
-      mockWsDisconnect.mockImplementationOnce(() => {
-        throw new Error('SDK disconnect failed');
-      });
-
-      expect(() => service.disconnect()).toThrow('SDK disconnect failed');
-
-      const refreshedPools = [makePool({ poolId: '0xrefreshed' })];
-      mockGetPoolSymbolAll.mockResolvedValueOnce(refreshedPools);
-      await expect(service.getMarkets()).resolves.toStrictEqual(refreshedPools);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
     });
 
     it('logs disconnection', () => {

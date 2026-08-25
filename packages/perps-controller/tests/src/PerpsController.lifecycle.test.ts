@@ -1086,6 +1086,50 @@ describe('PerpsController', () => {
       expect(result).toEqual(expect.objectContaining({ orderId: '123' }));
     });
 
+    it('waits for init before selecting the capability provider', async () => {
+      let resolveBlock!: () => void;
+      const blockingPromise = new Promise<void>((resolve) => {
+        resolveBlock = resolve;
+      });
+      let attempt = 0;
+      (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) {
+          throw new Error('Transient failure');
+        }
+        return mockProvider;
+      });
+      (mockWait as jest.Mock).mockImplementationOnce(() => blockingPromise);
+      mockProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      const capabilities = controller.getOrderCapabilities({ symbol: 'BTC' });
+      expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
+      resolveBlock();
+
+      await initPromise;
+      await expect(capabilities).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(mockProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+    });
+
     it('waits for init before calculating a strategy fee quote', async () => {
       let resolveBlock!: () => void;
       const blockingPromise = new Promise<void>((resolve) => {

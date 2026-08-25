@@ -18,6 +18,7 @@ import { TradingReadinessCache } from '../../../src/services/TradingReadinessCac
 import type {
   ClosePositionParams,
   DepositParams,
+  HyperLiquidOrderFeeConfiguration,
   Order,
   PerpsPlatformDependencies,
   LiveDataConfig,
@@ -360,6 +361,7 @@ const createTestProvider = (
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
     initialAssetMapping?: [string, number][];
+    orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -1295,6 +1297,33 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(true);
+    });
+
+    it('closes a position without builder setup when the market fee is disabled', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      provider = createTestProvider({
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+        },
+      });
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+        'builder',
+      );
     });
 
     it('repairs missing HIP-3 asset IDs during closePosition after degraded discovery', async () => {
@@ -3175,6 +3204,36 @@ describe('HyperLiquidProvider', () => {
         expect(result.results).toHaveLength(2);
         expect(result.results[0].symbol).toBe('BTC');
         expect(result.results[1].symbol).toBe('ETH');
+      });
+
+      it('closes a batch without builder setup when the market fee is disabled', async () => {
+        const exchangeClient = createMockExchangeClient({
+          order: jest.fn().mockResolvedValue({
+            response: {
+              data: { statuses: [{ filled: {} }, { filled: {} }] },
+            },
+          }),
+        });
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(exchangeClient);
+        provider = createTestProvider({
+          initialAssetMapping: [
+            ['BTC', 0],
+            ['ETH', 1],
+          ],
+          orderFeeConfiguration: {
+            market: { chargesMetamaskBuilderFee: false },
+          },
+        });
+
+        const result = await provider.closePositions({ closeAll: true });
+
+        expect(result.success).toBe(true);
+        expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+        expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+          'builder',
+        );
       });
 
       it('rounds each reduce-only close size down to the size grid', async () => {
