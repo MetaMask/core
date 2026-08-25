@@ -333,6 +333,37 @@ describe('Validation Utils', () => {
       ).not.toThrow();
     });
 
+    it('does not throw when `chainId` is a number', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          chainId: 1,
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw when `chainId` is a hex string', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          chainId: '0x1',
+        }),
+      ).not.toThrow();
+    });
+
+    it('throws for an extraneous top-level key alongside a numeric `chainId`', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          chainId: 1,
+          extraKey: 'unexpected',
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
     it.each([
       ['null', null],
       ['undefined', undefined],
