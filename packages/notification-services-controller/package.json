@@ -80,7 +80,7 @@
     "@metamask/utils": "^11.12.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "loglevel": "^1.8.1",
     "semver": "^7.6.3",
     "uuid": "^8.3.2"
@@ -90,7 +90,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
-    "@types/lodash": "^4.14.191",
+    "@types/lodash-es": "^4.17.12",
     "@types/readable-stream": "^2.3.0",
     "@types/semver": "^7",
     "contentful": "^10.15.0",

@@ -10,7 +10,7 @@ import type {
 } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { v4 as uuid } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types.js';

@@ -2,7 +2,7 @@ import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { flushPromises } from '../../../../tests/helpers.js';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
