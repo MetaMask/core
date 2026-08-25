@@ -2076,7 +2076,7 @@ export class KycController extends BaseController<
    * preserving persisted terms acceptance and the per-product cache.
    */
   reset(): void {
-    this.#supersedeInFlightWork();
+    this.#cancelPendingSession();
     this.#applyUpdate((state) => {
       state.phase = 'idle';
       state.statusMessage = '';
@@ -2107,7 +2107,7 @@ export class KycController extends BaseController<
    * customer may survive into the next wallet.
    */
   clearState(): void {
-    this.#supersedeInFlightWork();
+    this.#cancelPendingSession();
     this.#applyUpdate((state) => {
       Object.assign(state, getDefaultKycControllerState());
     });
@@ -2119,7 +2119,7 @@ export class KycController extends BaseController<
    * async steps started earlier discard their results instead of writing them
    * onto the controller. Shared by {@link reset} and {@link clearState}.
    */
-  #supersedeInFlightWork(): void {
+  #cancelPendingSession(): void {
     this.#authClientToken = null;
     this.#stopPolling();
     this.#stopUserStatusPolling();
