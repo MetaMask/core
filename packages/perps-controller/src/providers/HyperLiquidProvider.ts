@@ -1191,19 +1191,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
     const { dex, symbol } = parseAssetName(params.symbol);
 
-    if (dex !== null) {
-      // Strategy placement rejects every HIP-3 market before metadata reads.
-      // Report that deterministic routing constraint without claiming that an
-      // arbitrary DEX symbol exists and without issuing irrelevant requests.
-      return HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES;
-    }
-
     if (this.#isDisconnected) {
       return {
         status: 'unavailable',
         providerId: this.protocolId,
         reason: 'provider_unavailable',
       };
+    }
+
+    if (dex !== null) {
+      // Strategy placement rejects every HIP-3 market before metadata reads.
+      // Report that deterministic routing constraint without claiming that an
+      // arbitrary DEX symbol exists and without issuing irrelevant requests.
+      return HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES;
     }
 
     const lifecycleGeneration = this.#lifecycleGeneration;
@@ -2706,6 +2706,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Array of ExtendedPerpDex objects (null entries represent main DEX)
    */
   async #getCachedPerpDexs(): Promise<ExtendedPerpDex[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const now = Date.now();
 
     // Return cached data if still valid (uses unified state timestamp for TTL)
@@ -2732,6 +2733,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const perpDexs =
       (await infoClient.perpDexs()) as unknown as ExtendedPerpDex[];
 
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Perp DEX cache write',
+    );
     // Atomically update unified state (raw + validated + timestamp)
     this.#dexDiscoveryCache.update(perpDexs);
 
@@ -11219,34 +11224,24 @@ export class HyperLiquidProvider implements PerpsProvider {
   async toggleTestnet(): Promise<ToggleTestnetResult> {
     try {
       const newIsTestnet = !this.#clientService.isTestnetMode();
-
-      // Await pending initialization to prevent race condition where
-      // the IIFE sets clientsInitialized = true after we reset it
-      const pendingInit = this.#initializationPromise;
-      this.#initializationPromise = null;
-
-      if (pendingInit) {
-        try {
-          await pendingInit;
-        } catch {
-          // Ignore - we're switching networks anyway
-        }
+      const disconnectResult = await this.disconnect();
+      if (!disconnectResult.success) {
+        throw new Error(
+          disconnectResult.error ??
+            'Failed to disconnect before network toggle',
+        );
       }
-
-      // A network change is a lifecycle boundary for provider-owned reads.
-      // Invalidate old-network responses before switching clients, and clear
-      // the caches whose values differ between mainnet and testnet.
-      this.#lifecycleGeneration += 1;
-      this.clearFeeCache();
-      this.#orderCapabilitiesMeta = null;
-      this.#orderCapabilitiesMetaRefreshPromise = null;
 
       // Update all services
       this.#clientService.setTestnetMode(newIsTestnet);
       this.#walletService.setTestnetMode(newIsTestnet);
 
-      // Reset initialization flag so clients will be recreated on next use
-      this.#clientsInitialized = false;
+      const initializeResult = await this.initialize();
+      if (!initializeResult.success) {
+        throw new Error(
+          initializeResult.error ?? 'Failed to initialize after network toggle',
+        );
+      }
 
       return {
         success: true,

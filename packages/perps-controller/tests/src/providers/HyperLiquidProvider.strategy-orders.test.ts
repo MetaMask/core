@@ -2945,6 +2945,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
     );
 
+    it('reports a disconnected HIP-3 provider as unavailable', async () => {
+      const { capabilityProvider } = useHip3Capabilities();
+      await capabilityProvider.disconnect();
+
+      expect(
+        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+
     it('keeps delisted main-DEX discovery aligned with placement', async () => {
       useStrategyClients({
         info: {
@@ -3505,6 +3518,51 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
+    it('does not cache Perp DEX metadata that resolves after disconnect', async () => {
+      const requestStarted = createDeferred<void>();
+      const pendingPerpDexs =
+        createDeferred<(null | { name: string; deployerFeeScale: string })[]>();
+      const { infoClient } = useStrategyClients({
+        info: {
+          perpDexs: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              requestStarted.resolve();
+              return pendingPerpDexs.promise;
+            })
+            .mockResolvedValueOnce([
+              null,
+              { name: 'xyz', deployerFeeScale: '1' },
+            ]),
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+          }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'xyz:TSLA',
+      };
+
+      const staleFees = provider.calculateFees(params);
+      await requestStarted.promise;
+      const disconnectPromise = provider.disconnect();
+      pendingPerpDexs.resolve([null, { name: 'xyz', deployerFeeScale: '0.5' }]);
+
+      await expect(staleFees).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      expect(await disconnectPromise).toStrictEqual({ success: true });
+      await provider.initialize();
+      expect(await provider.calculateFees(params)).toBeDefined();
+      expect(infoClient.perpDexs).toHaveBeenCalledTimes(2);
+    });
+
     it('clears cached capability metadata when the network changes', async () => {
       const meta = jest
         .fn()
@@ -3650,6 +3708,49 @@ describe('HyperLiquidProvider - strategy order types', () => {
         0.0006,
       );
       expect(infoClient.userFees).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache Perp DEX metadata that resolves after a network change', async () => {
+      const requestStarted = createDeferred<void>();
+      const pendingPerpDexs =
+        createDeferred<(null | { name: string; deployerFeeScale: string })[]>();
+      const { infoClient } = useStrategyClients({
+        info: {
+          perpDexs: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              requestStarted.resolve();
+              return pendingPerpDexs.promise;
+            })
+            .mockResolvedValueOnce([
+              null,
+              { name: 'xyz', deployerFeeScale: '1' },
+            ]),
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+          }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const params = {
+        orderType: 'market' as const,
+        amount: '1000',
+        symbol: 'xyz:TSLA',
+      };
+
+      const staleFees = provider.calculateFees(params);
+      await requestStarted.promise;
+      await provider.toggleTestnet();
+      pendingPerpDexs.resolve([null, { name: 'xyz', deployerFeeScale: '0.5' }]);
+
+      await expect(staleFees).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      expect(await provider.calculateFees(params)).toBeDefined();
+      expect(infoClient.perpDexs).toHaveBeenCalledTimes(2);
     });
 
     it('retains confirmed builder approval that finishes after disconnect', async () => {

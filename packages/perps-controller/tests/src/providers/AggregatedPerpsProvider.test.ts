@@ -1166,6 +1166,25 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
+    it('attributes capabilities to the provider route that resolved them', async () => {
+      mockMYXProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'myx',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'myx',
+        supportedStrategies: [],
+      });
+    });
+
     it('reports an explicit provider route that is not registered', async () => {
       const providerWithoutMyx = new AggregatedPerpsProvider({
         providers: new Map([['hyperliquid', mockHLProvider]]),

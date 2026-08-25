@@ -293,7 +293,11 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
     if (!provider.getOrderCapabilities) {
       return { status: 'unavailable', providerId, reason: 'not_implemented' };
     }
-    return await provider.getOrderCapabilities({ ...params, providerId });
+    const capabilities = await provider.getOrderCapabilities({
+      ...params,
+      providerId,
+    });
+    return { ...capabilities, providerId };
   }
 
   // ============================================================================
