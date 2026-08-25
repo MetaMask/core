@@ -6,7 +6,7 @@ import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type {
-  PerpsProvider,
+  ActivePerpsProvider,
   Position,
   GetPositionsParams,
   AccountState,
@@ -72,7 +72,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getPositions(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetPositionsParams;
     context: ServiceContext;
   }): Promise<Position[]> {
@@ -145,7 +145,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getOrderFills(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetOrderFillsParams;
     context: ServiceContext;
     /**
@@ -258,7 +258,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getOrders(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetOrdersParams;
     context: ServiceContext;
     /**
@@ -359,7 +359,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getOpenOrders(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetOrdersParams;
     context: ServiceContext;
   }): Promise<Order[]> {
@@ -436,7 +436,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getFunding(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetFundingParams;
     context: ServiceContext;
     /**
@@ -538,7 +538,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getAccountState(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetAccountStateParams;
     context: ServiceContext;
   }): Promise<AccountState> {
@@ -636,7 +636,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getHistoricalPortfolio(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetHistoricalPortfolioParams;
     context: ServiceContext;
   }): Promise<HistoricalPortfolioResult> {
@@ -727,7 +727,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getMarkets(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetMarketsParams;
     context: ServiceContext;
     isMarketAllowed?: (symbol: string) => boolean;
@@ -885,7 +885,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getMarketDataWithPrices(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetMarketDataWithPricesParams;
     context: ServiceContext;
   }): Promise<PerpsMarketData[]> {
@@ -1039,7 +1039,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getAvailableDexs(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params?: GetAvailableDexsParams;
     context: ServiceContext;
   }): Promise<string[]> {
@@ -1079,7 +1079,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async fetchHistoricalCandles(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     symbol: string;
     interval: CandlePeriod;
     limit?: number;
@@ -1186,7 +1186,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async calculateLiquidationPrice(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: LiquidationPriceParams;
     context: ServiceContext;
   }): Promise<string> {
@@ -1218,7 +1218,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async calculateMaintenanceMargin(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: MaintenanceMarginParams;
     context: ServiceContext;
   }): Promise<number> {
@@ -1250,7 +1250,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async getMaxLeverage(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     asset: string;
     context: ServiceContext;
   }): Promise<number> {
@@ -1282,7 +1282,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async calculateFees(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: FeeCalculationParams;
     context: ServiceContext;
   }): Promise<FeeCalculationResult> {
@@ -1321,7 +1321,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async validateOrder(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: OrderParams;
     context: ServiceContext;
   }): Promise<{ isValid: boolean; error?: string }> {
@@ -1353,7 +1353,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   async validateClosePosition(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: ClosePositionParams;
     context: ServiceContext;
   }): Promise<{ isValid: boolean; error?: string }> {
@@ -1383,7 +1383,9 @@ export class MarketDataService {
    * @param options.provider - The perps provider instance.
    * @returns The result of the operation.
    */
-  getWithdrawalRoutes(options: { provider: PerpsProvider }): AssetRoute[] {
+  getWithdrawalRoutes(options: {
+    provider: ActivePerpsProvider;
+  }): AssetRoute[] {
     const { provider } = options;
 
     try {
@@ -1403,7 +1405,7 @@ export class MarketDataService {
    * @returns The result of the operation.
    */
   getBlockExplorerUrl(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     address?: string;
   }): string {
     const { provider, address } = options;

@@ -14,7 +14,7 @@ import {
   PerpsTraceOperations,
 } from '../types/index.js';
 import type {
-  PerpsProvider,
+  ActivePerpsProvider,
   OrderParams,
   OrderResult,
   EditOrderParams,
@@ -438,7 +438,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     feeResolution?: PerpsFeeResolution;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
@@ -494,7 +494,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async placeOrder(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: OrderParams;
     context: ServiceContext;
     reportOrderToDataLake: (params: {
@@ -1179,7 +1179,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async editOrder(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: EditOrderParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
@@ -1333,7 +1333,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async cancelOrder(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: CancelOrderParams;
     context: ServiceContext;
     bulkActionId?: string;
@@ -1473,7 +1473,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async cancelOrders(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: CancelOrdersParams;
     context: ServiceContext;
     withStreamPause: <TResult>(
@@ -1676,7 +1676,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async closePosition(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: ClosePositionParams;
     context: ServiceContext;
     reportOrderToDataLake: (params: {
@@ -1839,7 +1839,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async closePositions(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: ClosePositionsParams;
     context: ServiceContext;
   }): Promise<ClosePositionsResult> {
@@ -2041,7 +2041,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async updatePositionTPSL(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     params: UpdatePositionTPSLParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
@@ -2216,7 +2216,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async updateMargin(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     symbol: string;
     amount: string;
     context: ServiceContext;
@@ -2332,7 +2332,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async flipPosition(options: {
-    provider: PerpsProvider;
+    provider: ActivePerpsProvider;
     position: Position;
     trackingData?: TrackingData;
     context: ServiceContext;

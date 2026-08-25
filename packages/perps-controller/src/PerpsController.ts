@@ -99,6 +99,7 @@ import type {
   GetOrderFillsParams,
   GetOrdersParams,
   GetPositionsParams,
+  ActivePerpsProvider,
   PerpsProvider,
   LiquidationPriceParams,
   LiveDataConfig,
@@ -900,7 +901,7 @@ type BlockedRegionList = {
 };
 
 type UserSnapshotContext = {
-  provider: PerpsProvider;
+  provider: ActivePerpsProvider;
   standaloneProvider: HyperLiquidProvider | null;
   address: string;
   isTestnet: boolean;
@@ -1131,7 +1132,7 @@ export class PerpsController extends BaseController<
    * When activeProvider is 'hyperliquid' or 'myx': points to specific provider directly
    * When activeProvider is 'aggregated': points to AggregatedPerpsProvider wrapper
    */
-  protected activeProviderInstance: PerpsProvider | null = null;
+  protected activeProviderInstance: ActivePerpsProvider | null = null;
 
   /**
    * Cached standalone provider for pre-initialization discovery queries.
@@ -2570,7 +2571,7 @@ export class PerpsController extends BaseController<
    * @returns The active provider (aggregated wrapper or direct provider based on mode)
    * @throws Error if provider is not initialized or reinitializing
    */
-  getActiveProvider(): PerpsProvider {
+  getActiveProvider(): ActivePerpsProvider {
     // Check if we're in the middle of reinitializing
     if (this.isCurrentlyReinitializing()) {
       this.update((state) => {
@@ -2615,7 +2616,7 @@ export class PerpsController extends BaseController<
    *
    * @returns The active provider once initialization completes.
    */
-  async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
+  async #getActiveProviderWhenReady(): Promise<ActivePerpsProvider> {
     await this.#awaitInitializationIfInProgress();
     return this.getActiveProvider();
   }
@@ -2627,7 +2628,7 @@ export class PerpsController extends BaseController<
    *
    * @returns The active provider, or null if not initialized/reinitializing
    */
-  getActiveProviderOrNull(): PerpsProvider | null {
+  getActiveProviderOrNull(): ActivePerpsProvider | null {
     // Return null during reinitialization
     if (this.isCurrentlyReinitializing()) {
       return null;
@@ -2710,7 +2711,9 @@ export class PerpsController extends BaseController<
    * @param provider - Resolved provider.
    * @returns Direct provider identity, if known.
    */
-  #getDirectProviderId(provider: PerpsProvider): PerpsProviderType | undefined {
+  #getDirectProviderId(
+    provider: ActivePerpsProvider,
+  ): PerpsProviderType | undefined {
     if (provider.routesOrdersByProviderId) {
       return undefined;
     }
@@ -2729,7 +2732,7 @@ export class PerpsController extends BaseController<
    */
   #hasConflictingProviderRoute(
     providerId: PerpsProviderType | undefined,
-    provider: PerpsProvider,
+    provider: ActivePerpsProvider,
   ): boolean {
     return Boolean(
       providerId &&
@@ -3850,7 +3853,7 @@ export class PerpsController extends BaseController<
 
   readonly #userSnapshotRequests = new Map<
     string,
-    { provider: PerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
+    { provider: ActivePerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
   >();
 
   #preloadStateUnsubscribe: (() => void) | null = null;

@@ -7,6 +7,7 @@ import type {
   OrderParams,
   PerpsProvider,
   PerpsProviderType,
+  RoutedPerpsProvider,
   Position,
   MarketInfo,
   Order,
@@ -180,6 +181,7 @@ const createMockOrder = (orderId: string, symbol: string): Order =>
 
 describe('AggregatedPerpsProvider', () => {
   let aggregatedProvider: AggregatedPerpsProvider;
+  let routedProvider: RoutedPerpsProvider;
   let mockHLProvider: jest.Mocked<PerpsProvider>;
   let mockMYXProvider: jest.Mocked<PerpsProvider>;
   let mockInfrastructure: ReturnType<typeof createMockInfrastructure>;
@@ -197,6 +199,7 @@ describe('AggregatedPerpsProvider', () => {
       defaultProvider: 'hyperliquid',
       infrastructure: mockInfrastructure,
     });
+    routedProvider = aggregatedProvider;
   });
 
   describe('constructor', () => {
@@ -207,6 +210,13 @@ describe('AggregatedPerpsProvider', () => {
 
     it('has protocolId set to "aggregated"', () => {
       expect(aggregatedProvider.protocolId).toBe('aggregated');
+    });
+
+    it('cannot be widened to the direct provider contract', () => {
+      // @ts-expect-error Routed providers must preserve their strict route contract.
+      const directProvider: PerpsProvider = routedProvider;
+
+      expect(directProvider).toBe(aggregatedProvider);
     });
   });
 
@@ -600,7 +610,7 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects an unregistered explicit provider for a strategy order', async () => {
       await expect(
-        aggregatedProvider.placeOrder({
+        routedProvider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
           size: '0.1',
@@ -615,7 +625,7 @@ describe('AggregatedPerpsProvider', () => {
     it('rejects a strategy order without an explicit provider route', async () => {
       await expect(
         // @ts-expect-error Routed strategy placement requires providerId.
-        aggregatedProvider.placeOrder({
+        routedProvider.placeOrder({
           symbol: 'BTC',
           isBuy: true,
           size: '0.1',
@@ -679,7 +689,7 @@ describe('AggregatedPerpsProvider', () => {
 
     it('rejects an unregistered explicit provider for a strategy cancel', async () => {
       await expect(
-        aggregatedProvider.cancelOrder({
+        routedProvider.cancelOrder({
           orderId: 'strategy-123',
           symbol: 'BTC',
           orderType: 'twap',
@@ -693,7 +703,7 @@ describe('AggregatedPerpsProvider', () => {
     it('rejects a strategy cancel without an explicit provider route', async () => {
       await expect(
         // @ts-expect-error Routed strategy cancellation requires providerId.
-        aggregatedProvider.cancelOrder({
+        routedProvider.cancelOrder({
           orderId: 'strategy-123',
           symbol: 'BTC',
           orderType: 'twap',
@@ -943,7 +953,7 @@ describe('AggregatedPerpsProvider', () => {
       mockMYXProvider.calculateFees.mockResolvedValue({ feeRate: 0.002 });
 
       await expect(
-        aggregatedProvider.calculateFees({
+        routedProvider.calculateFees({
           orderType: 'market',
           symbol: 'RHEA',
           providerId: 'myx',
@@ -960,7 +970,7 @@ describe('AggregatedPerpsProvider', () => {
     it('rejects a strategy fee quote without an explicit provider route', async () => {
       await expect(
         // @ts-expect-error Routed strategy fee quotes require providerId.
-        aggregatedProvider.calculateFees({
+        routedProvider.calculateFees({
           orderType: 'twap',
           symbol: 'BTC',
         }),

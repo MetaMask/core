@@ -54,6 +54,7 @@ import type {
   InitializeResult,
   PerpsPlatformDependencies,
   PerpsProvider,
+  RoutedPerpsProvider,
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
@@ -119,7 +120,7 @@ import { isStrategyOrderType } from '../utils/orderTypes.js';
  * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
  * ```
  */
-export class AggregatedPerpsProvider implements PerpsProvider {
+export class AggregatedPerpsProvider implements RoutedPerpsProvider {
   readonly protocolId = 'aggregated';
 
   readonly routesOrdersByProviderId = true;

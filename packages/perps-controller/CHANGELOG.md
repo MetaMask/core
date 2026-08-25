@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Require `providerId` on routed strategy placement, cancellation, and fee quotes so these operations cannot fall back to another protocol ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Consumers must pass the `providerId` returned by `getOrderCapabilities` when placing, cancelling, or quoting a `twap`, `scale`, or `chase` order. Ordinary orders and direct provider calls keep their previous optional routing behavior.
+  - `AggregatedPerpsProvider` implements `RoutedPerpsProvider`, so consumers cannot widen it to the direct `PerpsProvider` contract and drop the strategy route requirement.
   - Fee calculations now reach the selected provider. Ordinary quotes still fall back to the default provider when their requested route is unavailable, matching ordinary placement.
 - **BREAKING:** Resolve HyperLiquid builder-fee applicability through an exhaustive provider-owned order policy and exclude the MetaMask builder fee from TWAP quotes ([#9948](https://github.com/MetaMask/core/pull/9948))
   - `calculateFees` now returns a `metamaskFeeRate` and `metamaskFeeAmount` of `0` for TWAP instead of `0.001` and its derived amount. The HyperLiquid protocol/taker fee is unchanged. Fee discounts do not add a MetaMask fee because the native TWAP action has no builder field, so native TWAP produces no MetaMask builder-fee revenue.

@@ -1603,8 +1603,8 @@ export type Funding = {
 export type PerpsProvider = {
   readonly protocolId: string;
 
-  /** Whether this provider routes order operations by `providerId`. */
-  readonly routesOrdersByProviderId?: boolean;
+  /** Direct providers already identify their venue and do not route requests. */
+  readonly routesOrdersByProviderId?: false;
 
   /**
    * Return strategy capabilities for the provider/market route. Providers may
@@ -1801,6 +1801,30 @@ export type PerpsProvider = {
     endTime?: number;
   }): Promise<CandleData>;
 };
+
+/**
+ * Provider abstraction that routes strategy operations by `providerId`.
+ * Direct providers keep the plain `PerpsProvider` contract because their
+ * instance already identifies the venue.
+ */
+export type RoutedPerpsProvider = Omit<
+  PerpsProvider,
+  'routesOrdersByProviderId' | 'placeOrder' | 'cancelOrder' | 'calculateFees'
+> & {
+  readonly routesOrdersByProviderId: true;
+  placeOrder<const Params extends OrderParams>(
+    params: RoutedOrderParams<Params>,
+  ): Promise<OrderResult>;
+  cancelOrder<const Params extends CancelOrderParams>(
+    params: RoutedCancelOrderParams<Params>,
+  ): Promise<CancelOrderResult>;
+  calculateFees<const Params extends FeeCalculationParams>(
+    params: RoutedFeeCalculationParams<Params>,
+  ): Promise<FeeCalculationResult>;
+};
+
+/** Provider resolved by the controller in direct or aggregated mode. */
+export type ActivePerpsProvider = PerpsProvider | RoutedPerpsProvider;
 
 // ============================================================================
 // Multi-Provider Aggregation Types (Phase 1)
