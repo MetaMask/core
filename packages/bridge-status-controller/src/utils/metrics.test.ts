@@ -1176,6 +1176,10 @@ describe('metrics utils', () => {
         usd_actual_return: 0,
         usd_actual_gas: 0,
         action_type: MetricsActionType.SWAPBRIDGE_V1,
+        source_hash_present: false,
+        destination_hash_present: false,
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.MissingErrorObject,
       });
     });
 
@@ -1193,6 +1197,24 @@ describe('metrics utils', () => {
       );
       expect(result.error_message).toBe('Transaction failed. Error message');
       expect(result.source_transaction).toBe('FAILED');
+      expect(result.failure_phase).toBe(FailurePhase.Broadcast);
+      expect(result.error_code).toBe(SwapBridgeErrorCode.Unknown);
+    });
+
+    it('sets source_execution when the failed tx has a hash', () => {
+      const failedWithHash: TransactionMeta = {
+        ...mockTransactionMeta,
+        status: TransactionStatus.failed,
+        hash: '0xabc',
+        error: {
+          message: 'reverted',
+          name: 'Error',
+        } as TransactionError,
+      };
+      const result = getEVMTxPropertiesFromTransactionMeta(failedWithHash);
+      expect(result.source_hash_present).toBe(true);
+      expect(result.failure_phase).toBe(FailurePhase.SourceExecution);
+      expect(result.error_code).toBe(SwapBridgeErrorCode.Unknown);
     });
 
     it('should handle missing token symbols', () => {

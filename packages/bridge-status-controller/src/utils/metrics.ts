@@ -371,6 +371,13 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     usd_actual_gas: 0,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     ...(transactionMeta.batchId ? { batch_id: transactionMeta.batchId } : {}),
+    ...getHashPresenceProperties(transactionMeta.hash, undefined),
+    failure_phase: transactionMeta.hash
+      ? FailurePhase.SourceExecution
+      : FailurePhase.Broadcast,
+    error_code: transactionMeta.error
+      ? SwapBridgeErrorCode.Unknown
+      : SwapBridgeErrorCode.MissingErrorObject,
   };
 };
 
