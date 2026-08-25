@@ -2322,19 +2322,22 @@ export class PerpsController extends BaseController<
    *
    * @param MYXProvider - Constructor class for the MYX provider.
    */
-  protected registerMYXProvider(
-    MYXProvider: new (opts: {
-      isTestnet: boolean;
-      platformDependencies: PerpsPlatformDependencies;
-      messenger: PerpsControllerMessenger;
-      myxAuthConfig: ReturnType<typeof resolveMyxAuthConfig>;
-    }) => PerpsProvider,
-  ): void {
+  protected registerMYXProvider(MYXProvider: unknown): void {
+    if (typeof MYXProvider !== 'function') {
+      return;
+    }
+
     const myxIsTestnet =
       PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet;
     const myx = this.#options.clientConfig?.providerCredentials?.myx ?? {};
     const myxAuthConfig = resolveMyxAuthConfig(myx, myxIsTestnet);
-    const myxProvider = new MYXProvider({
+    const MYXProviderConstructor = MYXProvider as new (opts: {
+      isTestnet: boolean;
+      platformDependencies: PerpsPlatformDependencies;
+      messenger: PerpsControllerMessenger;
+      myxAuthConfig: ReturnType<typeof resolveMyxAuthConfig>;
+    }) => PerpsProvider;
+    const myxProvider = new MYXProviderConstructor({
       isTestnet: myxIsTestnet,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,

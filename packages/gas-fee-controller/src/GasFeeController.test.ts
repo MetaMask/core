@@ -79,6 +79,16 @@ const getRootMessenger = (): RootMessenger => {
     }),
   );
 
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: { networks: {} },
+      lastFetched: 0,
+      etag: '',
+      version: '1',
+    }),
+  );
+
   return rootMessenger;
 };
 
@@ -105,6 +115,7 @@ const setupNetworkController = async ({
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
     actions: [
+      'ConfigRegistryController:getState',
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],
