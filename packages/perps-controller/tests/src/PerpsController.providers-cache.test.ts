@@ -2742,6 +2742,26 @@ describe('PerpsController', () => {
       expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
     });
 
+    it('discards an in-flight user snapshot after disconnect', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const request = preloadController.getUserDataSnapshot();
+      await Promise.resolve();
+      await preloadController.disconnect();
+      deferred.resolve(createUserSnapshot());
+
+      await expect(request).rejects.toThrow('context changed');
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
     it('preserves last-known-good data when a snapshot request fails', async () => {
       const lastKnownGood = {
         positions: [createMockPosition({ symbol: 'ETH' })],

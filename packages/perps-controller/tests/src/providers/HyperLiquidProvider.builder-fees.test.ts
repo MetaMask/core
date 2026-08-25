@@ -1090,6 +1090,27 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
     });
 
+    it('uses a builder approval completed while acquiring the global lock', async () => {
+      const mockedCache = PerpsSigningCache as jest.Mocked<
+        typeof PerpsSigningCache
+      >;
+      mockedCache.getBuilderFee
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({ attempted: true, success: true });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
+    });
+
     it('skips referral setup when user is the builder', async () => {
       // Mock user address to be the same as builder address
       mockWalletService.getUserAddressWithDefault.mockResolvedValue(

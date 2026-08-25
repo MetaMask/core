@@ -251,6 +251,26 @@ describe('MYXProvider', () => {
         '[MYXProvider] Ignoring stale initialization after disconnect',
       );
     });
+
+    it('discards markets that resolve after disconnect', async () => {
+      let resolveMarkets!: (pools: MYXPoolSymbol[]) => void;
+      mockClientService.getMarkets.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveMarkets = resolve;
+        }),
+      );
+
+      const initializePromise = provider.initialize();
+      await Promise.resolve();
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+
+      await expect(initializePromise).resolves.toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
+    });
   });
 
   describe('disconnect', () => {
@@ -347,6 +367,24 @@ describe('MYXProvider', () => {
       const result = await provider.getMarkets();
       expect(result).toEqual([]);
       expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
+    it('does not repopulate the market cache after disconnect', async () => {
+      let resolveMarkets!: (pools: MYXPoolSymbol[]) => void;
+      mockClientService.getMarkets.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveMarkets = resolve;
+        }),
+      );
+
+      const marketsPromise = provider.getMarkets();
+      await Promise.resolve();
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+
+      await expect(marketsPromise).resolves.toStrictEqual([]);
+      expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });
 

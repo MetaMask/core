@@ -271,6 +271,8 @@ const isRetryableChasePlacementError = (error: unknown): boolean => {
  */
 type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
 
+type ExchangeCancelRequest = { a: number; o: number };
+
 /**
  * Classify one entry of a cancel response.
  *
@@ -3545,6 +3547,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           '[ensureBuilderFeeApproval] Completed by another provider',
           { network },
         );
+        this.#builderFeeCheckCache.set(cacheKey, true);
+        this.#approvedBuilderAddresses.add(
+          this.#getApprovedBuilderKey(network, userAddress, builderAddress),
+        );
         completeInFlight();
         return;
       }
@@ -5302,7 +5308,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
     context: StrategyPlacementContext,
   ): Promise<OrderResult> {
-    const { assetId, szDecimals, formattedSize, ladder, builder } = context;
+    const { assetId, formattedSize, ladder, builder } = context;
     // Built and validated in `#prepareStrategyPlacement`, before anything was
     // signed, so what is submitted here is exactly what the minimums were
     // applied to.
@@ -5336,61 +5342,54 @@ export class HyperLiquidProvider implements PerpsProvider {
       ...(builder && { builder }),
     });
 
-    if (result.status !== 'ok') {
-      throw new Error(`Scale order failed: ${JSON.stringify(result)}`);
-    }
-
     const statuses = result.response?.data?.statuses ?? [];
-    // Which rung each ID came from matters: `submittedSize` has to add up the
-    // slices that actually rested, not the total that was asked for.
-    const restedRungs = statuses
-      .map((status, index) => ({
-        orderId: this.#readOrderIdFromStatus(status),
-        size: sizes[index],
-      }))
-      .filter(
-        (rung): rung is { orderId: string; size: string } =>
-          rung.orderId !== undefined,
-      );
-
-    // A ladder that came back with no IDs at all rested nothing; reporting it
-    // as a success would hand the caller a handle that cancels nothing.
-    if (restedRungs.length === 0) {
-      throw new Error(
-        `Scale order rejected: ${JSON.stringify(result.response?.data)}`,
-      );
-    }
-
-    const childOrderIds = restedRungs.map((rung) => rung.orderId);
-    const groupId = generatePerpsId('scale');
-    this.#scaleOrderGroups.set(groupId, { assetId, orderIds: childOrderIds });
-
-    // The batch is not atomic, so a ladder can come back part-rested. Reporting
-    // the requested total as submitted would tell the caller they are exposed
-    // for more than they are.
-    const isPartial = restedRungs.length < count;
-    if (isPartial) {
-      this.#deps.debugLogger.log('Scale ladder only partly rested', {
-        groupId,
-        rested: restedRungs.length,
+    const childOrderIds = statuses
+      .slice(0, count)
+      .flatMap((status) => this.#readOrderIdFromStatus(status) ?? []);
+    if (
+      result.status !== 'ok' ||
+      statuses.length !== count ||
+      childOrderIds.length !== count
+    ) {
+      this.#deps.debugLogger.log('Scale ladder did not fully rest', {
+        rested: childOrderIds.length,
         requested: count,
         statuses,
       });
+      const remainingOrderIds = await this.#cancelOrderRequests(
+        exchangeClient,
+        childOrderIds.map((orderId) => ({
+          a: assetId,
+          o: parseInt(orderId, 10),
+        })),
+      );
+      if (remainingOrderIds.length > 0) {
+        const groupId = generatePerpsId('scale');
+        const recoverableOrderIds = remainingOrderIds.map(String);
+        this.#scaleOrderGroups.set(groupId, {
+          assetId,
+          orderIds: recoverableOrderIds,
+        });
+        return createErrorResult(
+          new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+          {
+            success: false,
+            orderId: groupId,
+            childOrderIds: recoverableOrderIds,
+          },
+        );
+      }
+
+      throw new Error(PERPS_ERROR_CODES.ORDER_REJECTED);
     }
 
+    const groupId = generatePerpsId('scale');
+    this.#scaleOrderGroups.set(groupId, { assetId, orderIds: childOrderIds });
     return {
       success: true,
       orderId: groupId,
       childOrderIds,
-      submittedSize: isPartial
-        ? formatHyperLiquidSize({
-            size: restedRungs.reduce(
-              (total, rung) => total + parseFloat(rung.size),
-              0,
-            ),
-            szDecimals,
-          })
-        : formattedSize,
+      submittedSize: formattedSize,
     };
   }
 
@@ -6611,6 +6610,47 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Cancel a batch and retain every order that may still be live.
+   *
+   * A malformed, truncated, or rejected response cannot prove which requests
+   * reached the venue, so every requested ID remains recoverable for a retry.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel requests.
+   * @returns Order IDs that may still be resting.
+   */
+  async #cancelOrderRequests(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelRequest[],
+  ): Promise<number[]> {
+    if (requests.length === 0) {
+      return [];
+    }
+
+    try {
+      const result = await exchangeClient.cancel({ cancels: requests });
+      const statuses = result.response?.data?.statuses ?? [];
+      if (result.status !== 'ok' || statuses.length !== requests.length) {
+        return requests.map((request) => request.o);
+      }
+
+      return requests
+        .filter(
+          (_request, index) =>
+            classifyCancelStatus(statuses[index]) === 'refused',
+        )
+        .map((request) => request.o);
+    } catch (error) {
+      this.#deps.debugLogger.log('Order cancellation batch failed', {
+        error: ensureError(error, 'HyperLiquidProvider.cancelOrderRequests')
+          .message,
+        orderIds: requests.map((request) => request.o),
+      });
+      return requests.map((request) => request.o);
+    }
+  }
+
+  /**
    * Read an order ID out of one `order` action status entry.
    *
    * @param status - A single status from the exchange response.
@@ -7750,7 +7790,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
       // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
-      let cancelRequests: { a: number; o: number }[] = [];
+      let cancelRequests: ExchangeCancelRequest[] = [];
 
       // Use atomic getter to prevent race condition between check and get
       const cachedOrders =
@@ -7854,27 +7894,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         }));
       }
 
-      if (cancelRequests.length > 0) {
-        this.#deps.debugLogger.log(
-          `Canceling ${cancelRequests.length} existing TP/SL orders for ${symbol}`,
-        );
-
-        const cancelResult = await exchangeClient.cancel({
-          cancels: cancelRequests,
-        });
-        this.#deps.debugLogger.log('Cancel result:', cancelResult);
-        const cancelStatuses = cancelResult.response?.data?.statuses ?? [];
-        if (
-          cancelResult.status !== 'ok' ||
-          cancelStatuses.length !== cancelRequests.length ||
-          cancelStatuses.some(
-            (status) => classifyCancelStatus(status) === 'refused',
-          )
-        ) {
-          throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
-        }
-      }
-
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
@@ -7928,8 +7947,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         orders.push(slOrder);
       }
 
-      // If no new orders, we've just cancelled existing ones (clearing TP/SL)
+      // Clearing has no replacement batch to preserve. A partial cancellation
+      // is reported so the caller can retry the same clear operation.
       if (orders.length === 0) {
+        const remainingOrderIds = await this.#cancelOrderRequests(
+          exchangeClient,
+          cancelRequests,
+        );
+        if (remainingOrderIds.length > 0) {
+          throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        }
         this.#deps.debugLogger.log(
           'No new TP/SL orders to place - existing ones cancelled',
         );
@@ -7939,9 +7966,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
-      // partial TP/SL must be standalone reduce-only triggers ('na'), since a
-      // position-bound TP/SL always closes the whole position.
+      // Place the complete replacement before removing old protection. The
+      // venue has no atomic replace action; this ordering avoids an unprotected
+      // window and makes any failed new child retractable by its returned ID.
       const result = await exchangeClient.order({
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
@@ -7951,14 +7978,48 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       const placementStatuses = result.response?.data?.statuses ?? [];
+      const replacementOrderIds = placementStatuses
+        .slice(0, orders.length)
+        .flatMap((status) => this.#readOrderIdFromStatus(status) ?? []);
       if (
         result.status !== 'ok' ||
         placementStatuses.length !== orders.length ||
-        placementStatuses.some(
-          (status) => this.#readOrderIdFromStatus(status) === undefined,
-        )
+        replacementOrderIds.length !== orders.length
       ) {
+        const remainingReplacementIds = await this.#cancelOrderRequests(
+          exchangeClient,
+          replacementOrderIds.map((orderId) => ({
+            a: assetId,
+            o: parseInt(orderId, 10),
+          })),
+        );
+        if (remainingReplacementIds.length > 0) {
+          return createErrorResult(
+            new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+            {
+              success: false,
+              childOrderIds: remainingReplacementIds.map(String),
+            },
+          );
+        }
         throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+      }
+
+      // The new TP/SL batch is fully live before old orders are removed. If an
+      // old cancellation is refused, return the new IDs so callers can recover
+      // without losing the position's replacement protection.
+      const remainingOldOrderIds = await this.#cancelOrderRequests(
+        exchangeClient,
+        cancelRequests,
+      );
+      if (remainingOldOrderIds.length > 0) {
+        return createErrorResult(
+          new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+          {
+            success: false,
+            childOrderIds: replacementOrderIds,
+          },
+        );
       }
 
       return {

@@ -172,6 +172,8 @@ export class MYXProvider implements PerpsProvider {
   // Auth dedup promise
   #authPromise: Promise<void> | null = null;
 
+  #lifecycleGeneration = 0;
+
   constructor(options: {
     isTestnet?: boolean;
     platformDependencies: PerpsPlatformDependencies;
@@ -285,11 +287,13 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async initialize(): Promise<InitializeResult> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Initializing...');
 
       // Fetch initial markets
       const pools = await this.#clientService.getMarkets();
+      this.#assertLifecycleCurrent(lifecycleGeneration);
       // Filter to MYX-exclusive markets
       this.#poolsCache = filterMYXExclusiveMarkets(pools);
       this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
@@ -317,6 +321,7 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async disconnect(): Promise<DisconnectResult> {
+    this.#lifecycleGeneration += 1;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Disconnecting...');
 
@@ -472,15 +477,23 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Delegate cache freshness to MYXClientService
       const pools = await this.#clientService.getMarkets();
+      this.#assertLifecycleCurrent(lifecycleGeneration);
       this.#poolsCache = filterMYXExclusiveMarkets(pools);
       this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
 
       return this.#poolsCache.map((pool) => adaptMarketFromMYX(pool));
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.getMarkets');
+      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale markets after disconnect',
+        );
+        return [];
+      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('getMarkets'),
@@ -490,15 +503,18 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Ensure we have markets
       if (this.#poolsCache.length === 0) {
         await this.getMarkets();
+        this.#assertLifecycleCurrent(lifecycleGeneration);
       }
 
       // Fetch tickers for all pools
       const poolIds = this.#poolsCache.map((pool) => pool.poolId);
       const tickers = await this.#clientService.getTickers(poolIds);
+      this.#assertLifecycleCurrent(lifecycleGeneration);
 
       // Build ticker map
       const tickerMap = new Map<string, MYXTicker>();
@@ -530,6 +546,12 @@ export class MYXProvider implements PerpsProvider {
         },
       );
       return [];
+    }
+  }
+
+  #assertLifecycleCurrent(lifecycleGeneration: number): void {
+    if (lifecycleGeneration !== this.#lifecycleGeneration) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
   }
 
