@@ -1281,7 +1281,8 @@ export type MaintenanceMarginParams = {
  * `providerId` follows the same explicit-over-default routing as placement.
  */
 export type GetOrderCapabilitiesParams = {
-  symbol?: string;
+  /** Main-DEX symbol (`BTC`) or routed HIP-3 symbol (`dex:SYMBOL`). */
+  symbol: string;
   providerId?: PerpsProviderType;
 };
 
@@ -1290,19 +1291,10 @@ export type PerpsOrderCapabilities = {
   supportedStrategies: readonly StrategyOrderType[];
 };
 
-/**
- * Exhaustive fee policy for every canonical order type.
- * Adding an order type requires each provider policy to decide explicitly
- * whether the placement can carry a MetaMask builder fee.
- */
-export type OrderFeeConfiguration = Readonly<
-  Record<
-    OrderType,
-    Readonly<{
-      chargesMetamaskBuilderFee: boolean;
-    }>
-  >
->;
+/** Safe capability result for unavailable or not-yet-compatible providers. */
+export const EMPTY_ORDER_CAPABILITIES = Object.freeze({
+  supportedStrategies: Object.freeze([]),
+}) satisfies PerpsOrderCapabilities;
 
 export type FeeCalculationParams = {
   // Trigger placements are charged as their execution kind (a stop_limit pays
@@ -1510,11 +1502,12 @@ export type PerpsProvider = {
 
   /**
    * Return strategy capabilities for the provider/market route.
-   * Optional providers safely expose no strategies until they implement the
-   * capability contract.
+   * The method remains optional for provider compatibility; the aggregation
+   * and controller layers return no strategies for providers that have not yet
+   * adopted this additive contract.
    */
   getOrderCapabilities?(
-    params?: GetOrderCapabilitiesParams,
+    params: GetOrderCapabilitiesParams,
   ): PerpsOrderCapabilities;
 
   // Unified asset and route information

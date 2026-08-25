@@ -18,7 +18,10 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
-import { WebSocketConnectionState } from '../types/index.js';
+import {
+  EMPTY_ORDER_CAPABILITIES,
+  WebSocketConnectionState,
+} from '../types/index.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -248,12 +251,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * @returns Capabilities from the selected provider.
    */
   getOrderCapabilities(
-    params: GetOrderCapabilitiesParams = {},
+    params: GetOrderCapabilitiesParams,
   ): PerpsOrderCapabilities {
     const [, provider] = this.#getProviderOrDefault(params.providerId);
-    return (
-      provider.getOrderCapabilities?.(params) ?? { supportedStrategies: [] }
-    );
+    return provider.getOrderCapabilities?.(params) ?? EMPTY_ORDER_CAPABILITIES;
   }
 
   // ============================================================================

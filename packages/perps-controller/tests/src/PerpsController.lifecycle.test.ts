@@ -358,6 +358,7 @@ describe('PerpsController', () => {
   let controller: TestablePerpsController;
   let mockProvider: jest.Mocked<HyperLiquidProvider>;
   let mockInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+  let mockMessenger: ReturnType<typeof createMockMessenger>;
 
   // Helper to mark controller as initialized for tests
   const markControllerAsInitialized = () => {
@@ -542,8 +543,9 @@ describe('PerpsController', () => {
     });
 
     mockInfrastructure = createMockInfrastructure();
+    mockMessenger = createMockMessenger({ call: mockCall });
     controller = new TestablePerpsController({
-      messenger: createMockMessenger({ call: mockCall }),
+      messenger: mockMessenger,
       state: getDefaultPerpsControllerState(),
       infrastructure: mockInfrastructure,
     });
@@ -1108,6 +1110,10 @@ describe('PerpsController', () => {
 
       expect(controller.testGetInitialized()).toBe(true);
       expect(controller.testGetProviders().has('hyperliquid')).toBe(true);
+      expect(mockMessenger.registerMethodActionHandlers).toHaveBeenCalledWith(
+        controller,
+        expect.arrayContaining(['getOrderCapabilities']),
+      );
     });
 
     it('handles initialization when already initialized', async () => {

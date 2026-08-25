@@ -1,4 +1,4 @@
-import { HYPERLIQUID_ORDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
+import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
@@ -11,7 +11,6 @@ import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalle
 import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   CancelOrderResult,
-  OrderFeeConfiguration,
   PerpsPlatformDependencies,
   OrderParams,
   OrderResult,
@@ -340,14 +339,12 @@ const mockMessenger = createMockMessenger();
  * @param options - Provider construction options.
  * @param options.isTestnet - Whether the provider runs against testnet.
  * @param options.initialAssetMapping - Pre-seeded symbol-to-asset-ID entries.
- * @param options.orderFeeConfiguration - Fee applicability by order type.
  * @returns The provider under test.
  */
 const createTestProvider = (
   options: {
     isTestnet?: boolean;
     initialAssetMapping?: [string, number][];
-    orderFeeConfiguration?: OrderFeeConfiguration;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -2382,6 +2379,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       // A chase is post-only, so it can only ever fill as a maker.
       expect(chase.feeRate).toBeLessThan(market.feeRate);
+      expect(chase.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
     });
 
     it('quotes a resting scale ladder at the maker rate', async () => {
@@ -2401,6 +2399,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
 
       expect(scale.feeRate).toBe(limit.feeRate);
+      expect(scale.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
     });
 
     it('quotes a TWAP at the taker protocol rate without a builder fee', async () => {
@@ -2424,44 +2423,31 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(twap.metamaskFeeAmount).toBe(0);
       expect(twap.feeRate).toBe(twap.protocolFeeRate);
       expect(twap.feeAmount).toBe(twap.protocolFeeAmount);
-      expect(market.metamaskFeeRate).toBeGreaterThan(0);
-    });
-
-    it('derives builder-fee applicability from the injected order policy', async () => {
-      provider = createTestProvider({
-        orderFeeConfiguration: {
-          ...HYPERLIQUID_ORDER_FEE_CONFIG,
-          twap: { chargesMetamaskBuilderFee: true },
-        },
-      });
-      useStrategyClients();
-
-      const twap = await provider.calculateFees({
-        orderType: 'twap',
-        isMaker: true,
-        amount: '1000',
-        symbol: 'ETH',
-      });
-
-      expect(twap.metamaskFeeRate).toBeGreaterThan(0);
-      expect(twap.feeRate).toBe(
-        (twap.protocolFeeRate ?? Number.NaN) +
-          (twap.metamaskFeeRate ?? Number.NaN),
-      );
+      expect(market.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
     });
   });
 
   describe('Order capabilities', () => {
     it('advertises the strategies supported for a routed market', () => {
-      expect(provider.getOrderCapabilities({ symbol: 'ETH' })).toStrictEqual({
+      const capabilities = provider.getOrderCapabilities({ symbol: 'ETH' });
+
+      expect(capabilities).toStrictEqual({
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
+      expect(Object.isFrozen(capabilities)).toBe(true);
+      expect(Object.isFrozen(capabilities.supportedStrategies)).toBe(true);
     });
 
     it('does not advertise strategies on an unsupported HIP-3 market', () => {
       expect(
         provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
       ).toStrictEqual({ supportedStrategies: [] });
+    });
+
+    it('does not advertise strategies for an empty market symbol', () => {
+      expect(provider.getOrderCapabilities({ symbol: '' })).toStrictEqual({
+        supportedStrategies: [],
+      });
     });
   });
 

@@ -833,12 +833,9 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
     });
 
-    it('gets order capabilities from the provider selected for the market', () => {
+    it('gets order capabilities from the default provider', () => {
       mockHLProvider.getOrderCapabilities.mockReturnValue({
         supportedStrategies: ['twap', 'scale', 'chase'],
-      });
-      mockMYXProvider.getOrderCapabilities.mockReturnValue({
-        supportedStrategies: [],
       });
 
       expect(
@@ -846,6 +843,16 @@ describe('AggregatedPerpsProvider', () => {
       ).toStrictEqual({
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
+      expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+    });
+
+    it('gets order capabilities from an explicit provider route', () => {
+      mockMYXProvider.getOrderCapabilities.mockReturnValue({
+        supportedStrategies: [],
+      });
+
       expect(
         aggregatedProvider.getOrderCapabilities({
           symbol: 'BTC',
@@ -856,6 +863,14 @@ describe('AggregatedPerpsProvider', () => {
         symbol: 'BTC',
         providerId: 'myx',
       });
+    });
+
+    it('returns no capabilities for a provider without the additive method', () => {
+      mockHLProvider.getOrderCapabilities = undefined;
+
+      expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).toStrictEqual({ supportedStrategies: [] });
     });
   });
 

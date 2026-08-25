@@ -266,7 +266,6 @@ export type {
   FeeCalculationResult,
   GetOrderCapabilitiesParams,
   PerpsOrderCapabilities,
-  OrderFeeConfiguration,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,
   PerpsSubscriptionFeeWaiverStatus,

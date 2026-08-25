@@ -63,6 +63,7 @@ import { TerminalMarketService } from './services/TerminalMarketService.js';
 import { TradingService } from './services/TradingService.js';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
+  EMPTY_ORDER_CAPABILITIES,
   WebSocketConnectionState,
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -2642,18 +2643,25 @@ export class PerpsController extends BaseController<
 
   /**
    * Get strategy capabilities from the provider selected for a market route.
-   * During initialization the safe capability is no optional strategies.
+   * An explicit provider route resolves from the provider registry in every
+   * active-provider mode. Unavailable or not-yet-compatible providers safely
+   * return no optional strategies.
    *
    * @param params - Market and optional provider route.
    * @returns Provider-owned order capabilities.
    */
   getOrderCapabilities(
-    params: GetOrderCapabilitiesParams = {},
+    params: GetOrderCapabilitiesParams,
   ): PerpsOrderCapabilities {
-    const provider = this.getActiveProviderOrNull();
-    return (
-      provider?.getOrderCapabilities?.(params) ?? { supportedStrategies: [] }
-    );
+    const activeProvider = this.getActiveProviderOrNull();
+    if (!activeProvider) {
+      return EMPTY_ORDER_CAPABILITIES;
+    }
+
+    const provider = params.providerId
+      ? this.providers.get(params.providerId)
+      : activeProvider;
+    return provider?.getOrderCapabilities?.(params) ?? EMPTY_ORDER_CAPABILITIES;
   }
 
   /**

@@ -24,7 +24,10 @@ import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { MYXClientService } from '../services/MYXClientService.js';
 import { MYXWalletService } from '../services/MYXWalletService.js';
-import { WebSocketConnectionState } from '../types/index.js';
+import {
+  EMPTY_ORDER_CAPABILITIES,
+  WebSocketConnectionState,
+} from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -133,18 +136,6 @@ const MYX_TESTNET_EXPLORER_URL = 'https://sepolia.arbiscan.io';
 export class MYXProvider implements PerpsProvider {
   readonly protocolId = 'myx';
 
-  /**
-   * MYX does not currently implement strategy placement.
-   *
-   * @param _params - Optional route context.
-   * @returns An empty strategy capability set.
-   */
-  getOrderCapabilities(
-    _params?: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities {
-    return { supportedStrategies: [] };
-  }
-
   // Platform dependencies
   readonly #deps: PerpsPlatformDependencies;
 
@@ -192,6 +183,18 @@ export class MYXProvider implements PerpsProvider {
       isTestnet: this.#isTestnet,
       hasMessenger: Boolean(this.#messenger),
     });
+  }
+
+  /**
+   * MYX does not currently implement strategy placement.
+   *
+   * @param _params - Required market route context.
+   * @returns An empty strategy capability set.
+   */
+  getOrderCapabilities(
+    _params: GetOrderCapabilitiesParams,
+  ): PerpsOrderCapabilities {
+    return EMPTY_ORDER_CAPABILITIES;
   }
 
   // ============================================================================

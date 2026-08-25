@@ -17,7 +17,6 @@ import {
   canonicalizeHyperLiquidDexes,
   FEE_RATES,
   HYPERLIQUID_ORDER_CAPABILITIES,
-  HYPERLIQUID_ORDER_FEE_CONFIG,
   getBridgeInfo,
   getChainId,
   HIP3_ASSET_MARKET_TYPES,
@@ -66,7 +65,10 @@ import {
   HL_UNIFIED_ACCOUNT_MODE,
   hyperLiquidModeFoldsSpot,
 } from '../types/hyperliquid-types.js';
-import { PerpsAnalyticsEvent } from '../types/index.js';
+import {
+  EMPTY_ORDER_CAPABILITIES,
+  PerpsAnalyticsEvent,
+} from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -108,7 +110,6 @@ import type {
   MarginResult,
   MarketInfo,
   Order,
-  OrderFeeConfiguration,
   OrderFill,
   OrderParams,
   OrderResult,
@@ -733,6 +734,49 @@ function collectPositionTriggerOrders(params: {
   };
 }
 
+type HyperLiquidOrderFeePolicy = Readonly<{
+  chargesMetamaskBuilderFee: boolean;
+}>;
+
+type HyperLiquidOrderFeeConfiguration = Readonly<
+  Record<OrderType, HyperLiquidOrderFeePolicy>
+>;
+
+/**
+ * Fee applicability by canonical order type.
+ *
+ * The configuration type makes this map exhaustive, so a new order type cannot
+ * inherit a builder-fee policy accidentally. HyperLiquid's dedicated TWAP
+ * action has no builder field; every other current placement uses the standard
+ * order action.
+ */
+const HYPERLIQUID_ORDER_FEE_CONFIG: HyperLiquidOrderFeeConfiguration = {
+  market: { chargesMetamaskBuilderFee: true },
+  limit: { chargesMetamaskBuilderFee: true },
+  stop_market: { chargesMetamaskBuilderFee: true },
+  stop_limit: { chargesMetamaskBuilderFee: true },
+  take_profit_market: { chargesMetamaskBuilderFee: true },
+  take_profit_limit: { chargesMetamaskBuilderFee: true },
+  twap: { chargesMetamaskBuilderFee: false },
+  scale: { chargesMetamaskBuilderFee: true },
+  chase: { chargesMetamaskBuilderFee: true },
+};
+
+/**
+ * Resolve HyperLiquid's provider-owned fee policy for a quote.
+ *
+ * The full quote context is accepted intentionally so future policies can vary
+ * by market route or other order inputs without changing the provider contract.
+ *
+ * @param params - Fee quote context.
+ * @returns HyperLiquid's fee policy for this order.
+ */
+function resolveHyperLiquidOrderFeePolicy(
+  params: FeeCalculationParams,
+): HyperLiquidOrderFeePolicy {
+  return HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType];
+}
+
 /**
  * HyperLiquid provider implementation
  *
@@ -747,29 +791,8 @@ function collectPositionTriggerOrders(params: {
 export class HyperLiquidProvider implements PerpsProvider {
   readonly protocolId = 'hyperliquid';
 
-  /**
-   * Return provider-owned strategy support for a routed market.
-   * HyperLiquid currently supports the same strategies on every main-DEX
-   * market. HIP-3 strategies are rejected by placement and therefore omitted
-   * here rather than exposed optimistically.
-   *
-   * @param params - Optional route context.
-   * @returns Supported strategy order types.
-   */
-  getOrderCapabilities(
-    params?: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities {
-    if (params?.symbol && parseAssetName(params.symbol).dex !== null) {
-      return { supportedStrategies: [] };
-    }
-    return HYPERLIQUID_ORDER_CAPABILITIES;
-  }
-
   // Platform dependencies for logging and debugging
   readonly #deps: PerpsPlatformDependencies;
-
-  // Exhaustive provider policy used by fee quotes.
-  readonly #orderFeeConfiguration: OrderFeeConfiguration;
 
   // Service instances
   readonly #clientService: HyperLiquidClientService;
@@ -963,11 +986,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     builderAddressMainnet?: string;
     subscriptionBuilderAddressTestnet?: string;
     subscriptionBuilderAddressMainnet?: string;
-    orderFeeConfiguration?: OrderFeeConfiguration;
   }) {
     this.#deps = options.platformDependencies;
-    this.#orderFeeConfiguration =
-      options.orderFeeConfiguration ?? HYPERLIQUID_ORDER_FEE_CONFIG;
     this.#messenger = options.messenger;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
@@ -1050,6 +1070,25 @@ export class HyperLiquidProvider implements PerpsProvider {
       blocklistMarkets: this.#blocklistMarkets,
       isTestnet,
     });
+  }
+
+  /**
+   * Return provider-owned strategy support for a routed market.
+   * HyperLiquid currently supports the same strategies on every main-DEX
+   * market. HIP-3 strategies are rejected by placement and therefore omitted
+   * here rather than exposed optimistically.
+   *
+   * @param params - Required market route context.
+   * @returns Supported strategy order types.
+   */
+  getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): PerpsOrderCapabilities {
+    const { dex, symbol } = parseAssetName(params.symbol);
+    if (dex !== null || !symbol) {
+      return EMPTY_ORDER_CAPABILITIES;
+    }
+    return HYPERLIQUID_ORDER_CAPABILITIES;
   }
 
   /**
@@ -11289,22 +11328,24 @@ export class HyperLiquidProvider implements PerpsProvider {
     // The provider policy, not the client, owns whether this placement can
     // carry a builder fee. The dedicated TWAP action has no builder field.
     const { chargesMetamaskBuilderFee } =
-      this.#orderFeeConfiguration[orderType];
-    let metamaskFeeRate = chargesMetamaskBuilderFee
+      resolveHyperLiquidOrderFeePolicy(params);
+    const baseMetamaskFeeRate = chargesMetamaskBuilderFee
       ? BUILDER_FEE_CONFIG.MaxFeeDecimal
       : 0;
+    const metamaskFeeDiscount =
+      this.#userFeeDiscountBips === undefined
+        ? 0
+        : this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR;
+    const metamaskFeeRate = baseMetamaskFeeRate * (1 - metamaskFeeDiscount);
 
     // Apply MetaMask reward discount if active
     if (chargesMetamaskBuilderFee && this.#userFeeDiscountBips !== undefined) {
-      const discount = this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR; // Convert basis points to decimal
-      metamaskFeeRate = BUILDER_FEE_CONFIG.MaxFeeDecimal * (1 - discount);
-
       this.#deps.debugLogger.log('HyperLiquid: Applied MetaMask fee discount', {
         originalRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
         discountBips: this.#userFeeDiscountBips,
         discountPercentage: this.#userFeeDiscountBips / 100,
         adjustedRate: metamaskFeeRate,
-        discountAmount: BUILDER_FEE_CONFIG.MaxFeeDecimal * discount,
+        discountAmount: BUILDER_FEE_CONFIG.MaxFeeDecimal * metamaskFeeDiscount,
       });
     }
 

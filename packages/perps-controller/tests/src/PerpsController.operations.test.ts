@@ -827,7 +827,7 @@ describe('PerpsController', () => {
     });
   });
 
-  describe('fee calculations', () => {
+  describe('order capabilities', () => {
     it('returns capabilities from the active routed provider', () => {
       mockProvider.getOrderCapabilities = jest.fn().mockReturnValue({
         supportedStrategies: ['twap', 'scale', 'chase'],
@@ -849,6 +849,30 @@ describe('PerpsController', () => {
       });
     });
 
+    it('resolves an explicit provider route in direct-provider mode', () => {
+      const myxProvider = createMockHyperLiquidProvider();
+      myxProvider.getOrderCapabilities = jest.fn().mockReturnValue({
+        supportedStrategies: [],
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
+      );
+
+      expect(
+        controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
+      ).toStrictEqual({ supportedStrategies: [] });
+      expect(myxProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'RHEA',
+        providerId: 'myx',
+      });
+    });
+  });
+
+  describe('fee calculations', () => {
     it('approves the subscription builder outside order submission', async () => {
       mockProvider.approveSubscriptionBuilderFee = jest
         .fn()

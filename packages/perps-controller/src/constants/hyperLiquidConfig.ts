@@ -1,7 +1,7 @@
 import type { CaipAssetId, CaipChainId, Hex } from '@metamask/utils';
 
 import { MarketCategory } from '../types/index.js';
-import type { MarketType, OrderFeeConfiguration } from '../types/index.js';
+import type { MarketType, PerpsOrderCapabilities } from '../types/index.js';
 import type {
   HyperLiquidNetwork,
   HyperLiquidEndpoints,
@@ -199,28 +199,13 @@ export const BUILDER_FEE_CONFIG = {
  * markets. Providers own this declaration so routed clients never infer
  * support from a provider name.
  */
-export const HYPERLIQUID_ORDER_CAPABILITIES = {
-  supportedStrategies: ['twap', 'scale', 'chase'],
-} as const satisfies { supportedStrategies: readonly StrategyOrderType[] };
-
-/**
- * Fee applicability by canonical order type.
- *
- * This map is deliberately exhaustive: a new order type cannot inherit a
- * builder-fee policy accidentally. HyperLiquid's dedicated TWAP action has no
- * builder field; every other current placement uses the standard order action.
- */
-export const HYPERLIQUID_ORDER_FEE_CONFIG = {
-  market: { chargesMetamaskBuilderFee: true },
-  limit: { chargesMetamaskBuilderFee: true },
-  stop_market: { chargesMetamaskBuilderFee: true },
-  stop_limit: { chargesMetamaskBuilderFee: true },
-  take_profit_market: { chargesMetamaskBuilderFee: true },
-  take_profit_limit: { chargesMetamaskBuilderFee: true },
-  twap: { chargesMetamaskBuilderFee: false },
-  scale: { chargesMetamaskBuilderFee: true },
-  chase: { chargesMetamaskBuilderFee: true },
-} as const satisfies OrderFeeConfiguration;
+export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
+  supportedStrategies: Object.freeze([
+    'twap',
+    'scale',
+    'chase',
+  ] satisfies readonly StrategyOrderType[]),
+}) satisfies PerpsOrderCapabilities;
 
 // Referral code configuration
 export const REFERRAL_CONFIG = {
