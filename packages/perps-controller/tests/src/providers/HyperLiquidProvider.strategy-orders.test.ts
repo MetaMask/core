@@ -2707,6 +2707,58 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
+    it('isolates capability metadata from overlapping shared cache writes', async () => {
+      let startSharedRequest = (): void => undefined;
+      const sharedRequestStarted = new Promise<void>((resolve): void => {
+        startSharedRequest = resolve;
+      });
+      let resolveSharedMeta = (_meta: {
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }): void => undefined;
+      const pendingSharedMeta = new Promise<{
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }>((resolve): void => {
+        resolveSharedMeta = resolve;
+      });
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              startSharedRequest();
+              return pendingSharedMeta;
+            })
+            .mockResolvedValueOnce({
+              universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+            }),
+        },
+      });
+
+      const sharedRead = provider.getMaxLeverage('PUMP');
+      await sharedRequestStarted;
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+
+      resolveSharedMeta({
+        universe: [{ name: 'PUMP', szDecimals: 0, maxLeverage: 20 }],
+      });
+      await sharedRead;
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
     it('deduplicates concurrent metadata refreshes', async () => {
       const { infoClient } = useStrategyClients();
 
@@ -2860,6 +2912,51 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(infoClient.meta).toHaveBeenCalledTimes(2);
       },
     );
+
+    it('does not cache capability metadata that resolves after disconnect', async () => {
+      let startRequest = (): void => undefined;
+      const requestStarted = new Promise<void>((resolve): void => {
+        startRequest = resolve;
+      });
+      let resolveMeta = (_meta: {
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }): void => undefined;
+      const pendingMeta = new Promise<{
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }>((resolve): void => {
+        resolveMeta = resolve;
+      });
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              startRequest();
+              return pendingMeta;
+            })
+            .mockResolvedValueOnce({
+              universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+            }),
+        },
+      });
+
+      const capabilitiesPromise = provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+      await requestStarted;
+      await provider.disconnect();
+      resolveMeta({
+        universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 99 }],
+      });
+
+      expect(await capabilitiesPromise).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(await provider.getMaxLeverage('ETH')).toBe(50);
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
 
     it('reports unavailable when market metadata cannot be loaded', async () => {
       useStrategyClients({

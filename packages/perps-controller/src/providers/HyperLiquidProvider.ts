@@ -827,6 +827,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
   readonly #cachedMetaByDex = new Map<string, MetaResponse>();
 
+  readonly #orderCapabilitiesMetaByDex = new Map<string, MetaResponse>();
+
   readonly #orderCapabilitiesMetaFreshAtByDex = new Map<string, number>();
 
   readonly #orderCapabilitiesMetaRefreshPromiseByDex = new Map<
@@ -1161,7 +1163,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null,
   ): Promise<MetaResponse> {
     const dexKey = dexName ?? MAIN_DEX_META_CACHE_KEY;
-    const cachedMeta = this.#cachedMetaByDex.get(dexKey);
+    const cachedMeta = this.#orderCapabilitiesMetaByDex.get(dexKey);
     const freshAt = this.#orderCapabilitiesMetaFreshAtByDex.get(dexKey);
     if (
       cachedMeta &&
@@ -1183,14 +1185,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
         }
 
-        this.#cachedMetaByDex.set(dexKey, meta);
-        await this.#backfillAssetMapForDex(dexName, meta);
-
-        if (refreshGeneration !== this.#orderCapabilitiesMetaGeneration) {
-          throw new Error(
-            '[HyperLiquidProvider] Order capability metadata became stale during disconnect',
-          );
-        }
+        this.#orderCapabilitiesMetaByDex.set(dexKey, meta);
         this.#orderCapabilitiesMetaFreshAtByDex.set(dexKey, Date.now());
         return meta;
       })();
@@ -11626,6 +11621,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // NOTE: UnifiedAccountCache is global and NOT cleared on disconnect
       // to prevent repeated signing requests across reconnections
       this.#cachedMetaByDex.clear();
+      this.#orderCapabilitiesMetaByDex.clear();
       this.#orderCapabilitiesMetaFreshAtByDex.clear();
       this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
       this.#orderCapabilitiesMetaGeneration += 1;
