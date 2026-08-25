@@ -86,6 +86,18 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 };
 
 /**
+ * Get strategy capabilities from the provider selected for a market route.
+ * During initialization the safe capability is no optional strategies.
+ *
+ * @param params - Market and optional provider route.
+ * @returns Provider-owned order capabilities.
+ */
+export type PerpsControllerGetOrderCapabilitiesAction = {
+  type: `PerpsController:getOrderCapabilities`;
+  handler: PerpsController['getOrderCapabilities'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -1250,6 +1262,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
+  | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction

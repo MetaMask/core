@@ -45,6 +45,7 @@ import type {
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -63,6 +64,7 @@ import type {
   OrderResult,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  PerpsOrderCapabilities,
   PerpsProvider,
   Position,
   PriceUpdate,
@@ -130,6 +132,18 @@ const MYX_TESTNET_EXPLORER_URL = 'https://sepolia.arbiscan.io';
  */
 export class MYXProvider implements PerpsProvider {
   readonly protocolId = 'myx';
+
+  /**
+   * MYX does not currently implement strategy placement.
+   *
+   * @param _params - Optional route context.
+   * @returns An empty strategy capability set.
+   */
+  getOrderCapabilities(
+    _params?: GetOrderCapabilitiesParams,
+  ): PerpsOrderCapabilities {
+    return { supportedStrategies: [] };
+  }
 
   // Platform dependencies
   readonly #deps: PerpsPlatformDependencies;

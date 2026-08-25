@@ -1,3 +1,4 @@
+import { HYPERLIQUID_ORDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
@@ -10,6 +11,7 @@ import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalle
 import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   CancelOrderResult,
+  OrderFeeConfiguration,
   PerpsPlatformDependencies,
   OrderParams,
   OrderResult,
@@ -338,12 +340,14 @@ const mockMessenger = createMockMessenger();
  * @param options - Provider construction options.
  * @param options.isTestnet - Whether the provider runs against testnet.
  * @param options.initialAssetMapping - Pre-seeded symbol-to-asset-ID entries.
+ * @param options.orderFeeConfiguration - Fee applicability by order type.
  * @returns The provider under test.
  */
 const createTestProvider = (
   options: {
     isTestnet?: boolean;
     initialAssetMapping?: [string, number][];
+    orderFeeConfiguration?: OrderFeeConfiguration;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -2399,7 +2403,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(scale.feeRate).toBe(limit.feeRate);
     });
 
-    it('quotes a TWAP at the taker rate, because its suborders cross', async () => {
+    it('quotes a TWAP at the taker protocol rate without a builder fee', async () => {
       useStrategyClients();
 
       const twap = await provider.calculateFees({
@@ -2415,7 +2419,49 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
       });
 
-      expect(twap.feeRate).toBe(market.feeRate);
+      expect(twap.protocolFeeRate).toBe(market.protocolFeeRate);
+      expect(twap.metamaskFeeRate).toBe(0);
+      expect(twap.metamaskFeeAmount).toBe(0);
+      expect(twap.feeRate).toBe(twap.protocolFeeRate);
+      expect(twap.feeAmount).toBe(twap.protocolFeeAmount);
+      expect(market.metamaskFeeRate).toBeGreaterThan(0);
+    });
+
+    it('derives builder-fee applicability from the injected order policy', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          ...HYPERLIQUID_ORDER_FEE_CONFIG,
+          twap: { chargesMetamaskBuilderFee: true },
+        },
+      });
+      useStrategyClients();
+
+      const twap = await provider.calculateFees({
+        orderType: 'twap',
+        isMaker: true,
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(twap.metamaskFeeRate).toBeGreaterThan(0);
+      expect(twap.feeRate).toBe(
+        (twap.protocolFeeRate ?? Number.NaN) +
+          (twap.metamaskFeeRate ?? Number.NaN),
+      );
+    });
+  });
+
+  describe('Order capabilities', () => {
+    it('advertises the strategies supported for a routed market', () => {
+      expect(provider.getOrderCapabilities({ symbol: 'ETH' })).toStrictEqual({
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+    });
+
+    it('does not advertise strategies on an unsupported HIP-3 market', () => {
+      expect(
+        provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({ supportedStrategies: [] });
     });
   });
 

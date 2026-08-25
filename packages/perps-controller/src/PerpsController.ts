@@ -93,6 +93,7 @@ import type {
   GetFundingParams,
   GetMarketDataWithPricesParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetPositionsParams,
@@ -108,6 +109,7 @@ import type {
   OrderResult,
   PerpsControllerConfig,
   PerpsMarketData,
+  PerpsOrderCapabilities,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -942,6 +944,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMarkets',
   'getMaxLeverage',
   'getOpenOrders',
+  'getOrderCapabilities',
   'getOrderBookGrouping',
   'getOrderBookPreferences',
   'getOrderFills',
@@ -2635,6 +2638,22 @@ export class PerpsController extends BaseController<
 
     // Return the active provider instance or null if not found
     return this.activeProviderInstance ?? null;
+  }
+
+  /**
+   * Get strategy capabilities from the provider selected for a market route.
+   * During initialization the safe capability is no optional strategies.
+   *
+   * @param params - Market and optional provider route.
+   * @returns Provider-owned order capabilities.
+   */
+  getOrderCapabilities(
+    params: GetOrderCapabilitiesParams = {},
+  ): PerpsOrderCapabilities {
+    const provider = this.getActiveProviderOrNull();
+    return (
+      provider?.getOrderCapabilities?.(params) ?? { supportedStrategies: [] }
+    );
   }
 
   /**

@@ -736,6 +736,12 @@ describe('MYXProvider', () => {
         protocolFeeRate: 0.0005,
       });
     });
+
+    it('advertises no strategy order capabilities', () => {
+      expect(provider.getOrderCapabilities({ symbol: 'RHEA' })).toStrictEqual({
+        supportedStrategies: [],
+      });
+    });
   });
 
   // ==========================================================================

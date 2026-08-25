@@ -828,6 +828,27 @@ describe('PerpsController', () => {
   });
 
   describe('fee calculations', () => {
+    it('returns capabilities from the active routed provider', () => {
+      mockProvider.getOrderCapabilities = jest.fn().mockReturnValue({
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      expect(controller.getOrderCapabilities({ symbol: 'BTC' })).toStrictEqual({
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(mockProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+    });
+
+    it('returns no strategy capabilities while the provider is unavailable', () => {
+      expect(controller.getOrderCapabilities({ symbol: 'BTC' })).toStrictEqual({
+        supportedStrategies: [],
+      });
+    });
+
     it('approves the subscription builder outside order submission', async () => {
       mockProvider.approveSubscriptionBuilderFee = jest
         .fn()

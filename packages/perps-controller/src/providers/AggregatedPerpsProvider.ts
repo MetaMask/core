@@ -43,6 +43,7 @@ import type {
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -62,6 +63,7 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsOrderCapabilities,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
@@ -236,6 +238,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
     return this.#getDefaultProvider().getWithdrawalRoutes(params);
+  }
+
+  /**
+   * Resolve capabilities through the same explicit-provider/default-provider
+   * route used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns Capabilities from the selected provider.
+   */
+  getOrderCapabilities(
+    params: GetOrderCapabilitiesParams = {},
+  ): PerpsOrderCapabilities {
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.getOrderCapabilities?.(params) ?? { supportedStrategies: [] }
+    );
   }
 
   // ============================================================================

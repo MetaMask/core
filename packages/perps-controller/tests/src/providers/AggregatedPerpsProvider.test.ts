@@ -20,6 +20,9 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     // Asset routes
     getDepositRoutes: jest.fn().mockReturnValue([]),
     getWithdrawalRoutes: jest.fn().mockReturnValue([]),
+    getOrderCapabilities: jest.fn().mockReturnValue({
+      supportedStrategies: [],
+    }),
 
     // Read operations
     getPositions: jest.fn().mockResolvedValue([]),
@@ -828,6 +831,31 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toEqual({ feeRate: 0.001 });
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
+    });
+
+    it('gets order capabilities from the provider selected for the market', () => {
+      mockHLProvider.getOrderCapabilities.mockReturnValue({
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      mockMYXProvider.getOrderCapabilities.mockReturnValue({
+        supportedStrategies: [],
+      });
+
+      expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).toStrictEqual({
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(
+        aggregatedProvider.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'myx',
+        }),
+      ).toStrictEqual({ supportedStrategies: [] });
+      expect(mockMYXProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'myx',
+      });
     });
   });
 

@@ -1275,6 +1275,35 @@ export type MaintenanceMarginParams = {
   positionSize?: number; // Optional: for tiered margin systems
 };
 
+/**
+ * Context used to resolve the provider that owns order capabilities.
+ * `symbol` allows providers to narrow capabilities per market, while
+ * `providerId` follows the same explicit-over-default routing as placement.
+ */
+export type GetOrderCapabilitiesParams = {
+  symbol?: string;
+  providerId?: PerpsProviderType;
+};
+
+/** Provider-owned strategy capabilities for the selected market route. */
+export type PerpsOrderCapabilities = {
+  supportedStrategies: readonly StrategyOrderType[];
+};
+
+/**
+ * Exhaustive fee policy for every canonical order type.
+ * Adding an order type requires each provider policy to decide explicitly
+ * whether the placement can carry a MetaMask builder fee.
+ */
+export type OrderFeeConfiguration = Readonly<
+  Record<
+    OrderType,
+    Readonly<{
+      chargesMetamaskBuilderFee: boolean;
+    }>
+  >
+>;
+
 export type FeeCalculationParams = {
   // Trigger placements are charged as their execution kind (a stop_limit pays
   // limit-order fees when it fills, a stop_market pays taker fees).
@@ -1478,6 +1507,15 @@ export type Funding = {
 
 export type PerpsProvider = {
   readonly protocolId: string;
+
+  /**
+   * Return strategy capabilities for the provider/market route.
+   * Optional providers safely expose no strategies until they implement the
+   * capability contract.
+   */
+  getOrderCapabilities?(
+    params?: GetOrderCapabilitiesParams,
+  ): PerpsOrderCapabilities;
 
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
