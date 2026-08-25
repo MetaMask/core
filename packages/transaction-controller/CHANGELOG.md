@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [69.6.0]
 
-### Uncategorized
-
-- feat: auto-add networks from `config-registry` ([#9879](https://github.com/MetaMask/core/pull/9879))
-
 ### Changed
 
 - Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
