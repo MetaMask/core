@@ -2621,6 +2621,27 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
+    it('refreshes HIP-3 metadata at the freshness boundary', async () => {
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+          }),
+        },
+      });
+
+      await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
+      jest.advanceTimersByTime(29_999);
+      await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(1);
+      await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
     it('shares fresh metadata across unrelated symbols', async () => {
       const { infoClient } = useStrategyClients();
 
@@ -2652,6 +2673,23 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await Promise.all([
         provider.getOrderCapabilities({ symbol: 'BTC' }),
         provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ]);
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('deduplicates concurrent HIP-3 metadata refreshes', async () => {
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+          }),
+        },
+      });
+
+      await Promise.all([
+        provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+        provider.getOrderCapabilities({ symbol: 'xyz:NVDA' }),
       ]);
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -2695,6 +2733,93 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
+
+    it('retries HIP-3 metadata immediately after a refresh failure', async () => {
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({
+              universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            }),
+        },
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      {
+        route: 'main DEX',
+        symbol: 'ETH',
+        universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+        expectedStrategies: ['twap', 'scale', 'chase'],
+      },
+      {
+        route: 'HIP-3 DEX',
+        symbol: 'xyz:TSLA',
+        universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+        expectedStrategies: [],
+      },
+    ])(
+      'discards an in-flight $route refresh after disconnect',
+      async ({ symbol, universe, expectedStrategies }) => {
+        let startRequest = (): void => undefined;
+        const requestStarted = new Promise<void>((resolve): void => {
+          startRequest = resolve;
+        });
+        let resolveMeta = (_meta: { universe: typeof universe }): void =>
+          undefined;
+        const pendingMeta = new Promise<{ universe: typeof universe }>(
+          (resolve): void => {
+            resolveMeta = resolve;
+          },
+        );
+        const { infoClient } = useStrategyClients({
+          info: {
+            meta: jest
+              .fn()
+              .mockImplementationOnce(() => {
+                startRequest();
+                return pendingMeta;
+              })
+              .mockResolvedValueOnce({ universe }),
+          },
+        });
+
+        const capabilitiesPromise = provider.getOrderCapabilities({ symbol });
+        await requestStarted;
+        await provider.disconnect();
+        resolveMeta({ universe });
+
+        expect(await capabilitiesPromise).toStrictEqual({
+          status: 'unavailable',
+          providerId: 'hyperliquid',
+          reason: 'provider_unavailable',
+        });
+        expect(await provider.getOrderCapabilities({ symbol })).toStrictEqual({
+          status: 'ready',
+          providerId: 'hyperliquid',
+          supportedStrategies: expectedStrategies,
+        });
+        expect(infoClient.meta).toHaveBeenCalledTimes(2);
+      },
+    );
 
     it('reports unavailable when market metadata cannot be loaded', async () => {
       useStrategyClients({

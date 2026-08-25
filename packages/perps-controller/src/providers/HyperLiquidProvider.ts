@@ -827,9 +827,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
   readonly #cachedMetaByDex = new Map<string, MetaResponse>();
 
-  #orderCapabilitiesMetaFreshAt = 0;
+  readonly #orderCapabilitiesMetaFreshAtByDex = new Map<string, number>();
 
-  #orderCapabilitiesMetaRefreshPromise?: Promise<MetaResponse>;
+  readonly #orderCapabilitiesMetaRefreshPromiseByDex = new Map<
+    string,
+    Promise<MetaResponse>
+  >();
 
   #orderCapabilitiesMetaGeneration = 0;
 
@@ -1106,7 +1109,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     try {
       if (dex !== null) {
-        const meta = await this.#getCachedMeta({ dexName: dex });
+        const meta = await this.#getFreshOrderCapabilitiesMeta(dex);
         return meta.universe.some((market) => market.name === params.symbol)
           ? HYPERLIQUID_NO_STRATEGY_CAPABILITIES
           : {
@@ -1116,7 +1119,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             };
       }
 
-      const meta = await this.#getFreshOrderCapabilitiesMeta();
+      const meta = await this.#getFreshOrderCapabilitiesMeta(null);
       return meta.universe.some((market) => market.name === symbol)
         ? HYPERLIQUID_ORDER_CAPABILITIES
         : {
@@ -1142,40 +1145,64 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return main-DEX metadata fresh enough to answer a capability query.
-   * A single refresh confirms every main-DEX symbol, so concurrent callers
-   * share one request and a failure remains immediately retryable.
+   * Return DEX metadata fresh enough to answer a capability query.
+   * A single refresh confirms every symbol on that DEX, so concurrent callers
+   * share one request per DEX and a failure remains immediately retryable.
    *
-   * @returns Fresh main-DEX metadata.
+   * @param dexName - DEX name, or null for the main DEX.
+   * @returns Fresh metadata for the routed DEX.
    */
-  async #getFreshOrderCapabilitiesMeta(): Promise<MetaResponse> {
-    const cachedMeta = this.#cachedMetaByDex.get(MAIN_DEX_META_CACHE_KEY);
+  async #getFreshOrderCapabilitiesMeta(
+    dexName: string | null,
+  ): Promise<MetaResponse> {
+    const dexKey = dexName ?? MAIN_DEX_META_CACHE_KEY;
+    const cachedMeta = this.#cachedMetaByDex.get(dexKey);
+    const freshAt = this.#orderCapabilitiesMetaFreshAtByDex.get(dexKey);
     if (
       cachedMeta &&
-      Date.now() - this.#orderCapabilitiesMetaFreshAt <
-        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs
+      freshAt !== undefined &&
+      Date.now() - freshAt < PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs
     ) {
       return cachedMeta;
     }
 
-    if (!this.#orderCapabilitiesMetaRefreshPromise) {
-      this.#orderCapabilitiesMetaRefreshPromise = this.#getCachedMeta({
-        dexName: null,
-        skipCache: true,
-      });
+    let refreshPromise =
+      this.#orderCapabilitiesMetaRefreshPromiseByDex.get(dexKey);
+    if (!refreshPromise) {
+      const refreshGeneration = this.#orderCapabilitiesMetaGeneration;
+      refreshPromise = (async (): Promise<MetaResponse> => {
+        const meta = await this.#fetchMeta(dexName);
+        if (refreshGeneration !== this.#orderCapabilitiesMetaGeneration) {
+          throw new Error(
+            '[HyperLiquidProvider] Order capability metadata became stale during disconnect',
+          );
+        }
+
+        this.#cachedMetaByDex.set(dexKey, meta);
+        await this.#backfillAssetMapForDex(dexName, meta);
+
+        if (refreshGeneration !== this.#orderCapabilitiesMetaGeneration) {
+          throw new Error(
+            '[HyperLiquidProvider] Order capability metadata became stale during disconnect',
+          );
+        }
+        this.#orderCapabilitiesMetaFreshAtByDex.set(dexKey, Date.now());
+        return meta;
+      })();
+      this.#orderCapabilitiesMetaRefreshPromiseByDex.set(
+        dexKey,
+        refreshPromise,
+      );
     }
 
-    const refreshPromise = this.#orderCapabilitiesMetaRefreshPromise;
-    const refreshGeneration = this.#orderCapabilitiesMetaGeneration;
     try {
-      const meta = await refreshPromise;
-      if (refreshGeneration === this.#orderCapabilitiesMetaGeneration) {
-        this.#orderCapabilitiesMetaFreshAt = Date.now();
-      }
-      return meta;
+      return await refreshPromise;
     } finally {
-      if (this.#orderCapabilitiesMetaRefreshPromise === refreshPromise) {
-        this.#orderCapabilitiesMetaRefreshPromise = undefined;
+      if (
+        this.#orderCapabilitiesMetaRefreshPromiseByDex.get(dexKey) ===
+        refreshPromise
+      ) {
+        this.#orderCapabilitiesMetaRefreshPromiseByDex.delete(dexKey);
       }
     }
   }
@@ -2271,6 +2298,34 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Cache miss or skipCache=true - fetch from API.
+    const meta = await this.#fetchMeta(dexName);
+
+    // Store raw meta response for reuse
+    this.#cachedMetaByDex.set(dexKey, meta);
+    await this.#backfillAssetMapForDex(dexName, meta);
+
+    this.#deps.debugLogger.log(
+      '[getCachedMeta] Fetched and cached meta response',
+      {
+        dex: dexDisplayName,
+        universeSize: meta.universe.length,
+        skipCache,
+      },
+    );
+
+    return meta;
+  }
+
+  /**
+   * Fetch and validate metadata without mutating provider caches.
+   *
+   * @param dexName - DEX name, or null for the main DEX.
+   * @returns Validated metadata for the requested DEX.
+   */
+  async #fetchMeta(dexName: string | null): Promise<MetaResponse> {
+    const dexKey = dexName ?? MAIN_DEX_META_CACHE_KEY;
+    const dexDisplayName = dexKey || 'main';
+
     // Bring the SDK clients up first. This is the first client touch on the
     // write path — placeOrder resolves asset info before it ensures trading
     // readiness — so without it a cold start or a post-disconnect action fails
@@ -2290,19 +2345,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         `[HyperLiquidProvider] Invalid meta response for DEX ${dexDisplayName}: universe is ${meta?.universe ? 'not an array' : 'missing'}`,
       );
     }
-
-    // Store raw meta response for reuse
-    this.#cachedMetaByDex.set(dexKey, meta);
-    await this.#backfillAssetMapForDex(dexName, meta);
-
-    this.#deps.debugLogger.log(
-      '[getCachedMeta] Fetched and cached meta response',
-      {
-        dex: dexDisplayName,
-        universeSize: meta.universe.length,
-        skipCache,
-      },
-    );
 
     return meta;
   }
@@ -11579,8 +11621,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       // NOTE: UnifiedAccountCache is global and NOT cleared on disconnect
       // to prevent repeated signing requests across reconnections
       this.#cachedMetaByDex.clear();
-      this.#orderCapabilitiesMetaFreshAt = 0;
-      this.#orderCapabilitiesMetaRefreshPromise = undefined;
+      this.#orderCapabilitiesMetaFreshAtByDex.clear();
+      this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
       this.#orderCapabilitiesMetaGeneration += 1;
       this.#cachedSpotMeta = null;
       this.#dexDiscoveryCache.reset();
