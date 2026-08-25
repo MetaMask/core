@@ -742,6 +742,21 @@ type HyperLiquidOrderFeeContext =
   | Readonly<OrderParams>
   | Readonly<FeeCalculationParams>;
 
+const NON_NEGATIVE_DECIMAL_PATTERN = /^\d+(?:\.\d+)?$/u;
+const MAX_API_FEE_RATE = 1;
+const MAX_API_FEE_DISCOUNT = 1;
+
+function parseBoundedNonNegativeDecimal(
+  value: unknown,
+  upperBound = Number.MAX_VALUE,
+): number | null {
+  if (typeof value !== 'string' || !NON_NEGATIVE_DECIMAL_PATTERN.test(value)) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed <= upperBound ? parsed : null;
+}
+
 type ResolvedHyperLiquidOrderFeeConfiguration = Readonly<
   Record<OrderType, HyperLiquidOrderFeePolicy>
 >;
@@ -869,6 +884,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Sticky for this instance. PerpsController discards disconnected providers
   // during initialization; direct callers must call initialize() before reuse.
   #isDisconnected = false;
+
+  #disconnectOperationsInFlight = 0;
 
   #lifecycleGeneration = 0;
 
@@ -1226,6 +1243,30 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (this.#isDisconnected || generation !== this.#lifecycleGeneration) {
       this.#deps.debugLogger.log(
         'HyperLiquid: Provider operation became stale during disconnect',
+        { operation },
+      );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
+  /**
+   * Reject cache writes from an old lifecycle or while teardown is active.
+   * General reads may lazily rebuild caches after disconnect completes, but a
+   * request that crossed the disconnect boundary must not repopulate them.
+   *
+   * @param generation - Provider lifecycle generation captured before work.
+   * @param operation - Operation name included in the cancellation log.
+   */
+  #assertCacheWriteLifecycleCurrent(
+    generation: number,
+    operation: string,
+  ): void {
+    if (
+      this.#disconnectOperationsInFlight > 0 ||
+      generation !== this.#lifecycleGeneration
+    ) {
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Cache write became stale during disconnect',
         { operation },
       );
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -2202,6 +2243,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Array of all DEX names (null for main DEX, strings for HIP-3 DEXs)
    */
   async #getAllAvailableDexs(): Promise<(string | null)[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     // Use unified state if available
     if (this.#dexDiscoveryCache.state) {
       const availableHip3Dexs: string[] = [];
@@ -2221,6 +2263,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         return [null]; // Fallback to main DEX only
       }
 
+      this.#assertCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'DEX discovery cache write',
+      );
       const state = this.#dexDiscoveryCache.update(allDexs);
       const availableHip3Dexs: string[] = [];
       state.raw.forEach((dex) => {
@@ -2296,6 +2342,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async #fetchValidatedDexsInternal(): Promise<(string | null)[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     // Kill switch: HIP-3 disabled, return main DEX only
     if (!this.#hip3Enabled) {
       this.#deps.debugLogger.log(
@@ -2335,6 +2382,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Atomically update unified state (raw + validated + timestamp)
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'DEX discovery cache write',
+    );
     const state = this.#dexDiscoveryCache.update(allDexs);
 
     this.#deps.debugLogger.log(
@@ -2362,6 +2413,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null;
     skipCache?: boolean;
   }): Promise<MetaResponse> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { dexName, skipCache } = params;
     const dexDisplayName = dexName ?? 'main';
 
@@ -2382,13 +2434,18 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Cache miss or skipCache=true - fetch from API.
     const meta = await this.#fetchMeta(dexName);
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'DEX metadata fetch',
+    );
 
     // Store raw meta response for reuse
     this.#cacheDexMetadata({
       dex: dexName,
       meta,
+      lifecycleGeneration,
     });
-    await this.#backfillAssetMapForDex(dexName, meta);
+    await this.#backfillAssetMapForDex(dexName, meta, lifecycleGeneration);
 
     this.#deps.debugLogger.log(
       '[getCachedMeta] Fetched and cached meta response',
@@ -2441,13 +2498,19 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.dex - DEX name, or null for the main DEX.
    * @param params.meta - Validated DEX metadata.
    * @param params.assetCtxs - Asset contexts shared with subscriptions, if any.
+   * @param params.lifecycleGeneration - Lifecycle that produced the metadata.
    */
   #cacheDexMetadata(params: {
     dex: string | null;
     meta: MetaResponse;
     assetCtxs?: PerpsAssetCtx[];
+    lifecycleGeneration: number;
   }): void {
-    const { dex, meta, assetCtxs } = params;
+    const { dex, meta, assetCtxs, lifecycleGeneration } = params;
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'DEX metadata cache write',
+    );
     this.#cachedMetaByDex.set(dex, meta);
     if (assetCtxs) {
       const subscriptionDexKey = dex ?? '';
@@ -2465,12 +2528,18 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param dex - DEX name (null for main DEX).
    * @param meta - Meta response containing the DEX universe.
+   * @param lifecycleGeneration - Lifecycle that produced the metadata.
    * @returns True if the mapping was rebuilt for the DEX.
    */
   async #backfillAssetMapForDex(
     dex: string | null,
     meta: MetaResponse,
+    lifecycleGeneration: number,
   ): Promise<boolean> {
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset map backfill',
+    );
     if (!meta?.universe || !Array.isArray(meta.universe)) {
       return false;
     }
@@ -2491,6 +2560,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
     }
+
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset map backfill',
+    );
 
     const allPerpDexs = this.#dexDiscoveryCache.state?.raw ?? [null];
     const perpDexIndex = allPerpDexs.findIndex((entry) => {
@@ -2544,6 +2618,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null;
     meta?: MetaResponse;
   }): Promise<number> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { symbol, dexName } = params;
     const existingAssetId = this.#symbolToAssetId.get(symbol);
 
@@ -2558,7 +2633,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
 
     if (assetExistsInMeta) {
-      await this.#backfillAssetMapForDex(dexName, meta);
+      await this.#backfillAssetMapForDex(dexName, meta, lifecycleGeneration);
       const repairedAssetId = this.#symbolToAssetId.get(symbol);
       if (repairedAssetId !== undefined) {
         return repairedAssetId;
@@ -2904,6 +2979,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * the asset ID lookup succeeds and the order routes to the correct DEX.
    */
   async #buildAssetMapping(): Promise<void> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     // Get feature-flag-validated DEXs to map (respects hip3Enabled and enabledDexs)
     let dexsToMap: (string | null)[];
     try {
@@ -2948,6 +3024,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#allowlistMarkets,
       this.#blocklistMarkets,
     );
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset mapping rebuild',
+    );
 
     // Fetch metadata for each DEX in parallel using metaAndAssetCtxs
     // Optimization: Check cache first - getMarketDataWithPrices may have already fetched
@@ -2982,6 +3062,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                 dex,
                 meta,
                 assetCtxs,
+                lifecycleGeneration,
               });
             }
             return { dex, meta, success: true as const };
@@ -2996,6 +3077,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             return { dex, meta: null, success: false as const };
           });
       }),
+    );
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset mapping rebuild',
     );
     // Build mapping with DEX prefixes for HIP-3 DEXs using the utility function
     this.#symbolToAssetId.clear();
@@ -9859,6 +9944,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       typeof HyperLiquidClientService.prototype.getInfoClient
     >,
     dex: string | null,
+    lifecycleGeneration: number,
   ): Promise<DexFetchResult> {
     const dexParam = dex ?? '';
 
@@ -9901,8 +9987,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         dex,
         meta,
         assetCtxs,
+        lifecycleGeneration,
       });
-      await this.#backfillAssetMapForDex(dex, meta);
+      await this.#backfillAssetMapForDex(dex, meta, lifecycleGeneration);
     }
 
     return {
@@ -10058,6 +10145,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the combined market data from all enabled DEXs.
    */
   async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     this.#deps.debugLogger.log(
       'Getting market data with prices via HyperLiquid SDK',
     );
@@ -10086,7 +10174,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           this.#deps.debugLogger.log(
             `[getMarketDataWithPrices] Cache miss for ${dex ?? 'main'}, fetching`,
           );
-          return this.#fetchSingleDexFresh(infoClient, dex);
+          return this.#fetchSingleDexFresh(
+            infoClient,
+            dex,
+            lifecycleGeneration,
+          );
         }
 
         this.#deps.debugLogger.log(
@@ -10127,8 +10219,13 @@ export class HyperLiquidProvider implements PerpsProvider {
               dex,
               meta: freshMeta,
               assetCtxs,
+              lifecycleGeneration,
             });
-            await this.#backfillAssetMapForDex(dex, freshMeta);
+            await this.#backfillAssetMapForDex(
+              dex,
+              freshMeta,
+              lifecycleGeneration,
+            );
           } catch (error) {
             return {
               dex,
@@ -10204,7 +10301,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
 
       const retryResults = await Promise.all(
-        enabledDexs.map((dex) => this.#fetchSingleDexFresh(infoClient, dex)),
+        enabledDexs.map((dex) =>
+          this.#fetchSingleDexFresh(infoClient, dex, lifecycleGeneration),
+        ),
       );
       const usdcFilteredRetryResults =
         await this.#excludeNonUsdcCollateralResults(retryResults);
@@ -10310,6 +10409,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.marketDataFormatters,
       HIP3_ASSET_MARKET_TYPES,
       HYPERLIQUID_ASSET_NAMES,
+    );
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Market data cache write',
     );
     return this.#cacheFreshMarketDataSnapshot(
       transformedMarketData,
@@ -11165,9 +11268,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   async initialize(): Promise<InitializeResult> {
     const lifecycleGeneration = this.#lifecycleGeneration;
     try {
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
       // Ensure clients are initialized (lazy initialization)
       await this.#ensureClientsInitialized();
-      if (lifecycleGeneration !== this.#lifecycleGeneration) {
+      if (
+        this.#disconnectOperationsInFlight > 0 ||
+        lifecycleGeneration !== this.#lifecycleGeneration
+      ) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
       this.#isDisconnected = false;
@@ -11418,6 +11527,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
+    const parsedAmount =
+      amount === undefined ? undefined : parseBoundedNonNegativeDecimal(amount);
+    if (parsedAmount === null) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+    }
 
     // Every placement is charged as its execution kind: a stop_market fills as a
     // market order (taker), a stop_limit as a limit order, a scale ladder as the
@@ -11548,18 +11662,43 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
 
         // Parse base user rates (these don't include discounts as expected)
-        const baseUserTakerRate = parseFloat(userFees.userCrossRate);
-        const baseUserMakerRate = parseFloat(userFees.userAddRate);
-        const baseUserSpotTakerRate = parseFloat(userFees.userSpotCrossRate);
-        const baseUserSpotMakerRate = parseFloat(userFees.userSpotAddRate);
+        const baseUserTakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userCrossRate,
+          MAX_API_FEE_RATE,
+        );
+        const baseUserMakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userAddRate,
+          MAX_API_FEE_RATE,
+        );
+        const baseUserSpotTakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userSpotCrossRate,
+          MAX_API_FEE_RATE,
+        );
+        const baseUserSpotMakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userSpotAddRate,
+          MAX_API_FEE_RATE,
+        );
 
         // Apply discounts manually since HyperLiquid API doesn't apply them
-        const referralDiscount = parseFloat(
-          userFees.activeReferralDiscount || '0',
+        const referralDiscount = parseBoundedNonNegativeDecimal(
+          userFees.activeReferralDiscount ?? '0',
+          MAX_API_FEE_DISCOUNT,
         );
-        const stakingDiscount = parseFloat(
-          userFees.activeStakingDiscount?.discount || '0',
+        const stakingDiscount = parseBoundedNonNegativeDecimal(
+          userFees.activeStakingDiscount?.discount ?? '0',
+          MAX_API_FEE_DISCOUNT,
         );
+
+        if (
+          baseUserTakerRate === null ||
+          baseUserMakerRate === null ||
+          baseUserSpotTakerRate === null ||
+          baseUserSpotMakerRate === null ||
+          referralDiscount === null ||
+          stakingDiscount === null
+        ) {
+          throw new Error('Invalid fee rates received from API');
+        }
 
         // Calculate total discount (referral + staking, but not compounding)
         const totalDiscount = Math.min(referralDiscount + stakingDiscount, 0.4); // Cap at 40%
@@ -11590,10 +11729,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Validate all rates are valid numbers before caching
         if (
-          isNaN(perpsTakerRate) ||
-          isNaN(perpsMakerRate) ||
-          isNaN(spotTakerRate) ||
-          isNaN(spotMakerRate) ||
+          !Number.isFinite(perpsTakerRate) ||
+          !Number.isFinite(perpsMakerRate) ||
+          !Number.isFinite(spotTakerRate) ||
+          !Number.isFinite(spotMakerRate) ||
           perpsTakerRate < 0 ||
           perpsMakerRate < 0 ||
           spotTakerRate < 0 ||
@@ -11601,10 +11740,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         ) {
           this.#deps.debugLogger.log('Fee Rate Validation Failed', {
             validation: {
-              perpsTakerValid: !isNaN(perpsTakerRate) && perpsTakerRate >= 0,
-              perpsMakerValid: !isNaN(perpsMakerRate) && perpsMakerRate >= 0,
-              spotTakerValid: !isNaN(spotTakerRate) && spotTakerRate >= 0,
-              spotMakerValid: !isNaN(spotMakerRate) && spotMakerRate >= 0,
+              perpsTakerValid:
+                Number.isFinite(perpsTakerRate) && perpsTakerRate >= 0,
+              perpsMakerValid:
+                Number.isFinite(perpsMakerRate) && perpsMakerRate >= 0,
+              spotTakerValid:
+                Number.isFinite(spotTakerRate) && spotTakerRate >= 0,
+              spotMakerValid:
+                Number.isFinite(spotMakerRate) && spotMakerRate >= 0,
             },
             rawValues: {
               perpsTakerRate,
@@ -11669,18 +11812,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
-    const parsedAmount = amount ? parseFloat(amount) : 0;
-
     // Protocol base fee (HyperLiquid's fee)
     const protocolFeeRate = feeRate;
-    let protocolFeeAmount: number | undefined;
-    if (amount === undefined) {
-      protocolFeeAmount = undefined;
-    } else if (isNaN(parsedAmount)) {
-      protocolFeeAmount = 0;
-    } else {
-      protocolFeeAmount = parsedAmount * protocolFeeRate;
-    }
+    const protocolFeeAmount =
+      parsedAmount === undefined ? undefined : parsedAmount * protocolFeeRate;
 
     // The provider policy, not the client, owns whether this placement can
     // carry a builder fee. The dedicated TWAP action has no builder field.
@@ -11704,19 +11839,28 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
     }
 
-    const validAmountForMetamaskFee = isNaN(parsedAmount)
-      ? 0
-      : parsedAmount * metamaskFeeRate;
     const metamaskFeeAmount =
-      amount === undefined ? undefined : validAmountForMetamaskFee;
+      parsedAmount === undefined ? undefined : parsedAmount * metamaskFeeRate;
 
     // Total fees
     const totalFeeRate = protocolFeeRate + metamaskFeeRate;
-    const validAmountForTotalFee = isNaN(parsedAmount)
-      ? 0
-      : parsedAmount * totalFeeRate;
     const totalFeeAmount =
-      amount === undefined ? undefined : validAmountForTotalFee;
+      parsedAmount === undefined ? undefined : parsedAmount * totalFeeRate;
+    if (
+      !Number.isFinite(protocolFeeRate) ||
+      protocolFeeRate < 0 ||
+      !Number.isFinite(metamaskFeeRate) ||
+      metamaskFeeRate < 0 ||
+      !Number.isFinite(totalFeeRate) ||
+      totalFeeRate < 0 ||
+      (protocolFeeAmount !== undefined &&
+        !Number.isFinite(protocolFeeAmount)) ||
+      (metamaskFeeAmount !== undefined &&
+        !Number.isFinite(metamaskFeeAmount)) ||
+      (totalFeeAmount !== undefined && !Number.isFinite(totalFeeAmount))
+    ) {
+      throw new Error('Invalid fee calculation result');
+    }
 
     const result = {
       // Total fees
@@ -11800,6 +11944,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async disconnect(): Promise<DisconnectResult> {
     this.#chasePlacementBlockers += 1;
     this.#chaseGeneration += 1;
+    this.#disconnectOperationsInFlight += 1;
     this.#isDisconnected = true;
     this.#lifecycleGeneration += 1;
     try {
@@ -11841,6 +11986,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#userFeeDiscountBips = undefined;
       // UnifiedAccountCache stays global to avoid repeated signing requests.
       this.#cachedMetaByDex.clear();
+      this.#pendingValidatedDexsPromise = null;
       this.#orderCapabilitiesMeta = null;
       this.#orderCapabilitiesMetaRefreshPromise = null;
       this.#cachedSpotMeta = null;
@@ -11911,6 +12057,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return createErrorResult(error, { success: false });
     } finally {
       this.#chasePlacementBlockers -= 1;
+      this.#disconnectOperationsInFlight -= 1;
     }
   }
 

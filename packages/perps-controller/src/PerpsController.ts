@@ -5571,6 +5571,13 @@ export class PerpsController extends BaseController<
     this.#previousIsTestnet = null;
     this.#previousHip3ConfigVersion = null;
 
+    // Initialization owns provider creation. Let it finish before teardown so
+    // it cannot repopulate providers after this method clears the references.
+    const pendingInitialization = this.#initializationPromise;
+    if (pendingInitialization) {
+      await pendingInitialization;
+    }
+
     // Only disconnect the provider if we're initialized
     if (this.isInitialized && !this.isCurrentlyReinitializing()) {
       try {

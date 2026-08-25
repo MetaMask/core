@@ -1030,6 +1030,47 @@ describe('PerpsController', () => {
   });
 
   describe('action calls during initialization', () => {
+    it('waits for initialization before disconnecting the created provider', async () => {
+      let resolveBlock!: () => void;
+      const blockingPromise = new Promise<void>((resolve) => {
+        resolveBlock = resolve;
+      });
+      let attempt = 0;
+      (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) {
+          throw new Error('Transient failure');
+        }
+        return mockProvider;
+      });
+      (mockWait as jest.Mock).mockImplementationOnce(() => blockingPromise);
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      let disconnectSettled = false;
+      const disconnectPromise = controller.disconnect().then(() => {
+        disconnectSettled = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(disconnectSettled).toBe(false);
+      resolveBlock();
+      await initPromise;
+      await disconnectPromise;
+
+      expect(mockProvider.disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.testGetInitialized()).toBe(false);
+      expect(controller.getActiveProviderOrNull()).toBeNull();
+    });
+
     it('waits for init to complete before resolving when state is Initializing', async () => {
       let resolveBlock!: () => void;
       const blockingPromise = new Promise<void>((resolve) => {

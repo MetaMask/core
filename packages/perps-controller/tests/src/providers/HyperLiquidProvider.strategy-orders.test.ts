@@ -3205,6 +3205,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await disconnectResult).toStrictEqual({ success: true });
     });
 
+    it('does not initialize while a disconnect is in progress', async () => {
+      useStrategyClients();
+      let startClientDisconnect = (): void => undefined;
+      const clientDisconnectStarted = new Promise<void>((resolve): void => {
+        startClientDisconnect = resolve;
+      });
+      let finishClientDisconnect = (): void => undefined;
+      const pendingClientDisconnect = new Promise<void>((resolve): void => {
+        finishClientDisconnect = resolve;
+      });
+      mockClientService.disconnect.mockImplementationOnce(() => {
+        startClientDisconnect();
+        return pendingClientDisconnect;
+      });
+
+      const disconnectResult = provider.disconnect();
+      await clientDisconnectStarted;
+
+      expect(await provider.initialize()).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(mockClientService.initialize).not.toHaveBeenCalled();
+
+      finishClientDisconnect();
+      expect(await disconnectResult).toStrictEqual({ success: true });
+      expect(await provider.initialize()).toStrictEqual({
+        success: true,
+        chainId: '42161',
+      });
+    });
+
     it('keeps capabilities unavailable until overlapping disconnects finish', async () => {
       const { infoClient } = useStrategyClients();
       let finishFirstDisconnect = (): void => undefined;
@@ -3425,6 +3457,43 @@ describe('HyperLiquidProvider - strategy order types', () => {
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
+      expect(await provider.getMaxLeverage('ETH')).toBe(50);
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache general metadata that resolves after disconnect', async () => {
+      const universe = [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }];
+      let startRequest = (): void => undefined;
+      const requestStarted = new Promise<void>((resolve): void => {
+        startRequest = resolve;
+      });
+      let resolveMeta = (_meta: { universe: typeof universe }): void =>
+        undefined;
+      const pendingMeta = new Promise<{ universe: typeof universe }>(
+        (resolve): void => {
+          resolveMeta = resolve;
+        },
+      );
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              startRequest();
+              return pendingMeta;
+            })
+            .mockResolvedValueOnce({ universe }),
+        },
+      });
+
+      const staleLeverage = provider.getMaxLeverage('ETH');
+      await requestStarted;
+      const disconnectResult = provider.disconnect();
+      resolveMeta({ universe });
+
+      await staleLeverage;
+      expect(await disconnectResult).toStrictEqual({ success: true });
+      await provider.initialize();
       expect(await provider.getMaxLeverage('ETH')).toBe(50);
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });

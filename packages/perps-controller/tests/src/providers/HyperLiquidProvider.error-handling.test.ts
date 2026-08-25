@@ -2470,17 +2470,19 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBe(145); // Includes MetaMask fee
       });
 
-      it('handles non-numeric amount gracefully', async () => {
-        const result = await provider.calculateFees({
-          orderType: 'market',
-          isMaker: false,
-          amount: 'invalid',
-          symbol: 'BTC',
-        });
-
-        expect(result.feeRate).toBe(0.00145); // Includes 0.1% MetaMask fee
-        expect(result.feeAmount).toBe(0); // parseFloat('invalid') returns NaN, which * 0.00045 = NaN, but we expect 0
-      });
+      it.each(['', 'invalid', '100junk', '-1', 'Infinity'])(
+        'rejects invalid fee amount %p',
+        async (amount) => {
+          await expect(
+            provider.calculateFees({
+              orderType: 'market',
+              isMaker: false,
+              amount,
+              symbol: 'BTC',
+            }),
+          ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        },
+      );
 
       it('returns FeeCalculationResult with correct structure', async () => {
         const result = await provider.calculateFees({
@@ -2561,6 +2563,38 @@ describe('HyperLiquidProvider', () => {
         // Should fall back to base rates due to validation failure
         expect(result.feeRate).toBe(0.00145); // Includes 0.1% MetaMask fee // Base taker rate
         expect(result.feeAmount).toBe(145); // Includes MetaMask fee
+      });
+
+      it.each([
+        ['partial rate', { userCrossRate: '0.0003junk' }],
+        ['non-finite rate', { userCrossRate: 'Infinity' }],
+        ['out-of-range rate', { userCrossRate: '1.1' }],
+        ['out-of-range discount', { activeReferralDiscount: '1.1' }],
+      ])('falls back to base rates for %s', async (_label, override) => {
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+          '0xTestAddress123',
+        );
+        (
+          mockClientService.getInfoClient().userFees as jest.Mock
+        ).mockResolvedValue({
+          userCrossRate: '0.00030',
+          userAddRate: '0.00010',
+          userSpotCrossRate: '0.00050',
+          userSpotAddRate: '0.00020',
+          activeReferralDiscount: '0',
+          activeStakingDiscount: null,
+          ...override,
+        });
+
+        const result = await provider.calculateFees({
+          orderType: 'market',
+          isMaker: false,
+          amount: '100000',
+          symbol: 'BTC',
+        });
+
+        expect(result.protocolFeeRate).toBe(0.00045);
+        expect(result.feeAmount).toBe(145);
       });
 
       it('falls back to base rates when API returns negative fee rates', async () => {
