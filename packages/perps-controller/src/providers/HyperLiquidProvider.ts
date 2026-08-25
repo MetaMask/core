@@ -189,6 +189,7 @@ import {
   computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
+  getPriceTick,
   splitScaleSizes,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
@@ -4935,6 +4936,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (refreshedQuote === 'gone') {
           throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
         }
+        if (generation !== this.#chaseGeneration) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+        }
         quotePrice = refreshedQuote;
       }
     }
@@ -5299,9 +5303,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const arrivalPrice = Number.parseFloat(session.arrivalPrice);
     const rawQuote = Number.parseFloat(rawQuotePrice);
-    const distanceFromArrival =
-      Math.abs(rawQuote - arrivalPrice) / arrivalPrice;
-    const boundaryDirection = rawQuote >= arrivalPrice ? 1 : -1;
+    const adverseDistanceFromArrival = session.isBuy
+      ? (rawQuote - arrivalPrice) / arrivalPrice
+      : (arrivalPrice - rawQuote) / arrivalPrice;
+    const boundaryDirection = session.isBuy ? 1 : -1;
     const maxDistanceRatio =
       session.maxDistanceBps === undefined
         ? undefined
@@ -5313,13 +5318,30 @@ export class HyperLiquidProvider implements PerpsProvider {
     const reachedMaxDistance =
       boundaryPrice !== undefined &&
       maxDistanceRatio !== undefined &&
-      distanceFromArrival >= maxDistanceRatio;
-    const quotePrice = reachedMaxDistance
-      ? formatHyperLiquidPrice({
+      adverseDistanceFromArrival >= maxDistanceRatio;
+    let quotePrice = rawQuotePrice;
+    if (reachedMaxDistance && boundaryPrice !== undefined) {
+      quotePrice = formatHyperLiquidPrice({
+        price: boundaryPrice,
+        szDecimals: session.szDecimals,
+      });
+      const formattedBoundary = Number.parseFloat(quotePrice);
+      const overshootsBoundary = session.isBuy
+        ? formattedBoundary > boundaryPrice
+        : formattedBoundary < boundaryPrice;
+      if (overshootsBoundary) {
+        const tick = getPriceTick({
           price: boundaryPrice,
           szDecimals: session.szDecimals,
-        })
-      : rawQuotePrice;
+        });
+        quotePrice = formatHyperLiquidPrice({
+          price: session.isBuy
+            ? formattedBoundary - tick
+            : formattedBoundary + tick,
+          szDecimals: session.szDecimals,
+        });
+      }
+    }
 
     // The book read is a round trip, and a cancel arriving during it stops the
     // session. Without this re-check the tick would cancel and re-place the very
@@ -5710,12 +5732,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         Number.isFinite(arrival) && arrival > 0 && Number.isFinite(resting)
           ? Math.round((Math.abs(resting - arrival) / arrival) * 10_000)
           : 0;
-      const distanceChasedBps =
-        session.status === 'max_distance_reached' &&
-        session.maxDistanceBps !== undefined
-          ? session.maxDistanceBps
-          : measuredDistance;
-
       return {
         handle,
         symbol: session.symbol,
@@ -5725,7 +5741,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         arrivalPrice: session.arrivalPrice,
         restingPrice: session.restingPrice,
         restingOrderId: session.orderId,
-        distanceChasedBps,
+        distanceChasedBps: measuredDistance,
         ...(session.maxDistanceBps === undefined
           ? {}
           : { maxDistanceBps: session.maxDistanceBps }),
@@ -5754,6 +5770,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         replacements.push(session.pendingReplacement);
       }
     }
+    await this.#chaseTickQueue;
     await Promise.all(replacements);
     return await this.getChaseOrders();
   }

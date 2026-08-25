@@ -14,9 +14,14 @@ or
 
 ```typescript
 import { PerpsController } from '@metamask/perps-controller';
-
-// Full usage documentation coming in future releases
 ```
+
+Chase orders are client-managed post-only strategies. Use
+`controller.getChaseOrders()` to read retained lifecycle snapshots and
+`controller.suspendChaseOrders()` when the creating client leaves the
+foreground; suspension stops repricing while leaving the latest child order
+resting. Cancel a Chase through `cancelOrder` with its stable strategy handle
+and `orderType: 'chase'`.
 
 ## Contributing
 

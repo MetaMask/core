@@ -271,8 +271,8 @@ export type OrderParams = {
    */
   scaleSkew?: number;
   chaseIntervalMs?: number; // How often the chase re-reads the touch (default 15000, min 1000)
-  chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
-  chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
+  chaseMaxDurationMs?: number; // Optional hard stop for the chase window (unbounded by default)
+  chaseMaxRepricings?: number; // Optional cap on cancel/replace cycles (unbounded by default)
   chaseMaxDistanceBps?: number; // Optional directional distance from arrival price where chasing stops
 
   // Advanced order features
@@ -373,6 +373,7 @@ export type ChaseOrder = {
   repricings: number;
   startedAt: number;
   status: ChaseOrderStatus;
+  providerId?: PerpsProviderType;
 };
 
 export type Position = {

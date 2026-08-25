@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the public Chase lifecycle API (`getChaseOrders` and
+  `suspendChaseOrders`), aggregated-provider routing, retained lifecycle
+  snapshots, directional max-distance stopping, and idempotent termination of
+  stale or already-gone child orders. Chase repricing defaults to 15 seconds
+  and remains unbounded unless a duration or repricing cap is supplied.
 - **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
   - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
   - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.

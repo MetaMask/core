@@ -6,6 +6,7 @@ import type {
   Position,
   MarketInfo,
   Order,
+  ChaseOrder,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 /* eslint-disable */
@@ -43,6 +44,8 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     }),
     getUserNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
     getUserHistory: jest.fn().mockResolvedValue([]),
+    getChaseOrders: jest.fn().mockResolvedValue([]),
+    suspendChaseOrders: jest.fn().mockResolvedValue([]),
     getCurrentAccountId: jest
       .fn()
       .mockResolvedValue(
@@ -427,6 +430,46 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.getFunding();
 
       expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('Chase lifecycle operations', () => {
+    const chaseOrder: ChaseOrder = {
+      handle: 'chase-1',
+      symbol: 'ETH',
+      side: 'buy',
+      originalSize: '1',
+      remainingSize: '1',
+      arrivalPrice: '3000',
+      restingPrice: '3000',
+      restingOrderId: '55',
+      distanceChasedBps: 0,
+      repricings: 0,
+      startedAt: 1,
+      status: 'active',
+    };
+
+    it('aggregates Chase snapshots with their provider IDs', async () => {
+      mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
+
+      await expect(aggregatedProvider.getChaseOrders()).resolves.toContainEqual(
+        { ...chaseOrder, providerId: 'hyperliquid' },
+      );
+    });
+
+    it('suspends every provider and retains provider IDs', async () => {
+      const backgrounded = {
+        ...chaseOrder,
+        status: 'backgrounded' as const,
+      };
+      mockHLProvider.suspendChaseOrders?.mockResolvedValue([backgrounded]);
+
+      await expect(
+        aggregatedProvider.suspendChaseOrders(),
+      ).resolves.toContainEqual({
+        ...backgrounded,
+        providerId: 'hyperliquid',
+      });
     });
   });
 

@@ -28,6 +28,7 @@ import type {
   CancelOrderParams,
   CancelOrderResult,
   CancelOrdersResult,
+  ChaseOrder,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -441,6 +442,36 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
     const result = await provider.placeOrder(params);
     return { ...result, providerId };
+  }
+
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getChaseOrders
+          ? (await provider.getChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
+  }
+
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.suspendChaseOrders
+          ? (await provider.suspendChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'suspendChaseOrders').flat();
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {

@@ -1709,14 +1709,42 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await jest.advanceTimersByTimeAsync(5000);
 
       expect(order).toHaveBeenCalledTimes(2);
-      expect(order.mock.calls[1][0].orders[0].p).toBe('3029.1');
+      expect(order.mock.calls[1][0].orders[0].p).toBe('3029');
       expect(await provider.getChaseOrders()).toStrictEqual([
         expect.objectContaining({
           handle: placed.orderId,
           restingOrderId: '66',
-          restingPrice: '3029.1',
+          restingPrice: '3029',
           distanceChasedBps: 100,
           status: 'max_distance_reached',
+        }),
+      ]);
+    });
+
+    it('keeps chasing when the touch moves favorably beyond max distance', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValue(chaseRested(66));
+      useStrategyClients({
+        exchange: { order },
+        info: { l2Book: bookWalkingBids(['2999', '2900']) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+        chaseMaxDistanceBps: 100,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({
+          status: 'active',
+          restingPrice: '2900.1',
         }),
       ]);
     });
