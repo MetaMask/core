@@ -7,26 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump accounts deps ([#9754](https://github.com/MetaMask/core/pull/9754))
-
-### Changed
-
-- **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))
-  - Derive native SIP-6 keys with `@noble/hashes` HMAC-SHA-512 instead of Web Crypto, so auth works on React Native, whose SubtleCrypto cannot HMAC.
-- Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
-- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
-- Add `@metamask/key-tree` and `@noble/curves`; remove unused `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, and `@metamask/snaps-utils` dependencies ([#9824](https://github.com/MetaMask/core/pull/9824))
-
-## [29.0.0]
-
-### Changed
-
-- **BREAKING:** Tag `/srp/login` with SRP slot and social provider metadata ([#9741](https://github.com/MetaMask/core/pull/9741), [#9776](https://github.com/MetaMask/core/pull/9776))
-  - Append `primary` | `secondary` to `raw_message` (`metamask:<nonce>:<pubkey>:<tag>`; `primary` for the first HD entropy source). Leave `raw_message` untagged when `getLoginTag` is not provided. Include `metametrics.identifier_type` (`SRP` | `GOOGLE` | `APPLE` | `TELEGRAM`; social vault primary maps from `SeedlessOnboardingController.state.authConnection`).
-- Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
-
 ## [28.3.0]
 
 ### Added
@@ -917,8 +897,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...HEAD
-[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...HEAD
 [28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...@metamask/profile-sync-controller@28.2.0
 [28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1

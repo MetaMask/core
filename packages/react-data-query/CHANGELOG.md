@@ -7,18 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix(base-data-service): adapt to `@tanstack/query-core` v5 API ([#9712](https://github.com/MetaMask/core/pull/9712))
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
-- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
-
 ### Changed
 
-- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563), [#9941](https://github.com/MetaMask/core/pull/9941), [#9953](https://github.com/MetaMask/core/pull/9953))
+- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563))
   - `createUIQueryClient`'s `invalidateQueries` override now matches the TanStack Query v5 signature (`filters`, `options`) instead of the v4 overload style that relied on `parseFilterArgs`.
   - Consumers must migrate to TanStack Query v5 APIs (for example `gcTime` instead of `cacheTime`, and `initialPageParam` for infinite queries).
-  - `TError` in both hooks now defaults to `DefaultError`.
 - **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
   - The messenger-like object that `createUIQueryClient` takes must minimally support actions or `:cacheUpdated:${hash}` events which are namespaced by the provided data service names.
   - If you're passing a messenger, it should "just work" as long as your messenger supports the right actions and events.

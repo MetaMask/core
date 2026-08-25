@@ -7,18 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Export `AbstractPollingControllerBaseMixin`, `getKey`, `Constructor`, and `PollingTokenSetId` ([#9882](https://github.com/MetaMask/core/pull/9882))
-
-### Changed
-
-- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
-
-### Removed
-
-- **BREAKING:** Remove `BlockTrackerPollingController` and `BlockTrackerPollingControllerOnly` ([#9882](https://github.com/MetaMask/core/pull/9882))
-
 ## [16.0.9]
 
 ### Changed
