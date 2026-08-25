@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New exports: `getHashPresenceProperties`, `getStatusFailurePhase`, `getSubmitErrorCode`, `getSubmitFailureTelemetry`, and `getStatusFailureTelemetry`
   - Return types `HashPresenceProperties` and `FailureTelemetryProperties` come from `@metamask/bridge-controller`
   - Classifies submit and status failures from the code path (not from `error_message`)
-- Emit `failure_phase`, `error_code`, `source_hash_present`, and `destination_hash_present` on SwapBridge Submitted, Completed, and Failed events
+- Emit `failure_phase`, `error_code`, `source_hash_present`, and `destination_hash_present` on SwapBridge Submitted, Completed, and Failed events ([#9949](https://github.com/MetaMask/core/pull/9949))
 
 ### Changed
 
