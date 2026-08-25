@@ -16,7 +16,7 @@ import {
   BUILDER_FEE_CONFIG,
   canonicalizeHyperLiquidDexes,
   FEE_RATES,
-  HYPERLIQUID_NO_STRATEGY_CAPABILITIES,
+  HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES,
   HYPERLIQUID_ORDER_CAPABILITIES,
   getBridgeInfo,
   getChainId,
@@ -25,7 +25,6 @@ import {
   HIP3_MARGIN_CONFIG,
   HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
-  HYPERLIQUID_META_CACHE_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
   TRADING_DEFAULTS,
@@ -205,12 +204,12 @@ import {
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
-  isNonEmptyCapabilitySymbol,
   isStrategyOrderType,
   isTriggerOrderType,
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
+import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -788,22 +787,13 @@ function resolveHyperLiquidOrderFeeConfiguration(
       configured?.limit,
       HYPERLIQUID_ORDER_FEE_CONFIG.limit,
     ),
-    stop_market: resolveConfiguredOrderFeePolicy(
-      configured?.stop_market,
-      HYPERLIQUID_ORDER_FEE_CONFIG.stop_market,
-    ),
-    stop_limit: resolveConfiguredOrderFeePolicy(
-      configured?.stop_limit,
-      HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit,
-    ),
-    take_profit_market: resolveConfiguredOrderFeePolicy(
-      configured?.take_profit_market,
-      HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market,
-    ),
-    take_profit_limit: resolveConfiguredOrderFeePolicy(
-      configured?.take_profit_limit,
-      HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit,
-    ),
+    // HyperLiquid supplies one builder context for an order action, including
+    // every attached TP/SL child. Trigger policies therefore remain fixed until
+    // a future configuration can model the whole batch rather than one child.
+    stop_market: HYPERLIQUID_ORDER_FEE_CONFIG.stop_market,
+    stop_limit: HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit,
+    take_profit_market: HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market,
+    take_profit_limit: HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit,
     twap: HYPERLIQUID_ORDER_FEE_CONFIG.twap,
     scale: resolveConfiguredOrderFeePolicy(
       configured?.scale,
@@ -814,23 +804,6 @@ function resolveHyperLiquidOrderFeeConfiguration(
       HYPERLIQUID_ORDER_FEE_CONFIG.chase,
     ),
   };
-}
-
-/**
- * Resolve HyperLiquid's provider-owned fee policy for a quote.
- *
- * The full quote context is accepted intentionally so future policies can vary
- * by market route or other order inputs without changing the provider contract.
- *
- * @param configuration - Resolved provider fee configuration.
- * @param params - Fee quote context.
- * @returns HyperLiquid's fee policy for this order.
- */
-function resolveHyperLiquidOrderFeePolicy(
-  configuration: ResolvedHyperLiquidOrderFeeConfiguration,
-  params: HyperLiquidOrderFeeContext,
-): HyperLiquidOrderFeePolicy {
-  return configuration[params.orderType];
 }
 
 /**
@@ -883,18 +856,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   // Cache for raw meta responses (shared across methods to avoid redundant API calls)
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
-  readonly #cachedMetaByDex = new Map<string, MetaResponse>();
+  readonly #cachedMetaByDex = new Map<string | null, MetaResponse>();
 
-  // Fresh, provider-private metadata used only for capability discovery.
-  readonly #orderCapabilitiesMetaByDex = new Map<
-    string,
-    Readonly<{ meta: MetaResponse; freshAt: number }>
-  >();
+  // Fresh main-DEX metadata used only for capability discovery.
+  #orderCapabilitiesMeta: Readonly<{
+    meta: MetaResponse;
+    freshAt: number;
+  }> | null = null;
 
-  readonly #orderCapabilitiesMetaRefreshPromiseByDex = new Map<
-    string,
-    Promise<MetaResponse>
-  >();
+  #orderCapabilitiesMetaRefreshPromise: Promise<MetaResponse> | null = null;
 
   // Sticky for this instance. PerpsController discards disconnected providers
   // during initialization; direct callers must call initialize() before reuse.
@@ -1154,6 +1124,32 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve the provider-owned fee policy for one placement context.
+   *
+   * The full context is accepted so future policies can vary by market route
+   * or other order inputs without changing the provider contract. Runtime
+   * callers can still bypass TypeScript, so an unknown order type falls back to
+   * the revenue-preserving standard policy and is made observable.
+   *
+   * @param params - Fee quote or placement context.
+   * @returns HyperLiquid's fee policy for this order.
+   */
+  #resolveOrderFeePolicy(
+    params: HyperLiquidOrderFeeContext,
+  ): HyperLiquidOrderFeePolicy {
+    const policy = this.#orderFeeConfiguration[params.orderType];
+    if (policy) {
+      return policy;
+    }
+
+    this.#deps.debugLogger.log(
+      'HyperLiquid: Unknown order type used the safe builder-fee policy',
+      { orderType: params.orderType },
+    );
+    return HYPERLIQUID_ORDER_FEE_CONFIG.market;
+  }
+
+  /**
    * Return provider-owned strategy support for a routed market.
    * HyperLiquid metadata has no per-market strategy flags. This provider
    * advertises its implemented strategies uniformly after confirming a
@@ -1166,12 +1162,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
-    const routeParts = params.symbol.split(':');
-    if (
-      !isNonEmptyCapabilitySymbol(params.symbol) ||
-      routeParts.length > 2 ||
-      routeParts.some((part) => part.length === 0)
-    ) {
+    if (!isValidCapabilitySymbol(params.symbol, { allowProviderRoute: true })) {
       return {
         status: 'unavailable',
         providerId: this.protocolId,
@@ -1181,7 +1172,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { dex, symbol } = parseAssetName(params.symbol);
 
     if (dex !== null) {
-      return HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
+      // Strategy placement rejects every HIP-3 market before metadata reads.
+      // Report that deterministic routing constraint without claiming that an
+      // arbitrary DEX symbol exists and without issuing irrelevant requests.
+      return HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES;
     }
 
     if (this.#isDisconnected || this.#disconnectDepth > 0) {
@@ -1195,14 +1189,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     const disconnectGeneration = this.#disconnectGeneration;
 
     try {
-      const meta = await this.#getFreshOrderCapabilitiesMeta(null);
+      const meta = await this.#getFreshOrderCapabilitiesMeta();
       this.#assertProviderLifecycleCurrent(
         disconnectGeneration,
         'Order capability read',
       );
-      return meta.universe.some(
-        (market) => market.name === symbol && market.isDelisted !== true,
-      )
+      return meta.universe.some((market) => market.name === symbol)
         ? HYPERLIQUID_ORDER_CAPABILITIES
         : {
             status: 'unavailable',
@@ -1246,19 +1238,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return DEX metadata fresh enough to answer a capability query.
-   * A single refresh confirms every symbol on that DEX, so concurrent callers
-   * share one request per DEX and a failure remains immediately retryable.
+   * Return main-DEX metadata fresh enough to answer a capability query.
+   * A single refresh confirms every main-DEX symbol, so concurrent callers
+   * share one request and a failure remains immediately retryable.
    *
-   * @param dexName - DEX name, or null for the main DEX.
-   * @returns Fresh metadata for the routed DEX.
+   * @returns Fresh main-DEX metadata.
    */
-  async #getFreshOrderCapabilitiesMeta(
-    dexName: string | null,
-  ): Promise<MetaResponse> {
+  async #getFreshOrderCapabilitiesMeta(): Promise<MetaResponse> {
     const disconnectGeneration = this.#disconnectGeneration;
-    const dexKey = dexName ?? HYPERLIQUID_META_CACHE_CONFIG.MainDexKey;
-    const cachedMeta = this.#orderCapabilitiesMetaByDex.get(dexKey);
+    const cachedMeta = this.#orderCapabilitiesMeta;
     if (
       cachedMeta &&
       Date.now() - cachedMeta.freshAt <
@@ -1267,27 +1255,23 @@ export class HyperLiquidProvider implements PerpsProvider {
       return cachedMeta.meta;
     }
 
-    let refreshPromise =
-      this.#orderCapabilitiesMetaRefreshPromiseByDex.get(dexKey);
+    let refreshPromise = this.#orderCapabilitiesMetaRefreshPromise;
     if (!refreshPromise) {
       const refreshGeneration = disconnectGeneration;
       refreshPromise = (async (): Promise<MetaResponse> => {
-        const meta = await this.#fetchMeta(dexName);
+        const meta = await this.#fetchMeta(null);
         this.#assertProviderLifecycleCurrent(
           refreshGeneration,
           'Order capability metadata refresh',
         );
 
-        this.#orderCapabilitiesMetaByDex.set(dexKey, {
+        this.#orderCapabilitiesMeta = {
           meta,
           freshAt: Date.now(),
-        });
+        };
         return meta;
       })();
-      this.#orderCapabilitiesMetaRefreshPromiseByDex.set(
-        dexKey,
-        refreshPromise,
-      );
+      this.#orderCapabilitiesMetaRefreshPromise = refreshPromise;
     }
 
     try {
@@ -1298,11 +1282,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       return meta;
     } finally {
-      if (
-        this.#orderCapabilitiesMetaRefreshPromiseByDex.get(dexKey) ===
-        refreshPromise
-      ) {
-        this.#orderCapabilitiesMetaRefreshPromiseByDex.delete(dexKey);
+      if (this.#orderCapabilitiesMetaRefreshPromise === refreshPromise) {
+        this.#orderCapabilitiesMetaRefreshPromise = null;
       }
     }
   }
@@ -2415,12 +2396,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   }): Promise<MetaResponse> {
     const { dexName, skipCache } = params;
     const disconnectGeneration = this.#disconnectGeneration;
-    const dexKey = dexName ?? HYPERLIQUID_META_CACHE_CONFIG.MainDexKey;
     const dexDisplayName = dexName ?? 'main';
 
     // Skip cache if requested (forces fresh fetch)
     if (!skipCache) {
-      const cached = this.#cachedMetaByDex.get(dexKey);
+      const cached = this.#cachedMetaByDex.get(dexName);
       if (cached) {
         this.#deps.debugLogger.log(
           '[getCachedMeta] Using cached meta response',
@@ -2522,8 +2502,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       disconnectGeneration,
       'Metadata cache write',
     );
-    const cacheKey = dex ?? HYPERLIQUID_META_CACHE_CONFIG.MainDexKey;
-    this.#cachedMetaByDex.set(cacheKey, meta);
+    this.#cachedMetaByDex.set(dex, meta);
     if (assetCtxs) {
       const subscriptionDexKey = dex ?? '';
       this.#subscriptionService.setDexMetaCache(subscriptionDexKey, meta);
@@ -3054,10 +3033,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     const infoClient = this.#clientService.getInfoClient();
     const allMetas = await Promise.allSettled(
       dexsToMap.map((dex) => {
-        const dexKey = dex ?? HYPERLIQUID_META_CACHE_CONFIG.MainDexKey;
-
         // Check if already cached (e.g., by getMarketDataWithPrices running in parallel)
-        const cachedMeta = this.#cachedMetaByDex.get(dexKey);
+        const cachedMeta = this.#cachedMetaByDex.get(dex);
         if (cachedMeta) {
           this.#deps.debugLogger.log(
             `[buildAssetMapping] Using cached meta for ${dex ?? 'main'}`,
@@ -4655,10 +4632,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Ensure provider is ready for trading (includes signing operations).
       // Kept after validation so invalid orders never trigger signature prompts
       // (builder-fee approval, DEX abstraction enablement, etc.).
-      const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy(
-        this.#orderFeeConfiguration,
-        params,
-      );
+      const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
       await this.#ensureReadyForTrading({
         requiresBuilderFee: chargesMetamaskBuilderFee,
       });
@@ -5024,10 +4998,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Kept after validation so an invalid strategy order never triggers the
     // signature prompts in trading setup — same ordering as `placeOrder`.
-    const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy(
-      this.#orderFeeConfiguration,
-      params,
-    );
+    const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
     await this.#ensureReadyForTrading({
       requiresBuilderFee: chargesMetamaskBuilderFee,
     });
@@ -5148,13 +5119,24 @@ export class HyperLiquidProvider implements PerpsProvider {
     context: StrategyPlacementContext,
   ): Promise<OrderResult> {
     const { assetId, formattedSize } = context;
+    const durationMinutes = params.twapDuration;
+    if (durationMinutes === undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TWAP_DURATION_REQUIRED);
+    }
+    if (
+      !Number.isSafeInteger(durationMinutes) ||
+      durationMinutes < HYPERLIQUID_TWAP_LIMITS.MinDurationMinutes ||
+      durationMinutes > HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID);
+    }
     const exchangeClient = this.#clientService.getExchangeClient();
 
     this.#deps.debugLogger.log('Submitting TWAP order', {
       symbol: params.symbol,
       assetId,
       size: formattedSize,
-      durationMinutes: params.twapDuration,
+      durationMinutes,
       randomize: params.twapRandomize ?? false,
     });
 
@@ -5164,9 +5146,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         b: params.isBuy,
         s: formattedSize,
         r: params.reduceOnly ?? false,
-        // Validation has already established this is a whole number of minutes
-        // inside the venue's bounds.
-        m: params.twapDuration as number,
+        m: durationMinutes,
         t: params.twapRandomize ?? false,
       },
     });
@@ -5175,15 +5155,22 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(`TWAP order failed: ${JSON.stringify(result)}`);
     }
 
-    const status = result.response?.data?.status;
-    if (!isStatusObject(status) || !hasProperty(status, 'running')) {
-      const rawError =
-        (status as { error?: string } | undefined)?.error ??
-        'TWAP order rejected';
-      throw new Error(rawError);
+    const status: unknown = result.response?.data?.status;
+    if (!isStatusObject(status)) {
+      throw new Error('TWAP order rejected');
     }
 
-    const running = status.running as { twapId: number };
+    const rawError =
+      typeof status.error === 'string' ? status.error : 'TWAP order rejected';
+    const { running } = status;
+    if (
+      !isStatusObject(running) ||
+      typeof running.twapId !== 'number' ||
+      !Number.isSafeInteger(running.twapId) ||
+      running.twapId < 0
+    ) {
+      throw new Error(rawError);
+    }
 
     return {
       success: true,
@@ -6387,7 +6374,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
     }
 
-    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+    await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
     const result = await this.#clientService.getExchangeClient().cancel({
       cancels: group.orderIds.map((orderId) => ({
@@ -6491,7 +6478,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { success: true, orderId: params.orderId };
     }
 
-    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+    await this.#ensureReadyForTrading({ requiresBuilderFee: false });
     // Only a refusal leaves an order behind. A child that had already filled or
     // been cancelled is reported as a rejection too, but nothing of it is
     // resting — treating that as a failure would pin the handle open forever on
@@ -6858,10 +6845,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           : undefined,
       };
 
-      // Every refusal is behind us, so the setup that may prompt for signatures
-      // and write builder-fee/referral approvals can run now — a rejected edit
-      // costs the caller nothing, matching placeOrder and updatePositionTPSL.
-      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+      // Every refusal is behind us, so shared trading readiness can run now.
+      // HyperLiquid's modify action has no builder field and must not request a
+      // builder-fee approval.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       // Submit modification via SDK
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -6951,8 +6938,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Hydrate the asset map before coin validation so a cold start (e.g.
       // service-worker restart with an empty prefetch map) can self-heal
       // without signature prompts on invalid cancels. Trading setup (builder
-      // fee, referral, unified account) runs only after validation passes,
-      // matching placeOrder / editOrder.
+      // referral and unified-account setup runs only after validation passes,
+      // matching placeOrder / editOrder. Cancel has no builder field.
       await this.#ensureReady();
 
       const coinValidation = validateCoinExists(
@@ -6963,7 +6950,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(coinValidation.error);
       }
 
-      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       const exchangeClient = this.#clientService.getExchangeClient();
       const asset = await this.#getAssetIdWithRepair({
@@ -7038,8 +7025,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+      // Cancellation carries no builder context, so it must not prompt for a
+      // fee approval that the action cannot use.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       const exchangeClient = this.#clientService.getExchangeClient();
 
@@ -7561,9 +7549,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Everything is validated: only now run the trading setup that can prompt
-      // for signatures and write the referral / builder-fee approvals.
-      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+      // Existing-order cancellation cannot carry a builder context. Defer the
+      // builder approval until there is a replacement TP/SL batch to submit.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
@@ -7772,6 +7760,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           // No orderId since we only cancelled orders, didn't place new ones
         };
       }
+
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
       // partial TP/SL must be standalone reduce-only triggers ('na'), since a
@@ -10126,9 +10116,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     // has already populated it; on cache miss, delegate to #fetchSingleDexFresh.
     const dexDataResults = await Promise.all(
       enabledDexs.map(async (dex) => {
-        const dexKey = dex ?? HYPERLIQUID_META_CACHE_CONFIG.MainDexKey;
         const dexParam = dex ?? '';
-        const cachedMeta = this.#cachedMetaByDex.get(dexKey);
+        const cachedMeta = this.#cachedMetaByDex.get(dex);
         if (!cachedMeta) {
           this.#deps.debugLogger.log(
             `[getMarketDataWithPrices] Cache miss for ${dex ?? 'main'}, fetching`,
@@ -11759,10 +11748,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // The provider policy, not the client, owns whether this placement can
     // carry a builder fee. The dedicated TWAP action has no builder field.
-    const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy(
-      this.#orderFeeConfiguration,
-      params,
-    );
+    const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
     const baseMetamaskFeeRate = chargesMetamaskBuilderFee
       ? BUILDER_FEE_CONFIG.MaxFeeDecimal
       : 0;
@@ -11887,8 +11873,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#userFeeDiscountBips = undefined;
     // UnifiedAccountCache stays global to avoid repeated signing requests.
     this.#cachedMetaByDex.clear();
-    this.#orderCapabilitiesMetaByDex.clear();
-    this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
+    this.#orderCapabilitiesMeta = null;
+    this.#orderCapabilitiesMetaRefreshPromise = null;
     this.#cachedSpotMeta = null;
     this.#dexDiscoveryCache.reset();
     this.#dexDiscoveryComplete = false;

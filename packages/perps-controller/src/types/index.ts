@@ -311,6 +311,16 @@ export type OrderParams = {
   providerId?: PerpsProviderType;
 };
 
+/**
+ * Require a provider route whenever a routed request can be a strategy.
+ * With the default `Params = never`, this builds the public discriminated
+ * union: `{ orderType: 'twap', providerId: 'hyperliquid' }` requires a route,
+ * while `{ orderType: 'market' }` does not. With inferred call-site params, a
+ * literal ordinary type stays optional and a widened `orderType: OrderType`
+ * requires `providerId` because it may contain a strategy at runtime.
+ * `OptionalOrderType` is used by cancellation, whose legacy ordinary shape may
+ * omit `orderType` entirely.
+ */
 type RequireStrategyRoute<
   BaseParams extends { orderType?: OrderType },
   Params extends BaseParams = never,
@@ -1015,12 +1025,25 @@ export type HyperLiquidOrderFeePolicy = Readonly<{
 }>;
 
 /**
+ * HyperLiquid placements whose whole native action can opt in or out of one
+ * builder context. Trigger orders are excluded because attached TP/SL batches
+ * inherit their parent action's policy and cannot carry per-child policies.
+ */
+export type HyperLiquidConfigurableOrderFeeType = Extract<
+  OrderType,
+  'market' | 'limit' | 'scale' | 'chase'
+>;
+
+/**
  * Optional provider-owned builder-fee overrides. Omitted entries use the
  * HyperLiquid defaults. TWAP is excluded because its native action has no
- * builder field.
+ * builder field. Trigger types are excluded because HyperLiquid accepts one
+ * builder context for a parent order and all attached TP/SL children.
  */
 export type HyperLiquidOrderFeeConfiguration = Readonly<
-  Partial<Record<Exclude<OrderType, 'twap'>, HyperLiquidOrderFeePolicy>>
+  Partial<
+    Record<HyperLiquidConfigurableOrderFeeType, HyperLiquidOrderFeePolicy>
+  >
 >;
 
 export type MYXCredentials = {
@@ -1353,7 +1376,8 @@ export type GetOrderCapabilitiesParams = {
 export type DirectProviderOrderCapabilitiesUnavailableReason =
   | 'provider_unavailable'
   | 'invalid_symbol'
-  | 'market_not_found';
+  | 'market_not_found'
+  | 'strategy_market_unsupported';
 
 export type RoutedOrderCapabilitiesUnavailableReason =
   | 'provider_not_found'

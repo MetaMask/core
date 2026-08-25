@@ -829,7 +829,28 @@ describe('MYXProvider', () => {
 
       expect(result).toEqual({
         feeRate: 0.0005,
+        feeAmount: undefined,
         protocolFeeRate: 0.0005,
+        protocolFeeAmount: undefined,
+        metamaskFeeRate: 0,
+        metamaskFeeAmount: undefined,
+      });
+    });
+
+    it('returns explicit zero MetaMask fees for an amount quote', async () => {
+      const result = await provider.calculateFees({
+        orderType: 'market',
+        symbol: 'RHEA',
+        amount: '1000',
+      });
+
+      expect(result).toStrictEqual({
+        feeRate: 0.0005,
+        feeAmount: 0.5,
+        protocolFeeRate: 0.0005,
+        protocolFeeAmount: 0.5,
+        metamaskFeeRate: 0,
+        metamaskFeeAmount: 0,
       });
     });
 

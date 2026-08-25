@@ -715,6 +715,27 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
     });
 
+    it('applies the parent fee policy to its attached TP/SL batch', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          market: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      const { exchangeClient } = useStrategyClients();
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'market',
+        takeProfitPrice: '3500',
+      } satisfies OrderParams);
+
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(2);
+      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+        'builder',
+      );
+    });
+
     it('submits the venue TWAP action rather than an order', async () => {
       const { exchangeClient } = useStrategyClients();
 
@@ -793,6 +814,32 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Insufficient margin');
     });
+
+    it.each(['987', Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
+      'rejects malformed TWAP response id %p',
+      async (twapId) => {
+        useStrategyClients({
+          exchange: {
+            twapOrder: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: {
+                type: 'twapOrder',
+                data: { status: { running: { twapId } } },
+              },
+            }),
+          },
+        });
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'twap',
+          twapDuration: 30,
+        } satisfies OrderParams);
+
+        expect(result.success).toBe(false);
+        expect(result.orderId).toBeUndefined();
+      },
+    );
   });
 
   describe('TWAP cancellation', () => {
@@ -866,6 +913,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         cancels: [{ a: 1, o: 123 }],
       });
       expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
   });
 
@@ -1099,6 +1147,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
       } satisfies OrderParams);
+      exchangeClient.approveBuilderFee.mockClear();
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -1114,6 +1163,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           { a: 1, o: 33 },
         ],
       });
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
     it('reports an incomplete group cancel and keeps the handle for a retry', async () => {
@@ -2646,6 +2696,41 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(fees.metamaskFeeAmount).toBe(0);
     });
 
+    it('ignores trigger overrides that cannot model a whole batch', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          // @ts-expect-error Trigger children inherit their parent action.
+          stop_market: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      useStrategyClients();
+
+      const fees = await provider.calculateFees({
+        orderType: 'stop_market',
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+    });
+
+    it('uses the safe builder fee for an unknown runtime order type', async () => {
+      useStrategyClients();
+
+      const fees = await provider.calculateFees({
+        // @ts-expect-error Runtime fallback protects JavaScript consumers.
+        orderType: 'future_order',
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+        'HyperLiquid: Unknown order type used the safe builder-fee policy',
+        { orderType: 'future_order' },
+      );
+    });
+
     it('keeps a discounted TWAP quote at zero MetaMask builder fee', async () => {
       useStrategyClients();
       provider.setUserFeeDiscount(5000);
@@ -2764,22 +2849,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('does not fetch metadata for a HIP-3 capability read', async () => {
-      const { capabilityProvider, infoClient } = useHip3Capabilities();
+    it.each(['xyz:TSLA', 'nosuch:FAKE'])(
+      'reports HIP-3 strategy routing as unsupported without metadata for %s',
+      async (symbol) => {
+        const { capabilityProvider, infoClient } = useHip3Capabilities();
 
-      expect(
-        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-      ).toStrictEqual({
-        status: 'ready',
-        providerId: 'hyperliquid',
-        supportedStrategies: [],
-      });
-      expect(infoClient.meta).not.toHaveBeenCalled();
-      expect(infoClient.perpDexs).not.toHaveBeenCalled();
-      expect(infoClient.spotMeta).not.toHaveBeenCalled();
-    });
+        expect(
+          await capabilityProvider.getOrderCapabilities({ symbol }),
+        ).toStrictEqual({
+          status: 'unavailable',
+          providerId: 'hyperliquid',
+          reason: 'strategy_market_unsupported',
+        });
+        expect(infoClient.meta).not.toHaveBeenCalled();
+        expect(infoClient.perpDexs).not.toHaveBeenCalled();
+        expect(infoClient.spotMeta).not.toHaveBeenCalled();
+      },
+    );
 
-    it('reports a delisted main-DEX market as unavailable', async () => {
+    it('keeps delisted main-DEX discovery aligned with placement', async () => {
       useStrategyClients({
         info: {
           meta: jest.fn().mockResolvedValue({
@@ -2798,9 +2886,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
-        status: 'unavailable',
+        status: 'ready',
         providerId: 'hyperliquid',
-        reason: 'market_not_found',
+        supportedStrategies: ['twap', 'scale', 'chase'],
       });
     });
 

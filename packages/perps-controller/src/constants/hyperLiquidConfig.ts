@@ -209,17 +209,12 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
 }) satisfies DirectProviderOrderCapabilities;
 
-/** Ready HyperLiquid route with no strategy support for this market. */
-export const HYPERLIQUID_NO_STRATEGY_CAPABILITIES = Object.freeze({
-  status: 'ready',
+/** HyperLiquid strategy placement is not routable on HIP-3 markets. */
+export const HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES = Object.freeze({
+  status: 'unavailable',
   providerId: PROVIDER_CONFIG.DefaultProvider,
-  supportedStrategies: Object.freeze([]),
+  reason: 'strategy_market_unsupported',
 }) satisfies DirectProviderOrderCapabilities;
-
-/** Internal metadata-cache settings shared by HyperLiquid reads. */
-export const HYPERLIQUID_META_CACHE_CONFIG = {
-  MainDexKey: '__main_dex__',
-} as const;
 
 // Referral code configuration
 export const REFERRAL_CONFIG = {

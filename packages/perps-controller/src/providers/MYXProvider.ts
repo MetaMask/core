@@ -119,10 +119,8 @@ import {
   buildPoolSymbolMap,
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
-import {
-  isNonEmptyCapabilitySymbol,
-  isStrategyOrderType,
-} from '../utils/orderTypes.js';
+import { isStrategyOrderType } from '../utils/orderTypes.js';
+import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 
 // ============================================================================
 // Constants
@@ -217,8 +215,7 @@ export class MYXProvider implements PerpsProvider {
   ): Promise<DirectProviderOrderCapabilities> {
     // MYX market IDs are never DEX-prefixed.
     if (
-      !isNonEmptyCapabilitySymbol(params.symbol) ||
-      params.symbol.includes(':')
+      !isValidCapabilitySymbol(params.symbol, { allowProviderRoute: false })
     ) {
       return {
         status: 'unavailable',
@@ -1060,9 +1057,23 @@ export class MYXProvider implements PerpsProvider {
     if (isStrategyOrderType(params.orderType)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
     }
+    const parsedAmount = params.amount ? parseFloat(params.amount) : 0;
+    let protocolFeeAmount: number | undefined;
+    if (params.amount === undefined) {
+      protocolFeeAmount = undefined;
+    } else if (Number.isNaN(parsedAmount)) {
+      protocolFeeAmount = 0;
+    } else {
+      protocolFeeAmount = parsedAmount * MYX_PROTOCOL_FEE_RATE;
+    }
+
     return {
       feeRate: MYX_FEE_RATE,
+      feeAmount: protocolFeeAmount,
       protocolFeeRate: MYX_PROTOCOL_FEE_RATE,
+      protocolFeeAmount,
+      metamaskFeeRate: 0,
+      metamaskFeeAmount: params.amount === undefined ? undefined : 0,
     };
   }
 

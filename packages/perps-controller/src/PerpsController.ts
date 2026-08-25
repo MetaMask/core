@@ -2768,6 +2768,32 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Make the legacy direct-provider fallback observable for ordinary orders.
+   * Aggregated mode consumes the route, while direct mode historically ignores
+   * a conflicting ordinary route instead of rejecting it.
+   *
+   * @param operation - Routed operation using the fallback.
+   * @param providerId - Explicit route supplied by the caller.
+   * @param provider - Active direct or routing provider.
+   */
+  #logIgnoredOrdinaryProviderRoute(
+    operation: string,
+    providerId: PerpsProviderType | undefined,
+    provider: ActivePerpsProvider,
+  ): void {
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      this.#debugLog(
+        'PerpsController: Ignoring conflicting ordinary-order provider route',
+        {
+          operation,
+          requestedProviderId: providerId,
+          activeProviderId: provider.protocolId,
+        },
+      );
+    }
+  }
+
+  /**
    * Place a new order
    * Thin delegation to TradingService
    *
@@ -2784,6 +2810,13 @@ export class PerpsController extends BaseController<
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
+    if (!isStrategyOrderType(params.orderType)) {
+      this.#logIgnoredOrdinaryProviderRoute(
+        'placeOrder',
+        params.providerId,
+        provider,
+      );
     }
     this.#ensureTradingServiceDeps();
 
@@ -2840,6 +2873,16 @@ export class PerpsController extends BaseController<
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
+    if (
+      params.orderType === undefined ||
+      !isStrategyOrderType(params.orderType)
+    ) {
+      this.#logIgnoredOrdinaryProviderRoute(
+        'cancelOrder',
+        params.providerId,
+        provider,
+      );
     }
 
     return this.#tradingService.cancelOrder({
@@ -4715,6 +4758,13 @@ export class PerpsController extends BaseController<
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
+    if (!isStrategyOrderType(params.orderType)) {
+      this.#logIgnoredOrdinaryProviderRoute(
+        'validateOrder',
+        params.providerId,
+        provider,
+      );
+    }
     const context = this.#createServiceContext('validateOrder');
     return this.#marketDataService.validateOrder({ provider, params, context });
   }
@@ -5444,6 +5494,13 @@ export class PerpsController extends BaseController<
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+    }
+    if (!isStrategyOrderType(params.orderType)) {
+      this.#logIgnoredOrdinaryProviderRoute(
+        'calculateFees',
+        params.providerId,
+        provider,
+      );
     }
     // Preview owns subscription hydration. The submit resolver remains a pure
     // cache read and can therefore never start a benefits request while an

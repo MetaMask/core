@@ -1091,6 +1091,14 @@ describe('PerpsController', () => {
         context: expect.any(Object),
         reportOrderToDataLake: expect.any(Function),
       });
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Ignoring conflicting ordinary-order provider route',
+        {
+          operation: 'placeOrder',
+          requestedProviderId: 'myx',
+          activeProviderId: 'hyperliquid',
+        },
+      );
     });
 
     it.each(STRATEGY_ORDER_TYPES)(
