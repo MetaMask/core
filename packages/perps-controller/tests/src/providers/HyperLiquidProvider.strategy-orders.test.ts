@@ -4577,6 +4577,86 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
+    it.each([
+      [
+        'a non-ok response',
+        {
+          status: 'err',
+          response: {
+            data: { statuses: ['success', 'success', 'success'] },
+          },
+        },
+      ],
+      [
+        'a truncated response',
+        {
+          status: 'ok',
+          response: { data: { statuses: ['success'] } },
+        },
+      ],
+    ])('retains every scale child after %s', async (_label, failedCancel) => {
+      const cancel = jest
+        .fn()
+        .mockResolvedValueOnce(failedCancel)
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: ['success', 'success', 'success'] },
+          },
+        });
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { resting: { oid: 11 } },
+                  { resting: { oid: 22 } },
+                  { resting: { oid: 33 } },
+                ],
+              },
+            },
+          }),
+          cancel,
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      const first = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+      const second = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(first.error).toBe(
+        PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+      );
+      expect(second).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+      });
+      expect(cancel).toHaveBeenNthCalledWith(2, {
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 22 },
+          { a: 1, o: 33 },
+        ],
+      });
+    });
+
     it('still reports a genuinely refused cancel as incomplete', async () => {
       useStrategyClients({
         exchange: {

@@ -6483,21 +6483,21 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-    const result = await this.#clientService.getExchangeClient().cancel({
-      cancels: group.orderIds.map((orderId) => ({
-        a: group.assetId,
-        o: parseInt(orderId, 10),
-      })),
-    });
+    const exchangeClient = this.#clientService.getExchangeClient();
+    const cancelRequests = group.orderIds.map((orderId) => ({
+      a: group.assetId,
+      o: parseInt(orderId, 10),
+    }));
+    const remaining = (
+      await this.#cancelOrderRequests(exchangeClient, cancelRequests)
+    ).map(String);
 
-    const statuses = result.response?.data?.statuses ?? [];
-    // A rung that filled or was cancelled individually comes back as a
-    // rejection, but nothing of it is resting — counting it as still live would
-    // pin the handle open for a ladder that is entirely off the book.
-    const remaining = group.orderIds.filter(
-      (_unused, index) => classifyCancelStatus(statuses[index]) === 'refused',
-    );
-
+    /*
+     * A rung that filled or was cancelled individually comes back as a
+     * rejection, but nothing of it is resting. The shared cancellation helper
+     * distinguishes that result from a refusal while retaining every child
+     * after a malformed or non-ok batch response.
+     */
     if (remaining.length === 0) {
       this.#scaleOrderGroups.delete(params.orderId);
       return { success: true, orderId: params.orderId };
