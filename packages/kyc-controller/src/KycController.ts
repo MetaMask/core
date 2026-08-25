@@ -1184,7 +1184,6 @@ export class KycController extends BaseController<
       return false;
     }
     return this.state.termsAcceptedVendor === vendor;
-
   }
 
   /**

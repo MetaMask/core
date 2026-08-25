@@ -2111,7 +2111,7 @@ describe('KycController', () => {
               activeProduct: 'ramps',
               kycRequiredByProduct: { ramps: true },
               lastCheckedAt: 't',
-              userStatus: 'approved',
+              userStatus: 'completed',
               userStatusSumsubSessionId: 's1',
               userStatusErrorCode: 'code',
               sumsub: {
@@ -2150,9 +2150,7 @@ describe('KycController', () => {
         release('USA');
         await pending;
 
-        expect(controller.state).toStrictEqual(
-          getDefaultKycControllerState(),
-        );
+        expect(controller.state).toStrictEqual(getDefaultKycControllerState());
         // The superseded flow must not resume the terms step either.
         expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
       });
