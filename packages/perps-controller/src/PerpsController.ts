@@ -104,6 +104,7 @@ import type {
   MarginResult,
   MarketInfo,
   Order,
+  OrderCapabilitiesUnavailableReason,
   OrderFill,
   OrderParams,
   OrderResult,
@@ -2652,15 +2653,23 @@ export class PerpsController extends BaseController<
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
+    let { providerId } = params;
     try {
       const activeProvider = await this.#getActiveProviderWhenReady();
+      providerId ??= this.#getDirectProviderId(activeProvider);
       if (
         this.#hasConflictingProviderRoute(params.providerId, activeProvider)
       ) {
-        return { status: 'unavailable', reason: 'provider_not_routable' };
+        return this.#getUnavailableOrderCapabilities(
+          'provider_not_routable',
+          providerId,
+        );
       }
       if (!activeProvider.getOrderCapabilities) {
-        return { status: 'unavailable', reason: 'not_implemented' };
+        return this.#getUnavailableOrderCapabilities(
+          'not_implemented',
+          providerId,
+        );
       }
       return await activeProvider.getOrderCapabilities(params);
     } catch (error) {
@@ -2668,8 +2677,47 @@ export class PerpsController extends BaseController<
         error: ensureError(error, 'PerpsController.getOrderCapabilities')
           .message,
       });
-      return { status: 'unavailable', reason: 'provider_unavailable' };
+      return this.#getUnavailableOrderCapabilities(
+        'provider_unavailable',
+        providerId,
+      );
     }
+  }
+
+  /**
+   * Build an unavailable capability response and omit unknown provider IDs.
+   *
+   * @param reason - Why capability discovery is unavailable.
+   * @param providerId - Requested or resolved direct provider identity.
+   * @returns Unavailable capability response.
+   */
+  #getUnavailableOrderCapabilities(
+    reason: OrderCapabilitiesUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsOrderCapabilities {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
+  }
+
+  /**
+   * Return the identity of a resolved direct provider when it is known.
+   * Routing providers do not have one provider identity for every operation.
+   *
+   * @param provider - Resolved provider.
+   * @returns Direct provider identity, if known.
+   */
+  #getDirectProviderId(provider: PerpsProvider): PerpsProviderType | undefined {
+    if (provider.routesOrdersByProviderId) {
+      return undefined;
+    }
+    if (provider.protocolId === PROVIDER_CONFIG.DefaultProvider) {
+      return PROVIDER_CONFIG.DefaultProvider;
+    }
+    if (provider.protocolId === PROVIDER_CONFIG.MYXProvider) {
+      return PROVIDER_CONFIG.MYXProvider;
+    }
+    return undefined;
   }
 
   /**
@@ -2686,7 +2734,7 @@ export class PerpsController extends BaseController<
   ): boolean {
     return Boolean(
       providerId &&
-        provider.protocolId !== 'aggregated' &&
+        !provider.routesOrdersByProviderId &&
         providerId !== provider.protocolId,
     );
   }

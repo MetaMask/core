@@ -1,4 +1,5 @@
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
   PerpsProvider,
@@ -591,7 +592,7 @@ describe('AggregatedPerpsProvider', () => {
           // @ts-expect-error Testing an invalid explicit provider route
           providerId: 'unknown-provider',
         }),
-      ).rejects.toThrow("Provider 'unknown-provider' not available");
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
     });
   });

@@ -13,6 +13,7 @@ import type {
   FeeRatesConfig,
 } from '../types/perps-types.js';
 import { STRATEGY_ORDER_TYPES } from '../utils/orderTypes.js';
+import { PROVIDER_CONFIG } from './perpsConfig.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;
@@ -201,14 +202,14 @@ export const BUILDER_FEE_CONFIG = {
  */
 export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
-  providerId: 'hyperliquid',
+  providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
 }) satisfies PerpsOrderCapabilities;
 
 /** Ready HyperLiquid route with no strategy support for this market. */
 export const HYPERLIQUID_NO_STRATEGY_CAPABILITIES = Object.freeze({
   status: 'ready',
-  providerId: 'hyperliquid',
+  providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([]),
 }) satisfies PerpsOrderCapabilities;
 

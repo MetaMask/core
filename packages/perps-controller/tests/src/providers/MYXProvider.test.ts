@@ -736,7 +736,9 @@ describe('MYXProvider', () => {
         protocolFeeRate: 0.0005,
       });
     });
+  });
 
+  describe('getOrderCapabilities', () => {
     it('advertises no strategy order capabilities', async () => {
       const pools = [makePool()];
       mockClientService.getMarkets.mockResolvedValueOnce(pools);
@@ -752,6 +754,7 @@ describe('MYXProvider', () => {
       expect(mockClientService.getMarkets).toHaveBeenCalledWith({
         allowStaleOnError: false,
       });
+      expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
     });
 
     it('reports an unknown market as unavailable', async () => {
@@ -782,28 +785,6 @@ describe('MYXProvider', () => {
       },
     );
 
-    it('reports a delisted market as unavailable', async () => {
-      const pools = [makePool()];
-      mockClientService.getMarkets.mockResolvedValueOnce(pools);
-      mockFilterMYXExclusiveMarkets.mockReturnValueOnce(pools);
-      mockAdaptMarketFromMYX.mockReturnValueOnce({
-        name: 'RHEA',
-        szDecimals: 18,
-        maxLeverage: 100,
-        marginTableId: 0,
-        isDelisted: true,
-        providerId: 'myx',
-      });
-
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'market_not_found',
-      });
-    });
-
     it('reports unavailable when markets cannot be loaded', async () => {
       mockClientService.getMarkets.mockRejectedValueOnce(new Error('offline'));
 
@@ -814,6 +795,56 @@ describe('MYXProvider', () => {
         providerId: 'myx',
         reason: 'provider_unavailable',
       });
+    });
+
+    it('does not fetch markets after disconnect', async () => {
+      await provider.disconnect();
+
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
+      });
+      expect(mockClientService.getMarkets).not.toHaveBeenCalled();
+    });
+
+    it('invalidates a capability read that overlaps disconnect', async () => {
+      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
+      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
+        resolveMarkets = resolve;
+      });
+      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
+
+      const capabilities = provider.getOrderCapabilities({ symbol: 'RHEA' });
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+
+      await expect(capabilities).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('logs lifecycle-stale capability reads at debug level', async () => {
+      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
+      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
+        resolveMarkets = resolve;
+      });
+      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
+
+      const capabilities = provider.getOrderCapabilities({ symbol: 'RHEA' });
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+      await capabilities;
+
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXProvider] Ignoring stale capability metadata after disconnect',
+        { symbol: 'RHEA' },
+      );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });
 

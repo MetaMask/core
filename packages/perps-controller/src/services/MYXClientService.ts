@@ -51,6 +51,14 @@ export type MYXClientConfig = {
  */
 export type PricePollingCallback = (tickers: MYXTicker[]) => void;
 
+/** Expected lifecycle cancellation for market metadata reads. */
+export class MYXMarketMetadataStaleError extends Error {
+  constructor() {
+    super('[MYXClientService] Market metadata became stale during disconnect');
+    this.name = 'MYXMarketMetadataStaleError';
+  }
+}
+
 // ============================================================================
 // MYXClientService
 // ============================================================================
@@ -203,6 +211,12 @@ export class MYXClientService {
         caughtError,
         'MYXClientService.getMarkets',
       );
+      if (wrappedError instanceof MYXMarketMetadataStaleError) {
+        this.#deps.debugLogger.log(
+          '[MYXClientService] Ignoring stale market metadata after disconnect',
+        );
+        throw wrappedError;
+      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('getMarkets'),
@@ -233,9 +247,7 @@ export class MYXClientService {
       this.#deps.debugLogger.log('[MYXClientService] Fetching markets via SDK');
       const pools = (await this.#myxClient.markets.getPoolSymbolAll()) || [];
       if (generation !== this.#marketsCacheGeneration) {
-        throw new Error(
-          '[MYXClientService] Market metadata became stale during disconnect',
-        );
+        throw new MYXMarketMetadataStaleError();
       }
 
       this.#marketsCache = pools;

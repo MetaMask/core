@@ -1511,6 +1511,9 @@ export type Funding = {
 export type PerpsProvider = {
   readonly protocolId: string;
 
+  /** Whether this provider routes order operations by `providerId`. */
+  readonly routesOrdersByProviderId?: boolean;
+
   /**
    * Return strategy capabilities for the provider/market route. Providers may
    * omit this hook; the controller then reports capabilities as unavailable.

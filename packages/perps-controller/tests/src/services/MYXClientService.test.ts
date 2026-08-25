@@ -286,6 +286,10 @@ describe('MYXClientService', () => {
       await expect(staleRead).rejects.toThrow(
         'Market metadata became stale during disconnect',
       );
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXClientService] Ignoring stale market metadata after disconnect',
+      );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
       await expect(
         service.getMarkets({ allowStaleOnError: false }),
       ).resolves.toStrictEqual([makePool({ poolId: '0xfresh' })]);

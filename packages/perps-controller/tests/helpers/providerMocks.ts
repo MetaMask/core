@@ -23,7 +23,7 @@ export const createMockHyperLiquidProvider =
       getOrderCapabilities: jest.fn().mockResolvedValue({
         status: 'ready',
         providerId: 'hyperliquid',
-        supportedStrategies: ['twap', 'scale', 'chase'],
+        supportedStrategies: [],
       }),
       placeOrder: jest.fn(),
       editOrder: jest.fn(),

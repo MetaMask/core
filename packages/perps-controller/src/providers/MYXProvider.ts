@@ -20,9 +20,12 @@ import {
   MYX_FEE_RATE,
   MYX_PROTOCOL_FEE_RATE,
 } from '../constants/myxConfig.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_CONSTANTS, PROVIDER_CONFIG } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
-import { MYXClientService } from '../services/MYXClientService.js';
+import {
+  MYXClientService,
+  MYXMarketMetadataStaleError,
+} from '../services/MYXClientService.js';
 import { MYXWalletService } from '../services/MYXWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
@@ -121,7 +124,7 @@ const MYX_BLOCK_EXPLORER_URL = 'https://bscscan.com';
 const MYX_TESTNET_EXPLORER_URL = 'https://sepolia.arbiscan.io';
 const MYX_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
-  providerId: 'myx',
+  providerId: PROVIDER_CONFIG.MYXProvider,
   supportedStrategies: Object.freeze([]),
 }) satisfies PerpsOrderCapabilities;
 
@@ -136,7 +139,7 @@ const MYX_ORDER_CAPABILITIES = Object.freeze({
  * Trading write operations return errors until Phase 2.
  */
 export class MYXProvider implements PerpsProvider {
-  readonly protocolId = 'myx';
+  readonly protocolId = PROVIDER_CONFIG.MYXProvider;
 
   // Platform dependencies
   readonly #deps: PerpsPlatformDependencies;
@@ -157,6 +160,8 @@ export class MYXProvider implements PerpsProvider {
   #poolsCache: MYXPoolSymbol[] = [];
 
   #poolSymbolMap: Map<string, string> = new Map();
+
+  #isDisconnected = false;
 
   // Ticker cache for price data
   readonly #tickersCache: Map<string, MYXTicker> = new Map();
@@ -210,17 +215,35 @@ export class MYXProvider implements PerpsProvider {
       };
     }
 
+    if (this.#isDisconnected) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+
     try {
       const pools = await this.#clientService.getMarkets({
         allowStaleOnError: false,
       });
-      this.#poolsCache = filterMYXExclusiveMarkets(pools);
-      this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
-      const market = this.#poolsCache
+      if (this.#isDisconnected) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale capability metadata after disconnect',
+          { symbol: params.symbol },
+        );
+        return {
+          status: 'unavailable',
+          providerId: this.protocolId,
+          reason: 'provider_unavailable',
+        };
+      }
+      const capabilityPools = filterMYXExclusiveMarkets(pools);
+      const market = capabilityPools
         .map((pool) => adaptMarketFromMYX(pool))
         .find(({ name }) => name === params.symbol);
 
-      return market && market.isDelisted !== true
+      return market
         ? MYX_ORDER_CAPABILITIES
         : {
             status: 'unavailable',
@@ -232,12 +255,19 @@ export class MYXProvider implements PerpsProvider {
         caughtError,
         'MYXProvider.getOrderCapabilities',
       );
-      this.#deps.logger.error(
-        wrappedError,
-        this.#getErrorContext('getOrderCapabilities', {
-          symbol: params.symbol,
-        }),
-      );
+      if (wrappedError instanceof MYXMarketMetadataStaleError) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale capability metadata after disconnect',
+          { symbol: params.symbol },
+        );
+      } else {
+        this.#deps.logger.error(
+          wrappedError,
+          this.#getErrorContext('getOrderCapabilities', {
+            symbol: params.symbol,
+          }),
+        );
+      }
       return {
         status: 'unavailable',
         providerId: this.protocolId,
@@ -305,13 +335,11 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async disconnect(): Promise<DisconnectResult> {
+    this.#isDisconnected = true;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Disconnecting...');
 
       this.#clientService.disconnect();
-      this.#poolsCache = [];
-      this.#poolSymbolMap.clear();
-      this.#tickersCache.clear();
 
       return { success: true };
     } catch (caughtError) {
@@ -321,6 +349,10 @@ export class MYXProvider implements PerpsProvider {
         this.#getErrorContext('disconnect'),
       );
       return { success: false, error: wrappedError.message };
+    } finally {
+      this.#poolsCache = [];
+      this.#poolSymbolMap.clear();
+      this.#tickersCache.clear();
     }
   }
 

@@ -39,6 +39,7 @@ import {
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
+  PROVIDER_CONFIG,
   TP_SL_CONFIG,
   WITHDRAWAL_CONSTANTS,
 } from '../constants/perpsConfig.js';
@@ -790,7 +791,7 @@ const MAIN_DEX_META_CACHE_KEY = '';
  * If not supported, falls back to programmatic balance management using SDK's sendAsset.
  */
 export class HyperLiquidProvider implements PerpsProvider {
-  readonly protocolId = 'hyperliquid';
+  readonly protocolId = PROVIDER_CONFIG.DefaultProvider;
 
   // Platform dependencies for logging and debugging
   readonly #deps: PerpsPlatformDependencies;
@@ -841,7 +842,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #orderCapabilitiesMetaGeneration = 0;
 
-  #isDisconnecting = false;
+  #disconnectDepth = 0;
+
+  #disconnectGeneration = 0;
 
   // Last known-good market list for stale fallback when every enabled DEX fails in one fetch window.
   #cachedMarketDataWithPrices: CachedMarketDataSnapshot | null = null;
@@ -1115,7 +1118,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
-    if (this.#isDisconnecting) {
+    if (this.#disconnectDepth > 0) {
       return {
         status: 'unavailable',
         providerId: this.protocolId,
@@ -1203,9 +1206,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Reject capability reads invalidated by provider teardown.
+   *
+   * @param generation - Lifecycle generation captured before asynchronous work.
+   */
   #assertOrderCapabilitiesCurrent(generation: number): void {
     if (
-      this.#isDisconnecting ||
+      this.#disconnectDepth > 0 ||
       generation !== this.#orderCapabilitiesMetaGeneration
     ) {
       throw new Error(
@@ -2547,17 +2555,23 @@ export class HyperLiquidProvider implements PerpsProvider {
       return this.#cachedSpotMeta;
     }
 
+    const disconnectGeneration = this.#disconnectGeneration;
     const infoClient = this.#clientService.getInfoClient();
     const spotMeta = await infoClient.spotMeta();
 
-    this.#cachedSpotMeta = spotMeta;
-    this.#deps.debugLogger.log(
-      '[getCachedSpotMeta] Fetched and cached spotMeta',
-      {
-        tokensCount: spotMeta.tokens.length,
-        universeCount: spotMeta.universe.length,
-      },
-    );
+    if (
+      disconnectGeneration === this.#disconnectGeneration &&
+      this.#disconnectDepth === 0
+    ) {
+      this.#cachedSpotMeta = spotMeta;
+      this.#deps.debugLogger.log(
+        '[getCachedSpotMeta] Fetched and cached spotMeta',
+        {
+          tokensCount: spotMeta.tokens.length,
+          universeCount: spotMeta.universe.length,
+        },
+      );
+    }
 
     return spotMeta;
   }
@@ -11541,7 +11555,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.debugLogger.log(
         chargesMetamaskBuilderFee
           ? 'HyperLiquid: Applied MetaMask fee discount'
-          : 'HyperLiquid: Skipped MetaMask fee discount for fee-free order',
+          : 'HyperLiquid: Skipped MetaMask fee discount for order without a builder fee',
         {
           originalRate: baseMetamaskFeeRate,
           discountBips: this.#userFeeDiscountBips,
@@ -11648,7 +11662,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   async disconnect(): Promise<DisconnectResult> {
     this.#chasePlacementBlockers += 1;
     this.#chaseGeneration += 1;
-    this.#isDisconnecting = true;
+    this.#disconnectDepth += 1;
+    this.#disconnectGeneration += 1;
     try {
       this.#deps.debugLogger.log('HyperLiquid: Disconnecting provider', {
         isTestnet: this.#clientService.isTestnetMode(),
@@ -11762,7 +11777,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#dexDiscoveryComplete = false;
       this.#pendingValidatedDexsPromise = null;
       this.#orderCapabilitiesMetaGeneration += 1;
-      this.#isDisconnecting = false;
+      this.#disconnectGeneration += 1;
+      this.#disconnectDepth -= 1;
     }
   }
 

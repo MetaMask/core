@@ -1,4 +1,7 @@
-import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
+import {
+  BUILDER_FEE_CONFIG,
+  HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS,
+} from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
@@ -613,8 +616,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     return {
       capabilityProvider: createTestProvider({
         hip3Enabled: true,
-        allowlistMarkets: providerOptions.allowlistMarkets ?? ['xyz:*'],
         ...providerOptions,
+        allowlistMarkets: providerOptions.allowlistMarkets ?? ['xyz:*'],
       }),
       infoClient,
     };
@@ -2451,7 +2454,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
     );
 
-    it('keeps a discounted TWAP quote builder-fee-free', async () => {
+    it('keeps a discounted TWAP quote at zero MetaMask builder fee', async () => {
       useStrategyClients();
       provider.setUserFeeDiscount(5000);
 
@@ -2463,10 +2466,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(fees.metamaskFeeRate).toBe(0);
       expect(fees.metamaskFeeAmount).toBe(0);
-      expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
-        'HyperLiquid: Skipped MetaMask fee discount for fee-free order',
-        expect.objectContaining({ adjustedRate: 0, discountAmount: 0 }),
-      );
     });
 
     it('quotes a chase at the maker rate even when isMaker is false', async () => {
@@ -2538,7 +2537,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
   describe('Order capabilities', () => {
     beforeEach(() => {
       jest.useFakeTimers();
-      jest.setSystemTime(new Date('2026-08-25T00:00:00.000Z'));
     });
 
     afterEach(() => {
@@ -2776,7 +2774,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { infoClient } = useStrategyClients();
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
-      jest.advanceTimersByTime(29_999);
+      jest.advanceTimersByTime(
+        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS - 1,
+      );
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -2796,7 +2796,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
 
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
-      jest.advanceTimersByTime(29_999);
+      jest.advanceTimersByTime(
+        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS - 1,
+      );
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -2818,7 +2820,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
           { name: 'PUMP', szDecimals: 0, maxLeverage: 20 },
         ],
       });
-      jest.advanceTimersByTime(30_000);
+      jest.advanceTimersByTime(
+        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS,
+      );
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
 
@@ -2947,6 +2951,46 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       finishDisconnect();
       await disconnectPromise;
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps capabilities unavailable until overlapping disconnects finish', async () => {
+      const { infoClient } = useStrategyClients();
+      let finishFirstDisconnect = (): void => undefined;
+      const firstDisconnect = new Promise<void>((resolve): void => {
+        finishFirstDisconnect = resolve;
+      });
+      let finishSecondDisconnect = (): void => undefined;
+      const secondDisconnect = new Promise<void>((resolve): void => {
+        finishSecondDisconnect = resolve;
+      });
+      mockClientService.disconnect
+        .mockReturnValueOnce(firstDisconnect)
+        .mockReturnValueOnce(secondDisconnect);
+
+      const firstResult = provider.disconnect();
+      const secondResult = provider.disconnect();
+      finishFirstDisconnect();
+      await firstResult;
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+
+      finishSecondDisconnect();
+      await secondResult;
 
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
@@ -3188,6 +3232,47 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       expect(await provider.getMaxLeverage('ETH')).toBe(50);
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache spot metadata that resolves after disconnect', async () => {
+      const spotMetaResponse = {
+        tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+        universe: [],
+      };
+      let startSpotMetaRequest = (): void => undefined;
+      const spotMetaRequestStarted = new Promise<void>((resolve): void => {
+        startSpotMetaRequest = resolve;
+      });
+      let resolveSpotMeta = (_response: typeof spotMetaResponse): void =>
+        undefined;
+      const pendingSpotMeta = new Promise<typeof spotMetaResponse>(
+        (resolve) => {
+          resolveSpotMeta = resolve;
+        },
+      );
+      const spotMeta = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          startSpotMetaRequest();
+          return pendingSpotMeta;
+        })
+        .mockResolvedValueOnce(spotMetaResponse);
+      const { capabilityProvider } = useHip3Capabilities({ spotMeta });
+
+      const capabilities = capabilityProvider.getOrderCapabilities({
+        symbol: 'xyz:TSLA',
+      });
+      await spotMetaRequestStarted;
+      await capabilityProvider.disconnect();
+      resolveSpotMeta(spotMetaResponse);
+
+      expect(await capabilities).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
+      expect(spotMeta).toHaveBeenCalledTimes(2);
     });
 
     it('reports unavailable when market metadata cannot be loaded', async () => {

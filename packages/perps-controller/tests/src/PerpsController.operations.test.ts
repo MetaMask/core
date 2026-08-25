@@ -873,7 +873,37 @@ describe('PerpsController', () => {
         controller.getOrderCapabilities({ symbol: 'BTC' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
+        providerId: 'hyperliquid',
         reason: 'not_implemented',
+      });
+    });
+
+    it('preserves the resolved provider when capability discovery fails', async () => {
+      mockProvider.getOrderCapabilities = jest
+        .fn()
+        .mockRejectedValue(new Error('metadata unavailable'));
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('preserves the requested provider when provider resolution fails', async () => {
+      await expect(
+        controller.getOrderCapabilities({
+          symbol: 'RHEA',
+          providerId: 'myx',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
       });
     });
 
@@ -928,9 +958,28 @@ describe('PerpsController', () => {
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
+        providerId: 'myx',
         reason: 'provider_not_routable',
       });
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
+    });
+
+    it('does not infer routing support from a provider protocol ID', async () => {
+      const directProvider = {
+        ...mockProvider,
+        protocolId: 'aggregated',
+      };
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', directProvider]]));
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_not_routable',
+      });
+      expect(directProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
 
     it('rejects strategy placement that conflicts with the resolved provider', async () => {

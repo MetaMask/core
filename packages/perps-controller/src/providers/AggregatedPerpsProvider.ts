@@ -17,6 +17,7 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import { isStrategyOrderType } from '../utils/orderTypes.js';
@@ -117,6 +118,8 @@ import type {
  */
 export class AggregatedPerpsProvider implements PerpsProvider {
   readonly protocolId = 'aggregated';
+
+  readonly routesOrdersByProviderId = true;
 
   readonly #providers: Map<PerpsProviderType, PerpsProvider>;
 
@@ -220,9 +223,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
     const provider = this.#providers.get(providerId);
     if (!provider) {
-      throw new Error(
-        `[AggregatedPerpsProvider] Provider '${providerId}' not available`,
-      );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
     return [providerId, provider];
   }
