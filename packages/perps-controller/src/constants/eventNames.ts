@@ -485,6 +485,8 @@ export const PERPS_EVENT_VALUE = {
     // Sort / filter interactions
     SORT_APPLIED: 'sort_applied',
     FILTER_APPLIED: 'filter_applied',
+    CHASE_BACKGROUNDED_CONVERTED: 'chase_backgrounded_converted',
+    CHASE_TERMINATED: 'chase_terminated',
     // Search interactions
     SEARCH_RESULT_TAPPED: 'search_result_tapped',
     SEARCH_CHIP_TAPPED: 'search_chip_tapped',
@@ -511,6 +513,7 @@ export const PERPS_EVENT_VALUE = {
     TP_EXECUTED: 'tp_executed',
     SL_EXECUTED: 'sl_executed',
     LIMIT_ORDER_EXECUTED: 'limit_order_executed',
+    CHASE_BACKGROUNDED: 'perps_chase_backgrounded',
   },
   CLOSE_TYPE: {
     FULL: 'full',
