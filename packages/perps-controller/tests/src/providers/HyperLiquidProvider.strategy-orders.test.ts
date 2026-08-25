@@ -2361,20 +2361,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Fee quoting for strategy placements', () => {
-    const builderFeeOrderTypes: OrderType[] = [
-      'market',
-      'limit',
-      'stop_market',
-      'stop_limit',
-      'take_profit_market',
-      'take_profit_limit',
-      'scale',
-      'chase',
-    ];
+    const builderFeeByOrderType = {
+      market: {
+        orderType: 'market',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      limit: {
+        orderType: 'limit',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      stop_market: {
+        orderType: 'stop_market',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      stop_limit: {
+        orderType: 'stop_limit',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      take_profit_market: {
+        orderType: 'take_profit_market',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      take_profit_limit: {
+        orderType: 'take_profit_limit',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      twap: { orderType: 'twap', expectedRate: 0 },
+      scale: {
+        orderType: 'scale',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+      chase: {
+        orderType: 'chase',
+        expectedRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+      },
+    } satisfies Record<
+      OrderType,
+      { orderType: OrderType; expectedRate: number }
+    >;
 
-    it.each(builderFeeOrderTypes)(
-      'quotes a %s with the builder fee',
-      async (orderType) => {
+    it.each(Object.values(builderFeeByOrderType))(
+      'quotes $orderType with its provider-owned builder fee policy',
+      async ({ orderType, expectedRate }) => {
         useStrategyClients();
 
         const fees = await provider.calculateFees({
@@ -2383,7 +2411,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           symbol: 'ETH',
         });
 
-        expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+        expect(fees.metamaskFeeRate).toBe(expectedRate);
       },
     );
 
@@ -2454,6 +2482,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Order capabilities', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-08-25T00:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('advertises the strategies supported for a routed market', async () => {
       useStrategyClients();
 
@@ -2483,8 +2520,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('does not advertise strategies on an unsupported HIP-3 market', async () => {
-      useStrategyClients();
+    it('does not advertise strategies on a confirmed HIP-3 market', async () => {
+      useStrategyClients({
+        info: {
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'TSLA', szDecimals: 3, maxLeverage: 20 }],
+          }),
+        },
+      });
 
       expect(
         await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
@@ -2495,81 +2538,140 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('does not advertise strategies for an empty symbol', async () => {
+    it('reports an empty symbol as invalid', async () => {
       const { infoClient } = useStrategyClients();
 
       expect(await provider.getOrderCapabilities({ symbol: '' })).toStrictEqual(
         {
-          status: 'ready',
+          status: 'unavailable',
           providerId: 'hyperliquid',
-          supportedStrategies: [],
+          reason: 'invalid_symbol',
         },
       );
       expect(infoClient.meta).not.toHaveBeenCalled();
     });
 
-    it('does not advertise strategies for a symbol missing its market', async () => {
+    it('reports a route missing its market as invalid', async () => {
       const { infoClient } = useStrategyClients();
 
       expect(
         await provider.getOrderCapabilities({ symbol: 'BTC:' }),
       ).toStrictEqual({
-        status: 'ready',
+        status: 'unavailable',
         providerId: 'hyperliquid',
-        supportedStrategies: [],
+        reason: 'invalid_symbol',
       });
       expect(infoClient.meta).not.toHaveBeenCalled();
     });
 
-    it('does not advertise strategies for a symbol missing its DEX', async () => {
+    it('reports a route missing its DEX as invalid', async () => {
       const { infoClient } = useStrategyClients();
 
       expect(
         await provider.getOrderCapabilities({ symbol: ':BTC' }),
       ).toStrictEqual({
-        status: 'ready',
+        status: 'unavailable',
         providerId: 'hyperliquid',
-        supportedStrategies: [],
+        reason: 'invalid_symbol',
       });
       expect(infoClient.meta).not.toHaveBeenCalled();
     });
 
-    it('does not advertise strategies for an unknown main-DEX market', async () => {
+    it('reports an unknown main-DEX market as unavailable', async () => {
       const { infoClient } = useStrategyClients();
 
       expect(
         await provider.getOrderCapabilities({ symbol: 'DOGE' }),
       ).toStrictEqual({
-        status: 'ready',
+        status: 'unavailable',
         providerId: 'hyperliquid',
-        supportedStrategies: [],
+        reason: 'market_not_found',
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
-    it('bounds metadata refreshes for a repeated unknown market', async () => {
+    it('refreshes metadata at the freshness boundary', async () => {
       const { infoClient } = useStrategyClients();
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
-      await provider.getOrderCapabilities({ symbol: 'DOGE' });
-      await provider.getOrderCapabilities({ symbol: 'DOGE' });
+      jest.advanceTimersByTime(29_999);
+      await provider.getOrderCapabilities({ symbol: 'ETH' });
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(1);
+      await provider.getOrderCapabilities({ symbol: 'ETH' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
-    it('refreshes cached metadata before rejecting a newly listed market', async () => {
+    it('shares fresh metadata across unrelated symbols', async () => {
       const { infoClient } = useStrategyClients();
-      await provider.getOrderCapabilities({ symbol: 'ETH' });
+
+      await provider.getOrderCapabilities({ symbol: 'DOGE' });
       infoClient.meta.mockResolvedValueOnce({
         universe: [
           { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
           { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
-          { name: 'DOGE', szDecimals: 0, maxLeverage: 20 },
+          { name: 'PUMP', szDecimals: 0, maxLeverage: 20 },
         ],
+      });
+      jest.advanceTimersByTime(30_000);
+
+      await provider.getOrderCapabilities({ symbol: 'DOGE' });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'PUMP' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('deduplicates concurrent metadata refreshes', async () => {
+      const { infoClient } = useStrategyClients();
+
+      await Promise.all([
+        provider.getOrderCapabilities({ symbol: 'BTC' }),
+        provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ]);
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes metadata after disconnect', async () => {
+      const { infoClient } = useStrategyClients();
+
+      await provider.getOrderCapabilities({ symbol: 'ETH' });
+      await provider.disconnect();
+      await provider.getOrderCapabilities({ symbol: 'ETH' });
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries immediately after a metadata refresh failure', async () => {
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({
+              universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+            }),
+        },
       });
 
       expect(
-        await provider.getOrderCapabilities({ symbol: 'DOGE' }),
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
         status: 'ready',
         providerId: 'hyperliquid',
@@ -2588,6 +2690,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         await coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
         status: 'unavailable',
+        providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
     });

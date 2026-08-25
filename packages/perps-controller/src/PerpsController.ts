@@ -2652,7 +2652,7 @@ export class PerpsController extends BaseController<
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
     if (this.#hasConflictingProviderRoute(params.providerId)) {
-      return { status: 'unavailable', reason: 'provider_not_found' };
+      return { status: 'unavailable', reason: 'provider_not_routable' };
     }
 
     try {

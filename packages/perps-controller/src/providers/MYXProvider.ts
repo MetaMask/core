@@ -188,7 +188,8 @@ export class MYXProvider implements PerpsProvider {
   }
 
   /**
-   * MYX does not currently implement strategy placement.
+   * MYX does not currently implement strategy placement, so its capability
+   * result is deliberately market-independent.
    *
    * @param _params - Required market route context.
    * @returns An empty strategy capability set.

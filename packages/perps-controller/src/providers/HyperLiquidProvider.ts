@@ -776,7 +776,6 @@ function resolveHyperLiquidOrderFeePolicy(
 }
 
 const MAIN_DEX_META_CACHE_KEY = '';
-const ORDER_CAPABILITIES_META_REFRESH_INTERVAL_MS = 30_000;
 
 /**
  * HyperLiquid provider implementation
@@ -828,7 +827,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
   readonly #cachedMetaByDex = new Map<string, MetaResponse>();
 
-  #lastOrderCapabilitiesMetaRefreshAt = 0;
+  #orderCapabilitiesMetaFreshAt = 0;
+
+  #orderCapabilitiesMetaRefreshPromise?: Promise<MetaResponse>;
+
+  #orderCapabilitiesMetaGeneration = 0;
 
   // Last known-good market list for stale fallback when every enabled DEX fails in one fetch window.
   #cachedMarketDataWithPrices: CachedMarketDataSnapshot | null = null;
@@ -1087,37 +1090,40 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    if (!params.symbol) {
-      return HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
-    }
-
-    const { dex } = parseAssetName(params.symbol);
-    if (dex !== null) {
-      return HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
+    const { dex, symbol } = parseAssetName(params.symbol);
+    if (
+      params.symbol !== params.symbol.trim() ||
+      !symbol ||
+      symbol.includes(':') ||
+      (dex !== null && !dex)
+    ) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'invalid_symbol',
+      };
     }
 
     try {
-      const hadCachedMeta = this.#cachedMetaByDex.has(MAIN_DEX_META_CACHE_KEY);
-      let meta = await this.#getCachedMeta({ dexName: null });
-      let marketExists = meta.universe.some(
-        (market) => market.name === params.symbol,
-      );
-      const now = Date.now();
-      if (
-        !marketExists &&
-        hadCachedMeta &&
-        now - this.#lastOrderCapabilitiesMetaRefreshAt >=
-          ORDER_CAPABILITIES_META_REFRESH_INTERVAL_MS
-      ) {
-        this.#lastOrderCapabilitiesMetaRefreshAt = now;
-        meta = await this.#getCachedMeta({ dexName: null, skipCache: true });
-        marketExists = meta.universe.some(
-          (market) => market.name === params.symbol,
-        );
+      if (dex !== null) {
+        const meta = await this.#getCachedMeta({ dexName: dex });
+        return meta.universe.some((market) => market.name === symbol)
+          ? HYPERLIQUID_NO_STRATEGY_CAPABILITIES
+          : {
+              status: 'unavailable',
+              providerId: this.protocolId,
+              reason: 'market_not_found',
+            };
       }
-      return marketExists
+
+      const meta = await this.#getFreshOrderCapabilitiesMeta();
+      return meta.universe.some((market) => market.name === symbol)
         ? HYPERLIQUID_ORDER_CAPABILITIES
-        : HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
+        : {
+            status: 'unavailable',
+            providerId: this.protocolId,
+            reason: 'market_not_found',
+          };
     } catch (error) {
       this.#deps.debugLogger.log(
         'HyperLiquid: Order capabilities unavailable',
@@ -1127,7 +1133,50 @@ export class HyperLiquidProvider implements PerpsProvider {
             .message,
         },
       );
-      return { status: 'unavailable', reason: 'provider_unavailable' };
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Return main-DEX metadata fresh enough to answer a capability query.
+   * A single refresh confirms every main-DEX symbol, so concurrent callers
+   * share one request and a failure remains immediately retryable.
+   *
+   * @returns Fresh main-DEX metadata.
+   */
+  async #getFreshOrderCapabilitiesMeta(): Promise<MetaResponse> {
+    const cachedMeta = this.#cachedMetaByDex.get(MAIN_DEX_META_CACHE_KEY);
+    if (
+      cachedMeta &&
+      Date.now() - this.#orderCapabilitiesMetaFreshAt <
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs
+    ) {
+      return cachedMeta;
+    }
+
+    if (!this.#orderCapabilitiesMetaRefreshPromise) {
+      this.#orderCapabilitiesMetaRefreshPromise = this.#getCachedMeta({
+        dexName: null,
+        skipCache: true,
+      });
+    }
+
+    const refreshPromise = this.#orderCapabilitiesMetaRefreshPromise;
+    const refreshGeneration = this.#orderCapabilitiesMetaGeneration;
+    try {
+      const meta = await refreshPromise;
+      if (refreshGeneration === this.#orderCapabilitiesMetaGeneration) {
+        this.#orderCapabilitiesMetaFreshAt = Date.now();
+      }
+      return meta;
+    } finally {
+      if (this.#orderCapabilitiesMetaRefreshPromise === refreshPromise) {
+        this.#orderCapabilitiesMetaRefreshPromise = undefined;
+      }
     }
   }
 
@@ -11530,6 +11579,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       // NOTE: UnifiedAccountCache is global and NOT cleared on disconnect
       // to prevent repeated signing requests across reconnections
       this.#cachedMetaByDex.clear();
+      this.#orderCapabilitiesMetaFreshAt = 0;
+      this.#orderCapabilitiesMetaRefreshPromise = undefined;
+      this.#orderCapabilitiesMetaGeneration += 1;
       this.#cachedSpotMeta = null;
       this.#dexDiscoveryCache.reset();
       this.#dexDiscoveryComplete = false;

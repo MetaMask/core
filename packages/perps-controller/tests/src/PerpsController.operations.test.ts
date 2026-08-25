@@ -921,7 +921,7 @@ describe('PerpsController', () => {
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        reason: 'provider_not_found',
+        reason: 'provider_not_routable',
       });
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });

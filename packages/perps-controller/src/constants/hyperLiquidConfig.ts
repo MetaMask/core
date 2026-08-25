@@ -11,8 +11,8 @@ import type {
   HyperLiquidTransportConfig,
   TradingDefaultsConfig,
   FeeRatesConfig,
-  StrategyOrderType,
 } from '../types/perps-types.js';
+import { STRATEGY_ORDER_TYPES } from '../utils/orderTypes.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;
@@ -202,11 +202,7 @@ export const BUILDER_FEE_CONFIG = {
 export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
   providerId: 'hyperliquid',
-  supportedStrategies: Object.freeze([
-    'twap',
-    'scale',
-    'chase',
-  ] satisfies readonly StrategyOrderType[]),
+  supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
 }) satisfies PerpsOrderCapabilities;
 
 /** Ready HyperLiquid route with no strategy support for this market. */

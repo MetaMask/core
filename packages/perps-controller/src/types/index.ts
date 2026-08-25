@@ -1290,6 +1290,9 @@ export type GetOrderCapabilitiesParams = {
 export type OrderCapabilitiesUnavailableReason =
   | 'provider_unavailable'
   | 'provider_not_found'
+  | 'provider_not_routable'
+  | 'invalid_symbol'
+  | 'market_not_found'
   | 'not_implemented';
 
 export type PerpsOrderCapabilities =
