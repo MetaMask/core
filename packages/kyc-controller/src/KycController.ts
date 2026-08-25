@@ -447,6 +447,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'startSumSub',
   'getSessionStatus',
   'reset',
+  'clearState',
 ] as const;
 
 export type KycControllerGetStateAction = ControllerGetStateAction<
@@ -561,9 +562,10 @@ export class KycController extends BaseController<
   #authClientToken: string | null = null;
 
   /**
-   * Monotonic flow generation. Incremented by {@link reset} so in-flight async
-   * work (e.g. the KYC-required check) can detect that it was superseded and
-   * avoid writing stale results onto a reset controller.
+   * Monotonic flow generation. Incremented by {@link reset} and
+   * {@link clearState} so in-flight async work (e.g. the KYC-required check)
+   * can detect that it was superseded and avoid writing stale results onto a
+   * reset controller.
    */
   #generation = 0;
 
@@ -733,6 +735,15 @@ export class KycController extends BaseController<
       });
     } catch {
       // Ignore; disclaimers loading will surface a country error if needed.
+    }
+
+    // A `reset()` / `clearState()` that landed while the geolocation request
+    // was in flight supersedes this flow. Stop here rather than driving the
+    // controller on into `terms` (or a new session): the steps below write
+    // unconditionally, and `loadDisclaimers` captures the post-reset
+    // generation, so its own guard would not catch this.
+    if (this.#generation !== generation) {
+      return;
     }
 
     if (usesConsentsFlow(vendor) && this.state.email) {
@@ -2064,14 +2075,7 @@ export class KycController extends BaseController<
    * preserving persisted terms acceptance and the per-product cache.
    */
   reset(): void {
-    this.#authClientToken = null;
-    // Stop any session-status polling so a late poll cannot write onto the
-    // now-idle controller.
-    this.#stopPolling();
-    this.#stopUserStatusPolling();
-    // Invalidate any in-flight async work started before this reset so its
-    // results are discarded rather than written onto the now-idle controller.
-    this.#generation += 1;
+    this.#cancelPendingSession();
     this.#applyUpdate((state) => {
       state.phase = 'idle';
       state.statusMessage = '';
@@ -2091,6 +2095,34 @@ export class KycController extends BaseController<
         sessionStatus: null,
       };
     });
+  }
+
+  /**
+   * Restores the controller to its default state, discarding everything
+   * {@link reset} deliberately keeps: the session email, the persisted terms
+   * acceptance, the per-product KYC-required cache and the user-keyed status.
+   *
+   * Intended for a full wallet reset, where no trace of the previous
+   * customer may survive into the next wallet.
+   */
+  clearState(): void {
+    this.#cancelPendingSession();
+    this.#applyUpdate((state) => {
+      Object.assign(state, getDefaultKycControllerState());
+    });
+  }
+
+  /**
+   * Tears down everything that lives outside state: drops the auth-frame
+   * client token, stops both polling loops, and bumps the flow generation so
+   * async steps started earlier discard their results instead of writing them
+   * onto the controller. Shared by {@link reset} and {@link clearState}.
+   */
+  #cancelPendingSession(): void {
+    this.#authClientToken = null;
+    this.#stopPolling();
+    this.#stopUserStatusPolling();
+    this.#generation += 1;
   }
 
   /**

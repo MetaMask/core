@@ -20,6 +20,7 @@ export type {
   KycControllerBuildResetFrameUrlAction,
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
+  KycControllerClearStateAction,
   KycControllerCreateVendorCustomerAction,
   KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,

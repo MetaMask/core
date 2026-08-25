@@ -10,7 +10,10 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 
-import { KycController } from './KycController.js';
+import {
+  getDefaultKycControllerState,
+  KycController,
+} from './KycController.js';
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
@@ -2060,6 +2063,190 @@ describe('KycController', () => {
         },
       );
     });
+
+    it('does not let a superseded flow drive the controller back out of idle', async () => {
+      await withController(async ({ controller, handlers }) => {
+        let release: (country: string) => void = () => {
+          // Replaced synchronously by the promise executor below.
+        };
+        handlers.getGeoCountry.mockReturnValue(
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+        );
+
+        const pending = controller.initialize({ email: 'a@b.co' });
+        controller.reset();
+        release('USA');
+        await pending;
+
+        expect(controller.state.phase).toBe('idle');
+        expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('clearState', () => {
+    it('restores the default state from a fully populated state', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              phase: 'form',
+              statusMessage: 'Review to submit.',
+              error: 'stale error',
+              email: 'a@b.co',
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['1'],
+              termsAcceptedVendor: 'iron',
+              sumsubTncAccepted: true,
+              idosTncAccepted: true,
+              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              disclaimersError: 'stale disclaimers error',
+              geoCountry: 'USA',
+              sessionToken: 'tok',
+              accessToken: 'a',
+              moonpayCustomerId: 'cus-1',
+              activeVendor: 'iron',
+              activeProduct: 'ramps',
+              kycRequiredByProduct: { ramps: true },
+              lastCheckedAt: 't',
+              userStatus: 'completed',
+              userStatusSumsubSessionId: 's1',
+              userStatusErrorCode: 'code',
+              sumsub: {
+                status: 'complete',
+                result: { ok: true },
+                sessionId: 'sess-1',
+                applicantAccessToken: 'aat',
+                sessionStatus: sessionStatus('approved'),
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.clearState();
+
+          expect(controller.state).toStrictEqual(
+            getDefaultKycControllerState(),
+          );
+        },
+      );
+    });
+
+    it('leaves the state at its defaults when a flow was in flight', async () => {
+      await withController(async ({ controller, handlers }) => {
+        let release: (country: string) => void = () => {
+          // Replaced synchronously by the promise executor below.
+        };
+        handlers.getGeoCountry.mockReturnValue(
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+        );
+
+        const pending = controller.initialize({ email: 'a@b.co' });
+        controller.clearState();
+        release('USA');
+        await pending;
+
+        expect(controller.state).toStrictEqual(getDefaultKycControllerState());
+        // The superseded flow must not resume the terms step either.
+        expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+      });
+    });
+
+    it('drops the auth-frame client token', async () => {
+      await withController(
+        { options: { state: { phase: 'check', sessionToken: 'tok' } } },
+        async ({ controller }) => {
+          const envelope = envelopeFor(controller, {
+            clientToken: 'client-1',
+          });
+          await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: { status: 'connectionRequired', credentials: envelope },
+            },
+          });
+          expect(controller.buildAuthFrameUrl()).toContain(
+            'clientToken=client-1',
+          );
+
+          controller.clearState();
+
+          expect(controller.buildAuthFrameUrl()).toBeNull();
+        },
+      );
+    });
+
+    it('stops session-status polling', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { sessionStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers, launcher }) => {
+            launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+              onStatusChange?.('InProgress', 'Completed');
+              return { ok: true };
+            });
+            handlers.getSessionStatus.mockResolvedValue(
+              sessionStatus('pending'),
+            );
+
+            await controller.startSumSub();
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+            controller.clearState();
+            await jest.advanceTimersByTimeAsync(5000);
+
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+            expect(controller.state).toStrictEqual(
+              getDefaultKycControllerState(),
+            );
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('stops user-status polling', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers }) => {
+            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+
+            controller.clearState();
+            await jest.advanceTimersByTimeAsync(5000);
+
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+            expect(controller.state).toStrictEqual(
+              getDefaultKycControllerState(),
+            );
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('is callable via the messenger', async () => {
+      await withController(
+        { options: { state: { email: 'a@b.co' } } },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call('KycController:clearState');
+
+          expect(controller.state.email).toBeNull();
+        },
+      );
+    });
   });
 
   describe('iron vendor flow', () => {
@@ -2150,22 +2337,15 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          let release: (error: Error) => void = () => {
-            // placeholder
-          };
-          handlers.createVendorCustomer.mockReturnValue(
-            new Promise((_resolve, reject) => {
-              release = reject;
-            }),
-          );
+          handlers.createVendorCustomer.mockImplementation(async () => {
+            controller.reset();
+            throw new Error('late');
+          });
 
-          const pending = controller.initialize({
+          await controller.initialize({
             email: 'a@b.co',
             vendor: 'iron',
           });
-          controller.reset();
-          release(new Error('late'));
-          await pending;
 
           expect(controller.state.phase).toBe('idle');
           expect(controller.state.termsAcceptedAt).toBe('t');
@@ -2179,26 +2359,13 @@ describe('KycController', () => {
 
     it('does not fail initialize when reset lands during Iron customer creation', async () => {
       await withController(async ({ controller, handlers }) => {
-        let release: (value: {
-          id: string;
-          email: string;
-          status: string;
-        }) => void = () => {
-          // placeholder
-        };
-        handlers.createVendorCustomer.mockReturnValue(
-          new Promise((resolve) => {
-            release = resolve;
-          }),
-        );
-
-        const pending = controller.initialize({
-          email: 'a@b.co',
-          vendor: 'iron',
+        // Simulate a reset() landing while customer creation is in flight.
+        handlers.createVendorCustomer.mockImplementation(async () => {
+          controller.reset();
+          return { id: '1', email: 'a@b.co', status: 'SigningsRequired' };
         });
-        controller.reset();
-        release({ id: '1', email: 'a@b.co', status: 'SigningsRequired' });
-        await pending;
+
+        await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
 
         expect(controller.state.phase).toBe('idle');
         expect(controller.state.error).toBeNull();
@@ -2207,22 +2374,12 @@ describe('KycController', () => {
 
     it('does not fail initialize when Iron customer creation rejects after reset', async () => {
       await withController(async ({ controller, handlers }) => {
-        let release: (error: Error) => void = () => {
-          // placeholder
-        };
-        handlers.createVendorCustomer.mockReturnValue(
-          new Promise((_resolve, reject) => {
-            release = reject;
-          }),
-        );
-
-        const pending = controller.initialize({
-          email: 'a@b.co',
-          vendor: 'iron',
+        handlers.createVendorCustomer.mockImplementation(async () => {
+          controller.reset();
+          throw new Error('late');
         });
-        controller.reset();
-        release(new Error('late'));
-        await pending;
+
+        await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
 
         expect(controller.state.phase).toBe('idle');
         expect(controller.state.error).toBeNull();
