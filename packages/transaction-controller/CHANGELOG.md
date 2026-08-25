@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.6.0]
+
 ### Changed
 
-- Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+- Bump `@metamask/core-backend` from `^8.1.1` to `9.0.0` ([#9886](https://github.com/MetaMask/core/pull/9886), [#9960](https://github.com/MetaMask/core/pull/9960))
 - Extend `isSimulationEnabled` option to accept an optional `TransactionMeta` argument, enabling callback consumers to inspect the relevant transaction ([#9800](https://github.com/MetaMask/core/pull/9800))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
@@ -2687,7 +2689,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.6.0...HEAD
+[69.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.2...@metamask/transaction-controller@69.6.0
 [69.5.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.1...@metamask/transaction-controller@69.5.2
 [69.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.0...@metamask/transaction-controller@69.5.1
 [69.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.4.0...@metamask/transaction-controller@69.5.0
