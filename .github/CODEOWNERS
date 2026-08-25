@@ -115,7 +115,7 @@
 /packages/sample-controllers                      @MetaMask/core-platform
 /packages/selected-network-controller             @MetaMask/core-platform
 /packages/wallet                                  @MetaMask/core-platform
-/packages/wallet-cli                              @MetaMask/core-platform @MetaMask/ocap-kernel
+/packages/wallet-cli                              @MetaMask/core-platform
 /packages/wallet-framework-docs                   @MetaMask/core-platform
 
 ## Web3Auth Team
