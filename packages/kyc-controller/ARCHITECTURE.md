@@ -265,7 +265,9 @@ stateDiagram-v2
 > are accepted — posts consents and launches SumSub. MoonPay Check/Auth frames
 > are skipped; `phase` moves `terms → session → submit → done`. A SumSub
 > failure (thrown step or SDK close without completion) rewinds to `terms`
-> instead of forcing `done`. `acceptTermsAndStartSession` requires
+> instead of forcing `done`. A terminal UKYC rejection after the SDK reported
+> `Completed` still finishes as `done` so `refreshKycStatus` can surface the
+> decision. `acceptTermsAndStartSession` requires
 > `sumsubTncSigned` and `idosTncSigned` (T&C2) for every vendor; omitted flags
 > fail the flow instead of defaulting to `true`.
 

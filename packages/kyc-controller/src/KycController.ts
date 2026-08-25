@@ -984,12 +984,16 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      // `startSumSub` records `sumsub.status = 'failed'` for both thrown
-      // steps (`{ error }`) and a resolved SDK launch that never reached
-      // Completed. Only the string-error shape used to rewind; treat any
-      // failed sub-flow as a consents-path failure so we do not refresh
-      // user status or force `phase` to `done`.
-      if (this.state.sumsub.status === 'failed') {
+      // `startSumSub` records `sumsub.status = 'failed'` for thrown steps,
+      // an SDK close without Completed, *and* a terminal UKYC rejection
+      // after the SDK reported Completed. Only rewind when there is no
+      // session-status decision yet (abandonment / thrown step). A
+      // Completed-then-rejected poll writes `sessionStatus` and is a
+      // finished flow: refresh user status and land on `done`.
+      if (
+        this.state.sumsub.status === 'failed' &&
+        this.state.sumsub.sessionStatus === null
+      ) {
         const sumsubError = sumsubResult?.error;
         throw new Error(
           typeof sumsubError === 'string'

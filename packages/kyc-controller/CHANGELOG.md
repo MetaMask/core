@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Clear leftover MoonPay `sessionToken`, `accessToken`, and Check/Auth frame credentials when `initialize` or `createVendorCustomer` switches to another vendor, so `buildCheckFrameUrl` cannot return a MoonPay URL for a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
-- Rewind the consents path when SumSub ends in `failed` (including an SDK close without completion), instead of refreshing user status and forcing `phase` to `done`. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Rewind the consents path when SumSub fails before completion (thrown step or SDK close without `Completed`), instead of refreshing user status and forcing `phase` to `done`. A terminal UKYC rejection after the SDK completed still finishes as `done` so the decision can be reflected in user status. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Make `createVendorCustomer` a no-op during in-progress phases (matching `initialize`), so a vendor switch cannot leave Check/Auth frames attached to the wrong vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Ignore Check/Auth frame completion unless the active vendor is MoonPay, and do not return a MoonPay customer id from `getCustomerIdentity()` under another vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Drop persisted terms acceptance on a vendor switch only after `createVendorCustomer` succeeds, so a failed or reset Money start cannot erase another vendor's stored acceptance. ([#9908](https://github.com/MetaMask/core/pull/9908))

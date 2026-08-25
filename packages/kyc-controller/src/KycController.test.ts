@@ -2812,6 +2812,49 @@ describe('KycController', () => {
       );
     });
 
+    it('finishes as done when UKYC rejects after SumSub completed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({
+            status: 'terminal-failure',
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('rejected'),
+          );
+          expect(controller.state.termsAcceptedAt).not.toBeNull();
+          expect(controller.state.error).toBeNull();
+          expect(handlers.fetchKycStatus).toHaveBeenCalled();
+          expect(controller.state.userStatus).toBe('terminal-failure');
+          controller.reset();
+        },
+      );
+    });
+
     it('keeps done when status refresh fails after a successful SumSub', async () => {
       await withController(
         {
