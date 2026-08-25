@@ -78,6 +78,7 @@ import type {
   CancelOrderResult,
   CancelOrdersParams,
   CancelOrdersResult,
+  ChaseOrder,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -2695,6 +2696,30 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+  }
+
+  /**
+   * Read the active provider's retained Chase lifecycle snapshots.
+   * Providers without an emulated Chase implementation return an empty list.
+   *
+   * @returns Current Chase session snapshots.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    return provider.getChaseOrders ? await provider.getChaseOrders() : [];
+  }
+
+  /**
+   * Stop Chase repricing for app backgrounding without cancelling the current
+   * resting children.
+   *
+   * @returns Chase snapshots after suspension.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    return provider.suspendChaseOrders
+      ? await provider.suspendChaseOrders()
+      : [];
   }
 
   /**

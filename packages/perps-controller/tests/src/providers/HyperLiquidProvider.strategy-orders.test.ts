@@ -1034,6 +1034,110 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(submitted.orders[0].t).toStrictEqual({ limit: { tif: 'Alo' } });
     });
 
+    it('refreshes the touch and retries an initial post-only rejection', async () => {
+      const order = jest
+        .fn()
+        .mockRejectedValueOnce(
+          new Error('Post only order would have immediately matched'),
+        )
+        .mockResolvedValue(chaseRested);
+      const l2Book = jest
+        .fn()
+        .mockResolvedValueOnce({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2999', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        })
+        .mockResolvedValue({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2998', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.order.mock.calls[1][0].orders[0].p).toBe('2998.1');
+    });
+
+    it('refreshes the touch and retries an initial oracle-distance rejection', async () => {
+      const order = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Price too far from oracle'))
+        .mockResolvedValue(chaseRested);
+      const l2Book = jest
+        .fn()
+        .mockResolvedValueOnce({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2999', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        })
+        .mockResolvedValue({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2997', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.order.mock.calls[1][0].orders[0].p).toBe('2997.1');
+    });
+
+    it('stops after three retryable initial-placement rejections', async () => {
+      const order = jest
+        .fn()
+        .mockRejectedValue(
+          new Error('Post only order would have immediately matched'),
+        );
+      const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry a non-retryable initial-placement rejection', async () => {
+      const order = jest.fn().mockRejectedValue(new Error('insufficient margin'));
+      const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
     it('rests at the best ask for a sell', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
@@ -1063,6 +1167,58 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result.success).toBe(true);
       expect(result.orderId).toMatch(/^chase-/u);
       expect(result.childOrderIds).toStrictEqual(['55']);
+    });
+
+    it('exposes the running session state needed by clients', async () => {
+      useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseMaxDistanceBps: 100,
+      } as OrderParams);
+
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({
+          handle: result.orderId,
+          symbol: 'ETH',
+          side: 'buy',
+          originalSize: '1',
+          remainingSize: '1',
+          arrivalPrice: '2999.1',
+          restingPrice: '2999.1',
+          restingOrderId: '55',
+          distanceChasedBps: 0,
+          maxDistanceBps: 100,
+          repricings: 0,
+          status: 'active',
+        }),
+      ]);
+    });
+
+    it('backgrounds every active session without cancelling its resting child', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      const backgrounded = await provider.suspendChaseOrders();
+
+      expect(backgrounded).toStrictEqual([
+        expect.objectContaining({
+          handle: result.orderId,
+          restingOrderId: '55',
+          status: 'backgrounded',
+        }),
+      ]);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(await provider.getChaseOrders()).toStrictEqual(backgrounded);
     });
 
     it('fails when the book has no price on the side it must rest at', async () => {
@@ -1336,6 +1492,133 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order).toHaveBeenCalledTimes(1);
     });
 
+    it('uses the throttled default interval when none is supplied', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValue(chaseRested(66));
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book: bookWalkingBids(['2999', '2998']) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(
+        CHASE_ORDER_CONFIG.DefaultIntervalMs - 1,
+      );
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1);
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+      expect(order).toHaveBeenCalledTimes(2);
+    });
+
+    it('defers re-pricing while another Chase placement is in flight', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValueOnce(chaseRested(66));
+      const { exchangeClient, infoClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book: bookWalkingBids(['2999', '2998', '2998']) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      let finishBookRead: (() => void) | undefined;
+      infoClient.l2Book.mockImplementationOnce(
+        (): Promise<Record<string, unknown>> =>
+          new Promise<Record<string, unknown>>((resolve) => {
+            finishBookRead = (): void =>
+              resolve({
+                coin: 'ETH',
+                levels: [
+                  [{ px: '2998', sz: '10', n: 1 }],
+                  [{ px: '3001', sz: '10', n: 1 }],
+                ],
+              });
+          }),
+      );
+      const secondPlacement = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      await jest.advanceTimersByTimeAsync(0);
+      for (let turn = 0; turn < 20; turn += 1) {
+        if (finishBookRead !== undefined) {
+          break;
+        }
+        await Promise.resolve();
+      }
+      expect(finishBookRead).toBeDefined();
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(order).toHaveBeenCalledTimes(1);
+
+      finishBookRead?.();
+      expect(await secondPlacement).toMatchObject({ success: true });
+      expect(order).toHaveBeenCalledTimes(2);
+    });
+
+    it('drains an in-flight re-price before starting another Chase placement', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValueOnce(chaseRested(66))
+        .mockResolvedValueOnce(chaseRested(77));
+      const { infoClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book: bookWalkingBids(['2999']) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+
+      let finishTickBookRead: (() => void) | undefined;
+      infoClient.l2Book.mockImplementationOnce(
+        (): Promise<Record<string, unknown>> =>
+          new Promise<Record<string, unknown>>((resolve) => {
+            finishTickBookRead = (): void =>
+              resolve({
+                coin: 'ETH',
+                levels: [
+                  [{ px: '2998', sz: '10', n: 1 }],
+                  [{ px: '3001', sz: '10', n: 1 }],
+                ],
+              });
+          }),
+      );
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(finishTickBookRead).toBeDefined();
+
+      const secondPlacement = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      await jest.advanceTimersByTimeAsync(0);
+
+      expect(order).toHaveBeenCalledTimes(1);
+
+      finishTickBookRead?.();
+      expect(await secondPlacement).toMatchObject({ success: true });
+      expect(order).toHaveBeenCalledTimes(3);
+    });
+
     it('stops chasing once the order is no longer resting', async () => {
       const order = jest.fn().mockResolvedValue(chaseRested(55));
       const { exchangeClient } = useStrategyClients({
@@ -1404,6 +1687,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // Ticks at 1s and 2s; the 2s tick finds the deadline reached and stops,
       // so only the first one re-prices.
       expect(order).toHaveBeenCalledTimes(2);
+    });
+
+    it('rests at the configured max-distance boundary and stops chasing', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValue(chaseRested(66));
+      useStrategyClients({
+        exchange: { order },
+        info: { l2Book: bookWalkingBids(['2999', '3040']) },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+        chaseMaxDistanceBps: 100,
+      } as OrderParams);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0].orders[0].p).toBe('3029.1');
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({
+          handle: placed.orderId,
+          restingOrderId: '66',
+          restingPrice: '3029.1',
+          distanceChasedBps: 100,
+          status: 'max_distance_reached',
+        }),
+      ]);
     });
 
     it('stops every running chase on disconnect', async () => {
@@ -2111,6 +2426,35 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(second.error).toBe(
         PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
       );
+    });
+
+    it('completes a chase cancel when the SDK throws that its child is gone', async () => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+          cancel: jest
+            .fn()
+            .mockRejectedValue(
+              new Error('Order was never placed, already canceled, or filled.'),
+            ),
+        },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 
     it('completes a scale cancel when one rung had already filled', async () => {

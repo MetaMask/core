@@ -128,13 +128,13 @@ export const ORDER_SLIPPAGE_CONFIG = {
  */
 export const CHASE_ORDER_CONFIG = {
   /** How often the touch is re-read when the caller does not say. */
-  DefaultIntervalMs: 3000,
+  DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */
   MinIntervalMs: 1000,
-  /** How long a chase runs before it stops re-pricing and rests. */
-  DefaultMaxDurationMs: 60_000,
-  /** How many cancel/replace cycles a single chase may perform. */
-  DefaultMaxRepricings: 20,
+  /** Chase runs until a lifecycle event stops it unless the caller sets a cap. */
+  DefaultMaxDurationMs: Number.POSITIVE_INFINITY,
+  /** Repricing is unbounded unless the caller explicitly sets a cap. */
+  DefaultMaxRepricings: Number.POSITIVE_INFINITY,
   /**
    * How many chases may run at once.
    *

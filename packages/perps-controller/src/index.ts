@@ -192,6 +192,8 @@ export type {
   TPSLTrackingData,
   OrderParams,
   OrderResult,
+  ChaseOrder,
+  ChaseOrderStatus,
   Position,
   AccountState,
   ClosePositionParams,

@@ -526,6 +526,7 @@ export type StrategyOrderValidationParams = {
   chaseIntervalMs?: number;
   chaseMaxDurationMs?: number;
   chaseMaxRepricings?: number;
+  chaseMaxDistanceBps?: number;
 };
 
 /**
@@ -548,6 +549,7 @@ const STRATEGY_FIELD_OWNER: Record<
   chaseIntervalMs: 'chase',
   chaseMaxDurationMs: 'chase',
   chaseMaxRepricings: 'chase',
+  chaseMaxDistanceBps: 'chase',
 };
 
 /**
@@ -669,23 +671,38 @@ function validateChaseParams(params: StrategyOrderValidationParams): {
     };
   }
 
-  const maxDuration =
-    params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs;
+  const maxDuration = params.chaseMaxDurationMs;
   // A window shorter than one poll would place the order and immediately stop
   // chasing it — a plain post-only limit order wearing a chase's name.
-  if (!Number.isFinite(maxDuration) || maxDuration < interval) {
+  if (
+    maxDuration !== undefined &&
+    (!Number.isFinite(maxDuration) || maxDuration < interval)
+  ) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_CHASE_DURATION_INVALID,
     };
   }
 
-  const maxRepricings =
-    params.chaseMaxRepricings ?? CHASE_ORDER_CONFIG.DefaultMaxRepricings;
-  if (!Number.isInteger(maxRepricings) || maxRepricings < 1) {
+  const maxRepricings = params.chaseMaxRepricings;
+  if (
+    maxRepricings !== undefined &&
+    (!Number.isInteger(maxRepricings) || maxRepricings < 1)
+  ) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_CHASE_DURATION_INVALID,
+    };
+  }
+
+  if (
+    params.chaseMaxDistanceBps !== undefined &&
+    (!Number.isFinite(params.chaseMaxDistanceBps) ||
+      params.chaseMaxDistanceBps <= 0)
+  ) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_CHASE_MAX_DISTANCE_INVALID,
     };
   }
 
