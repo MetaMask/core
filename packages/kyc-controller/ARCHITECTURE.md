@@ -259,10 +259,11 @@ stateDiagram-v2
 > **Non-MoonPay vendors use a consents path.** `initialize({ vendor: 'iron' })`
 > creates an empty-shell customer, loads vendor disclaimers, and — after terms
 > are accepted — posts consents and launches SumSub. MoonPay Check/Auth frames
-> are skipped; `phase` moves `terms → session → submit → done`.
-> `acceptTermsAndStartSession` requires `sumsubTncSigned` and `idosTncSigned`
-> (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
-> `true`.
+> are skipped; `phase` moves `terms → session → submit → done`. A SumSub
+> failure (thrown step or SDK close without completion) rewinds to `terms`
+> instead of forcing `done`. `acceptTermsAndStartSession` requires
+> `sumsubTncSigned` and `idosTncSigned` (T&C2) for every vendor; omitted flags
+> fail the flow instead of defaulting to `true`.
 
 > **`initialize` and `createVendorCustomer` never tear down an active flow.** If
 > `phase` is already one of the in-progress phases (`session`, `check`, `auth`,

@@ -982,9 +982,18 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      const sumsubError = sumsubResult?.error;
-      if (typeof sumsubError === 'string') {
-        throw new Error(sumsubError);
+      // `startSumSub` records `sumsub.status = 'failed'` for both thrown
+      // steps (`{ error }`) and a resolved SDK launch that never reached
+      // Completed. Only the string-error shape used to rewind; treat any
+      // failed sub-flow as a consents-path failure so we do not refresh
+      // user status or force `phase` to `done`.
+      if (this.state.sumsub.status === 'failed') {
+        const sumsubError = sumsubResult?.error;
+        throw new Error(
+          typeof sumsubError === 'string'
+            ? sumsubError
+            : 'SumSub verification did not complete.',
+        );
       }
       // After SumSub, refresh user-keyed status for the Money toast and start
       // polling while still pending. Soft-fail: toast refresh must not rewind

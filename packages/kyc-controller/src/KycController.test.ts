@@ -2736,6 +2736,39 @@ describe('KycController', () => {
       );
     });
 
+    it('returns to terms when SumSub closes without completion during the Iron session', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            // Applicant abandons: launch resolves without a Completed status.
+            onStatusChange?.('idle', 'InProgress');
+            return { ok: false };
+          });
+          handlers.fetchDisclaimers.mockResolvedValue([]);
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.error).toMatch(/Consents session failed/u);
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('keeps done when status refresh fails after a successful SumSub', async () => {
       await withController(
         {
