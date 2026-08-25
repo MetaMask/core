@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563), [#9941](https://github.com/MetaMask/core/pull/9941))
+- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563), [#9941](https://github.com/MetaMask/core/pull/9941), [#9953](https://github.com/MetaMask/core/pull/9953))
   - `createUIQueryClient`'s `invalidateQueries` override now matches the TanStack Query v5 signature (`filters`, `options`) instead of the v4 overload style that relied on `parseFilterArgs`.
   - Consumers must migrate to TanStack Query v5 APIs (for example `gcTime` instead of `cacheTime`, and `initialPageParam` for infinite queries).
   - `TError` in both hooks now defaults to `DefaultError`.
