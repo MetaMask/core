@@ -398,6 +398,75 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('sends request with EXACT_INPUT trade type for Predict deposits', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.details.currencyOut.minimumAmount = '100';
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: TOKEN_TRANSFER_DATA_MOCK,
+          },
+          type: TransactionType.predictDeposit,
+        },
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
+      expect(result[0].dust).toStrictEqual({ fiat: '0', usd: '0' });
+    });
+
+    it('sends request with EXACT_INPUT trade type for nested Predict deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [
+            {
+              data: TOKEN_TRANSFER_DATA_MOCK,
+              type: TransactionType.predictDeposit,
+            },
+          ],
+          type: TransactionType.batch,
+        },
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
+    });
+
     it('throws if isMaxAmount is true and transaction includes data', async () => {
       await expect(
         getRelayQuotes({
@@ -3878,7 +3947,7 @@ describe('Relay Quotes Utils', () => {
       ).rejects.toThrow(`Source token fiat rate not found`);
     });
 
-    it('updates request if Arbitrum deposit to Hyperliquid', async () => {
+    it('requests exact input for Hyperliquid deposits', async () => {
       const arbitrumToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
         targetChainId: CHAIN_ID_ARBITRUM,
@@ -3906,17 +3975,17 @@ describe('Relay Quotes Utils', () => {
 
       expect(body).toStrictEqual(
         expect.objectContaining({
-          amount: '12300',
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
           destinationChainId: 1337,
           destinationCurrency: '0x00000000000000000000000000000000',
+          tradeType: 'EXACT_INPUT',
         }),
       );
     });
 
-    // A HyperCore deposit funds an order that needs the whole target as margin.
-    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves the
-    // follow-on order short and it fails on insufficient margin.
-    it('requests an exact output for Hyperliquid deposits so the full margin is guaranteed', async () => {
+    // A HyperCore deposit followed by an order needs the whole target as margin.
+    // EXACT_INPUT cannot guarantee that amount after fees and slippage.
+    it('requests exact output for Hyperliquid deposit-and-order flows', async () => {
       const arbitrumToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
         targetChainId: CHAIN_ID_ARBITRUM,
@@ -3942,7 +4011,12 @@ describe('Relay Quotes Utils', () => {
         successfulFetchMock.mock.calls[0][1]?.body as string,
       );
 
-      expect(body.tradeType).toBe('EXACT_OUTPUT');
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: '12300',
+          tradeType: 'EXACT_OUTPUT',
+        }),
+      );
     });
 
     it('still requests an expected output for non-Hyperliquid targets', async () => {

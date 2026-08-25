@@ -1,7 +1,11 @@
+import { hasTransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../constants.js';
+import {
+  RELAY_EXACT_INPUT_DEPOSIT_TYPES,
+  TransactionPayStrategy,
+} from '../constants.js';
 import type {
   FiatValue,
   TransactionPayControllerMessenger,
@@ -78,23 +82,27 @@ export function calculateTotals({
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
   const hasQuotes = quotes.length > 0;
+  const isRelayExactInputDeposit =
+    quotes.some((quote) => quote.strategy === TransactionPayStrategy.Relay) &&
+    hasTransactionType(transaction, RELAY_EXACT_INPUT_DEPOSIT_TYPES);
+  const useTargetAmount = Boolean(isMaxAmount) || isRelayExactInputDeposit;
 
   const sourceAmountFiat = getSourceAmount({
     hasFiatStrategy,
     fiatPaymentAmount,
-    isMaxAmount,
     hasQuotes,
     targetAmount: targetAmount.fiat,
     tokenAmount: amountFiat,
+    useTargetAmount,
   });
 
   const sourceAmountUsd = getSourceAmount({
     hasFiatStrategy,
     fiatPaymentAmount,
-    isMaxAmount,
     hasQuotes,
     targetAmount: targetAmount.usd,
     tokenAmount: amountUsd,
+    useTargetAmount,
   });
 
   const totalFiat = new BigNumber(providerFee.fiat)
@@ -152,32 +160,32 @@ export function calculateTotals({
  * @param request - Request parameters.
  * @param request.hasFiatStrategy - Whether a fiat strategy quote is present.
  * @param request.fiatPaymentAmount - The fiat payment amount, if applicable.
- * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.hasQuotes - Whether any quotes are present.
  * @param request.targetAmount - The target amount from quotes.
  * @param request.tokenAmount - The summed token amount.
+ * @param request.useTargetAmount - Whether fees are already included in the source amount.
  * @returns The payment amount to include in totals.
  */
 function getSourceAmount({
   hasFiatStrategy,
   fiatPaymentAmount,
-  isMaxAmount,
   hasQuotes,
   targetAmount,
   tokenAmount,
+  useTargetAmount,
 }: {
   hasFiatStrategy: boolean;
   fiatPaymentAmount?: string;
-  isMaxAmount?: boolean;
   hasQuotes: boolean;
   targetAmount: string;
   tokenAmount: string;
+  useTargetAmount: boolean;
 }): string {
   if (hasFiatStrategy) {
     return fiatPaymentAmount ?? '0';
   }
 
-  if (isMaxAmount && hasQuotes) {
+  if (useTargetAmount && hasQuotes) {
     return targetAmount;
   }
 

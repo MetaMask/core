@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use `EXACT_INPUT` Relay quotes for plain Perps and Predict deposits so the entered amount is the total source amount paid, while preserving `EXACT_OUTPUT` for HyperCore deposit-and-order flows ([CONF-1782](https://consensyssoftware.atlassian.net/browse/CONF-1782))
 - Bump `@metamask/sentinel-api-service` from `^1.0.0` to `^1.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ## [27.0.0]

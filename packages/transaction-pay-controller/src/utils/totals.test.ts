@@ -1,3 +1,4 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../index.js';
@@ -178,6 +179,83 @@ describe('Totals Utils', () => {
       expect(result.total.fiat).toBe('65.5');
       expect(result.total.usd).toBe('71.68');
     });
+
+    it.each([
+      {
+        label: TransactionType.perpsDeposit,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        },
+      },
+      {
+        label: TransactionType.predictDeposit,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+        },
+      },
+      {
+        label: `nested ${TransactionType.predictDeposit}`,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [{ type: TransactionType.predictDeposit }],
+          type: TransactionType.batch,
+        },
+      },
+    ])(
+      'does not add Relay fees twice for exact-input $label transactions',
+      ({ transaction }) => {
+        const quote = {
+          ...QUOTE_1_MOCK,
+          fees: {
+            ...QUOTE_1_MOCK.fees,
+            metaMask: { fiat: '0', usd: '0' },
+            provider: { fiat: '1', usd: '1' },
+            sourceNetwork: {
+              estimate: {
+                fiat: '0.5',
+                human: '0.5',
+                raw: '500000000000000000',
+                usd: '0.5',
+              },
+              max: {
+                fiat: '0.6',
+                human: '0.6',
+                raw: '600000000000000000',
+                usd: '0.6',
+              },
+            },
+            targetNetwork: { fiat: '0', usd: '0' },
+          },
+          sourceAmount: {
+            fiat: '100',
+            human: '100',
+            raw: '100000000',
+            usd: '100',
+          },
+          strategy: TransactionPayStrategy.Relay,
+          targetAmount: { fiat: '99', usd: '99' },
+        };
+        const token = {
+          ...TOKEN_1_MOCK,
+          amountFiat: '100',
+          amountUsd: '100',
+        };
+
+        const result = calculateTotals({
+          quotes: [quote],
+          tokens: [token],
+          messenger: MESSENGER_MOCK,
+          transaction,
+        });
+
+        expect(result.total).toStrictEqual({
+          fiat: '100.5',
+          usd: '100.5',
+        });
+      },
+    );
 
     it('returns total using fiatPaymentAmount when fiat strategy is present', () => {
       const fiatQuote: TransactionPayQuote<unknown> = {

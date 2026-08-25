@@ -2,6 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import { hasTransactionType } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -19,6 +20,7 @@ import {
   HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
   PERPS_DEPOSIT_TYPES,
+  RELAY_EXACT_INPUT_DEPOSIT_TYPES,
   USDC_DECIMALS,
   PaymentOverride,
 } from '../../constants.js';
@@ -303,17 +305,16 @@ async function getSingleQuote(
   );
 
   try {
-    // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
-    // and we show them how much they'll receive after fees.
-    // For regular flows with a target amount, use EXPECTED_OUTPUT, except
-    // HyperCore deposits, which need a guaranteed amount (see below).
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    const useExactInput = isMaxAmount || request.isPostQuote;
+    // Source-driven flows use EXACT_INPUT so the amount the user enters is the
+    // total sent and the destination receives that amount minus fees.
+    const useExactInput =
+      (isMaxAmount ?? false) ||
+      (request.isPostQuote ?? false) ||
+      isExactInputDeposit(transaction);
 
-    // HyperCore perps deposits fund an order that requires the full target as
-    // margin, so the delivered amount must be guaranteed rather than expected.
-    // EXPECTED_OUTPUT only guarantees `target * (1 - slippage)`, which leaves
-    // the follow-on order short and it fails on insufficient margin.
+    // A HyperCore deposit followed by an order requires the full target as
+    // margin, so the delivered amount must be guaranteed. Plain Perps deposits
+    // use EXACT_INPUT above, while perpsDepositAndOrder reaches this exception.
     const useExactOutput = !useExactInput && isHypercoreDeposit(request);
 
     const useExecute =
@@ -613,6 +614,20 @@ async function processMoneyAccountPostQuote(
 }
 
 /**
+ * Whether the transaction is a plain Perps or Predict deposit whose entered
+ * amount represents the total source amount sent.
+ *
+ * Deposit-and-order flows are excluded because the follow-on order requires a
+ * guaranteed target amount.
+ *
+ * @param transaction - Parent transaction metadata.
+ * @returns True when the deposit should use exact-input semantics.
+ */
+function isExactInputDeposit(transaction: TransactionMeta): boolean {
+  return hasTransactionType(transaction, RELAY_EXACT_INPUT_DEPOSIT_TYPES);
+}
+
+/**
  * Whether the quote deposits into HyperCore USDC.
  *
  * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
@@ -831,8 +846,9 @@ function calculateDustUsd(quote: RelayQuote, request: QuoteRequest): BigNumber {
 
   const targetUsdRate = new BigNumber(amountUsd).dividedBy(amountFormatted);
 
-  const dustRaw = new BigNumber(minimumAmount).minus(
-    request.targetAmountMinimum,
+  const dustRaw = BigNumber.maximum(
+    new BigNumber(minimumAmount).minus(request.targetAmountMinimum),
+    0,
   );
 
   return dustRaw.shiftedBy(-targetDecimals).multipliedBy(targetUsdRate);
