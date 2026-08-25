@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: auto-add networks from `config-registry` ([#9879](https://github.com/MetaMask/core/pull/9879))
+
 ### Changed
 
 - Bump `@metamask/passkey-controller` from `^3.0.0` to `^3.1.0`. ([#9952](https://github.com/MetaMask/core/pull/9952))

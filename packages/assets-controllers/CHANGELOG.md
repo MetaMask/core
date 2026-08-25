@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: auto-add networks from `config-registry` ([#9879](https://github.com/MetaMask/core/pull/9879))
+
 ### Changed
 
 - Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
