@@ -1107,7 +1107,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       if (dex !== null) {
         const meta = await this.#getCachedMeta({ dexName: dex });
-        return meta.universe.some((market) => market.name === symbol)
+        return meta.universe.some((market) => market.name === params.symbol)
           ? HYPERLIQUID_NO_STRATEGY_CAPABILITIES
           : {
               status: 'unavailable',

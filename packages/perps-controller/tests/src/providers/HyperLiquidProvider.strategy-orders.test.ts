@@ -2524,7 +2524,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         info: {
           meta: jest.fn().mockResolvedValue({
-            universe: [{ name: 'TSLA', szDecimals: 3, maxLeverage: 20 }],
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
           }),
         },
       });
@@ -2535,6 +2535,22 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: [],
+      });
+    });
+
+    it('reports an unknown HIP-3 market as unavailable', async () => {
+      useStrategyClients({
+        info: {
+          meta: jest.fn().mockResolvedValue({ universe: [] }),
+        },
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
       });
     });
 
