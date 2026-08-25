@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports explicit `providers`, selected-provider (UB2) context, and headless auto-select / restrict paths, including `moneyHeadlessAllProviders` widening with allowlist pick-survivor intersection.
   - Request-only by default (`updateState` unset/false): does not mutate Buy `paymentMethods.data` / `.selected`.
   - Fans out per contributing provider, dedupes by canonical payment id, and merges collision metadata (conservative delay, best score, deterministic name/icon).
+  - Returns a single provider's payment-method list unchanged; collision merging applies only to multi-provider fan-out.
   - Partial provider failures still return methods from successful fetches.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 

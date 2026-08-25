@@ -7374,6 +7374,117 @@ describe('RampsController', () => {
       );
     });
 
+    it('selects the first method when state and options have no preferred selection', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], moonpay),
+              paymentMethods: createResourceState([], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [cardMethod, applePayMethod] }),
+          );
+
+          const result = await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+
+          expect(result.selected).toStrictEqual(cardMethod);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            cardMethod,
+          );
+        },
+      );
+    });
+
+    it('selects the first method when the preferred option is unavailable', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], moonpay),
+              paymentMethods: createResourceState([], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [cardMethod, applePayMethod] }),
+          );
+
+          const result = await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+            preferPaymentMethodId: '/payments/missing',
+          });
+
+          expect(result.selected).toStrictEqual(cardMethod);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            cardMethod,
+          );
+        },
+      );
+    });
+
+    it('does not write a successful result when the selected provider is missing', async () => {
+      const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, depositToken),
+              providers: createResourceState([moonpay], null),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [cardMethod] }),
+          );
+
+          await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            providers: [MOONPAY],
+            updateState: true,
+          });
+
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            buySelectedMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            buySelectedMethod,
+          );
+        },
+      );
+    });
+
     it('does not let an older stateful request update after the selected provider changes', async () => {
       const moonpay = buildProvider(MOONPAY, 'aggregator', [DEPOSIT_ASSET]);
       const revolut = buildProvider(REVOLUT, 'aggregator', [DEPOSIT_ASSET]);
@@ -7911,6 +8022,43 @@ describe('RampsController', () => {
           });
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+        },
+      );
+    });
+
+    it('does not clear state for an empty-provider result when the selected token is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(tokenCatalog, null),
+              providers: createResourceState([], null),
+              paymentMethods: createResourceState(
+                [buySelectedMethod],
+                buySelectedMethod,
+              ),
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getPaymentMethodsForContext({
+            assetId: DEPOSIT_ASSET,
+            region: 'us-ca',
+            updateState: true,
+          });
+
+          expect(result).toStrictEqual({
+            methods: [],
+            selected: null,
+            providerIds: [],
+          });
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            buySelectedMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            buySelectedMethod,
+          );
         },
       );
     });

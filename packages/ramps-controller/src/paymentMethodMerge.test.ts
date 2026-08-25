@@ -40,6 +40,83 @@ describe('isMoreConservativeDelay', () => {
 });
 
 describe('mergePaymentMethodsById', () => {
+  it('returns the same array and row references for a single list', () => {
+    const method = card();
+    const list = [method];
+
+    const merged = mergePaymentMethodsById([list]);
+
+    expect(merged).toBe(list);
+    expect(merged[0]).toBe(method);
+  });
+
+  it('preserves order, length, and duplicate ids in a single list', () => {
+    const list = [
+      card({ name: 'First Card', score: 80 }),
+      card({ name: 'Second Card', score: 95 }),
+      venmo(),
+    ];
+
+    const merged = mergePaymentMethodsById([list]);
+
+    expect(merged).toHaveLength(3);
+    expect(merged.map((method) => method.id)).toStrictEqual([
+      '/payments/debit-credit-card',
+      '/payments/debit-credit-card',
+      '/payments/venmo',
+    ]);
+    expect(merged.map((method) => method.score)).toStrictEqual([80, 95, 70]);
+  });
+
+  it('does not reorder a single list of unique ids', () => {
+    const list = [venmo(), card()];
+
+    const merged = mergePaymentMethodsById([list]);
+
+    expect(merged.map((method) => method.id)).toStrictEqual([
+      '/payments/venmo',
+      '/payments/debit-credit-card',
+    ]);
+  });
+
+  it('still merges and dedupes when given two or more lists', () => {
+    const firstCard = card({
+      delay: [5, 10],
+      name: 'Zeta Card',
+      icon: 'zeta',
+      score: 80,
+    });
+
+    const merged = mergePaymentMethodsById([
+      [firstCard],
+      [
+        card({
+          delay: [5, 60],
+          name: 'Alpha Card',
+          icon: 'alpha',
+          score: 95,
+        }),
+      ],
+    ]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).not.toBe(firstCard);
+    expect(merged[0]).toStrictEqual(
+      expect.objectContaining({
+        delay: [5, 60],
+        name: 'Alpha Card',
+        icon: 'alpha',
+        score: 95,
+      }),
+    );
+  });
+
+  it('returns a new empty array for zero lists', () => {
+    const merged = mergePaymentMethodsById([]);
+
+    expect(merged).toStrictEqual([]);
+  });
+
   it('dedupes by id and preserves first-seen order', () => {
     const merged = mergePaymentMethodsById([
       [card(), venmo()],
@@ -103,6 +180,12 @@ describe('mergePaymentMethodsById', () => {
   it('treats a single-element delay as both min and max', () => {
     expect(isMoreConservativeDelay([30], [10])).toBe(true);
     expect(isMoreConservativeDelay([], [1, 2])).toBe(false);
+  });
+
+  it('handles a sparse delay interval defensively', () => {
+    const sparseDelay = new Array<number>(1);
+
+    expect(isMoreConservativeDelay([1], sparseDelay)).toBe(true);
   });
 
   it('keeps first-seen optional fields when present', () => {

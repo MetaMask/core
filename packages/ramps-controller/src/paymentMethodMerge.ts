@@ -44,6 +44,10 @@ export function isMoreConservativeDelay(
 export function mergePaymentMethodsById(
   lists: PaymentMethod[][],
 ): PaymentMethod[] {
+  if (lists.length === 1) {
+    return lists[0];
+  }
+
   const byId = new Map<string, PaymentMethod>();
   const order: string[] = [];
 
