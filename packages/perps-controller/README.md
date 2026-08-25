@@ -21,7 +21,9 @@ Chase orders are client-managed post-only strategies. Use
 `controller.suspendChaseOrders()` when the creating client leaves the
 foreground; suspension stops repricing while leaving the latest child order
 resting. Cancel a Chase through `cancelOrder` with its stable strategy handle
-and `orderType: 'chase'`.
+and `orderType: 'chase'`. When using an aggregated provider, also pass the
+`providerId` returned with the Chase snapshot so cancellation routes to its
+owning venue.
 
 ## Contributing
 

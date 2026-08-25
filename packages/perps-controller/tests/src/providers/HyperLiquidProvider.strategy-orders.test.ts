@@ -1126,7 +1126,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not retry a non-retryable initial-placement rejection', async () => {
-      const order = jest.fn().mockRejectedValue(new Error('insufficient margin'));
+      const order = jest
+        .fn()
+        .mockRejectedValue(new Error('insufficient margin'));
       const { exchangeClient } = useStrategyClients({ exchange: { order } });
 
       const result = await provider.placeOrder({
@@ -1263,13 +1265,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
         cancels: [{ a: 1, o: 55 }],
       });
 
-      // The handle is gone, so a second cancel has nothing to act on.
+      // Retrying a completed termination is idempotent. Mobile can receive a
+      // stale lifecycle snapshot while the first request is settling.
       const second = await provider.cancelOrder({
         orderId: placed.orderId,
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(second.success).toBe(false);
+      expect(second.success).toBe(true);
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('deduplicates concurrent termination of the same Chase', async () => {
+      const cancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+      useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested), cancel },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+
+      const first = provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+      const second = provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      const results = await Promise.all([first, second]);
+
+      expect(results).toStrictEqual([
+        { success: true, orderId: placed.orderId },
+        { success: true, orderId: placed.orderId },
+      ]);
+      expect(cancel).toHaveBeenCalledTimes(1);
     });
 
     it('stops the owning session when its child is cancelled directly', async () => {
@@ -1294,14 +1331,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const orderStarted = new Promise<void>((resolve) => {
         notifyOrderStarted = resolve;
       });
-      const order = jest.fn().mockImplementation(
-        async () => {
-          notifyOrderStarted?.();
-          return await new Promise<typeof chaseRested>((resolve) => {
-            settleOrder = resolve;
-          });
-        },
-      );
+      const order = jest.fn().mockImplementation(async () => {
+        notifyOrderStarted?.();
+        return await new Promise<typeof chaseRested>((resolve) => {
+          settleOrder = resolve;
+        });
+      });
       useStrategyClients({ exchange: { order } });
 
       const admitted = provider.placeOrder({
@@ -2191,9 +2226,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(second.error).toBe(
-        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
-      );
+      expect(second).toStrictEqual({ success: true, orderId: placed.orderId });
     });
   });
 
@@ -2497,9 +2530,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(second.error).toBe(
-        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
-      );
+      expect(second).toStrictEqual({ success: true, orderId: placed.orderId });
     });
   });
 
@@ -2548,9 +2579,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(second.error).toBe(
-        PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
-      );
+      expect(second).toStrictEqual({ success: true, orderId: placed.orderId });
     });
 
     it('completes a chase cancel when the SDK throws that its child is gone', async () => {
@@ -3668,6 +3697,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Chase placement racing a disconnect', () => {
+    it('keeps placement blocked until every overlapping lifecycle owner exits', async () => {
+      let releaseDisconnect: (() => void) | undefined;
+      mockClientService.disconnect.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseDisconnect = resolve;
+          }),
+      );
+      const { exchangeClient } = useStrategyClients();
+
+      const disconnecting = provider.disconnect();
+      await provider.suspendChaseOrders();
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      releaseDisconnect?.();
+      await disconnecting;
+
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
     it('rejects a placement admitted after disconnect starts', async () => {
       const { exchangeClient } = useStrategyClients();
 

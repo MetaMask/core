@@ -122,9 +122,9 @@ export const ORDER_SLIPPAGE_CONFIG = {
  * No supported venue exposes a chase as an API action — HyperLiquid documents it
  * as running client-side — so the strategy is run here: a post-only order rests
  * one tick inside the spread and is cancelled and re-placed as the touch moves.
- * The poll floor and the repricing cap exist to keep a chase from turning into a
- * cancel/replace loop against a venue's rate limits. Protocol-agnostic — a
- * provider that gains a native chase ignores these entirely.
+ * The poll floor limits request frequency; callers may also set explicit
+ * duration or repricing caps. Protocol-agnostic — a provider that gains a
+ * native chase ignores these entirely.
  */
 export const CHASE_ORDER_CONFIG = {
   /** Maximum submissions used to survive a touch moving before an ALO rests. */

@@ -875,6 +875,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Each owns a pending timer, so disconnect has to stop them.
   readonly #chaseSessions = new Map<string, ChaseSession>();
 
+  // In-flight termination is keyed by stable strategy handle so retries share
+  // one venue mutation. Completed handles remain idempotent for this provider
+  // lifecycle and are cleared on disconnect.
+  readonly #chaseTerminations = new Map<string, Promise<CancelOrderResult>>();
+
+  readonly #terminatedChaseHandles = new Set<string>();
+
   // Chase placements that have reserved a slot against the venue's concurrency
   // cap but have not registered their session yet. Two round trips separate the
   // two, and a reservation is what keeps concurrent placements from both
@@ -896,9 +903,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   // background timer against a provider that has already been torn down.
   #chaseGeneration = 0;
 
-  // Set synchronously for lifecycle transitions so no placement can register a
-  // waiter after the transition has begun draining them.
-  #chasePlacementBlocked = false;
+  // Reference-counted because suspension and disconnect may overlap. One
+  // lifecycle owner finishing must not reopen placement while another still
+  // drains or tears down the provider.
+  #chasePlacementBlockers = 0;
 
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
@@ -4459,7 +4467,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         : await this.#placeScaleOrder(params, context);
     }
 
-    if (this.#chasePlacementBlocked) {
+    if (this.#chasePlacementBlockers > 0) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
     const generation = this.#chaseGeneration;
@@ -5796,7 +5804,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Snapshots after every in-flight replacement has settled.
    */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
-    this.#chasePlacementBlocked = true;
+    this.#chasePlacementBlockers += 1;
     this.#chaseGeneration += 1;
     try {
       await Promise.all([...this.#chasePlacementWaiters]);
@@ -5815,7 +5823,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       await Promise.all(replacements);
       return await this.getChaseOrders();
     } finally {
-      this.#chasePlacementBlocked = false;
+      this.#chasePlacementBlockers -= 1;
     }
   }
 
@@ -5965,6 +5973,36 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async #cancelChaseOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    if (this.#terminatedChaseHandles.has(params.orderId)) {
+      return { success: true, orderId: params.orderId };
+    }
+    const existingTermination = this.#chaseTerminations.get(params.orderId);
+    if (existingTermination) {
+      return await existingTermination;
+    }
+
+    const termination = this.#performChaseTermination(params);
+    this.#chaseTerminations.set(params.orderId, termination);
+    try {
+      const result = await termination;
+      if (result.success) {
+        this.#terminatedChaseHandles.add(params.orderId);
+      }
+      return result;
+    } finally {
+      this.#chaseTerminations.delete(params.orderId);
+    }
+  }
+
+  /**
+   * Own one Chase termination after concurrent callers have been deduplicated.
+   *
+   * @param params - Cancellation parameters with a stable Chase handle.
+   * @returns The single underlying termination result.
+   */
+  async #performChaseTermination(
     params: CancelOrderParams,
   ): Promise<CancelOrderResult> {
     const session = this.#chaseSessions.get(params.orderId);
@@ -11287,7 +11325,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async disconnect(): Promise<DisconnectResult> {
-    this.#chasePlacementBlocked = true;
+    this.#chasePlacementBlockers += 1;
     this.#chaseGeneration += 1;
     try {
       this.#deps.debugLogger.log('HyperLiquid: Disconnecting provider', {
@@ -11309,7 +11347,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       await Promise.all([...this.#chasePlacementWaiters]);
       await this.#chaseTickQueue;
+      await Promise.allSettled([...this.#chaseTerminations.values()]);
       this.#chaseSessions.clear();
+      this.#chaseTerminations.clear();
+      this.#terminatedChaseHandles.clear();
       this.#scaleOrderGroups.clear();
 
       // Clear fee cache
@@ -11382,7 +11423,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     } catch (error) {
       return createErrorResult(error, { success: false });
     } finally {
-      this.#chasePlacementBlocked = false;
+      this.#chasePlacementBlockers -= 1;
     }
   }
 

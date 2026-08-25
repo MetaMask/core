@@ -63,6 +63,20 @@ describe('hyperLiquidValidation - strategy order types', () => {
         expect(isTriggerOrderType(orderType)).toBe(false);
       },
     );
+
+    it.each([0.5, 9999.5])(
+      'accepts a fractional %s bps max distance below the upper boundary',
+      (chaseMaxDistanceBps) => {
+        expect(
+          validateOrderParams({
+            coin: 'ETH',
+            size: '1',
+            orderType: 'chase',
+            chaseMaxDistanceBps,
+          }),
+        ).toStrictEqual({ isValid: true });
+      },
+    );
   });
 
   describe('validateOrderParams - accepted strategies', () => {
@@ -334,14 +348,7 @@ describe('hyperLiquidValidation - strategy order types', () => {
       },
     );
 
-    it.each([
-      0,
-      -1,
-      10_000,
-      10_001,
-      Number.NaN,
-      Number.POSITIVE_INFINITY,
-    ])(
+    it.each([0, -1, 10_000, 10_001, Number.NaN, Number.POSITIVE_INFINITY])(
       'rejects an invalid %s bps max distance',
       (chaseMaxDistanceBps) => {
         expect(
