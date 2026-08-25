@@ -282,10 +282,18 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
+  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
   modify: jest.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -1213,7 +1221,12 @@ describe('HyperLiquidProvider', () => {
             order: jest.fn().mockResolvedValue({
               status: 'ok',
               response: {
-                data: { statuses: [{ resting: { oid: '999' } }] },
+                data: {
+                  statuses: [
+                    { resting: { oid: '999' } },
+                    { resting: { oid: '1000' } },
+                  ],
+                },
               },
             }),
           }),

@@ -25,6 +25,7 @@ import {
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_DISK_CACHE_MARKETS } from '../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
@@ -98,6 +99,7 @@ jest.mock('../../src/services/DepositService', () => ({
 
 // Mock MarketDataService as a class with instance methods
 const mockMarketDataServiceInstance = {
+  getMarketDataWithPrices: jest.fn(),
   getPositions: jest.fn(),
   getAccountState: jest.fn(),
   getMarkets: jest.fn(),
@@ -399,6 +401,7 @@ describe('PerpsController', () => {
     ).mockImplementation(() => mockFeatureFlagConfigurationServiceInstance);
 
     mockEligibilityServiceInstance.checkEligibility.mockResolvedValue(true);
+    mockMarketDataServiceInstance.getMarketDataWithPrices.mockResolvedValue([]);
     mockMarketDataServiceInstance.getPositions.mockResolvedValue([]);
     mockMarketDataServiceInstance.getAccountState.mockResolvedValue({
       spendableBalance: '10000',
@@ -1031,6 +1034,54 @@ describe('PerpsController', () => {
   });
 
   describe('action calls during initialization', () => {
+    it('discards an in-flight market preload after disconnect', async () => {
+      await controller.init();
+      const marketData = createDeferred<
+        {
+          symbol: string;
+          name: string;
+          price: string;
+          maxLeverage: string;
+          change24h: string;
+          change24hPercent: string;
+          volume: string;
+        }[]
+      >();
+      mockMarketDataServiceInstance.getMarketDataWithPrices.mockReturnValueOnce(
+        marketData.promise,
+      );
+
+      controller.startMarketDataPreload();
+      await Promise.resolve();
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).toHaveBeenCalledTimes(1);
+
+      await controller.disconnect();
+      marketData.resolve([
+        {
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50000',
+          maxLeverage: '50x',
+          change24h: '+100',
+          change24hPercent: '+0.2%',
+          volume: '$1B',
+        },
+      ]);
+      await marketData.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'],
+      ).toBeUndefined();
+      expect(mockInfrastructure.diskCache.setItem).not.toHaveBeenCalledWith(
+        PERPS_DISK_CACHE_MARKETS,
+        expect.any(String),
+      );
+    });
+
     it('does not restart market preloading while disconnect is in flight', async () => {
       await controller.init();
       const disconnectStarted = createDeferred<void>();

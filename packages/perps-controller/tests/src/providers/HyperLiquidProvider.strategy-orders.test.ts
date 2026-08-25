@@ -296,10 +296,18 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
  * @returns The mock exchange client.
  */
 const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
+  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
   modify: jest.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -756,6 +764,139 @@ describe('HyperLiquidProvider - strategy order types', () => {
         );
       },
     );
+
+    it('keeps existing protection when builder approval fails', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          take_profit_limit: { chargesMetamaskBuilderFee: true },
+        },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          approveBuilderFee: jest
+            .fn()
+            .mockRejectedValue(new Error('Builder approval failed')),
+        },
+        info: {
+          maxBuilderFee: jest.fn().mockResolvedValue(0),
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              oid: 456,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              orderType: 'Take Profit Limit',
+              children: [],
+            },
+          ]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+      });
+
+      expect(result.success).toBe(false);
+      expect(exchangeClient.approveBuilderFee).toHaveBeenCalled();
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('does not place replacements when cancellation is refused', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ error: 'Invalid nonce' }] },
+            },
+          }),
+        },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              oid: 456,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              orderType: 'Take Profit Limit',
+              children: [],
+            },
+          ]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      });
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('rejects a TP/SL batch with one failed placement status', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { resting: { oid: 123 } },
+                  { error: 'Rejected stop loss' },
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      });
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts one successful placement status per TP/SL order', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { resting: { oid: 123 } },
+                  { resting: { oid: 124 } },
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(2);
+    });
 
     it('omits the builder context from a configured limit order', async () => {
       provider = createTestProvider({

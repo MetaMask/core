@@ -1618,6 +1618,7 @@ export class PerpsController extends BaseController<
     }
     const { address } = evmAccount;
     const { isTestnet, hip3ConfigVersion } = this.state;
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const network = isTestnet ? 'testnet' : 'mainnet';
     const expectedDexes = this.#getStaticSnapshotDexes();
     if (!expectedDexes) {
@@ -1634,6 +1635,7 @@ export class PerpsController extends BaseController<
       }
 
       return (
+        this.#lifecycleGeneration === lifecycleGeneration &&
         this.state.activeProvider === 'hyperliquid' &&
         (!capturedActiveProvider ||
           this.activeProviderInstance === capturedActiveProvider) &&
@@ -1741,6 +1743,9 @@ export class PerpsController extends BaseController<
     const result = cloneUserDataSnapshot(snapshot);
     const timestamp = Date.now();
     const providerNetworkKey = buildProviderCacheKey('hyperliquid', isTestnet);
+    if (!isCurrent()) {
+      throw new Error('User data snapshot context changed');
+    }
     this.update((state) => {
       state.cachedUserDataByProvider[providerNetworkKey] = {
         positions: cachedSnapshot.positions,
@@ -1752,6 +1757,9 @@ export class PerpsController extends BaseController<
         dexes: expectedDexes,
       };
     });
+    if (!isCurrent()) {
+      throw new Error('User data snapshot context changed');
+    }
     this.#persistUserCacheToDisk();
     this.#debugLog('PerpsController: user cache snapshot written', {
       writtenKey: providerNetworkKey,
@@ -3973,6 +3981,8 @@ export class PerpsController extends BaseController<
 
   #userPreloadQueued = false;
 
+  #lifecycleGeneration = 0;
+
   readonly #userSnapshotRequests = new Map<
     string,
     { provider: ActivePerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
@@ -4254,7 +4264,13 @@ export class PerpsController extends BaseController<
       activeProvider: this.state.activeProvider,
       isTestnet: this.state.isTestnet,
       hip3ConfigVersion: this.state.hip3ConfigVersion,
+      lifecycleGeneration: this.#lifecycleGeneration,
     };
+    const isCurrent = (): boolean =>
+      this.#lifecycleGeneration === preloadContext.lifecycleGeneration &&
+      this.state.activeProvider === preloadContext.activeProvider &&
+      this.state.isTestnet === preloadContext.isTestnet &&
+      this.state.hip3ConfigVersion === preloadContext.hip3ConfigVersion;
     const staticSnapshotDexes = this.#getStaticSnapshotDexes();
 
     const now = Date.now();
@@ -4293,11 +4309,7 @@ export class PerpsController extends BaseController<
         markets: data.length,
       });
 
-      if (
-        this.state.activeProvider !== preloadContext.activeProvider ||
-        this.state.isTestnet !== preloadContext.isTestnet ||
-        this.state.hip3ConfigVersion !== preloadContext.hip3ConfigVersion
-      ) {
+      if (!isCurrent()) {
         traceData = {
           success: false,
           error: 'Global snapshot preload context changed',
@@ -4333,6 +4345,13 @@ export class PerpsController extends BaseController<
         data: PerpsMarketData[];
         timestamp: number;
       }[] = [];
+      if (!isCurrent()) {
+        traceData = {
+          success: false,
+          error: 'Global snapshot preload context changed',
+        };
+        return;
+      }
       if (
         this.state.activeProvider === 'aggregated' &&
         this.activeProviderInstance
@@ -4383,6 +4402,13 @@ export class PerpsController extends BaseController<
         });
       }
 
+      if (!isCurrent()) {
+        traceData = {
+          success: false,
+          error: 'Global snapshot preload context changed',
+        };
+        return;
+      }
       persistMarketEntriesToDisk(
         this.#options.infrastructure.diskCache,
         marketDiskEntries,
@@ -4450,6 +4476,7 @@ export class PerpsController extends BaseController<
 
     const userAddress = evmAccount.address;
     const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { activeProviderInstance } = this;
     const hyperliquidDexes = this.#getStaticSnapshotDexes();
     const isCurrent = (): boolean => {
@@ -4462,6 +4489,7 @@ export class PerpsController extends BaseController<
         return false;
       }
       return (
+        this.#lifecycleGeneration === lifecycleGeneration &&
         this.state.activeProvider === activeProvider &&
         this.activeProviderInstance === activeProviderInstance &&
         this.state.isTestnet === isTestnet &&
@@ -4546,6 +4574,9 @@ export class PerpsController extends BaseController<
 
       if (activeProvider === 'hyperliquid') {
         const snapshot = await this.getUserDataSnapshot();
+        if (!isCurrent()) {
+          throw new Error('User data preload context changed');
+        }
         this.#debugLog('PerpsController: User data preloaded', {
           positionCount: snapshot.positions.length,
           orderCount: snapshot.orders.length,
@@ -4613,6 +4644,9 @@ export class PerpsController extends BaseController<
           accountState.providerId ?? fallbackProviderId,
         ).accountState = accountState;
 
+        if (!isCurrent()) {
+          throw new Error('User data preload context changed');
+        }
         this.update((state) => {
           for (const [pid, data] of byProvider) {
             const key = buildProviderCacheKey(pid, isTestnet);
@@ -4637,10 +4671,16 @@ export class PerpsController extends BaseController<
           };
         });
 
+        if (!isCurrent()) {
+          throw new Error('User data preload context changed');
+        }
         this.#persistUserCacheToDisk();
       } else {
         // Single provider — store directly under its key
         const ts = Date.now();
+        if (!isCurrent()) {
+          throw new Error('User data preload context changed');
+        }
         this.update((state) => {
           state.cachedUserDataByProvider[providerNetworkKey] = {
             positions,
@@ -4656,6 +4696,9 @@ export class PerpsController extends BaseController<
           };
         });
 
+        if (!isCurrent()) {
+          throw new Error('User data preload context changed');
+        }
         this.#persistUserCacheToDisk();
       }
 
@@ -5649,6 +5692,7 @@ export class PerpsController extends BaseController<
    * @returns A promise that resolves when teardown finishes.
    */
   async #performDisconnect(): Promise<void> {
+    this.#lifecycleGeneration += 1;
     this.#debugLog(
       'PerpsController: Disconnecting provider to cleanup subscriptions',
       {

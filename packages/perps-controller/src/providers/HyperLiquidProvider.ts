@@ -2014,8 +2014,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Approve the standard builder fee once for the current account and network.
    * TWAP never calls this because its native action has no builder field.
+   *
+   * @param requireApproval - Throw when approval is unavailable or fails.
    */
-  async #ensureBuilderFeeSetup(): Promise<void> {
+  async #ensureBuilderFeeSetup(requireApproval = false): Promise<void> {
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const userAddress = await this.#walletService.getUserAddressWithDefault();
@@ -2025,28 +2027,34 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (!this.#builderFeeSetupPromise) {
-      this.#builderFeeSetupPromise = this.#ensureBuilderFeeApproval().catch(
-        (error) => {
-          this.#deps.debugLogger.log(
-            '[ensureReadyForTrading] Builder fee approval failed',
-            error,
-          );
-        },
-      );
+      this.#builderFeeSetupPromise = this.#ensureBuilderFeeApproval();
     }
 
     const pendingApproval = this.#builderFeeSetupPromise;
     try {
       await pendingApproval;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[ensureReadyForTrading] Builder fee approval failed',
+        error,
+      );
+      if (requireApproval) {
+        throw error;
+      }
     } finally {
       if (this.#builderFeeSetupPromise === pendingApproval) {
         this.#builderFeeSetupPromise = null;
       }
     }
+
+    if (requireApproval && !this.#builderFeeCheckCache.has(cacheKey)) {
+      throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+    }
   }
 
   async #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
+    requireBuilderFeeApproval?: boolean;
   }): Promise<void> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
@@ -2104,7 +2112,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (options.requiresBuilderFee) {
-      await this.#ensureBuilderFeeSetup();
+      await this.#ensureBuilderFeeSetup(options.requireBuilderFeeApproval);
     }
 
     this.#deps.debugLogger.log(
@@ -3506,6 +3514,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         { network },
       );
       await inFlightPromise;
+      const completedApproval = PerpsSigningCache.getBuilderFee(
+        network,
+        userAddress,
+      );
+      if (completedApproval?.attempted && completedApproval.success) {
+        this.#builderFeeCheckCache.set(cacheKey, true);
+        this.#approvedBuilderAddresses.add(
+          this.#getApprovedBuilderKey(network, userAddress, builderAddress),
+        );
+      }
       return;
     }
 
@@ -7662,18 +7680,76 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Existing-order cancellation cannot carry a builder context. Defer the
-      // builder approval until there is a replacement TP/SL batch to submit.
-      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
-
-      // Cancel existing TP/SL orders for this position
-      // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
-      // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
       const assetId = await this.#getAssetIdWithRepair({
         symbol,
         dexName,
       });
 
+      const fullSize =
+        TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
+          ? '0'
+          : formatHyperLiquidSize({
+              size: positionSize,
+              szDecimals: assetInfo.szDecimals,
+            });
+
+      // Partial TP/SL orders carry their own size; the rest cover the position.
+      // A partial size that rounds away at the asset precision is rejected
+      // rather than sent as '0', which the exchange reads as whole-position.
+      const resolveTpslSize = (tpslSize?: string): string =>
+        tpslSize === undefined
+          ? fullSize
+          : formatPartialTpslSize({
+              size: parseFloat(tpslSize),
+              szDecimals: assetInfo.szDecimals,
+            });
+
+      // HyperLiquid accepts one builder context for the whole TP/SL action.
+      // Position TP/SL has no parent policy to inherit, so resolve every
+      // included trigger and charge the batch when any child policy charges.
+      const feePolicyContexts = [
+        ...(takeProfitPrice
+          ? [
+              {
+                symbol,
+                isBuy: !isLong,
+                size: resolveTpslSize(takeProfitSize),
+                orderType: 'take_profit_limit',
+                price: takeProfitPrice,
+                triggerPrice: takeProfitPrice,
+                reduceOnly: true,
+              } satisfies OrderParams,
+            ]
+          : []),
+        ...(stopLossPrice
+          ? [
+              {
+                symbol,
+                isBuy: !isLong,
+                size: resolveTpslSize(stopLossSize),
+                orderType: 'stop_market',
+                triggerPrice: stopLossPrice,
+                reduceOnly: true,
+              } satisfies OrderParams,
+            ]
+          : []),
+      ];
+      const chargesMetamaskBuilderFee = feePolicyContexts.some(
+        (feePolicyContext) =>
+          this.#resolveOrderFeePolicy(feePolicyContext)
+            .chargesMetamaskBuilderFee,
+      );
+
+      // Replacement approval must finish before cancellation; otherwise an
+      // approval failure would remove the position's existing protection.
+      await this.#ensureReadyForTrading({
+        requiresBuilderFee: chargesMetamaskBuilderFee,
+        requireBuilderFeeApproval: chargesMetamaskBuilderFee,
+      });
+
+      // Cancel existing TP/SL orders for this position
+      // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
+      // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
       let cancelRequests: { a: number; o: number }[] = [];
 
       // Use atomic getter to prevent race condition between check and get
@@ -7716,7 +7792,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           { dex: dexName ?? 'main', isPartialTpsl },
         );
 
-        const orders = await infoClient.frontendOpenOrders({
+        const openOrders = await infoClient.frontendOpenOrders({
           user: userAddress,
           dex: dexName ?? undefined,
         });
@@ -7724,10 +7800,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         // Orders that belong to a pending parent order (normalTpsl children) are
         // also listed at the top level, so collect their IDs to exclude them:
         // they protect that pending order, not this position.
-        const childOrderIds = collectChildOrderIds(orders);
+        const childOrderIds = collectChildOrderIds(openOrders);
 
         // Filter using raw SDK response properties
-        const tpslOrders = orders.filter(
+        const tpslOrders = openOrders.filter(
           (order) =>
             order.coin === symbol &&
             order.reduceOnly &&
@@ -7787,31 +7863,20 @@ export class HyperLiquidProvider implements PerpsProvider {
           cancels: cancelRequests,
         });
         this.#deps.debugLogger.log('Cancel result:', cancelResult);
+        const cancelStatuses = cancelResult.response?.data?.statuses ?? [];
+        if (
+          cancelResult.status !== 'ok' ||
+          cancelStatuses.length !== cancelRequests.length ||
+          cancelStatuses.some(
+            (status) => classifyCancelStatus(status) === 'refused',
+          )
+        ) {
+          throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        }
       }
-
-      // assetId already validated above when building cancelRequests
 
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
-
-      const fullSize =
-        TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
-          ? '0'
-          : formatHyperLiquidSize({
-              size: positionSize,
-              szDecimals: assetInfo.szDecimals,
-            });
-
-      // Partial TP/SL orders carry their own size; the rest cover the position.
-      // A partial size that rounds away at the asset precision is rejected
-      // rather than sent as '0', which the exchange reads as whole-position.
-      const resolveTpslSize = (tpslSize?: string): string =>
-        tpslSize === undefined
-          ? fullSize
-          : formatPartialTpslSize({
-              size: parseFloat(tpslSize),
-              szDecimals: assetInfo.szDecimals,
-            });
 
       // Take Profit order
       if (takeProfitPrice) {
@@ -7874,45 +7939,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // HyperLiquid accepts one builder context for the whole TP/SL action.
-      // Position TP/SL has no parent policy to inherit, so resolve every
-      // included trigger and charge the batch when any child policy charges.
-      const feePolicyContexts = [
-        ...(takeProfitPrice
-          ? [
-              {
-                symbol,
-                isBuy: !isLong,
-                size: resolveTpslSize(takeProfitSize),
-                orderType: 'take_profit_limit',
-                price: takeProfitPrice,
-                triggerPrice: takeProfitPrice,
-                reduceOnly: true,
-              } satisfies OrderParams,
-            ]
-          : []),
-        ...(stopLossPrice
-          ? [
-              {
-                symbol,
-                isBuy: !isLong,
-                size: resolveTpslSize(stopLossSize),
-                orderType: 'stop_market',
-                triggerPrice: stopLossPrice,
-                reduceOnly: true,
-              } satisfies OrderParams,
-            ]
-          : []),
-      ];
-      const chargesMetamaskBuilderFee = feePolicyContexts.some(
-        (feePolicyContext) =>
-          this.#resolveOrderFeePolicy(feePolicyContext)
-            .chargesMetamaskBuilderFee,
-      );
-      if (chargesMetamaskBuilderFee) {
-        await this.#ensureReadyForTrading({ requiresBuilderFee: true });
-      }
-
       // Submit via SDK exchange client. Position-bound TP/SL uses 'positionTpsl';
       // partial TP/SL must be standalone reduce-only triggers ('na'), since a
       // position-bound TP/SL always closes the whole position.
@@ -7924,8 +7950,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         }),
       });
 
-      if (result.status !== 'ok') {
-        throw new Error(`TP/SL update failed: ${JSON.stringify(result)}`);
+      const placementStatuses = result.response?.data?.statuses ?? [];
+      if (
+        result.status !== 'ok' ||
+        placementStatuses.length !== orders.length ||
+        placementStatuses.some(
+          (status) => this.#readOrderIdFromStatus(status) === undefined,
+        )
+      ) {
+        throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
       }
 
       return {

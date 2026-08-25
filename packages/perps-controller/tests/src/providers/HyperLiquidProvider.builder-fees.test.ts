@@ -532,10 +532,18 @@ describe('HyperLiquidProvider', () => {
       );
 
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({
-        order: jest.fn().mockResolvedValue({
-          status: 'ok',
-          response: { data: { statuses: [{ resting: { oid: '123' } }] } },
-        }),
+        order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+          Promise.resolve({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: request.orders.map((_order, index) => ({
+                  resting: { oid: 123 + index },
+                })),
+              },
+            },
+          }),
+        ),
         modify: jest.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -1053,8 +1061,6 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.updatePositionTPSL(updateParams);
 
-      expect(result.success).toBe(true);
-
       // Verify builder fee approval was called
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
@@ -1081,6 +1087,7 @@ describe('HyperLiquidProvider', () => {
           },
         }),
       );
+      expect(result.success).toBe(true);
     });
 
     it('skips referral setup when user is the builder', async () => {
