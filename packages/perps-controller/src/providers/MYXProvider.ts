@@ -163,6 +163,8 @@ export class MYXProvider implements PerpsProvider {
 
   #isDisconnected = false;
 
+  #disconnectGeneration = 0;
+
   // Ticker cache for price data
   readonly #tickersCache: Map<string, MYXTicker> = new Map();
 
@@ -308,15 +310,24 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async initialize(): Promise<InitializeResult> {
+    const disconnectGeneration = this.#disconnectGeneration;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Initializing...');
 
       // Fetch initial markets
       const pools = await this.#clientService.getMarkets();
+      if (disconnectGeneration !== this.#disconnectGeneration) {
+        const staleError = new MYXMarketMetadataStaleError();
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale initialization after disconnect',
+        );
+        return { success: false, error: staleError.message };
+      }
 
       // Filter to MYX-exclusive markets
       this.#poolsCache = filterMYXExclusiveMarkets(pools);
       this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
+      this.#isDisconnected = false;
 
       this.#deps.debugLogger.log('[MYXProvider] Initialized successfully', {
         totalPools: pools.length,
@@ -336,6 +347,7 @@ export class MYXProvider implements PerpsProvider {
 
   async disconnect(): Promise<DisconnectResult> {
     this.#isDisconnected = true;
+    this.#disconnectGeneration += 1;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Disconnecting...');
 

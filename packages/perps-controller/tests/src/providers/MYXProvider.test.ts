@@ -232,6 +232,46 @@ describe('MYXProvider', () => {
       });
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
+
+    it('restores capability discovery after disconnect', async () => {
+      const pools = [makePool()];
+      await provider.disconnect();
+      mockClientService.getMarkets.mockResolvedValue(pools);
+
+      await expect(provider.initialize()).resolves.toStrictEqual({
+        success: true,
+      });
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'myx',
+        supportedStrategies: [],
+      });
+      expect(mockClientService.getMarkets).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not restore capability discovery when initialization overlaps disconnect', async () => {
+      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
+      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
+        resolveMarkets = resolve;
+      });
+      mockClientService.getMarkets.mockReturnValueOnce(pendingMarkets);
+
+      const initialization = provider.initialize();
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+
+      await expect(initialization).resolves.toMatchObject({ success: false });
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
+      });
+      expect(mockClientService.getMarkets).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('disconnect', () => {
