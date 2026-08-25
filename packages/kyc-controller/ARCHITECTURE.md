@@ -264,10 +264,14 @@ stateDiagram-v2
 > (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
 > `true`.
 
-> **`initialize` never tears down an active flow.** If `phase` is already one of
-> the in-progress phases (`session`, `check`, `auth`, `form`, `submit`), a
-> repeat `initialize` is a **no-op** — it will not create a new session, clear
+> **`initialize` and `createVendorCustomer` never tear down an active flow.** If
+> `phase` is already one of the in-progress phases (`session`, `check`, `auth`,
+> `form`, `submit`), a repeat `initialize` or `createVendorCustomer` is a
+> **no-op** — it will not create a new session, switch `activeVendor`, clear
 > tokens, or reset `activeProduct`. Call `reset()` first to start over.
+> Check/Auth `complete` messages are also ignored unless `activeVendor` is
+> `moonpay`, so a still-mounted MoonPay frame cannot recapture
+> `moonpayCustomerId` under another vendor.
 
 > **`reset()` is callable from any phase and supersedes in-flight work.** In
 > addition to returning `phase` to `idle` (and clearing tokens, `activeProduct`,

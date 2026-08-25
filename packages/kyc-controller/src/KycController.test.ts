@@ -174,20 +174,30 @@ describe('KycController', () => {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['1'],
               activeProduct: 'ramps',
+              activeVendor: 'moonpay',
+              moonpayCustomerId: 'cust-1',
             },
           },
         },
         async ({ controller, handlers }) => {
-          await controller.initialize({ email: 'other@b.co', product: 'card' });
+          await controller.initialize({
+            email: 'other@b.co',
+            product: 'card',
+            vendor: 'iron',
+          });
 
           // A repeat initialize mid-flow must be a no-op: no new session, no
-          // token/phase teardown, and no clobbering of the active product.
+          // token/phase teardown, no vendor switch, and no clobbering of the
+          // active product.
           expect(handlers.createSession).not.toHaveBeenCalled();
           expect(handlers.getGeoCountry).not.toHaveBeenCalled();
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('check');
           expect(controller.state.sessionToken).toBe('live-session');
           expect(controller.state.activeProduct).toBe('ramps');
           expect(controller.state.email).toBe('a@b.co');
+          expect(controller.state.activeVendor).toBe('moonpay');
+          expect(controller.state.moonpayCustomerId).toBe('cust-1');
         },
       );
     });
@@ -690,6 +700,40 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('done');
           expect(controller.state.accessToken).toBeNull();
           expect(controller.state.moonpayCustomerId).toBeNull();
+        },
+      );
+    });
+
+    it('ignores a Check complete when the active vendor is not MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              phase: 'check',
+              activeVendor: 'iron',
+              sessionToken: 'tok',
+            },
+          },
+        },
+        async ({ controller }) => {
+          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const result = await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: {
+                status: 'active',
+                credentials: envelope,
+                customer: { id: 'cust-late' },
+              },
+            },
+          });
+
+          expect(result).toStrictEqual({});
+          expect(controller.state.phase).toBe('check');
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
     });
@@ -1378,6 +1422,19 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
+
+    it('returns null when a MoonPay id is present under another vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'iron' },
+          },
+        },
+        ({ controller }) => {
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -2295,6 +2352,39 @@ describe('KycController', () => {
         },
       );
     });
+
+    it.each(['session', 'check', 'auth', 'form', 'submit'] as const)(
+      'does not switch vendor or drop the MoonPay id while phase is %s',
+      async (phase) => {
+        await withController(
+          {
+            options: {
+              state: {
+                phase,
+                activeVendor: 'moonpay',
+                moonpayCustomerId: 'cust-1',
+                sessionToken: 'tok',
+              },
+            },
+          },
+          async ({ controller, handlers }) => {
+            await controller.createVendorCustomer({
+              vendor: 'iron',
+              email: 'a@b.co',
+            });
+
+            expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+            expect(controller.state.activeVendor).toBe('moonpay');
+            expect(controller.state.moonpayCustomerId).toBe('cust-1');
+            expect(controller.state.phase).toBe(phase);
+            expect(controller.getCustomerIdentity()).toStrictEqual({
+              vendor: 'moonpay',
+              id: 'cust-1',
+            });
+          },
+        );
+      },
+    );
 
     it('stamps the active vendor onto the terms acceptance', async () => {
       await withController(

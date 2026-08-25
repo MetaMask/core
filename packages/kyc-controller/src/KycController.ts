@@ -795,6 +795,10 @@ export class KycController extends BaseController<
    * vendor. Exposed so a consumer can ensure the customer exists before
    * showing T&C screens independently of {@link initialize}.
    *
+   * A call while a session flow is already in progress is a no-op — matching
+   * {@link initialize} — so a vendor switch cannot leave Check/Auth frames
+   * attached to the wrong vendor. Call {@link reset} first to start over.
+   *
    * @param params - The parameters.
    * @param params.vendor - Identity vendor for the customer.
    * @param params.email - Email for the vendor customer.
@@ -803,6 +807,10 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     email: string;
   }): Promise<void> {
+    if (IN_PROGRESS_PHASES.includes(this.state.phase)) {
+      return;
+    }
+
     this.#applyUpdate((state) => {
       state.email = params.email;
       // A MoonPay-issued customer id must not survive a switch to another
@@ -1168,10 +1176,11 @@ export class KycController extends BaseController<
 
     const channelId = payload.meta?.channelId;
 
-    // Only honor a Check/Auth `complete` for the frame the flow is currently
-    // waiting on. This drops stale or duplicate messages — e.g. a late post
-    // after `reset()` (phase `idle`) or after the flow already advanced past
-    // this frame — so they cannot resurrect tokens or rewind `phase` on a
+    // Only honor a Check/Auth `complete` for the MoonPay frame the flow is
+    // currently waiting on. This drops stale or duplicate messages — e.g. a
+    // late post after `reset()` (phase `idle`), after the flow already
+    // advanced past this frame, or after a vendor switch — so they cannot
+    // resurrect tokens, rewind `phase`, or recapture `moonpayCustomerId` on a
     // controller that has moved on. Frame messages are external input and,
     // unlike the async steps, are not covered by the `#generation` guard.
     let expectedPhase: KycPhase | null = null;
@@ -1180,7 +1189,11 @@ export class KycController extends BaseController<
     } else if (channelId === CHANNEL_AUTH) {
       expectedPhase = 'auth';
     }
-    if (!expectedPhase || this.state.phase !== expectedPhase) {
+    if (
+      !expectedPhase ||
+      this.state.phase !== expectedPhase ||
+      this.state.activeVendor !== 'moonpay'
+    ) {
       return {};
     }
 
@@ -1305,12 +1318,14 @@ export class KycController extends BaseController<
     }
 
     // Re-entry protection lives at the frame boundary: `handleFrameMessage`
-    // only honors a Check/Auth `complete` while `phase` matches, and both
-    // outcome handlers move `phase` to `form` before awaiting this method. A
-    // duplicate or late `complete` therefore lands after the phase moved on and
-    // is dropped before it can start a second continuation. Any writes here are
-    // additionally guarded by `#generation` (see `checkKycRequired` /
-    // `startSumSub`) so a `reset()` mid-continuation cannot corrupt state.
+    // only honors a Check/Auth `complete` while `phase` matches and
+    // `activeVendor` is MoonPay, and both outcome handlers move `phase` to
+    // `form` before awaiting this method. A duplicate, late, or cross-vendor
+    // `complete` therefore lands after the phase moved on (or on the wrong
+    // vendor) and is dropped before it can start a second continuation. Any
+    // writes here are additionally guarded by `#generation` (see
+    // `checkKycRequired` / `startSumSub`) so a `reset()` mid-continuation
+    // cannot corrupt state.
     const kycRequired = await this.checkKycRequired({ product });
     if (!kycRequired) {
       return;
@@ -1453,7 +1468,8 @@ export class KycController extends BaseController<
   /**
    * Returns the vendor-scoped identity for the currently authenticated
    * customer, or `null` when the flow has not yet captured a vendor customer
-   * id (before authentication or after {@link reset}).
+   * id (before authentication or after {@link reset}), or when a MoonPay id
+   * is present under a different `activeVendor`.
    *
    * Exposed so consumers (e.g. ramps autoramp creation) can attach the vendor
    * customer id to downstream calls without reading the full KYC state, which
@@ -1464,10 +1480,14 @@ export class KycController extends BaseController<
    */
   getCustomerIdentity(): KycCustomerIdentity | null {
     const { moonpayCustomerId, activeVendor } = this.state;
-    if (!moonpayCustomerId) {
+    // `moonpayCustomerId` is issued only by MoonPay Check/Auth frames. Never
+    // pair it with another vendor, even if a switch left the fields out of
+    // sync, so consumers cannot attach a MoonPay id to an Iron (or other)
+    // downstream call.
+    if (!moonpayCustomerId || activeVendor !== 'moonpay') {
       return null;
     }
-    return { vendor: activeVendor, id: moonpayCustomerId };
+    return { vendor: 'moonpay', id: moonpayCustomerId };
   }
 
   /**
