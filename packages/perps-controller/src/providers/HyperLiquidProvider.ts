@@ -739,10 +739,9 @@ type HyperLiquidOrderFeePolicy = Readonly<{
   chargesMetamaskBuilderFee: boolean;
 }>;
 
-type HyperLiquidOrderFeeContext = Readonly<{
-  orderType: OrderType;
-  symbol: string;
-}>;
+type HyperLiquidOrderFeeContext =
+  | Readonly<OrderParams>
+  | Readonly<FeeCalculationParams>;
 
 type HyperLiquidOrderFeeConfiguration = Readonly<
   Record<OrderType, HyperLiquidOrderFeePolicy>
@@ -844,6 +843,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     Promise<MetaResponse>
   >();
 
+  // Sticky for this instance. PerpsController discards disconnected providers
+  // during initialization; direct callers must call initialize() before reuse.
   #isDisconnected = false;
 
   #disconnectDepth = 0;
@@ -5008,10 +5009,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Kept after validation so an invalid strategy order never triggers the
     // signature prompts in trading setup — same ordering as `placeOrder`.
-    const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy({
-      orderType: params.orderType,
-      symbol: params.symbol,
-    });
+    const { chargesMetamaskBuilderFee } =
+      resolveHyperLiquidOrderFeePolicy(params);
     await this.#ensureReadyForTrading(chargesMetamaskBuilderFee);
 
     const assetId = await this.#getAssetIdWithRepair({

@@ -653,10 +653,12 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
     return this.#getDefaultProvider().validateDeposit(params);
   }
 
-  async validateOrder(
-    params: OrderParams,
+  async validateOrder<const Params extends OrderParams>(
+    params: RoutedOrderParams<Params>,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const [, provider] = isStrategyOrderType(params.orderType)
+      ? this.#getRequiredProvider(params.providerId)
+      : this.#getProviderOrDefault(params.providerId);
     return provider.validateOrder(params);
   }
 

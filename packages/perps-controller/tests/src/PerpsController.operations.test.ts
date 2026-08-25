@@ -32,6 +32,7 @@ import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
+import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 import type {
   GetAvailableDexsParams,
   PerpsProvider,
@@ -1006,41 +1007,48 @@ describe('PerpsController', () => {
       expect(directProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
 
-    it('rejects strategy placement that conflicts with the resolved provider', async () => {
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      controller.testUpdate((state) => {
-        state.activeProvider = 'myx';
-      });
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects %s placement that conflicts with the resolved provider',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.testUpdate((state) => {
+          state.activeProvider = 'myx';
+        });
 
-      await expect(
-        controller.placeOrder({
-          symbol: 'RHEA',
-          providerId: 'myx',
-          orderType: 'twap',
-          isBuy: true,
-          size: '1',
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
-    });
+        await expect(
+          controller.placeOrder({
+            symbol: 'RHEA',
+            providerId: 'myx',
+            orderType,
+            isBuy: true,
+            size: '1',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+      },
+    );
 
-    it('rejects strategy placement without an explicit provider route', async () => {
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await expect(
-        controller.placeOrder({
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects %s placement without an explicit provider route',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const params = {
           symbol: 'ETH',
-          orderType: 'twap',
+          orderType,
           isBuy: true,
           size: '1',
-          // @ts-expect-error Routed strategy placement requires providerId.
           providerId: undefined,
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
-    });
+        };
+
+        await expect(
+          // @ts-expect-error Routed strategy placement requires providerId.
+          controller.placeOrder(params),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+      },
+    );
 
     it('preserves legacy placement routing for ordinary orders', async () => {
       markControllerAsInitialized();
@@ -1069,39 +1077,93 @@ describe('PerpsController', () => {
       });
     });
 
-    it('rejects strategy cancellation that conflicts with the resolved provider', async () => {
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      controller.testUpdate((state) => {
-        state.activeProvider = 'myx';
-      });
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects %s cancellation that conflicts with the resolved provider',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.testUpdate((state) => {
+          state.activeProvider = 'myx';
+        });
 
-      await expect(
-        controller.cancelOrder({
-          orderId: 'strategy-123',
-          symbol: 'RHEA',
-          providerId: 'myx',
-          orderType: 'twap',
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
-    });
+        await expect(
+          controller.cancelOrder({
+            orderId: 'strategy-123',
+            symbol: 'RHEA',
+            providerId: 'myx',
+            orderType,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
 
-    it('rejects strategy cancellation without an explicit provider route', async () => {
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await expect(
-        controller.cancelOrder({
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects %s cancellation without an explicit provider route',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const params = {
           orderId: 'strategy-123',
           symbol: 'ETH',
-          orderType: 'twap',
-          // @ts-expect-error Routed strategy cancellation requires providerId.
+          orderType,
           providerId: undefined,
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
-    });
+        };
+
+        await expect(
+          // @ts-expect-error Routed strategy cancellation requires providerId.
+          controller.cancelOrder(params),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects %s validation that conflicts with the resolved provider',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.testUpdate((state) => {
+          state.activeProvider = 'myx';
+        });
+
+        await expect(
+          controller.validateOrder({
+            symbol: 'RHEA',
+            providerId: 'myx',
+            orderType,
+            isBuy: true,
+            size: '1',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(
+          mockMarketDataServiceInstance.validateOrder,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects %s validation without an explicit provider route',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const params = {
+          symbol: 'ETH',
+          orderType,
+          isBuy: true,
+          size: '1',
+          providerId: undefined,
+        };
+
+        await expect(
+          // @ts-expect-error Routed strategy validation requires providerId.
+          controller.validateOrder(params),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(
+          mockMarketDataServiceInstance.validateOrder,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
     it('preserves legacy cancellation routing for ordinary orders', async () => {
       markControllerAsInitialized();
@@ -1205,41 +1267,48 @@ describe('PerpsController', () => {
       });
     });
 
-    it('rejects a strategy fee route that conflicts with the resolved provider', async () => {
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      controller.testUpdate((state) => {
-        state.activeProvider = 'myx';
-      });
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects a %s fee route that conflicts with the resolved provider',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.testUpdate((state) => {
+          state.activeProvider = 'myx';
+        });
 
-      await expect(
-        controller.calculateFees({
-          orderType: 'twap',
-          symbol: 'RHEA',
-          providerId: 'myx',
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(
-        mockMarketDataServiceInstance.calculateFees,
-      ).not.toHaveBeenCalled();
-    });
+        await expect(
+          controller.calculateFees({
+            orderType,
+            symbol: 'RHEA',
+            providerId: 'myx',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(
+          mockMarketDataServiceInstance.calculateFees,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
-    it('rejects a strategy fee quote without an explicit provider route', async () => {
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await expect(
-        controller.calculateFees({
-          orderType: 'twap',
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects a %s fee quote without an explicit provider route',
+      async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const params = {
+          orderType,
           symbol: 'ETH',
-          // @ts-expect-error Routed strategy fee quotes require providerId.
           providerId: undefined,
-        }),
-      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      expect(
-        mockMarketDataServiceInstance.calculateFees,
-      ).not.toHaveBeenCalled();
-    });
+        };
+
+        await expect(
+          // @ts-expect-error Routed strategy fee quotes require providerId.
+          controller.calculateFees(params),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(
+          mockMarketDataServiceInstance.calculateFees,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
     it('passes the cached subscription waiver status to the fee preview', async () => {
       const feeParams = {

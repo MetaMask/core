@@ -720,7 +720,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'twap',
         twapDuration: 30,
         twapRandomize: true,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(exchangeClient.twapOrder).toHaveBeenCalledWith({
@@ -743,7 +743,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'twap',
         twapDuration: 30,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result).toMatchObject({
         success: true,
@@ -759,7 +759,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'twap',
         twapDuration: 5,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(exchangeClient.twapOrder).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -785,7 +785,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'twap',
         twapDuration: 30,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Insufficient margin');
@@ -891,7 +891,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
       const submitted = exchangeClient.order.mock.calls[0][0];
@@ -913,7 +913,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       const sizes = submitted.orders.map((order: { s: string }) => order.s);
@@ -938,7 +938,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
         scaleSkew: 2,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       const sizes = submitted.orders.map((order: { s: string }) => order.s);
@@ -965,7 +965,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
         scaleSkew: 0.5,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       expect(
@@ -985,7 +985,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
         scaleSkew: 1,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       expect(
@@ -1004,7 +1004,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       submitted.orders.forEach((order: { t: unknown; b: boolean }) => {
@@ -1024,7 +1024,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(result.childOrderIds).toStrictEqual(['11', '22', '33']);
@@ -1049,7 +1049,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
     });
@@ -1071,7 +1071,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -1114,7 +1114,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const first = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -1168,7 +1168,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       expect(submitted.orders).toHaveLength(1);
@@ -1294,7 +1294,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         isBuy: false,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       // One tick below the best ask, mirroring the buy side.
@@ -1309,7 +1309,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(result.orderId).toMatch(/^chase-/u);
@@ -1431,7 +1431,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(
@@ -1447,7 +1447,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -1597,7 +1597,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const first = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -1641,7 +1641,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Rejections happen before any exchange call', () => {
-    it.each([
+    it.each<[string, Partial<OrderParams>]>([
       ['twap', { orderType: 'twap', twapDuration: 0 }],
       [
         'scale',
@@ -1664,7 +1664,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         const result = await provider.placeOrder({
           ...baseOrder,
           ...strategyParams,
-        } as OrderParams);
+        } satisfies OrderParams);
 
         expect(result.success).toBe(false);
         expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -1682,7 +1682,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'xyz:TSLA',
         orderType: 'twap',
         twapDuration: 30,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(
@@ -1699,7 +1699,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.placeOrder({
         ...baseOrder,
         orderType: 'market',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -1713,7 +1713,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'limit',
         price: '2900',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -1773,7 +1773,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(1000);
 
@@ -1889,7 +1889,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(3000);
 
@@ -2044,7 +2044,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(5000);
 
@@ -2065,7 +2065,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
         chaseMaxRepricings: 1,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(5000);
 
@@ -2085,7 +2085,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
         chaseMaxDurationMs: 2000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(10_000);
 
@@ -2166,7 +2166,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await provider.disconnect();
       await jest.advanceTimersByTimeAsync(5000);
@@ -2204,7 +2204,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(result.childOrderIds).toStrictEqual(['11', '33']);
@@ -2223,7 +2223,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await provider.cancelOrder({
         orderId: placed.orderId,
@@ -2309,7 +2309,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -2393,7 +2393,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -2481,7 +2481,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -3677,7 +3677,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         usdAmount: String(HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd - 1),
         orderType: 'twap',
         twapDuration: 30,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result).toStrictEqual({
         isValid: false,
@@ -3693,7 +3693,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         usdAmount: String(HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd),
         orderType: 'twap',
         twapDuration: 30,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result).toStrictEqual({ isValid: true });
     });
@@ -3708,7 +3708,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 20,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(
@@ -3730,7 +3730,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 5,
         scaleSkew: 20,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(
@@ -3766,7 +3766,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 5,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -3782,7 +3782,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
         scaleSkew: 0,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
@@ -3796,7 +3796,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         usdAmount: '20',
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result).toStrictEqual({ isValid: true });
     });
@@ -3837,7 +3837,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       // Tick 1 throws on the book read; tick 2 must still happen and re-price.
       await jest.advanceTimersByTimeAsync(2000);
@@ -3876,7 +3876,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(5000);
 
@@ -3936,7 +3936,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -4024,7 +4024,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -4061,7 +4061,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -4127,7 +4127,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       // Tick 1's cancel is refused, so no replacement may be placed — doing so
       // would double the position while the old order still rests.
@@ -4148,7 +4148,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
         const result = await provider.editOrder({
           orderId: '123',
-          newOrder: { ...baseOrder, orderType } as OrderParams,
+          newOrder: { ...baseOrder, orderType } satisfies OrderParams,
         });
 
         expect(result).toStrictEqual({
@@ -4176,7 +4176,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'scale',
         ...order,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       return { result, exchangeClient };
     };
@@ -4275,7 +4275,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMinPrice: '2000',
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       expect(
@@ -4336,7 +4336,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       const quotedFee = order.mock.calls[0][0].builder.f;
 
       // TradingService clears it as soon as placeOrder returns, which for a
@@ -4426,7 +4426,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(1000);
 
@@ -4486,7 +4486,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       expect(order.mock.calls[0][0].orders[0].s).toBe('1');
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -4536,7 +4536,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(5000);
 
@@ -4572,7 +4572,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reduceOnly: true,
         orderType: 'twap',
         twapDuration: 30,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(
@@ -4628,7 +4628,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       // Improving would cross, which a post-only order cannot do, so it joins
       // the bid instead of resting a tick above it.
@@ -4669,7 +4669,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       expect(order.mock.calls[0][0].orders[0].p).toBe('2999.1');
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -4701,14 +4701,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
         const result = await provider.placeOrder({
           ...baseOrder,
           orderType: 'chase',
-        } as OrderParams);
+        } satisfies OrderParams);
         expect(result.success).toBe(true);
       }
 
       const overflow = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
 
       expect(overflow.success).toBe(false);
       expect(overflow.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
@@ -4735,7 +4735,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         await provider.placeOrder({
           ...baseOrder,
           orderType: 'chase',
-        } as OrderParams);
+        } satisfies OrderParams);
       }
       (exchangeClient.updateLeverage as jest.Mock).mockClear();
 
@@ -4743,7 +4743,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         leverage: 5,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       // Refused before the shared preamble, which completes the signing setup
       // and applies leverage — neither should be spent on a request that was
@@ -4772,7 +4772,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           await provider.placeOrder({
             ...baseOrder,
             orderType: 'chase',
-          } as OrderParams),
+          } satisfies OrderParams),
         );
       }
 
@@ -4785,7 +4785,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const replacement = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
-      } as OrderParams);
+      } satisfies OrderParams);
       expect(replacement.success).toBe(true);
     });
   });
@@ -4874,7 +4874,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -4927,7 +4927,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(5000);
 
@@ -4966,7 +4966,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           provider.placeOrder({
             ...baseOrder,
             orderType: 'chase',
-          } as OrderParams),
+          } satisfies OrderParams),
         ),
       );
 
@@ -5056,7 +5056,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
 
       await jest.advanceTimersByTimeAsync(1000);
 
@@ -5146,7 +5146,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       await disconnected;
 
       return { placed, exchangeClient };
@@ -5251,7 +5251,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       await disconnected;
 
       // Nothing is signed: the check between the book read and the submission
@@ -5311,12 +5311,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       expect(order).toHaveBeenCalledTimes(2);
 
       await jest.advanceTimersByTimeAsync(5000);
@@ -5393,7 +5393,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         leverage: 5,
         chaseIntervalMs: 1000,
-      } as OrderParams);
+      } satisfies OrderParams);
       await disconnected;
 
       // The disconnect landed during the preamble, which is before the chase

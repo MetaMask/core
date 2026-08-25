@@ -27,6 +27,7 @@ import type {
   MaintenanceMarginParams,
   FeeCalculationParams,
   RoutedFeeCalculationParams,
+  RoutedOrderParams,
   FeeCalculationResult,
   OrderParams,
   ClosePositionParams,
@@ -1321,9 +1322,9 @@ export class MarketDataService {
    * @param options.context - The service context for dependencies.
    * @returns The result of the operation.
    */
-  async validateOrder(options: {
+  async validateOrder<const Params extends OrderParams>(options: {
     provider: ActivePerpsProvider;
-    params: OrderParams;
+    params: RoutedOrderParams<Params>;
     context: ServiceContext;
   }): Promise<{ isValid: boolean; error?: string }> {
     const { provider, params } = options;

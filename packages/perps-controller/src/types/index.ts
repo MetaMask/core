@@ -1814,6 +1814,7 @@ export type RoutedPerpsProvider = Omit<
   | 'routesOrdersByProviderId'
   | 'getOrderCapabilities'
   | 'placeOrder'
+  | 'validateOrder'
   | 'cancelOrder'
   | 'calculateFees'
 > & {
@@ -1824,6 +1825,9 @@ export type RoutedPerpsProvider = Omit<
   placeOrder<const Params extends OrderParams>(
     params: RoutedOrderParams<Params>,
   ): Promise<OrderResult>;
+  validateOrder<const Params extends OrderParams>(
+    params: RoutedOrderParams<Params>,
+  ): Promise<{ isValid: boolean; error?: string }>;
   cancelOrder<const Params extends CancelOrderParams>(
     params: RoutedCancelOrderParams<Params>,
   ): Promise<CancelOrderResult>;

@@ -4678,10 +4678,17 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns True if the condition is met.
    */
-  async validateOrder(
-    params: OrderParams,
+  async validateOrder<const Params extends OrderParams>(
+    params: RoutedOrderParams<Params>,
   ): Promise<{ isValid: boolean; error?: string }> {
     const provider = this.getActiveProvider();
+    if (
+      isStrategyOrderType(params.orderType) &&
+      (!params.providerId ||
+        this.#hasConflictingProviderRoute(params.providerId, provider))
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
     const context = this.#createServiceContext('validateOrder');
     return this.#marketDataService.validateOrder({ provider, params, context });
   }

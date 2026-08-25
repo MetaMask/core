@@ -170,6 +170,8 @@ export class MYXProvider implements PerpsProvider {
 
   #poolSymbolMap: Map<string, string> = new Map();
 
+  // Sticky for this instance. PerpsController discards disconnected providers
+  // during initialization; direct callers must call initialize() before reuse.
   #isDisconnected = false;
 
   #disconnectGeneration = 0;
