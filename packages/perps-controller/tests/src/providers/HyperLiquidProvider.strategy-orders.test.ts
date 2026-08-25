@@ -3157,6 +3157,54 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
+    it('does not reconnect when initialization overlaps a disconnect', async () => {
+      let startInitialize = (): void => undefined;
+      const initializeStarted = new Promise<void>((resolve): void => {
+        startInitialize = resolve;
+      });
+      let finishInitialize = (): void => undefined;
+      const pendingInitialize = new Promise<void>((resolve): void => {
+        finishInitialize = resolve;
+      });
+      let startClientDisconnect = (): void => undefined;
+      const clientDisconnectStarted = new Promise<void>((resolve): void => {
+        startClientDisconnect = resolve;
+      });
+      let finishClientDisconnect = (): void => undefined;
+      const pendingClientDisconnect = new Promise<void>((resolve): void => {
+        finishClientDisconnect = resolve;
+      });
+      mockClientService.initialize.mockImplementationOnce(() => {
+        startInitialize();
+        return pendingInitialize;
+      });
+      mockClientService.disconnect.mockImplementationOnce(() => {
+        startClientDisconnect();
+        return pendingClientDisconnect;
+      });
+
+      const initializeResult = provider.initialize();
+      await initializeStarted;
+      const disconnectResult = provider.disconnect();
+      finishInitialize();
+
+      expect(await initializeResult).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      await clientDisconnectStarted;
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+
+      finishClientDisconnect();
+      expect(await disconnectResult).toStrictEqual({ success: true });
+    });
+
     it('keeps capabilities unavailable until overlapping disconnects finish', async () => {
       const { infoClient } = useStrategyClients();
       let finishFirstDisconnect = (): void => undefined;

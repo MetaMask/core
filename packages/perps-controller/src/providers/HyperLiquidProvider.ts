@@ -11163,9 +11163,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async initialize(): Promise<InitializeResult> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Ensure clients are initialized (lazy initialization)
       await this.#ensureClientsInitialized();
+      if (lifecycleGeneration !== this.#lifecycleGeneration) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
       this.#isDisconnected = false;
       return {
         success: true,
