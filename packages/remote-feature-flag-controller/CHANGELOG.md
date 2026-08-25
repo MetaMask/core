@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `force` argument to `updateRemoteFeatureFlags` to fetch even when the cache has not expired ([#9966](https://github.com/MetaMask/core/pull/9966))
+  - Defaults to `false`. Does not fetch when the controller is disabled.
+
 ## [6.0.0]
 
 ### Added
