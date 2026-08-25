@@ -1,13 +1,17 @@
 import { createSelector } from 'reselect';
 
+import { VISIBLE_CANDLE_COUNT_CONFIG } from './constants/chartConfig.js';
 import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
   SortOptionId,
+  DEFAULT_ORDER_BOOK_PREFERENCES,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
   DEFAULT_PERPS_MODE,
+  DEFAULT_SELECTED_ORDER_TYPE,
 } from './constants/perpsConfig.js';
 import type {
+  OrderBookPreferences,
   PerpsMode,
   ProLayoutPreferences,
 } from './constants/perpsConfig.js';
@@ -135,17 +139,35 @@ export const selectTradeConfiguration = createSelector(
 );
 
 /**
- * Select pending trade configuration for a specific market on the current network.
- * Returns undefined if config doesn't exist or has expired (more than 5 minutes old).
+ * Pending trade configuration as returned to consumers (timestamp stripped).
+ */
+type PendingTradeConfiguration = {
+  amount?: string;
+  leverage?: number;
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+  limitPrice?: string;
+  orderType?: OrderType;
+  reduceOnly?: boolean;
+  selectedPaymentToken?: PerpsSelectedPaymentToken | null;
+};
+
+/**
+ * Memoized extractor for the raw pending trade configuration of a market.
  *
- * Usage: selectPendingTradeConfiguration(state, coin)
+ * Keyed on `isTestnet`, `tradeConfigurations`, and `coin` so it yields a stable
+ * object reference (both the stripped `config` and its `timestamp`) while those
+ * inputs are unchanged. The TTL is deliberately NOT evaluated here: because the
+ * result is memoized, evaluating expiry inside this selector would freeze the
+ * `Date.now()` check between input changes. Expiry is applied per-call by
+ * `selectPendingTradeConfiguration` instead.
  *
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
- * @returns The pending trade configuration, or undefined if expired or not found.
+ * @returns The stripped config and its save timestamp, or undefined.
  */
 
-export const selectPendingTradeConfiguration = createSelector(
+const selectRawPendingTradeConfiguration = createSelector(
   [
     (state: PerpsControllerState): boolean | undefined => state?.isTestnet,
     (
@@ -159,17 +181,7 @@ export const selectPendingTradeConfiguration = createSelector(
     isTestnet,
     configs,
     coin,
-  ):
-    | {
-        amount?: string;
-        leverage?: number;
-        takeProfitPrice?: string;
-        stopLossPrice?: string;
-        limitPrice?: string;
-        orderType?: OrderType;
-        selectedPaymentToken?: PerpsSelectedPaymentToken | null;
-      }
-    | undefined => {
+  ): { timestamp: number; config: PendingTradeConfiguration } | undefined => {
     const network = isTestnet ? 'testnet' : 'mainnet';
     const config = configs?.[network]?.[coin]?.pendingConfig;
 
@@ -177,21 +189,46 @@ export const selectPendingTradeConfiguration = createSelector(
       return undefined;
     }
 
-    // Check if config has expired (5 minutes = 300,000 milliseconds)
-    const now = Date.now();
-    const FIVE_MINUTES_MS = 5 * 60 * 1000;
-    const age = now - config.timestamp;
-
-    if (age > FIVE_MINUTES_MS) {
-      // Config expired, return undefined
-      return undefined;
-    }
-
-    // Return config without timestamp
     const { timestamp, ...configWithoutTimestamp } = config;
-    return configWithoutTimestamp;
+    return { timestamp, config: configWithoutTimestamp };
   },
 );
+
+/**
+ * Select pending trade configuration for a specific market on the current network.
+ * Returns undefined if config doesn't exist or has expired.
+ *
+ * The underlying data extraction is memoized for stable object references, but
+ * the TTL is checked on every call (using `Date.now()`) so expiry stays accurate
+ * even when the memoized inputs have not changed. This mirrors
+ * `PerpsController.getPendingTradeConfiguration`, which also evaluates time on
+ * every call.
+ *
+ * Usage: selectPendingTradeConfiguration(state, coin)
+ *
+ * @param state - The perps controller state.
+ * @param coin - The market coin symbol.
+ * @returns The pending trade configuration, or undefined if expired or not found.
+ */
+export const selectPendingTradeConfiguration = (
+  state: PerpsControllerState,
+  coin: string,
+): PendingTradeConfiguration | undefined => {
+  const raw = selectRawPendingTradeConfiguration(state, coin);
+
+  if (!raw) {
+    return undefined;
+  }
+
+  const age = Date.now() - raw.timestamp;
+
+  if (age > PERPS_CONSTANTS.PendingTradeConfigurationTtlMs) {
+    // Config expired, return undefined
+    return undefined;
+  }
+
+  return raw.config;
+};
 
 /**
  * Select market filter preferences (network-independent)
@@ -253,6 +290,40 @@ export const selectProLayoutPreferences = (
   ...DEFAULT_PRO_LAYOUT_PREFERENCES,
   ...state?.proLayoutPreferences,
 });
+
+/**
+ * Select market-agnostic Pro order-book display preferences.
+ *
+ * @param state - PerpsController state
+ * @returns The order-book display preferences
+ */
+export const selectOrderBookPreferences = (
+  state: PerpsControllerState,
+): OrderBookPreferences => ({
+  ...DEFAULT_ORDER_BOOK_PREFERENCES,
+  ...state?.orderBookPreferences,
+});
+
+/**
+ * Select the market-agnostic order type.
+ *
+ * @param state - PerpsController state
+ * @returns The selected order type
+ */
+export const selectSelectedOrderType = (
+  state: PerpsControllerState,
+): OrderType => state?.selectedOrderType ?? DEFAULT_SELECTED_ORDER_TYPE;
+
+/**
+ * Select the visible candle count shared by Lite and Pro.
+ *
+ * @param state - PerpsController state
+ * @returns The visible candle count
+ */
+export const selectVisibleCandleCount = (state: PerpsControllerState): number =>
+  Number.isFinite(state?.visibleCandleCount)
+    ? state.visibleCandleCount
+    : VISIBLE_CANDLE_COUNT_CONFIG.Default;
 
 /**
  * Select the current Perps interface mode (lite/pro).

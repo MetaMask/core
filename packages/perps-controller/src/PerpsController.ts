@@ -15,7 +15,10 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CandlePeriod } from './constants/chartConfig.js';
+import {
+  CandlePeriod,
+  VISIBLE_CANDLE_COUNT_CONFIG,
+} from './constants/chartConfig.js';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
@@ -29,6 +32,7 @@ import {
 import { PerpsMeasurementName } from './constants/performanceMetrics.js';
 import type {
   SortOptionId,
+  OrderBookPreferences,
   ProLayoutPreferences,
   PerpsMode,
 } from './constants/perpsConfig.js';
@@ -39,7 +43,9 @@ import {
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
   DEFAULT_PERPS_MODE,
+  DEFAULT_ORDER_BOOK_PREFERENCES,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
+  DEFAULT_SELECTED_ORDER_TYPE,
 } from './constants/perpsConfig.js';
 import type { PerpsControllerMethodActions } from './PerpsController-method-action-types.js';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
@@ -292,10 +298,15 @@ export enum InitializationState {
 // point; the canonical definitions live in the dependency-free constants module.
 export {
   PerpsMode,
+  DEFAULT_ORDER_BOOK_PREFERENCES,
   DEFAULT_PERPS_MODE,
   DEFAULT_PRO_LAYOUT_PREFERENCES,
+  DEFAULT_SELECTED_ORDER_TYPE,
 } from './constants/perpsConfig.js';
 export type {
+  OrderBookListCurrency,
+  OrderBookListMetric,
+  OrderBookPreferences,
   ProLayoutPreferences,
   ProOrdersSideFilter,
   ProOrdersSortDirection,
@@ -429,7 +440,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number; // Last used leverage for this market
         orderBookGrouping?: number; // Persisted price grouping for order book
-        // Pending trade configuration (temporary, expires after 5 minutes)
+        // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
           leverage?: number; // Leverage
@@ -437,6 +448,7 @@ export type PerpsControllerState = {
           stopLossPrice?: string; // Stop loss price
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
+          reduceOnly?: boolean; // Whether the order may only reduce a position
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -445,7 +457,7 @@ export type PerpsControllerState = {
       [marketSymbol: string]: {
         leverage?: number;
         orderBookGrouping?: number; // Persisted price grouping for order book
-        // Pending trade configuration (temporary, expires after 5 minutes)
+        // Pending trade configuration (temporary, expires after 30 seconds)
         pendingConfig?: {
           amount?: string; // Order size in USD
           leverage?: number; // Leverage
@@ -453,6 +465,7 @@ export type PerpsControllerState = {
           stopLossPrice?: string; // Stop loss price
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
+          reduceOnly?: boolean; // Whether the order may only reduce a position
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -471,6 +484,15 @@ export type PerpsControllerState = {
   // Pro-mode layout preferences (network-independent). Flat object that
   // persists across markets (unlike the per-market tradeConfigurations).
   proLayoutPreferences: ProLayoutPreferences;
+
+  // Pro order-book display preferences (network-independent).
+  orderBookPreferences: OrderBookPreferences;
+
+  // Last selected order type, shared across markets and networks.
+  selectedOrderType: OrderType;
+
+  // Number of candles visible in Lite and Pro chart viewports.
+  visibleCandleCount: number;
 
   // Perps interface mode (lite/pro), network-independent global preference.
   mode: PerpsMode;
@@ -576,6 +598,9 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     direction: MARKET_SORTING_CONFIG.DefaultDirection,
   },
   proLayoutPreferences: { ...DEFAULT_PRO_LAYOUT_PREFERENCES },
+  orderBookPreferences: { ...DEFAULT_ORDER_BOOK_PREFERENCES },
+  selectedOrderType: DEFAULT_SELECTED_ORDER_TYPE,
+  visibleCandleCount: VISIBLE_CANDLE_COUNT_CONFIG.Default,
   mode: DEFAULT_PERPS_MODE,
   hip3ConfigVersion: 0,
   selectedPaymentToken: null,
@@ -755,6 +780,24 @@ const metadata: StateMetadata<PerpsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  orderBookPreferences: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  selectedOrderType: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  visibleCandleCount: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   mode: {
     includeInStateLogs: true,
     persist: true,
@@ -898,12 +941,15 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMaxLeverage',
   'getOpenOrders',
   'getOrderBookGrouping',
+  'getOrderBookPreferences',
   'getOrderFills',
   'getOrders',
   'getPendingTradeConfiguration',
   'getPositions',
+  'getSelectedOrderType',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
+  'getVisibleCandleCount',
   'getWatchlistMarkets',
   'getWebSocketConnectionState',
   'getWithdrawalProgress',
@@ -923,9 +969,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'resetSelectedPaymentToken',
   'getMaxSlippage',
   'setMaxSlippage',
+  'setOrderBookPreferences',
   'getProLayoutPreferences',
   'setProLayoutPreferences',
   'setPerpsMode',
+  'setSelectedOrderType',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
@@ -933,6 +981,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setAttributionContext',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
+  'setVisibleCandleCount',
   'startEligibilityMonitoring',
   'startMarketDataPreload',
   'stopEligibilityMonitoring',
@@ -2273,19 +2322,22 @@ export class PerpsController extends BaseController<
    *
    * @param MYXProvider - Constructor class for the MYX provider.
    */
-  protected registerMYXProvider(
-    MYXProvider: new (opts: {
-      isTestnet: boolean;
-      platformDependencies: PerpsPlatformDependencies;
-      messenger: PerpsControllerMessenger;
-      myxAuthConfig: ReturnType<typeof resolveMyxAuthConfig>;
-    }) => PerpsProvider,
-  ): void {
+  protected registerMYXProvider(MYXProvider: unknown): void {
+    if (typeof MYXProvider !== 'function') {
+      return;
+    }
+
     const myxIsTestnet =
       PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet;
     const myx = this.#options.clientConfig?.providerCredentials?.myx ?? {};
     const myxAuthConfig = resolveMyxAuthConfig(myx, myxIsTestnet);
-    const myxProvider = new MYXProvider({
+    const MYXProviderConstructor = MYXProvider as new (opts: {
+      isTestnet: boolean;
+      platformDependencies: PerpsPlatformDependencies;
+      messenger: PerpsControllerMessenger;
+      myxAuthConfig: ReturnType<typeof resolveMyxAuthConfig>;
+    }) => PerpsProvider;
+    const myxProvider = new MYXProviderConstructor({
       isTestnet: myxIsTestnet,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
@@ -2593,7 +2645,7 @@ export class PerpsController extends BaseController<
     const provider = await this.#getActiveProviderWhenReady();
     this.#ensureTradingServiceDeps();
 
-    return this.#tradingService.placeOrder({
+    const result = await this.#tradingService.placeOrder({
       provider,
       params,
       context: this.#createServiceContext('placeOrder', {
@@ -2603,6 +2655,12 @@ export class PerpsController extends BaseController<
       reportOrderToDataLake: (dataLakeParams) =>
         this.reportOrderToDataLake(dataLakeParams),
     });
+
+    if (result.success) {
+      this.clearPendingTradeConfiguration(params.symbol);
+    }
+
+    return result;
   }
 
   /**
@@ -5546,7 +5604,7 @@ export class PerpsController extends BaseController<
 
   /**
    * Save pending trade configuration for a market
-   * This is a temporary configuration that expires after 5 minutes
+   * This is a temporary configuration that expires after 30 seconds.
    *
    * @param symbol - Market symbol
    * @param config - Pending trade configuration (includes optional selected payment token from Pay row)
@@ -5556,6 +5614,7 @@ export class PerpsController extends BaseController<
    * @param config.stopLossPrice - The stop loss price.
    * @param config.limitPrice - The limit price.
    * @param config.orderType - The order type.
+   * @param config.reduceOnly - Whether the order may only reduce a position.
    * @param config.selectedPaymentToken - The selected payment token.
    */
   savePendingTradeConfiguration(
@@ -5567,6 +5626,7 @@ export class PerpsController extends BaseController<
       stopLossPrice?: string;
       limitPrice?: string;
       orderType?: OrderType;
+      reduceOnly?: boolean;
       /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
       selectedPaymentToken?: PerpsSelectedPaymentToken | null;
     },
@@ -5593,12 +5653,15 @@ export class PerpsController extends BaseController<
           timestamp: Date.now(),
         },
       };
+      if (config.orderType) {
+        state.selectedOrderType = config.orderType;
+      }
     });
   }
 
   /**
    * Get pending trade configuration for a market
-   * Returns undefined if config doesn't exist or has expired (more than 5 minutes old)
+   * Returns undefined if config doesn't exist or has expired.
    *
    * @param symbol - Market symbol
    * @returns Pending trade configuration or undefined
@@ -5611,6 +5674,7 @@ export class PerpsController extends BaseController<
         stopLossPrice?: string;
         limitPrice?: string;
         orderType?: OrderType;
+        reduceOnly?: boolean;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined {
@@ -5622,12 +5686,10 @@ export class PerpsController extends BaseController<
       return undefined;
     }
 
-    // Check if config has expired (5 minutes = 300,000 milliseconds)
-    const FIVE_MINUTES_MS = 5 * 60 * 1000;
     const now = Date.now();
     const age = now - config.timestamp;
 
-    if (age > FIVE_MINUTES_MS) {
+    if (age > PERPS_CONSTANTS.PendingTradeConfigurationTtlMs) {
       this.#debugLog('PerpsController: Pending trade config expired', {
         symbol,
         network,
@@ -5773,6 +5835,82 @@ export class PerpsController extends BaseController<
       MAX_SLIPPAGE_BOUNDS.StepBps;
     this.update((state) => {
       state.maxSlippageBps = snapped;
+    });
+  }
+
+  /**
+   * Get market-agnostic Pro order-book display preferences.
+   *
+   * @returns The current order-book display preferences.
+   */
+  getOrderBookPreferences(): OrderBookPreferences {
+    return {
+      ...DEFAULT_ORDER_BOOK_PREFERENCES,
+      ...this.state.orderBookPreferences,
+    };
+  }
+
+  /**
+   * Update market-agnostic Pro order-book display preferences.
+   *
+   * @param patch - Partial order-book preferences to update.
+   */
+  setOrderBookPreferences(patch: Partial<OrderBookPreferences>): void {
+    this.update((state) => {
+      state.orderBookPreferences = {
+        ...DEFAULT_ORDER_BOOK_PREFERENCES,
+        ...state.orderBookPreferences,
+        ...patch,
+      };
+    });
+  }
+
+  /**
+   * Get the selected order type shared by every market.
+   *
+   * @returns The selected order type.
+   */
+  getSelectedOrderType(): OrderType {
+    return this.state.selectedOrderType ?? DEFAULT_SELECTED_ORDER_TYPE;
+  }
+
+  /**
+   * Set the selected order type shared by every market.
+   *
+   * @param orderType - The selected order type.
+   */
+  setSelectedOrderType(orderType: OrderType): void {
+    this.update((state) => {
+      state.selectedOrderType = orderType;
+    });
+  }
+
+  /**
+   * Get the number of candles shown in Lite and Pro chart viewports.
+   *
+   * @returns The visible candle count.
+   */
+  getVisibleCandleCount(): number {
+    const count = this.state.visibleCandleCount;
+    return Number.isFinite(count) ? count : VISIBLE_CANDLE_COUNT_CONFIG.Default;
+  }
+
+  /**
+   * Set the number of candles shown in Lite and Pro chart viewports.
+   *
+   * @param count - Requested visible candle count.
+   */
+  setVisibleCandleCount(count: number): void {
+    if (!Number.isFinite(count)) {
+      return;
+    }
+
+    const normalized = Math.min(
+      VISIBLE_CANDLE_COUNT_CONFIG.Max,
+      Math.max(VISIBLE_CANDLE_COUNT_CONFIG.Min, Math.round(count)),
+    );
+    this.update((state) => {
+      state.visibleCandleCount = normalized;
     });
   }
 
