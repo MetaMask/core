@@ -236,7 +236,7 @@ export class PasskeyController extends BaseController<
         residentKey: 'preferred',
       },
       hints: ['client-device', 'hybrid'],
-      attestation: 'none',
+      attestation: 'direct',
       ...(Object.keys(extensions).length > 0 ? { extensions } : {}),
     };
 
