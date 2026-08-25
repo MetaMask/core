@@ -14,6 +14,7 @@ import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalle
 import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   CancelOrderResult,
+  HyperLiquidOrderFeeConfiguration,
   PerpsPlatformDependencies,
   OrderParams,
   OrderResult,
@@ -345,6 +346,7 @@ const mockMessenger = createMockMessenger();
  * @param options.hip3Enabled - Whether HIP-3 routes are enabled.
  * @param options.allowlistMarkets - HIP-3 market allowlist.
  * @param options.blocklistMarkets - HIP-3 market blocklist.
+ * @param options.orderFeeConfiguration - Optional builder-fee policy overrides.
  * @returns The provider under test.
  */
 const createTestProvider = (
@@ -354,6 +356,7 @@ const createTestProvider = (
     hip3Enabled?: boolean;
     allowlistMarkets?: string[];
     blocklistMarkets?: string[];
+    orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -900,6 +903,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(
         submitted.orders.map((order: { p: string }) => order.p),
       ).toStrictEqual(['2000', '2500', '3000']);
+    });
+
+    it('uses an injected policy for both builder setup and placement', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          scale: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
+        'builder',
+      );
     });
 
     it('splits the size across the rungs so the total is preserved', async () => {
@@ -2532,7 +2559,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
       twap: {
         orderType: 'twap',
-        expectedMetamaskFeeRate: BUILDER_FEE_CONFIG.NoBuilderFieldFeeDecimal,
+        expectedMetamaskFeeRate: 0,
       },
       scale: {
         orderType: 'scale',
@@ -2561,6 +2588,63 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(fees.metamaskFeeRate).toBe(expectedMetamaskFeeRate);
       },
     );
+
+    it('uses an injected policy when quoting a strategy fee', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          scale: { chargesMetamaskBuilderFee: false },
+        },
+      });
+      useStrategyClients();
+
+      const fees = await provider.calculateFees({
+        orderType: 'scale',
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(fees.metamaskFeeRate).toBe(0);
+      expect(fees.metamaskFeeAmount).toBe(0);
+    });
+
+    it('falls back when an injected policy is invalid', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          market: {
+            // @ts-expect-error Runtime validation protects JavaScript consumers.
+            chargesMetamaskBuilderFee: 'invalid',
+          },
+        },
+      });
+      useStrategyClients();
+
+      const fees = await provider.calculateFees({
+        orderType: 'market',
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+    });
+
+    it('does not allow configuration to add a TWAP builder fee', async () => {
+      provider = createTestProvider({
+        orderFeeConfiguration: {
+          // @ts-expect-error Native TWAP has no builder field.
+          twap: { chargesMetamaskBuilderFee: true },
+        },
+      });
+      useStrategyClients();
+
+      const fees = await provider.calculateFees({
+        orderType: 'twap',
+        amount: '1000',
+        symbol: 'ETH',
+      });
+
+      expect(fees.metamaskFeeRate).toBe(0);
+      expect(fees.metamaskFeeAmount).toBe(0);
+    });
 
     it('keeps a discounted TWAP quote at zero MetaMask builder fee', async () => {
       useStrategyClients();
@@ -2680,8 +2764,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('does not advertise strategies on a confirmed HIP-3 market', async () => {
-      const { capabilityProvider } = useHip3Capabilities();
+    it('does not fetch metadata for a HIP-3 capability read', async () => {
+      const { capabilityProvider, infoClient } = useHip3Capabilities();
 
       expect(
         await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
@@ -2690,127 +2774,35 @@ describe('HyperLiquidProvider - strategy order types', () => {
         providerId: 'hyperliquid',
         supportedStrategies: [],
       });
-    });
-
-    it('reports an unknown HIP-3 market as unavailable', async () => {
-      const { capabilityProvider } = useHip3Capabilities({
-        meta: jest.fn().mockResolvedValue({
-          universe: [],
-          collateralToken: 0,
-        }),
-      });
-
-      expect(
-        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-      ).toStrictEqual({
-        status: 'unavailable',
-        providerId: 'hyperliquid',
-        reason: 'market_not_found',
-      });
-    });
-
-    it('reports a HIP-3 route as unavailable when HIP-3 is disabled', async () => {
-      const { infoClient } = useStrategyClients();
-
-      expect(
-        await provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-      ).toStrictEqual({
-        status: 'unavailable',
-        providerId: 'hyperliquid',
-        reason: 'market_not_found',
-      });
       expect(infoClient.meta).not.toHaveBeenCalled();
+      expect(infoClient.perpDexs).not.toHaveBeenCalled();
+      expect(infoClient.spotMeta).not.toHaveBeenCalled();
     });
 
-    it.each([
-      { filter: 'allowlist', options: { allowlistMarkets: ['xyz:NVDA'] } },
-      { filter: 'blocklist', options: { blocklistMarkets: ['xyz:TSLA'] } },
-    ])(
-      'reports a HIP-3 market excluded by the $filter as unavailable',
-      async ({ options }) => {
-        const { capabilityProvider, infoClient } = useHip3Capabilities(
-          {},
-          options,
-        );
-
-        expect(
-          await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-        ).toStrictEqual({
-          status: 'unavailable',
-          providerId: 'hyperliquid',
-          reason: 'market_not_found',
-        });
-        expect(infoClient.meta).not.toHaveBeenCalled();
-      },
-    );
-
-    it('reports a non-USDC HIP-3 market as unavailable', async () => {
-      const { capabilityProvider } = useHip3Capabilities({
-        meta: jest.fn().mockResolvedValue({
-          universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
-          collateralToken: 1,
-        }),
+    it('reports a delisted main-DEX market as unavailable', async () => {
+      useStrategyClients({
+        info: {
+          meta: jest.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 50,
+                isDelisted: true,
+              },
+            ],
+          }),
+        },
       });
 
       expect(
-        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
         status: 'unavailable',
         providerId: 'hyperliquid',
         reason: 'market_not_found',
       });
     });
-
-    it.each([
-      {
-        route: 'main DEX',
-        symbol: 'ETH',
-        universe: [
-          {
-            name: 'ETH',
-            szDecimals: 4,
-            maxLeverage: 50,
-            isDelisted: true,
-          },
-        ],
-      },
-      {
-        route: 'HIP-3 DEX',
-        symbol: 'xyz:TSLA',
-        universe: [
-          {
-            name: 'xyz:TSLA',
-            szDecimals: 3,
-            maxLeverage: 20,
-            isDelisted: true,
-          },
-        ],
-      },
-    ])(
-      'reports a delisted $route market as unavailable',
-      async ({ symbol, universe }) => {
-        const capabilityProvider = symbol.includes(':')
-          ? useHip3Capabilities({
-              meta: jest
-                .fn()
-                .mockResolvedValue({ universe, collateralToken: 0 }),
-            }).capabilityProvider
-          : provider;
-        if (!symbol.includes(':')) {
-          useStrategyClients({
-            info: { meta: jest.fn().mockResolvedValue({ universe }) },
-          });
-        }
-
-        expect(
-          await capabilityProvider.getOrderCapabilities({ symbol }),
-        ).toStrictEqual({
-          status: 'unavailable',
-          providerId: 'hyperliquid',
-          reason: 'market_not_found',
-        });
-      },
-    );
 
     it('reports an empty symbol as invalid', async () => {
       const { infoClient } = useStrategyClients();
@@ -2891,28 +2883,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       jest.advanceTimersByTime(1);
       await provider.getOrderCapabilities({ symbol: 'ETH' });
-
-      expect(infoClient.meta).toHaveBeenCalledTimes(2);
-    });
-
-    it('refreshes HIP-3 metadata at the freshness boundary', async () => {
-      const { capabilityProvider, infoClient } = useHip3Capabilities({
-        meta: jest.fn().mockResolvedValue({
-          universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
-          collateralToken: 0,
-        }),
-      });
-
-      await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
-      jest.advanceTimersByTime(
-        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs - 1,
-      );
-      await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
-
-      expect(infoClient.meta).toHaveBeenCalledTimes(1);
-
-      jest.advanceTimersByTime(1);
-      await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -3030,42 +3000,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
           { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
           { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
         ],
-      });
-      await Promise.all(reads);
-    });
-
-    it('deduplicates concurrent HIP-3 metadata refreshes', async () => {
-      let startMetaRequest = (): void => undefined;
-      const metaRequestStarted = new Promise<void>((resolve): void => {
-        startMetaRequest = resolve;
-      });
-      let resolveMeta = (_meta: {
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-        collateralToken: number;
-      }): void => undefined;
-      const pendingMeta = new Promise<{
-        universe: { name: string; szDecimals: number; maxLeverage: number }[];
-        collateralToken: number;
-      }>((resolve): void => {
-        resolveMeta = resolve;
-      });
-      const { capabilityProvider, infoClient } = useHip3Capabilities({
-        meta: jest.fn().mockImplementation(() => {
-          startMetaRequest();
-          return pendingMeta;
-        }),
-      });
-
-      const reads = [
-        capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-        capabilityProvider.getOrderCapabilities({ symbol: 'xyz:NVDA' }),
-      ];
-      await metaRequestStarted;
-
-      expect(infoClient.meta).toHaveBeenCalledTimes(1);
-      resolveMeta({
-        universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
-        collateralToken: 0,
       });
       await Promise.all(reads);
     });
@@ -3426,108 +3360,50 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
-    it('retries HIP-3 metadata immediately after a refresh failure', async () => {
-      const { capabilityProvider, infoClient } = useHip3Capabilities({
-        meta: jest
-          .fn()
-          .mockRejectedValueOnce(new Error('offline'))
-          .mockResolvedValueOnce({
-            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
-            collateralToken: 0,
-          }),
+    it('discards an in-flight main-DEX refresh after disconnect', async () => {
+      const universe = [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }];
+      let startRequest = (): void => undefined;
+      const requestStarted = new Promise<void>((resolve): void => {
+        startRequest = resolve;
       });
+      let resolveMeta = (_meta: { universe: typeof universe }): void =>
+        undefined;
+      const pendingMeta = new Promise<{ universe: typeof universe }>(
+        (resolve): void => {
+          resolveMeta = resolve;
+        },
+      );
+      const meta = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          startRequest();
+          return pendingMeta;
+        })
+        .mockResolvedValueOnce({ universe });
+      const { infoClient } = useStrategyClients({ info: { meta } });
 
-      expect(
-        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-      ).toStrictEqual({
+      const capabilitiesPromise = provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+      await requestStarted;
+      await provider.disconnect();
+      resolveMeta({ universe });
+
+      expect(await capabilitiesPromise).toStrictEqual({
         status: 'unavailable',
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
       });
+      await provider.initialize();
       expect(
-        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
         status: 'ready',
         providerId: 'hyperliquid',
-        supportedStrategies: [],
+        supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
-
-    it.each([
-      {
-        route: 'main DEX',
-        symbol: 'ETH',
-        universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
-        expectedStrategies: ['twap', 'scale', 'chase'],
-      },
-      {
-        route: 'HIP-3 DEX',
-        symbol: 'xyz:TSLA',
-        universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
-        expectedStrategies: [],
-      },
-    ])(
-      'discards an in-flight $route refresh after disconnect',
-      async ({ symbol, universe, expectedStrategies }) => {
-        let startRequest = (): void => undefined;
-        const requestStarted = new Promise<void>((resolve): void => {
-          startRequest = resolve;
-        });
-        let resolveMeta = (_meta: {
-          universe: typeof universe;
-          collateralToken?: number;
-        }): void => undefined;
-        const pendingMeta = new Promise<{
-          universe: typeof universe;
-          collateralToken?: number;
-        }>((resolve): void => {
-          resolveMeta = resolve;
-        });
-        const meta = jest
-          .fn()
-          .mockImplementationOnce(() => {
-            startRequest();
-            return pendingMeta;
-          })
-          .mockResolvedValueOnce({
-            universe,
-            ...(symbol.includes(':') && { collateralToken: 0 }),
-          });
-        const setup = symbol.includes(':')
-          ? useHip3Capabilities({ meta })
-          : {
-              capabilityProvider: provider,
-              ...useStrategyClients({ info: { meta } }),
-            };
-        const { capabilityProvider, infoClient } = setup;
-
-        const capabilitiesPromise = capabilityProvider.getOrderCapabilities({
-          symbol,
-        });
-        await requestStarted;
-        await capabilityProvider.disconnect();
-        resolveMeta({
-          universe,
-          ...(symbol.includes(':') && { collateralToken: 0 }),
-        });
-
-        expect(await capabilitiesPromise).toStrictEqual({
-          status: 'unavailable',
-          providerId: 'hyperliquid',
-          reason: 'provider_unavailable',
-        });
-        await capabilityProvider.initialize();
-        expect(
-          await capabilityProvider.getOrderCapabilities({ symbol }),
-        ).toStrictEqual({
-          status: 'ready',
-          providerId: 'hyperliquid',
-          supportedStrategies: expectedStrategies,
-        });
-        expect(infoClient.meta).toHaveBeenCalledTimes(2);
-      },
-    );
 
     it('does not cache capability metadata that resolves after disconnect', async () => {
       let startRequest = (): void => undefined;
@@ -3572,48 +3448,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       expect(await provider.getMaxLeverage('ETH')).toBe(50);
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not cache spot metadata that resolves after disconnect', async () => {
-      const spotMetaResponse = {
-        tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
-        universe: [],
-      };
-      let startSpotMetaRequest = (): void => undefined;
-      const spotMetaRequestStarted = new Promise<void>((resolve): void => {
-        startSpotMetaRequest = resolve;
-      });
-      let resolveSpotMeta = (_response: typeof spotMetaResponse): void =>
-        undefined;
-      const pendingSpotMeta = new Promise<typeof spotMetaResponse>(
-        (resolve) => {
-          resolveSpotMeta = resolve;
-        },
-      );
-      const spotMeta = jest
-        .fn()
-        .mockImplementationOnce(() => {
-          startSpotMetaRequest();
-          return pendingSpotMeta;
-        })
-        .mockResolvedValueOnce(spotMetaResponse);
-      const { capabilityProvider } = useHip3Capabilities({ spotMeta });
-
-      const capabilities = capabilityProvider.getOrderCapabilities({
-        symbol: 'xyz:TSLA',
-      });
-      await spotMetaRequestStarted;
-      await capabilityProvider.disconnect();
-      resolveSpotMeta(spotMetaResponse);
-
-      expect(await capabilities).toStrictEqual({
-        status: 'unavailable',
-        providerId: 'hyperliquid',
-        reason: 'provider_unavailable',
-      });
-      await capabilityProvider.initialize();
-      await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
-      expect(spotMeta).toHaveBeenCalledTimes(2);
     });
 
     it('does not fall back to main-DEX markets when DEX discovery crosses disconnect', async () => {

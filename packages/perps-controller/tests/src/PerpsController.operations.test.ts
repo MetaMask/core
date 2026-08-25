@@ -919,6 +919,22 @@ describe('PerpsController', () => {
       });
     });
 
+    it('reports a provider route that capability discovery cannot find', async () => {
+      mockProvider.getOrderCapabilities = jest
+        .fn()
+        .mockRejectedValue(new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND));
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_not_found',
+      });
+    });
+
     it('preserves the requested provider when provider resolution fails', async () => {
       await expect(
         controller.getOrderCapabilities({
@@ -1024,7 +1040,7 @@ describe('PerpsController', () => {
             isBuy: true,
             size: '1',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
       },
     );
@@ -1045,7 +1061,7 @@ describe('PerpsController', () => {
         await expect(
           // @ts-expect-error Routed strategy placement requires providerId.
           controller.placeOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
       },
     );
@@ -1093,7 +1109,7 @@ describe('PerpsController', () => {
             providerId: 'myx',
             orderType,
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
       },
     );
@@ -1113,7 +1129,7 @@ describe('PerpsController', () => {
         await expect(
           // @ts-expect-error Routed strategy cancellation requires providerId.
           controller.cancelOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
       },
     );
@@ -1135,7 +1151,7 @@ describe('PerpsController', () => {
             isBuy: true,
             size: '1',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(
           mockMarketDataServiceInstance.validateOrder,
         ).not.toHaveBeenCalled();
@@ -1158,7 +1174,7 @@ describe('PerpsController', () => {
         await expect(
           // @ts-expect-error Routed strategy validation requires providerId.
           controller.validateOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(
           mockMarketDataServiceInstance.validateOrder,
         ).not.toHaveBeenCalled();
@@ -1282,7 +1298,7 @@ describe('PerpsController', () => {
             symbol: 'RHEA',
             providerId: 'myx',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(
           mockMarketDataServiceInstance.calculateFees,
         ).not.toHaveBeenCalled();
@@ -1303,7 +1319,7 @@ describe('PerpsController', () => {
         await expect(
           // @ts-expect-error Routed strategy fee quotes require providerId.
           controller.calculateFees(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(
           mockMarketDataServiceInstance.calculateFees,
         ).not.toHaveBeenCalled();

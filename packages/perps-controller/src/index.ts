@@ -235,6 +235,8 @@ export type {
   HistoricalPortfolioResult,
   LiveDataConfig,
   PerpsControllerConfig,
+  HyperLiquidOrderFeeConfiguration,
+  HyperLiquidOrderFeePolicy,
   PriceUpdate,
   OrderFill,
   CheckEligibilityParams,

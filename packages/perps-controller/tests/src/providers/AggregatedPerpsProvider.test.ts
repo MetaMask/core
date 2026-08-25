@@ -634,7 +634,7 @@ describe('AggregatedPerpsProvider', () => {
             // @ts-expect-error Testing an invalid explicit provider route
             providerId: 'unknown-provider',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
       },
     );
@@ -653,7 +653,7 @@ describe('AggregatedPerpsProvider', () => {
         await expect(
           // @ts-expect-error Routed strategy placement requires providerId.
           routedProvider.placeOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
       },
     );
@@ -731,7 +731,7 @@ describe('AggregatedPerpsProvider', () => {
             // @ts-expect-error Testing an invalid explicit provider route
             providerId: 'unknown-provider',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
       },
     );
@@ -749,7 +749,7 @@ describe('AggregatedPerpsProvider', () => {
         await expect(
           // @ts-expect-error Routed strategy cancellation requires providerId.
           routedProvider.cancelOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
       },
     );
@@ -809,7 +809,7 @@ describe('AggregatedPerpsProvider', () => {
             // @ts-expect-error Testing an invalid explicit provider route.
             providerId: 'unknown-provider',
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
       },
     );
@@ -828,7 +828,7 @@ describe('AggregatedPerpsProvider', () => {
         await expect(
           // @ts-expect-error Routed strategy validation requires providerId.
           routedProvider.validateOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
       },
     );
@@ -1094,7 +1094,7 @@ describe('AggregatedPerpsProvider', () => {
         await expect(
           // @ts-expect-error Routed strategy fee quotes require providerId.
           routedProvider.calculateFees(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
         expect(mockMYXProvider.calculateFees).not.toHaveBeenCalled();
       },

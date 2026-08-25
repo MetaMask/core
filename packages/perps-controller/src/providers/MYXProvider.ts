@@ -120,8 +120,8 @@ import {
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
 import {
+  isNonEmptyCapabilitySymbol,
   isStrategyOrderType,
-  isValidCapabilitySymbol,
 } from '../utils/orderTypes.js';
 
 // ============================================================================
@@ -217,7 +217,7 @@ export class MYXProvider implements PerpsProvider {
   ): Promise<DirectProviderOrderCapabilities> {
     // MYX market IDs are never DEX-prefixed.
     if (
-      !isValidCapabilitySymbol(params.symbol) ||
+      !isNonEmptyCapabilitySymbol(params.symbol) ||
       params.symbol.includes(':')
     ) {
       return {

@@ -115,6 +115,8 @@ import type {
   OrderResult,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
+  HyperLiquidOrderFeeConfiguration,
+  HyperLiquidOrderFeePolicy,
   Position,
   PositionTriggerOrder,
   ReadyToTradeResult,
@@ -203,9 +205,9 @@ import {
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
+  isNonEmptyCapabilitySymbol,
   isStrategyOrderType,
   isTriggerOrderType,
-  isValidCapabilitySymbol,
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
@@ -476,7 +478,10 @@ type SubmitOrderWithRollbackParams = {
   transferInfo: { amount: number; sourceDex: string } | null;
   symbol: string;
   assetId: number;
+  chargesMetamaskBuilderFee: boolean;
 };
+
+type BuilderOrderContext = { b: string; f: number };
 
 type HandleOrderErrorParams = {
   error: unknown;
@@ -502,6 +507,7 @@ type StrategyPlacementContext = {
   szDecimals: number;
   finalPositionSize: number;
   formattedSize: string;
+  builder?: BuilderOrderContext;
   /** The validated ladder a scale placement submits; absent for other types. */
   ladder?: ScaleLadder;
 };
@@ -576,9 +582,7 @@ type ChaseSession = {
    * A chase returns immediately, so every replacement runs after the clear and
    * would otherwise be re-quoted at the undiscounted maximum.
    */
-  builderFee: number;
-  /** Builder address captured with the fee for attribution across re-prices. */
-  builderAddress: string;
+  builder?: BuilderOrderContext;
   /** Absolute deadline, as a `Date.now()` stamp. */
   deadline: number;
   maxRepricings: number;
@@ -735,15 +739,11 @@ function collectPositionTriggerOrders(params: {
   };
 }
 
-type HyperLiquidOrderFeePolicy = Readonly<{
-  chargesMetamaskBuilderFee: boolean;
-}>;
-
 type HyperLiquidOrderFeeContext =
   | Readonly<OrderParams>
   | Readonly<FeeCalculationParams>;
 
-type HyperLiquidOrderFeeConfiguration = Readonly<
+type ResolvedHyperLiquidOrderFeeConfiguration = Readonly<
   Record<OrderType, HyperLiquidOrderFeePolicy>
 >;
 
@@ -755,7 +755,7 @@ type HyperLiquidOrderFeeConfiguration = Readonly<
  * action has no builder field; every other current placement uses the standard
  * order action.
  */
-const HYPERLIQUID_ORDER_FEE_CONFIG: HyperLiquidOrderFeeConfiguration = {
+const HYPERLIQUID_ORDER_FEE_CONFIG: ResolvedHyperLiquidOrderFeeConfiguration = {
   market: { chargesMetamaskBuilderFee: true },
   limit: { chargesMetamaskBuilderFee: true },
   stop_market: { chargesMetamaskBuilderFee: true },
@@ -767,19 +767,70 @@ const HYPERLIQUID_ORDER_FEE_CONFIG: HyperLiquidOrderFeeConfiguration = {
   chase: { chargesMetamaskBuilderFee: true },
 };
 
+function resolveConfiguredOrderFeePolicy(
+  configured: HyperLiquidOrderFeePolicy | undefined,
+  fallback: HyperLiquidOrderFeePolicy,
+): HyperLiquidOrderFeePolicy {
+  return typeof configured?.chargesMetamaskBuilderFee === 'boolean'
+    ? configured
+    : fallback;
+}
+
+function resolveHyperLiquidOrderFeeConfiguration(
+  configured: HyperLiquidOrderFeeConfiguration | undefined,
+): ResolvedHyperLiquidOrderFeeConfiguration {
+  return {
+    market: resolveConfiguredOrderFeePolicy(
+      configured?.market,
+      HYPERLIQUID_ORDER_FEE_CONFIG.market,
+    ),
+    limit: resolveConfiguredOrderFeePolicy(
+      configured?.limit,
+      HYPERLIQUID_ORDER_FEE_CONFIG.limit,
+    ),
+    stop_market: resolveConfiguredOrderFeePolicy(
+      configured?.stop_market,
+      HYPERLIQUID_ORDER_FEE_CONFIG.stop_market,
+    ),
+    stop_limit: resolveConfiguredOrderFeePolicy(
+      configured?.stop_limit,
+      HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit,
+    ),
+    take_profit_market: resolveConfiguredOrderFeePolicy(
+      configured?.take_profit_market,
+      HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market,
+    ),
+    take_profit_limit: resolveConfiguredOrderFeePolicy(
+      configured?.take_profit_limit,
+      HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit,
+    ),
+    twap: HYPERLIQUID_ORDER_FEE_CONFIG.twap,
+    scale: resolveConfiguredOrderFeePolicy(
+      configured?.scale,
+      HYPERLIQUID_ORDER_FEE_CONFIG.scale,
+    ),
+    chase: resolveConfiguredOrderFeePolicy(
+      configured?.chase,
+      HYPERLIQUID_ORDER_FEE_CONFIG.chase,
+    ),
+  };
+}
+
 /**
  * Resolve HyperLiquid's provider-owned fee policy for a quote.
  *
  * The full quote context is accepted intentionally so future policies can vary
  * by market route or other order inputs without changing the provider contract.
  *
+ * @param configuration - Resolved provider fee configuration.
  * @param params - Fee quote context.
  * @returns HyperLiquid's fee policy for this order.
  */
 function resolveHyperLiquidOrderFeePolicy(
+  configuration: ResolvedHyperLiquidOrderFeeConfiguration,
   params: HyperLiquidOrderFeeContext,
 ): HyperLiquidOrderFeePolicy {
-  return HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType];
+  return configuration[params.orderType];
 }
 
 /**
@@ -798,6 +849,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   // Platform dependencies for logging and debugging
   readonly #deps: PerpsPlatformDependencies;
+
+  readonly #orderFeeConfiguration: ResolvedHyperLiquidOrderFeeConfiguration;
 
   // Service instances
   readonly #clientService: HyperLiquidClientService;
@@ -1010,8 +1063,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     builderAddressMainnet?: string;
     subscriptionBuilderAddressTestnet?: string;
     subscriptionBuilderAddressMainnet?: string;
+    orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
   }) {
     this.#deps = options.platformDependencies;
+    this.#orderFeeConfiguration = resolveHyperLiquidOrderFeeConfiguration(
+      options.orderFeeConfiguration,
+    );
     this.#messenger = options.messenger;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
@@ -1109,7 +1166,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
-    if (!isValidCapabilitySymbol(params.symbol)) {
+    const routeParts = params.symbol.split(':');
+    if (
+      !isNonEmptyCapabilitySymbol(params.symbol) ||
+      routeParts.length > 2 ||
+      routeParts.some((part) => part.length === 0)
+    ) {
       return {
         status: 'unavailable',
         providerId: this.protocolId,
@@ -1117,6 +1179,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
     const { dex, symbol } = parseAssetName(params.symbol);
+
+    if (dex !== null) {
+      return HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
+    }
 
     if (this.#isDisconnected || this.#disconnectDepth > 0) {
       return {
@@ -1129,64 +1195,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     const disconnectGeneration = this.#disconnectGeneration;
 
     try {
-      if (dex !== null) {
-        if (
-          !shouldIncludeMarket(
-            params.symbol,
-            dex,
-            this.#hip3Enabled,
-            this.#compiledAllowlistPatterns,
-            this.#compiledBlocklistPatterns,
-          )
-        ) {
-          return {
-            status: 'unavailable',
-            providerId: this.protocolId,
-            reason: 'market_not_found',
-          };
-        }
-
-        const validatedDexs = await this.#getValidatedDexs();
-        this.#assertProviderLifecycleCurrent(
-          disconnectGeneration,
-          'Order capability read',
-        );
-        if (!validatedDexs.includes(dex)) {
-          return {
-            status: 'unavailable',
-            providerId: this.protocolId,
-            reason: 'market_not_found',
-          };
-        }
-
-        const meta = await this.#getFreshOrderCapabilitiesMeta(dex);
-        this.#assertProviderLifecycleCurrent(
-          disconnectGeneration,
-          'Order capability read',
-        );
-        if (!(await this.#isUsdcCollateralDex(dex, meta))) {
-          return {
-            status: 'unavailable',
-            providerId: this.protocolId,
-            reason: 'market_not_found',
-          };
-        }
-        this.#assertProviderLifecycleCurrent(
-          disconnectGeneration,
-          'Order capability read',
-        );
-        return meta.universe.some(
-          (market) =>
-            market.name === params.symbol && market.isDelisted !== true,
-        )
-          ? HYPERLIQUID_NO_STRATEGY_CAPABILITIES
-          : {
-              status: 'unavailable',
-              providerId: this.protocolId,
-              reason: 'market_not_found',
-            };
-      }
-
       const meta = await this.#getFreshOrderCapabilitiesMeta(null);
       this.#assertProviderLifecycleCurrent(
         disconnectGeneration,
@@ -1229,9 +1237,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#disconnectDepth > 0 ||
       generation !== this.#disconnectGeneration
     ) {
-      throw new Error(
-        `[HyperLiquidProvider] ${operation} became stale during disconnect`,
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Provider operation became stale during disconnect',
+        { operation },
       );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
   }
 
@@ -2042,9 +2052,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
   }
 
-  async #ensureReadyForTrading(
-    chargesMetamaskBuilderFee = true,
-  ): Promise<void> {
+  async #ensureReadyForTrading(options: {
+    requiresBuilderFee: boolean;
+  }): Promise<void> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
 
@@ -2094,7 +2104,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
-    if (chargesMetamaskBuilderFee) {
+    if (options.requiresBuilderFee) {
       await this.#ensureBuilderFeeSetup();
     }
 
@@ -2953,14 +2963,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * null) never calls this gate.
    *
    * @param dexName - The DEX identifier (empty string for main DEX).
-   * @param knownMeta - Fresh metadata already loaded by the caller, if any.
    * @returns A promise that resolves to the boolean result.
    */
-  async #isUsdcCollateralDex(
-    dexName: string,
-    knownMeta?: MetaResponse,
-  ): Promise<boolean> {
-    const meta = knownMeta ?? (await this.#getCachedMeta({ dexName }));
+  async #isUsdcCollateralDex(dexName: string): Promise<boolean> {
+    const meta = await this.#getCachedMeta({ dexName });
     const spotMeta = await this.#getCachedSpotMeta();
 
     const collateralToken = spotMeta.tokens.find(
@@ -4451,7 +4457,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const exchangeClient = this.#clientService.getExchangeClient();
 
-    const builder = await this.#getBuilderOrderContext();
+    const builder = params.chargesMetamaskBuilderFee
+      ? await this.#getBuilderOrderContext()
+      : undefined;
 
     this.#deps.debugLogger.log('Submitting order via asset ID routing', {
       symbol,
@@ -4466,7 +4474,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const result = await exchangeClient.order({
         orders,
         grouping,
-        builder,
+        ...(builder && { builder }),
       });
 
       if (result.status !== 'ok') {
@@ -4647,7 +4655,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Ensure provider is ready for trading (includes signing operations).
       // Kept after validation so invalid orders never trigger signature prompts
       // (builder-fee approval, DEX abstraction enablement, etc.).
-      await this.#ensureReadyForTrading();
+      const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy(
+        this.#orderFeeConfiguration,
+        params,
+      );
+      await this.#ensureReadyForTrading({
+        requiresBuilderFee: chargesMetamaskBuilderFee,
+      });
 
       // Debug: Log asset map state before order placement
       const allMapKeys = Array.from(this.#symbolToAssetId.keys());
@@ -4765,6 +4779,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         transferInfo,
         symbol: params.symbol,
         assetId,
+        chargesMetamaskBuilderFee,
       });
     } catch (error) {
       // Retry mechanism for $10 minimum order errors
@@ -5009,9 +5024,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Kept after validation so an invalid strategy order never triggers the
     // signature prompts in trading setup — same ordering as `placeOrder`.
-    const { chargesMetamaskBuilderFee } =
-      resolveHyperLiquidOrderFeePolicy(params);
-    await this.#ensureReadyForTrading(chargesMetamaskBuilderFee);
+    const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy(
+      this.#orderFeeConfiguration,
+      params,
+    );
+    await this.#ensureReadyForTrading({
+      requiresBuilderFee: chargesMetamaskBuilderFee,
+    });
 
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
@@ -5025,12 +5044,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       leverage: params.leverage,
     });
 
+    const builder = chargesMetamaskBuilderFee
+      ? await this.#getBuilderOrderContext()
+      : undefined;
+
     return {
       assetId,
       szDecimals: assetInfo.szDecimals,
       finalPositionSize,
       formattedSize,
       ladder,
+      builder,
     };
   }
 
@@ -5186,7 +5210,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
     context: StrategyPlacementContext,
   ): Promise<OrderResult> {
-    const { assetId, szDecimals, formattedSize, ladder } = context;
+    const { assetId, szDecimals, formattedSize, ladder, builder } = context;
     // Built and validated in `#prepareStrategyPlacement`, before anything was
     // signed, so what is submitted here is exactly what the minimums were
     // applied to.
@@ -5214,7 +5238,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const result = await exchangeClient.order({
       orders,
       grouping: 'na',
-      builder: await this.#getBuilderOrderContext(),
+      ...(builder && { builder }),
     });
 
     if (result.status !== 'ok') {
@@ -5291,7 +5315,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     context: StrategyPlacementContext,
     generation: number,
   ): Promise<OrderResult> {
-    const { assetId, szDecimals, formattedSize } = context;
+    const { assetId, szDecimals, formattedSize, builder } = context;
 
     // The preamble is several round trips long. A disconnect during it has
     // already torn down everything this session would run on, so the chase
@@ -5321,13 +5345,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
 
-    // Read once, while the caller's fee-source context is still set.
-    const builder = await this.#getBuilderOrderContext();
-
-    if (generation !== this.#chaseGeneration) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
-    }
-
     // Held onto rather than looked up again after the submission returns.
     // `disconnect` drops the service's client reference synchronously, so a
     // retraction that asked for a client after the fact would be refused one
@@ -5348,8 +5365,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           price: quotePrice,
           size: formattedSize,
           reduceOnly: params.reduceOnly ?? false,
-          builderFee: builder.f,
-          builderAddress: builder.b,
+          builder,
           exchangeClient: placingClient,
         });
         break;
@@ -5401,8 +5417,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       maxDistanceBps: params.chaseMaxDistanceBps,
       intervalMs,
       lastSnapshotSizeRefreshAt: 0,
-      builderFee: builder.f,
-      builderAddress: builder.b,
+      builder,
       deadline:
         Date.now() +
         (params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs),
@@ -5532,9 +5547,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.price - Formatted limit price.
    * @param params.size - Formatted size.
    * @param params.reduceOnly - Whether the order may only reduce a position.
-   * @param params.builderFee - Builder fee, in tenths of a basis point, captured
-   * when the session started so replacements keep the rate they were quoted at.
-   * @param params.builderAddress - Builder address captured with the fee.
+   * @param params.builder - Builder context captured when the session started.
    * @param params.exchangeClient - Client to submit through. Passed in rather
    * than looked up here so a first placement can keep the instance it signed
    * with, which is the only one that can take the order back once `disconnect`
@@ -5547,8 +5560,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     price: string;
     size: string;
     reduceOnly: boolean;
-    builderFee: number;
-    builderAddress: string;
+    builder?: BuilderOrderContext;
     exchangeClient: ExchangeClient;
   }): Promise<string> {
     const result = await params.exchangeClient.order({
@@ -5565,10 +5577,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         },
       ],
       grouping: 'na',
-      builder: {
-        b: params.builderAddress,
-        f: params.builderFee,
-      },
+      ...(params.builder && { builder: params.builder }),
     });
 
     if (result.status !== 'ok') {
@@ -5888,8 +5897,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: quotePrice,
             size: remaining,
             reduceOnly: session.reduceOnly,
-            builderFee: session.builderFee,
-            builderAddress: session.builderAddress,
+            builder: session.builder,
             // A running session is on a live provider, so the current client is
             // the right one; only the first placement has a teardown to survive.
             exchangeClient: this.#clientService.getExchangeClient(),
@@ -6339,7 +6347,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
     }
 
-    await this.#ensureReadyForTrading(false);
+    await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
@@ -6379,7 +6387,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
     }
 
-    await this.#ensureReadyForTrading();
+    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
     const result = await this.#clientService.getExchangeClient().cancel({
       cancels: group.orderIds.map((orderId) => ({
@@ -6483,7 +6491,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { success: true, orderId: params.orderId };
     }
 
-    await this.#ensureReadyForTrading();
+    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
     // Only a refusal leaves an order behind. A child that had already filled or
     // been cancelled is reported as a rejection too, but nothing of it is
     // resting — treating that as a failure would pin the handle open forever on
@@ -6853,7 +6861,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Every refusal is behind us, so the setup that may prompt for signatures
       // and write builder-fee/referral approvals can run now — a rejected edit
       // costs the caller nothing, matching placeOrder and updatePositionTPSL.
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       // Submit modification via SDK
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -6955,7 +6963,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(coinValidation.error);
       }
 
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       const exchangeClient = this.#clientService.getExchangeClient();
       const asset = await this.#getAssetIdWithRepair({
@@ -7031,7 +7039,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       const exchangeClient = this.#clientService.getExchangeClient();
 
@@ -7114,7 +7122,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     try {
       // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       // Get all current positions from cache (avoids 429 rate limiting)
       const positions = await this.getPositions();
@@ -7555,7 +7563,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Everything is validated: only now run the trading setup that can prompt
       // for signatures and write the referral / builder-fee approvals.
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
@@ -7809,7 +7817,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.debugLogger.log('Closing position:', params);
 
       // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: true });
 
       // Use provided position (from WebSocket) or fetch from cache
       // This avoids unnecessary API calls and prevents 429 rate limiting
@@ -11751,11 +11759,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // The provider policy, not the client, owns whether this placement can
     // carry a builder fee. The dedicated TWAP action has no builder field.
-    const { chargesMetamaskBuilderFee } =
-      resolveHyperLiquidOrderFeePolicy(params);
+    const { chargesMetamaskBuilderFee } = resolveHyperLiquidOrderFeePolicy(
+      this.#orderFeeConfiguration,
+      params,
+    );
     const baseMetamaskFeeRate = chargesMetamaskBuilderFee
       ? BUILDER_FEE_CONFIG.MaxFeeDecimal
-      : BUILDER_FEE_CONFIG.NoBuilderFieldFeeDecimal;
+      : 0;
     const metamaskFeeDiscount =
       this.#userFeeDiscountBips === undefined
         ? 0

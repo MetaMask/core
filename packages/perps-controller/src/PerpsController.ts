@@ -1809,6 +1809,9 @@ export class PerpsController extends BaseController<
       subscriptionBuilderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
+      orderFeeConfiguration:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.orderFeeConfiguration,
     });
     this.#standaloneProviderIsTestnet = currentIsTestnet;
     this.#standaloneProviderHip3Version = currentHip3Version;
@@ -2297,6 +2300,9 @@ export class PerpsController extends BaseController<
       subscriptionBuilderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
+      orderFeeConfiguration:
+        this.#options.clientConfig?.providerCredentials?.hyperliquid
+          ?.orderFeeConfiguration,
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -2657,25 +2663,9 @@ export class PerpsController extends BaseController<
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    let { providerId } = params;
+    let activeProvider: ActivePerpsProvider;
     try {
-      const activeProvider = await this.#getActiveProviderWhenReady();
-      providerId ??= this.#getDirectProviderId(activeProvider);
-      if (
-        this.#hasConflictingProviderRoute(params.providerId, activeProvider)
-      ) {
-        return this.#getUnavailableOrderCapabilities(
-          'provider_not_routable',
-          providerId,
-        );
-      }
-      if (!activeProvider.getOrderCapabilities) {
-        return this.#getUnavailableOrderCapabilities(
-          'not_implemented',
-          providerId,
-        );
-      }
-      return await activeProvider.getOrderCapabilities(params);
+      activeProvider = await this.#getActiveProviderWhenReady();
     } catch (error) {
       this.#debugLog('PerpsController: Order capabilities unavailable', {
         error: ensureError(error, 'PerpsController.getOrderCapabilities')
@@ -2683,8 +2673,44 @@ export class PerpsController extends BaseController<
       });
       return this.#getUnavailableOrderCapabilities(
         'provider_unavailable',
-        providerId,
+        params.providerId,
       );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableOrderCapabilities(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getOrderCapabilities) {
+      return this.#getUnavailableOrderCapabilities(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    try {
+      return await activeProvider.getOrderCapabilities(params);
+    } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.getOrderCapabilities',
+      );
+      this.#debugLog('PerpsController: Order capabilities unavailable', {
+        error: safeError.message,
+      });
+      let reason: OrderCapabilitiesUnavailableReason = 'provider_unavailable';
+      if (safeError.message === PERPS_ERROR_CODES.PROVIDER_NOT_FOUND) {
+        reason = 'provider_not_found';
+      } else if (
+        safeError.message === PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED
+      ) {
+        reason = 'provider_not_routable';
+      }
+      return this.#getUnavailableOrderCapabilities(reason, resolvedProviderId);
     }
   }
 
@@ -2736,8 +2762,8 @@ export class PerpsController extends BaseController<
   ): boolean {
     return Boolean(
       providerId &&
-      !provider.routesOrdersByProviderId &&
-      providerId !== provider.protocolId,
+        !provider.routesOrdersByProviderId &&
+        providerId !== provider.protocolId,
     );
   }
 
@@ -2757,7 +2783,7 @@ export class PerpsController extends BaseController<
       (!params.providerId ||
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
     this.#ensureTradingServiceDeps();
 
@@ -2813,7 +2839,7 @@ export class PerpsController extends BaseController<
       (!params.providerId ||
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
 
     return this.#tradingService.cancelOrder({
@@ -4687,7 +4713,7 @@ export class PerpsController extends BaseController<
       (!params.providerId ||
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
     const context = this.#createServiceContext('validateOrder');
     return this.#marketDataService.validateOrder({ provider, params, context });
@@ -5417,7 +5443,7 @@ export class PerpsController extends BaseController<
       (!params.providerId ||
         this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
     // Preview owns subscription hydration. The submit resolver remains a pure
     // cache read and can therefore never start a benefits request while an

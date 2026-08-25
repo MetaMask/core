@@ -222,12 +222,12 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
     providerId?: PerpsProviderType,
   ): [PerpsProviderType, PerpsProvider] {
     if (!providerId) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
 
     const provider = this.#providers.get(providerId);
     if (!provider) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
     return [providerId, provider];
   }

@@ -39,18 +39,13 @@ export const STRATEGY_ORDER_TYPES = [
 export const SCALE_ORDER_COUNT = { min: 2, max: 20 } as const;
 
 /**
- * Check the provider-independent shape of a capability market symbol.
+ * Check the provider-independent minimum for a capability market symbol.
  *
  * @param symbol - Market symbol supplied by a consumer.
- * @returns True when the symbol is a non-empty market name, optionally
- * prefixed by one non-empty DEX route.
+ * @returns True when the symbol is non-empty and contains no whitespace.
  */
-export function isValidCapabilitySymbol(symbol: string): boolean {
-  const routeParts = symbol.split(':');
-  return (
-    routeParts.length <= 2 &&
-    routeParts.every((part) => part.length > 0 && !/\s/u.test(part))
-  );
+export function isNonEmptyCapabilitySymbol(symbol: string): boolean {
+  return symbol.length > 0 && !/\s/u.test(symbol);
 }
 
 /**

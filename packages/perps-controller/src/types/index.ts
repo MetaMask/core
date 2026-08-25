@@ -311,28 +311,38 @@ export type OrderParams = {
   providerId?: PerpsProviderType;
 };
 
-/**
- * Controller order request. Direct provider calls keep `OrderParams` because
- * they already identify their venue; routed strategy calls must name it.
- */
-export type RoutedOrderParams<Params extends OrderParams = never> = [
-  Params,
-] extends [never]
-  ? OrderParams &
+type RequireStrategyRoute<
+  BaseParams extends { orderType?: OrderType },
+  Params extends BaseParams = never,
+  OptionalOrderType extends boolean = false,
+> = [Params] extends [never]
+  ? BaseParams &
       (
         | Readonly<{
             orderType: StrategyOrderType;
             providerId: PerpsProviderType;
           }>
-        | Readonly<{
-            orderType: Exclude<OrderType, StrategyOrderType>;
-            providerId?: PerpsProviderType;
-          }>
+        | Readonly<
+            (OptionalOrderType extends true
+              ? { orderType?: Exclude<OrderType, StrategyOrderType> }
+              : { orderType: Exclude<OrderType, StrategyOrderType> }) & {
+              providerId?: PerpsProviderType;
+            }
+          >
       )
   : Params &
-      ([Extract<Params['orderType'], StrategyOrderType>] extends [never]
-        ? unknown
-        : Readonly<{ providerId: PerpsProviderType }>);
+      ('orderType' extends keyof Params
+        ? [Extract<Params['orderType'], StrategyOrderType>] extends [never]
+          ? unknown
+          : Readonly<{ providerId: PerpsProviderType }>
+        : unknown);
+
+/**
+ * Controller order request. Direct provider calls keep `OrderParams` because
+ * they already identify their venue; routed strategy calls must name it.
+ */
+export type RoutedOrderParams<Params extends OrderParams = never> =
+  RequireStrategyRoute<OrderParams, Params>;
 
 export type OrderResult = {
   success?: boolean;
@@ -808,24 +818,7 @@ export type CancelOrderParams = {
 
 /** Routed cancellation request with a required venue for strategy handles. */
 export type RoutedCancelOrderParams<Params extends CancelOrderParams = never> =
-  [Params] extends [never]
-    ? CancelOrderParams &
-        (
-          | Readonly<{
-              orderType: StrategyOrderType;
-              providerId: PerpsProviderType;
-            }>
-          | Readonly<{
-              orderType?: Exclude<OrderType, StrategyOrderType>;
-              providerId?: PerpsProviderType;
-            }>
-        )
-    : Params &
-        ('orderType' extends keyof Params
-          ? [Extract<Params['orderType'], StrategyOrderType>] extends [never]
-            ? unknown
-            : Readonly<{ providerId: PerpsProviderType }>
-          : unknown);
+  RequireStrategyRoute<CancelOrderParams, Params, true>;
 
 export type CancelOrderResult = {
   success: boolean;
@@ -1013,7 +1006,22 @@ export type HyperLiquidCredentials = {
   subscriptionBuilderAddressTestnet?: string;
   /** Dedicated subscription waiver builder for mainnet. */
   subscriptionBuilderAddressMainnet?: string;
+  /** Optional builder-fee policy overrides. Native TWAP cannot carry a builder fee. */
+  orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
 };
+
+export type HyperLiquidOrderFeePolicy = Readonly<{
+  chargesMetamaskBuilderFee: boolean;
+}>;
+
+/**
+ * Optional provider-owned builder-fee overrides. Omitted entries use the
+ * HyperLiquid defaults. TWAP is excluded because its native action has no
+ * builder field.
+ */
+export type HyperLiquidOrderFeeConfiguration = Readonly<
+  Partial<Record<Exclude<OrderType, 'twap'>, HyperLiquidOrderFeePolicy>>
+>;
 
 export type MYXCredentials = {
   /** Whether MYX provider is enabled via local env var. */
@@ -1393,22 +1401,7 @@ export type FeeCalculationParams = {
 /** Routed fee quote with a required venue for strategy pricing. */
 export type RoutedFeeCalculationParams<
   Params extends FeeCalculationParams = never,
-> = [Params] extends [never]
-  ? FeeCalculationParams &
-      (
-        | Readonly<{
-            orderType: StrategyOrderType;
-            providerId: PerpsProviderType;
-          }>
-        | Readonly<{
-            orderType: Exclude<OrderType, StrategyOrderType>;
-            providerId?: PerpsProviderType;
-          }>
-      )
-  : Params &
-      ([Extract<Params['orderType'], StrategyOrderType>] extends [never]
-        ? unknown
-        : Readonly<{ providerId: PerpsProviderType }>);
+> = RequireStrategyRoute<FeeCalculationParams, Params>;
 
 export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
