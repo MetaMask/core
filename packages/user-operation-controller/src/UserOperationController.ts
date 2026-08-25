@@ -30,7 +30,7 @@ import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';

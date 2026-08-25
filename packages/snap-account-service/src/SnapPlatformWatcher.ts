@@ -1,5 +1,5 @@
 import { createDeferredPromise, DeferredPromise } from '@metamask/utils';
-import { once } from 'lodash';
+import { once } from 'lodash-es';
 
 import { projectLogger as log } from './logger.js';
 import type { SnapAccountServiceMessenger } from './SnapAccountService.js';

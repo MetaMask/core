@@ -1,7 +1,7 @@
 /* eslint-disable jest/expect-expect */
 
 import { TransactionType } from '@metamask/transaction-controller';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import type {
   PrepareUserOperationResponse,

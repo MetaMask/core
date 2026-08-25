@@ -2101,9 +2101,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 10
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
     "@typescript-eslint/no-explicit-any": {
       "count": 4
     },

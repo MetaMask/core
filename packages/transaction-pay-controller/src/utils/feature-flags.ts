@@ -6,7 +6,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { uniq } from 'lodash';
+import { uniq } from 'lodash-es';
 
 import {
   isTransactionPayStrategy,

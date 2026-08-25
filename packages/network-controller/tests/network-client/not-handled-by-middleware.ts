@@ -1,4 +1,4 @@
-import { fill } from 'lodash';
+import { fill } from 'lodash-es';
 
 import type { ProviderType } from './helpers.js';
 import { withMockedCommunications, withNetworkClient } from './helpers.js';

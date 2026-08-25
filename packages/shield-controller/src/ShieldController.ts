@@ -14,7 +14,7 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 
 import { controllerName } from './constants.js';
 import { projectLogger, createModuleLogger } from './logger.js';

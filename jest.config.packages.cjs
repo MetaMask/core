@@ -94,6 +94,11 @@ module.exports = {
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
     '^uuid$': require.resolve('uuid'),
+    // The sources import `lodash-es`, because `lodash` is CommonJS and its
+    // named exports cannot be imported from an ES module. The tests compile to
+    // CommonJS, where the reverse is true, so they are pointed back at
+    // `lodash`. The two have the same API.
+    '^lodash-es$': require.resolve('lodash'),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

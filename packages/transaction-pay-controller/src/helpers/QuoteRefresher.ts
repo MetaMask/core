@@ -1,6 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
 import { TransactionPayStrategy } from '../constants.js';
 import type {

@@ -23,7 +23,7 @@ import type {
   Hex,
   NonEmptyArray,
 } from '@metamask/utils';
-import { cloneDeep, isEqual, pick } from 'lodash';
+import { cloneDeep, isEqual, pick } from 'lodash-es';
 
 import { CaveatTypes, PermissionKeys } from './constants.js';
 import {

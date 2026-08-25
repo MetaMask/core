@@ -13,7 +13,7 @@ import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
-import { memoize } from 'lodash';
+import { memoize } from 'lodash-es';
 
 import { MAX_SAFE_CHAIN_ID } from './constants.js';
 
