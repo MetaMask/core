@@ -2733,8 +2733,8 @@ export class PerpsController extends BaseController<
   ): boolean {
     return Boolean(
       providerId &&
-        !provider.routesOrdersByProviderId &&
-        providerId !== provider.protocolId,
+      !provider.routesOrdersByProviderId &&
+      providerId !== provider.protocolId,
     );
   }
 

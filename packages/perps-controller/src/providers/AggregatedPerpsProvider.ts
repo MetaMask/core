@@ -20,7 +20,6 @@ import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { WebSocketConnectionState } from '../types/index.js';
-import { isStrategyOrderType } from '../utils/orderTypes.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -90,6 +89,7 @@ import type {
   RoutedFeeCalculationParams,
   RoutedOrderParams,
 } from '../types/index.js';
+import { isStrategyOrderType } from '../utils/orderTypes.js';
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating

@@ -25,8 +25,8 @@ import {
   PERPS_CONSTANTS,
   PROVIDER_CONFIG,
 } from '../constants/perpsConfig.js';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   MYXClientService,
   MYXMarketMetadataStaleError,
@@ -104,10 +104,6 @@ import type {
 import type { CandleData } from '../types/perps-types.js';
 import { ensureError } from '../utils/errorUtils.js';
 import {
-  isStrategyOrderType,
-  isValidCapabilitySymbol,
-} from '../utils/orderTypes.js';
-import {
   adaptMarketFromMYX,
   adaptMarketDataFromMYX,
   adaptPriceFromMYX,
@@ -123,6 +119,10 @@ import {
   buildPoolSymbolMap,
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
+import {
+  isStrategyOrderType,
+  isValidCapabilitySymbol,
+} from '../utils/orderTypes.js';
 
 // ============================================================================
 // Constants
