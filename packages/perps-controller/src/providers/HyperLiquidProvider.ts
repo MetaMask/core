@@ -759,8 +759,8 @@ type ResolvedHyperLiquidOrderFeeConfiguration = ReadonlyMap<
  *
  * The configuration type makes this map exhaustive, so a new order type cannot
  * inherit a builder-fee policy accidentally. HyperLiquid's dedicated TWAP
- * action has no builder field; every other current placement uses the standard
- * order action.
+ * action has no builder field. Every other standalone placement uses an order
+ * action that can carry one builder context.
  */
 const HYPERLIQUID_ORDER_FEE_CONFIG = {
   market: { chargesMetamaskBuilderFee: true },
@@ -801,13 +801,34 @@ function resolveHyperLiquidOrderFeeConfiguration(
         HYPERLIQUID_ORDER_FEE_CONFIG.limit,
       ),
     ],
-    // HyperLiquid supplies one builder context for an order action, including
-    // every attached TP/SL child. Trigger policies therefore remain fixed until
-    // a future configuration can model the whole batch rather than one child.
-    ['stop_market', HYPERLIQUID_ORDER_FEE_CONFIG.stop_market],
-    ['stop_limit', HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit],
-    ['take_profit_market', HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market],
-    ['take_profit_limit', HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit],
+    [
+      'stop_market',
+      resolveConfiguredOrderFeePolicy(
+        configured?.stop_market,
+        HYPERLIQUID_ORDER_FEE_CONFIG.stop_market,
+      ),
+    ],
+    [
+      'stop_limit',
+      resolveConfiguredOrderFeePolicy(
+        configured?.stop_limit,
+        HYPERLIQUID_ORDER_FEE_CONFIG.stop_limit,
+      ),
+    ],
+    [
+      'take_profit_market',
+      resolveConfiguredOrderFeePolicy(
+        configured?.take_profit_market,
+        HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_market,
+      ),
+    ],
+    [
+      'take_profit_limit',
+      resolveConfiguredOrderFeePolicy(
+        configured?.take_profit_limit,
+        HYPERLIQUID_ORDER_FEE_CONFIG.take_profit_limit,
+      ),
+    ],
     ['twap', HYPERLIQUID_ORDER_FEE_CONFIG.twap],
     [
       'scale',
@@ -2013,15 +2034,16 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Ensure provider is ready for TRADING operations (signing required)
    *
-   * This method performs additional setup that requires user signatures:
+   * This method performs shared setup that may require user signatures:
    * - DEX abstraction enablement (for HIP-3 auto-transfers)
-   * - Builder fee approval (required for orders)
    * - Referral code setup (attribution)
+   * - Builder fee approval when the whole action carries a builder context
    *
    * These operations are DEFERRED from ensureReady() to avoid hardware wallet prompt spam
    * when users are just viewing the Perps section (critical for hardware wallets).
    *
-   * Call this method before any trading operation (placeOrder, cancelOrder, etc.)
+   * General trading readiness is independent of builder approval. Native TWAP
+   * and cancellations call this with `requiresBuilderFee: false`.
    */
   #tradingSetupPromise: Promise<void> | null = null;
 
@@ -2523,6 +2545,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       'DEX metadata cache write',
     );
     this.#cachedMetaByDex.set(dex, meta);
+    if (dex === null && this.#orderCapabilitiesMeta === null) {
+      this.#orderCapabilitiesMeta = { meta, freshAt: Date.now() };
+    }
     if (assetCtxs) {
       const subscriptionDexKey = dex ?? '';
       this.#subscriptionService.setDexMetaCache(subscriptionDexKey, meta);

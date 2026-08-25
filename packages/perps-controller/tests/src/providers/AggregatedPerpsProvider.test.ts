@@ -1216,6 +1216,20 @@ describe('AggregatedPerpsProvider', () => {
         reason: 'not_implemented',
       });
     });
+
+    it('reports unavailable when the routed capability read throws', async () => {
+      mockHLProvider.getOrderCapabilities.mockRejectedValueOnce(
+        new Error('offline'),
+      );
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+    });
   });
 
   describe('Subscriptions', () => {

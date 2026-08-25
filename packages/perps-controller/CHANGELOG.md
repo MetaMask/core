@@ -28,19 +28,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preserve compatibility through an optional provider hook and explicit unavailable reasons.
   - Capability reads wait for in-flight controller initialization before resolving the active provider, so discovery uses the provider selected when initialization completes.
   - Capability reads return a typed unavailable result instead of throwing.
-- Add `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND` and `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE` for missing explicit routes and async provider work invalidated by disconnect or a network change ([#9948](https://github.com/MetaMask/core/pull/9948))
+- Add public `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND`, and `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE` errors for conflicting direct routes, unknown aggregated routes, and async provider work invalidated by disconnect or a network change ([#9948](https://github.com/MetaMask/core/pull/9948))
 
 ### Changed
 
 - **BREAKING:** Require `providerId` on routed strategy placement, validation, cancellation, and fee quotes so these operations cannot fall back to another protocol ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Consumers must pass the `providerId` returned by `getOrderCapabilities` when placing, validating, cancelling, or quoting a `twap`, `scale`, or `chase` order. Ordinary orders and direct provider calls keep their previous optional routing behavior.
-  - Missing or conflicting strategy routes throw `ORDER_STRATEGY_ROUTE_REQUIRED`. Unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
+  - Missing strategy routes throw `ORDER_STRATEGY_ROUTE_REQUIRED`. Conflicting direct routes throw `ORDER_STRATEGY_ROUTE_UNAVAILABLE`. Unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
   - `AggregatedPerpsProvider` implements `RoutedPerpsProvider`, so consumers cannot widen it to the direct `PerpsProvider` contract and drop the strategy route requirement.
   - Fee calculations now reach a registered selected provider. MYX quotes explicitly report zero MetaMask fee fields; unavailable ordinary routes still fall back to the default provider, matching ordinary placement.
   - MYX rejects `twap`, `scale`, and `chase` fee quotes with `ORDER_STRATEGY_MARKET_UNSUPPORTED` because it does not support strategy orders.
 - **BREAKING:** Resolve HyperLiquid builder-fee applicability through an exhaustive provider-owned order policy and exclude the MetaMask builder fee from TWAP quotes ([#9948](https://github.com/MetaMask/core/pull/9948))
   - `calculateFees` now returns a `metamaskFeeRate` and `metamaskFeeAmount` of `0` for TWAP instead of `0.001` and its derived amount. The HyperLiquid protocol/taker fee is unchanged. Fee discounts do not add a MetaMask fee because the native TWAP action has no builder field, so native TWAP produces no MetaMask builder-fee revenue.
-  - Clients may override builder-fee applicability for HyperLiquid market, limit, scale, and chase actions through optional provider configuration. Quotes and placement use the same policy. Native TWAP cannot be overridden, and attached trigger children inherit their parent action because HyperLiquid accepts one builder context per batch.
+  - Clients may override builder-fee applicability for HyperLiquid builder-capable standalone actions through optional provider configuration. This includes market, limit, trigger, scale, and chase orders. Quotes and placement use the same policy. Native TWAP cannot be overridden, and attached trigger children inherit their parent action because HyperLiquid accepts one builder context per batch.
 - **BREAKING:** Reject non-positive or non-plain-decimal `calculateFees` amounts with `ORDER_SIZE_POSITIVE` in HyperLiquid and MYX providers instead of returning a zero or partially parsed quote ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Amount strings must use digits with an optional decimal fraction. Exponential notation, hexadecimal notation, leading or trailing whitespace, and leading-dot decimals are rejected.
 - Wait for in-flight `PerpsController` initialization before calculating ordinary or strategy fee quotes instead of throwing `CLIENT_NOT_INITIALIZED`; placement already waited for the same initialization ([#9948](https://github.com/MetaMask/core/pull/9948))

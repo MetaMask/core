@@ -1025,20 +1025,27 @@ export type HyperLiquidOrderFeePolicy = Readonly<{
 }>;
 
 /**
- * HyperLiquid placements whose whole native action can opt in or out of one
- * builder context. Trigger orders are excluded because attached TP/SL batches
- * inherit their parent action's policy and cannot carry per-child policies.
+ * HyperLiquid standalone placements whose whole native action can opt in or
+ * out of one builder context. Attached TP/SL children are not separate actions
+ * and inherit their parent's policy.
  */
 export type HyperLiquidConfigurableOrderFeeType = Extract<
   OrderType,
-  'market' | 'limit' | 'scale' | 'chase'
+  | 'market'
+  | 'limit'
+  | 'stop_market'
+  | 'stop_limit'
+  | 'take_profit_market'
+  | 'take_profit_limit'
+  | 'scale'
+  | 'chase'
 >;
 
 /**
  * Optional provider-owned builder-fee overrides. Omitted entries use the
  * HyperLiquid defaults. TWAP is excluded because its native action has no
- * builder field. Trigger types are excluded because HyperLiquid accepts one
- * builder context for a parent order and all attached TP/SL children.
+ * builder field. A standalone trigger is configurable as a whole action.
+ * Attached trigger children inherit the policy of their parent order batch.
  */
 export type HyperLiquidOrderFeeConfiguration = Readonly<
   Partial<

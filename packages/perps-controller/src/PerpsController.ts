@@ -2123,17 +2123,21 @@ export class PerpsController extends BaseController<
    * @returns A promise that resolves when the operation completes.
    */
   async init(): Promise<void> {
-    const pendingDisconnect = this.#disconnectOperationPromise;
-    if (pendingDisconnect) {
-      await pendingDisconnect;
-    }
+    while (true) {
+      const pendingDisconnect = this.#disconnectOperationPromise;
+      if (pendingDisconnect) {
+        await pendingDisconnect;
+        continue;
+      }
 
-    const pendingReinitialization = this.#reinitializationOperationPromise;
-    if (pendingReinitialization) {
-      await pendingReinitialization;
-    }
+      const pendingReinitialization = this.#reinitializationOperationPromise;
+      if (pendingReinitialization) {
+        await pendingReinitialization;
+        continue;
+      }
 
-    return this.#initWithoutDisconnectWait();
+      return this.#initWithoutDisconnectWait();
+    }
   }
 
   /**
@@ -2845,10 +2849,10 @@ export class PerpsController extends BaseController<
   async placeOrder<const Params extends OrderParams>(
     params: RoutedOrderParams<Params>,
   ): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
     if (isStrategyOrderType(params.orderType) && !params.providerId) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
+    const provider = await this.#getActiveProviderWhenReady();
     if (
       isStrategyOrderType(params.orderType) &&
       this.#hasConflictingProviderRoute(params.providerId, provider)
@@ -2909,7 +2913,6 @@ export class PerpsController extends BaseController<
   async cancelOrder<const Params extends CancelOrderParams>(
     params: RoutedCancelOrderParams<Params>,
   ): Promise<CancelOrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
     if (
       params.orderType !== undefined &&
       isStrategyOrderType(params.orderType) &&
@@ -2917,6 +2920,7 @@ export class PerpsController extends BaseController<
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
+    const provider = await this.#getActiveProviderWhenReady();
     if (
       params.orderType !== undefined &&
       isStrategyOrderType(params.orderType) &&
@@ -4800,10 +4804,10 @@ export class PerpsController extends BaseController<
   async validateOrder<const Params extends OrderParams>(
     params: RoutedOrderParams<Params>,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const provider = this.getActiveProvider();
     if (isStrategyOrderType(params.orderType) && !params.providerId) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
+    const provider = this.getActiveProvider();
     if (
       isStrategyOrderType(params.orderType) &&
       this.#hasConflictingProviderRoute(params.providerId, provider)
@@ -5575,10 +5579,10 @@ export class PerpsController extends BaseController<
   async calculateFees<const Params extends FeeCalculationParams>(
     params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
-    const provider = await this.#getActiveProviderWhenReady();
     if (isStrategyOrderType(params.orderType) && !params.providerId) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
+    const provider = await this.#getActiveProviderWhenReady();
     if (
       isStrategyOrderType(params.orderType) &&
       this.#hasConflictingProviderRoute(params.providerId, provider)

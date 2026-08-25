@@ -1043,8 +1043,6 @@ describe('PerpsController', () => {
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects %s placement without an explicit provider route',
       async (orderType) => {
-        markControllerAsInitialized();
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           symbol: 'ETH',
           orderType,
@@ -1117,8 +1115,6 @@ describe('PerpsController', () => {
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects %s cancellation without an explicit provider route',
       async (orderType) => {
-        markControllerAsInitialized();
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           orderId: 'strategy-123',
           symbol: 'ETH',
@@ -1158,8 +1154,6 @@ describe('PerpsController', () => {
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects %s validation without an explicit provider route',
       async (orderType) => {
-        markControllerAsInitialized();
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           symbol: 'ETH',
           orderType,
@@ -1302,8 +1296,6 @@ describe('PerpsController', () => {
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects a %s fee quote without an explicit provider route',
       async (orderType) => {
-        markControllerAsInitialized();
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           orderType,
           symbol: 'ETH',

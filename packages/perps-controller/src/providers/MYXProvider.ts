@@ -222,10 +222,9 @@ export class MYXProvider implements PerpsProvider {
         maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
       const capabilityPools = filterMYXExclusiveMarkets(pools);
-      this.#poolsCache = capabilityPools;
-      this.#poolSymbolMap = buildPoolSymbolMap(capabilityPools);
+      const capabilityPoolSymbolMap = buildPoolSymbolMap(capabilityPools);
       const hasMarket = capabilityPools.some(
-        (pool) => this.#poolSymbolMap.get(pool.poolId) === params.symbol,
+        (pool) => capabilityPoolSymbolMap.get(pool.poolId) === params.symbol,
       );
 
       return hasMarket

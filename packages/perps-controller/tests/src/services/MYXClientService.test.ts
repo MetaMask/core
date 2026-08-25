@@ -3,6 +3,7 @@ import type { PerpsPlatformDependencies } from '@metamask/perps-controller';
 
 import { MYX_PRICE_POLLING_INTERVAL_MS } from '../../../src/constants/myxConfig.js';
 import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { MYXClientService } from '../../../src/services/MYXClientService.js';
 import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
 import {
@@ -622,6 +623,27 @@ describe('MYXClientService', () => {
   // ==========================================================================
 
   describe('disconnect', () => {
+    it('rejects an in-flight market refresh and retries after disconnect', async () => {
+      const stalePools = [makePool()];
+      const freshPools = [makePool({ poolId: '0xfresh' })];
+      const pendingPools = createDeferred<MYXPoolSymbol[]>();
+      mockGetPoolSymbolAll
+        .mockReturnValueOnce(pendingPools.promise)
+        .mockResolvedValueOnce(freshPools);
+
+      const staleRequest = service.getMarkets({ allowStaleOnError: false });
+      service.disconnect();
+      pendingPools.resolve(stalePools);
+
+      await expect(staleRequest).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await expect(
+        service.getMarkets({ allowStaleOnError: false }),
+      ).resolves.toStrictEqual(freshPools);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
+    });
+
     it('stops polling and clears cache', async () => {
       const pools = [makePool()];
       mockGetPoolSymbolAll.mockResolvedValueOnce(pools);

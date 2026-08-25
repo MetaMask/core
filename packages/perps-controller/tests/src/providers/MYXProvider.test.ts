@@ -819,6 +819,29 @@ describe('MYXProvider', () => {
       });
     });
 
+    it('does not replace the provider market cache during capability reads', async () => {
+      const initializedPool = makePool();
+      const capabilityPool = makePool({
+        poolId: '0xcapability',
+        baseSymbol: 'CAPABILITY',
+      });
+      mockClientService.getMarkets
+        .mockResolvedValueOnce([initializedPool])
+        .mockResolvedValueOnce([capabilityPool]);
+      mockBuildPoolSymbolMap.mockImplementation(
+        (pools) => new Map(pools.map((pool) => [pool.poolId, pool.baseSymbol])),
+      );
+      mockClientService.getTickers.mockResolvedValueOnce([]);
+
+      await provider.initialize();
+      await provider.getOrderCapabilities({ symbol: 'CAPABILITY' });
+      await provider.getMarketDataWithPrices();
+
+      expect(mockClientService.getTickers).toHaveBeenCalledWith([
+        initializedPool.poolId,
+      ]);
+    });
+
     it.each(['', ' RHEA', 'RHEA ', 'RHEA USDT', 'myx:RHEA'])(
       'reports malformed symbol %p as invalid',
       async (symbol) => {

@@ -25,6 +25,7 @@ import {
   PERPS_CONSTANTS,
   ZERO_ADDRESS,
 } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type {
   MYXAuthConfig,
@@ -97,6 +98,8 @@ export class MYXClientService {
   readonly #marketsCacheTtlMs = PERFORMANCE_CONFIG.MarketDataCacheDurationMs;
 
   #marketsRefreshPromise: Promise<MYXPoolSymbol[]> | null = null;
+
+  #lifecycleGeneration = 0;
 
   // globalId cache: poolId → globalId (for WS subscriptions)
   readonly #globalIdCache: Map<string, number> = new Map();
@@ -184,7 +187,7 @@ export class MYXClientService {
    *
    * @param options - Cache fallback behavior.
    * @param options.allowStaleOnError - Whether a failed refresh may return stale markets.
-   * @param options.maxCacheAgeMs - Maximum age accepted by this caller.
+   * @param options.maxCacheAgeMs - Maximum age accepted by this caller. It may narrow but never extend the service's five-minute TTL.
    * @returns The array of available MYX pool symbols.
    */
   async getMarkets(options?: {
@@ -206,12 +209,17 @@ export class MYXClientService {
 
     let refreshPromise = this.#marketsRefreshPromise;
     if (!refreshPromise) {
+      const refreshGeneration = this.#lifecycleGeneration;
       refreshPromise = (async (): Promise<MYXPoolSymbol[]> => {
         this.#deps.debugLogger.log(
           '[MYXClientService] Fetching markets via SDK',
         );
 
         const pools = await this.#myxClient.markets.getPoolSymbolAll();
+
+        if (refreshGeneration !== this.#lifecycleGeneration) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
 
         this.#marketsCache = pools || [];
         this.#marketsCacheTimestamp = Date.now();
@@ -236,6 +244,10 @@ export class MYXClientService {
         wrappedError,
         this.#getErrorContext('getMarkets'),
       );
+
+      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        throw wrappedError;
+      }
 
       // Return stale cache if available
       if (
@@ -1080,6 +1092,8 @@ export class MYXClientService {
    * Disconnect and cleanup
    */
   disconnect(): void {
+    this.#lifecycleGeneration += 1;
+    this.#marketsRefreshPromise = null;
     this.stopPricePolling();
     this.#myxClient.subscription.disconnect();
     this.#marketsCache = [];

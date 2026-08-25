@@ -2713,6 +2713,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it.each([
       ['market', { market: { chargesMetamaskBuilderFee: false } }],
       ['limit', { limit: { chargesMetamaskBuilderFee: false } }],
+      ['stop_market', { stop_market: { chargesMetamaskBuilderFee: false } }],
+      ['stop_limit', { stop_limit: { chargesMetamaskBuilderFee: false } }],
+      [
+        'take_profit_market',
+        { take_profit_market: { chargesMetamaskBuilderFee: false } },
+      ],
+      [
+        'take_profit_limit',
+        { take_profit_limit: { chargesMetamaskBuilderFee: false } },
+      ],
       ['scale', { scale: { chargesMetamaskBuilderFee: false } }],
       ['chase', { chase: { chargesMetamaskBuilderFee: false } }],
     ] as const)(
@@ -2769,24 +2779,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(fees.metamaskFeeRate).toBe(0);
       expect(fees.metamaskFeeAmount).toBe(0);
-    });
-
-    it('ignores trigger overrides that cannot model a whole batch', async () => {
-      provider = createTestProvider({
-        orderFeeConfiguration: {
-          // @ts-expect-error Trigger children inherit their parent action.
-          stop_market: { chargesMetamaskBuilderFee: false },
-        },
-      });
-      useStrategyClients();
-
-      const fees = await provider.calculateFees({
-        orderType: 'stop_market',
-        amount: '1000',
-        symbol: 'ETH',
-      });
-
-      expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
     });
 
     it.each(['future_order', 'constructor', 'toString', '__proto__'] as const)(
@@ -3091,6 +3083,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('reuses fresh main-DEX metadata for capability discovery', async () => {
+      const { infoClient } = useStrategyClients();
+
+      await provider.getMaxLeverage('ETH');
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
     it('isolates capability metadata from overlapping shared cache writes', async () => {
