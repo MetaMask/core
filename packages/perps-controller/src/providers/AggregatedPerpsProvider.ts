@@ -275,14 +275,17 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    let provider: PerpsProvider;
-    try {
-      [, provider] = this.#getOrderProvider(params.providerId);
-    } catch {
-      return { status: 'unavailable', reason: 'provider_not_found' };
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
     }
     if (!provider.getOrderCapabilities) {
-      return { status: 'unavailable', reason: 'not_implemented' };
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
     }
     return await provider.getOrderCapabilities(params);
   }

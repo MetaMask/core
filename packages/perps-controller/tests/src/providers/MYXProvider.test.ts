@@ -749,6 +749,9 @@ describe('MYXProvider', () => {
         providerId: 'myx',
         supportedStrategies: [],
       });
+      expect(mockClientService.getMarkets).toHaveBeenCalledWith({
+        allowStaleOnError: false,
+      });
     });
 
     it('reports an unknown market as unavailable', async () => {

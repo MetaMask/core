@@ -241,6 +241,57 @@ describe('MYXClientService', () => {
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
 
+    it('rejects stale cache when the caller requires current markets', async () => {
+      mockGetPoolSymbolAll.mockResolvedValueOnce([makePool()]);
+      await service.getMarkets();
+      jest.advanceTimersByTime(5 * 60 * 1000 + 1);
+      mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
+
+      await expect(
+        service.getMarkets({ allowStaleOnError: false }),
+      ).rejects.toThrow('API down');
+    });
+
+    it('deduplicates concurrent market refreshes', async () => {
+      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
+      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
+        resolveMarkets = resolve;
+      });
+      mockGetPoolSymbolAll.mockReturnValueOnce(pendingMarkets);
+
+      const first = service.getMarkets();
+      const second = service.getMarkets();
+      resolveMarkets([makePool()]);
+
+      await expect(Promise.all([first, second])).resolves.toStrictEqual([
+        [makePool()],
+        [makePool()],
+      ]);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates a market refresh that overlaps disconnect', async () => {
+      let resolveMarkets = (_pools: MYXPoolSymbol[]): void => undefined;
+      const pendingMarkets = new Promise<MYXPoolSymbol[]>((resolve) => {
+        resolveMarkets = resolve;
+      });
+      mockGetPoolSymbolAll
+        .mockReturnValueOnce(pendingMarkets)
+        .mockResolvedValueOnce([makePool({ poolId: '0xfresh' })]);
+
+      const staleRead = service.getMarkets({ allowStaleOnError: false });
+      service.disconnect();
+      resolveMarkets([makePool({ poolId: '0xstale' })]);
+
+      await expect(staleRead).rejects.toThrow(
+        'Market metadata became stale during disconnect',
+      );
+      await expect(
+        service.getMarkets({ allowStaleOnError: false }),
+      ).resolves.toStrictEqual([makePool({ poolId: '0xfresh' })]);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
+    });
+
     it('throws error when fetch fails with no cache', async () => {
       mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('Network error'));
 

@@ -212,6 +212,9 @@ export const HYPERLIQUID_NO_STRATEGY_CAPABILITIES = Object.freeze({
   supportedStrategies: Object.freeze([]),
 }) satisfies PerpsOrderCapabilities;
 
+/** Freshness window for metadata used only by capability discovery. */
+export const HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS = 30_000;
+
 // Referral code configuration
 export const REFERRAL_CONFIG = {
   // Production referral code

@@ -906,6 +906,7 @@ describe('AggregatedPerpsProvider', () => {
         }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
+        providerId: 'myx',
         reason: 'provider_not_found',
       });
       expect(mockHLProvider.getOrderCapabilities).not.toHaveBeenCalled();
@@ -918,6 +919,7 @@ describe('AggregatedPerpsProvider', () => {
         aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
+        providerId: 'hyperliquid',
         reason: 'not_implemented',
       });
     });

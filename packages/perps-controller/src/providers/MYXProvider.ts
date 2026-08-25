@@ -211,7 +211,9 @@ export class MYXProvider implements PerpsProvider {
     }
 
     try {
-      const pools = await this.#clientService.getMarkets();
+      const pools = await this.#clientService.getMarkets({
+        allowStaleOnError: false,
+      });
       this.#poolsCache = filterMYXExclusiveMarkets(pools);
       this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
       const market = this.#poolsCache

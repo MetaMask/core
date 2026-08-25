@@ -183,9 +183,6 @@ export const MAX_ORDER_MARGIN_BUFFER = 0.005; // 0.5%
  * These values control debouncing and throttling for better performance
  */
 export const PERFORMANCE_CONFIG = {
-  // Freshness window for metadata used to resolve per-market order capabilities
-  OrderCapabilitiesMetaFreshnessMs: 30_000,
-
   // Price updates debounce delay (milliseconds)
   // Batches rapid WebSocket price updates to reduce re-renders
   PriceUpdateDebounceMs: 1000,

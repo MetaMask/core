@@ -25,6 +25,7 @@ import {
   HIP3_MARGIN_CONFIG,
   HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
+  HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
   TRADING_DEFAULTS,
@@ -827,9 +828,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
   readonly #cachedMetaByDex = new Map<string, MetaResponse>();
 
-  readonly #orderCapabilitiesMetaByDex = new Map<string, MetaResponse>();
-
-  readonly #orderCapabilitiesMetaFreshAtByDex = new Map<string, number>();
+  // Fresh, provider-private metadata used only for capability discovery.
+  readonly #orderCapabilitiesMetaByDex = new Map<
+    string,
+    Readonly<{ meta: MetaResponse; freshAt: number }>
+  >();
 
   readonly #orderCapabilitiesMetaRefreshPromiseByDex = new Map<
     string,
@@ -837,6 +840,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   >();
 
   #orderCapabilitiesMetaGeneration = 0;
+
+  #isDisconnecting = false;
 
   // Last known-good market list for stale fallback when every enabled DEX fails in one fetch window.
   #cachedMarketDataWithPrices: CachedMarketDataSnapshot | null = null;
@@ -1110,9 +1115,54 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
+    if (this.#isDisconnecting) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+
+    const capabilityGeneration = this.#orderCapabilitiesMetaGeneration;
+
     try {
       if (dex !== null) {
+        if (
+          !shouldIncludeMarket(
+            params.symbol,
+            dex,
+            this.#hip3Enabled,
+            this.#compiledAllowlistPatterns,
+            this.#compiledBlocklistPatterns,
+          )
+        ) {
+          return {
+            status: 'unavailable',
+            providerId: this.protocolId,
+            reason: 'market_not_found',
+          };
+        }
+
+        const validatedDexs = await this.#getValidatedDexs();
+        this.#assertOrderCapabilitiesCurrent(capabilityGeneration);
+        if (!validatedDexs.includes(dex)) {
+          return {
+            status: 'unavailable',
+            providerId: this.protocolId,
+            reason: 'market_not_found',
+          };
+        }
+
         const meta = await this.#getFreshOrderCapabilitiesMeta(dex);
+        this.#assertOrderCapabilitiesCurrent(capabilityGeneration);
+        if (!(await this.#isUsdcCollateralDex(dex, meta))) {
+          return {
+            status: 'unavailable',
+            providerId: this.protocolId,
+            reason: 'market_not_found',
+          };
+        }
+        this.#assertOrderCapabilitiesCurrent(capabilityGeneration);
         return meta.universe.some(
           (market) =>
             market.name === params.symbol && market.isDelisted !== true,
@@ -1126,6 +1176,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const meta = await this.#getFreshOrderCapabilitiesMeta(null);
+      this.#assertOrderCapabilitiesCurrent(capabilityGeneration);
       return meta.universe.some(
         (market) => market.name === symbol && market.isDelisted !== true,
       )
@@ -1152,6 +1203,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
   }
 
+  #assertOrderCapabilitiesCurrent(generation: number): void {
+    if (
+      this.#isDisconnecting ||
+      generation !== this.#orderCapabilitiesMetaGeneration
+    ) {
+      throw new Error(
+        '[HyperLiquidProvider] Order capabilities became stale during disconnect',
+      );
+    }
+  }
+
   /**
    * Return DEX metadata fresh enough to answer a capability query.
    * A single refresh confirms every symbol on that DEX, so concurrent callers
@@ -1165,13 +1227,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<MetaResponse> {
     const dexKey = dexName ?? MAIN_DEX_META_CACHE_KEY;
     const cachedMeta = this.#orderCapabilitiesMetaByDex.get(dexKey);
-    const freshAt = this.#orderCapabilitiesMetaFreshAtByDex.get(dexKey);
     if (
       cachedMeta &&
-      freshAt !== undefined &&
-      Date.now() - freshAt < PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs
+      Date.now() - cachedMeta.freshAt <
+        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS
     ) {
-      return cachedMeta;
+      return cachedMeta.meta;
     }
 
     let refreshPromise =
@@ -1186,8 +1247,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
         }
 
-        this.#orderCapabilitiesMetaByDex.set(dexKey, meta);
-        this.#orderCapabilitiesMetaFreshAtByDex.set(dexKey, Date.now());
+        this.#orderCapabilitiesMetaByDex.set(dexKey, {
+          meta,
+          freshAt: Date.now(),
+        });
         return meta;
       })();
       this.#orderCapabilitiesMetaRefreshPromiseByDex.set(
@@ -2757,10 +2820,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    * null) never calls this gate.
    *
    * @param dexName - The DEX identifier (empty string for main DEX).
+   * @param knownMeta - Fresh metadata already loaded by the caller, if any.
    * @returns A promise that resolves to the boolean result.
    */
-  async #isUsdcCollateralDex(dexName: string): Promise<boolean> {
-    const meta = await this.#getCachedMeta({ dexName });
+  async #isUsdcCollateralDex(
+    dexName: string,
+    knownMeta?: MetaResponse,
+  ): Promise<boolean> {
+    const meta = knownMeta ?? (await this.#getCachedMeta({ dexName }));
     const spotMeta = await this.#getCachedSpotMeta();
 
     const collateralToken = spotMeta.tokens.find(
@@ -11581,6 +11648,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async disconnect(): Promise<DisconnectResult> {
     this.#chasePlacementBlockers += 1;
     this.#chaseGeneration += 1;
+    this.#isDisconnecting = true;
     try {
       this.#deps.debugLogger.log('HyperLiquid: Disconnecting provider', {
         isTestnet: this.#clientService.isTestnetMode(),
@@ -11623,7 +11691,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // to prevent repeated signing requests across reconnections
       this.#cachedMetaByDex.clear();
       this.#orderCapabilitiesMetaByDex.clear();
-      this.#orderCapabilitiesMetaFreshAtByDex.clear();
       this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
       this.#orderCapabilitiesMetaGeneration += 1;
       this.#cachedSpotMeta = null;
@@ -11675,15 +11742,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Disconnect client service
       await this.#clientService.disconnect();
 
-      // A read can begin while the asynchronous teardown above is in flight.
-      // Invalidate again so it cannot leave initialized clients or capability
-      // metadata attached to a provider that has finished disconnecting.
-      this.#clientsInitialized = false;
-      this.#orderCapabilitiesMetaByDex.clear();
-      this.#orderCapabilitiesMetaFreshAtByDex.clear();
-      this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
-      this.#orderCapabilitiesMetaGeneration += 1;
-
       this.#deps.debugLogger.log('HyperLiquid: Provider fully disconnected', {
         timestamp: new Date().toISOString(),
       });
@@ -11693,6 +11751,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       return createErrorResult(error, { success: false });
     } finally {
       this.#chasePlacementBlockers -= 1;
+      // Always invalidate again: reads can overlap asynchronous teardown, and
+      // the client disconnect itself can reject.
+      this.#clientsInitialized = false;
+      this.#cachedMetaByDex.clear();
+      this.#orderCapabilitiesMetaByDex.clear();
+      this.#orderCapabilitiesMetaRefreshPromiseByDex.clear();
+      this.#cachedSpotMeta = null;
+      this.#dexDiscoveryCache.reset();
+      this.#dexDiscoveryComplete = false;
+      this.#pendingValidatedDexsPromise = null;
+      this.#orderCapabilitiesMetaGeneration += 1;
+      this.#isDisconnecting = false;
     }
   }
 

@@ -92,6 +92,10 @@ export class MYXClientService {
 
   readonly #marketsCacheTtlMs = 5 * 60 * 1000; // 5 minutes
 
+  #marketsRefreshPromise: Promise<MYXPoolSymbol[]> | null = null;
+
+  #marketsCacheGeneration = 0;
+
   // globalId cache: poolId → globalId (for WS subscriptions)
   readonly #globalIdCache: Map<string, number> = new Map();
 
@@ -176,9 +180,13 @@ export class MYXClientService {
    * Get all available markets/pools
    * Uses SDK markets.getPoolSymbolAll()
    *
+   * @param options - Cache fallback behavior.
+   * @param options.allowStaleOnError - Whether a failed refresh may return stale markets.
    * @returns The array of available MYX pool symbols.
    */
-  async getMarkets(): Promise<MYXPoolSymbol[]> {
+  async getMarkets(options?: {
+    allowStaleOnError?: boolean;
+  }): Promise<MYXPoolSymbol[]> {
     // Return cache if valid
     const now = Date.now();
     if (
@@ -189,19 +197,7 @@ export class MYXClientService {
     }
 
     try {
-      this.#deps.debugLogger.log('[MYXClientService] Fetching markets via SDK');
-
-      const pools = await this.#myxClient.markets.getPoolSymbolAll();
-
-      // Update cache
-      this.#marketsCache = pools || [];
-      this.#marketsCacheTimestamp = Date.now();
-
-      this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
-        count: this.#marketsCache.length,
-      });
-
-      return this.#marketsCache;
+      return await this.#refreshMarkets();
     } catch (caughtError) {
       const wrappedError = ensureError(
         caughtError,
@@ -213,7 +209,10 @@ export class MYXClientService {
       );
 
       // Return stale cache if available
-      if (this.#marketsCache.length > 0) {
+      if (
+        options?.allowStaleOnError !== false &&
+        this.#marketsCache.length > 0
+      ) {
         this.#deps.debugLogger.log(
           '[MYXClientService] Returning stale cache after error',
         );
@@ -221,6 +220,39 @@ export class MYXClientService {
       }
 
       throw wrappedError;
+    }
+  }
+
+  async #refreshMarkets(): Promise<MYXPoolSymbol[]> {
+    if (this.#marketsRefreshPromise) {
+      return await this.#marketsRefreshPromise;
+    }
+
+    const generation = this.#marketsCacheGeneration;
+    const refreshPromise = (async (): Promise<MYXPoolSymbol[]> => {
+      this.#deps.debugLogger.log('[MYXClientService] Fetching markets via SDK');
+      const pools = (await this.#myxClient.markets.getPoolSymbolAll()) || [];
+      if (generation !== this.#marketsCacheGeneration) {
+        throw new Error(
+          '[MYXClientService] Market metadata became stale during disconnect',
+        );
+      }
+
+      this.#marketsCache = pools;
+      this.#marketsCacheTimestamp = Date.now();
+      this.#deps.debugLogger.log('[MYXClientService] Markets fetched', {
+        count: this.#marketsCache.length,
+      });
+      return this.#marketsCache;
+    })();
+    this.#marketsRefreshPromise = refreshPromise;
+
+    try {
+      return await refreshPromise;
+    } finally {
+      if (this.#marketsRefreshPromise === refreshPromise) {
+        this.#marketsRefreshPromise = null;
+      }
     }
   }
 
@@ -1048,6 +1080,8 @@ export class MYXClientService {
    * Disconnect and cleanup
    */
   disconnect(): void {
+    this.#marketsCacheGeneration += 1;
+    this.#marketsRefreshPromise = null;
     this.stopPricePolling();
     this.#myxClient.subscription.disconnect();
     this.#marketsCache = [];
