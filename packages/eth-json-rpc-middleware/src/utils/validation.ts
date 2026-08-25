@@ -263,7 +263,7 @@ export const TransactionParamsStruct = object({
       }),
     ),
   ),
-  chainId: optional(string()),
+  chainId: optional(QuantityStruct),
   data: optional(string()),
   from: string(),
   gas: optional(QuantityStruct),

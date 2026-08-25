@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
+### Fixed
+
+- Accept a numeric `chainId` in `eth_sendTransaction` and `eth_signTransaction` params ([#9965](https://github.com/MetaMask/core/pull/9965))
+  - `chainId` is now validated as a quantity (hex string or number), matching `gas`, `nonce`, `value`, and the other numerical fields
+  - Previously it was restricted to a string, so dapps sending a number were rejected with `-32602 Invalid params`
+
 ## [24.0.0]
 
 ### Changed
