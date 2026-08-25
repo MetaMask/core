@@ -9488,20 +9488,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
     );
 
-    // Debug: Log combinedAllMids to diagnose price lookup issues
-    const hip3Keys = Object.keys(combinedAllMids).filter((key) =>
-      key.includes(':'),
-    );
+    // Keep this diagnostic bounded. Logging every price stalls React Native
+    // DevTools and other CDP clients when thousands of spot keys are present.
+    const allMidEntries = Object.entries(combinedAllMids);
+    const hip3Entries = allMidEntries.filter(([key]) => key.includes(':'));
     this.#deps.debugLogger.log('Combined allMids price data:', {
-      totalKeys: Object.keys(combinedAllMids).length,
-      allKeys: Object.keys(combinedAllMids),
-      hip3Keys,
-      hip3Prices: Object.fromEntries(
-        hip3Keys.map((key) => [key, combinedAllMids[key]]),
-      ),
-      samplePrices: Object.fromEntries(
-        Object.entries(combinedAllMids).slice(0, 5),
-      ),
+      totalKeys: allMidEntries.length,
+      hip3Keys: hip3Entries.length,
+      keySample: allMidEntries.slice(0, 5).map(([key]) => key),
+      hip3KeySample: hip3Entries.slice(0, 5).map(([key]) => key),
+      samplePrices: Object.fromEntries(allMidEntries.slice(0, 5)),
     });
 
     // Transform to UI-friendly format using standalone utility

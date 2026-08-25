@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^3.0.0` to `^3.1.0`. ([#9952](https://github.com/MetaMask/core/pull/9952))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+  - This should have been included in 12.0.0.
+
+## [12.0.0]
+
 ### Added
 
 - Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
@@ -188,7 +201,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...@metamask/wallet@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0

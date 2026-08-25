@@ -29,6 +29,10 @@ export type KycControllerInitializeAction = {
  * vendor. Exposed so a consumer can ensure the customer exists before
  * showing T&C screens independently of {@link initialize}.
  *
+ * A call while a session flow is already in progress is a no-op — matching
+ * {@link initialize} — so a vendor switch cannot leave Check/Auth frames
+ * attached to the wrong vendor. Call {@link reset} first to start over.
+ *
  * @param params - The parameters.
  * @param params.vendor - Identity vendor for the customer.
  * @param params.email - Email for the vendor customer.
@@ -149,7 +153,8 @@ export type KycControllerGetKycStatusAction = {
 /**
  * Returns the vendor-scoped identity for the currently authenticated
  * customer, or `null` when the flow has not yet captured a vendor customer
- * id (before authentication or after {@link reset}).
+ * id (before authentication or after {@link reset}), or when a MoonPay id
+ * is present under a different `activeVendor`.
  *
  * Exposed so consumers (e.g. ramps autoramp creation) can attach the vendor
  * customer id to downstream calls without reading the full KYC state, which

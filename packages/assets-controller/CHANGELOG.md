@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
 ### Fixed
 
+- Read token balances from the flat Accounts API v6 `balances` response ([#9911](https://github.com/MetaMask/core/pull/9911))
 - Fix `AccountsApiDataSource` polling being served stale cached balances on roughly every other tick, since the 60s balances cache outlived the 30s poll interval ([#9926](https://github.com/MetaMask/core/pull/9926))
 
 ## [14.0.0]

@@ -5813,14 +5813,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/action-utils@npm:^1.0.0":
-  version: 1.1.1
-  resolution: "@metamask/action-utils@npm:1.1.1"
+"@metamask/action-utils@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/action-utils@npm:2.0.0"
   dependencies:
     "@types/semver": "npm:^7.3.6"
     glob: "npm:^7.1.7"
     semver: "npm:^7.3.5"
-  checksum: 10/de6ac6a3f92f58fd343c5e59f85ab32b26c60e4cd5ec781b541c0e2432b1dc70f442095442bcc1a03b1164ac61708d5855293992f3e0e8265abc93c4024bdbb4
+  checksum: 10/9d0ef99cf7be9314a4996108760acb30071dff9e14f090ff6b8c1a1996effb9b9ef1ba5238dc5cd9c0c5396830a66b60621ef9213457606dc011822154188708
   languageName: node
   linkType: hard
 
@@ -6003,10 +6003,10 @@ __metadata:
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/network-enablement-controller": "npm:^6.0.4"
     "@metamask/permission-controller": "npm:^13.1.1"
-    "@metamask/phishing-controller": "npm:^17.3.1"
+    "@metamask/phishing-controller": "npm:^17.4.0"
     "@metamask/polling-controller": "npm:^16.0.9"
     "@metamask/preferences-controller": "npm:^23.1.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/transaction-controller": "npm:^69.5.2"
@@ -6061,12 +6061,12 @@ __metadata:
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/network-enablement-controller": "npm:^6.0.4"
     "@metamask/permission-controller": "npm:^13.1.1"
-    "@metamask/phishing-controller": "npm:^17.3.1"
+    "@metamask/phishing-controller": "npm:^17.4.0"
     "@metamask/polling-controller": "npm:^16.0.9"
     "@metamask/preferences-controller": "npm:^23.1.0"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
     "@metamask/providers": "npm:^22.1.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-sdk": "npm:^11.0.0"
@@ -6277,7 +6277,7 @@ __metadata:
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/polling-controller": "npm:^16.0.9"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^69.5.2"
@@ -6540,7 +6540,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.1"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/polling-controller": "npm:^16.0.9"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -6650,7 +6650,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.1"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/utils": "npm:^11.11.0"
     "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -6677,7 +6677,7 @@ __metadata:
     "@actions/github": "npm:^9.1.1"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/create-release-branch": "npm:^4.2.1"
+    "@metamask/create-release-branch": "npm:^4.2.2"
     "@metamask/eslint-config": "npm:^15.0.0"
     "@metamask/eslint-config-jest": "npm:^15.0.0"
     "@metamask/eslint-config-nodejs": "npm:^15.0.0"
@@ -6731,11 +6731,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/create-release-branch@npm:^4.2.1":
-  version: 4.2.1
-  resolution: "@metamask/create-release-branch@npm:4.2.1"
+"@metamask/create-release-branch@npm:^4.2.2":
+  version: 4.2.2
+  resolution: "@metamask/create-release-branch@npm:4.2.2"
   dependencies:
-    "@metamask/action-utils": "npm:^1.0.0"
+    "@metamask/action-utils": "npm:^2.0.0"
     "@metamask/auto-changelog": "npm:^6.1.1"
     "@metamask/utils": "npm:^9.0.0"
     debug: "npm:^4.3.4"
@@ -6758,7 +6758,7 @@ __metadata:
       optional: true
   bin:
     create-release-branch: bin/create-release-branch.js
-  checksum: 10/76b3f904e6cceeb7f42d2120b6b816fb14a190678ab79a8a6a9033e7a872a083254bc36b153c9e773b9d821ed30f0d302b18adc0f83795cc5dfcec2bb166ada6
+  checksum: 10/35b1e671c53cf0c1c03bb076fe33684bdc4eee55935feb0be4f681d4682c57dd68a953585fb6cac8707117218716156ade715db5484d9ade4e25ec79aeba27c1
   languageName: node
   linkType: hard
 
@@ -7867,7 +7867,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/money-account-api-data-service": "npm:^0.4.0"
     "@metamask/network-controller": "npm:^35.0.1"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -8159,6 +8159,7 @@ __metadata:
     "@metamask/analytics-controller": "npm:^2.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/config-registry-controller": "npm:^3.0.0"
     "@metamask/connectivity-controller": "npm:^0.3.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/eth-block-tracker": "npm:^15.0.1"
@@ -8168,7 +8169,7 @@ __metadata:
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^10.5.0"
     "@metamask/messenger": "npm:^2.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^11.11.0"
@@ -8300,7 +8301,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/passkey-controller@npm:^3.0.0, @metamask/passkey-controller@workspace:packages/passkey-controller":
+"@metamask/passkey-controller@npm:^3.1.0, @metamask/passkey-controller@workspace:packages/passkey-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/passkey-controller@workspace:packages/passkey-controller"
   dependencies:
@@ -8414,7 +8415,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^69.5.2"
     "@metamask/utils": "npm:^11.11.0"
@@ -8440,7 +8441,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/phishing-controller@npm:^17.3.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^17.4.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
@@ -8665,7 +8666,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
@@ -8732,7 +8733,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/remote-feature-flag-controller@npm:^5.0.0, @metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
+"@metamask/remote-feature-flag-controller@npm:^6.0.0, @metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller"
   dependencies:
@@ -8992,7 +8993,7 @@ __metadata:
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/polling-controller": "npm:^16.0.9"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^69.5.2"
     "@metamask/utils": "npm:^11.11.0"
@@ -9330,7 +9331,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/nonce-tracker": "npm:^6.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -9379,7 +9380,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^35.0.1"
     "@metamask/ramps-controller": "npm:^20.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/sentinel-api-service": "npm:^1.0.0"
     "@metamask/transaction-controller": "npm:^69.5.2"
     "@metamask/utils": "npm:^11.11.0"
@@ -9484,13 +9485,13 @@ __metadata:
     "@metamask/config-registry-controller": "npm:^3.0.0"
     "@metamask/foundryup": "npm:^1.0.1"
     "@metamask/messenger": "npm:^2.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/storage-service": "npm:^1.0.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
-    "@metamask/wallet": "npm:^11.0.0"
+    "@metamask/wallet": "npm:^12.0.1"
     "@oclif/core": "npm:^4.10.5"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/better-sqlite3": "npm:^7.6.13"
@@ -9542,7 +9543,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/wallet@npm:^11.0.0, @metamask/wallet@workspace:packages/wallet":
+"@metamask/wallet@npm:^12.0.1, @metamask/wallet@workspace:packages/wallet":
   version: 0.0.0-use.local
   resolution: "@metamask/wallet@workspace:packages/wallet"
   dependencies:
@@ -9560,8 +9561,8 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.1"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^35.0.1"
-    "@metamask/passkey-controller": "npm:^3.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^5.0.0"
+    "@metamask/passkey-controller": "npm:^3.1.0"
+    "@metamask/remote-feature-flag-controller": "npm:^6.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/seedless-onboarding-controller": "npm:^10.1.1"
     "@metamask/shield-controller": "npm:^6.0.0"

@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear leftover MoonPay `sessionToken`, `accessToken`, and Check/Auth frame credentials when `initialize` or `createVendorCustomer` switches to another vendor, so `buildCheckFrameUrl` cannot return a MoonPay URL for a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Rewind the consents path when SumSub fails before completion (thrown step or SDK close without `Completed`), instead of refreshing user status and forcing `phase` to `done`. A terminal UKYC rejection after the SDK completed still finishes as `done` so the decision can be reflected in user status. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Make `createVendorCustomer` a no-op during in-progress phases (matching `initialize`), so a vendor switch cannot leave Check/Auth frames attached to the wrong vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Ignore Check/Auth frame completion unless the active vendor is MoonPay, and do not return a MoonPay customer id from `getCustomerIdentity()` under another vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
+- Drop persisted terms acceptance on a vendor switch only after `createVendorCustomer` succeeds, so a failed or reset Money start cannot erase another vendor's stored acceptance. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Clear `moonpayCustomerId` when the active vendor is not MoonPay, so `getCustomerIdentity()` cannot report a MoonPay customer id under another vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Call `unref()` on the user-status poll timer only when it exists. React Native and browser timers are numbers, so an unconditional `unref()` threw when status polling started outside Node. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Skip the `session_not_in_valid_state` completion write when a `reset()` superseded the SumSub flow, so a late vendor response can no longer force `userStatus` to `completed` (and publish `statusChanged`) on an idle controller. ([#9908](https://github.com/MetaMask/core/pull/9908))

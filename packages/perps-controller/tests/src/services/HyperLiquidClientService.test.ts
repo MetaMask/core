@@ -1411,6 +1411,74 @@ describe('HyperLiquidClientService', () => {
       // Assert - WebSocket should be cleaned up immediately after establishing
       expect(mockWsUnsubscribe).toHaveBeenCalled();
     });
+
+    it('consumes a rejected unsubscribe after the subscription resolves', async () => {
+      mockInfoClientHttp.candleSnapshot = jest.fn().mockResolvedValue([]);
+      const unsubscribeError = new Error('Unsubscribe request failed');
+      const mockWsUnsubscribe = jest.fn().mockRejectedValue(unsubscribeError);
+      const unhandledRejectionListener = jest.fn();
+      process.on('unhandledRejection', unhandledRejectionListener);
+      (mockSubscriptionClient as any).candle = jest
+        .fn()
+        .mockResolvedValue({ unsubscribe: mockWsUnsubscribe });
+
+      const unsubscribe = service.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h' as ValidCandleInterval,
+        callback: jest.fn(),
+      });
+      await jest.advanceTimersByTimeAsync(100);
+      mockDeps.logger.error.mockClear();
+
+      unsubscribe();
+      await jest.advanceTimersByTimeAsync(100);
+      process.off('unhandledRejection', unhandledRejectionListener);
+
+      expect(unhandledRejectionListener).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        unsubscribeError,
+        expect.objectContaining({
+          context: expect.objectContaining({
+            name: 'websocket_unsubscription',
+          }),
+        }),
+      );
+    });
+
+    it('treats an Already unsubscribed rejection as idempotent during late cleanup', async () => {
+      mockInfoClientHttp.candleSnapshot = jest.fn().mockResolvedValue([]);
+      let resolveWsSubscription: (value: any) => void = () => {
+        // Intentionally empty until the test captures the resolver.
+      };
+      const delayedWsPromise = new Promise((resolve) => {
+        resolveWsSubscription = resolve;
+      });
+      const mockWsUnsubscribe = jest
+        .fn()
+        .mockRejectedValue(new Error('Already unsubscribed from candle feed'));
+      const unhandledRejectionListener = jest.fn();
+      process.on('unhandledRejection', unhandledRejectionListener);
+      (mockSubscriptionClient as any).candle = jest
+        .fn()
+        .mockReturnValue(delayedWsPromise);
+
+      const unsubscribe = service.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h' as ValidCandleInterval,
+        callback: jest.fn(),
+      });
+      await jest.advanceTimersByTimeAsync(50);
+      unsubscribe();
+      mockDeps.logger.error.mockClear();
+
+      resolveWsSubscription({ unsubscribe: mockWsUnsubscribe });
+      await jest.advanceTimersByTimeAsync(100);
+      process.off('unhandledRejection', unhandledRejectionListener);
+
+      expect(mockWsUnsubscribe).toHaveBeenCalledTimes(1);
+      expect(unhandledRejectionListener).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
   });
 
   describe('Reconnection and Terminate Event', () => {

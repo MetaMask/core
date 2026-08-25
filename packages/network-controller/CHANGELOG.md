@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `NetworkControllerMessenger` now requires the `ConfigRegistryController:stateChanged` event and `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated from the root messenger ([#9879](https://github.com/MetaMask/core/pull/9879))
+  - `NetworkController` now depends on the `ConfigRegistryController` to auto-register default networks from the registry.
+- Update `init` to auto-register default networks from `ConfigRegistryController` ([#9879](https://github.com/MetaMask/core/pull/9879))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
 ## [35.0.1]
 
 ### Changed

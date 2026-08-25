@@ -177,20 +177,30 @@ describe('KycController', () => {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['1'],
               activeProduct: 'ramps',
+              activeVendor: 'moonpay',
+              moonpayCustomerId: 'cust-1',
             },
           },
         },
         async ({ controller, handlers }) => {
-          await controller.initialize({ email: 'other@b.co', product: 'card' });
+          await controller.initialize({
+            email: 'other@b.co',
+            product: 'card',
+            vendor: 'iron',
+          });
 
           // A repeat initialize mid-flow must be a no-op: no new session, no
-          // token/phase teardown, and no clobbering of the active product.
+          // token/phase teardown, no vendor switch, and no clobbering of the
+          // active product.
           expect(handlers.createSession).not.toHaveBeenCalled();
           expect(handlers.getGeoCountry).not.toHaveBeenCalled();
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('check');
           expect(controller.state.sessionToken).toBe('live-session');
           expect(controller.state.activeProduct).toBe('ramps');
           expect(controller.state.email).toBe('a@b.co');
+          expect(controller.state.activeVendor).toBe('moonpay');
+          expect(controller.state.moonpayCustomerId).toBe('cust-1');
         },
       );
     });
@@ -697,6 +707,39 @@ describe('KycController', () => {
       );
     });
 
+    it('ignores a Check complete when the active vendor is not MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              phase: 'check',
+              activeVendor: 'iron',
+              sessionToken: 'tok',
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.handleFrameMessage({
+            message: {
+              kind: 'complete',
+              meta: { channelId: 'ch_1' },
+              payload: {
+                status: 'active',
+                credentials: 'not-decryptable',
+                customer: { id: 'cust-late' },
+              },
+            },
+          });
+
+          expect(result).toStrictEqual({});
+          expect(controller.state.phase).toBe('check');
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
+
     it('fails when credential decryption throws', async () => {
       await withController(
         { options: { state: { phase: 'check', sessionToken: 'tok' } } },
@@ -1160,6 +1203,19 @@ describe('KycController', () => {
       );
     });
 
+    it('returns null for the check frame when the active vendor is not MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionToken: 'tok', activeVendor: 'iron' },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.buildCheckFrameUrl()).toBeNull();
+        },
+      );
+    });
+
     it('returns null for the auth frame without a client token', async () => {
       await withController(({ controller }) => {
         expect(controller.buildAuthFrameUrl()).toBeNull();
@@ -1340,13 +1396,21 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller }) => {
           await controller.initialize({ vendor: 'iron' });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -1356,13 +1420,21 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller }) => {
           await controller.initialize({ vendor: 'moonpay' });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
+          expect(controller.state.sessionToken).toBe('tok');
+          expect(controller.state.accessToken).toBe('access-1');
+          expect(controller.buildCheckFrameUrl()).toContain('sessionToken=tok');
         },
       );
     });
@@ -1371,7 +1443,12 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller }) => {
@@ -1381,6 +1458,22 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
+          expect(controller.getCustomerIdentity()).toBeNull();
+        },
+      );
+    });
+
+    it('returns null when a MoonPay id is present under another vendor', async () => {
+      await withController(
+        {
+          options: {
+            state: { moonpayCustomerId: 'cust-1', activeVendor: 'iron' },
+          },
+        },
+        ({ controller }) => {
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -1390,7 +1483,12 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller, handlers }) => {
@@ -1406,6 +1504,8 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
+          expect(controller.state.sessionToken).toBe('tok');
+          expect(controller.state.accessToken).toBe('access-1');
         },
       );
     });
@@ -2199,6 +2299,66 @@ describe('KycController', () => {
       });
     });
 
+    it('preserves MoonPay terms when Iron customer creation fails on initialize', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockRejectedValue(
+            new Error('iron down'),
+          );
+
+          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
+    });
+
+    it('preserves MoonPay terms when reset lands during Iron customer creation', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockImplementation(async () => {
+            controller.reset();
+            throw new Error('late');
+          });
+
+          await controller.initialize({
+            email: 'a@b.co',
+            vendor: 'iron',
+          });
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
+    });
+
     it('does not fail initialize when reset lands during Iron customer creation', async () => {
       await withController(async ({ controller, handlers }) => {
         // Simulate a reset() landing while customer creation is in flight.
@@ -2395,6 +2555,39 @@ describe('KycController', () => {
       );
     });
 
+    it.each(['session', 'check', 'auth', 'form', 'submit'] as const)(
+      'does not switch vendor or drop the MoonPay id while phase is %s',
+      async (phase) => {
+        await withController(
+          {
+            options: {
+              state: {
+                phase,
+                activeVendor: 'moonpay',
+                moonpayCustomerId: 'cust-1',
+                sessionToken: 'tok',
+              },
+            },
+          },
+          async ({ controller, handlers }) => {
+            await controller.createVendorCustomer({
+              vendor: 'iron',
+              email: 'a@b.co',
+            });
+
+            expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+            expect(controller.state.activeVendor).toBe('moonpay');
+            expect(controller.state.moonpayCustomerId).toBe('cust-1');
+            expect(controller.state.phase).toBe(phase);
+            expect(controller.getCustomerIdentity()).toStrictEqual({
+              vendor: 'moonpay',
+              id: 'cust-1',
+            });
+          },
+        );
+      },
+    );
+
     it('stamps the active vendor onto the terms acceptance', async () => {
       await withController(
         {
@@ -2439,6 +2632,78 @@ describe('KycController', () => {
         expect(controller.state.email).toBe('a@b.co');
         expect(controller.state.phase).toBe('error');
       });
+    });
+
+    it('preserves MoonPay terms when createVendorCustomer fails after a vendor switch', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockRejectedValue(new Error('nope'));
+
+          await controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+
+          expect(controller.state.phase).toBe('error');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
+    });
+
+    it('preserves MoonPay terms when reset lands during createVendorCustomer', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              termsAcceptedAt: 't',
+              acceptedDisclaimerIds: ['moonpay-d1'],
+              termsAcceptedVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (value: {
+            id: string;
+            email: string;
+            status: string;
+          }) => void = () => {
+            // placeholder
+          };
+          handlers.createVendorCustomer.mockReturnValue(
+            new Promise((resolve) => {
+              release = resolve;
+            }),
+          );
+
+          const pending = controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+          controller.reset();
+          release({ id: '1', email: 'a@b.co', status: 'SigningsRequired' });
+          await pending;
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+            'moonpay-d1',
+          ]);
+          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+        },
+      );
     });
 
     it('createVendorCustomer ignores API errors after reset', async () => {
@@ -2669,6 +2934,82 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
           expect(controller.state.error).toMatch(/Consents session failed/u);
+        },
+      );
+    });
+
+    it('returns to terms when SumSub closes without completion during the Iron session', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            // Applicant abandons: launch resolves without a Completed status.
+            onStatusChange?.('idle', 'InProgress');
+            return { ok: false };
+          });
+          handlers.fetchDisclaimers.mockResolvedValue([]);
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.error).toMatch(/Consents session failed/u);
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('finishes as done when UKYC rejects after SumSub completed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({
+            status: 'terminal-failure',
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            sumsubTncSigned: true,
+            idosTncSigned: true,
+          });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('rejected'),
+          );
+          expect(controller.state.termsAcceptedAt).not.toBeNull();
+          expect(controller.state.error).toBeNull();
+          expect(handlers.fetchKycStatus).toHaveBeenCalled();
+          expect(controller.state.userStatus).toBe('terminal-failure');
+          controller.reset();
         },
       );
     });

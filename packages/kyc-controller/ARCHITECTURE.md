@@ -204,12 +204,19 @@ State metadata highlights (`kycControllerMetadata`):
   restarts so the flow can skip already-accepted terms and reuse cached results.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
   the stored acceptance when it belongs to a different vendor, so one vendor's
-  disclaimer ids are never submitted to another.
+  disclaimer ids are never submitted to another. The drop waits until the
+  vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
+  path proceeds); a failed or reset switch leaves the previous vendor's
+  acceptance in place.
 - **Secrets, never persisted / never logged**: `sessionToken`, `accessToken`,
   `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
+  Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
+  these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
+  return a MoonPay URL while `activeVendor` is a consents-path vendor.
 - Additional non-state secrets kept **off** the state object entirely: the
   X25519 private key (`#keypair`) and the Auth-frame client token
-  (`#authClientToken`).
+  (`#authClientToken`). The auth client token is cleared on the same vendor
+  switch.
 
 ---
 
@@ -256,15 +263,25 @@ stateDiagram-v2
 > **Non-MoonPay vendors use a consents path.** `initialize({ vendor: 'iron' })`
 > creates an empty-shell customer, loads vendor disclaimers, and — after terms
 > are accepted — posts consents and launches SumSub. MoonPay Check/Auth frames
-> are skipped; `phase` moves `terms → session → submit → done`.
-> `acceptTermsAndStartSession` requires `sumsubTncSigned` and `idosTncSigned`
-> (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
-> `true`.
+> are skipped; `phase` moves `terms → session → submit → done`. A SumSub
+> failure (thrown step or SDK close without completion) rewinds to `terms`
+> instead of forcing `done`. A terminal UKYC rejection after the SDK reported
+> `Completed` still finishes as `done` so `refreshKycStatus` can surface the
+> decision. `acceptTermsAndStartSession` requires
+> `sumsubTncSigned` and `idosTncSigned` (T&C2) for every vendor; omitted flags
+> fail the flow instead of defaulting to `true`.
 
-> **`initialize` never tears down an active flow.** If `phase` is already one of
-> the in-progress phases (`session`, `check`, `auth`, `form`, `submit`), a
-> repeat `initialize` is a **no-op** — it will not create a new session, clear
+> **`initialize` and `createVendorCustomer` never tear down an active flow.** If
+> `phase` is already one of the in-progress phases (`session`, `check`, `auth`,
+> `form`, `submit`), a repeat `initialize` or `createVendorCustomer` is a
+> **no-op** — it will not create a new session, switch `activeVendor`, clear
 > tokens, or reset `activeProduct`. Call `reset()` first to start over.
+> When a switch away from MoonPay is allowed, leftover `sessionToken`,
+> `accessToken`, `moonpayCustomerId`, and `#authClientToken` are cleared so
+> Check/Auth URLs cannot outlive the MoonPay session. Check/Auth `complete`
+> messages are also ignored unless `activeVendor` is `moonpay`, so a
+> still-mounted MoonPay frame cannot recapture `moonpayCustomerId` under
+> another vendor.
 
 > **`reset()` is callable from any phase and supersedes in-flight work.** In
 > addition to returning `phase` to `idle` (and clearing tokens, `activeProduct`,
