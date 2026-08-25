@@ -1287,12 +1287,21 @@ export type GetOrderCapabilitiesParams = {
 };
 
 /** Provider-owned strategy capabilities for the selected market route. */
-export type PerpsOrderCapabilities = {
-  supportedStrategies: readonly StrategyOrderType[];
-};
+export type PerpsOrderCapabilities =
+  | Readonly<{
+      status: 'ready';
+      providerId: PerpsProviderType;
+      supportedStrategies: readonly StrategyOrderType[];
+    }>
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      supportedStrategies: readonly StrategyOrderType[];
+    }>;
 
-/** Safe capability result for unavailable or not-yet-compatible providers. */
-export const EMPTY_ORDER_CAPABILITIES = Object.freeze({
+/** Capability result while no provider route can answer reliably. */
+export const UNAVAILABLE_ORDER_CAPABILITIES = Object.freeze({
+  status: 'unavailable',
   supportedStrategies: Object.freeze([]),
 }) satisfies PerpsOrderCapabilities;
 
@@ -1502,13 +1511,10 @@ export type PerpsProvider = {
 
   /**
    * Return strategy capabilities for the provider/market route.
-   * The method remains optional for provider compatibility; the aggregation
-   * and controller layers return no strategies for providers that have not yet
-   * adopted this additive contract.
    */
-  getOrderCapabilities?(
+  getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities;
+  ): Promise<PerpsOrderCapabilities>;
 
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes

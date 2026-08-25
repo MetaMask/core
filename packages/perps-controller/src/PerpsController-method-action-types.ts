@@ -87,8 +87,8 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 
 /**
  * Get strategy capabilities through the active provider route used by order
- * placement. Unavailable or not-yet-compatible providers safely return no
- * optional strategies.
+ * placement. The query waits for in-flight initialization and reports an
+ * explicit unavailable status when no provider route can answer reliably.
  *
  * @param params - Market and optional provider route.
  * @returns Provider-owned order capabilities.

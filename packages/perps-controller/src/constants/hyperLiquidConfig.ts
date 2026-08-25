@@ -186,6 +186,8 @@ export const BUILDER_FEE_CONFIG = {
   TestnetBuilder: '0x724e57771ba749650875bd8adb2e29a85d0cacfa' as Hex,
   // Production builder wallet
   MainnetBuilder: '0xe95a5e31904e005066614247d309e00d8ad753aa' as Hex,
+  // Explicit rate for order actions that cannot carry a builder fee
+  NoFeeDecimal: 0,
   // Fee in decimal (10 bp = 0.1%)
   MaxFeeDecimal: BUILDER_FEE_MAX_FEE_DECIMAL,
   MaxFeeTenthsBps: BUILDER_FEE_MAX_FEE_DECIMAL * 100000,
@@ -200,11 +202,20 @@ export const BUILDER_FEE_CONFIG = {
  * support from a provider name.
  */
 export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
+  status: 'ready',
+  providerId: 'hyperliquid',
   supportedStrategies: Object.freeze([
     'twap',
     'scale',
     'chase',
   ] satisfies readonly StrategyOrderType[]),
+}) satisfies PerpsOrderCapabilities;
+
+/** Ready HyperLiquid route with no strategy support for this market. */
+export const HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES = Object.freeze({
+  status: 'ready',
+  providerId: 'hyperliquid',
+  supportedStrategies: Object.freeze([]),
 }) satisfies PerpsOrderCapabilities;
 
 // Referral code configuration

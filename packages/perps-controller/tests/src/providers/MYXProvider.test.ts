@@ -737,8 +737,12 @@ describe('MYXProvider', () => {
       });
     });
 
-    it('advertises no strategy order capabilities', () => {
-      expect(provider.getOrderCapabilities({ symbol: 'RHEA' })).toStrictEqual({
+    it('advertises no strategy order capabilities', async () => {
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'myx',
         supportedStrategies: [],
       });
     });

@@ -17,6 +17,7 @@ import {
   canonicalizeHyperLiquidDexes,
   FEE_RATES,
   HYPERLIQUID_ORDER_CAPABILITIES,
+  HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES,
   getBridgeInfo,
   getChainId,
   HIP3_ASSET_MARKET_TYPES,
@@ -66,8 +67,8 @@ import {
   hyperLiquidModeFoldsSpot,
 } from '../types/hyperliquid-types.js';
 import {
-  EMPTY_ORDER_CAPABILITIES,
   PerpsAnalyticsEvent,
+  UNAVAILABLE_ORDER_CAPABILITIES,
 } from '../types/index.js';
 import type {
   AccountState,
@@ -738,8 +739,6 @@ type HyperLiquidOrderFeePolicy = Readonly<{
   chargesMetamaskBuilderFee: boolean;
 }>;
 
-const NO_METAMASK_BUILDER_FEE_RATE = 0;
-
 type HyperLiquidOrderFeeConfiguration = Readonly<
   Record<OrderType, HyperLiquidOrderFeePolicy>
 >;
@@ -1083,14 +1082,33 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params - Required market route context.
    * @returns Supported strategy order types.
    */
-  getOrderCapabilities(
+  async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities {
+  ): Promise<PerpsOrderCapabilities> {
     const { dex } = parseAssetName(params.symbol);
-    if (dex !== null || !this.#symbolToAssetId.has(params.symbol)) {
-      return EMPTY_ORDER_CAPABILITIES;
+    if (dex !== null || !params.symbol) {
+      return HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
     }
-    return HYPERLIQUID_ORDER_CAPABILITIES;
+
+    try {
+      const meta = await this.#getCachedMeta({ dexName: null });
+      const marketExists = meta.universe.some(
+        (market) => market.name === params.symbol,
+      );
+      return marketExists
+        ? HYPERLIQUID_ORDER_CAPABILITIES
+        : HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Order capabilities unavailable',
+        {
+          symbol: params.symbol,
+          error: ensureError(error, 'HyperLiquidProvider.getOrderCapabilities')
+            .message,
+        },
+      );
+      return UNAVAILABLE_ORDER_CAPABILITIES;
+    }
   }
 
   /**
@@ -11333,7 +11351,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       resolveHyperLiquidOrderFeePolicy(params);
     const baseMetamaskFeeRate = chargesMetamaskBuilderFee
       ? BUILDER_FEE_CONFIG.MaxFeeDecimal
-      : NO_METAMASK_BUILDER_FEE_RATE;
+      : BUILDER_FEE_CONFIG.NoFeeDecimal;
     const metamaskFeeDiscount =
       this.#userFeeDiscountBips === undefined
         ? 0

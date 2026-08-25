@@ -20,6 +20,11 @@ export const createMockHyperLiquidProvider =
         totalBalance30dAgo: '9000',
       }),
       getMarkets: jest.fn(),
+      getOrderCapabilities: jest.fn().mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      }),
       placeOrder: jest.fn(),
       editOrder: jest.fn(),
       cancelOrder: jest.fn(),

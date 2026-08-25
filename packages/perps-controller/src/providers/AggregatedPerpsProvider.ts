@@ -19,7 +19,7 @@ import type { CaipAccountId } from '@metamask/utils';
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import {
-  EMPTY_ORDER_CAPABILITIES,
+  UNAVAILABLE_ORDER_CAPABILITIES,
   WebSocketConnectionState,
 } from '../types/index.js';
 import type {
@@ -250,11 +250,15 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * @param params - Market and optional provider route.
    * @returns Capabilities from the selected provider.
    */
-  getOrderCapabilities(
+  async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities {
-    const [, provider] = this.#getProviderOrDefault(params.providerId);
-    return provider.getOrderCapabilities?.(params) ?? EMPTY_ORDER_CAPABILITIES;
+  ): Promise<PerpsOrderCapabilities> {
+    const providerId = this.#router.selectProvider(params);
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return UNAVAILABLE_ORDER_CAPABILITIES;
+    }
+    return await provider.getOrderCapabilities(params);
   }
 
   // ============================================================================

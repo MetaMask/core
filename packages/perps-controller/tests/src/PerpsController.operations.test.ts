@@ -28,6 +28,7 @@ import {
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
@@ -828,14 +829,20 @@ describe('PerpsController', () => {
   });
 
   describe('order capabilities', () => {
-    it('returns capabilities from the active routed provider', () => {
-      mockProvider.getOrderCapabilities = jest.fn().mockReturnValue({
+    it('returns capabilities from the active routed provider', async () => {
+      mockProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
 
-      expect(controller.getOrderCapabilities({ symbol: 'BTC' })).toStrictEqual({
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(mockProvider.getOrderCapabilities).toHaveBeenCalledWith({
@@ -843,26 +850,62 @@ describe('PerpsController', () => {
       });
     });
 
-    it('returns no strategy capabilities while the provider is unavailable', () => {
-      expect(controller.getOrderCapabilities({ symbol: 'BTC' })).toStrictEqual({
+    it('reports unavailable while no provider can answer', async () => {
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
         supportedStrategies: [],
       });
     });
 
-    it('delegates an explicit provider route through the active provider', () => {
-      mockProvider.getOrderCapabilities = jest.fn().mockReturnValue({
-        supportedStrategies: ['twap'],
+    it('routes an explicit provider through the active aggregator', async () => {
+      const myxProvider = createMockHyperLiquidProvider();
+      myxProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+        status: 'ready',
+        providerId: 'myx',
+        supportedStrategies: [],
+      });
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
       });
       markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      controller.testSetProviders(
+        new Map([['hyperliquid', aggregatedProvider]]),
+      );
 
-      expect(
+      await expect(
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
-      ).toStrictEqual({ supportedStrategies: ['twap'] });
-      expect(mockProvider.getOrderCapabilities).toHaveBeenCalledWith({
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'myx',
+        supportedStrategies: [],
+      });
+      expect(myxProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'RHEA',
         providerId: 'myx',
       });
+    });
+
+    it('rejects an explicit route that conflicts with direct-provider mode', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        supportedStrategies: [],
+      });
+      expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
   });
 

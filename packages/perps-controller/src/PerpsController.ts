@@ -63,7 +63,7 @@ import { TerminalMarketService } from './services/TerminalMarketService.js';
 import { TradingService } from './services/TradingService.js';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
-  EMPTY_ORDER_CAPABILITIES,
+  UNAVAILABLE_ORDER_CAPABILITIES,
   WebSocketConnectionState,
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -2643,23 +2643,33 @@ export class PerpsController extends BaseController<
 
   /**
    * Get strategy capabilities through the active provider route used by order
-   * placement. Unavailable or not-yet-compatible providers safely return no
-   * optional strategies.
+   * placement. The query waits for in-flight initialization and reports an
+   * explicit unavailable status when no provider route can answer reliably.
    *
    * @param params - Market and optional provider route.
    * @returns Provider-owned order capabilities.
    */
-  getOrderCapabilities(
+  async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities {
-    const activeProvider = this.getActiveProviderOrNull();
-    if (!activeProvider) {
-      return EMPTY_ORDER_CAPABILITIES;
+  ): Promise<PerpsOrderCapabilities> {
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      return UNAVAILABLE_ORDER_CAPABILITIES;
     }
 
-    return (
-      activeProvider.getOrderCapabilities?.(params) ?? EMPTY_ORDER_CAPABILITIES
-    );
+    try {
+      const activeProvider = await this.#getActiveProviderWhenReady();
+      return await activeProvider.getOrderCapabilities(params);
+    } catch (error) {
+      this.#debugLog('PerpsController: Order capabilities unavailable', {
+        error: ensureError(error, 'PerpsController.getOrderCapabilities')
+          .message,
+      });
+      return UNAVAILABLE_ORDER_CAPABILITIES;
+    }
   }
 
   /**

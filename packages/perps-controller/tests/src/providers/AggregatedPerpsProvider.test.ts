@@ -13,14 +13,18 @@ import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Create a comprehensive mock provider
-const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
+const createMockProvider = (
+  providerId: PerpsProviderType,
+): jest.Mocked<PerpsProvider> => {
   const mockProvider: jest.Mocked<PerpsProvider> = {
     protocolId: providerId,
 
     // Asset routes
     getDepositRoutes: jest.fn().mockReturnValue([]),
     getWithdrawalRoutes: jest.fn().mockReturnValue([]),
-    getOrderCapabilities: jest.fn().mockReturnValue({
+    getOrderCapabilities: jest.fn().mockResolvedValue({
+      status: 'ready',
+      providerId,
       supportedStrategies: [],
     }),
 
@@ -833,14 +837,18 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
     });
 
-    it('gets order capabilities from the default provider', () => {
-      mockHLProvider.getOrderCapabilities.mockReturnValue({
+    it('gets order capabilities from the default provider', async () => {
+      mockHLProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
 
-      expect(
+      await expect(
         aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
-      ).toStrictEqual({
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
@@ -848,51 +856,46 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
-    it('gets order capabilities from an explicit provider route', () => {
-      mockMYXProvider.getOrderCapabilities.mockReturnValue({
+    it('gets order capabilities from an explicit provider route', async () => {
+      mockMYXProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'ready',
+        providerId: 'myx',
         supportedStrategies: [],
       });
 
-      expect(
+      await expect(
         aggregatedProvider.getOrderCapabilities({
           symbol: 'BTC',
           providerId: 'myx',
         }),
-      ).toStrictEqual({ supportedStrategies: [] });
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'myx',
+        supportedStrategies: [],
+      });
       expect(mockMYXProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'BTC',
         providerId: 'myx',
       });
     });
 
-    it('uses the default provider when an explicit provider is unavailable', () => {
-      mockHLProvider.getOrderCapabilities.mockReturnValue({
-        supportedStrategies: ['twap'],
-      });
+    it('reports unavailable when an explicit provider route is missing', async () => {
       const providerWithoutMyx = new AggregatedPerpsProvider({
         providers: new Map([['hyperliquid', mockHLProvider]]),
         defaultProvider: 'hyperliquid',
         infrastructure: mockInfrastructure,
       });
 
-      expect(
+      await expect(
         providerWithoutMyx.getOrderCapabilities({
           symbol: 'BTC',
           providerId: 'myx',
         }),
-      ).toStrictEqual({ supportedStrategies: ['twap'] });
-      expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
-        symbol: 'BTC',
-        providerId: 'myx',
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        supportedStrategies: [],
       });
-    });
-
-    it('returns no capabilities for a provider without the additive method', () => {
-      mockHLProvider.getOrderCapabilities = undefined;
-
-      expect(
-        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
-      ).toStrictEqual({ supportedStrategies: [] });
+      expect(mockHLProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
   });
 

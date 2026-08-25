@@ -24,10 +24,7 @@ import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { MYXClientService } from '../services/MYXClientService.js';
 import { MYXWalletService } from '../services/MYXWalletService.js';
-import {
-  EMPTY_ORDER_CAPABILITIES,
-  WebSocketConnectionState,
-} from '../types/index.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -122,6 +119,11 @@ import {
 const MYX_NOT_SUPPORTED_ERROR = 'MYX trading not yet supported';
 const MYX_BLOCK_EXPLORER_URL = 'https://bscscan.com';
 const MYX_TESTNET_EXPLORER_URL = 'https://sepolia.arbiscan.io';
+const MYX_ORDER_CAPABILITIES = Object.freeze({
+  status: 'ready',
+  providerId: 'myx',
+  supportedStrategies: Object.freeze([]),
+}) satisfies PerpsOrderCapabilities;
 
 // ============================================================================
 // MYXProvider
@@ -191,10 +193,10 @@ export class MYXProvider implements PerpsProvider {
    * @param _params - Required market route context.
    * @returns An empty strategy capability set.
    */
-  getOrderCapabilities(
+  async getOrderCapabilities(
     _params: GetOrderCapabilitiesParams,
-  ): PerpsOrderCapabilities {
-    return EMPTY_ORDER_CAPABILITIES;
+  ): Promise<PerpsOrderCapabilities> {
+    return MYX_ORDER_CAPABILITIES;
   }
 
   // ============================================================================

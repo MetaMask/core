@@ -2454,30 +2454,73 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Order capabilities', () => {
-    it('advertises the strategies supported for a routed market', () => {
-      const capabilities = provider.getOrderCapabilities({ symbol: 'ETH' });
+    it('advertises the strategies supported for a routed market', async () => {
+      useStrategyClients();
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
 
       expect(capabilities).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
       expect(Object.isFrozen(capabilities.supportedStrategies)).toBe(true);
     });
 
-    it('does not advertise strategies on an unsupported HIP-3 market', () => {
-      expect(
+    it('resolves support before the asset mapping is populated', async () => {
+      useStrategyClients();
+      const coldProvider = createTestProvider();
+
+      await expect(
+        coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+    });
+
+    it('does not advertise strategies on an unsupported HIP-3 market', async () => {
+      await expect(
         provider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
-      ).toStrictEqual({ supportedStrategies: [] });
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
     });
 
     it.each(['', 'BTC:', ':BTC', 'DOGE'])(
       'does not advertise strategies for malformed or unknown market %s',
-      (symbol) => {
-        expect(provider.getOrderCapabilities({ symbol })).toStrictEqual({
+      async (symbol) => {
+        useStrategyClients();
+
+        await expect(
+          provider.getOrderCapabilities({ symbol }),
+        ).resolves.toStrictEqual({
+          status: 'ready',
+          providerId: 'hyperliquid',
           supportedStrategies: [],
         });
       },
     );
+
+    it('reports unavailable when market metadata cannot be loaded', async () => {
+      useStrategyClients({
+        info: { meta: jest.fn().mockRejectedValue(new Error('offline')) },
+      });
+      const coldProvider = createTestProvider();
+
+      await expect(
+        coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        supportedStrategies: [],
+      });
+    });
   });
 
   describe('Strategy notional minimums', () => {
