@@ -568,18 +568,18 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.orderId).toBe('myx-order-123');
     });
 
-    it('falls back to default when specified provider not found', async () => {
-      await aggregatedProvider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        // @ts-expect-error Testing fallback behavior with invalid provider
-        providerId: 'unknown-provider',
-      });
-
-      // Should fall back to default (hyperliquid)
-      expect(mockHLProvider.placeOrder).toHaveBeenCalled();
+    it('rejects an explicit provider that is not registered', async () => {
+      await expect(
+        aggregatedProvider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          // @ts-expect-error Testing an invalid explicit provider route
+          providerId: 'unknown-provider',
+        }),
+      ).rejects.toThrow("Provider 'unknown-provider' not available");
+      expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
     });
   });
 
@@ -879,12 +879,7 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
-    it('uses the default capabilities when an explicit provider route is missing', async () => {
-      mockHLProvider.getOrderCapabilities?.mockResolvedValue({
-        status: 'ready',
-        providerId: 'hyperliquid',
-        supportedStrategies: ['twap', 'scale', 'chase'],
-      });
+    it('reports an explicit provider route that is not registered', async () => {
       const providerWithoutMyx = new AggregatedPerpsProvider({
         providers: new Map([['hyperliquid', mockHLProvider]]),
         defaultProvider: 'hyperliquid',
@@ -897,14 +892,10 @@ describe('AggregatedPerpsProvider', () => {
           providerId: 'myx',
         }),
       ).resolves.toStrictEqual({
-        status: 'ready',
-        providerId: 'hyperliquid',
-        supportedStrategies: ['twap', 'scale', 'chase'],
+        status: 'unavailable',
+        reason: 'provider_not_found',
       });
-      expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
-        symbol: 'BTC',
-        providerId: 'myx',
-      });
+      expect(mockHLProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
 
     it('reports unavailable when the routed provider omits the optional hook', async () => {
@@ -914,7 +905,7 @@ describe('AggregatedPerpsProvider', () => {
         aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        supportedStrategies: [],
+        reason: 'not_implemented',
       });
     });
   });

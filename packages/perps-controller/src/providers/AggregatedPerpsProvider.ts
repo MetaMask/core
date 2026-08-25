@@ -18,10 +18,7 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
-import {
-  UNAVAILABLE_ORDER_CAPABILITIES,
-  WebSocketConnectionState,
-} from '../types/index.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -206,6 +203,30 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve an order route without substituting another protocol when the
+   * caller supplied an explicit provider.
+   *
+   * @param providerId - Explicit provider route, if any.
+   * @returns The selected provider id and instance.
+   * @throws If an explicit provider is not registered.
+   */
+  #getOrderProvider(
+    providerId?: PerpsProviderType,
+  ): [PerpsProviderType, PerpsProvider] {
+    if (!providerId) {
+      return [this.#defaultProvider, this.#getDefaultProvider()];
+    }
+
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(
+        `[AggregatedPerpsProvider] Provider '${providerId}' not available`,
+      );
+    }
+    return [providerId, provider];
+  }
+
+  /**
    * Extract successful results from Promise.allSettled.
    * Logs errors for failed promises.
    *
@@ -253,9 +274,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    let provider: PerpsProvider;
+    try {
+      [, provider] = this.#getOrderProvider(params.providerId);
+    } catch {
+      return { status: 'unavailable', reason: 'provider_not_found' };
+    }
     if (!provider.getOrderCapabilities) {
-      return UNAVAILABLE_ORDER_CAPABILITIES;
+      return { status: 'unavailable', reason: 'not_implemented' };
     }
     return await provider.getOrderCapabilities(params);
   }
@@ -452,9 +478,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   // ============================================================================
 
   async placeOrder(params: OrderParams): Promise<OrderResult> {
-    const [providerId, provider] = this.#getProviderOrDefault(
-      params.providerId,
-    );
+    const [providerId, provider] = this.#getOrderProvider(params.providerId);
 
     this.#deps.debugLogger.log('[AggregatedPerpsProvider] placeOrder routing', {
       requestedProvider: params.providerId,

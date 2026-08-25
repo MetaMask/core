@@ -1287,6 +1287,11 @@ export type GetOrderCapabilitiesParams = {
 };
 
 /** Provider-owned strategy capabilities for the selected market route. */
+export type OrderCapabilitiesUnavailableReason =
+  | 'provider_unavailable'
+  | 'provider_not_found'
+  | 'not_implemented';
+
 export type PerpsOrderCapabilities =
   | Readonly<{
       status: 'ready';
@@ -1296,14 +1301,8 @@ export type PerpsOrderCapabilities =
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
-      supportedStrategies: readonly StrategyOrderType[];
+      reason: OrderCapabilitiesUnavailableReason;
     }>;
-
-/** Capability result while no provider route can answer reliably. */
-export const UNAVAILABLE_ORDER_CAPABILITIES = Object.freeze({
-  status: 'unavailable',
-  supportedStrategies: Object.freeze([]),
-}) satisfies PerpsOrderCapabilities;
 
 export type FeeCalculationParams = {
   // Trigger placements are charged as their execution kind (a stop_limit pays

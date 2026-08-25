@@ -28,6 +28,7 @@ import {
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
@@ -859,7 +860,7 @@ describe('PerpsController', () => {
         controller.getOrderCapabilities({ symbol: 'BTC' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        supportedStrategies: [],
+        reason: 'provider_unavailable',
       });
     });
 
@@ -872,7 +873,7 @@ describe('PerpsController', () => {
         controller.getOrderCapabilities({ symbol: 'BTC' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        supportedStrategies: [],
+        reason: 'not_implemented',
       });
     });
 
@@ -920,9 +921,25 @@ describe('PerpsController', () => {
         controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        supportedStrategies: [],
+        reason: 'provider_not_found',
       });
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
+    });
+
+    it('rejects order placement for a conflicting direct-provider route', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.placeOrder({
+          symbol: 'RHEA',
+          providerId: 'myx',
+          orderType: 'market',
+          isBuy: true,
+          size: '1',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
     });
   });
 

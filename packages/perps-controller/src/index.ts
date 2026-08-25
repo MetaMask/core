@@ -173,7 +173,6 @@ export {
   PerpsAnalyticsEvent,
   MARKET_CATEGORIES,
   MarketCategory,
-  UNAVAILABLE_ORDER_CAPABILITIES,
 } from './types/index.js';
 export type {
   RawLedgerUpdate,
@@ -266,6 +265,7 @@ export type {
   FeeCalculationParams,
   FeeCalculationResult,
   GetOrderCapabilitiesParams,
+  OrderCapabilitiesUnavailableReason,
   PerpsOrderCapabilities,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,

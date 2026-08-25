@@ -16,8 +16,8 @@ import {
   BUILDER_FEE_CONFIG,
   canonicalizeHyperLiquidDexes,
   FEE_RATES,
+  HYPERLIQUID_NO_STRATEGY_CAPABILITIES,
   HYPERLIQUID_ORDER_CAPABILITIES,
-  HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES,
   getBridgeInfo,
   getChainId,
   HIP3_ASSET_MARKET_TYPES,
@@ -66,10 +66,7 @@ import {
   HL_UNIFIED_ACCOUNT_MODE,
   hyperLiquidModeFoldsSpot,
 } from '../types/hyperliquid-types.js';
-import {
-  PerpsAnalyticsEvent,
-  UNAVAILABLE_ORDER_CAPABILITIES,
-} from '../types/index.js';
+import { PerpsAnalyticsEvent } from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -778,6 +775,9 @@ function resolveHyperLiquidOrderFeePolicy(
   return HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType];
 }
 
+const MAIN_DEX_META_CACHE_KEY = '';
+const ORDER_CAPABILITIES_META_REFRESH_INTERVAL_MS = 30_000;
+
 /**
  * HyperLiquid provider implementation
  *
@@ -827,6 +827,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Cache for raw meta responses (shared across methods to avoid redundant API calls)
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
   readonly #cachedMetaByDex = new Map<string, MetaResponse>();
+
+  #lastOrderCapabilitiesMetaRefreshAt = 0;
 
   // Last known-good market list for stale fallback when every enabled DEX fails in one fetch window.
   #cachedMarketDataWithPrices: CachedMarketDataSnapshot | null = null;
@@ -1086,21 +1088,28 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
     if (!params.symbol) {
-      return HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
+      return HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
     }
 
     const { dex } = parseAssetName(params.symbol);
     if (dex !== null) {
-      return HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
+      return HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
     }
 
     try {
-      const hadCachedMeta = this.#cachedMetaByDex.has('');
+      const hadCachedMeta = this.#cachedMetaByDex.has(MAIN_DEX_META_CACHE_KEY);
       let meta = await this.#getCachedMeta({ dexName: null });
       let marketExists = meta.universe.some(
         (market) => market.name === params.symbol,
       );
-      if (!marketExists && hadCachedMeta) {
+      const now = Date.now();
+      if (
+        !marketExists &&
+        hadCachedMeta &&
+        now - this.#lastOrderCapabilitiesMetaRefreshAt >=
+          ORDER_CAPABILITIES_META_REFRESH_INTERVAL_MS
+      ) {
+        this.#lastOrderCapabilitiesMetaRefreshAt = now;
         meta = await this.#getCachedMeta({ dexName: null, skipCache: true });
         marketExists = meta.universe.some(
           (market) => market.name === params.symbol,
@@ -1108,7 +1117,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       return marketExists
         ? HYPERLIQUID_ORDER_CAPABILITIES
-        : HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES;
+        : HYPERLIQUID_NO_STRATEGY_CAPABILITIES;
     } catch (error) {
       this.#deps.debugLogger.log(
         'HyperLiquid: Order capabilities unavailable',
@@ -1118,7 +1127,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             .message,
         },
       );
-      return UNAVAILABLE_ORDER_CAPABILITIES;
+      return { status: 'unavailable', reason: 'provider_unavailable' };
     }
   }
 
@@ -2194,7 +2203,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   }): Promise<MetaResponse> {
     const { dexName, skipCache } = params;
     // Use empty string for main DEX key (consistent with buildAssetMapping cache population)
-    const dexKey = dexName ?? '';
+    const dexKey = dexName ?? MAIN_DEX_META_CACHE_KEY;
     const dexDisplayName = dexKey || 'main';
 
     // Skip cache if requested (forces fresh fetch)

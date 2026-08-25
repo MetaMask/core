@@ -210,7 +210,7 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
 }) satisfies PerpsOrderCapabilities;
 
 /** Ready HyperLiquid route with no strategy support for this market. */
-export const HYPERLIQUID_UNSUPPORTED_ORDER_CAPABILITIES = Object.freeze({
+export const HYPERLIQUID_NO_STRATEGY_CAPABILITIES = Object.freeze({
   status: 'ready',
   providerId: 'hyperliquid',
   supportedStrategies: Object.freeze([]),

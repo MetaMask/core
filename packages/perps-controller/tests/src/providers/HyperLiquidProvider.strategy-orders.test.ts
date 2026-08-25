@@ -2495,19 +2495,44 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it.each(['', 'BTC:', ':BTC'])(
-      'does not advertise strategies for malformed market %s',
-      async (symbol) => {
-        const { infoClient } = useStrategyClients();
+    it('does not advertise strategies for an empty symbol', async () => {
+      const { infoClient } = useStrategyClients();
 
-        expect(await provider.getOrderCapabilities({ symbol })).toStrictEqual({
+      expect(await provider.getOrderCapabilities({ symbol: '' })).toStrictEqual(
+        {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: [],
-        });
-        expect(infoClient.meta).not.toHaveBeenCalled();
-      },
-    );
+        },
+      );
+      expect(infoClient.meta).not.toHaveBeenCalled();
+    });
+
+    it('does not advertise strategies for a symbol missing its market', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'BTC:' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
+      expect(infoClient.meta).not.toHaveBeenCalled();
+    });
+
+    it('does not advertise strategies for a symbol missing its DEX', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: ':BTC' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
+      expect(infoClient.meta).not.toHaveBeenCalled();
+    });
 
     it('does not advertise strategies for an unknown main-DEX market', async () => {
       const { infoClient } = useStrategyClients();
@@ -2520,6 +2545,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
         supportedStrategies: [],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('bounds metadata refreshes for a repeated unknown market', async () => {
+      const { infoClient } = useStrategyClients();
+
+      await provider.getOrderCapabilities({ symbol: 'DOGE' });
+      await provider.getOrderCapabilities({ symbol: 'DOGE' });
+      await provider.getOrderCapabilities({ symbol: 'DOGE' });
+
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
     it('refreshes cached metadata before rejecting a newly listed market', async () => {
@@ -2553,7 +2588,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         await coldProvider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toStrictEqual({
         status: 'unavailable',
-        supportedStrategies: [],
+        reason: 'provider_unavailable',
       });
     });
   });

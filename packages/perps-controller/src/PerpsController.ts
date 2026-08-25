@@ -63,7 +63,6 @@ import { TerminalMarketService } from './services/TerminalMarketService.js';
 import { TradingService } from './services/TradingService.js';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
-  UNAVAILABLE_ORDER_CAPABILITIES,
   WebSocketConnectionState,
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -2652,18 +2651,14 @@ export class PerpsController extends BaseController<
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    if (
-      params.providerId &&
-      this.state.activeProvider !== 'aggregated' &&
-      params.providerId !== this.state.activeProvider
-    ) {
-      return UNAVAILABLE_ORDER_CAPABILITIES;
+    if (this.#hasConflictingProviderRoute(params.providerId)) {
+      return { status: 'unavailable', reason: 'provider_not_found' };
     }
 
     try {
       const activeProvider = await this.#getActiveProviderWhenReady();
       if (!activeProvider.getOrderCapabilities) {
-        return UNAVAILABLE_ORDER_CAPABILITIES;
+        return { status: 'unavailable', reason: 'not_implemented' };
       }
       return await activeProvider.getOrderCapabilities(params);
     } catch (error) {
@@ -2671,8 +2666,23 @@ export class PerpsController extends BaseController<
         error: ensureError(error, 'PerpsController.getOrderCapabilities')
           .message,
       });
-      return UNAVAILABLE_ORDER_CAPABILITIES;
+      return { status: 'unavailable', reason: 'provider_unavailable' };
     }
+  }
+
+  /**
+   * Check whether a direct-provider controller received a different explicit
+   * provider route. Aggregated mode owns its own per-operation routing.
+   *
+   * @param providerId - Explicit provider route, if any.
+   * @returns Whether the route conflicts with the active provider mode.
+   */
+  #hasConflictingProviderRoute(providerId?: PerpsProviderType): boolean {
+    return Boolean(
+      providerId &&
+        this.state.activeProvider !== 'aggregated' &&
+        providerId !== this.state.activeProvider,
+    );
   }
 
   /**
@@ -2683,6 +2693,10 @@ export class PerpsController extends BaseController<
    * @returns The order result with order ID and status.
    */
   async placeOrder(params: OrderParams): Promise<OrderResult> {
+    if (this.#hasConflictingProviderRoute(params.providerId)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
     this.#ensureTradingServiceDeps();
 
