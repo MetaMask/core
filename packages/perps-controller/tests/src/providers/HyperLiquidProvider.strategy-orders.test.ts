@@ -1285,12 +1285,44 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
       ).toMatchObject({ success: true });
-      expect(await provider.getChaseOrders()).toStrictEqual([
-        expect.objectContaining({
-          restingOrderId: null,
-          status: 'failed',
-        }),
-      ]);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
+    it('blocks new placements while suspension drains an admitted placement', async () => {
+      let settleOrder: ((value: typeof chaseRested) => void) | undefined;
+      let notifyOrderStarted: (() => void) | undefined;
+      const orderStarted = new Promise<void>((resolve) => {
+        notifyOrderStarted = resolve;
+      });
+      const order = jest.fn().mockImplementation(
+        async () => {
+          notifyOrderStarted?.();
+          return await new Promise<typeof chaseRested>((resolve) => {
+            settleOrder = resolve;
+          });
+        },
+      );
+      useStrategyClients({ exchange: { order } });
+
+      const admitted = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      await orderStarted;
+      const suspension = provider.suspendChaseOrders();
+      const blocked = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      settleOrder?.(chaseRested);
+
+      const admittedResult = await admitted;
+      await suspension;
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(admittedResult.success).toBe(false);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+      expect(order).toHaveBeenCalledTimes(1);
     });
 
     it('reports an incomplete chase cancel and keeps the handle for a retry', async () => {
@@ -1492,6 +1524,50 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order.mock.calls[1][0].orders[0].t).toStrictEqual({
         limit: { tif: 'Alo' },
       });
+    });
+
+    it('does not replace a child cancelled directly during a reprice', async () => {
+      let settleCancel: ((value: Record<string, unknown>) => void) | undefined;
+      let notifyCancelStarted: (() => void) | undefined;
+      const cancelStarted = new Promise<void>((resolve) => {
+        notifyCancelStarted = resolve;
+      });
+      const cancel = jest.fn().mockImplementation(async () => {
+        notifyCancelStarted?.();
+        return await new Promise<Record<string, unknown>>((resolve) => {
+          settleCancel = resolve;
+        });
+      });
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValue(chaseRested(66));
+      useStrategyClients({
+        exchange: { order, cancel },
+        info: { l2Book: bookWalkingBids(['2999', '2998']) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      const ticking = jest.advanceTimersByTimeAsync(1000);
+      await cancelStarted;
+      const directCancellation = provider.cancelOrder({
+        orderId: '55',
+        symbol: 'ETH',
+      });
+      settleCancel?.({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+
+      await ticking;
+      expect(await directCancellation).toMatchObject({ success: true });
+      expect(order).toHaveBeenCalledTimes(1);
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 
     it('leaves the order alone while the touch holds still', async () => {
@@ -3592,6 +3668,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Chase placement racing a disconnect', () => {
+    it('rejects a placement admitted after disconnect starts', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      const disconnecting = provider.disconnect();
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      await disconnecting;
+
+      expect(placed.success).toBe(false);
+      expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
     /**
      * Tear the provider down from inside the mid-flight order submission.
      *

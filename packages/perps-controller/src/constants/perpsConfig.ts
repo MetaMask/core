@@ -127,6 +127,8 @@ export const ORDER_SLIPPAGE_CONFIG = {
  * provider that gains a native chase ignores these entirely.
  */
 export const CHASE_ORDER_CONFIG = {
+  /** Maximum submissions used to survive a touch moving before an ALO rests. */
+  InitialPlacementAttempts: 3,
   /** How often the touch is re-read when the caller does not say. */
   DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */

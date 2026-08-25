@@ -243,7 +243,6 @@ const isAlreadyGoneCancelError = (error: unknown): boolean => {
   return ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker));
 };
 
-const CHASE_INITIAL_PLACEMENT_ATTEMPTS = 3;
 const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
   'post only order would have immediately matched',
   'price too far from oracle',
@@ -541,6 +540,8 @@ type ChaseSession = {
   reduceOnly: boolean;
   /** Exchange ID of the order resting right now, or null once it is gone. */
   orderId: string | null;
+  /** Previous child ID while a replacement is between cancel and rest. */
+  replacingOrderId: string | null;
   /**
    * Size the order resting right now was placed for.
    *
@@ -894,6 +895,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   // has moved: a session registered after a disconnect would schedule a
   // background timer against a provider that has already been torn down.
   #chaseGeneration = 0;
+
+  // Set synchronously for lifecycle transitions so no placement can register a
+  // waiter after the transition has begun draining them.
+  #chasePlacementBlocked = false;
 
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
@@ -4447,14 +4452,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     // asset info, validation, trading readiness and a leverage update, and a
     // disconnect during any of them has to be seen by the chase registration
     // at the end.
-    const generation = this.#chaseGeneration;
-
     if (orderType !== 'chase') {
       const context = await this.#prepareStrategyPlacement(params);
       return orderType === 'twap'
         ? await this.#placeTwapOrder(params, context)
         : await this.#placeScaleOrder(params, context);
     }
+
+    if (this.#chasePlacementBlocked) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+    const generation = this.#chaseGeneration;
 
     // The chase slot is claimed before the preamble, not after it: the preamble
     // completes the signing setup and can change the asset's leverage, and a
@@ -4919,7 +4927,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     let orderId: string | undefined;
     for (
       let attempt = 1;
-      attempt <= CHASE_INITIAL_PLACEMENT_ATTEMPTS;
+      attempt <= CHASE_ORDER_CONFIG.InitialPlacementAttempts;
       attempt += 1
     ) {
       try {
@@ -4936,7 +4944,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         break;
       } catch (error) {
         if (
-          attempt === CHASE_INITIAL_PLACEMENT_ATTEMPTS ||
+          attempt === CHASE_ORDER_CONFIG.InitialPlacementAttempts ||
           !isRetryableChasePlacementError(error)
         ) {
           throw error;
@@ -4974,6 +4982,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       szDecimals,
       reduceOnly: params.reduceOnly ?? false,
       orderId,
+      replacingOrderId: null,
       pendingReplacement: null,
       restingPrice: quotePrice,
       arrivalPrice: quotePrice,
@@ -5417,6 +5426,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // would otherwise leave the session naming an order that is already off
         // the book, and recovery would reschedule a chase with nothing resting.
         const cancelledOrderId = session.orderId;
+        session.replacingOrderId = cancelledOrderId;
         session.orderId = null;
 
         // No further fills can reach a cancelled order, so what it did not fill
@@ -5472,6 +5482,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           session.size = remaining;
         } finally {
           // Cleared before the waiters wake, so they see the settled session.
+          session.replacingOrderId = null;
           session.pendingReplacement = null;
           settleReplacement?.();
         }
@@ -5785,21 +5796,27 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Snapshots after every in-flight replacement has settled.
    */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
-    await Promise.all([...this.#chasePlacementWaiters]);
-    const replacements: Promise<void>[] = [];
-    for (const [sessionId, session] of this.#chaseSessions.entries()) {
-      if (!session.active) {
-        continue;
+    this.#chasePlacementBlocked = true;
+    this.#chaseGeneration += 1;
+    try {
+      await Promise.all([...this.#chasePlacementWaiters]);
+      const replacements: Promise<void>[] = [];
+      for (const [sessionId, session] of this.#chaseSessions.entries()) {
+        if (!session.active) {
+          continue;
+        }
+        this.#stopChaseSession(sessionId);
+        session.status = 'backgrounded';
+        if (session.pendingReplacement) {
+          replacements.push(session.pendingReplacement);
+        }
       }
-      this.#stopChaseSession(sessionId);
-      session.status = 'backgrounded';
-      if (session.pendingReplacement) {
-        replacements.push(session.pendingReplacement);
-      }
+      await this.#chaseTickQueue;
+      await Promise.all(replacements);
+      return await this.getChaseOrders();
+    } finally {
+      this.#chasePlacementBlocked = false;
     }
-    await this.#chaseTickQueue;
-    await Promise.all(replacements);
-    return await this.getChaseOrders();
   }
 
   /**
@@ -6417,6 +6434,25 @@ export class HyperLiquidProvider implements PerpsProvider {
       return await this.#cancelStrategyOrder(params);
     }
 
+    // Resolve ownership before the first await. A reprice can change the child
+    // ID while an ordinary cancel is in flight; cancelling through the stable
+    // session handle stops the loop, joins any replacement, and removes the
+    // current child instead of leaving a replacement chasing behind the user.
+    const owningChase = [...this.#chaseSessions.entries()].find(
+      ([, session]) =>
+        session.orderId === params.orderId ||
+        session.replacingOrderId === params.orderId,
+    );
+    if (owningChase) {
+      this.#stopChaseSession(owningChase[0]);
+      await this.#chaseTickQueue;
+      return await this.#cancelChaseOrder({
+        ...params,
+        orderId: owningChase[0],
+        orderType: 'chase',
+      });
+    }
+
     try {
       this.#deps.debugLogger.log('Canceling order:', params);
 
@@ -6454,15 +6490,6 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const status = result.response?.data?.statuses?.[0];
       if (status === 'success') {
-        const chaseEntry = [...this.#chaseSessions.entries()].find(
-          ([, session]) => session.orderId === params.orderId,
-        );
-        if (chaseEntry) {
-          const [sessionId, session] = chaseEntry;
-          this.#stopChaseSession(sessionId);
-          session.orderId = null;
-          session.status = 'failed';
-        }
         return {
           success: true,
           orderId: params.orderId,
@@ -11260,6 +11287,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async disconnect(): Promise<DisconnectResult> {
+    this.#chasePlacementBlocked = true;
+    this.#chaseGeneration += 1;
     try {
       this.#deps.debugLogger.log('HyperLiquid: Disconnecting provider', {
         isTestnet: this.#clientService.isTestnetMode(),
@@ -11275,7 +11304,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // not a request to cancel the user's positions or orders.
       // Invalidate placements first, then drain every mutation before clearing
       // the registry and tearing down the clients they use.
-      this.#chaseGeneration += 1;
       for (const sessionId of this.#chaseSessions.keys()) {
         this.#stopChaseSession(sessionId);
       }
@@ -11353,6 +11381,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { success: true };
     } catch (error) {
       return createErrorResult(error, { success: false });
+    } finally {
+      this.#chasePlacementBlocked = false;
     }
   }
 
