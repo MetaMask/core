@@ -210,9 +210,13 @@ State metadata highlights (`kycControllerMetadata`):
   acceptance in place.
 - **Secrets, never persisted / never logged**: `sessionToken`, `accessToken`,
   `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
+  Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
+  these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
+  return a MoonPay URL while `activeVendor` is a consents-path vendor.
 - Additional non-state secrets kept **off** the state object entirely: the
   X25519 private key (`#keypair`) and the Auth-frame client token
-  (`#authClientToken`).
+  (`#authClientToken`). The auth client token is cleared on the same vendor
+  switch.
 
 ---
 
@@ -270,9 +274,12 @@ stateDiagram-v2
 > `form`, `submit`), a repeat `initialize` or `createVendorCustomer` is a
 > **no-op** — it will not create a new session, switch `activeVendor`, clear
 > tokens, or reset `activeProduct`. Call `reset()` first to start over.
-> Check/Auth `complete` messages are also ignored unless `activeVendor` is
-> `moonpay`, so a still-mounted MoonPay frame cannot recapture
-> `moonpayCustomerId` under another vendor.
+> When a switch away from MoonPay is allowed, leftover `sessionToken`,
+> `accessToken`, `moonpayCustomerId`, and `#authClientToken` are cleared so
+> Check/Auth URLs cannot outlive the MoonPay session. Check/Auth `complete`
+> messages are also ignored unless `activeVendor` is `moonpay`, so a
+> still-mounted MoonPay frame cannot recapture `moonpayCustomerId` under
+> another vendor.
 
 > **`reset()` is callable from any phase and supersedes in-flight work.** In
 > addition to returning `phase` to `idle` (and clearing tokens, `activeProduct`,

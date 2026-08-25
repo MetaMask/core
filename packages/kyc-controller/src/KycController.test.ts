@@ -716,14 +716,13 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
           const result = await controller.handleFrameMessage({
             message: {
               kind: 'complete',
               meta: { channelId: 'ch_1' },
               payload: {
                 status: 'active',
-                credentials: envelope,
+                credentials: 'not-decryptable',
                 customer: { id: 'cust-late' },
               },
             },
@@ -1201,6 +1200,19 @@ describe('KycController', () => {
       );
     });
 
+    it('returns null for the check frame when the active vendor is not MoonPay', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionToken: 'tok', activeVendor: 'iron' },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.buildCheckFrameUrl()).toBeNull();
+        },
+      );
+    });
+
     it('returns null for the auth frame without a client token', async () => {
       await withController(({ controller }) => {
         expect(controller.buildAuthFrameUrl()).toBeNull();
@@ -1381,13 +1393,21 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller }) => {
           await controller.initialize({ vendor: 'iron' });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -1397,13 +1417,21 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller }) => {
           await controller.initialize({ vendor: 'moonpay' });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
+          expect(controller.state.sessionToken).toBe('tok');
+          expect(controller.state.accessToken).toBe('access-1');
+          expect(controller.buildCheckFrameUrl()).toContain('sessionToken=tok');
         },
       );
     });
@@ -1412,7 +1440,12 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller }) => {
@@ -1422,6 +1455,9 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
+          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.accessToken).toBeNull();
+          expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -1444,7 +1480,12 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { moonpayCustomerId: 'cust-1', activeVendor: 'moonpay' },
+            state: {
+              moonpayCustomerId: 'cust-1',
+              activeVendor: 'moonpay',
+              sessionToken: 'tok',
+              accessToken: 'access-1',
+            },
           },
         },
         async ({ controller, handlers }) => {
@@ -1460,6 +1501,8 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
+          expect(controller.state.sessionToken).toBe('tok');
+          expect(controller.state.accessToken).toBe('access-1');
         },
       );
     });

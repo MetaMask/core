@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear leftover MoonPay `sessionToken`, `accessToken`, and Check/Auth frame credentials when `initialize` or `createVendorCustomer` switches to another vendor, so `buildCheckFrameUrl` cannot return a MoonPay URL for a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Rewind the consents path when SumSub ends in `failed` (including an SDK close without completion), instead of refreshing user status and forcing `phase` to `done`. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Make `createVendorCustomer` a no-op during in-progress phases (matching `initialize`), so a vendor switch cannot leave Check/Auth frames attached to the wrong vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Ignore Check/Auth frame completion unless the active vendor is MoonPay, and do not return a MoonPay customer id from `getCustomerIdentity()` under another vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))

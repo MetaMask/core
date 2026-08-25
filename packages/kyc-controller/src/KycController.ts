@@ -708,11 +708,14 @@ export class KycController extends BaseController<
         state.email = params.email;
       }
       state.activeVendor = vendor;
-      // `moonpayCustomerId` is only ever issued by the MoonPay Check / Auth
-      // frames. Leaving it set while the flow switches to another vendor would
-      // make `getCustomerIdentity` report a MoonPay id under the wrong vendor.
+      // MoonPay Check/Auth artifacts must not survive a switch to another
+      // vendor: leftover `sessionToken` would keep `buildCheckFrameUrl` alive,
+      // leftover `accessToken` / `#authClientToken` would keep Auth / KYC
+      // calls bound to MoonPay, and leftover `moonpayCustomerId` would make
+      // `getCustomerIdentity` report a MoonPay id under the wrong vendor.
       if (vendor !== 'moonpay') {
-        state.moonpayCustomerId = null;
+        this.#authClientToken = null;
+        this.#clearMoonPaySession(state);
       }
       state.activeProduct = params?.product ?? null;
     });
@@ -813,13 +816,13 @@ export class KycController extends BaseController<
 
     this.#applyUpdate((state) => {
       state.email = params.email;
-      // A MoonPay-issued customer id must not survive a switch to another
-      // vendor or `getCustomerIdentity` reports the wrong vendor. Terms for
-      // another vendor are dropped only after this request succeeds — see
-      // `initialize`.
+      // MoonPay Check/Auth artifacts must not survive a switch to another
+      // vendor — see `initialize`. Terms for another vendor are dropped only
+      // after this request succeeds.
       state.activeVendor = params.vendor;
       if (params.vendor !== 'moonpay') {
-        state.moonpayCustomerId = null;
+        this.#authClientToken = null;
+        this.#clearMoonPaySession(state);
       }
     });
     const generation = this.#generation;
@@ -961,8 +964,7 @@ export class KycController extends BaseController<
       state.phase = 'session';
       state.statusMessage = 'Submitting consents...';
       // Consents-path vendors have no MoonPay session/access tokens.
-      state.sessionToken = null;
-      state.accessToken = null;
+      this.#clearMoonPaySession(state);
     });
 
     try {
@@ -1120,6 +1122,20 @@ export class KycController extends BaseController<
     state.termsAcceptedVendor = null;
     state.sumsubTncAccepted = null;
     state.idosTncAccepted = null;
+  }
+
+  /**
+   * Drops MoonPay Check/Auth artifacts from the draft. Used when switching
+   * away from MoonPay (and again when the consents path starts) so leftover
+   * tokens cannot keep `buildCheckFrameUrl` / `buildAuthFrameUrl` alive for
+   * a consents-path vendor.
+   *
+   * @param state - The state to mutate.
+   */
+  #clearMoonPaySession(state: KycControllerState): void {
+    state.moonpayCustomerId = null;
+    state.sessionToken = null;
+    state.accessToken = null;
   }
 
   /**
@@ -1367,7 +1383,7 @@ export class KycController extends BaseController<
    * @returns The Check-frame URL or `null`.
    */
   buildCheckFrameUrl(): string | null {
-    if (!this.state.sessionToken) {
+    if (this.state.activeVendor !== 'moonpay' || !this.state.sessionToken) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
@@ -1384,7 +1400,7 @@ export class KycController extends BaseController<
    * @returns The Auth-frame URL or `null`.
    */
   buildAuthFrameUrl(): string | null {
-    if (!this.#authClientToken) {
+    if (this.state.activeVendor !== 'moonpay' || !this.#authClientToken) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/auth`);
