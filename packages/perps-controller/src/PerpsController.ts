@@ -5401,7 +5401,7 @@ export class PerpsController extends BaseController<
   async calculateFees<const Params extends FeeCalculationParams>(
     params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
-    const provider = this.getActiveProvider();
+    const provider = await this.#getActiveProviderWhenReady();
     if (
       isStrategyOrderType(params.orderType) &&
       (!params.providerId ||

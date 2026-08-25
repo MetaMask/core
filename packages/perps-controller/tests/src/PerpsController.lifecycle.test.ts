@@ -1086,6 +1086,56 @@ describe('PerpsController', () => {
       expect(result).toEqual(expect.objectContaining({ orderId: '123' }));
     });
 
+    it('waits for init before calculating a strategy fee quote', async () => {
+      let resolveBlock!: () => void;
+      const blockingPromise = new Promise<void>((resolve) => {
+        resolveBlock = resolve;
+      });
+
+      let attempt = 0;
+      (
+        HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
+      ).mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) {
+          throw new Error('Transient failure');
+        }
+        return mockProvider;
+      });
+      (mockWait as jest.Mock).mockImplementationOnce(() => blockingPromise);
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      const feePromise = controller.calculateFees({
+        orderType: 'twap',
+        symbol: 'BTC',
+        providerId: 'hyperliquid',
+      });
+      expect(
+        mockMarketDataServiceInstance.calculateFees,
+      ).not.toHaveBeenCalled();
+
+      resolveBlock();
+
+      await initPromise;
+      await expect(feePromise).resolves.toEqual({ totalFee: 0 });
+      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: mockProvider,
+          params: {
+            orderType: 'twap',
+            symbol: 'BTC',
+            providerId: 'hyperliquid',
+          },
+        }),
+      );
+    });
+
     it('throws CLIENT_NOT_INITIALIZED immediately when state is Failed', async () => {
       controller.testSetInitialized(false);
       controller.testUpdate((state) => {
