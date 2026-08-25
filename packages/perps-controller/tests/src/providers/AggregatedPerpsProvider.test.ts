@@ -624,6 +624,31 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result.providerId).toBe('myx');
     });
+
+    it('preserves legacy fallback for an unregistered ordinary-order route', async () => {
+      await aggregatedProvider.cancelOrder({
+        orderId: 'order-123',
+        symbol: 'BTC',
+        orderType: 'limit',
+        // @ts-expect-error Testing legacy fallback with an invalid provider
+        providerId: 'unknown-provider',
+      });
+
+      expect(mockHLProvider.cancelOrder).toHaveBeenCalled();
+    });
+
+    it('rejects an unregistered explicit provider for a strategy cancel', async () => {
+      await expect(
+        aggregatedProvider.cancelOrder({
+          orderId: 'strategy-123',
+          symbol: 'BTC',
+          orderType: 'twap',
+          // @ts-expect-error Testing an invalid explicit provider route
+          providerId: 'unknown-provider',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+    });
   });
 
   describe('Write Operations - closePosition', () => {

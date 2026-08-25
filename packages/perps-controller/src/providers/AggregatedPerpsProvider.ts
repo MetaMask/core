@@ -267,8 +267,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Resolve capabilities through the same explicit-provider/default-provider
-   * route used by order placement.
+   * Resolve capabilities with the same explicit-provider/default-provider
+   * selection used by order placement. Unknown routes return a typed
+   * unavailable result instead of throwing a placement error.
    *
    * @param params - Market and optional provider route.
    * @returns Capabilities from the selected provider.
@@ -561,9 +562,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
-    const [providerId, provider] = this.#getProviderOrDefault(
-      params.providerId,
-    );
+    const [providerId, provider] =
+      params.orderType !== undefined && isStrategyOrderType(params.orderType)
+        ? this.#getOrderProvider(params.providerId)
+        : this.#getProviderOrDefault(params.providerId);
     const result = await provider.cancelOrder(params);
     return { ...result, providerId };
   }

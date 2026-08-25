@@ -11,7 +11,10 @@ jest.mock('@myx-trade/sdk', () => ({
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { MYXProvider } from '../../../src/providers/MYXProvider.js';
-import { MYXClientService } from '../../../src/services/MYXClientService.js';
+import {
+  MYXClientService,
+  MYXMarketMetadataStaleError,
+} from '../../../src/services/MYXClientService.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
@@ -35,7 +38,16 @@ jest.mock(
   }),
   { virtual: true },
 );
-jest.mock('../../../src/services/MYXClientService');
+jest.mock('../../../src/services/MYXClientService', () => {
+  const actual = jest.requireActual('../../../src/services/MYXClientService');
+  const mocked = jest.createMockFromModule(
+    '../../../src/services/MYXClientService',
+  );
+  return {
+    ...mocked,
+    MYXMarketMetadataStaleError: actual.MYXMarketMetadataStaleError,
+  };
+});
 jest.mock('../../../src/services/MYXWalletService', () => ({
   MYXWalletService: jest.fn().mockImplementation(() => ({
     createEthersSigner: jest.fn().mockReturnValue({}),
@@ -271,6 +283,20 @@ describe('MYXProvider', () => {
         reason: 'provider_unavailable',
       });
       expect(mockClientService.getMarkets).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not report stale initialization metadata as an error', async () => {
+      const staleError = new MYXMarketMetadataStaleError();
+      mockClientService.getMarkets.mockRejectedValueOnce(staleError);
+
+      await expect(provider.initialize()).resolves.toStrictEqual({
+        success: false,
+        error: staleError.message,
+      });
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXProvider] Ignoring stale initialization after disconnect',
+      );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });
 

@@ -878,6 +878,27 @@ describe('PerpsController', () => {
       });
     });
 
+    it('preserves the resolved MYX provider when its hook is unavailable', async () => {
+      const myxProvider: PerpsProvider = {
+        ...mockProvider,
+        protocolId: 'myx',
+        getOrderCapabilities: undefined,
+      };
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'myx';
+      });
+      controller.testSetProviders(new Map([['myx', myxProvider]]));
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'not_implemented',
+      });
+    });
+
     it('preserves the resolved provider when capability discovery fails', async () => {
       mockProvider.getOrderCapabilities = jest
         .fn()
@@ -1017,6 +1038,43 @@ describe('PerpsController', () => {
       });
 
       expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: mockProvider }),
+      );
+    });
+
+    it('rejects strategy cancellation that conflicts with the resolved provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'myx';
+      });
+
+      await expect(
+        controller.cancelOrder({
+          orderId: 'strategy-123',
+          symbol: 'RHEA',
+          providerId: 'myx',
+          orderType: 'twap',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
+    });
+
+    it('preserves legacy cancellation routing for ordinary orders', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockTradingServiceInstance.cancelOrder.mockResolvedValue({
+        success: true,
+      });
+
+      await controller.cancelOrder({
+        orderId: 'order-123',
+        symbol: 'RHEA',
+        providerId: 'myx',
+        orderType: 'limit',
+      });
+
+      expect(mockTradingServiceInstance.cancelOrder).toHaveBeenCalledWith(
         expect.objectContaining({ provider: mockProvider }),
       );
     });

@@ -39,6 +39,16 @@ export const STRATEGY_ORDER_TYPES = [
 export const SCALE_ORDER_COUNT = { min: 2, max: 20 } as const;
 
 /**
+ * Check the provider-independent shape of a capability market symbol.
+ *
+ * @param symbol - Market symbol supplied by a consumer.
+ * @returns True when the symbol is non-empty and contains no whitespace.
+ */
+export function isValidCapabilitySymbol(symbol: string): boolean {
+  return symbol.length > 0 && !/\s/u.test(symbol);
+}
+
+/**
  * Order types whose price field (`OrderParams.price`) is a real limit price the
  * exchange must honour, as opposed to a slippage cap derived from the market.
  */

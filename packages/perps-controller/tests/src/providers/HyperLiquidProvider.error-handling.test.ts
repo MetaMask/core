@@ -2409,6 +2409,113 @@ describe('HyperLiquidProvider', () => {
         ).toHaveBeenCalledTimes(1);
       });
 
+      it('does not restore user fee rates after disconnect', async () => {
+        let startUserFeesRequest = (): void => undefined;
+        const userFeesRequestStarted = new Promise<void>((resolve): void => {
+          startUserFeesRequest = resolve;
+        });
+        let resolveUserFees = (_fees: {
+          userCrossRate: string;
+          userAddRate: string;
+          userSpotCrossRate: string;
+          userSpotAddRate: string;
+          activeReferralDiscount: string;
+          activeStakingDiscount: null;
+        }): void => undefined;
+        const pendingUserFees = new Promise<{
+          userCrossRate: string;
+          userAddRate: string;
+          userSpotCrossRate: string;
+          userSpotAddRate: string;
+          activeReferralDiscount: string;
+          activeStakingDiscount: null;
+        }>((resolve): void => {
+          resolveUserFees = resolve;
+        });
+        const userFees = mockClientService.getInfoClient()
+          .userFees as jest.Mock;
+        userFees
+          .mockImplementationOnce(() => {
+            startUserFeesRequest();
+            return pendingUserFees;
+          })
+          .mockResolvedValueOnce({
+            userCrossRate: '0.0003',
+            userAddRate: '0.0001',
+            userSpotCrossRate: '0.0004',
+            userSpotAddRate: '0.0002',
+            activeReferralDiscount: '0',
+            activeStakingDiscount: null,
+          });
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        const staleFees = provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+        await userFeesRequestStarted;
+        const disconnect = provider.disconnect();
+        resolveUserFees({
+          userCrossRate: '0.0002',
+          userAddRate: '0.0001',
+          userSpotCrossRate: '0.0004',
+          userSpotAddRate: '0.0002',
+          activeReferralDiscount: '0',
+          activeStakingDiscount: null,
+        });
+        await disconnect;
+        await staleFees;
+
+        const currentFees = await provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+
+        expect(currentFees.protocolFeeRate).toBe(0.0003);
+        expect(userFees).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not cache user fee rates after the selected account changes', async () => {
+        const userFees = mockClientService.getInfoClient()
+          .userFees as jest.Mock;
+        userFees
+          .mockResolvedValueOnce({
+            userCrossRate: '0.0002',
+            userAddRate: '0.0001',
+            userSpotCrossRate: '0.0004',
+            userSpotAddRate: '0.0002',
+            activeReferralDiscount: '0',
+            activeStakingDiscount: null,
+          })
+          .mockResolvedValueOnce({
+            userCrossRate: '0.0003',
+            userAddRate: '0.0001',
+            userSpotCrossRate: '0.0004',
+            userSpotAddRate: '0.0002',
+            activeReferralDiscount: '0',
+            activeStakingDiscount: null,
+          });
+        mockWalletService.getUserAddressWithDefault
+          .mockResolvedValueOnce('0x123')
+          .mockResolvedValue('0x456');
+
+        await provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+        const currentFees = await provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+
+        expect(currentFees.protocolFeeRate).toBe(0.0003);
+        expect(userFees).toHaveBeenCalledTimes(2);
+      });
+
       it('falls back to base rates on API failure', async () => {
         // Reset and mock user address
         (mockClientService.getInfoClient().userFees as jest.Mock).mockClear();

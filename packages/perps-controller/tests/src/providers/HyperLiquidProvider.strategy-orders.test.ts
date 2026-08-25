@@ -1,10 +1,11 @@
 import {
   BUILDER_FEE_CONFIG,
-  HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS,
+  HYPERLIQUID_ORDER_CAPABILITIES_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
+  PERPS_CONSTANTS,
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -632,6 +633,65 @@ describe('HyperLiquidProvider - strategy order types', () => {
   };
 
   describe('TWAP placement', () => {
+    it('does not request builder-fee approval', async () => {
+      const { exchangeClient } = useStrategyClients({
+        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      });
+
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+    });
+
+    it('still approves the builder fee when a standard order joins TWAP setup', async () => {
+      let startSpotMetaRequest = (): void => undefined;
+      const spotMetaRequestStarted = new Promise<void>((resolve): void => {
+        startSpotMetaRequest = resolve;
+      });
+      let resolveSpotMeta = (): void => undefined;
+      const pendingSpotMeta = new Promise<{
+        tokens: { name: string; tokenId: string; index: number }[];
+        universe: never[];
+      }>((resolve): void => {
+        resolveSpotMeta = (): void => {
+          resolve({
+            tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+            universe: [],
+          });
+        };
+      });
+      const { exchangeClient } = useStrategyClients({
+        info: {
+          maxBuilderFee: jest.fn().mockResolvedValue(0),
+          perpDexs: jest.fn().mockResolvedValue([null]),
+          spotMeta: jest.fn().mockImplementation(() => {
+            startSpotMetaRequest();
+            return pendingSpotMeta;
+          }),
+        },
+      });
+      provider = createTestProvider({ hip3Enabled: true });
+
+      const twapOrder = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      });
+      await spotMetaRequestStarted;
+      const standardOrder = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'market',
+      });
+      resolveSpotMeta();
+
+      await Promise.all([twapOrder, standardOrder]);
+      expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+    });
+
     it('submits the venue TWAP action rather than an order', async () => {
       const { exchangeClient } = useStrategyClients();
 
@@ -2775,7 +2835,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
       jest.advanceTimersByTime(
-        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS - 1,
+        HYPERLIQUID_ORDER_CAPABILITIES_CONFIG.MetaFreshnessMs - 1,
       );
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
@@ -2797,7 +2857,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
       jest.advanceTimersByTime(
-        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS - 1,
+        HYPERLIQUID_ORDER_CAPABILITIES_CONFIG.MetaFreshnessMs - 1,
       );
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
 
@@ -2821,7 +2881,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ],
       });
       jest.advanceTimersByTime(
-        HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS,
+        HYPERLIQUID_ORDER_CAPABILITIES_CONFIG.MetaFreshnessMs,
       );
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
@@ -3000,6 +3060,165 @@ describe('HyperLiquidProvider - strategy order types', () => {
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fetch capability metadata while clients disconnect', async () => {
+      let finishInitialization = (): void => undefined;
+      const pendingInitialization = new Promise<void>((resolve): void => {
+        finishInitialization = resolve;
+      });
+      mockClientService.initialize.mockReturnValueOnce(pendingInitialization);
+      const { infoClient } = useStrategyClients();
+
+      const capabilities = provider.getOrderCapabilities({ symbol: 'ETH' });
+      expect(mockClientService.initialize).toHaveBeenCalledTimes(1);
+      const disconnect = provider.disconnect();
+      finishInitialization();
+
+      await disconnect;
+      expect(await capabilities).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(infoClient.meta).not.toHaveBeenCalled();
+    });
+
+    it('does not cache ordinary metadata that resolves after disconnect', async () => {
+      let startRequest = (): void => undefined;
+      const requestStarted = new Promise<void>((resolve): void => {
+        startRequest = resolve;
+      });
+      let resolveMeta = (_meta: {
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }): void => undefined;
+      const pendingMeta = new Promise<{
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }>((resolve): void => {
+        resolveMeta = resolve;
+      });
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              startRequest();
+              return pendingMeta;
+            })
+            .mockResolvedValueOnce({
+              universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+            }),
+        },
+      });
+
+      const staleRead = provider.getMaxLeverage('ETH');
+      await requestStarted;
+      await provider.disconnect();
+      resolveMeta({
+        universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 99 }],
+      });
+
+      expect(await staleRead).toBe(PERPS_CONSTANTS.DefaultMaxLeverage);
+      expect(await provider.getMaxLeverage('ETH')).toBe(50);
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not restore DEX discovery while metadata backfill overlaps disconnect', async () => {
+      jest.useRealTimers();
+      let startPerpDexsRequest = (): void => undefined;
+      const perpDexsRequestStarted = new Promise<void>((resolve): void => {
+        startPerpDexsRequest = resolve;
+      });
+      let resolvePerpDexs = (_perpDexs: (null | { name: string })[]): void =>
+        undefined;
+      const pendingPerpDexs = new Promise<(null | { name: string })[]>(
+        (resolve): void => {
+          resolvePerpDexs = resolve;
+        },
+      );
+      const { infoClient } = useStrategyClients({
+        info: {
+          meta: jest
+            .fn()
+            .mockResolvedValueOnce({
+              universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 99 }],
+            })
+            .mockResolvedValueOnce({
+              universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+            }),
+          perpDexs: jest
+            .fn()
+            .mockImplementationOnce(() => {
+              startPerpDexsRequest();
+              return pendingPerpDexs;
+            })
+            .mockResolvedValueOnce([null]),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+
+      const staleRead = provider.getMaxLeverage('ETH');
+      await perpDexsRequestStarted;
+      const disconnect = provider.disconnect();
+      resolvePerpDexs([null]);
+      await disconnect;
+
+      expect(await staleRead).toBe(PERPS_CONSTANTS.DefaultMaxLeverage);
+      expect(await provider.getMaxLeverage('ETH')).toBe(50);
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+      expect(infoClient.perpDexs).toHaveBeenCalledTimes(2);
+    });
+
+    it('refetches fee DEX discovery after an in-flight read crosses disconnect', async () => {
+      jest.useRealTimers();
+      let startPerpDexsRequest = (): void => undefined;
+      const perpDexsRequestStarted = new Promise<void>((resolve): void => {
+        startPerpDexsRequest = resolve;
+      });
+      let resolvePerpDexs = (
+        _perpDexs: (null | { name: string; deployerFeeScale: string })[],
+      ): void => undefined;
+      const pendingPerpDexs = new Promise<
+        (null | { name: string; deployerFeeScale: string })[]
+      >((resolve): void => {
+        resolvePerpDexs = resolve;
+      });
+      const perpDexs = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          startPerpDexsRequest();
+          return pendingPerpDexs;
+        })
+        .mockResolvedValueOnce([
+          null,
+          { name: 'xyz', deployerFeeScale: '0.5' },
+        ]);
+      const { capabilityProvider, infoClient } = useHip3Capabilities({
+        perpDexs,
+      });
+
+      const staleFees = capabilityProvider.calculateFees({
+        orderType: 'market',
+        amount: '1000',
+        symbol: 'xyz:TSLA',
+      });
+      await perpDexsRequestStarted;
+      const disconnect = capabilityProvider.disconnect();
+      resolvePerpDexs([null, { name: 'xyz', deployerFeeScale: '0.9' }]);
+      await disconnect;
+      await staleFees;
+
+      const currentFees = await capabilityProvider.calculateFees({
+        orderType: 'market',
+        amount: '1000',
+        symbol: 'xyz:TSLA',
+      });
+
+      expect(currentFees.protocolFeeRate).toBeCloseTo(0.000675, 8);
+      expect(infoClient.perpDexs).toHaveBeenCalledTimes(2);
     });
 
     it('invalidates an in-flight refresh when client disconnect fails', async () => {
@@ -3273,6 +3492,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
       expect(spotMeta).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not fall back to main-DEX markets when DEX discovery crosses disconnect', async () => {
+      let startPerpDexsRequest = (): void => undefined;
+      const perpDexsRequestStarted = new Promise<void>((resolve): void => {
+        startPerpDexsRequest = resolve;
+      });
+      let resolvePerpDexs = (_perpDexs: (null | { name: string })[]): void =>
+        undefined;
+      const pendingPerpDexs = new Promise<(null | { name: string })[]>(
+        (resolve): void => {
+          resolvePerpDexs = resolve;
+        },
+      );
+      const perpDexs = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('initial DEX discovery failed'))
+        .mockImplementationOnce(() => {
+          startPerpDexsRequest();
+          return pendingPerpDexs;
+        });
+      const { capabilityProvider, infoClient } = useHip3Capabilities({
+        perpDexs,
+      });
+
+      const markets = capabilityProvider.getMarkets({ skipFilters: true });
+      await perpDexsRequestStarted;
+      await capabilityProvider.disconnect();
+      resolvePerpDexs([null, { name: 'xyz' }]);
+
+      expect(await markets).toStrictEqual([]);
+      expect(infoClient.meta).not.toHaveBeenCalled();
     });
 
     it('reports unavailable when market metadata cannot be loaded', async () => {

@@ -237,6 +237,12 @@ export class MYXClientService {
     }
   }
 
+  /**
+   * Refresh and cache market metadata. Disconnect clears the shared promise so
+   * callers after teardown cannot join an earlier lifecycle generation.
+   *
+   * @returns Current market metadata.
+   */
   async #refreshMarkets(): Promise<MYXPoolSymbol[]> {
     if (this.#marketsRefreshPromise) {
       return await this.#marketsRefreshPromise;

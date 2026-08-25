@@ -2800,6 +2800,13 @@ export class PerpsController extends BaseController<
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
     const provider = await this.#getActiveProviderWhenReady();
+    if (
+      params.orderType !== undefined &&
+      isStrategyOrderType(params.orderType) &&
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
 
     return this.#tradingService.cancelOrder({
       provider,

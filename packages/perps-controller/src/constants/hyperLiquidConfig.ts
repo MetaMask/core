@@ -187,6 +187,8 @@ export const BUILDER_FEE_CONFIG = {
   TestnetBuilder: '0x724e57771ba749650875bd8adb2e29a85d0cacfa' as Hex,
   // Production builder wallet
   MainnetBuilder: '0xe95a5e31904e005066614247d309e00d8ad753aa' as Hex,
+  // No builder fee for actions without a builder field
+  NoFeeDecimal: 0,
   // Fee in decimal (10 bp = 0.1%)
   MaxFeeDecimal: BUILDER_FEE_MAX_FEE_DECIMAL,
   MaxFeeTenthsBps: BUILDER_FEE_MAX_FEE_DECIMAL * 100000,
@@ -213,8 +215,15 @@ export const HYPERLIQUID_NO_STRATEGY_CAPABILITIES = Object.freeze({
   supportedStrategies: Object.freeze([]),
 }) satisfies PerpsOrderCapabilities;
 
-/** Freshness window for metadata used only by capability discovery. */
-export const HYPERLIQUID_ORDER_CAPABILITIES_META_FRESHNESS_MS = 30_000;
+/** Internal metadata-cache settings shared by HyperLiquid reads. */
+export const HYPERLIQUID_META_CACHE_CONFIG = {
+  MainDexKey: '__main_dex__',
+} as const;
+
+/** Metadata freshness settings used by HyperLiquid capability reads. */
+export const HYPERLIQUID_ORDER_CAPABILITIES_CONFIG = {
+  MetaFreshnessMs: 30_000,
+} as const;
 
 // Referral code configuration
 export const REFERRAL_CONFIG = {

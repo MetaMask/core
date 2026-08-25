@@ -98,6 +98,7 @@ import type {
 } from '../types/myx-types.js';
 import type { CandleData } from '../types/perps-types.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { isValidCapabilitySymbol } from '../utils/orderTypes.js';
 import {
   adaptMarketFromMYX,
   adaptMarketDataFromMYX,
@@ -205,9 +206,7 @@ export class MYXProvider implements PerpsProvider {
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
     if (
-      params.symbol.length === 0 ||
-      params.symbol !== params.symbol.trim() ||
-      /\s/u.test(params.symbol) ||
+      !isValidCapabilitySymbol(params.symbol) ||
       params.symbol.includes(':')
     ) {
       return {
@@ -316,17 +315,14 @@ export class MYXProvider implements PerpsProvider {
 
       // Fetch initial markets
       const pools = await this.#clientService.getMarkets();
-      if (disconnectGeneration !== this.#disconnectGeneration) {
-        const staleError = new MYXMarketMetadataStaleError();
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale initialization after disconnect',
-        );
-        return { success: false, error: staleError.message };
-      }
-
       // Filter to MYX-exclusive markets
-      this.#poolsCache = filterMYXExclusiveMarkets(pools);
-      this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
+      const poolsCache = filterMYXExclusiveMarkets(pools);
+      const poolSymbolMap = buildPoolSymbolMap(poolsCache);
+      if (disconnectGeneration !== this.#disconnectGeneration) {
+        throw new MYXMarketMetadataStaleError();
+      }
+      this.#poolsCache = poolsCache;
+      this.#poolSymbolMap = poolSymbolMap;
       this.#isDisconnected = false;
 
       this.#deps.debugLogger.log('[MYXProvider] Initialized successfully', {
@@ -337,10 +333,16 @@ export class MYXProvider implements PerpsProvider {
       return { success: true };
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.initialize');
-      this.#deps.logger.error(
-        wrappedError,
-        this.#getErrorContext('initialize'),
-      );
+      if (wrappedError instanceof MYXMarketMetadataStaleError) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale initialization after disconnect',
+        );
+      } else {
+        this.#deps.logger.error(
+          wrappedError,
+          this.#getErrorContext('initialize'),
+        );
+      }
       return { success: false, error: wrappedError.message };
     }
   }
