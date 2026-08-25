@@ -1929,6 +1929,7 @@ describe('RampsService', () => {
           quote: {
             amountIn: 100,
             amountOut: '0.05',
+            extraFee: '0',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
           },
@@ -1985,6 +1986,7 @@ describe('RampsService', () => {
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           payments: '/payments/debit-credit-card',
+          isFeeExcludedFromFiat: 'true',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -1996,13 +1998,15 @@ describe('RampsService', () => {
         amount: 100,
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
-      });
+        isFeeExcludedFromFiat: true,
+      } as any);
       await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
       expect(quotesResponse.success[0]?.provider).toBe('/providers/moonpay');
+      expect(quotesResponse.success[0]?.quote.extraFee).toBe('0');
       expect(quotesResponse.sorted).toHaveLength(2);
       expect(quotesResponse.error).toHaveLength(0);
     });

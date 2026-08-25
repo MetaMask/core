@@ -32,10 +32,11 @@ const RAMPS_QUOTE_MOCK: RampsQuote = {
   quote: {
     amountIn: 10,
     amountOut: 5,
+    extraFee: 1.28,
     networkFee: 0.2,
     paymentMethod: '/payments/debit-credit-card',
     providerFee: 0.5,
-  },
+  } as any,
 };
 
 const REQUIRED_TOKEN_MOCK: TransactionPayRequiredToken = {
@@ -164,6 +165,7 @@ describe('fiat-direct-musd', () => {
         assetId: MUSD_CAIP_ASSET_ID_MOCK,
         autoSelectProvider: true,
         fiat: DEFAULT_FIAT_CURRENCY,
+        isFeeExcludedFromFiat: true,
         paymentMethods: ['/payments/debit-credit-card'],
         restrictToKnownOrNativeProviders: true,
         walletAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
@@ -175,6 +177,7 @@ describe('fiat-direct-musd', () => {
       expect(result).toStrictEqual(
         expect.objectContaining({
           fees: expect.objectContaining({
+            metaMask: { fiat: '0', usd: '0' },
             provider: { fiat: '0.7', usd: '0.7' },
             providerFiat: { fiat: '0.7', usd: '0.7' },
             sourceNetwork: {

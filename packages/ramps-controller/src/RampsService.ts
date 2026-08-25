@@ -273,6 +273,10 @@ export type Quote = {
      */
     providerFee?: number | string;
     /**
+     * MetaMask fee charged separately from the requested fiat amount.
+     */
+    extraFee?: number | string;
+    /**
      * Buy URL endpoint that returns the actual provider widget URL.
      *
      * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
@@ -423,6 +427,10 @@ export type GetQuotesParams = {
    * The ramp action type. Defaults to 'buy'.
    */
   action?: RampAction;
+  /**
+   * Whether fees should be returned separately from the fiat amount.
+   */
+  isFeeExcludedFromFiat?: boolean;
 };
 
 /**
@@ -1380,6 +1388,9 @@ export class RampsService {
     // Add redirect URL if specified
     if (params.redirectUrl) {
       url.searchParams.set('redirectUrl', params.redirectUrl);
+    }
+    if (params.isFeeExcludedFromFiat === true) {
+      url.searchParams.set('isFeeExcludedFromFiat', 'true');
     }
 
     const response = await this.#policy.execute(async () => {

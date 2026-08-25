@@ -112,6 +112,7 @@ export async function getRampsQuote({
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
+    isFeeExcludedFromFiat: true,
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,
     walletAddress,

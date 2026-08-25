@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isFeeExcludedFromFiat` quote requests and preserve the provider `extraFee` response field. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ### Changed

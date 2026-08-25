@@ -1912,6 +1912,7 @@ export class RampsController extends BaseController<
     restrictToKnownOrNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
+    isFeeExcludedFromFiat?: boolean;
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
@@ -2052,6 +2053,7 @@ export class RampsController extends BaseController<
       [...providersToUse].sort().join(','),
       effectiveRedirectUrl,
       action,
+      options.isFeeExcludedFromFiat === true ? 'fee-excluded' : '',
     ]);
 
     const params = {
@@ -2064,6 +2066,9 @@ export class RampsController extends BaseController<
       providers: providersToUse,
       redirectUrl: effectiveRedirectUrl,
       action,
+      ...(options.isFeeExcludedFromFiat === true
+        ? { isFeeExcludedFromFiat: true }
+        : {}),
     };
 
     const response = await this.executeRequest(

@@ -78,10 +78,11 @@ const FIAT_QUOTE_MOCK: RampsQuote = {
   quote: {
     amountIn: 20,
     amountOut: 5,
+    extraFee: '1.28',
     networkFee: 0.2,
     paymentMethod: '/payments/debit-credit-card',
     providerFee: 0.5,
-  },
+  } as any,
 };
 
 const FIAT_QUOTES_RESPONSE_MOCK: RampsQuotesResponse = {
@@ -277,6 +278,7 @@ describe('getFiatQuotes', () => {
           fiat: 'USD',
           paymentMethods: ['/payments/debit-credit-card'],
           restrictToKnownOrNativeProviders: true,
+          isFeeExcludedFromFiat: true,
           walletAddress: WALLET_ADDRESS,
         }),
       );
@@ -302,12 +304,72 @@ describe('getFiatQuotes', () => {
         usd: '0.7',
       });
       expect(result[0].fees.metaMask).toStrictEqual({
-        fiat: '0.28',
-        usd: '0.28',
+        fiat: '1.28',
+        usd: '1.28',
       });
       expect(result[0].original).toStrictEqual({
         rampsQuote: FIAT_QUOTE_MOCK,
         relayQuote: {},
+      });
+    });
+
+    it.each([
+      { extraFee: 0, expected: '0' },
+      { extraFee: undefined, expected: '0' },
+      { extraFee: -1, expected: '0' },
+      { extraFee: 'invalid', expected: '0' },
+    ])(
+      'maps safe extraFee value $extraFee to the MetaMask fee',
+      async ({ extraFee, expected }) => {
+        const rampsQuote = {
+          ...FIAT_QUOTE_MOCK,
+          quote: {
+            ...FIAT_QUOTE_MOCK.quote,
+            extraFee,
+          },
+        } as any;
+        const { request } = getRequest({
+          rampsQuotes: {
+            ...FIAT_QUOTES_RESPONSE_MOCK,
+            success: [rampsQuote],
+          },
+        });
+
+        const result = await getFiatQuotes(request);
+
+        expect(result[0].fees.metaMask).toStrictEqual({
+          fiat: expected,
+          usd: expected,
+        });
+      },
+    );
+
+    it('ignores invalid or negative ramps provider fees', async () => {
+      const rampsQuote = {
+        ...FIAT_QUOTE_MOCK,
+        quote: {
+          ...FIAT_QUOTE_MOCK.quote,
+          extraFee: 0,
+          networkFee: 'invalid',
+          providerFee: -1,
+        },
+      } as any;
+      const { request } = getRequest({
+        rampsQuotes: {
+          ...FIAT_QUOTES_RESPONSE_MOCK,
+          success: [rampsQuote],
+        },
+      });
+
+      const result = await getFiatQuotes(request);
+
+      expect(result[0].fees.providerFiat).toStrictEqual({
+        fiat: '0',
+        usd: '0',
+      });
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '1',
+        usd: '1',
       });
     });
 
@@ -822,6 +884,7 @@ describe('getFiatQuotes', () => {
         assetId: MUSD_CAIP_ID_MOCK,
         autoSelectProvider: true,
         fiat: DEFAULT_FIAT_CURRENCY,
+        isFeeExcludedFromFiat: true,
         paymentMethods: ['/payments/debit-credit-card'],
         restrictToKnownOrNativeProviders: true,
         walletAddress: MONEY_ACCOUNT_ADDRESS,

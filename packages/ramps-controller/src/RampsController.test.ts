@@ -7530,6 +7530,63 @@ describe('RampsController', () => {
       );
     });
 
+    it('partitions quote cache only when fee exclusion is enabled', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          const getQuotes = jest.fn(async () => mockQuotesResponse);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            getQuotes,
+          );
+          const baseOptions = {
+            assetId: 'eip155:1/slip44:60',
+            amount: 5,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          };
+
+          await rootMessenger.call('RampsController:getQuotes', baseOptions);
+          await rootMessenger.call('RampsController:getQuotes', {
+            ...baseOptions,
+            isFeeExcludedFromFiat: false,
+          } as any);
+          await rootMessenger.call('RampsController:getQuotes', {
+            ...baseOptions,
+            isFeeExcludedFromFiat: true,
+          } as any);
+          await rootMessenger.call('RampsController:getQuotes', {
+            ...baseOptions,
+            isFeeExcludedFromFiat: true,
+          } as any);
+          await rootMessenger.call('RampsController:getQuotes', {
+            ...baseOptions,
+            forceRefresh: true,
+            isFeeExcludedFromFiat: true,
+          } as any);
+
+          expect(getQuotes).toHaveBeenCalledTimes(3);
+        },
+      );
+    });
+
     it('accepts explicit region and fiat parameters', async () => {
       await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
