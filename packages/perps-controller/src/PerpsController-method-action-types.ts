@@ -804,8 +804,9 @@ export type PerpsControllerSetLiveDataConfigAction = {
 };
 
 /**
- * Calculate trading fees for the active provider
- * Each provider implements its own fee structure
+ * Calculate trading fees through the active provider route.
+ * Each provider owns its fee policy. Strategy quotes require an explicit
+ * provider route so preview and placement cannot use different venues.
  *
  * @param params - The operation parameters.
  * @returns The fee calculation result for the trade.
