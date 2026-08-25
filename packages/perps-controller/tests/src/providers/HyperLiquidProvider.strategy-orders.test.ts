@@ -798,7 +798,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         takeProfitPrice: '3500',
       });
 
-      expect(result.success).toBe(false);
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      });
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalled();
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -840,6 +843,52 @@ describe('HyperLiquidProvider - strategy order types', () => {
         childOrderIds: ['123'],
       });
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.order.mock.invocationCallOrder[0]).toBeLessThan(
+        exchangeClient.cancel.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('accepts an old TP/SL order that is already gone after replacement', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  {
+                    error:
+                      'Order was never placed, already canceled, or filled.',
+                  },
+                ],
+              },
+            },
+          }),
+        },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              oid: 456,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              orderType: 'Take Profit Limit',
+              children: [],
+            },
+          ]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+      });
+
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: 'TP/SL orders placed',
+      });
       expect(exchangeClient.order.mock.invocationCallOrder[0]).toBeLessThan(
         exchangeClient.cancel.mock.invocationCallOrder[0],
       );

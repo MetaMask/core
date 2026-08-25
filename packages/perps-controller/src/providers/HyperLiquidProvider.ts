@@ -44,6 +44,7 @@ import {
 } from '../constants/perpsConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
 import {
   HyperLiquidClientService,
@@ -2017,9 +2018,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Approve the standard builder fee once for the current account and network.
    * TWAP never calls this because its native action has no builder field.
    *
-   * @param requireApproval - Throw when approval is unavailable or fails.
+   * @param approvalFailureCode - Operation-specific error to throw when
+   * approval is unavailable or fails.
    */
-  async #ensureBuilderFeeSetup(requireApproval = false): Promise<void> {
+  async #ensureBuilderFeeSetup(
+    approvalFailureCode?: PerpsErrorCode,
+  ): Promise<void> {
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const userAddress = await this.#walletService.getUserAddressWithDefault();
@@ -2037,11 +2041,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       await pendingApproval;
     } catch (error) {
       this.#deps.debugLogger.log(
-        '[ensureReadyForTrading] Builder fee approval failed',
+        '[ensureBuilderFeeSetup] Builder fee approval failed',
         error,
       );
-      if (requireApproval) {
-        throw error;
+      if (approvalFailureCode) {
+        throw new Error(approvalFailureCode);
       }
     } finally {
       if (this.#builderFeeSetupPromise === pendingApproval) {
@@ -2049,14 +2053,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
-    if (requireApproval && !this.#builderFeeCheckCache.has(cacheKey)) {
-      throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+    if (approvalFailureCode && !this.#builderFeeCheckCache.has(cacheKey)) {
+      throw new Error(approvalFailureCode);
     }
   }
 
   async #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
-    requireBuilderFeeApproval?: boolean;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
   }): Promise<void> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
@@ -2114,7 +2118,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (options.requiresBuilderFee) {
-      await this.#ensureBuilderFeeSetup(options.requireBuilderFeeApproval);
+      await this.#ensureBuilderFeeSetup(options.builderFeeApprovalFailureCode);
     }
 
     this.#deps.debugLogger.log(
@@ -7784,7 +7788,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       // approval failure would remove the position's existing protection.
       await this.#ensureReadyForTrading({
         requiresBuilderFee: chargesMetamaskBuilderFee,
-        requireBuilderFeeApproval: chargesMetamaskBuilderFee,
+        builderFeeApprovalFailureCode: chargesMetamaskBuilderFee
+          ? PERPS_ERROR_CODES.TPSL_UPDATE_FAILED
+          : undefined,
       });
 
       // Cancel existing TP/SL orders for this position
@@ -7967,8 +7973,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // Place the complete replacement before removing old protection. The
-      // venue has no atomic replace action; this ordering avoids an unprotected
-      // window and makes any failed new child retractable by its returned ID.
+      // exchange client exposes separate place and cancel actions for these
+      // triggers; this ordering avoids an unprotected window and makes any
+      // failed new child retractable by its returned ID.
       const result = await exchangeClient.order({
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
