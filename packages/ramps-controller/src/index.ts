@@ -112,6 +112,13 @@ export {
   RAMPS_SDK_VERSION,
   getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
+export type { RampsClientIdentity } from './client-identity.js';
+export {
+  getRampsClientIdentityHeaders,
+  RAMPS_CLIENT_PRODUCT_HEADER,
+  RAMPS_CLIENT_VERSION_HEADER,
+  RAMPS_CLIENT_ENVIRONMENT_HEADER,
+} from './client-identity.js';
 export type {
   RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
