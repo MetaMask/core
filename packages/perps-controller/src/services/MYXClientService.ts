@@ -20,7 +20,11 @@ import {
   getMYXChainId,
   getMYXHttpEndpoint,
 } from '../constants/myxConfig.js';
-import { PERPS_CONSTANTS, ZERO_ADDRESS } from '../constants/perpsConfig.js';
+import {
+  PERFORMANCE_CONFIG,
+  PERPS_CONSTANTS,
+  ZERO_ADDRESS,
+} from '../constants/perpsConfig.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type {
   MYXAuthConfig,
@@ -98,7 +102,7 @@ export class MYXClientService {
 
   #marketsCacheTimestamp = 0;
 
-  readonly #marketsCacheTtlMs = 5 * 60 * 1000; // 5 minutes
+  readonly #marketsCacheTtlMs = PERFORMANCE_CONFIG.MarketDataCacheDurationMs;
 
   #marketsRefreshPromise: Promise<MYXPoolSymbol[]> | null = null;
 
@@ -1101,14 +1105,17 @@ export class MYXClientService {
     this.#marketsCacheGeneration += 1;
     this.#marketsRefreshPromise = null;
     this.stopPricePolling();
-    this.#myxClient.subscription.disconnect();
-    this.#marketsCache = [];
-    this.#marketsCacheTimestamp = 0;
-    this.#globalIdCache.clear();
-    this.#authenticatedAddress = null;
-    this.#authenticating = null;
+    try {
+      this.#myxClient.subscription.disconnect();
+    } finally {
+      this.#marketsCache = [];
+      this.#marketsCacheTimestamp = 0;
+      this.#globalIdCache.clear();
+      this.#authenticatedAddress = null;
+      this.#authenticating = null;
 
-    this.#deps.debugLogger.log('[MYXClientService] Disconnected');
+      this.#deps.debugLogger.log('[MYXClientService] Disconnected');
+    }
   }
 
   /**

@@ -23,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add routed, per-market strategy order capabilities through `PerpsController.getOrderCapabilities` ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Discover HyperLiquid main-DEX support for `twap`, `scale`, and `chase` without inferring it from the provider name.
   - Preserve compatibility through an optional provider hook and explicit unavailable reasons.
-  - Keep explicit capability and strategy-placement routes from falling back to another protocol.
+  - Require `providerId` for strategy placement, cancellation, and fee quotes so they cannot fall back to another protocol.
+  - Route fee calculations to an explicitly selected provider while preserving default routing for ordinary quotes.
 - **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
   - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
   - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.

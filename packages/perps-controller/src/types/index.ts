@@ -303,8 +303,9 @@ export type OrderParams = {
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
 
-  // Multi-provider routing (optional: defaults to active/default provider)
-  providerId?: PerpsProviderType; // Optional: override active provider for routing
+  // Multi-provider routing. Strategy placement requires an explicit route at
+  // runtime; ordinary orders default to the active/default provider.
+  providerId?: PerpsProviderType;
 };
 
 export type OrderResult = {
@@ -315,8 +316,11 @@ export type OrderResult = {
    * For an ordinary placement this is the exchange's order ID. For a *strategy*
    * placement it is a handle instead — a venue TWAP id, or a client-generated
    * scale-group or chase-session id — which is what `CancelOrderParams` takes
-   * together with the matching `orderType`. The individual exchange ids a
-   * strategy expanded into are in `childOrderIds`.
+   * together with the matching `orderType` and `providerId`. Scale and chase
+   * handles live only in the provider session that created them. Reconnecting
+   * does not cancel their resting venue orders, but the new provider session
+   * cannot resolve those handles. The individual exchange ids a strategy
+   * expanded into are in `childOrderIds`.
    */
   orderId?: string;
   error?: string;
@@ -769,7 +773,9 @@ export type CancelOrderParams = {
    * which is what every existing caller does.
    */
   orderType?: OrderType;
-  providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  // Strategy cancellation requires the provider that returned the handle.
+  // Ordinary cancellation keeps the existing active/default routing.
+  providerId?: PerpsProviderType;
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
 };
@@ -779,7 +785,9 @@ export type CancelOrderResult = {
   /**
    * What was cancelled, named the same way it was placed: an exchange order ID
    * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
-   * chase session — when `CancelOrderParams.orderType` named one.
+   * chase session — when `CancelOrderParams.orderType` named one. Scale and
+   * chase handles can only be cancelled during the provider session that
+   * created them; TWAP IDs are venue-owned.
    */
   orderId?: string;
   error?: string;
@@ -1314,6 +1322,9 @@ export type FeeCalculationParams = {
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
+  // Strategy quotes require an explicit route at the controller/aggregator
+  // boundary so preview and placement cannot resolve different providers.
+  providerId?: PerpsProviderType;
 };
 
 export type FeeCalculationResult = {

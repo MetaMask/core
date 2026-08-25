@@ -2,6 +2,7 @@
 import type { PerpsPlatformDependencies } from '@metamask/perps-controller';
 
 import { MYX_PRICE_POLLING_INTERVAL_MS } from '../../../src/constants/myxConfig.js';
+import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { MYXClientService } from '../../../src/services/MYXClientService.js';
 import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
@@ -216,7 +217,9 @@ describe('MYXClientService', () => {
       await service.getMarkets();
 
       // Advance past cache TTL (5 minutes)
-      jest.advanceTimersByTime(5 * 60 * 1000 + 1);
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
+      );
 
       const result = await service.getMarkets();
 
@@ -231,7 +234,9 @@ describe('MYXClientService', () => {
       await service.getMarkets();
 
       // Expire cache
-      jest.advanceTimersByTime(5 * 60 * 1000 + 1);
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
+      );
 
       mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
 
@@ -244,7 +249,9 @@ describe('MYXClientService', () => {
     it('rejects stale cache when the caller requires current markets', async () => {
       mockGetPoolSymbolAll.mockResolvedValueOnce([makePool()]);
       await service.getMarkets();
-      jest.advanceTimersByTime(5 * 60 * 1000 + 1);
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
+      );
       mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
 
       await expect(
@@ -605,6 +612,21 @@ describe('MYXClientService', () => {
       const result = await service.getMarkets();
 
       expect(result).toEqual([makePool({ poolId: '0xnew' })]);
+    });
+
+    it('clears local state when the SDK disconnect throws', async () => {
+      mockGetPoolSymbolAll.mockResolvedValueOnce([makePool()]);
+      await service.getMarkets();
+      mockWsDisconnect.mockImplementationOnce(() => {
+        throw new Error('SDK disconnect failed');
+      });
+
+      expect(() => service.disconnect()).toThrow('SDK disconnect failed');
+
+      const refreshedPools = [makePool({ poolId: '0xrefreshed' })];
+      mockGetPoolSymbolAll.mockResolvedValueOnce(refreshedPools);
+      await expect(service.getMarkets()).resolves.toStrictEqual(refreshedPools);
+      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
     });
 
     it('logs disconnection', () => {

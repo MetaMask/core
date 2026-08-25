@@ -1022,6 +1022,21 @@ describe('PerpsController', () => {
       expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
     });
 
+    it('rejects strategy placement without an explicit provider route', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.placeOrder({
+          symbol: 'ETH',
+          orderType: 'twap',
+          isBuy: true,
+          size: '1',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+    });
+
     it('preserves legacy placement routing for ordinary orders', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1054,6 +1069,20 @@ describe('PerpsController', () => {
           orderId: 'strategy-123',
           symbol: 'RHEA',
           providerId: 'myx',
+          orderType: 'twap',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
+    });
+
+    it('rejects strategy cancellation without an explicit provider route', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.cancelOrder({
+          orderId: 'strategy-123',
+          symbol: 'ETH',
           orderType: 'twap',
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
@@ -1129,6 +1158,37 @@ describe('PerpsController', () => {
         params: feeParams,
         context: expect.any(Object),
       });
+    });
+
+    it('rejects a fee route that conflicts with the resolved provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.calculateFees({
+          orderType: 'market',
+          symbol: 'RHEA',
+          providerId: 'myx',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(
+        mockMarketDataServiceInstance.calculateFees,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a strategy fee quote without an explicit provider route', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.calculateFees({
+          orderType: 'twap',
+          symbol: 'ETH',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(
+        mockMarketDataServiceInstance.calculateFees,
+      ).not.toHaveBeenCalled();
     });
 
     it('passes the cached subscription waiver status to the fee preview', async () => {

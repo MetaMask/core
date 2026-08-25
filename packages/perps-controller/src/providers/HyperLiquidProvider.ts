@@ -740,6 +740,11 @@ type HyperLiquidOrderFeePolicy = Readonly<{
   chargesMetamaskBuilderFee: boolean;
 }>;
 
+type HyperLiquidOrderFeeContext = Readonly<{
+  orderType: OrderType;
+  symbol: string;
+}>;
+
 type HyperLiquidOrderFeeConfiguration = Readonly<
   Record<OrderType, HyperLiquidOrderFeePolicy>
 >;
@@ -774,7 +779,7 @@ const HYPERLIQUID_ORDER_FEE_CONFIG: HyperLiquidOrderFeeConfiguration = {
  * @returns HyperLiquid's fee policy for this order.
  */
 function resolveHyperLiquidOrderFeePolicy(
-  params: FeeCalculationParams,
+  params: HyperLiquidOrderFeeContext,
 ): HyperLiquidOrderFeePolicy {
   return HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType];
 }
@@ -6353,7 +6358,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(coinValidation.error);
     }
 
-    await this.#ensureReadyForTrading();
+    const twapId = Number(params.orderId);
+    if (!/^\d+$/u.test(params.orderId) || !Number.isSafeInteger(twapId)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_INVALID);
+    }
+
+    await this.#ensureReadyForTrading(false);
 
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
@@ -6362,7 +6372,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const result = await this.#clientService.getExchangeClient().twapCancel({
       a: assetId,
-      t: parseInt(params.orderId, 10),
+      t: twapId,
     });
 
     const status = result.response?.data?.status;

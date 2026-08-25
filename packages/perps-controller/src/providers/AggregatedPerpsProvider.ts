@@ -214,11 +214,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * @returns The selected provider id and instance.
    * @throws If an explicit provider is not registered.
    */
-  #getOrderProvider(
+  #getRequiredProvider(
     providerId?: PerpsProviderType,
   ): [PerpsProviderType, PerpsProvider] {
     if (!providerId) {
-      return [this.#defaultProvider, this.#getDefaultProvider()];
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
 
     const provider = this.#providers.get(providerId);
@@ -289,7 +289,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (!provider.getOrderCapabilities) {
       return { status: 'unavailable', providerId, reason: 'not_implemented' };
     }
-    return await provider.getOrderCapabilities(params);
+    return await provider.getOrderCapabilities({ ...params, providerId });
   }
 
   // ============================================================================
@@ -485,7 +485,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async placeOrder(params: OrderParams): Promise<OrderResult> {
     const [providerId, provider] = isStrategyOrderType(params.orderType)
-      ? this.#getOrderProvider(params.providerId)
+      ? this.#getRequiredProvider(params.providerId)
       : this.#getProviderOrDefault(params.providerId);
 
     this.#deps.debugLogger.log('[AggregatedPerpsProvider] placeOrder routing', {
@@ -564,7 +564,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
     const [providerId, provider] =
       params.orderType !== undefined && isStrategyOrderType(params.orderType)
-        ? this.#getOrderProvider(params.providerId)
+        ? this.#getRequiredProvider(params.providerId)
         : this.#getProviderOrDefault(params.providerId);
     const result = await provider.cancelOrder(params);
     return { ...result, providerId };
@@ -689,7 +689,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    return this.#getDefaultProvider().calculateFees(params);
+    const [, provider] =
+      isStrategyOrderType(params.orderType) || params.providerId
+        ? this.#getRequiredProvider(params.providerId)
+        : [this.#defaultProvider, this.#getDefaultProvider()];
+    return provider.calculateFees(params);
   }
 
   // ============================================================================

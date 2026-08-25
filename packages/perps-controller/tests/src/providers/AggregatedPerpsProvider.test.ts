@@ -595,6 +595,18 @@ describe('AggregatedPerpsProvider', () => {
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
     });
+
+    it('rejects a strategy order without an explicit provider route', async () => {
+      await expect(
+        aggregatedProvider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'twap',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+    });
   });
 
   describe('Write Operations - cancelOrder', () => {
@@ -645,6 +657,17 @@ describe('AggregatedPerpsProvider', () => {
           orderType: 'twap',
           // @ts-expect-error Testing an invalid explicit provider route
           providerId: 'unknown-provider',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+
+    it('rejects a strategy cancel without an explicit provider route', async () => {
+      await expect(
+        aggregatedProvider.cancelOrder({
+          orderId: 'strategy-123',
+          symbol: 'BTC',
+          orderType: 'twap',
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
@@ -876,6 +899,35 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
     });
 
+    it('routes calculateFees to an explicit provider', async () => {
+      mockMYXProvider.calculateFees.mockResolvedValue({ feeRate: 0.002 });
+
+      await expect(
+        aggregatedProvider.calculateFees({
+          orderType: 'market',
+          symbol: 'RHEA',
+          providerId: 'myx',
+        }),
+      ).resolves.toEqual({ feeRate: 0.002 });
+      expect(mockMYXProvider.calculateFees).toHaveBeenCalledWith({
+        orderType: 'market',
+        symbol: 'RHEA',
+        providerId: 'myx',
+      });
+      expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
+    });
+
+    it('rejects a strategy fee quote without an explicit provider route', async () => {
+      await expect(
+        aggregatedProvider.calculateFees({
+          orderType: 'twap',
+          symbol: 'BTC',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
+      expect(mockMYXProvider.calculateFees).not.toHaveBeenCalled();
+    });
+
     it('gets order capabilities from the default provider', async () => {
       mockHLProvider.getOrderCapabilities.mockResolvedValue({
         status: 'ready',
@@ -892,6 +944,7 @@ describe('AggregatedPerpsProvider', () => {
       });
       expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'BTC',
+        providerId: 'hyperliquid',
       });
     });
 

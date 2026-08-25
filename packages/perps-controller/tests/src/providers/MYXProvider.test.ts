@@ -274,7 +274,11 @@ describe('MYXProvider', () => {
       await provider.disconnect();
       resolveMarkets([makePool()]);
 
-      await expect(initialization).resolves.toMatchObject({ success: false });
+      await expect(initialization).resolves.toStrictEqual({
+        success: false,
+        error:
+          '[MYXClientService] Market metadata became stale during disconnect',
+      });
       await expect(
         provider.getOrderCapabilities({ symbol: 'RHEA' }),
       ).resolves.toStrictEqual({
@@ -283,6 +287,10 @@ describe('MYXProvider', () => {
         reason: 'provider_unavailable',
       });
       expect(mockClientService.getMarkets).toHaveBeenCalledTimes(1);
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXProvider] Ignoring stale initialization after disconnect',
+      );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
     it('does not report stale initialization metadata as an error', async () => {
@@ -861,6 +869,25 @@ describe('MYXProvider', () => {
         providerId: 'myx',
         reason: 'provider_unavailable',
       });
+    });
+
+    it('logs lifecycle-stale capability metadata without reporting an error', async () => {
+      mockClientService.getMarkets.mockRejectedValueOnce(
+        new MYXMarketMetadataStaleError(),
+      );
+
+      await expect(
+        provider.getOrderCapabilities({ symbol: 'RHEA' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
+      });
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        '[MYXProvider] Ignoring stale capability metadata after disconnect',
+        { symbol: 'RHEA' },
+      );
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
     it('does not fetch markets after disconnect', async () => {

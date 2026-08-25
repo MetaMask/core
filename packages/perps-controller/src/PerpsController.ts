@@ -2750,7 +2750,8 @@ export class PerpsController extends BaseController<
     const provider = await this.#getActiveProviderWhenReady();
     if (
       isStrategyOrderType(params.orderType) &&
-      this.#hasConflictingProviderRoute(params.providerId, provider)
+      (!params.providerId ||
+        this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
@@ -2803,7 +2804,8 @@ export class PerpsController extends BaseController<
     if (
       params.orderType !== undefined &&
       isStrategyOrderType(params.orderType) &&
-      this.#hasConflictingProviderRoute(params.providerId, provider)
+      (!params.providerId ||
+        this.#hasConflictingProviderRoute(params.providerId, provider))
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
@@ -5386,8 +5388,9 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Calculate trading fees for the active provider
-   * Each provider implements its own fee structure
+   * Calculate trading fees through the active provider route.
+   * Each provider owns its fee policy. Strategy quotes require an explicit
+   * provider route so preview and placement cannot use different venues.
    *
    * @param params - The operation parameters.
    * @returns The fee calculation result for the trade.
@@ -5396,6 +5399,12 @@ export class PerpsController extends BaseController<
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
     const provider = this.getActiveProvider();
+    if (
+      (isStrategyOrderType(params.orderType) && !params.providerId) ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
     // Preview owns subscription hydration. The submit resolver remains a pure
     // cache read and can therefore never start a benefits request while an
     // order is being signed.

@@ -6,6 +6,7 @@ import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
   PERPS_CONSTANTS,
+  PROVIDER_CONFIG,
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -630,6 +631,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     size: '1',
     usdAmount: '3000',
     currentPrice: 3000,
+    providerId: PROVIDER_CONFIG.DefaultProvider,
   };
 
   describe('TWAP placement', () => {
@@ -780,12 +782,36 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderId: '987',
         symbol: 'ETH',
         orderType: 'twap',
+        providerId: 'hyperliquid',
       });
 
       expect(result).toStrictEqual({ success: true, orderId: '987' });
       expect(exchangeClient.twapCancel).toHaveBeenCalledWith({ a: 1, t: 987 });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
+
+    it.each(['987junk', 'NaN', '-1', '1.5', '9007199254740992'])(
+      'rejects malformed TWAP handle %p before signing',
+      async (orderId) => {
+        const { exchangeClient } = useStrategyClients();
+
+        const result = await provider.cancelOrder({
+          orderId,
+          symbol: 'ETH',
+          orderType: 'twap',
+          providerId: 'hyperliquid',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          orderId,
+          error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_INVALID,
+        });
+        expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+        expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      },
+    );
 
     it('reports a rejected TWAP cancel as a failure', async () => {
       useStrategyClients({
@@ -804,6 +830,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderId: '987',
         symbol: 'ETH',
         orderType: 'twap',
+        providerId: 'hyperliquid',
       });
 
       expect(result.success).toBe(false);
