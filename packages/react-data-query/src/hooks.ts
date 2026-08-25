@@ -10,6 +10,7 @@ import {
   UseQueryResult,
   UseInfiniteQueryResult,
   DefaultError,
+  InfiniteData,
 } from '@tanstack/react-query';
 
 /**
@@ -58,7 +59,7 @@ export function useQuery<
 export function useInfiniteQuery<
   TQueryFnData = unknown,
   TError = DefaultError,
-  TData = TQueryFnData,
+  TData = InfiniteData<TQueryFnData>,
   TQueryKey extends QueryKey = QueryKey,
   TPageParam = unknown,
 >(
