@@ -457,6 +457,17 @@ describe('AggregatedPerpsProvider', () => {
       );
     });
 
+    it('retains successful Chase snapshots when another provider fails', async () => {
+      mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
+      mockMYXProvider.getChaseOrders?.mockRejectedValue(
+        new Error('snapshot failed'),
+      );
+
+      await expect(aggregatedProvider.getChaseOrders()).resolves.toStrictEqual([
+        { ...chaseOrder, providerId: 'hyperliquid' },
+      ]);
+    });
+
     it('suspends every provider and retains provider IDs', async () => {
       const backgrounded = {
         ...chaseOrder,
