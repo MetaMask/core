@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [111.1.3]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-enablement-controller` from `^6.0.4` to `^6.0.5` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.6.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
 ## [111.1.2]
 
 ### Changed
