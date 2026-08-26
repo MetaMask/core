@@ -496,6 +496,8 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       available: true,
       value: 760,
     });
+    // After fill the whole position is marked at 1800, not live mark plus fill.
+    expect(result.resulting.leverage).toBeCloseTo(3600 / 760);
   });
 
   it('does not project an increase or flip when the fill price is missing', () => {

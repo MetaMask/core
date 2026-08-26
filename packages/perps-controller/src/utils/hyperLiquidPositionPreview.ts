@@ -423,7 +423,9 @@ export function previewHyperLiquidIsolatedPositionModify(
       resultingDirection: openDirection,
       resultingSize,
       resultingEntryPrice,
-      resultingNotional: currentNotional + orderSize * fillPrice,
+      // Post-fill mark is the fill; mixing live mark with fill notional is not
+      // HyperLiquid's displayed leverage when those prices differ.
+      resultingNotional: resultingSize * fillPrice,
       newMargin,
     });
   }
