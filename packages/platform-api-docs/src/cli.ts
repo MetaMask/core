@@ -11,6 +11,56 @@ import type { RootTypeReference } from './root-messenger-discovery.js';
 import { parseRootTypeReference } from './root-messenger-discovery.js';
 
 /**
+ * Arguments shared by both discovery strategies.
+ */
+type CommonArguments = {
+  /** Whether to build the generated site. */
+  build: boolean;
+  /** Whether to serve the production build. */
+  serve: boolean;
+  /** Whether to serve the development site. */
+  dev: boolean;
+  /** Path to the project being documented. */
+  'project-path': string;
+  /** Directory where generated documentation is written. */
+  output?: string;
+  /** Label displayed in the generated documentation. */
+  'project-label'?: string;
+  /** URL where the generated site is served. */
+  'site-url'?: string;
+  /** Base path where the generated site is served. */
+  'site-base-url'?: string;
+};
+
+/**
+ * Arguments for the strategy that scans configured source directories.
+ */
+type ScanStrategyArguments = {
+  /** The selected strategy. */
+  strategy: 'scan';
+  /** Directories, relative to the project root, to scan. */
+  scanDir: string[];
+};
+
+/**
+ * Arguments for the strategy that resolves a root messenger's type unions.
+ */
+type RootMessengerStrategyArguments = {
+  /** The selected strategy. */
+  strategy: 'root-messenger';
+  /** The root messenger actions type reference. */
+  rootActions: RootTypeReference;
+  /** The root messenger events type reference. */
+  rootEvents: RootTypeReference;
+};
+
+/**
+ * Parsed CLI arguments, discriminated by the selected discovery strategy.
+ */
+type ParsedArguments = CommonArguments &
+  (ScanStrategyArguments | RootMessengerStrategyArguments);
+
+/**
  * Locate the Docusaurus binary in this package's `node_modules/.bin`. Using
  * `npm-which` lets the lookup track wherever the installed Docusaurus puts
  * its binary, so a future Docusaurus upgrade can't break this path.
@@ -141,18 +191,18 @@ function checkStrategyArgs({
   rootEvents,
   scanDir = [],
 }: {
-  strategy?: string;
+  strategy?: 'root-messenger' | 'scan';
   rootActions?: RootTypeReference;
   rootEvents?: RootTypeReference;
   scanDir?: string[];
-}): boolean {
+}): ScanStrategyArguments | RootMessengerStrategyArguments {
   if (strategy !== 'root-messenger') {
     if (rootActions !== undefined || rootEvents !== undefined) {
       throw new Error(
         '--root-actions and --root-events only apply to --strategy root-messenger.',
       );
     }
-    return true;
+    return { strategy: 'scan', scanDir };
   }
 
   if (rootActions === undefined || rootEvents === undefined) {
@@ -168,14 +218,20 @@ function checkStrategyArgs({
     );
   }
 
-  return true;
+  return { strategy, rootActions, rootEvents };
 }
 
 /**
- * Main CLI entry point.
+ * Parse and validate CLI arguments.
+ *
+ * @param argumentsForParsing - Arguments to parse, excluding the Node and
+ * script paths.
+ * @returns Parsed arguments, discriminated by discovery strategy.
  */
-async function main(): Promise<void> {
-  const argv = await yargs(process.argv.slice(2))
+async function parseArguments(
+  argumentsForParsing: string[] = process.argv.slice(2),
+): Promise<ParsedArguments> {
+  const argv = await yargs(argumentsForParsing)
     .command(
       '$0 [project-path]',
       'Produces documentation for the platform API, the set of actions and events available in clients through the message bus.',
@@ -207,11 +263,11 @@ async function main(): Promise<void> {
     })
     .option('strategy', {
       type: 'string',
-      choices: ['scan', 'root-messenger'] as const,
       description:
         'How to find messenger actions and events. "scan" parses every source and declaration file looking for messenger types. "root-messenger" instead resolves the two types the project declares for its root messenger',
       default: 'scan',
     })
+    .choices('strategy', ['scan', 'root-messenger'] as const)
     .option('root-actions', {
       type: 'string',
       coerce: parseRootTypeReference,
@@ -225,11 +281,11 @@ async function main(): Promise<void> {
         'Type aliasing the union of every event on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
     .option('scan-dir', {
-      type: 'string',
-      array: true,
+      type: 'array',
+      string: true,
       description:
         'Additional directories within the project to scan for messenger actions and events (note: may be specified multiple times)',
-      default: [] as string[],
+      default: [],
     })
     .option('output', {
       type: 'string',
@@ -250,22 +306,41 @@ async function main(): Promise<void> {
       description:
         'Path prefix the built site will be served under, e.g. /core/platform-api/',
     })
-    .check(checkStrategyArgs)
-    .help().argv;
+    .help()
+    .parse();
 
-  const projectPathArg = argv['project-path'];
-  const resolvedProjectPath = path.resolve(
-    typeof projectPathArg === 'string' ? projectPathArg : '.',
-  );
+  const strategyArguments = checkStrategyArgs(argv);
+
+  const projectPath = argv['project-path'];
+  if (typeof projectPath !== 'string') {
+    throw new Error('Expected --project-path to be a string.');
+  }
+
+  return {
+    build: argv.build,
+    serve: argv.serve,
+    dev: argv.dev,
+    'project-path': projectPath,
+    output: argv.output,
+    'project-label': argv['project-label'],
+    'site-url': argv['site-url'],
+    'site-base-url': argv['site-base-url'],
+    ...strategyArguments,
+  };
+}
+
+/**
+ * Main CLI entry point.
+ */
+async function main(): Promise<void> {
+  const argv = await parseArguments();
+
+  const resolvedProjectPath = path.resolve(argv['project-path']);
   const resolvedOutputDir = path.resolve(
     argv.output ?? path.join(resolvedProjectPath, '.platform-api-docs'),
   );
-  const scanDirs = ['src', ...argv['scan-dir']].filter(
-    (dir, index, dirs) => dirs.indexOf(dir) === index,
-  );
   const projectLabel =
-    typeof argv['project-label'] === 'string' &&
-    argv['project-label'].length > 0
+    argv['project-label'] && argv['project-label'].length > 0
       ? argv['project-label']
       : null;
   const commitSha = await resolveCommitSha(resolvedProjectPath);
@@ -273,14 +348,6 @@ async function main(): Promise<void> {
 
   // Step 1: Generate docs
   if (argv.strategy === 'root-messenger') {
-    // Use the same validation as we have in `checkStrategyArgs` to narrow
-    // the types of `rootActions` and `rootEvents`.
-    if (argv.rootActions === undefined || argv.rootEvents === undefined) {
-      throw new Error(
-        '--strategy root-messenger requires both --root-actions and --root-events.',
-      );
-    }
-
     await generate({
       projectPath: resolvedProjectPath,
       outputDir: resolvedOutputDir,
@@ -291,6 +358,10 @@ async function main(): Promise<void> {
       rootEvents: argv.rootEvents,
     });
   } else {
+    const scanDirs = ['src', ...argv.scanDir].filter(
+      (dir, index, dirs) => dirs.indexOf(dir) === index,
+    );
+
     await generate({
       projectPath: resolvedProjectPath,
       outputDir: resolvedOutputDir,
