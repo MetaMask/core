@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - fix(base-data-service): adapt to `@tanstack/query-core` v5 API ([#9712](https://github.com/MetaMask/core/pull/9712))
@@ -57,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...@metamask/react-data-query@1.0.0
 [0.2.2]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...@metamask/react-data-query@0.2.2
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...@metamask/react-data-query@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.1.0...@metamask/react-data-query@0.2.0

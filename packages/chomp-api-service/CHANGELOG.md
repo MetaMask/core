@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+
 ### Uncategorized
 
 - refactor: add `.js` import extensions to Earn joint packages ([#9640](https://github.com/MetaMask/core/pull/9640))
@@ -67,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...@metamask/chomp-api-service@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...@metamask/chomp-api-service@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.1...@metamask/chomp-api-service@3.1.0
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.0...@metamask/chomp-api-service@3.0.1
