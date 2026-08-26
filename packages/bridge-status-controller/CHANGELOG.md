@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `migrationPhase` to `submitTx`, `submitIntent`, and `submitBatchSell`, used by `toQuoteMetadataV1` to convert V2 quotes. Defaults to `V1Data` (`'1'`) if omitted ([#9744](https://github.com/MetaMask/core/pull/9744))
 
+## [75.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/bridge-controller` from `^79.3.0` to `^79.3.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/gas-fee-controller` from `^26.3.1` to `^26.3.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
 ## [75.2.0]
 
 ### Added
@@ -1510,7 +1520,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.2.1...HEAD
+[75.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.2.0...@metamask/bridge-status-controller@75.2.1
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.1.0...@metamask/bridge-status-controller@75.2.0
 [75.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.0.0...@metamask/bridge-status-controller@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.6.2...@metamask/bridge-status-controller@75.0.0

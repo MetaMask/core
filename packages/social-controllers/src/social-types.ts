@@ -36,9 +36,26 @@ export type SocialHandles = {
   lens?: string | null;
 };
 
+/**
+ * Where a fill sits in its position's lifecycle.
+ *
+ * Deliberately asset-agnostic so the classification is computed once, upstream:
+ * clients render `opened / added / reduced / closed` for perps and
+ * `bought / bought more / sold some / sold all` for spot from the same value.
+ *
+ * Distinct from `intent`, which only says whether the fill grew or shrank the
+ * position — `intent: 'exit'` covers both a partial trim and a full close.
+ */
+export type TradeAction = 'opened' | 'added' | 'reduced' | 'closed';
+
 export const TradeStruct = structType({
   direction: enums(['buy', 'sell']),
   intent: enums(['enter', 'exit']),
+  /**
+   * Lifecycle stage of this fill. Absent on responses from a social-api that
+   * predates the field, so treat it as a hint and keep a client-side fallback.
+   */
+  action: optional(enums(['opened', 'added', 'reduced', 'closed'])),
   category: optional(string()),
   /** High-level trade classification. `null` when Clicker does not classify. */
   classification: optional(
@@ -160,6 +177,13 @@ export type Position = {
   tokenAddress: string;
   chain: string;
   positionAmount: number;
+  /**
+   * Whether the position still carries exposure. Clicker's own verdict, which
+   * beats a `positionAmount === 0` check: it survives precision dust and
+   * distinguishes "no position" from "a position of size ~0". Absent on
+   * responses from a social-api that predates the field.
+   */
+  isOpen?: boolean;
   boughtUsd: number;
   soldUsd: number;
   realizedPnl: number;

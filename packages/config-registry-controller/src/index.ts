@@ -3,6 +3,7 @@ export type {
   ConfigRegistryControllerOptions,
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerMessenger,
 } from './ConfigRegistryController.js';
@@ -15,7 +16,11 @@ export {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
 } from './ConfigRegistryController.js';
-export { selectFeaturedNetworks, selectNetworks } from './selectors.js';
+export {
+  selectFeaturedNetworks,
+  selectNetworks,
+  selectEvmAutoEnabledNetworksChainIds,
+} from './selectors.js';
 export type {
   FetchConfigOptions,
   FetchConfigResult,

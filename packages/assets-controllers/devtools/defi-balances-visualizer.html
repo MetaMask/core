@@ -491,18 +491,15 @@
         // Collect defi entries, tagging each with its chain, and build the nested group tree.
         function collectDefi(data) {
           var entries = [];
-          var accounts = (data && data.accounts) || [];
-          accounts.forEach(function (acc) {
-            var chainId = chainFromAccountId(acc.accountId);
-            (acc.balances || []).forEach(function (b) {
-              if (b.category === 'defi') {
-                entries.push({
-                  raw: b,
-                  chainId: chainId,
-                  accountId: acc.accountId,
-                });
-              }
-            });
+          var balances = (data && data.balances) || [];
+          balances.forEach(function (balance) {
+            if (balance.object === 'defi') {
+              entries.push({
+                raw: balance,
+                chainId: chainFromAccountId(balance.accountId),
+                accountId: balance.accountId,
+              });
+            }
           });
           return entries;
         }
@@ -823,10 +820,7 @@
         }
 
         function renderSummary(data, defiEntries, tree) {
-          var totalBalances = 0;
-          (data.accounts || []).forEach(function (a) {
-            totalBalances += (a.balances || []).length;
-          });
+          var totalBalances = ((data && data.balances) || []).length;
           var protocols = Object.keys(tree).length;
 
           var chains = {};
