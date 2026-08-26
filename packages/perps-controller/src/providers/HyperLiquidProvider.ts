@@ -274,6 +274,12 @@ type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
 
 type ExchangeCancelRequest = { a: number; o: number };
 
+type BuilderFeeSetupContext = {
+  network: 'testnet' | 'mainnet';
+  userAddress: string;
+  builderAddress: string;
+};
+
 /**
  * Classify one entry of a cancel response.
  *
@@ -485,6 +491,7 @@ type SubmitOrderWithRollbackParams = {
   symbol: string;
   assetId: number;
   chargesMetamaskBuilderFee: boolean;
+  builderFeeSetupContext?: BuilderFeeSetupContext;
 };
 
 type BuilderOrderContext = { b: string; f: number };
@@ -846,6 +853,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   #isDisconnected = false;
 
   #disconnectOperationsInFlight = 0;
+
+  #disconnectOperationPromise: Promise<DisconnectResult> | null = null;
 
   #lifecycleGeneration = 0;
 
@@ -2012,7 +2021,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   #tradingSetupComplete = false;
 
-  #builderFeeSetupPromise: Promise<void> | null = null;
+  readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
 
   /**
    * Approve the standard builder fee once for the current account and network.
@@ -2020,23 +2029,32 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param approvalFailureCode - Operation-specific error to throw when
    * approval is unavailable or fails.
+   * @returns The account, network, and builder covered by this setup.
    */
   async #ensureBuilderFeeSetup(
     approvalFailureCode?: PerpsErrorCode,
-  ): Promise<void> {
+  ): Promise<BuilderFeeSetupContext> {
     const isTestnet = this.#clientService.isTestnetMode();
     const network = isTestnet ? 'testnet' : 'mainnet';
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const cacheKey = this.#getCacheKey(network, userAddress);
+    const builderAddress = this.#getBuilderAddress(isTestnet);
+    const context = { network, userAddress, builderAddress };
+    const setupKey = this.#getApprovedBuilderKey(
+      network,
+      userAddress,
+      builderAddress,
+    );
     if (this.#builderFeeCheckCache.has(cacheKey)) {
-      return;
+      return context;
     }
 
-    if (!this.#builderFeeSetupPromise) {
-      this.#builderFeeSetupPromise = this.#ensureBuilderFeeApproval();
+    let pendingApproval = this.#builderFeeSetupPromises.get(setupKey);
+    if (!pendingApproval) {
+      pendingApproval = this.#ensureBuilderFeeApproval(context);
+      this.#builderFeeSetupPromises.set(setupKey, pendingApproval);
     }
 
-    const pendingApproval = this.#builderFeeSetupPromise;
     try {
       await pendingApproval;
     } catch (error) {
@@ -2048,20 +2066,22 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(approvalFailureCode);
       }
     } finally {
-      if (this.#builderFeeSetupPromise === pendingApproval) {
-        this.#builderFeeSetupPromise = null;
+      if (this.#builderFeeSetupPromises.get(setupKey) === pendingApproval) {
+        this.#builderFeeSetupPromises.delete(setupKey);
       }
     }
 
     if (approvalFailureCode && !this.#builderFeeCheckCache.has(cacheKey)) {
       throw new Error(approvalFailureCode);
     }
+
+    return context;
   }
 
   async #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
-  }): Promise<void> {
+  }): Promise<BuilderFeeSetupContext | undefined> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
 
@@ -2117,13 +2137,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
-    if (options.requiresBuilderFee) {
-      await this.#ensureBuilderFeeSetup(options.builderFeeApprovalFailureCode);
-    }
+    const builderFeeSetupContext = options.requiresBuilderFee
+      ? await this.#ensureBuilderFeeSetup(options.builderFeeApprovalFailureCode)
+      : undefined;
 
     this.#deps.debugLogger.log(
       '[ensureReadyForTrading] Trading setup complete',
     );
+
+    return builderFeeSetupContext;
   }
 
   /**
@@ -3479,13 +3501,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    * This prevents repeated signing requests for hardware wallets.
    *
    * Note: This is network-specific - testnet and mainnet have separate builder fee states
+   *
+   * @param params - Builder fee setup context.
+   * @param params.network - HyperLiquid network for the approval.
+   * @param params.userAddress - Account that owns the approval.
+   * @param params.builderAddress - Builder address being approved.
    */
-  async #ensureBuilderFeeApproval(): Promise<void> {
+  async #ensureBuilderFeeApproval(
+    params: BuilderFeeSetupContext,
+  ): Promise<void> {
     const lifecycleGeneration = this.#lifecycleGeneration;
-    const isTestnet = this.#clientService.isTestnetMode();
-    const network = isTestnet ? 'testnet' : 'mainnet';
-    const builderAddress = this.#getBuilderAddress(isTestnet);
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const { network, userAddress, builderAddress } = params;
     this.#assertProviderLifecycleCurrent(
       lifecycleGeneration,
       'Builder fee approval',
@@ -4544,7 +4570,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const exchangeClient = this.#clientService.getExchangeClient();
 
     const builder = params.chargesMetamaskBuilderFee
-      ? await this.#getBuilderOrderContext()
+      ? await this.#getBuilderOrderContext(
+          params.builderFeeSetupContext ??
+            (await this.#ensureBuilderFeeSetup()),
+        )
       : undefined;
 
     this.#deps.debugLogger.log('Submitting order via asset ID routing', {
@@ -4742,7 +4771,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Kept after validation so invalid orders never trigger signature prompts
       // (builder-fee approval, DEX abstraction enablement, etc.).
       const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
-      await this.#ensureReadyForTrading({
+      const builderFeeSetupContext = await this.#ensureReadyForTrading({
         requiresBuilderFee: chargesMetamaskBuilderFee,
       });
 
@@ -4863,6 +4892,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol: params.symbol,
         assetId,
         chargesMetamaskBuilderFee,
+        builderFeeSetupContext,
       });
     } catch (error) {
       // Retry mechanism for $10 minimum order errors
@@ -5108,7 +5138,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Kept after validation so an invalid strategy order never triggers the
     // signature prompts in trading setup — same ordering as `placeOrder`.
     const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
-    await this.#ensureReadyForTrading({
+    const builderFeeSetupContext = await this.#ensureReadyForTrading({
       requiresBuilderFee: chargesMetamaskBuilderFee,
     });
 
@@ -5125,7 +5155,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const builder = chargesMetamaskBuilderFee
-      ? await this.#getBuilderOrderContext()
+      ? await this.#getBuilderOrderContext(
+          builderFeeSetupContext ?? (await this.#ensureBuilderFeeSetup()),
+        )
       : undefined;
 
     return {
@@ -6701,17 +6733,22 @@ export class HyperLiquidProvider implements PerpsProvider {
    * cached for this provider/account session. Until then, the ordinary builder
    * and standard fee keep the trade attributable and non-blocking.
    *
+   * @param setupContext - Account, network, and builder approved for the order.
    * @returns HyperLiquid builder address and fee payload.
    */
-  async #getBuilderOrderContext(): Promise<{ b: string; f: number }> {
-    const isTestnet = this.#clientService.isTestnetMode();
-    const network = isTestnet ? 'testnet' : 'mainnet';
-    const defaultBuilder = this.#getBuilderAddress(isTestnet);
+  async #getBuilderOrderContext(
+    setupContext: BuilderFeeSetupContext,
+  ): Promise<{ b: string; f: number }> {
+    const {
+      network,
+      userAddress,
+      builderAddress: defaultBuilder,
+    } = setupContext;
+    const isTestnet = network === 'testnet';
 
     if (this.#userFeeResolution?.source === 'subscription') {
       const subscriptionBuilder =
         this.#getSubscriptionBuilderAddress(isTestnet);
-      const userAddress = await this.#walletService.getUserAddressWithDefault();
       if (
         subscriptionBuilder &&
         this.#approvedBuilderAddresses.has(
@@ -7452,16 +7489,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         (context) =>
           this.#resolveOrderFeePolicy(context).chargesMetamaskBuilderFee,
       );
-      if (chargesMetamaskBuilderFee) {
-        await this.#ensureReadyForTrading({ requiresBuilderFee: true });
-      }
+      const builderFeeSetupContext = chargesMetamaskBuilderFee
+        ? await this.#ensureReadyForTrading({ requiresBuilderFee: true })
+        : undefined;
 
       // Single batch API call
       const result = await exchangeClient.order({
         orders,
         grouping: 'na',
         ...(chargesMetamaskBuilderFee && {
-          builder: await this.#getBuilderOrderContext(),
+          builder: await this.#getBuilderOrderContext(
+            builderFeeSetupContext ?? (await this.#ensureBuilderFeeSetup()),
+          ),
         }),
       });
 
@@ -7786,7 +7825,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Replacement approval must finish before cancellation; otherwise an
       // approval failure would remove the position's existing protection.
-      await this.#ensureReadyForTrading({
+      const builderFeeSetupContext = await this.#ensureReadyForTrading({
         requiresBuilderFee: chargesMetamaskBuilderFee,
         builderFeeApprovalFailureCode: chargesMetamaskBuilderFee
           ? PERPS_ERROR_CODES.TPSL_UPDATE_FAILED
@@ -7980,7 +8019,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
         ...(chargesMetamaskBuilderFee && {
-          builder: await this.#getBuilderOrderContext(),
+          builder: await this.#getBuilderOrderContext(
+            builderFeeSetupContext ??
+              (await this.#ensureBuilderFeeSetup(
+                PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+              )),
+          ),
         }),
       });
 
@@ -12129,6 +12173,27 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async disconnect(): Promise<DisconnectResult> {
+    if (this.#disconnectOperationPromise) {
+      return this.#disconnectOperationPromise;
+    }
+
+    const operation = this.#performDisconnect();
+    this.#disconnectOperationPromise = operation;
+    try {
+      return await operation;
+    } finally {
+      if (this.#disconnectOperationPromise === operation) {
+        this.#disconnectOperationPromise = null;
+      }
+    }
+  }
+
+  /**
+   * Perform one provider teardown shared by every concurrent caller.
+   *
+   * @returns A promise that resolves to the result.
+   */
+  async #performDisconnect(): Promise<DisconnectResult> {
     this.#chasePlacementBlockers += 1;
     this.#chaseGeneration += 1;
     this.#disconnectOperationsInFlight += 1;
@@ -12185,14 +12250,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       const pendingInit = this.#initializationPromise;
       const pendingReady = this.#ensureReadyPromise;
       const pendingTradingSetup = this.#tradingSetupPromise;
-      const pendingBuilderFeeSetup = this.#builderFeeSetupPromise;
+      const pendingBuilderFeeSetups = [
+        ...this.#builderFeeSetupPromises.values(),
+      ];
 
       // Clear references first to prevent new callers from reusing
       this.#initializationPromise = null;
       this.#ensureReadyPromise = null;
       this.#tradingSetupPromise = null;
       this.#tradingSetupComplete = false;
-      this.#builderFeeSetupPromise = null;
+      this.#builderFeeSetupPromises.clear();
       this.#pendingBuilderFeeApprovals.clear();
 
       // Wait for pending operations to complete (ignore errors)
@@ -12220,7 +12287,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
 
-      if (pendingBuilderFeeSetup) {
+      for (const pendingBuilderFeeSetup of pendingBuilderFeeSetups) {
         try {
           await pendingBuilderFeeSetup;
         } catch {

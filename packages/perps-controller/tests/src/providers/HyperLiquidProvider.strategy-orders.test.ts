@@ -3711,18 +3711,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('keeps capabilities unavailable until overlapping disconnects finish', async () => {
+    it('shares one teardown between overlapping disconnects', async () => {
       const { infoClient } = useStrategyClients();
-      const firstDisconnect = createDeferred<void>();
-      const secondDisconnect = createDeferred<void>();
-      mockClientService.disconnect
-        .mockReturnValueOnce(firstDisconnect.promise)
-        .mockReturnValueOnce(secondDisconnect.promise);
+      const pendingDisconnect = createDeferred<void>();
+      mockClientService.disconnect.mockReturnValueOnce(
+        pendingDisconnect.promise,
+      );
 
       const firstResult = provider.disconnect();
       const secondResult = provider.disconnect();
-      firstDisconnect.resolve();
-      await firstResult;
 
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
@@ -3732,8 +3729,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reason: 'provider_unavailable',
       });
 
-      secondDisconnect.resolve();
-      await secondResult;
+      expect(mockClientService.disconnect).toHaveBeenCalledTimes(1);
+      pendingDisconnect.resolve();
+      expect(await Promise.all([firstResult, secondResult])).toStrictEqual([
+        { success: true },
+        { success: true },
+      ]);
 
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
@@ -4228,8 +4229,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       const params = {
         ...baseOrder,
-        orderType: 'market' as const,
-      };
+        orderType: 'market',
+      } satisfies OrderParams;
 
       const stalePlacement = provider.placeOrder(params);
       await verificationStarted.promise;
@@ -4243,6 +4244,50 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.placeOrder(params);
 
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not share pending builder setup across accounts', async () => {
+      const firstAccount = '0x1234567890123456789012345678901234567890';
+      const secondAccount = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      let selectedAccount = firstAccount;
+      mockWalletService.getUserAddressWithDefault.mockImplementation(() =>
+        Promise.resolve(selectedAccount),
+      );
+
+      const firstApprovalStarted = createDeferred<void>();
+      const pendingFirstApproval = createDeferred<number>();
+      const maxBuilderFee = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          firstApprovalStarted.resolve();
+          return pendingFirstApproval.promise;
+        })
+        .mockResolvedValue(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      useStrategyClients({ info: { maxBuilderFee } });
+      const params = {
+        ...baseOrder,
+        orderType: 'market' as const,
+      };
+
+      const firstPlacement = provider.placeOrder(params);
+      await firstApprovalStarted.promise;
+      selectedAccount = secondAccount;
+      const secondPlacement = provider.placeOrder(params);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const approvalChecksBeforeFirstResolved = maxBuilderFee.mock.calls.length;
+
+      pendingFirstApproval.resolve(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      await Promise.all([firstPlacement, secondPlacement]);
+
+      expect(approvalChecksBeforeFirstResolved).toBe(2);
+      expect(maxBuilderFee).toHaveBeenNthCalledWith(1, {
+        user: firstAccount,
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+      });
+      expect(maxBuilderFee).toHaveBeenNthCalledWith(2, {
+        user: secondAccount,
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+      });
     });
   });
 
