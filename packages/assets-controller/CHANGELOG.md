@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Clean up spam assets on keyring unlock ([#9973](https://github.com/MetaMask/core/pull/9973))
+
 ## [14.0.1]
 
 ### Changed
