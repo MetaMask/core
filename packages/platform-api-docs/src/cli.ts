@@ -7,8 +7,8 @@ import npmWhich from 'npm-which';
 import yargs from 'yargs';
 
 import { generate, resolveRepoUrl } from './generate.js';
-import type { RootTypeReference } from './root-messenger-discovery.js';
-import { parseRootTypeReference } from './root-messenger-discovery.js';
+import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
+import { parseRootCapabilitiesTypeReference } from './root-messenger-discovery.js';
 
 /**
  * Arguments shared by both discovery strategies.
@@ -49,9 +49,9 @@ type RootMessengerStrategyArguments = {
   /** The selected strategy. */
   strategy: 'root-messenger';
   /** The root messenger actions type reference. */
-  rootActions: RootTypeReference;
+  rootActions: RootCapabilitiesTypeReference;
   /** The root messenger events type reference. */
-  rootEvents: RootTypeReference;
+  rootEvents: RootCapabilitiesTypeReference;
 };
 
 /**
@@ -192,8 +192,8 @@ function checkStrategyArgs({
   scanDir = [],
 }: {
   strategy?: 'root-messenger' | 'scan';
-  rootActions?: RootTypeReference;
-  rootEvents?: RootTypeReference;
+  rootActions?: RootCapabilitiesTypeReference;
+  rootEvents?: RootCapabilitiesTypeReference;
   scanDir?: string[];
 }): ScanStrategyArguments | RootMessengerStrategyArguments {
   if (strategy !== 'root-messenger') {
@@ -270,13 +270,13 @@ async function parseArguments(
     .choices('strategy', ['scan', 'root-messenger'] as const)
     .option('root-actions', {
       type: 'string',
-      coerce: parseRootTypeReference,
+      coerce: parseRootCapabilitiesTypeReference,
       description:
         'Type aliasing the union of every action on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
     .option('root-events', {
       type: 'string',
-      coerce: parseRootTypeReference,
+      coerce: parseRootCapabilitiesTypeReference,
       description:
         'Type aliasing the union of every event on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
