@@ -431,6 +431,32 @@ export const getStatusFailurePhase = (
 };
 
 /**
+ * Align `failure_phase` with combined hash presence without turning a
+ * no-hash `broadcast` failure into `poll`.
+ *
+ * @param phase - Phase from the emitting path.
+ * @param hashPresence - Combined history + caller hash flags.
+ * @returns The Mixpanel `failure_phase`.
+ */
+export const promoteFailurePhase = (
+  phase: FailurePhase,
+  hashPresence: HashPresenceProperties,
+): FailurePhase => {
+  if (hashPresence.destination_hash_present) {
+    return FailurePhase.DestinationExecution;
+  }
+  if (
+    hashPresence.source_hash_present &&
+    (phase === FailurePhase.Broadcast ||
+      phase === FailurePhase.Poll ||
+      phase === FailurePhase.Unknown)
+  ) {
+    return FailurePhase.SourceExecution;
+  }
+  return phase;
+};
+
+/**
  * Telemetry for Failed events emitted from the submit catch (no tx hash yet).
  *
  * @param error - The thrown value from submit.

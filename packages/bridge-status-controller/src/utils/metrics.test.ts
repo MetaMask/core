@@ -33,6 +33,7 @@ import {
   getStatusFailureTelemetry,
   getSubmitErrorCode,
   getSubmitFailureTelemetry,
+  promoteFailurePhase,
 } from './metrics.js';
 
 describe('metrics utils', () => {
@@ -1332,6 +1333,53 @@ describe('metrics utils', () => {
           destination_hash_present: false,
         }),
       ).toBe(FailurePhase.Poll);
+    });
+  });
+
+  describe('promoteFailurePhase', () => {
+    it('keeps broadcast when no hashes are present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: false,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.Broadcast);
+    });
+
+    it('promotes broadcast or poll to source_execution when a source hash is present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Poll, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Unknown, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+    });
+
+    it('promotes to destination_execution when a dest hash is present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.SourceExecution, {
+          source_hash_present: true,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: false,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
     });
   });
 
