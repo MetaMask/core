@@ -1,11 +1,9 @@
-import { hasTransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  RELAY_EXACT_INPUT_DEPOSIT_TYPES,
-  TransactionPayStrategy,
-} from '../constants.js';
+import { TransactionPayStrategy } from '../constants.js';
+import type { AcrossQuote } from '../strategy/across/types.js';
+import type { RelayQuote } from '../strategy/relay/types.js';
 import type {
   FiatValue,
   TransactionPayControllerMessenger,
@@ -82,10 +80,9 @@ export function calculateTotals({
   const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
   const hasQuotes = quotes.length > 0;
-  const isRelayExactInputDeposit =
-    quotes.some((quote) => quote.strategy === TransactionPayStrategy.Relay) &&
-    hasTransactionType(transaction, RELAY_EXACT_INPUT_DEPOSIT_TYPES);
-  const useTargetAmount = Boolean(isMaxAmount) || isRelayExactInputDeposit;
+  const isInputBased =
+    hasQuotes &&
+    quotes.every((quote) => isQuoteInputBased(quote, Boolean(isMaxAmount)));
 
   const sourceAmountFiat = getSourceAmount({
     hasFiatStrategy,
@@ -93,7 +90,7 @@ export function calculateTotals({
     hasQuotes,
     targetAmount: targetAmount.fiat,
     tokenAmount: amountFiat,
-    useTargetAmount,
+    useTargetAmount: isInputBased,
   });
 
   const sourceAmountUsd = getSourceAmount({
@@ -102,7 +99,7 @@ export function calculateTotals({
     hasQuotes,
     targetAmount: targetAmount.usd,
     tokenAmount: amountUsd,
-    useTargetAmount,
+    useTargetAmount: isInputBased,
   });
 
   const totalFiat = new BigNumber(providerFee.fiat)
@@ -145,6 +142,7 @@ export function calculateTotals({
       },
       targetNetwork: targetNetworkFee,
     },
+    isInputBased,
     sourceAmount,
     targetAmount,
     total: {
@@ -152,6 +150,35 @@ export function calculateTotals({
       usd: totalUsd,
     },
   };
+}
+
+/**
+ * Whether a selected quote is driven by its source input amount.
+ *
+ * @param quote - Selected quote.
+ * @param isMaxAmount - Whether the target transaction uses the maximum input.
+ * @returns Whether the quote uses input-based semantics.
+ */
+function isQuoteInputBased(
+  quote: TransactionPayQuote<unknown>,
+  isMaxAmount: boolean,
+): boolean {
+  if (quote.strategy === TransactionPayStrategy.Relay) {
+    const relayQuote = quote.original as RelayQuote;
+    return relayQuote.request.tradeType === 'EXACT_INPUT';
+  }
+
+  if (quote.strategy === TransactionPayStrategy.Across) {
+    const acrossQuote = quote.original as AcrossQuote;
+    return acrossQuote.request.tradeType === 'exactInput';
+  }
+
+  return (
+    isMaxAmount ||
+    quote.request.isMaxAmount === true ||
+    quote.request.isPostQuote === true ||
+    quote.request.isHyperliquidSource === true
+  );
 }
 
 /**

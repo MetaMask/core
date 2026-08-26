@@ -2,7 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { hasTransactionType } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -20,7 +19,6 @@ import {
   HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
   PERPS_DEPOSIT_TYPES,
-  RELAY_EXACT_INPUT_DEPOSIT_TYPES,
   USDC_DECIMALS,
   PaymentOverride,
 } from '../../constants.js';
@@ -305,17 +303,11 @@ async function getSingleQuote(
   );
 
   try {
-    // Source-driven flows use EXACT_INPUT so the amount the user enters is the
-    // total sent and the destination receives that amount minus fees.
+    // Explicit source-driven flows use EXACT_INPUT immediately. Other flows
+    // start as EXPECTED_OUTPUT until transaction processing determines whether
+    // the request embeds transactions.
     const useExactInput =
-      (isMaxAmount ?? false) ||
-      (request.isPostQuote ?? false) ||
-      isExactInputDeposit(transaction);
-
-    // A HyperCore deposit followed by an order requires the full target as
-    // margin, so the delivered amount must be guaranteed. Plain Perps deposits
-    // use EXACT_INPUT above, while perpsDepositAndOrder reaches this exception.
-    const useExactOutput = !useExactInput && isHypercoreDeposit(request);
+      (isMaxAmount ?? false) || (request.isPostQuote ?? false);
 
     const useExecute =
       supports7702 &&
@@ -346,7 +338,7 @@ async function getSingleQuote(
         : {}),
       recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
-      tradeType: getTradeType(useExactInput, useExactOutput),
+      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
@@ -384,6 +376,11 @@ async function getSingleQuote(
       // failed Relay transactions refund to the correct account (e.g. the Predict
       // Safe proxy) rather than defaulting to the EOA.
       body.refundTo = effectiveRequest.refundTo;
+    }
+
+    if (!body.txs?.length) {
+      body.tradeType = 'EXACT_INPUT';
+      body.amount = sourceTokenAmount;
     }
 
     log('Request body', body);
@@ -611,56 +608,6 @@ async function processMoneyAccountPostQuote(
   log('Added money account deposit calls to quote body', {
     callCount: overrideCalls.length,
   });
-}
-
-/**
- * Whether the transaction is a plain Perps or Predict deposit whose entered
- * amount represents the total source amount sent.
- *
- * Deposit-and-order flows are excluded because the follow-on order requires a
- * guaranteed target amount.
- *
- * @param transaction - Parent transaction metadata.
- * @returns True when the deposit should use exact-input semantics.
- */
-function isExactInputDeposit(transaction: TransactionMeta): boolean {
-  return hasTransactionType(transaction, RELAY_EXACT_INPUT_DEPOSIT_TYPES);
-}
-
-/**
- * Whether the quote deposits into HyperCore USDC.
- *
- * `normalizeRequest` remaps Arbitrum-USDC perps deposits to HyperCore before
- * the quote is built, so the check is against the normalized target.
- *
- * @param request - Normalized quote request.
- * @returns True when the target is HyperCore USDC.
- */
-function isHypercoreDeposit(request: QuoteRequest): boolean {
-  return (
-    !request.isHyperliquidSource &&
-    request.targetChainId === CHAIN_ID_HYPERCORE &&
-    request.targetTokenAddress.toLowerCase() ===
-      HYPERCORE_USDC_ADDRESS.toLowerCase()
-  );
-}
-
-/**
- * Resolve the Relay trade type for a quote.
- *
- * @param useExactInput - Whether the user specified the amount to send.
- * @param useExactOutput - Whether the delivered amount must be guaranteed.
- * @returns The Relay trade type.
- */
-function getTradeType(
-  useExactInput: boolean | undefined,
-  useExactOutput: boolean,
-): RelayQuoteRequest['tradeType'] {
-  if (useExactInput) {
-    return 'EXACT_INPUT';
-  }
-
-  return useExactOutput ? 'EXACT_OUTPUT' : 'EXPECTED_OUTPUT';
 }
 
 /**

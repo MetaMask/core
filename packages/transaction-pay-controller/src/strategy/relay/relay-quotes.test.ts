@@ -290,13 +290,13 @@ describe('Relay Quotes Utils', () => {
 
       expect(body).toStrictEqual(
         expect.objectContaining({
-          amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
           destinationChainId: 2,
           destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
           originChainId: 1,
           originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
           recipient: QUOTE_REQUEST_MOCK.from,
-          tradeType: 'EXPECTED_OUTPUT',
+          tradeType: 'EXACT_INPUT',
           user: QUOTE_REQUEST_MOCK.from,
         }),
       );
@@ -398,7 +398,7 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('sends request with EXACT_INPUT trade type for Predict deposits', async () => {
+    it('sends request with EXACT_INPUT trade type for token transfers', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
       quoteMock.details.currencyOut.minimumAmount = '100';
 
@@ -416,7 +416,7 @@ describe('Relay Quotes Utils', () => {
           txParams: {
             data: TOKEN_TRANSFER_DATA_MOCK,
           },
-          type: TransactionType.predictDeposit,
+          type: TransactionType.simpleSend,
         },
       });
 
@@ -433,7 +433,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].dust).toStrictEqual({ fiat: '0', usd: '0' });
     });
 
-    it('sends request with EXACT_INPUT trade type for nested Predict deposits', async () => {
+    it('sends request with EXACT_INPUT trade type for nested token transfers', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
@@ -448,7 +448,7 @@ describe('Relay Quotes Utils', () => {
           nestedTransactions: [
             {
               data: TOKEN_TRANSFER_DATA_MOCK,
-              type: TransactionType.predictDeposit,
+              type: TransactionType.simpleSend,
             },
           ],
           type: TransactionType.batch,
@@ -509,6 +509,7 @@ describe('Relay Quotes Utils', () => {
 
       expect(body).toStrictEqual(
         expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
           authorizationList: [
             {
               chainId: 1,
@@ -609,14 +610,14 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].original.request).toStrictEqual({
-        amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+        amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
         destinationChainId: 2,
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
         originChainId: 1,
         originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
         recipient: QUOTE_REQUEST_MOCK.from,
         slippageTolerance: '50',
-        tradeType: 'EXPECTED_OUTPUT',
+        tradeType: 'EXACT_INPUT',
         user: QUOTE_REQUEST_MOCK.from,
       });
     });
@@ -3947,7 +3948,7 @@ describe('Relay Quotes Utils', () => {
       ).rejects.toThrow(`Source token fiat rate not found`);
     });
 
-    it('requests exact input for Hyperliquid deposits', async () => {
+    it('requests exact input for Hyperliquid deposits without embedded transactions', async () => {
       const arbitrumToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
         targetChainId: CHAIN_ID_ARBITRUM,
@@ -3983,9 +3984,7 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    // A HyperCore deposit followed by an order needs the whole target as margin.
-    // EXACT_INPUT cannot guarantee that amount after fees and slippage.
-    it('requests exact output for Hyperliquid deposit-and-order flows', async () => {
+    it('requests exact input for Hyperliquid deposit-and-order flows without embedded transactions', async () => {
       const arbitrumToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
         targetChainId: CHAIN_ID_ARBITRUM,
@@ -4013,13 +4012,13 @@ describe('Relay Quotes Utils', () => {
 
       expect(body).toStrictEqual(
         expect.objectContaining({
-          amount: '12300',
-          tradeType: 'EXACT_OUTPUT',
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
         }),
       );
     });
 
-    it('still requests an expected output for non-Hyperliquid targets', async () => {
+    it('requests exact input for non-Hyperliquid targets without embedded transactions', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
@@ -4036,7 +4035,12 @@ describe('Relay Quotes Utils', () => {
         successfulFetchMock.mock.calls[0][1]?.body as string,
       );
 
-      expect(body.tradeType).toBe('EXPECTED_OUTPUT');
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
     });
 
     it('does not convert to Hyperliquid deposit when parent transaction is not a Perps deposit', async () => {

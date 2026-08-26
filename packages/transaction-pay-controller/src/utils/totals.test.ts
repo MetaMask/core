@@ -1,4 +1,3 @@
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../index.js';
@@ -8,6 +7,8 @@ import type {
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../types.js';
+import type { AcrossQuote } from '../strategy/across/types.js';
+import type { RelayQuote } from '../strategy/relay/types.js';
 import { calculateTransactionGasCost } from './gas.js';
 import { calculateTotals } from './totals.js';
 
@@ -49,7 +50,9 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
       usd: '6.66',
     },
   },
-  original: undefined,
+  original: {
+    request: { tradeType: 'exactOutput' },
+  } as AcrossQuote,
   request: {} as QuoteRequest,
   sourceAmount: {
     human: '7.77',
@@ -109,7 +112,9 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
       usd: '12.12',
     },
   },
-  original: undefined,
+  original: {
+    request: { tradeType: 'exactOutput' },
+  } as AcrossQuote,
   request: {} as QuoteRequest,
   sourceAmount: {
     human: '13.13',
@@ -125,6 +130,26 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
 };
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
+
+function getRelayQuote(
+  tradeType: RelayQuote['request']['tradeType'],
+): TransactionPayQuote<unknown> {
+  return {
+    ...QUOTE_1_MOCK,
+    original: { request: { tradeType } } as RelayQuote,
+    strategy: TransactionPayStrategy.Relay,
+  };
+}
+
+function getAcrossQuote(
+  tradeType: AcrossQuote['request']['tradeType'],
+): TransactionPayQuote<unknown> {
+  return {
+    ...QUOTE_2_MOCK,
+    original: { request: { tradeType } } as AcrossQuote,
+    strategy: TransactionPayStrategy.Across,
+  };
+}
 
 describe('Totals Utils', () => {
   const calculateTransactionGasCostMock = jest.mocked(
@@ -167,10 +192,13 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('52.08');
     });
 
-    it('returns adjusted total when isMaxAmount is true', () => {
+    it('returns adjusted total for strategies without a provider trade type when isMaxAmount is true', () => {
       const result = calculateTotals({
         isMaxAmount: true,
-        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        quotes: [
+          { ...QUOTE_1_MOCK, strategy: TransactionPayStrategy.Server },
+          { ...QUOTE_2_MOCK, strategy: TransactionPayStrategy.Server },
+        ],
         tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -180,82 +208,132 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('71.68');
     });
 
-    it.each([
-      {
-        label: TransactionType.perpsDeposit,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
-      },
-      {
-        label: TransactionType.predictDeposit,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDeposit,
-        },
-      },
-      {
-        label: `nested ${TransactionType.predictDeposit}`,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          nestedTransactions: [{ type: TransactionType.predictDeposit }],
-          type: TransactionType.batch,
-        },
-      },
-    ])(
-      'does not add Relay fees twice for exact-input $label transactions',
-      ({ transaction }) => {
-        const quote = {
-          ...QUOTE_1_MOCK,
-          fees: {
-            ...QUOTE_1_MOCK.fees,
-            metaMask: { fiat: '0', usd: '0' },
-            provider: { fiat: '1', usd: '1' },
-            sourceNetwork: {
-              estimate: {
-                fiat: '0.5',
-                human: '0.5',
-                raw: '500000000000000000',
-                usd: '0.5',
-              },
-              max: {
-                fiat: '0.6',
-                human: '0.6',
-                raw: '600000000000000000',
-                usd: '0.6',
-              },
+    it('returns isInputBased true for an exact-input Relay quote', () => {
+      const result = calculateTotals({
+        quotes: [getRelayQuote('EXACT_INPUT')],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(true);
+    });
+
+    it('returns isInputBased false for an exact-output Relay quote', () => {
+      const result = calculateTotals({
+        quotes: [getRelayQuote('EXACT_OUTPUT')],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased true for an exact-input Across quote', () => {
+      const result = calculateTotals({
+        quotes: [getAcrossQuote('exactInput')],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(true);
+    });
+
+    it('returns isInputBased false for an exact-output Across quote', () => {
+      const result = calculateTotals({
+        quotes: [getAcrossQuote('exactOutput')],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased false when there are no quotes', () => {
+      const result = calculateTotals({
+        quotes: [],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased false for mixed input- and output-based quotes', () => {
+      const result = calculateTotals({
+        quotes: [getRelayQuote('EXACT_INPUT'), QUOTE_2_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased true when all aggregate quotes are input-based', () => {
+      const result = calculateTotals({
+        quotes: [getRelayQuote('EXACT_INPUT'), getAcrossQuote('exactInput')],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(true);
+    });
+
+    it('does not add Relay fees twice for exact-input quotes', () => {
+      const quote = {
+        ...getRelayQuote('EXACT_INPUT'),
+        fees: {
+          ...QUOTE_1_MOCK.fees,
+          metaMask: { fiat: '0', usd: '0' },
+          provider: { fiat: '1', usd: '1' },
+          sourceNetwork: {
+            estimate: {
+              fiat: '0.5',
+              human: '0.5',
+              raw: '500000000000000000',
+              usd: '0.5',
             },
-            targetNetwork: { fiat: '0', usd: '0' },
+            max: {
+              fiat: '0.6',
+              human: '0.6',
+              raw: '600000000000000000',
+              usd: '0.6',
+            },
           },
-          sourceAmount: {
-            fiat: '100',
-            human: '100',
-            raw: '100000000',
-            usd: '100',
-          },
-          strategy: TransactionPayStrategy.Relay,
-          targetAmount: { fiat: '99', usd: '99' },
-        };
-        const token = {
-          ...TOKEN_1_MOCK,
-          amountFiat: '100',
-          amountUsd: '100',
-        };
+          targetNetwork: { fiat: '0', usd: '0' },
+        },
+        sourceAmount: {
+          fiat: '100',
+          human: '100',
+          raw: '100000000',
+          usd: '100',
+        },
+        targetAmount: { fiat: '99', usd: '99' },
+      };
+      const token = {
+        ...TOKEN_1_MOCK,
+        amountFiat: '100',
+        amountUsd: '100',
+      };
 
-        const result = calculateTotals({
-          quotes: [quote],
-          tokens: [token],
-          messenger: MESSENGER_MOCK,
-          transaction,
-        });
+      const result = calculateTotals({
+        quotes: [quote],
+        tokens: [token],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
 
-        expect(result.total).toStrictEqual({
-          fiat: '100.5',
-          usd: '100.5',
-        });
-      },
-    );
+      expect(result.total).toStrictEqual({
+        fiat: '100.5',
+        usd: '100.5',
+      });
+    });
 
     it('returns total using fiatPaymentAmount when fiat strategy is present', () => {
       const fiatQuote: TransactionPayQuote<unknown> = {

@@ -12,12 +12,6 @@ export const PERPS_DEPOSIT_TYPES: TransactionType[] = [
   TransactionType.perpsDepositAndOrder,
 ];
 
-/** Plain deposit types whose Relay quote amount is the total source input. */
-export const RELAY_EXACT_INPUT_DEPOSIT_TYPES: TransactionType[] = [
-  TransactionType.perpsDeposit,
-  TransactionType.predictDeposit,
-];
-
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
 export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
