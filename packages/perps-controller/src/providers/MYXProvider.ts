@@ -218,11 +218,13 @@ export class MYXProvider implements PerpsProvider {
       };
     }
 
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       const pools = await this.#clientService.getMarkets({
         allowStaleOnError: false,
         maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       });
+      this.#assertLifecycleCurrent(lifecycleGeneration);
       const capabilityPools = filterMYXExclusiveMarkets(pools);
       const capabilityPoolSymbolMap = buildPoolSymbolMap(capabilityPools);
       const hasMarket = capabilityPools.some(
@@ -241,6 +243,16 @@ export class MYXProvider implements PerpsProvider {
         caughtError,
         'MYXProvider.getOrderCapabilities',
       );
+      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        this.#deps.debugLogger.log(
+          '[MYXProvider] Ignoring stale capabilities after disconnect',
+        );
+        return {
+          status: 'unavailable',
+          providerId: this.protocolId,
+          reason: 'provider_unavailable',
+        };
+      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('getOrderCapabilities', {

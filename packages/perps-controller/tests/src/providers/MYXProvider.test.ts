@@ -897,6 +897,27 @@ describe('MYXProvider', () => {
       ]);
     });
 
+    it('discards a capability read that finishes after disconnect', async () => {
+      let resolveMarkets!: (pools: MYXPoolSymbol[]) => void;
+      mockClientService.getMarkets.mockReturnValueOnce(
+        new Promise<MYXPoolSymbol[]>((resolve) => {
+          resolveMarkets = resolve;
+        }),
+      );
+
+      const capabilities = provider.getOrderCapabilities({ symbol: 'RHEA' });
+      await provider.disconnect();
+      resolveMarkets([makePool()]);
+
+      await expect(capabilities).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_unavailable',
+      });
+      expect(mockFilterMYXExclusiveMarkets).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
+
     it.each(['', ' RHEA', 'RHEA ', 'RHEA USDT', 'myx:RHEA'])(
       'reports malformed symbol %p as invalid',
       async (symbol) => {

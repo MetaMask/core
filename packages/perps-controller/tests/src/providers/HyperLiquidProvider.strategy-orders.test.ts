@@ -1,6 +1,7 @@
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
   HYPERLIQUID_TWAP_LIMITS,
   PERFORMANCE_CONFIG,
   PROVIDER_CONFIG,
@@ -3585,7 +3586,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('stops chasing once the order is no longer resting', async () => {
       const order = jest.fn().mockResolvedValue(chaseRested(55));
-      const { exchangeClient } = useStrategyClients({
+      const { exchangeClient, infoClient } = useStrategyClients({
         exchange: {
           order,
           // A cancel the exchange refuses means the order already left the book.
@@ -3596,7 +3597,28 @@ describe('HyperLiquidProvider - strategy order types', () => {
             },
           }),
         },
-        info: { l2Book: bookWalkingBids(['2999', '2998', '2997']) },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [
+                  { px: '2999.1', sz: '10', n: 1 },
+                  { px: '2998', sz: '10', n: 1 },
+                ],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+        },
       });
 
       await provider.placeOrder({
@@ -3610,6 +3632,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
       // No replacement was rested after the failed cancel.
       expect(order).toHaveBeenCalledTimes(1);
+      expect(infoClient.orderStatus).toHaveBeenCalledTimes(3);
+      expect(await provider.getChaseOrders()).toContainEqual(
+        expect.objectContaining({
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Failed,
+        }),
+      );
     });
 
     it('stops re-pricing at the repricing cap', async () => {
@@ -6454,6 +6483,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
       });
       expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+    });
+
+    it('does not reprice when the resting child stays unknown after retries', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      const { exchangeClient, infoClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: bookThatMoves(),
+          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+        },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      expect(infoClient.orderStatus).toHaveBeenCalledTimes(3);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(order).toHaveBeenCalledTimes(1);
+      expect(await provider.getChaseOrders()).toContainEqual(
+        expect.objectContaining({
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Filled,
+        }),
+      );
     });
   });
 

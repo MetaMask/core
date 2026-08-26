@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Change the default Chase interval from 3 to 15 seconds and remove the default duration and repricing caps. `CHASE_ORDER_CONFIG.DefaultMaxDurationMs` and `DefaultMaxRepricings` are now `undefined`, which callers can pass through without failing validation ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
+- **BREAKING:** Change the default Chase interval from 3 to 15 seconds, remove the default duration and repricing caps, and remove the invalid `CHASE_ORDER_CONFIG.DefaultMaxDurationMs` and `DefaultMaxRepricings` sentinels. Callers omit those fields for an unbounded Chase ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
 - Align the Chase background notification value with the existing bare notification schema as `chase_backgrounded` ([#9948](https://github.com/MetaMask/core/pull/9948))
 - **BREAKING:** Require `providerId` on routed strategy placement, validation, cancellation, and fee quotes so these operations cannot fall back to another protocol ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Consumers must pass the `providerId` returned by `getOrderCapabilities` when placing, validating, cancelling, or quoting a `twap`, `scale`, or `chase` order. Ordinary orders and direct provider calls keep their previous optional routing behavior.

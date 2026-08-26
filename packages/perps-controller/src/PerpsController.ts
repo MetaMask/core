@@ -5098,15 +5098,15 @@ export class PerpsController extends BaseController<
       // A completed disconnect leaves no initialization promise to await. Rebuild
       // the provider registry before same-provider detection or route validation
       // so a successful switch always leaves a usable active provider.
-      if (
+      const needsInitialization =
         !this.isInitialized ||
-        this.state.initializationState !== InitializationState.Initialized
-      ) {
+        this.state.initializationState !== InitializationState.Initialized;
+      if (needsInitialization) {
         await this.#initWithoutDisconnectWait();
-        if (
+        const initializationFailed =
           !this.isInitialized ||
-          this.state.initializationState !== InitializationState.Initialized
-        ) {
+          this.state.initializationState !== InitializationState.Initialized;
+        if (initializationFailed) {
           throw new Error(
             this.state.initializationError ?? 'Provider initialization failed',
           );

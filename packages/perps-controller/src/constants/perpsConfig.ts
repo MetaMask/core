@@ -133,10 +133,6 @@ export const CHASE_ORDER_CONFIG = {
   DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */
   MinIntervalMs: 1000,
-  /** No duration cap is applied when the caller omits the field. */
-  DefaultMaxDurationMs: undefined,
-  /** No repricing cap is applied when the caller omits the field. */
-  DefaultMaxRepricings: undefined,
   /**
    * How many chases may run at once.
    *

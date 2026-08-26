@@ -256,6 +256,13 @@ const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
 const CHASE_ORDER_STATUS_RETRY_COUNT = 2;
 const CHASE_ORDER_STATUS_RETRY_DELAY_MS = 100;
 
+class ChaseOrderStatusUnavailableError extends Error {
+  constructor() {
+    super('Chase order status unavailable');
+    this.name = 'ChaseOrderStatusUnavailableError';
+  }
+}
+
 const isRetryableChasePlacementError = (error: unknown): boolean => {
   const message = ensureError(
     error,
@@ -6103,9 +6110,26 @@ export class HyperLiquidProvider implements PerpsProvider {
         // The order left the book between ticks: it filled, or something else
         // cancelled it. There is nothing left to chase.
         const goneOrderId = session.orderId;
-        const remaining = await this.#readOrderRemainder(goneOrderId);
         session.orderId = null;
         session.active = false;
+        let remaining: string | null;
+        try {
+          remaining = await this.#readOrderRemainder(
+            goneOrderId,
+            CHASE_ORDER_STATUS_RETRY_COUNT,
+          );
+        } catch (error) {
+          session.status = CHASE_ORDER_STATUS.Failed;
+          this.#deps.debugLogger.log('Chase order status unavailable', {
+            sessionId,
+            orderId: goneOrderId,
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.chaseGoneOrderStatus',
+            ).message,
+          });
+          return;
+        }
         session.status =
           remaining === null
             ? CHASE_ORDER_STATUS.Filled
@@ -6312,7 +6336,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     let callerIsGone = false;
     for (const order of ambiguous) {
       try {
-        const live = await this.#readOrderRemainder(order.orderId);
+        const live = await this.#readOrderRemainder(
+          order.orderId,
+          CHASE_ORDER_STATUS_RETRY_COUNT,
+        );
         const delta =
           (live === null ? 0 : parseFloat(live)) - parseFloat(order.size);
         recorded.set(
@@ -6323,6 +6350,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           callerIsGone = true;
         }
       } catch (error) {
+        if (
+          error instanceof ChaseOrderStatusUnavailableError &&
+          order.orderId === callerOrderId
+        ) {
+          callerIsGone = true;
+          continue;
+        }
         // A failed lookup must not stop the chase. Keeping the recorded size can
         // only over-subtract, which quotes a level deeper rather than leaving
         // the order stranded at a stale price.
@@ -6375,7 +6409,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           unknownStatusRetries - 1,
         );
       }
-      throw new Error('Chase order status unavailable');
+      throw new ChaseOrderStatusUnavailableError();
     }
 
     if (status.order.status === 'filled') {
