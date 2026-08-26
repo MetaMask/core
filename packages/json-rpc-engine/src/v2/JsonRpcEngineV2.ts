@@ -286,6 +286,8 @@ export class JsonRpcEngineV2<
     request: Request,
     { context }: HandleOptions<Context> = {},
   ): Promise<ResultConstraint<Request> | void> {
+    // @ts-expect-error: TS2345: Argument of type 'JsonRpcCall' is not assignable
+    // to parameter of type 'JsonRpcCall<Record<string, Json>> | Readonly<JsonRpcCall<Record<string, Json>>>'.
     const isReq = isRequest(request);
     const { result } = await this.#handle(request, context);
 
