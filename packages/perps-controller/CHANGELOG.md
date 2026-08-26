@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `PerpsController.previewPositionModify` and `PerpsProvider.previewPositionModify` so clients can read an isolated-margin post-trade projection without placing an order ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Add `PerpsController.previewPositionModify` and `PerpsProvider.previewPositionModify` so clients can read an isolated-margin post-trade projection without placing an order ([#9968](https://github.com/MetaMask/core/pull/9968))
   - Mobile supplies the live position and proposed order; the HyperLiquid provider fetches the asset's margin table and applies selected leverage to the whole resulting position (matching `updateLeverage` before placement).
   - The result is a discriminated union (`none` / `unsupported` / `full_close` / `open`) so a non-modifying preview cannot carry a flip kind and a full close cannot report remaining size. Margin and liquidation availability are independent: a missing live liquidation or missing multi-tier table withholds only liquidation.
   - Isolated increases, leverage changes, reductions, flips, and full closes are projected. Liquidation uses the maintenance tier at the resulting liquidation notional, including that tier's maintenance deduction. Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`. MYX returns `{ status: 'unsupported', reason: 'provider' }`.
