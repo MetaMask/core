@@ -27,7 +27,7 @@ owning venue. `chaseMaxDistanceBps` caps adverse movement from the arrival
 price and must be greater than 0 and less than 10,000. The stop follows the
 live touch; the final resting child can sit just inside the boundary after
 venue price-grid rounding, and `distanceChasedBps` reports that actual resting
-distance.
+distance rounded to the nearest whole basis point.
 
 ## Contributing
 

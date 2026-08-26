@@ -133,9 +133,9 @@ export const CHASE_ORDER_CONFIG = {
   DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */
   MinIntervalMs: 1000,
-  /** Chase runs until a lifecycle event stops it unless the caller sets a cap. */
+  /** Internal unbounded sentinel; callers omit the field instead of passing Infinity. */
   DefaultMaxDurationMs: Number.POSITIVE_INFINITY,
-  /** Repricing is unbounded unless the caller explicitly sets a cap. */
+  /** Internal unbounded sentinel; callers omit the field instead of passing Infinity. */
   DefaultMaxRepricings: Number.POSITIVE_INFINITY,
   /**
    * How many chases may run at once.

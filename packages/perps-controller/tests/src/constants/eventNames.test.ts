@@ -380,6 +380,12 @@ describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
     expect(PERPS_EVENT_VALUE.ACTION.ABANDON_ORDER).toBe('abandon_order');
   });
 
+  it('exports the Chase background notification schema value', () => {
+    expect(PERPS_EVENT_VALUE.NOTIFICATION_TYPE.CHASE_BACKGROUNDED).toBe(
+      'perps_chase_backgrounded',
+    );
+  });
+
   it('exports new BUTTON_CLICKED values', () => {
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.PLACE_ORDER).toBe('place_order');
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.CLOSE).toBe('close');

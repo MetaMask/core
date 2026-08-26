@@ -5839,6 +5839,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
     this.#chasePlacementBlockers += 1;
+    // Abort a placement that passed the blocker check but has not completed
+    // its final generation check; the waiter below then drains its cleanup.
     this.#chaseGeneration += 1;
     try {
       await Promise.all([...this.#chasePlacementWaiters]);
