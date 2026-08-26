@@ -1304,24 +1304,23 @@ export class AssetsController extends BaseController<
         );
 
         this.update((state) => {
-          const assetsInfo = { ...state.assetsInfo };
+          const assetsInfo = state.assetsInfo as Record<
+            string,
+            FungibleAssetMetadata
+          >;
           for (const assetId of removedAssets) {
-            delete assetsInfo[assetId as Caip19AssetId];
+            delete assetsInfo[assetId];
           }
 
-          const assetsBalance = { ...state.assetsBalance };
+          const assetsBalance = state.assetsBalance as Record<
+            string,
+            Record<string, AssetBalance>
+          >;
           for (const accountId of Object.keys(assetsBalance)) {
-            assetsBalance[accountId] = { ...assetsBalance[accountId] };
             for (const assetId of removedAssets) {
-              delete assetsBalance[accountId][assetId as Caip19AssetId];
+              delete assetsBalance[accountId][assetId];
             }
           }
-
-          return {
-            ...state,
-            assetsInfo,
-            assetsBalance,
-          };
         });
       }
     } catch (error) {
