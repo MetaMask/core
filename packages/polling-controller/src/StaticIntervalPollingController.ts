@@ -11,12 +11,6 @@ import type {
   PollingTokenSetId,
 } from './types.js';
 
-type StaticIntervalPollingControllerInstance<PollingInput extends Json> =
-  IPollingController<PollingInput> & {
-    setIntervalLength(intervalLength: number): void;
-    getIntervalLength(): number | undefined;
-  };
-
 /**
  * StaticIntervalPollingControllerMixin
  * A polling controller that polls on a static interval.
@@ -24,43 +18,48 @@ type StaticIntervalPollingControllerInstance<PollingInput extends Json> =
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
+// This is a function that's used as class, and the return type is inferred from
+// the class defined inside the function scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/naming-convention
 function StaticIntervalPollingControllerMixin<
   TBase extends Constructor,
   PollingInput extends Json,
->(
-  Base: TBase,
-): TBase &
-  (abstract new (
-    ...args: unknown[]
-  ) => StaticIntervalPollingControllerInstance<PollingInput>) {
+>(Base: TBase) {
   abstract class StaticIntervalPollingController
     extends AbstractPollingControllerBaseMixin<TBase, PollingInput>(Base)
     implements IPollingController<PollingInput>
   {
-    readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
+    // These fields are public (rather than using `#`) so that declaration
+    // emission can describe them. Private/protected members on the class
+    // returned by an exported mixin function trigger TS4094, and giving the
+    // mixin an explicit return type to work around that breaks consumers
+    // that supply the base class's own type arguments via
+    // `StaticIntervalPollingController()<Name, State, Messenger>`. The
+    // leading underscore signals "internal, do not use" without needing
+    // true privacy.
+    readonly _intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
-    #intervalLength: number | undefined = 1000;
+    _intervalLength: number | undefined = 1000;
 
     setIntervalLength(intervalLength: number): void {
-      this.#intervalLength = intervalLength;
+      this._intervalLength = intervalLength;
     }
 
     getIntervalLength(): number | undefined {
-      return this.#intervalLength;
+      return this._intervalLength;
     }
 
     _startPolling(input: PollingInput): void {
-      if (!this.#intervalLength) {
+      if (!this._intervalLength) {
         throw new Error('intervalLength must be defined and greater than 0');
       }
 
       const key = getKey(input);
-      const existingInterval = this.#intervalIds[key];
+      const existingInterval = this._intervalIds[key];
       this._stopPollingByPollingTokenSetId(key);
 
       // eslint-disable-next-line no-multi-assign
-      const intervalId = (this.#intervalIds[key] = setTimeout(
+      const intervalId = (this._intervalIds[key] = setTimeout(
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
@@ -69,27 +68,24 @@ function StaticIntervalPollingControllerMixin<
           } catch (error) {
             console.error(error);
           }
-          if (intervalId === this.#intervalIds[key]) {
+          if (intervalId === this._intervalIds[key]) {
             this._startPolling(input);
           }
         },
-        existingInterval ? this.#intervalLength : 0,
+        existingInterval ? this._intervalLength : 0,
       ));
     }
 
     _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void {
-      const intervalId = this.#intervalIds[key];
+      const intervalId = this._intervalIds[key];
       if (intervalId) {
         clearTimeout(intervalId);
-        delete this.#intervalIds[key];
+        delete this._intervalIds[key];
       }
     }
   }
 
-  return StaticIntervalPollingController as unknown as TBase &
-    (abstract new (
-      ...args: unknown[]
-    ) => StaticIntervalPollingControllerInstance<PollingInput>);
+  return StaticIntervalPollingController;
 }
 
 class Empty {}
