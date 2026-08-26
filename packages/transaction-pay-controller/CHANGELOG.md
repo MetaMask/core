@@ -7,15 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
 ### Changed
 
 - **BREAKING:** Replace `resolveSourceAmount` with `getBalance` for max-amount source balance resolution ([#9802](https://github.com/MetaMask/core/pull/9802))
   - Added `GetBalanceCallback`, `GetBalanceRequest`, `GetBalanceResponse`, and the `getBalance` constructor option on `TransactionPayControllerOptions`.
   - Removed `ResolveSourceAmountCallback`, `ResolveSourceAmountRequest`, `ResolveSourceAmountResponse`, and the `resolveSourceAmount` constructor option on `TransactionPayControllerOptions`.
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
-- Bump `@metamask/assets-controller` from `^14.0.0` to `^14.0.1` ([#9960](https://github.com/MetaMask/core/pull/9960))
-- Bump `@metamask/assets-controllers` from `^111.1.1` to `^111.1.2` ([#9960](https://github.com/MetaMask/core/pull/9960))
-- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/assets-controller` from `^14.0.0` to `^14.0.2` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/assets-controllers` from `^111.1.1` to `^111.1.3` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/gas-fee-controller` from `^26.3.1` to `^26.3.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
 
 ## [26.4.1]
 
@@ -1466,7 +1470,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.1...@metamask/transaction-pay-controller@27.0.0
 [26.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.0...@metamask/transaction-pay-controller@26.4.1
 [26.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.1...@metamask/transaction-pay-controller@26.4.0
 [26.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.0...@metamask/transaction-pay-controller@26.3.1
