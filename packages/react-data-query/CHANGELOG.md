@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(base-data-service): adapt to `@tanstack/query-core` v5 API ([#9712](https://github.com/MetaMask/core/pull/9712))
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
+
 ### Changed
 
 - **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563), [#9941](https://github.com/MetaMask/core/pull/9941), [#9953](https://github.com/MetaMask/core/pull/9953))
