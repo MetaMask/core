@@ -7,6 +7,8 @@ export const PERPS_ERROR_CODES = {
   CLIENT_NOT_INITIALIZED: 'CLIENT_NOT_INITIALIZED',
   CLIENT_REINITIALIZING: 'CLIENT_REINITIALIZING',
   PROVIDER_NOT_AVAILABLE: 'PROVIDER_NOT_AVAILABLE',
+  PROVIDER_NOT_FOUND: 'PROVIDER_NOT_FOUND',
+  PROVIDER_LIFECYCLE_STALE: 'PROVIDER_LIFECYCLE_STALE',
   TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
   BRIDGE_CONTRACT_NOT_FOUND: 'BRIDGE_CONTRACT_NOT_FOUND',
   WITHDRAW_FAILED: 'WITHDRAW_FAILED',
@@ -60,7 +62,8 @@ export const PERPS_ERROR_CODES = {
   ORDER_STRATEGY_PARAMS_NOT_SUPPORTED: 'ORDER_STRATEGY_PARAMS_NOT_SUPPORTED', // Strategy field supplied on an order type that does not own it
   ORDER_STRATEGY_FIELD_UNSUPPORTED: 'ORDER_STRATEGY_FIELD_UNSUPPORTED', // price / triggerPrice / timeInForce / attached TP/SL supplied on a strategy placement
   ORDER_STRATEGY_MARKET_UNSUPPORTED: 'ORDER_STRATEGY_MARKET_UNSUPPORTED', // The provider cannot run a strategy placement on this market
-  ORDER_STRATEGY_HANDLE_UNKNOWN: 'ORDER_STRATEGY_HANDLE_UNKNOWN', // Cancel referenced a scale group or chase session this provider does not hold
+  ORDER_STRATEGY_ROUTE_UNAVAILABLE: 'ORDER_STRATEGY_ROUTE_UNAVAILABLE', // The requested strategy provider route does not match the active direct provider
+  ORDER_STRATEGY_HANDLE_UNKNOWN: 'ORDER_STRATEGY_HANDLE_UNKNOWN', // Strategy cancel handle is invalid or this provider session does not hold it
   ORDER_EDIT_STRATEGY_UNSUPPORTED: 'ORDER_EDIT_STRATEGY_UNSUPPORTED', // editOrder cannot modify a strategy placement; cancel by its handle and place again
   ORDER_STRATEGY_CANCEL_INCOMPLETE: 'ORDER_STRATEGY_CANCEL_INCOMPLETE', // Part of a strategy placement is still resting after a cancel; the handle stays valid for a retry
   ORDER_TWAP_DURATION_REQUIRED: 'ORDER_TWAP_DURATION_REQUIRED', // TWAP placed without twapDuration
@@ -110,6 +113,7 @@ export const PERPS_ERROR_CODES = {
   POSITION_WOULD_FLIP: 'POSITION_WOULD_FLIP',
   MARGIN_ADJUSTMENT_FAILED: 'MARGIN_ADJUSTMENT_FAILED',
   TPSL_UPDATE_FAILED: 'TPSL_UPDATE_FAILED',
+  TPSL_PROTECTION_LOST: 'TPSL_PROTECTION_LOST',
   // Order execution errors
   ORDER_REJECTED: 'ORDER_REJECTED',
   SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',

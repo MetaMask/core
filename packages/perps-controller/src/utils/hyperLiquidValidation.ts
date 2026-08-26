@@ -814,7 +814,7 @@ function validateStrategyOrderParams(
  * @param params.timeInForce - Time in force; only a plain limit order can carry one
  * @param params.clientOrderId - Client-provided order ID; a strategy placement cannot carry one
  * @param params.twapDuration - TWAP window in whole minutes
- * @param params.twapRandomize - Whether to randomize the TWAP slice timing
+ * @param params.twapRandomize - Whether to vary each TWAP suborder's size by up to ±20%
  * @param params.scaleMinPrice - Lowest price in a scale ladder
  * @param params.scaleMaxPrice - Highest price in a scale ladder
  * @param params.scaleNumOrders - How many orders a scale ladder fans out into

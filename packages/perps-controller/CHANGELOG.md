@@ -12,9 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the public Chase lifecycle API (`getChaseOrders` and
   `suspendChaseOrders`), aggregated-provider routing, retained lifecycle
   snapshots, directional max-distance stopping, and idempotent termination of
-  stale or already-gone child orders. Chase repricing defaults to 15 seconds
-  and remains unbounded unless a duration or repricing cap is supplied. Clients
-  should map the new `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
+  stale or already-gone child orders. Clients should map the new
+  `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
   exposing Chase configuration errors. Adds typed analytics interaction values
   for background conversion and termination. An incomplete termination reports
   `termination_pending` while its child remains cancellable. Consumers can use
@@ -23,9 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
   - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
   - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.
+- Add per-market strategy capabilities, TWAP lifecycle records, recoverable Scale group IDs, and the Chase max-distance event ([#9948](https://github.com/MetaMask/core/pull/9948))
+- **BREAKING:** Add `ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_LIFECYCLE_STALE`, and `TPSL_PROTECTION_LOST` to `PerpsErrorCode` ([#9948](https://github.com/MetaMask/core/pull/9948))
 
 ### Changed
 
+- **BREAKING:** Support strategy orders on HyperLiquid HIP-3, route an optional `providerId` consistently, return zero MetaMask builder fee for TWAP through a provider-owned fee policy, and use 15-second unbounded Chase defaults ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
 - Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
 - Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
@@ -35,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep selectively allowlisted HIP-3 markets aligned with their volume, open-interest, funding, and previous-price contexts ([#9971](https://github.com/MetaMask/core/pull/9971))
 - Display tiny nonzero funding rates as `<0.0001%` or `-<0.0001%` instead of `0.0000%` ([#9971](https://github.com/MetaMask/core/pull/9971))
+- Harden strategy and TP/SL lifecycles across partial failures, suspension, reconnects, provider changes, and teardown; validation and fee quotes now wait for initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Ignore missing optional MYX constructors when a consumer excludes the MYX module from its bundle ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
 
@@ -80,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
   - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
   - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id. Its documentation says so; the individual exchange ids are in `childOrderIds`.
-  - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally randomizing slice timing with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to 5–1440 minutes.
+  - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally varying each suborder's size by up to ±20% with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to the pinned SDK's 5–1440-minute range.
   - `scale` fans out `OrderParams.scaleNumOrders` limit orders on an inclusive price ladder between `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, submitted as a single batch. Sizes are split in whole units of the asset's size grid, so the rungs sum to exactly the submitted size. The batch is not atomic — the venue can rest some rungs and reject others — so `OrderResult.submittedSize` reports only the rungs that actually rested.
   - The venue applies its minimum order value to what it receives, not to the strategy total: a `scale` ladder's notional must leave every submitted rung above the per-order minimum, and a `twap`'s total must clear the venue's own minimum TWAP size (`HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd`). Both are rejected locally rather than by the exchange. The ladder check needs the asset's size grid, so it runs during placement — before anything is signed — rather than in `validateOrder`, which cannot see the grid and could only guess.
   - A `chase` verifies its order is still live whenever its own price stops showing on the book, so an order that fills without the loop noticing ends the session and releases its concurrency slot instead of holding both until the window closes.
