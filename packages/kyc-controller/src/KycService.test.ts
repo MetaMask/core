@@ -592,9 +592,7 @@ describe('KycService', () => {
     it('accepts extra signing fields and an omitted content_id', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/iron/disclaimers', { disclaimerIds: ['disc-1'] })
-        .reply(200, [
-          { id: 'sign-1', customer_id: 'cust-1', signed: true },
-        ]);
+        .reply(200, [{ id: 'sign-1', customer_id: 'cust-1', signed: true }]);
       const { service } = getService();
 
       expect(
@@ -723,9 +721,7 @@ describe('KycService', () => {
     };
 
     it('returns the session-scoped disclaimer catalog', async () => {
-      nock(MOCK_API_URL)
-        .get('/sessions/sid-1/disclaimers')
-        .reply(200, catalog);
+      nock(MOCK_API_URL).get('/sessions/sid-1/disclaimers').reply(200, catalog);
       const { service } = getService();
 
       expect(

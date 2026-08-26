@@ -2813,7 +2813,9 @@ describe('KycController', () => {
           expect(handlers.createUkycSession).toHaveBeenCalledTimes(1);
           expect(
             handlers.submitVendorDisclaimers.mock.invocationCallOrder[0],
-          ).toBeLessThan(handlers.createUkycSession.mock.invocationCallOrder[0]);
+          ).toBeLessThan(
+            handlers.createUkycSession.mock.invocationCallOrder[0],
+          );
           expect(
             handlers.createUkycSession.mock.invocationCallOrder[0],
           ).toBeLessThan(
@@ -3737,7 +3739,10 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.submitSessionDisclaimers.mockRejectedValue(
-            new HttpError(500, "Fetching 'disclaimers' failed with status '500'"),
+            new HttpError(
+              500,
+              "Fetching 'disclaimers' failed with status '500'",
+            ),
           );
           handlers.fetchDisclaimers.mockResolvedValue([]);
 
@@ -4495,9 +4500,11 @@ function withController<ReturnValue>(
       email: 'a@b.co',
       status: 'SigningsRequired',
     }),
-    submitVendorDisclaimers: jest.fn().mockResolvedValue([
-      { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
-    ]),
+    submitVendorDisclaimers: jest
+      .fn()
+      .mockResolvedValue([
+        { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
+      ]),
     fetchSessionDisclaimers: jest
       .fn()
       .mockResolvedValue(MOCK_SESSION_DISCLAIMERS),
