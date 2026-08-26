@@ -1773,9 +1773,6 @@ export class PerpsController extends BaseController<
         dexes: expectedDexes,
       };
     });
-    if (!isCurrent()) {
-      throw new Error('User data snapshot context changed');
-    }
     this.#persistUserCacheToDisk();
     this.#debugLog('PerpsController: user cache snapshot written', {
       writtenKey: providerNetworkKey,
@@ -4417,13 +4414,6 @@ export class PerpsController extends BaseController<
         });
       }
 
-      if (!isCurrent()) {
-        traceData = {
-          success: false,
-          error: 'Global snapshot preload context changed',
-        };
-        return;
-      }
       persistMarketEntriesToDisk(
         this.#options.infrastructure.diskCache,
         marketDiskEntries,
@@ -4686,9 +4676,6 @@ export class PerpsController extends BaseController<
           };
         });
 
-        if (!isCurrent()) {
-          throw new Error('User data preload context changed');
-        }
         this.#persistUserCacheToDisk();
       } else {
         // Single provider — store directly under its key
@@ -4711,9 +4698,6 @@ export class PerpsController extends BaseController<
           };
         });
 
-        if (!isCurrent()) {
-          throw new Error('User data preload context changed');
-        }
         this.#persistUserCacheToDisk();
       }
 
@@ -5683,6 +5667,9 @@ export class PerpsController extends BaseController<
    */
   async disconnect(): Promise<void> {
     if (this.#disconnectOperationPromise) {
+      // A later explicit disconnect wins over a preload start deferred during
+      // the operation already in flight.
+      this.#preloadStartRequested = false;
       await this.#disconnectOperationPromise;
       return;
     }

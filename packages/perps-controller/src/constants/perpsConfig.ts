@@ -153,6 +153,7 @@ export const CHASE_ORDER_STATUS = {
   DurationReached: 'duration_reached',
   RepricingLimitReached: 'repricing_limit_reached',
   Filled: 'filled',
+  Canceled: 'canceled',
   Failed: 'failed',
 } as const;
 

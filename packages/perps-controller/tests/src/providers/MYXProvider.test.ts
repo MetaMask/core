@@ -816,7 +816,24 @@ describe('MYXProvider', () => {
       });
     });
 
-    it.each(['abc', '-1', 'Infinity', '1abc', '', '0', '.5', '1e5', '0x10'])(
+    it('returns zero fee amounts for a zero notional quote', async () => {
+      const result = await provider.calculateFees({
+        orderType: 'market',
+        symbol: 'RHEA',
+        amount: '0',
+      });
+
+      expect(result).toStrictEqual({
+        feeRate: 0.0005,
+        feeAmount: 0,
+        protocolFeeRate: 0.0005,
+        protocolFeeAmount: 0,
+        metamaskFeeRate: 0,
+        metamaskFeeAmount: 0,
+      });
+    });
+
+    it.each(['abc', '-1', 'Infinity', '1abc', '', '.5', '1e5', '0x10'])(
       'rejects invalid amount quote %p',
       async (amount) => {
         await expect(

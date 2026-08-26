@@ -1136,6 +1136,29 @@ describe('PerpsController', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('lets a later disconnect cancel a deferred preload start', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(async () => {
+        disconnectStarted.resolve();
+        await pendingDisconnect.promise;
+        return { success: true };
+      });
+
+      const firstDisconnect = controller.disconnect();
+      await disconnectStarted.promise;
+      controller.startMarketDataPreload();
+      const secondDisconnect = controller.disconnect();
+      pendingDisconnect.resolve();
+      await Promise.all([firstDisconnect, secondDisconnect]);
+      await Promise.resolve();
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).not.toHaveBeenCalled();
+    });
+
     it('initializes only after an in-flight disconnect finishes', async () => {
       await controller.init();
       const disconnectStarted = createDeferred<void>();
