@@ -382,7 +382,7 @@ describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
 
   it('exports the Chase background notification schema value', () => {
     expect(PERPS_EVENT_VALUE.NOTIFICATION_TYPE.CHASE_BACKGROUNDED).toBe(
-      'perps_chase_backgrounded',
+      'chase_backgrounded',
     );
   });
 

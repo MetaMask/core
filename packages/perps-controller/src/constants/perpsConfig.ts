@@ -133,10 +133,6 @@ export const CHASE_ORDER_CONFIG = {
   DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */
   MinIntervalMs: 1000,
-  /** Internal unbounded sentinel; callers omit the field instead of passing Infinity. */
-  DefaultMaxDurationMs: Number.POSITIVE_INFINITY,
-  /** Internal unbounded sentinel; callers omit the field instead of passing Infinity. */
-  DefaultMaxRepricings: Number.POSITIVE_INFINITY,
   /**
    * How many chases may run at once.
    *
@@ -157,6 +153,7 @@ export const CHASE_ORDER_STATUS = {
   DurationReached: 'duration_reached',
   RepricingLimitReached: 'repricing_limit_reached',
   Filled: 'filled',
+  Canceled: 'canceled',
   Failed: 'failed',
 } as const;
 
@@ -190,6 +187,9 @@ export const PERFORMANCE_CONFIG = {
   // Order validation debounce delay (milliseconds)
   // Prevents excessive validation calls during rapid form input changes
   ValidationDebounceMs: 300,
+
+  // Freshness window for provider market metadata used by strategy capability reads
+  OrderCapabilitiesMetaFreshnessMs: 30_000,
 
   // Liquidation price debounce delay (milliseconds)
   // Prevents excessive liquidation price calls during rapid form input changes
