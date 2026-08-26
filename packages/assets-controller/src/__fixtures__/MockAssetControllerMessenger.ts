@@ -30,10 +30,14 @@ export type MockRootMessenger = Messenger<
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1';
 
-export function createMockAssetControllerMessenger(): {
+export function createMockAssetControllerMessenger(options?: {
+  delegateGetState?: boolean;
+}): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
 } {
+  const { delegateGetState = true } = options ?? {};
+
   const rootMessenger: MockRootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -49,6 +53,7 @@ export function createMockAssetControllerMessenger(): {
       // AssetsController
       'AccountsController:getSelectedAccount',
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      ...(delegateGetState ? ['AssetsController:getState' as const] : []),
       // RpcDataSource
       'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
       'NetworkController:getState',
@@ -151,7 +156,6 @@ export function registerStakedMessengerActions(
 
 export function registerRpcDataSourceActions(
   rootMessenger: MockRootMessenger,
-  assetsControllerMessenger: AssetsControllerMessenger,
   opts?: {
     networkState?: NetworkState;
   },
@@ -170,9 +174,8 @@ export function registerRpcDataSourceActions(
       }) as TestMockType,
   );
 
-  assetsControllerMessenger.registerActionHandler(
-    'AssetsController:getState',
-    () => getDefaultAssetsControllerState(),
+  rootMessenger.registerActionHandler('AssetsController:getState', () =>
+    getDefaultAssetsControllerState(),
   );
 
   rootMessenger.registerActionHandler(

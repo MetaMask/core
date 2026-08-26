@@ -77,7 +77,7 @@ async function withController<ReturnValue>(
   fn: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
   const { rootMessenger, assetsControllerMessenger } =
-    createMockAssetControllerMessenger();
+    createMockAssetControllerMessenger({ delegateGetState: false });
   const accounts = [
     createMockInternalAccount({
       id: ACCOUNT_ONE_ID,

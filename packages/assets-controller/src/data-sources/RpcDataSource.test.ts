@@ -164,19 +164,11 @@ async function withController<ReturnValue>(
   if (actionHandlerOverrides) {
     for (const [action, handler] of Object.entries(actionHandlerOverrides)) {
       if (handler) {
-        if (action === 'AssetsController:getState') {
-          (
-            assetsControllerMessenger as {
-              registerActionHandler: (a: string, h: () => unknown) => void;
-            }
-          ).registerActionHandler(action, handler as () => unknown);
-        } else {
-          (
-            rootMessenger as {
-              registerActionHandler: (a: string, h: () => unknown) => void;
-            }
-          ).registerActionHandler(action, handler as () => unknown);
-        }
+        (
+          rootMessenger as {
+            registerActionHandler: (a: string, h: () => unknown) => void;
+          }
+        ).registerActionHandler(action, handler as () => unknown);
       }
     }
     if (!actionHandlerOverrides['NetworkController:getState']) {
@@ -201,7 +193,7 @@ async function withController<ReturnValue>(
     }
     if (!actionHandlerOverrides['AssetsController:getState']) {
       (
-        assetsControllerMessenger as {
+        rootMessenger as {
           registerActionHandler: (a: string, h: () => unknown) => void;
         }
       ).registerActionHandler('AssetsController:getState', () =>
@@ -231,9 +223,7 @@ async function withController<ReturnValue>(
       );
     }
   } else {
-    registerRpcDataSourceActions(rootMessenger, assetsControllerMessenger, {
-      networkState,
-    });
+    registerRpcDataSourceActions(rootMessenger, { networkState });
   }
 
   const defaultNativeAssetMap: Record<ChainId, Caip19AssetId> = {
@@ -306,7 +296,6 @@ describe('createRpcDataSource', () => {
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
       getNativeAssetForChain: jest.fn(),
-      getAssetType: jest.fn().mockReturnValue('erc20'),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -2028,7 +2017,7 @@ describe('RpcDataSource', () => {
     it('cleans up subscriptions and caches', () => {
       const { rootMessenger, assetsControllerMessenger } =
         createMockAssetControllerMessenger();
-      registerRpcDataSourceActions(rootMessenger, assetsControllerMessenger, {
+      registerRpcDataSourceActions(rootMessenger, {
         networkState: createMockNetworkState(),
       });
       const controller = new RpcDataSource({
