@@ -321,4 +321,36 @@ describe('AssetsController spam cleanup', () => {
       });
     });
   });
+
+  it('preserves concurrent state updates during the sweep', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+
+    await withController({}, async ({ controller, messenger }) => {
+      messenger.publish('KeyringController:unlock');
+      
+      // Simulate a concurrent update while the sweep is awaiting the Token API
+      controller.update((state) => {
+        return {
+          ...state,
+          assetsInfo: {
+            ...state.assetsInfo,
+            'eip155:1/erc20:0xconcurrent': {
+              type: 'erc20',
+              symbol: 'CON',
+              name: 'Concurrent Token',
+              decimals: 18,
+            },
+          },
+        };
+      });
+
+      await waitForTokenApiRequests();
+
+      await waitFor(() => {
+        expect(controller.state.assetsInfo[MAINNET_SPAM]).toBeUndefined();
+        expect(controller.state.assetsInfo['eip155:1/erc20:0xconcurrent']).toBeDefined();
+      });
+    });
+  });
 });
