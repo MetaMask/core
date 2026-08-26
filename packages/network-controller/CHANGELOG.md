@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `init` to auto-register default networks from `ConfigRegistryController` ([#9879](https://github.com/MetaMask/core/pull/9879))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 - Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/eth-json-rpc-middleware` from `^24.0.0` to `^24.0.1` ([#9967](https://github.com/MetaMask/core/pull/9967))
 
 ## [35.0.1]
 
