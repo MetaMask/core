@@ -66,6 +66,9 @@ export type KycControllerLoadDisclaimersAction = {
  * Required for every vendor so callers explicitly declare acceptance.
  * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
  * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.credentialReusabilityConsentGiven - Whether the customer
+ * consented to reuse existing idOS credentials. Used when recording
+ * session-scoped disclaimers on the consents path. Defaults to `false`.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
@@ -180,6 +183,9 @@ export type KycControllerGetCustomerIdentityAction = {
  * the UKYC session (handing over the wrapped key and the token);
  * 5. fetches the SumSub applicant access token; and
  * 6. presents the SDK via the injected launcher.
+ *
+ * If a UKYC session already exists (the consents path creates it before
+ * recording session disclaimers), steps 1–4 are skipped.
  *
  * If session creation reports the applicant is already approved on the relay
  * while the vendor is still finalizing (`kycStatus: approved`,

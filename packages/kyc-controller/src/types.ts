@@ -66,8 +66,8 @@ export type KycUserStatusResponse = {
  *
  * - `idle` — nothing started.
  * - `terms` — waiting for the customer to accept the vendor terms.
- * - `session` — creating the vendor session (MoonPay) or posting consents
- *   (non-MoonPay vendors).
+ * - `session` — creating the vendor session (MoonPay) or creating the UKYC
+ *   session and recording session-scoped disclaimers (non-MoonPay vendors).
  * - `check` — running the invisible connection-check frame (MoonPay only).
  * - `auth` — running the visible authentication (OTP) frame (MoonPay only).
  * - `form` — authenticated. When the flow is scoped to a product, the
@@ -138,8 +138,8 @@ export type KycSessionStatus = {
 };
 
 /**
- * A single disclaimer/term the customer must accept before a session is
- * created.
+ * A single disclaimer/term the customer must accept before a vendor session is
+ * created (`GET /vendors/{vendor}/disclaimers`).
  */
 export type KycDisclaimer = {
   id: string;
@@ -147,6 +147,59 @@ export type KycDisclaimer = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   display_name: string;
   url: string;
+};
+
+/**
+ * A vendor T&C signing returned by `POST /vendors/{vendor}/disclaimers`.
+ */
+export type KycVendorSigning = {
+  /** Iron signing id. */
+  id: string;
+  // Mirrors the vendor API response field, which is snake_case.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  customer_id: string;
+  // Mirrors the vendor API response field, which is snake_case.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  content_id?: string;
+};
+
+/**
+ * A legal document in the session-scoped idOS / KYC-provider catalog
+ * (`GET`/`POST /sessions/{sessionId}/disclaimers`).
+ */
+export type KycConsentDocument = {
+  /** Stable identifier of the legal document. */
+  key: string;
+  /** Version of the document currently in force. */
+  version: string;
+  /** Human-readable document title. */
+  title: string;
+  /** URL the document body is hosted at. */
+  url: string;
+  /** Whether this session already consented to this document version. */
+  consented: boolean;
+};
+
+/**
+ * A consent record posted for a catalog document. `key` and `version` must
+ * match the current session catalog.
+ */
+export type KycConsentRecord = {
+  key: string;
+  version: string;
+};
+
+/**
+ * Session-scoped disclaimer catalog returned by
+ * `GET`/`POST /sessions/{sessionId}/disclaimers`.
+ */
+export type KycSessionDisclaimers = {
+  /** idOS legal documents. */
+  idOS: KycConsentDocument[];
+  /** KYC provider (SumSub) legal documents. */
+  kycProvider: KycConsentDocument[];
+  /** Whether the user consented to reuse existing idOS credentials. */
+  credentialReusabilityConsentGiven: boolean;
 };
 
 /**

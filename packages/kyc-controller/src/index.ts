@@ -40,6 +40,7 @@ export type {
   CreateVendorCustomerParams,
   CreateSessionParams,
   CreateUkycSessionParams,
+  FetchSessionDisclaimersParams,
   GetSessionStatusParams,
   GetWrappingKeyParams,
   VendorCustomerResponse,
@@ -51,7 +52,8 @@ export type {
   KycServiceInvalidateQueriesAction,
   KycServiceMessenger,
   KycServiceOptions,
-  SubmitConsentsParams,
+  SubmitSessionDisclaimersParams,
+  SubmitVendorDisclaimersParams,
   UkycSessionResponse,
   WrappedEncryptionKey,
   WrappingKeyResponse,
@@ -65,10 +67,12 @@ export type {
   KycServiceFetchDisclaimersAction,
   KycServiceFetchJwksAction,
   KycServiceFetchKycStatusAction,
+  KycServiceFetchSessionDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetWrappingKeyAction,
-  KycServiceSubmitConsentsAction,
+  KycServiceSubmitSessionDisclaimersAction,
+  KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
 export {
@@ -87,10 +91,13 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycConsentDocument,
+  KycConsentRecord,
   KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
   KycProduct,
+  KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
@@ -98,6 +105,7 @@ export type {
   KycUserStatus,
   KycUserStatusResponse,
   KycVendor,
+  KycVendorSigning,
 } from './types.js';
 
 // UKYC storage-access-token utilities. Exported so a signed capability token can

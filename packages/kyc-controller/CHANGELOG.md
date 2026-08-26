@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add session-scoped disclaimer APIs on `KycService` for the idOS / KYC-provider catalog:
+  - `fetchSessionDisclaimers({ sessionId })` calls `GET /sessions/{sessionId}/disclaimers`
+  - `submitSessionDisclaimers({ sessionId, idOS, kycProvider, credentialReusabilityConsentGiven })` calls `POST /sessions/{sessionId}/disclaimers`
+- Add `KycService.submitVendorDisclaimers({ vendor, disclaimerIds })` (`POST /vendors/{vendor}/disclaimers`) to record Iron T&C signings, plus the `KycVendorSigning` response type. The consents path calls this alongside session-scoped disclaimers; vendor T&C ids are no longer sent on the session disclaimer POST.
+- Add `KycConsentDocument`, `KycConsentRecord`, and `KycSessionDisclaimers` types for that catalog, plus in-memory `credentialReusabilityConsentGiven` and `sessionDisclaimers` controller state. `acceptTermsAndStartSession` forwards optional `credentialReusabilityConsentGiven` (default `false`).
 - Parameterize Universal KYC vendor HTTP on `KycService` so identity vendors share one client surface instead of vendor-branded methods ([#9908](https://github.com/MetaMask/core/pull/9908)):
   - `fetchDisclaimers({ vendor, country })` and `checkKycRequired({ vendor, ... })` call `/vendors/{vendor}/disclaimers` and `/vendors/{vendor}/kyc-required` (`vendor` defaults to `moonpay`)
   - `createVendorCustomer({ vendor, email })` calls `POST /vendors/{vendor}/customers`
-  - `submitConsents({ disclaimerIds, ... })` posts `POST /consents` (wire body still uses `ironDisclaimerIds`)
   - `fetchKycStatus()` reads `GET /kyc/status`
 - Add a consents-path KYC flow on `KycController` for non-MoonPay vendors (currently `iron`): empty-shell customer → disclaimers → consents → SumSub, skipping MoonPay Check/Auth frames. `initialize({ vendor })` and `createVendorCustomer({ vendor, email })` drive the path; `acceptTermsAndStartSession` requires `sumsubTncSigned` / `idosTncSigned`. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Add `KycController.refreshKycStatus()` and the `KycController:statusChanged` event so consumers can poll user-keyed KYC status for toast / banner surfaces. ([#9908](https://github.com/MetaMask/core/pull/9908))
@@ -25,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace `KycService.submitConsents` (`POST /consents`) with session-scoped `fetchSessionDisclaimers` / `submitSessionDisclaimers` plus vendor T&C recording via `submitVendorDisclaimers`. Consents now use `{ key, version }` document records plus `credentialReusabilityConsentGiven` instead of Iron disclaimer ids and boolean T&C flags, and they require a UKYC session id. Iron content ids are posted separately to `POST /vendors/{vendor}/disclaimers`. The consents path records vendor T&Cs, then creates the UKYC session, then records session disclaimers. A 409 conflict is re-checked with a GET and only treated as success when every accepted document is consented.
 - Make the `fetch` option on the `KycService` constructor optional; it now defaults to the runtime's native `fetch` (browser, React Native, Node 18+), so consumers no longer need to inject one. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - **BREAKING:** Invalidate terms acceptance when `termsAcceptedVendor` is `null` (pre-migration state), forcing reacceptance after the multi-vendor upgrade to ensure users review current vendor terms. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - **BREAKING:** Require `sumsubTncSigned` and `idosTncSigned` on `acceptTermsAndStartSession` for every vendor, so callers explicitly declare T&C2 acceptance. Zero-argument calls and omitted flags fail instead of defaulting to `true`. ([#9908](https://github.com/MetaMask/core/pull/9908))

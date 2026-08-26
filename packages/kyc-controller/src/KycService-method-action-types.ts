@@ -71,14 +71,48 @@ export type KycServiceCreateVendorCustomerAction = {
 };
 
 /**
- * Posts T&C1 (vendor signings) and T&C2 (Sumsub + idOS) consents for the
- * authenticated user. The API responds with 204 No Content on success.
+ * Records vendor T&C acceptance (`POST /vendors/{vendor}/disclaimers`).
+ * For Iron this creates content signings from the disclaimer ids the
+ * customer accepted. Session-scoped idOS / KYC-provider consents are
+ * recorded separately via {@link submitSessionDisclaimers}. Retries re-POST
+ * the same ids, matching the legacy `POST /consents` signing step.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron`).
+ * @param params.disclaimerIds - Accepted vendor T&C ids.
+ * @returns The vendor signing records.
+ */
+export type KycServiceSubmitVendorDisclaimersAction = {
+  type: `KycService:submitVendorDisclaimers`;
+  handler: KycService['submitVendorDisclaimers'];
+};
+
+/**
+ * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
+ * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
+ * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The catalog, including which documents are already consented.
+ */
+export type KycServiceFetchSessionDisclaimersAction = {
+  type: `KycService:fetchSessionDisclaimers`;
+  handler: KycService['fetchSessionDisclaimers'];
+};
+
+/**
+ * Records idOS + KYC-provider consents for a UKYC session
+ * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
+ * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+ * means those document versions were already recorded for the session.
  *
  * @param params - The consent parameters.
+ * @returns The updated catalog after recording.
  */
-export type KycServiceSubmitConsentsAction = {
-  type: `KycService:submitConsents`;
-  handler: KycService['submitConsents'];
+export type KycServiceSubmitSessionDisclaimersAction = {
+  type: `KycService:submitSessionDisclaimers`;
+  handler: KycService['submitSessionDisclaimers'];
 };
 
 /**
@@ -173,7 +207,9 @@ export type KycServiceMethodActions =
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
-  | KycServiceSubmitConsentsAction
+  | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchSessionDisclaimersAction
+  | KycServiceSubmitSessionDisclaimersAction
   | KycServiceFetchKycStatusAction
   | KycServiceGetWrappingKeyAction
   | KycServiceFetchJwksAction
