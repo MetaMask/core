@@ -9206,6 +9206,83 @@ describe('RampsController', () => {
       });
     });
 
+    it('prefers the KYC session identity over Profile Sync lookup', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        spyOnGetCustomerIdentity(rootMessenger, {
+          vendor: 'iron',
+          id: 'kyc-cust-1',
+        });
+        const getSessionProfile = jest.fn();
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          getSessionProfile,
+        );
+        const getCustomerByExternalId = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'kyc-cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        const created = await controller.createAutoramp({
+          customer_id: 'attacker-supplied',
+        });
+
+        expect(createAutoramp).toHaveBeenCalledWith(
+          { customer_id: 'kyc-cust-1' },
+          {},
+        );
+        expect(created.customerId).toBe('kyc-cust-1');
+        expect(getSessionProfile).not.toHaveBeenCalled();
+        expect(getCustomerByExternalId).not.toHaveBeenCalled();
+      });
+    });
+
+    it('falls back to Profile Sync when KYC identity has an empty id', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        spyOnGetCustomerIdentity(rootMessenger, { vendor: 'iron', id: '' });
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-fallback' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          async () => ({
+            id: 'ar-new',
+            customerId: 'cust-fallback',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Created,
+          }),
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('canonical-1');
+      });
+    });
+
     it('skips failed refreshes when refreshing all autoramps', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -9505,6 +9582,7 @@ describe('RampsController', () => {
     };
 
     type WalletRegistrationHandlers = {
+      getCustomerIdentity: jest.Mock;
       getSessionProfile: jest.Mock;
       getCustomerByExternalId: jest.Mock;
       getWalletRegistrationStatus: jest.Mock;
@@ -9523,6 +9601,7 @@ describe('RampsController', () => {
       rootMessenger: RootMessenger,
     ): WalletRegistrationHandlers {
       const handlers: WalletRegistrationHandlers = {
+        getCustomerIdentity: spyOnGetCustomerIdentity(rootMessenger, null),
         getSessionProfile: jest.fn().mockResolvedValue({
           identifierId: 'id-1',
           profileId: 'profile-1',
@@ -9638,9 +9717,29 @@ describe('RampsController', () => {
 
         await controller.registerMoneyAccountWallet({ address: '0xabc' });
 
+        expect(handlers.getCustomerIdentity).toHaveBeenCalled();
         expect(handlers.getCustomerByExternalId).toHaveBeenCalledWith(
           'canonical-1',
         );
+      });
+    });
+
+    it('prefers the KYC session identity over Profile Sync lookup', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getCustomerIdentity.mockReturnValue({
+          vendor: 'iron',
+          id: 'kyc-cust-1',
+        });
+
+        await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'kyc-cust-1',
+          address: '0xabc',
+        });
+        expect(handlers.getSessionProfile).not.toHaveBeenCalled();
+        expect(handlers.getCustomerByExternalId).not.toHaveBeenCalled();
       });
     });
 
@@ -12613,6 +12712,13 @@ function getRootMessenger(): RootMessenger {
     'RampsService:getDefaultRedirectCallbackUrl',
     () => STAGING_REDIRECT_CALLBACK_URL,
   );
+  // Default: no KYC session, so autoramp / wallet registration fall back to
+  // Profile Sync → neo-bank external-id lookup. Tests that need a session
+  // identity call `spyOnGetCustomerIdentity`.
+  rootMessenger.registerActionHandler(
+    'KycController:getCustomerIdentity',
+    () => null,
+  );
   return rootMessenger;
 }
 
@@ -12635,6 +12741,28 @@ function spyOnDefaultRedirectCallbackUrl(
   );
   rootMessenger.registerActionHandler(
     'RampsService:getDefaultRedirectCallbackUrl',
+    handler,
+  );
+  return handler;
+}
+
+/**
+ * Replaces the default `KycController:getCustomerIdentity` handler with a spy.
+ *
+ * @param rootMessenger - The root messenger to re-register the handler on.
+ * @param identity - Session identity to return, or `null` when none is captured.
+ * @returns The spy standing in for the KYC controller method.
+ */
+function spyOnGetCustomerIdentity(
+  rootMessenger: RootMessenger,
+  identity: { vendor: string; id: string } | null,
+): jest.Mock<{ vendor: string; id: string } | null, []> {
+  const handler = jest.fn<{ vendor: string; id: string } | null, []>(
+    () => identity,
+  );
+  rootMessenger.unregisterActionHandler('KycController:getCustomerIdentity');
+  rootMessenger.registerActionHandler(
+    'KycController:getCustomerIdentity',
     handler,
   );
   return handler;

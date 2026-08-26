@@ -218,7 +218,8 @@ export class WalletRegistrationService {
   /**
    * Resolves Iron's internal customer id via
    * `GET /neobank/customers/{external_id}/external`, using the MetaMask
-   * profile/canonical id as `external_id`.
+   * profile/canonical id as `external_id`. Used when the current KYC flow has
+   * not already received `customer.id` from MoonPay's hosted frame.
    *
    * @returns Iron's internal customer id.
    */
