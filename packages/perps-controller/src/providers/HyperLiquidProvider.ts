@@ -255,6 +255,7 @@ const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
 
 const CHASE_ORDER_STATUS_RETRY_COUNT = 2;
 const CHASE_ORDER_STATUS_RETRY_DELAY_MS = 100;
+const CHASE_ORDER_STATUS_UNAVAILABLE = 'status_unavailable';
 
 class ChaseOrderStatusUnavailableError extends Error {
   constructor() {
@@ -5615,7 +5616,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       isBuy: params.isBuy,
       szDecimals,
     });
-    if (quotePrice === 'gone') {
+    if (
+      quotePrice === 'gone' ||
+      quotePrice === CHASE_ORDER_STATUS_UNAVAILABLE
+    ) {
       // No own order to be gone on a first placement; narrows the union.
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
     }
@@ -5669,7 +5673,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           isBuy: params.isBuy,
           szDecimals,
         });
-        if (refreshedQuote === 'gone') {
+        if (
+          refreshedQuote === 'gone' ||
+          refreshedQuote === CHASE_ORDER_STATUS_UNAVAILABLE
+        ) {
           throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
         }
         if (generation !== this.#strategyGeneration) {
@@ -5785,8 +5792,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.own.orderId - Exchange ID of that order.
    * @param params.own.price - Price that order rests at.
    * @param params.own.size - Size it was last placed for.
-   * @returns The formatted price the chase should rest at, or `'gone'` when the
-   * order it was chasing is no longer live.
+   * @returns The formatted price, `'gone'` for a confirmed fill, or the status
+   * unavailable sentinel when the child must remain cancellable.
    */
   async #getChaseQuotePrice(params: {
     symbol: string;
@@ -5794,7 +5801,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     szDecimals: number;
     /** The chase's own resting order, excluded from the book it reads. */
     own?: { orderId: string; price: string; size: string };
-  }): Promise<string | 'gone'> {
+  }): Promise<string | 'gone' | typeof CHASE_ORDER_STATUS_UNAVAILABLE> {
     const { symbol, isBuy, szDecimals, own } = params;
 
     const book = await this.#clientService.getInfoClient().l2Book({
@@ -5809,8 +5816,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       callerOrderId: own?.orderId,
       ownSide,
     });
-    if (netting === 'gone') {
-      return 'gone';
+    if (netting === 'gone' || netting === CHASE_ORDER_STATUS_UNAVAILABLE) {
+      return netting;
     }
 
     const bestBid = readBestExternalPrice(book?.levels?.[0], netting);
@@ -6025,6 +6032,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       session.status = CHASE_ORDER_STATUS.Filled;
       this.#deps.debugLogger.log('Chase order filled between ticks', {
         sessionId,
+      });
+      return;
+    }
+    if (rawQuotePrice === CHASE_ORDER_STATUS_UNAVAILABLE) {
+      // The child may still be live. Stop repricing but retain its exchange ID
+      // so the caller can still cancel it through the Chase handle.
+      session.active = false;
+      session.status = CHASE_ORDER_STATUS.Failed;
+      this.#deps.debugLogger.log('Chase order status unavailable', {
+        sessionId,
+        orderId: session.orderId,
       });
       return;
     }
@@ -6294,7 +6312,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     isBuy: boolean;
     callerOrderId?: string;
     ownSide?: { px: string; sz: string }[];
-  }): Promise<Map<string, number> | 'gone'> {
+  }): Promise<
+    Map<string, number> | 'gone' | typeof CHASE_ORDER_STATUS_UNAVAILABLE
+  > {
     const { symbol, isBuy, callerOrderId, ownSide } = params;
 
     // Every chase this provider is running on this side, the caller included.
@@ -6334,6 +6354,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     let callerIsGone = false;
+    let callerStatusUnavailable = false;
     for (const order of ambiguous) {
       try {
         const live = await this.#readOrderRemainder(
@@ -6354,7 +6375,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           error instanceof ChaseOrderStatusUnavailableError &&
           order.orderId === callerOrderId
         ) {
-          callerIsGone = true;
+          callerStatusUnavailable = true;
           continue;
         }
         // A failed lookup must not stop the chase. Keeping the recorded size can
@@ -6367,6 +6388,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
+    if (callerStatusUnavailable) {
+      return CHASE_ORDER_STATUS_UNAVAILABLE;
+    }
     return callerIsGone ? 'gone' : recorded;
   }
 
@@ -6539,8 +6563,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           session.lastSnapshotSizeRefreshAt = now;
           const snapshotOrderId = session.orderId;
           try {
-            const liveRemainder =
-              await this.#readOrderRemainder(snapshotOrderId);
+            const liveRemainder = await this.#readOrderRemainder(
+              snapshotOrderId,
+              CHASE_ORDER_STATUS_RETRY_COUNT,
+            );
             if (
               session.orderId === snapshotOrderId &&
               session.pendingReplacement === null

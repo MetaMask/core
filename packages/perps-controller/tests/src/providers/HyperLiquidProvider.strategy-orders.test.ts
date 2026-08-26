@@ -2746,7 +2746,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
-    it('retains a live Chase when its child status is temporarily unknown', async () => {
+    it('retries a temporarily unknown child before refreshing Chase state', async () => {
       const { exchangeClient, infoClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
       });
@@ -2766,7 +2766,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'active',
         }),
       );
-      expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+      expect(infoClient.orderStatus).toHaveBeenCalledTimes(2);
 
       expect(
         await provider.cancelOrder({
@@ -6498,7 +6498,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       });
 
-      await provider.placeOrder({
+      const placed = await provider.placeOrder({
         ...baseOrder,
         orderType: 'chase',
         chaseIntervalMs: 1000,
@@ -6509,12 +6509,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.orderStatus).toHaveBeenCalledTimes(3);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(order).toHaveBeenCalledTimes(1);
-      expect(await provider.getChaseOrders()).toContainEqual(
+      const snapshots = provider.getChaseOrders();
+      await jest.advanceTimersByTimeAsync(300);
+      expect(await snapshots).toContainEqual(
         expect.objectContaining({
-          restingOrderId: null,
-          status: CHASE_ORDER_STATUS.Filled,
+          restingOrderId: '55',
+          status: CHASE_ORDER_STATUS.Failed,
         }),
       );
+      expect(infoClient.orderStatus).toHaveBeenCalledTimes(6);
+
+      expect(
+        await provider.cancelOrder({
+          orderId: placed.orderId,
+          symbol: 'ETH',
+          orderType: 'chase',
+        }),
+      ).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 55 }],
+      });
     });
   });
 
