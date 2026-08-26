@@ -136,6 +136,8 @@ export type PerpsControllerGetChaseOrdersAction = {
  * resting children.
  *
  * @returns Chase snapshots after suspension.
+ * @throws If an aggregated provider cannot suspend every active venue. Other
+ * providers may already be suspended; callers can retry to reconcile them.
  */
 export type PerpsControllerSuspendChaseOrdersAction = {
   type: `PerpsController:suspendChaseOrders`;
