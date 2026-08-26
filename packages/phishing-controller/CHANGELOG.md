@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Requests are wrapped in a shared retry policy, configurable via the `policyOptions` constructor option; circuit breaking is disabled by default because the service spans four independent API hosts and a broken circuit caused by one host would pause phishing-list updates from the others
   - Scan results are cached per URL hostname, token, and address for `SCAN_RESULT_STALE_TIME` (1 minute, matching the previous cache TTLs); bulk scans only request items without a fresh cached result and coalesce them into batched API calls (up to 50 URLs / 100 tokens per request), and single and bulk URL scans share cache entries; approvals are never cached
   - The query cache is persisted between sessions by default (`persistenceConfig`, max age 5 minutes), which requires the `StorageService:setItem`, `StorageService:getItem`, and `StorageService:removeItem` messenger actions and an `init` call during client initialization (automatic with `@metamask/wallet`); pass `persistenceConfig: null` to disable
-
 - Export the `resolveChainName` utility, which maps chain IDs to the chain names used in scan query keys, enabling UI consumers to construct `PhishingDataService` query keys
 
 ### Changed
@@ -27,12 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tokens for which the bulk scanning API returns no result are now negatively cached for `SCAN_RESULT_STALE_TIME` instead of being re-requested on every call
 - `scanUrl` now reports the underlying error message in `fetchError` for network errors instead of `'timeout of 8000ms exceeded'`
 - Malformed API responses (e.g. a stalelist without a numeric `lastUpdated`, or scan results without a `recommendedAction`/`result_type`) are now rejected and treated as request failures instead of being passed through
-- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
 
 ### Removed
 
 - **BREAKING:** Remove the `CacheEntry` type; the custom cache manager has been replaced by `PhishingDataService`'s query cache
 - **BREAKING:** Remove the `DEFAULT_URL_SCAN_CACHE_TTL`, `DEFAULT_URL_SCAN_CACHE_MAX_SIZE`, `DEFAULT_TOKEN_SCAN_CACHE_TTL`, `DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE`, `DEFAULT_ADDRESS_SCAN_CACHE_TTL`, and `DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE` constants
+
+## [17.4.0]
+
+### Added
+
+- Add `isAddressScanSupportedChainId` so clients can check whether `scanAddress` will call the Security Alerts API for a chain ID, without duplicating `DEFAULT_CHAIN_ID_TO_NAME` and `ADDRESS_SCAN_SUPPORTED_CHAINS` ([#9946](https://github.com/MetaMask/core/pull/9946))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [17.3.1]
 
@@ -659,7 +668,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...HEAD
+[17.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...@metamask/phishing-controller@17.4.0
 [17.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...@metamask/phishing-controller@17.3.1
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...@metamask/phishing-controller@17.3.0
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.0...@metamask/phishing-controller@17.2.1

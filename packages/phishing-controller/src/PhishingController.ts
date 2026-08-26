@@ -72,7 +72,7 @@ import {
   getPhishingDetectionScanUrlParam,
   resolveChainName,
   getPathnameFromUrl,
-  isAddressScanSupportedChain,
+  getAddressScanSupportedChain,
   isApprovalSupportedChain,
   isTokenScanSupportedChain,
 } from './utils.js';
@@ -1138,9 +1138,9 @@ export class PhishingController extends BaseController<
 
     const normalizedChainId = chainId.toLowerCase();
     const normalizedAddress = address.toLowerCase();
-    const chain = resolveChainName(normalizedChainId);
+    const chain = getAddressScanSupportedChain(normalizedChainId);
 
-    if (!chain || !isAddressScanSupportedChain(chain)) {
+    if (!chain) {
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',

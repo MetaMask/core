@@ -34,6 +34,7 @@ export {
 export {
   PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
   getPhishingDetectionScanUrlParam,
+  isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
   resolveChainName,
 } from './utils.js';

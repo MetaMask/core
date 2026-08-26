@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chomp-api-service",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Data service for the Chomp API",
   "keywords": [
     "Ethereum",
@@ -53,12 +53,12 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-data-service": "^0.1.3",
+    "@metamask/base-data-service": "^1.0.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0",
-    "@tanstack/query-core": "^4.43.0"
+    "@tanstack/query-core": "^5.62.16"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

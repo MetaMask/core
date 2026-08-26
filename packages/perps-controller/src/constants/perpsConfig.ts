@@ -63,6 +63,9 @@ export const PERPS_CONSTANTS = {
   // Recently viewed markets
   RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
   RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
+
+  // Temporary order form draft
+  PendingTradeConfigurationTtlMs: 30_000, // Restore a draft only during a brief navigation away from the form
 } as const;
 
 /**
@@ -114,6 +117,47 @@ export const ORDER_SLIPPAGE_CONFIG = {
 } as const;
 
 /**
+ * Defaults and bounds for the emulated `chase` placement.
+ *
+ * No supported venue exposes a chase as an API action — HyperLiquid documents it
+ * as running client-side — so the strategy is run here: a post-only order rests
+ * one tick inside the spread and is cancelled and re-placed as the touch moves.
+ * The poll floor limits request frequency; callers may also set explicit
+ * duration or repricing caps. Protocol-agnostic — a provider that gains a
+ * native chase ignores these entirely.
+ */
+export const CHASE_ORDER_CONFIG = {
+  /** Maximum submissions used to survive a touch moving before an ALO rests. */
+  InitialPlacementAttempts: 3,
+  /** How often the touch is re-read when the caller does not say. */
+  DefaultIntervalMs: 15000,
+  /** Floor on the poll interval, whatever the caller asks for. */
+  MinIntervalMs: 1000,
+  /**
+   * How many chases may run at once.
+   *
+   * HyperLiquid documents a cap of five simultaneously active chase orders. It
+   * is a venue rule rather than controller policy, but it is spelled here
+   * alongside the rest of the chase configuration because an emulated chase is
+   * the only thing that can enforce it.
+   */
+  MaxActiveSessions: 5,
+} as const;
+
+/** Public lifecycle states reported for an emulated Chase order. */
+export const CHASE_ORDER_STATUS = {
+  Active: 'active',
+  TerminationPending: 'termination_pending',
+  Backgrounded: 'backgrounded',
+  MaxDistanceReached: 'max_distance_reached',
+  DurationReached: 'duration_reached',
+  RepricingLimitReached: 'repricing_limit_reached',
+  Filled: 'filled',
+  Canceled: 'canceled',
+  Failed: 'failed',
+} as const;
+
+/**
  * Bounds and step for the user-configurable max slippage preference (basis points).
  * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
  */
@@ -143,6 +187,9 @@ export const PERFORMANCE_CONFIG = {
   // Order validation debounce delay (milliseconds)
   // Prevents excessive validation calls during rapid form input changes
   ValidationDebounceMs: 300,
+
+  // Freshness window for provider market metadata used by strategy capability reads
+  OrderCapabilitiesMetaFreshnessMs: 30_000,
 
   // Liquidation price debounce delay (milliseconds)
   // Prevents excessive liquidation price calls during rapid form input changes
@@ -253,6 +300,28 @@ export const TP_SL_CONFIG = {
 } as const;
 
 /**
+ * Bounds applied to a HyperLiquid TWAP placement.
+ *
+ * The pinned HyperLiquid SDK (0.33.1) validates the TWAP duration as a safe
+ * integer in `[5, 1440]` before signing, although the venue currently documents
+ * a maximum of seven days (`10080` minutes). The controller exposes the SDK's
+ * narrower cap until that dependency supports the venue limit, avoiding an
+ * opaque SDK error. `MinNotionalUsd` is the venue's documented minimum *total*
+ * order size for a TWAP, which it enforces instead of the per-order minimum —
+ * its suborders are its own business.
+ *
+ * Carries the venue prefix, like `HYPERLIQUID_ORDER_LIMITS`, because these are
+ * venue/SDK constraints rather than controller policy.
+ *
+ * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-types
+ */
+export const HYPERLIQUID_TWAP_LIMITS = {
+  MinDurationMinutes: 5,
+  MaxDurationMinutes: 1440,
+  MinNotionalUsd: 100,
+} as const;
+
+/**
  * HyperLiquid order limits based on leverage
  * From: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications
  */
@@ -333,9 +402,24 @@ export const DATA_LAKE_API_CONFIG = {
 } as const;
 
 /**
+ * Subscription benefits cache (stale-while-revalidate).
+ *
+ * The unified fee resolver never awaits the benefits read, so these bounds are
+ * what decide whether the cached snapshot may grant the perps fee waiver:
+ * - within `FreshMs` the snapshot is served as-is,
+ * - past `FreshMs` it is still served while a background refresh runs,
+ * - past `MaxStaleMs` it is no longer trusted to grant the waiver, and the
+ *   resolver falls back to the next-lowest fee source.
+ */
+export const SUBSCRIPTION_BENEFITS_CACHE = {
+  FreshMs: 60_000, // 1 minute – no refresh triggered
+  MaxStaleMs: 10 * 60 * 1000, // 10 minutes – ceiling for granting the waiver
+} as const;
+
+/**
  * Terminal API configuration.
  * The full endpoint URL is injected at runtime via
- * `PerpsPlatformDependencies.terminalApiUrl` from each client build
+ * `PerpsPlatformDependencies.terminalApi.marketDataUrl` from each client build
  * (dev/uat/prd); only cache settings live here.
  */
 export const TERMINAL_API_CONFIG = {
@@ -435,18 +519,90 @@ export enum PerpsMode {
 }
 
 /**
+ * Side filter for the Pro Positions list (long/short/all).
+ *
+ * Independent of `ordersSideFilter`. Shared across markets via
+ * `proLayoutPreferences.positionsSideFilter`.
+ */
+export type ProPositionsSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Positions list.
+ */
+export type ProPositionsSortField =
+  | 'positionValue'
+  | 'unrealizedPnl'
+  | 'fundingRate';
+
+/**
+ * Sort direction for the Pro Positions list.
+ */
+export type ProPositionsSortDirection = 'asc' | 'desc';
+
+/**
+ * Side filter for the Pro Orders list (long/short/all).
+ *
+ * Independent of `positionsSideFilter`. Shared across markets via
+ * `proLayoutPreferences.ordersSideFilter`.
+ */
+export type ProOrdersSideFilter = 'all' | 'long' | 'short';
+
+/**
+ * Sort fields available on the Pro Orders list.
+ */
+export type ProOrdersSortField = 'orderValue' | 'size' | 'price' | 'time';
+
+/**
+ * Sort direction for the Pro Orders list.
+ */
+export type ProOrdersSortDirection = 'asc' | 'desc';
+
+/**
+ * Currency used by the Pro order-book size/total column.
+ */
+export type OrderBookListCurrency = 'base' | 'usd';
+
+/**
+ * Value shown by the Pro order-book size/total column.
+ */
+export type OrderBookListMetric = 'size' | 'total';
+
+/**
+ * Market-agnostic Pro order-book display preferences.
+ */
+export type OrderBookPreferences = {
+  currency: OrderBookListCurrency;
+  metric: OrderBookListMetric;
+};
+
+/**
+ * Default Pro order-book display preferences.
+ */
+export const DEFAULT_ORDER_BOOK_PREFERENCES: OrderBookPreferences = {
+  currency: 'usd',
+  metric: 'total',
+};
+
+/**
  * Pro-mode layout preferences (network-independent).
  *
  * Flat object that persists across markets (unlike the per-market
  * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
- * reserved for future container-position UI and are kept here now so no
- * state-shape migration is needed when that UI ships.
+ * reserved for future container-position UI. Positions and Orders each have
+ * their own side filter and sort so they survive market navigation and app
+ * restarts independently.
  */
 export type ProLayoutPreferences = {
   orderBookExpanded: boolean;
   chartExpanded: boolean;
   orderBookPosition: 'left' | 'right';
   orderFormPosition: 'left' | 'right';
+  positionsSideFilter: ProPositionsSideFilter;
+  positionsSortField: ProPositionsSortField;
+  positionsSortDirection: ProPositionsSortDirection;
+  ordersSideFilter: ProOrdersSideFilter;
+  ordersSortField: ProOrdersSortField;
+  ordersSortDirection: ProOrdersSortDirection;
 };
 
 /**
@@ -458,15 +614,26 @@ export type ProLayoutPreferences = {
  */
 export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   orderBookExpanded: false,
-  chartExpanded: false,
+  chartExpanded: true,
   orderBookPosition: 'left',
   orderFormPosition: 'right',
+  positionsSideFilter: 'all',
+  positionsSortField: 'positionValue',
+  positionsSortDirection: 'desc',
+  ordersSideFilter: 'all',
+  ordersSortField: 'time',
+  ordersSortDirection: 'desc',
 };
 
 /**
  * Default Perps interface mode.
  */
 export const DEFAULT_PERPS_MODE: PerpsMode = PerpsMode.Lite;
+
+/**
+ * Default market-agnostic order type.
+ */
+export const DEFAULT_SELECTED_ORDER_TYPE = 'market' as const;
 
 /**
  * Funding rate display configuration

@@ -707,7 +707,7 @@ export class PhishingDataService extends BaseDataService<
           address,
         }),
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
     });
 
     return this.#validate(

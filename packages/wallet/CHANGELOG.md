@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^3.0.0` to `^3.1.0`. ([#9952](https://github.com/MetaMask/core/pull/9952))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/gas-fee-controller` from `^26.3.1` to `^26.3.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+  - This should have been included in 12.0.0.
+
+## [12.0.0]
+
+### Added
+
+- Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor option to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+- **BREAKING:** Wire `ConfigRegistryApiService` and `ConfigRegistryController` into the default wallet initialization ([#9928](https://github.com/MetaMask/core/pull/9928))
+  - Adds a required `configRegistryApiService` slot to `instanceOptions` with a required `env` (`ConfigRegistryApiEnv`) and optional `fetch` and `policyOptions`. `fetch` defaults to `globalThis.fetch` via `ConfigRegistryApiService`.
+  - Adds an optional `configRegistryController` slot to `instanceOptions` for optional `pollingInterval` and `fallbackConfig`.
+  - `ConfigRegistryController` delegates `KeyringController:getState`, `RemoteFeatureFlagController:getState`, and `ConfigRegistryApiService:fetchConfig`, and subscribes to `KeyringController:unlock`, `KeyringController:lock`, and `RemoteFeatureFlagController:stateChange`.
+  - Consumers that pass their own root messenger and already wire `ConfigRegistryApiService` / `ConfigRegistryController` must remove their own before upgrading, or the duplicate registration will collide.
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/subscription-controller` from `^7.0.0` to `^8.0.0` ([#9903](https://github.com/MetaMask/core/pull/9903))
+  - Exported `DefaultActions` and root-messenger `SubscriptionController:*` actions pick up the 8.0.0 renames: `SubscriptionController:startShieldSubscriptionWithCard` is now `SubscriptionController:startSubscriptionWithCard`, and `SubscriptionController:submitShieldSubscriptionCryptoApproval` is now `SubscriptionController:submitSubscriptionCryptoApproval`.
+  - `submitSubscriptionCryptoApproval` and `cacheLastSelectedPaymentMethod` now take a single request object instead of positional arguments.
+  - Exported `DefaultState['SubscriptionController']` changes: `lastSelectedPaymentMethod` is `Partial`, `PricingPaymentMethod` and `TokenPaymentInfo` are discriminated unions, and `TokenPaymentInfo.conversionRate` is optional. Narrow with `type === 'crypto'` / `isVaultShare === true` before reading crypto- or vault-only fields.
 - Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [10.0.0]
@@ -172,7 +214,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...@metamask/wallet@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...@metamask/wallet@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0

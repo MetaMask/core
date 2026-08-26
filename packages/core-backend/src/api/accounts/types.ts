@@ -85,7 +85,7 @@ export const V6_DEFI_POSITION_TYPES = [
 export type V6DeFiPositionType = (typeof V6_DEFI_POSITION_TYPES)[number];
 
 /**
- * DeFi protocol metadata attached to a `category: defi` row in the v6 balances
+ * DeFi protocol metadata attached to an `object: defi` row in the v6 balances
  * response (`BalanceMetadataV3ResponseDto`).
  */
 export type V6BalanceMetadata = {
@@ -93,14 +93,14 @@ export type V6BalanceMetadata = {
   productName: string;
   description: string;
   protocolUrl: string;
-  protocolIconUrl: string;
+  protocolIconUrl?: string;
   positionType: V6DeFiPositionType;
   poolAddress: string;
   groupId: string;
 };
 
 /**
- * Token-level metadata attached to a `category: token` row in the v6 balances
+ * Token-level metadata attached to an `object: token` row in the v6 balances
  * response, e.g. Stellar trustline metadata. Additional keys may be present.
  */
 export type V6TokenMetadata = {
@@ -113,12 +113,15 @@ export type V6TokenMetadata = {
 
 /**
  * A single balance row in the v6 balances response (`BalanceV3ResponseDto`).
- * `category: token` rows are EVM/Solana token balances (and may carry
- * {@link V6TokenMetadata}, e.g. Stellar trustline info). `category: defi` rows
+ * `object: token` rows are token balances (and may carry
+ * {@link V6TokenMetadata}, e.g. Stellar trustline info). `object: defi` rows
  * are flat DeFi positions and include {@link V6BalanceMetadata}.
  */
 export type V6BalanceItem = {
-  category: 'token' | 'defi';
+  accountId: string;
+  object: 'token' | 'defi';
+  /** Asset standard reported by the network (for example `native` or `erc20`). */
+  type: string;
   assetId: string;
   name: string;
   symbol: string;
@@ -131,25 +134,11 @@ export type V6BalanceItem = {
   /** Canonical head asset ID. Present when `includeCanonicalHead` is true. */
   canonicalHead?: string;
   /**
-   * DeFi protocol metadata for `category: defi` rows; token-level metadata such
-   * as Stellar trustline info (e.g. `limit`, `authorized`) for `category: token`
+   * DeFi protocol metadata for `object: defi` rows; token-level metadata such
+   * as Stellar trustline info (e.g. `limit`, `authorized`) for `object: token`
    * rows.
    */
   metadata?: V6BalanceMetadata | V6TokenMetadata;
-};
-
-/**
- * A per-account entry in the v6 balances response
- * (`AccountBalancesV3EntryDto`).
- */
-export type V6AccountBalancesEntry = {
-  accountId: string;
-  balances: V6BalanceItem[];
-  /**
-   * When true, DeFi positions for this account are still being indexed
-   * upstream; poll again shortly.
-   */
-  processingDefiPositions?: boolean;
 };
 
 /**
@@ -163,8 +152,14 @@ export type V6BalancesResponse = {
    * account, plus other IDs that still need a client fallback flow.
    */
   unprocessedIncludeAssetIds: string[];
-  /** Per-account balance entries. */
-  accounts: V6AccountBalancesEntry[];
+  /** Flat token and DeFi balance rows. */
+  balances: V6BalanceItem[];
+  /**
+   * CAIP-10 account IDs whose DeFi positions are still being indexed upstream;
+   * poll again shortly. DeFi balance rows for these accounts are omitted from
+   * `balances` until indexing completes.
+   */
+  processingDefiPositions?: string[];
 };
 
 // ============================================================================

@@ -7,6 +7,151 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Added
+
+- Add the public Chase lifecycle API (`getChaseOrders` and
+  `suspendChaseOrders`), aggregated-provider routing, retained lifecycle
+  snapshots, directional max-distance stopping, and idempotent termination of
+  stale or already-gone child orders. Clients should map the new
+  `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
+  exposing Chase configuration errors. Adds typed analytics interaction values
+  for background conversion and termination. An incomplete termination reports
+  `termination_pending` while its child remains cancellable. Consumers can use
+  the exported `CHASE_ORDER_STATUS` values instead of duplicating lifecycle
+  strings ([#9961](https://github.com/MetaMask/core/pull/9961)).
+- **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
+  - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
+  - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.
+- Add per-market strategy capabilities, TWAP lifecycle records, recoverable Scale group IDs, and the Chase max-distance event ([#9948](https://github.com/MetaMask/core/pull/9948))
+- **BREAKING:** Add `ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_LIFECYCLE_STALE`, and `TPSL_PROTECTION_LOST` to `PerpsErrorCode` ([#9948](https://github.com/MetaMask/core/pull/9948))
+
+### Changed
+
+- **BREAKING:** Support strategy orders on HyperLiquid HIP-3, route an optional `providerId` consistently, return zero MetaMask builder fee for TWAP through a provider-owned fee policy, and use 15-second unbounded Chase defaults ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
+- Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
+- Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
+- Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+### Fixed
+
+- Keep selectively allowlisted HIP-3 markets aligned with their volume, open-interest, funding, and previous-price contexts ([#9971](https://github.com/MetaMask/core/pull/9971))
+- Display tiny nonzero funding rates as `<0.0001%` or `-<0.0001%` instead of `0.0000%` ([#9971](https://github.com/MetaMask/core/pull/9971))
+- Harden strategy and TP/SL lifecycles across partial failures, suspension, reconnects, provider changes, and teardown; validation and fee quotes now wait for initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
+- Ignore missing optional MYX constructors when a consumer excludes the MYX module from its bundle ([#9942](https://github.com/MetaMask/core/pull/9942))
+- Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
+
+## [12.2.0]
+
+### Added
+
+- Add `OrderParams.scaleSkew`, which weights a `scale` ladder's size across its rungs instead of spreading it evenly ([#9919](https://github.com/MetaMask/core/pull/9919))
+  - Rung weights ramp linearly from 1 at `scaleMinPrice` to `scaleSkew` at `scaleMaxPrice`, in that direction for a buy and a sell alike. Above 1 puts more size at `scaleMaxPrice`, below 1 at `scaleMinPrice`; omitted or exactly 1 is the existing even split, unchanged.
+  - `splitScaleSizes` takes a matching optional `skew` and stays the single source of truth for the sizes, so a client previewing a ladder computes what placement submits. Sizes are allocated in whole size-grid units: each rung floors to its share and the leftover units go to the largest discarded fractions, ties by ascending index. The even split keeps putting its leftover on the first rung.
+  - A `scaleSkew` that is not a finite number above 0 is rejected by `validateOrderParams` with the existing `ORDER_SCALE_RANGE_INVALID` error code, and carrying it on any non-`scale` order type is rejected with the existing `ORDER_STRATEGY_PARAMS_NOT_SUPPORTED`.
+  - A skew that pushes a rung below the venue's per-order minimum or onto a zero size-grid slice is rejected before anything is signed, with the existing `ORDER_SCALE_NOTIONAL_TOO_SMALL` / `ORDER_SCALE_SIZE_TOO_SMALL`.
+- Add `resolvePositionTriggerSummaryPrice` to `@metamask/perps-controller/utils`, which resolves the scalar TP/SL summary price a position reports for one direction from its trigger orders ([#9912](https://github.com/MetaMask/core/pull/9912))
+
+### Fixed
+
+- Report the take profit (or stop loss) price on a `Position` when its only trigger for that direction is a partial, quantity-scoped one ([#9912](https://github.com/MetaMask/core/pull/9912))
+  - `takeProfitPrice`/`stopLossPrice` were only ever scanned from position-bound triggers, so a position whose sole take profit closed it partially reported `takeProfitCount: 1` with no price, and clients rendering the scalar showed none. Applies to the REST `getPositions`, `getUserDataSnapshot`, and WebSocket position paths alike.
+  - Two or more triggers in a direction still report the scanned price, because no single price describes them and clients render the count instead.
+
+## [12.1.0]
+
+### Added
+
+- Add the optional `PerpsPerformance.onControllerConstructed` post-hydration timestamp hook ([#9906](https://github.com/MetaMask/core/pull/9906))
+- Add an explicit trace ID overload to `PerpsTracer.setMeasurement`, allowing clients to target preload measurements to their named trace ([#9906](https://github.com/MetaMask/core/pull/9906))
+- Add `PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE` (`previous_leverage`) for Perp UI Interaction `leverage_changed` events so clients can import the Segment property key from `@metamask/perps-controller` instead of a local interim constant ([#9881](https://github.com/MetaMask/core/pull/9881))
+
+### Changed
+
+- Target market and user preload measurements to their named traces, and omit wallet addresses from user-preload trace data ([#9906](https://github.com/MetaMask/core/pull/9906))
+
+## [12.0.0]
+
+### Added
+
+- **BREAKING:** Add `ordersSideFilter`, `ordersSortField`, and `ordersSortDirection` to the flat `ProLayoutPreferences` object (defaults `'all'`, `'time'`, `'desc'`) so Pro Orders panel side-filter and sort preferences persist independently of Positions across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProOrdersSideFilter`, `ProOrdersSortField`, and `ProOrdersSortDirection` ([#9862](https://github.com/MetaMask/core/pull/9862))
+  - Consumers that construct a full `ProLayoutPreferences` object (instead of using `DEFAULT_PRO_LAYOUT_PREFERENCES`, the getter, or the patch setter) must include the new fields. Persisted state that predates them remains valid at runtime because the getter/selector merge over defaults.
+  - Orders side filter (`all` | `long` | `short`) is independent of `positionsSideFilter`. Orders sort fields are `orderValue` | `size` | `price` | `time`.
+- Add `PERPS_EVENT_PROPERTY.PERPS_MODE` (`perps_mode`) for Lite/Pro interface mode analytics (`'lite' | 'pro'`), distinct from existing `PERPS_EVENT_PROPERTY.MODE` (`mode`) which is search intent (`discovery` / `intent` / `browse`) ([#9819](https://github.com/MetaMask/core/pull/9819))
+- **BREAKING:** Add `positionsSideFilter`, `positionsSortField`, and `positionsSortDirection` to the flat `ProLayoutPreferences` object (defaults `'all'`, `'positionValue'`, `'desc'`) so Pro Positions/Orders panel sort and side-filter preferences persist across markets and app restarts via the existing `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` API; export `ProPositionsSideFilter`, `ProPositionsSortField`, and `ProPositionsSortDirection` ([#9838](https://github.com/MetaMask/core/pull/9838))
+  - Consumers that construct a full `ProLayoutPreferences` object (instead of using `DEFAULT_PRO_LAYOUT_PREFERENCES`, the getter, or the patch setter) must include the new fields. Persisted state that predates them remains valid at runtime because the getter/selector merge over defaults.
+- **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
+  - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id. Its documentation says so; the individual exchange ids are in `childOrderIds`.
+  - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally varying each suborder's size by up to ±20% with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to the pinned SDK's 5–1440-minute range.
+  - `scale` fans out `OrderParams.scaleNumOrders` limit orders on an inclusive price ladder between `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, submitted as a single batch. Sizes are split in whole units of the asset's size grid, so the rungs sum to exactly the submitted size. The batch is not atomic — the venue can rest some rungs and reject others — so `OrderResult.submittedSize` reports only the rungs that actually rested.
+  - The venue applies its minimum order value to what it receives, not to the strategy total: a `scale` ladder's notional must leave every submitted rung above the per-order minimum, and a `twap`'s total must clear the venue's own minimum TWAP size (`HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd`). Both are rejected locally rather than by the exchange. The ladder check needs the asset's size grid, so it runs during placement — before anything is signed — rather than in `validateOrder`, which cannot see the grid and could only guess.
+  - A `chase` verifies its order is still live whenever its own price stops showing on the book, so an order that fills without the loop noticing ends the session and releases its concurrency slot instead of holding both until the window closes.
+  - A `chase` interrupted by `disconnect` resolves as a failure with `ORDER_CHASE_ABANDONED` rather than a success, because no strategy is running behind it. Interrupted anywhere before its submission it signs nothing at all. Interrupted while that submission is in flight — the one window it cannot check ahead of — it tries to take the order back before returning, through the client it signed with rather than one asked for after the teardown, so an account switch cannot strand it. That attempt is best-effort: the venue can refuse the cancel, and the transport underneath the client may already be closing. When it does not take, the order is reported in `OrderResult.childOrderIds`, where the ordinary single-order cancel can still reach it for as long as the provider signs as the account that placed it.
+  - `chase` prices against a book with _every_ chase this provider is running on that side netted out, not only its own order. Two chases each netting only themselves would read the other as the external touch and improve on it in turn, walking each other across an unchanged market. Resting inside the spread makes the chase its own best bid or ask, so reading the raw book would show its own quote as the touch and stop it re-pricing.
+  - At most `CHASE_ORDER_CONFIG.MaxActiveSessions` chases run at once, matching the venue's documented cap; a further placement is refused with `ORDER_CHASE_LIMIT_REACHED` before any signing setup or leverage change, and a placement reserves its slot for the round trips before its session registers so concurrent placements cannot overshoot.
+  - `chase` re-prices by cancelling and re-placing, and sizes each replacement from what the cancelled order left unfilled — read after the cancel has landed, when no further fill can reach it — so a child that partially filled is not re-placed at the original size.
+  - `chase` rests a post-only order one tick inside the spread — above the best bid for a buy, below the best ask for a sell, joining the touch when the spread is a single tick — and re-prices it as the touch moves, bounded by `OrderParams.chaseIntervalMs`, `OrderParams.chaseMaxDurationMs`, and `OrderParams.chaseMaxRepricings` (see the newly exported `CHASE_ORDER_CONFIG` for the defaults). No supported venue exposes a native chase action, so it is emulated client-side; the re-pricing loop is stopped by `cancelOrder` and by `disconnect`.
+  - The params model stays provider-agnostic: no protocol vocabulary appears in `OrderParams`, so a second provider can map the same fields onto its own execution primitives.
+- **BREAKING:** Narrow `CalculateOrderPriceAndSizeParams.orderType` and `BuildOrdersArrayParams.orderType` to the new `OrdinaryOrderType` (`Exclude<OrderType, StrategyOrderType>`) ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - These helpers resolve a single order the exchange can be handed directly. A strategy placement derives its own prices and sizes and never reaches them; passing one would price a `chase` as a limit order it carries no price for, and serialize a `twap` or `scale` as an ordinary market order.
+- **BREAKING:** Narrow `ClosePositionParams.orderType` to `Exclude<OrderType, StrategyOrderType>` ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - `closePosition` has no path that executes a strategy placement and `ClosePositionParams` carries none of the fields one needs, so the strategy types are refused at the type level rather than at runtime. A consumer passing a value typed `OrderType` into this field must narrow it at the call site.
+- **BREAKING:** Add nineteen `PERPS_ERROR_CODES` entries covering strategy placement, editing and cancellation: `ORDER_STRATEGY_PARAMS_NOT_SUPPORTED`, `ORDER_STRATEGY_FIELD_UNSUPPORTED`, `ORDER_STRATEGY_MARKET_UNSUPPORTED`, `ORDER_STRATEGY_HANDLE_UNKNOWN`, `ORDER_STRATEGY_CANCEL_INCOMPLETE`, `ORDER_EDIT_STRATEGY_UNSUPPORTED`, `ORDER_TWAP_DURATION_REQUIRED`, `ORDER_TWAP_DURATION_INVALID`, `ORDER_TWAP_NOTIONAL_TOO_SMALL`, `ORDER_SCALE_RANGE_REQUIRED`, `ORDER_SCALE_RANGE_INVALID`, `ORDER_SCALE_COUNT_INVALID`, `ORDER_SCALE_SIZE_TOO_SMALL`, `ORDER_SCALE_NOTIONAL_TOO_SMALL`, `ORDER_CHASE_INTERVAL_INVALID`, `ORDER_CHASE_DURATION_INVALID`, `ORDER_CHASE_LIMIT_REACHED`, `ORDER_CHASE_ABANDONED`, and `ORDER_CHASE_TOUCH_UNAVAILABLE` ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - Like `EXCHANGE_ACCOUNT_NOT_FOUND` and the multi-sig codes in 11.0.0, this widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add an entry for every new code. Both first-party clients do: Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`.
+  - These cover the rejections this package decides for itself: each is a typed code rather than an opaque exchange error, and none of them reaches the venue as a signed request. Most are decided before any request at all. The exceptions are the ladder's `ORDER_SCALE_SIZE_TOO_SMALL` and `ORDER_SCALE_NOTIONAL_TOO_SMALL`, which need the asset's size precision and so follow one read of its metadata, and `ORDER_CHASE_TOUCH_UNAVAILABLE`, which follows the order-book read — all still before anything is signed. A submission the venue itself rejects is not among them: as for an ordinary order, that surfaces through the provider's existing error mapping carrying the venue's own message. `ORDER_STRATEGY_CANCEL_INCOMPLETE` and `ORDER_CHASE_ABANDONED` describe what happened after a request and are not rejections at all.
+  - What the non-parameter codes mean: `ORDER_STRATEGY_MARKET_UNSUPPORTED` — a strategy was requested on a market the provider cannot run it on (on HyperLiquid, a HIP-3 sub-exchange). `ORDER_EDIT_STRATEGY_UNSUPPORTED` — `editOrder` cannot modify a strategy placement. `ORDER_STRATEGY_HANDLE_UNKNOWN` — `cancelOrder` was given a strategy handle this provider does not hold. `ORDER_STRATEGY_CANCEL_INCOMPLETE` — a cancel left part of the placement resting, and the handle stays valid for a retry. `ORDER_CHASE_TOUCH_UNAVAILABLE` — the order book had no price on the side a chase must rest at. `ORDER_CHASE_LIMIT_REACHED` — the venue's cap on simultaneous chases is already in use. `ORDER_CHASE_ABANDONED` — the provider was torn down while a chase was being placed.
+- Add `CancelOrderParams.orderType`, which selects the cancellation path for a strategy handle: the venue's TWAP cancel action for `twap`, a batch cancel of every child for `scale`, and stopping the session plus cancelling its live order for `chase` ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - Omitting it — what every existing caller does — cancels a single resting order exactly as before.
+  - A cancel that leaves part of a strategy resting returns `ORDER_STRATEGY_CANCEL_INCOMPLETE` and keeps the handle valid, so the caller can retry with it.
+- `editOrder` now rejects a strategy placement with `ORDER_EDIT_STRATEGY_UNSUPPORTED` instead of submitting it as an ordinary order modification ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - A strategy placement is not a single resting order, so there is nothing to rewrite: the edit would have gone through as a plain market/limit modification and quietly dropped the TWAP schedule, the ladder, or the chase loop. Cancel by the strategy handle and place again.
+- A cancel refused because the order had already filled or been cancelled now completes rather than reporting `ORDER_STRATEGY_CANCEL_INCOMPLETE` ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - The venue answers a cancel it cannot match with a rejection, but nothing of that order is resting, which is what the caller asked for. Only a rejection that leaves the order on the book keeps the strategy handle open for a retry.
+- Add `OrderResult.childOrderIds`, the exchange ids a strategy placement expanded into ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - For a `scale` ladder these stay valid — the rungs are placed once and never replaced — so a consumer that has lost the session-scoped handle can still cancel them through the existing batch cancel.
+  - For a `chase` this is only the order resting at placement time. The strategy cancels and re-places as the touch moves, and each replacement's id is held in the session rather than reported here, so the value goes stale on the first re-price; cancel a live chase by its handle.
+- Add `OrderParams.twapDuration`, `OrderParams.twapRandomize`, `OrderParams.scaleMinPrice`, `OrderParams.scaleMaxPrice`, `OrderParams.scaleNumOrders`, `OrderParams.chaseIntervalMs`, `OrderParams.chaseMaxDurationMs`, and `OrderParams.chaseMaxRepricings` ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - Each field is required by the placement that owns it and rejected on every other one, so a stray field can never be silently dropped. A strategy placement also rejects `price`, `triggerPrice`, `timeInForce`, `clientOrderId`, and attached TP/SL, all of which the strategy decides for itself or cannot express — a TWAP action carries no client id, a scale ladder is many orders where a client id must be unique per order, and a chase replaces its order on every re-price.
+  - Invalid parameters are rejected with a typed `PERPS_ERROR_CODES` value, and nothing invalid is ever signed; see the new error codes entry below for the full list and for which few are decided after a read rather than before any request.
+- Add `twap`, `scale` and `chase` to `PERPS_EVENT_VALUE.ORDER_TYPE`, which dashboards key on and which `TradingService` emits verbatim ([#9832](https://github.com/MetaMask/core/pull/9832))
+- Add the `StrategyOrderType` and `OrdinaryOrderType` types, plus `STRATEGY_ORDER_TYPES`, `isStrategyOrderType`, `SCALE_ORDER_COUNT`, `computeScalePriceLadder`, `splitScaleSizes`, `computeChaseQuotePrice`, `getPriceTick`, `CHASE_ORDER_CONFIG`, and `HYPERLIQUID_TWAP_LIMITS` ([#9832](https://github.com/MetaMask/core/pull/9832))
+- Add an optional schema-v2 Terminal market snapshot path with strict identity, freshness, completeness, unit, and payload validation before falling back to HyperLiquid. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Add `PerpsController.getUserDataSnapshot()` to fetch and cache positions, open orders, and account state as one account- and DEX-scoped result. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Add a subscription fee-waiver source to the MetaMask builder fee, wired through the optional `PerpsPlatformDependencies.subscription.getPerpsBenefits()` dependency, along with the `PerpsSubscriptionBenefits`, `PerpsSubscriptionUsage`, `PerpsSubscriptionFeeWaiverStatus`, `PerpsFeeSource`, and `PerpsFeeResolution` types and the `SUBSCRIPTION_BENEFITS_CACHE` constant ([#9857](https://github.com/MetaMask/core/pull/9857))
+  - `RewardsIntegrationService.resolveFee()` returns the lowest fee across the default, rewards (VIP and season, already collapsed by `RewardsController`), and subscription sources, together with the winning source and the subscription gate outcome. The subscription source contributes `0` bips only when the eligibility gate — `status=active`, `perpsFeeWaiver` entitled, `usage=available`, not exhausted — passes on the cached benefits snapshot.
+  - `RewardsIntegrationService.resolveFee()` and `getSubscriptionFeeWaiverStatus()` are pure cache consumers and never start a subscription request on the order-signing path. `PerpsController.calculateFees()` owns preview hydration through `refreshSubscriptionBenefits()`. A snapshot older than `SUBSCRIPTION_BENEFITS_CACHE.MaxStaleMs` can no longer grant the waiver, and a failed or unreachable refresh falls back to the next-lowest source instead of erroring or over-granting.
+  - Refreshes are throttled on the last read _attempt_ rather than the last success, so a benefits outage retries at most once per `FreshMs` window instead of once per preview.
+  - `PerpsController.invalidateSubscriptionBenefits()` (also exposed as the `PerpsController:invalidateSubscriptionBenefits` messenger action) drops the cached snapshot. Call it on sign-out or a profile switch: the snapshot carries no profile identity, so without it the previous profile's benefits keep answering until the next successful refresh. A read already in flight when it is called is discarded rather than written back, so it cannot repopulate the cache for the previous identity.
+  - Clients that do not wire `subscription` are unaffected: the resolver keeps returning the rewards or default fee.
+- Add `FeeCalculationResult.subscription`, surfacing the subscription waiver's `eligible`, `reason`, and `remainingNotionalUsd` on `PerpsController.calculateFees()` from the same cached benefits snapshot ([#9857](https://github.com/MetaMask/core/pull/9857))
+  - The preview refreshes the benefits cache when needed, but does not adjust the quoted fee rates or mutate the notional cap. The field is omitted entirely when no `subscription` dependency is wired.
+
+### Changed
+
+- `RewardsIntegrationService.calculateUserFeeDiscount()` now returns the unified resolver's winning discount instead of the rewards discount alone, while preserving `undefined` when no source has resolved. TradingService passes the full `PerpsFeeResolution` to providers, isolates it across concurrent operations, and applies it to flip orders. HyperLiquid uses the configured subscription builder only after account-scoped approval through `PerpsController.approveSubscriptionBuilderFee()`; otherwise it uses the ordinary builder at the standard fee ([#9857](https://github.com/MetaMask/core/pull/9857))
+- `getTriggerExecution` now reports `'limit'` for `scale` and `chase`, which rest limit orders on the book without carrying an `OrderParams.price`, and `'market'` for `twap`, whose suborders cross it ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - This is what decides the fee tier and the max order value, so a scale ladder and a chase are no longer quoted at the taker rate or held to the tighter market-order cap. `calculateFees` additionally quotes `chase` at the maker rate regardless of `isMaker`, because a post-only order can only fill as a maker.
+  - `isLimitExecutionOrderType` is unchanged: it answers the narrower question of whether `OrderParams.price` carries a real limit price, which for a strategy placement it does not.
+- `TriggerOrderType` is now spelled out as `'stop_market' | 'stop_limit' | 'take_profit_market' | 'take_profit_limit'` instead of being derived as `Exclude<OrderType, 'market' | 'limit'>` ([#9832](https://github.com/MetaMask/core/pull/9832))
+  - The resolved type is unchanged for existing consumers. Deriving it meant that any order type added to `OrderType` that was neither `market` nor `limit` was pulled into the trigger union automatically and started demanding a trigger price it had no concept of.
+- Reuse provider DEX discovery for subscriptions, and start account preloading independently from market preloading to reduce cold-start blocking. ([#9815](https://github.com/MetaMask/core/pull/9815))
+- Require a selected EVM address and the current Hyperliquid network/HIP-3/DEX identity before returning cached account data; legacy or mismatched entries now fail closed and refresh. ([#9815](https://github.com/MetaMask/core/pull/9815))
+
+### Fixed
+
+- Prevent `CLIENT_NOT_INITIALIZED` errors during cold-start and reconnection by awaiting in-flight initialization in trading action methods (`placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `deposit`, `withdraw`, etc.) ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Fix compound error string (`CLIENT_NOT_INITIALIZED: <reason>`) breaking i18n translation lookup — now always throws the plain `CLIENT_NOT_INITIALIZED` code ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Recreate all four SDK clients (including `ExchangeClient` and HTTP `InfoClient`) during WebSocket reconnection so `isInitialized()` returns `true` after reconnect ([#9032](https://github.com/MetaMask/core/pull/9032))
+- Bring the HyperLiquid SDK clients up before the provider's first asset-metadata read, so a trading action taken during cold start or after a disconnect waits for the clients instead of failing with `CLIENT_NOT_INITIALIZED` ([#9865](https://github.com/MetaMask/core/pull/9865))
+  - `placeOrder` resolves asset info before it ensures trading readiness, so waiting for controller initialization alone was not enough: the metadata read still hit an uninitialized `InfoClient` and the order failed. Warm reads are unaffected — the cached path returns before the client check.
+- Publish WebSocket-backed SDK clients only after reconnection succeeds, while keeping HTTP-backed metadata and trading clients available during retries ([#9868](https://github.com/MetaMask/core/pull/9868))
+
 ## [11.0.0]
 
 ### Added
@@ -643,7 +788,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...@metamask/perps-controller@13.0.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...@metamask/perps-controller@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...@metamask/perps-controller@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...@metamask/perps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@10.0.0...@metamask/perps-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.3.0...@metamask/perps-controller@10.0.0
 [9.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...@metamask/perps-controller@9.3.0

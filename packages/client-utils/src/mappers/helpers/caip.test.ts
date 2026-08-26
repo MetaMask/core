@@ -111,19 +111,57 @@ describe('caip helpers', () => {
       );
     });
 
-    it('returns undefined without a symbol', () => {
-      expect(resolveNativeAssetId('eip155:8453', undefined)).toBeUndefined();
-      expect(resolveNativeAssetId('eip155:4663', undefined)).toBeUndefined();
+    it('resolves when symbol is missing but the chain has slip44', () => {
+      mockGetChainById.mockReturnValue({
+        slip44: 60,
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(resolveNativeAssetId('eip155:8453', undefined)).toBe(
+        'eip155:8453/slip44:60',
+      );
     });
 
-    it('returns undefined for unknown symbols', () => {
+    it('falls back to the zero-address erc20 form when symbol and chainlist both miss slip44', () => {
+      mockGetChainById.mockReturnValue({
+        nativeCurrency: { name: 'Chiliz', symbol: 'CHZ', decimals: 18 },
+      } as ReturnType<typeof getChainById>);
+
+      expect(resolveNativeAssetId('eip155:88888', 'CHZ')).toBe(
+        'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      );
+      expect(resolveNativeAssetId('eip155:88888', undefined)).toBe(
+        'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      );
+    });
+
+    it('falls back to the zero-address erc20 form when the chain is absent from chainlist', () => {
+      mockGetChainById.mockReturnValue(undefined);
+
+      expect(resolveNativeAssetId('eip155:4663', undefined)).toBe(
+        'eip155:4663/erc20:0x0000000000000000000000000000000000000000',
+      );
+    });
+
+    it('returns undefined for non-eip155 chains without a slip44 hit', () => {
       expect(
         resolveNativeAssetId('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'NOPE'),
+      ).toBeUndefined();
+      expect(
+        resolveNativeAssetId(
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          undefined,
+        ),
       ).toBeUndefined();
     });
 
     it('returns undefined when the chain id cannot be normalized', () => {
       expect(resolveNativeAssetId('0xzzzz', 'ETH')).toBeUndefined();
+    });
+
+    it('returns undefined when chain id is missing', () => {
+      expect(resolveNativeAssetId(undefined, 'ETH')).toBeUndefined();
+      expect(resolveNativeAssetId(undefined, undefined)).toBeUndefined();
     });
   });
 
@@ -214,16 +252,21 @@ describe('caip helpers', () => {
       });
     });
 
-    it('returns undefined when slip44 and symbol lookup both fail', () => {
+    it('falls back to the zero-address erc20 assetId when slip44 and symbol lookup both fail', () => {
       mockGetChainById.mockReturnValue({
         nativeCurrency: {
-          name: 'Unknown',
-          symbol: 'NOTACOIN',
+          name: 'Chiliz',
+          symbol: 'CHZ',
           decimals: 18,
         },
       } as ReturnType<typeof getChainById>);
 
-      expect(getNativeAsset('eip155:1088')).toBeUndefined();
+      expect(getNativeAsset('eip155:88888')).toStrictEqual({
+        symbol: 'CHZ',
+        decimals: 18,
+        assetId:
+          'eip155:88888/erc20:0x0000000000000000000000000000000000000000',
+      });
     });
   });
 });
