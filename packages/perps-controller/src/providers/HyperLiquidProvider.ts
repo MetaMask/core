@@ -1374,6 +1374,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * the connection is fully established before marking initialization complete.
    */
   async #ensureClientsInitialized(): Promise<void> {
+    if (this.#disconnectOperationsInFlight > 0) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+
     if (this.#clientsInitialized) {
       return; // Already initialized
     }
@@ -1382,6 +1386,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // This prevents race conditions when multiple methods call concurrently
     if (this.#initializationPromise) {
       await this.#initializationPromise;
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
       return;
     }
 
@@ -1391,9 +1398,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (this.#clientsInitialized) {
         return;
       }
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
 
       const wallet = this.#walletService.createWalletAdapter();
       await this.#clientService.initialize(wallet);
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
 
       // Set termination callback for logging when WebSocket terminates
       // Note: Do NOT restore subscriptions here - termination means connection failed permanently
@@ -6335,6 +6348,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     if (status.status !== 'order') {
+      // unknownOid can be transient while the order-status index catches up.
+      // Treating it as a fill would drop the only handle to a live order.
+      throw new Error('Chase order status unavailable');
+    }
+
+    if (status.order.status === 'filled') {
       return null;
     }
 
@@ -6471,6 +6490,10 @@ export class HyperLiquidProvider implements PerpsProvider {
                 session.orderId = null;
                 session.size = '0';
                 session.active = false;
+                if (session.timer) {
+                  clearTimeout(session.timer);
+                  session.timer = null;
+                }
                 if (session.status === CHASE_ORDER_STATUS.Active) {
                   session.status = CHASE_ORDER_STATUS.Filled;
                 }
@@ -7371,7 +7394,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       return createErrorResult(mappedError, {
         success: false,
-        ...(owningChase ? { orderId: params.orderId } : {}),
+        orderId: params.orderId,
       });
     }
   }
@@ -7420,7 +7443,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const chaseIndexes = new Set(chaseRoutes.map(({ index }) => index));
 
     try {
-      for (const handle of new Set(chaseRoutes.map(({ handle }) => handle))) {
+      for (const handle of new Set(chaseRoutes.map((route) => route.handle))) {
         this.#stopChaseSession(handle);
       }
       if (chaseRoutes.length > 0) {
@@ -7466,6 +7489,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         ordinaryOrders.forEach(({ index, order }, statusIndex) => {
           const status: unknown = result.response.data.statuses[statusIndex];
+          const success = status === 'success';
           const statusError =
             isStatusObject(status) && typeof status.error === 'string'
               ? status.error
@@ -7473,10 +7497,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           results[index] = {
             orderId: order.orderId,
             symbol: order.symbol,
-            success: status === 'success',
-            ...(statusError === undefined
+            success,
+            ...(success
               ? {}
-              : { error: this.#mapError(new Error(statusError)).message }),
+              : {
+                  error:
+                    statusError === undefined
+                      ? PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
+                      : this.#mapError(new Error(statusError)).message,
+                }),
           };
         });
       }
@@ -8406,18 +8435,24 @@ export class HyperLiquidProvider implements PerpsProvider {
               ...restoration.restoredOrderIds,
             ]);
           }
-          return createErrorResult(
-            new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-            {
-              success: false,
-              childOrderIds: [
-                ...new Set([
-                  ...oldCancellation.remainingOrderIds.map(String),
-                  ...restoration.restoredOrderIds,
-                ]),
-              ],
-            },
+          const updateError = new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+          this.#deps.logger.error(
+            updateError,
+            this.#getErrorContext('updatePositionTPSL', {
+              symbol: params.symbol,
+              hasTakeProfit: params.takeProfitPrice !== undefined,
+              hasStopLoss: params.stopLossPrice !== undefined,
+            }),
           );
+          return createErrorResult(updateError, {
+            success: false,
+            childOrderIds: [
+              ...new Set([
+                ...oldCancellation.remainingOrderIds.map(String),
+                ...restoration.restoredOrderIds,
+              ]),
+            ],
+          });
         }
       }
 

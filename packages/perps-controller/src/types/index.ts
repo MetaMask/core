@@ -7,10 +7,8 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import {
-  PROVIDER_CONFIG,
-  type CHASE_ORDER_STATUS,
-} from '../constants/perpsConfig.js';
+import { PROVIDER_CONFIG } from '../constants/perpsConfig.js';
+import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type {
   CandleData,
   OrderType,

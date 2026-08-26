@@ -5077,11 +5077,6 @@ export class PerpsController extends BaseController<
       await pendingDisconnect;
     }
 
-    // No-op if already on this provider (regardless of init state)
-    if (this.state.activeProvider === providerId) {
-      return { success: true, providerId };
-    }
-
     // Prevent concurrent switches
     if (this.isCurrentlyReinitializing()) {
       return {
@@ -5092,12 +5087,20 @@ export class PerpsController extends BaseController<
     }
 
     const completeReinitialization = this.#beginReinitialization();
-    const previousProvider = this.state.activeProvider;
+    let previousProvider = this.state.activeProvider;
 
     try {
       const pendingInitialization = this.#initializationPromise;
       if (pendingInitialization) {
         await pendingInitialization;
+      }
+
+      // Initialization may select a fallback provider. Read the effective
+      // provider only after it settles so no-op detection and rollback both
+      // use the state this switch is actually replacing.
+      previousProvider = this.state.activeProvider;
+      if (previousProvider === providerId) {
+        return { success: true, providerId };
       }
 
       // Validate provider only after a pending initialization has rebuilt the

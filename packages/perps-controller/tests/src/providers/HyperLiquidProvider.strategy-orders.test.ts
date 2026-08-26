@@ -1477,6 +1477,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
         childOrderIds: ['457', '123'],
       });
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'updatePositionTPSL' }),
+          }),
+        }),
+      );
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [
           { a: 1, o: 456 },
@@ -1913,6 +1923,68 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+    });
+
+    it('retains the requested exchange ID when an ordinary cancel rejects', async () => {
+      useStrategyClients({
+        exchange: {
+          cancel: jest.fn().mockRejectedValue(new Error('Cancel unavailable')),
+        },
+      });
+
+      const result = await provider.cancelOrder({
+        orderId: '123',
+        symbol: 'ETH',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        orderId: '123',
+        error: 'Cancel unavailable',
+      });
+    });
+
+    it('reports malformed and missing batch cancel statuses as failures', async () => {
+      useStrategyClients({
+        exchange: {
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{}, 'unexpected'] } },
+          }),
+        },
+      });
+
+      const result = await provider.cancelOrders([
+        { orderId: '123', symbol: 'ETH' },
+        { orderId: '456', symbol: 'BTC' },
+        { orderId: '789', symbol: 'ETH' },
+      ]);
+
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 3,
+        results: [
+          {
+            orderId: '123',
+            symbol: 'ETH',
+            success: false,
+            error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+          },
+          {
+            orderId: '456',
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+          },
+          {
+            orderId: '789',
+            symbol: 'ETH',
+            success: false,
+            error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+          },
+        ],
+      });
     });
   });
 
@@ -2537,8 +2609,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
-    it('clears a Chase snapshot after its child leaves the book', async () => {
-      const { infoClient } = useStrategyClients({
+    it('retains a live Chase when its child status is temporarily unknown', async () => {
+      const { exchangeClient, infoClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
       });
       const result = await provider.placeOrder({
@@ -2547,10 +2619,65 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } as OrderParams);
       infoClient.orderStatus.mockResolvedValueOnce({ status: 'unknownOid' });
 
-      const gone = await provider.getChaseOrders();
-      const retained = await provider.getChaseOrders();
+      const snapshots = await provider.getChaseOrders();
 
-      expect(gone).toContainEqual(
+      expect(snapshots).toContainEqual(
+        expect.objectContaining({
+          handle: result.orderId,
+          remainingSize: '1',
+          restingOrderId: '55',
+          status: 'active',
+        }),
+      );
+      expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+
+      expect(
+        await provider.cancelOrder({
+          orderId: result.orderId,
+          symbol: 'ETH',
+          orderType: 'chase',
+        }),
+      ).toStrictEqual({ success: true, orderId: result.orderId });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 55 }],
+      });
+    });
+
+    it('marks a confirmed fill and stops the Chase timer', async () => {
+      jest.useFakeTimers();
+      const order = jest.fn().mockResolvedValue(chaseRested);
+      const { exchangeClient, infoClient } = useStrategyClients({
+        exchange: { order },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+      infoClient.orderStatus.mockResolvedValueOnce({
+        status: 'order',
+        order: {
+          status: 'filled',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+
+      expect(await provider.getChaseOrders()).toContainEqual(
         expect.objectContaining({
           handle: result.orderId,
           remainingSize: '0',
@@ -2558,8 +2685,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'filled',
         }),
       );
-      expect(retained).toStrictEqual(gone);
-      expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(5000);
+
+      expect(order).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      jest.useRealTimers();
     });
 
     it('backgrounds every active session without cancelling its resting child', async () => {
@@ -3066,7 +3197,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
 
       await ticking;
-      await expect(batchCancellation).resolves.toStrictEqual({
+      expect(await batchCancellation).toStrictEqual({
         success: true,
         successCount: 1,
         failureCount: 0,

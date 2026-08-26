@@ -1267,6 +1267,41 @@ describe('PerpsController', () => {
       expect(controller.testGetInitialized()).toBe(true);
     });
 
+    it('waits for pending initialization before resolving a same-provider switch', async () => {
+      const pendingInitialization = createDeferred<void>();
+      jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+        throw new Error('Transient initialization failure');
+      });
+      jest
+        .mocked(mockWait)
+        .mockImplementationOnce(() => pendingInitialization.promise);
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      let switchSettled = false;
+      const switchPromise = controller
+        .switchProvider('hyperliquid')
+        .then((result) => {
+          switchSettled = true;
+          return result;
+        });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(switchSettled).toBe(false);
+      pendingInitialization.resolve();
+      await initPromise;
+      await expect(switchPromise).resolves.toStrictEqual({
+        success: true,
+        providerId: 'hyperliquid',
+      });
+    });
+
     it.each([
       {
         label: 'network toggle',
