@@ -3,6 +3,7 @@ import type { CaipAssetId, Hex } from '@metamask/utils';
 
 import {
   HYPERLIQUID_ASSET_CONFIGS,
+  BASIS_POINTS_DIVISOR,
   getSupportedAssets,
   TRADING_DEFAULTS,
 } from '../constants/hyperLiquidConfig.js';
@@ -526,6 +527,7 @@ export type StrategyOrderValidationParams = {
   chaseIntervalMs?: number;
   chaseMaxDurationMs?: number;
   chaseMaxRepricings?: number;
+  chaseMaxDistanceBps?: number;
 };
 
 /**
@@ -548,6 +550,7 @@ const STRATEGY_FIELD_OWNER: Record<
   chaseIntervalMs: 'chase',
   chaseMaxDurationMs: 'chase',
   chaseMaxRepricings: 'chase',
+  chaseMaxDistanceBps: 'chase',
 };
 
 /**
@@ -669,23 +672,39 @@ function validateChaseParams(params: StrategyOrderValidationParams): {
     };
   }
 
-  const maxDuration =
-    params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs;
+  const maxDuration = params.chaseMaxDurationMs;
   // A window shorter than one poll would place the order and immediately stop
   // chasing it — a plain post-only limit order wearing a chase's name.
-  if (!Number.isFinite(maxDuration) || maxDuration < interval) {
+  if (
+    maxDuration !== undefined &&
+    (!Number.isFinite(maxDuration) || maxDuration < interval)
+  ) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_CHASE_DURATION_INVALID,
     };
   }
 
-  const maxRepricings =
-    params.chaseMaxRepricings ?? CHASE_ORDER_CONFIG.DefaultMaxRepricings;
-  if (!Number.isInteger(maxRepricings) || maxRepricings < 1) {
+  const maxRepricings = params.chaseMaxRepricings;
+  if (
+    maxRepricings !== undefined &&
+    (!Number.isInteger(maxRepricings) || maxRepricings < 1)
+  ) {
     return {
       isValid: false,
       error: PERPS_ERROR_CODES.ORDER_CHASE_DURATION_INVALID,
+    };
+  }
+
+  if (
+    params.chaseMaxDistanceBps !== undefined &&
+    (!Number.isFinite(params.chaseMaxDistanceBps) ||
+      params.chaseMaxDistanceBps <= 0 ||
+      params.chaseMaxDistanceBps >= BASIS_POINTS_DIVISOR)
+  ) {
+    return {
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_CHASE_MAX_DISTANCE_INVALID,
     };
   }
 
@@ -795,7 +814,7 @@ function validateStrategyOrderParams(
  * @param params.timeInForce - Time in force; only a plain limit order can carry one
  * @param params.clientOrderId - Client-provided order ID; a strategy placement cannot carry one
  * @param params.twapDuration - TWAP window in whole minutes
- * @param params.twapRandomize - Whether to randomize the TWAP slice timing
+ * @param params.twapRandomize - Whether to vary each TWAP suborder's size by up to ±20%
  * @param params.scaleMinPrice - Lowest price in a scale ladder
  * @param params.scaleMaxPrice - Highest price in a scale ladder
  * @param params.scaleNumOrders - How many orders a scale ladder fans out into

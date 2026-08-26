@@ -61,7 +61,6 @@ export const mockBridgeQuotesErc20Erc20V2Migration: Omit<
       gasIncluded: false,
       gasIncluded7702: false,
       gasSponsored: false,
-      priceData: {},
       protocols: ['across'],
       aggregator: 'socket',
       requestId: '90ae8e69-f03a-4cf6-bab7-ed4e3431eb37',

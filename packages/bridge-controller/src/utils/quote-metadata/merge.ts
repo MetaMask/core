@@ -1,28 +1,35 @@
-import { is } from '@metamask/superstruct';
 import { merge } from 'lodash';
 
-import { QuoteResponseSchemaV1 } from '../../validators/quote-response-v1.js';
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import type { DeepPartial } from '../../types.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
+import { includeIfTruthy } from './include-if-truthy.js';
 import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { toQuoteMetadataV2 } from './to-quote-metadata-v2.js';
 import type { QuoteMetadata } from './types.js';
+import { QuoteMetadataMigrationPhase } from './types.js';
 
 /**
  * Merges legacy {@link QuoteMetadata} values into the {@link QuoteResponse}
  *
- * @param quoteResponse - The {@link QuoteResponse} or {@link QuoteResponseV1} to merge the metadata into
+ * @param quoteResponse - The {@link QuoteResponse} to merge the metadata into
  * @param legacyQuoteMetadata - The {@link QuoteMetadata} values to merge
+ * @param migrationPhase - The active {@link QuoteMetadataMigrationPhase}
+ * @param currencyValues - The amounts in the user's currency, derived from the backend's `usd` values
  * @returns The {@link QuoteResponse} with the metadata merged in
  */
-export function mergeQuoteMetadata<
-  QuoteType extends QuoteResponse | QuoteResponseV1 = QuoteResponse,
->(
-  quoteResponse: QuoteType,
-  legacyQuoteMetadata: QuoteMetadata,
-): QuoteType & QuoteMetadata {
-  if (is(quoteResponse, QuoteResponseSchemaV1)) {
-    return merge({}, quoteResponse, legacyQuoteMetadata);
+export function mergeQuoteMetadata(
+  quoteResponse: QuoteResponse,
+  legacyQuoteMetadata: QuoteMetadata = {},
+  migrationPhase: QuoteMetadataMigrationPhase = QuoteMetadataMigrationPhase.V1Data,
+  currencyValues?: DeepPartial<QuoteResponse>,
+): QuoteResponse & QuoteMetadata {
+  if (migrationPhase === QuoteMetadataMigrationPhase.V2Only) {
+    return merge(
+      {},
+      quoteResponse,
+      toNormalizedAmounts(quoteResponse),
+      currencyValues,
+    );
   }
 
   const legacyQuoteMetadataV2 = toQuoteMetadataV2(
@@ -30,14 +37,57 @@ export function mergeQuoteMetadata<
     quoteResponse,
   );
 
-  const normalizedAmounts = toNormalizedAmounts(quoteResponse);
+  if (migrationPhase === QuoteMetadataMigrationPhase.V2WithV1Fallback) {
+    return merge(
+      {},
+      legacyQuoteMetadataV2,
+      legacyQuoteMetadata, // legacyQuoteMetadata is returned for testing purposes only
+      quoteResponse,
+      toNormalizedAmounts(quoteResponse),
+      currencyValues,
+    );
+  }
 
-  // Phase 1 of migration uses calcQuoteMetadata's results
+  // Sanitize the bridge-api's quote response by removing fee and price data that will be replaced with legacy metadata values
+  const { quote, ...restQuoteResponse } = quoteResponse;
+  const { feeData, priceData, ...restQuote } = quote ?? {};
+
+  const txFeeGasParams = {
+    maxFeePerGas: feeData?.txFee?.[0]?.maxFeePerGas,
+    maxPriorityFeePerGas: feeData?.txFee?.[0]?.maxPriorityFeePerGas,
+  };
+  const txFeeData = includeIfTruthy(txFeeGasParams, {
+    txFee: [txFeeGasParams],
+  });
+
+  const metabridgeFeeData = includeIfTruthy(feeData?.metabridge[0], {
+    metabridge: feeData?.metabridge,
+  });
+
+  const priceImpactData = priceData?.priceImpact?.amount && {
+    priceData: {
+      priceImpact: {
+        amount: priceData?.priceImpact?.amount,
+      },
+    },
+  };
+
+  const sanitizedQuoteResponseV2 = {
+    quote: {
+      ...restQuote,
+      feeData: {
+        ...(metabridgeFeeData ?? {}),
+        ...(txFeeData ?? {}),
+      },
+      ...(priceImpactData ?? {}),
+    },
+  };
   return merge(
     {},
-    quoteResponse,
-    normalizedAmounts,
-    legacyQuoteMetadataV2, // legacy metadata in v2 format
-    legacyQuoteMetadata, // return legacy metadata for client testing
+    restQuoteResponse,
+    sanitizedQuoteResponseV2,
+    toNormalizedAmounts(sanitizedQuoteResponseV2),
+    legacyQuoteMetadataV2,
+    legacyQuoteMetadata,
   );
 }

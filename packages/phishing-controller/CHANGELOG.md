@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [17.4.0]
+
+### Added
+
+- Add `isAddressScanSupportedChainId` so clients can check whether `scanAddress` will call the Security Alerts API for a chain ID, without duplicating `DEFAULT_CHAIN_ID_TO_NAME` and `ADDRESS_SCAN_SUPPORTED_CHAINS` ([#9946](https://github.com/MetaMask/core/pull/9946))
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
 
 ## [17.3.1]
@@ -636,7 +646,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...HEAD
+[17.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...@metamask/phishing-controller@17.4.0
 [17.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...@metamask/phishing-controller@17.3.1
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...@metamask/phishing-controller@17.3.0
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.0...@metamask/phishing-controller@17.2.1

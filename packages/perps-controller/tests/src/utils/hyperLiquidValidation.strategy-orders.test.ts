@@ -63,6 +63,20 @@ describe('hyperLiquidValidation - strategy order types', () => {
         expect(isTriggerOrderType(orderType)).toBe(false);
       },
     );
+
+    it.each([0.5, 9999.5])(
+      'accepts a fractional %s bps max distance below the upper boundary',
+      (chaseMaxDistanceBps) => {
+        expect(
+          validateOrderParams({
+            coin: 'ETH',
+            size: '1',
+            orderType: 'chase',
+            chaseMaxDistanceBps,
+          }),
+        ).toStrictEqual({ isValid: true });
+      },
+    );
   });
 
   describe('validateOrderParams - accepted strategies', () => {
@@ -333,6 +347,23 @@ describe('hyperLiquidValidation - strategy order types', () => {
         });
       },
     );
+
+    it.each([0, -1, 10_000, 10_001, Number.NaN, Number.POSITIVE_INFINITY])(
+      'rejects an invalid %s bps max distance',
+      (chaseMaxDistanceBps) => {
+        expect(
+          validateOrderParams({
+            coin: 'ETH',
+            size: '1',
+            orderType: 'chase',
+            chaseMaxDistanceBps,
+          }),
+        ).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_CHASE_MAX_DISTANCE_INVALID,
+        });
+      },
+    );
   });
 
   describe('validateOrderParams - fields that do not belong', () => {
@@ -343,6 +374,7 @@ describe('hyperLiquidValidation - strategy order types', () => {
       ['scaleNumOrders', { scaleNumOrders: 3 }],
       ['scaleSkew', { scaleSkew: 2 }],
       ['chaseIntervalMs', { chaseIntervalMs: 3000 }],
+      ['chaseMaxDistanceBps', { chaseMaxDistanceBps: 100 }],
     ])('rejects %s on a market order', (_label, strategyField) => {
       expect(
         validateOrderParams({

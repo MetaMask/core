@@ -23,6 +23,7 @@ import type {
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
+import { HYPERLIQUID_SCALE_CLOID_MARKER } from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -1373,6 +1374,48 @@ describe('HyperLiquidProvider', () => {
         expect(orders).toHaveLength(1);
         expect(orders[0].symbol).toBe('BTC');
         expect(orders[0].side).toBe('buy');
+      });
+
+      it('does not register Scale cancel handles from standalone account reads', async () => {
+        const scaleClientOrderId = `0x${HYPERLIQUID_SCALE_CLOID_MARKER}${'0'.repeat(24)}`;
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([
+          {
+            coin: 'BTC',
+            oid: 12345,
+            side: 'B',
+            limitPx: '50000',
+            sz: '0.1',
+            origSz: '0.1',
+            timestamp: Date.now(),
+            orderType: 'Limit',
+            isTrigger: false,
+            reduceOnly: false,
+            isPositionTpsl: false,
+            cloid: scaleClientOrderId,
+            children: [],
+          },
+        ]);
+
+        const orders = await provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+        const strategyGroupId = orders[0]?.strategyGroupId;
+        if (!strategyGroupId) {
+          throw new Error('Expected a recovered Scale group ID');
+        }
+
+        expect(
+          await provider.cancelOrder({
+            orderId: strategyGroupId,
+            symbol: 'BTC',
+            orderType: 'scale',
+          }),
+        ).toStrictEqual({
+          success: false,
+          orderId: strategyGroupId,
+          error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        });
       });
 
       it('returns empty array when standalone client fails', async () => {

@@ -70,6 +70,7 @@ export type {
 export {
   type QuoteMetadata,
   type TokenAmountValues,
+  QuoteMetadataMigrationPhase,
 } from './utils/quote-metadata/types.js';
 export {
   validateQuoteResponseV1,
@@ -117,6 +118,7 @@ export {
 export {
   validateQuoteResponse,
   type QuoteResponse,
+  isQuoteResponseV2,
 } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
