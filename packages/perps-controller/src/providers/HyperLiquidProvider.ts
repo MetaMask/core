@@ -5260,7 +5260,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     if (session.orderId === null) {
       session.active = false;
-      session.status = 'failed';
+      session.status = CHASE_ORDER_STATUS.Failed;
       this.#deps.debugLogger.log('Chase ended with nothing resting', {
         sessionId,
       });
@@ -5323,7 +5323,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // holding one until the window closes.
       session.orderId = null;
       session.active = false;
-      session.status = 'filled';
+      session.status = CHASE_ORDER_STATUS.Filled;
       this.#deps.debugLogger.log('Chase order filled between ticks', {
         sessionId,
       });
@@ -5414,7 +5414,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         const remaining = await this.#readOrderRemainder(goneOrderId);
         session.orderId = null;
         session.active = false;
-        session.status = remaining === null ? 'filled' : 'failed';
+        session.status =
+          remaining === null
+            ? CHASE_ORDER_STATUS.Filled
+            : CHASE_ORDER_STATUS.Failed;
         if (remaining !== null) {
           session.size = remaining;
         }
@@ -5453,7 +5456,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (remaining === null) {
           // It filled completely between ticks; there is nothing left to chase.
           session.active = false;
-          session.status = 'filled';
+          session.status = CHASE_ORDER_STATUS.Filled;
           this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
           return;
         }
