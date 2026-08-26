@@ -2,13 +2,13 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../index.js';
 import type { TransactionPayControllerMessenger } from '../index.js';
+import type { AcrossQuote } from '../strategy/across/types.js';
+import type { RelayQuote } from '../strategy/relay/types.js';
 import type {
   QuoteRequest,
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../types.js';
-import type { AcrossQuote } from '../strategy/across/types.js';
-import type { RelayQuote } from '../strategy/relay/types.js';
 import { calculateTransactionGasCost } from './gas.js';
 import { calculateTotals } from './totals.js';
 
