@@ -1,6 +1,7 @@
 import { API_URLS, ApiPlatformClient } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock, { pendingMocks } from 'nock';
+
 import {
   ARBITRUM_GMX,
   BASE_FARTCOIN,
