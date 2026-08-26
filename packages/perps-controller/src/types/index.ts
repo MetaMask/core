@@ -1352,6 +1352,7 @@ export type PositionModifyPreviewSource = Pick<
   | 'leverage'
   | 'positionValue'
   | 'maxLeverage'
+  | 'providerId'
 >;
 
 /**
@@ -1385,6 +1386,11 @@ export type PositionModifyPreviewParams = {
    * increases and flips. Omit or pass 0 when unknown.
    */
   feeAmountUsd?: number;
+  /**
+   * Explicit venue route. Aggregated providers use this, then
+   * `position.providerId`, then the default provider.
+   */
+  providerId?: PerpsProviderType;
 };
 
 /**

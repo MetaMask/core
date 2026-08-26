@@ -757,7 +757,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async previewPositionModify(
     params: PositionModifyPreviewParams,
   ): Promise<PositionModifyPreviewResult> {
-    return this.#getDefaultProvider().previewPositionModify(params);
+    const [, provider] = this.#getProviderOrDefault(
+      params.providerId ?? params.position.providerId,
+    );
+    return provider.previewPositionModify(params);
   }
 
   // ============================================================================

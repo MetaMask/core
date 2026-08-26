@@ -76,6 +76,15 @@ describe('resolveHyperLiquidMarginTiers', () => {
     ]);
   });
 
+  it('returns null when the margin-table id is unknown', () => {
+    expect(
+      resolveHyperLiquidMarginTiers({
+        maxLeverage: 25,
+        marginTables: [],
+      }),
+    ).toBeNull();
+  });
+
   it('returns null when a multi-tier table is required but missing', () => {
     expect(
       resolveHyperLiquidMarginTiers({
@@ -108,7 +117,7 @@ describe('estimateIsolatedLiquidationPrice', () => {
   it('matches the single-tier closed form for a long', () => {
     const liq = estimateIsolatedLiquidationPrice({
       isLong: true,
-      entryPrice: 2000,
+      markPrice: 2000,
       margin: 400,
       positionSize: 1,
       maintenanceMarginRate: 1 / 50,
@@ -120,7 +129,7 @@ describe('estimateIsolatedLiquidationPrice', () => {
   it('matches the single-tier closed form for a short', () => {
     const liq = estimateIsolatedLiquidationPrice({
       isLong: false,
-      entryPrice: 2000,
+      markPrice: 2000,
       margin: 400,
       positionSize: 1,
       maintenanceMarginRate: 1 / 50,
@@ -234,7 +243,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     );
     const overstatedMarginLiq = estimateIsolatedLiquidationPrice({
       isLong: true,
-      entryPrice: 2000,
+      markPrice: 2000,
       margin: 500,
       positionSize: 1.5,
       maintenanceMarginRate: 1 / 50,
@@ -265,9 +274,13 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       available: true,
       value: 375,
     });
-    // Mark notional $3750 / $375 = 10x. Entry notional would report ~8.67x.
     expect(result.resulting.leverage).toBeCloseTo(10);
-    expect(result.resulting.entryPrice).toBeCloseTo(2166.666, 1);
+    expect(result.resulting.entryPrice).toBeCloseTo(2166.6666667);
+    // Mark-based liq: (2500 - 375/1.5) / (1 - 1/50) = 2295.918...
+    // Entry-based liq would be ~1955.78 and is wrong for TP/SL.
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeCloseTo(2295.9183673469);
   });
 
   it('projects a partial decrease using the remaining position direction', () => {
@@ -293,6 +306,35 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       available: true,
       value: 240,
     });
+  });
+
+  it('marks a partial decrease at the expected fill, not live mark', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'short',
+      size: '0.4',
+      price: '1800',
+      leverage: 5,
+      reduceOnly: true,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('decrease');
+    expect(result.resulting.size).toBeCloseTo(0.6);
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 240,
+    });
+    // Remaining 0.6 marked at 1800 → notional 1080 / margin 240 = 4.5x.
+    expect(result.resulting.leverage).toBeCloseTo(4.5);
+    // (1800 - 240/0.6) / (1 - 1/50) = 1428.571...
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeCloseTo(1428.5714285714);
   });
 
   it('reallocates before a partial decrease when leverage changes', () => {
@@ -447,7 +489,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
 
     const expected = estimateIsolatedLiquidationPriceAtTier({
       isLong: true,
-      entryPrice: result.resulting.entryPrice,
+      markPrice: 2500,
       margin: result.resulting.margin.available
         ? result.resulting.margin.value
         : 0,
@@ -456,7 +498,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
     const singleTier = estimateIsolatedLiquidationPrice({
       isLong: true,
-      entryPrice: result.resulting.entryPrice,
+      markPrice: 2500,
       margin: result.resulting.margin.available
         ? result.resulting.margin.value
         : 0,

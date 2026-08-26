@@ -1126,6 +1126,44 @@ describe('HyperLiquidProvider', () => {
       });
       expect(result.resulting.direction).toBe('long');
     });
+
+    it('withholds liquidation when the asset is missing from meta', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          meta: jest.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'BTC',
+                szDecimals: 5,
+                maxLeverage: 40,
+                marginTableId: 40,
+              },
+            ],
+            marginTables: [],
+          }),
+        }),
+      );
+
+      const result = await provider.previewPositionModify({
+        position: isolatedPosition,
+        direction: 'long',
+        size: '0.5',
+        price: '2000',
+        leverage: 10,
+      });
+
+      expect(result.status).toBe('open');
+      if (result.status !== 'open') {
+        return;
+      }
+      expect(result.resulting.margin).toStrictEqual({
+        available: true,
+        value: 300,
+      });
+      expect(result.resulting.liquidationPrice).toStrictEqual({
+        available: false,
+      });
+    });
   });
 
   describe('getMaxLeverage', () => {

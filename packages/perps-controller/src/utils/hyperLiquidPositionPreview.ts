@@ -73,26 +73,29 @@ const currentFromPosition = (params: {
  *
  * Table IDs below 50 are single-tier. IDs at or above 50 require the matching
  * `marginTables` row; missing data returns `null` so liquidation is withheld.
+ * An unknown table id (asset missing from `meta.universe`) also returns `null`
+ * instead of inventing a single tier from max leverage.
  *
  * @param params - Margin table id, asset max leverage, and optional tables.
  * @param params.marginTableId - HyperLiquid margin table id from `meta.universe`.
  * @param params.maxLeverage - Asset max leverage used for single-tier tables.
  * @param params.marginTables - `meta.marginTables` rows; required for table ids ≥ 50.
- * @returns Tiers for liquidation, or `null` when the table is required but missing.
+ * @returns Tiers for liquidation, or `null` when the table identity is unknown.
  */
 export function resolveHyperLiquidMarginTiers(params: {
   marginTableId?: number;
-  maxLeverage: number;
+  maxLeverage?: number;
   marginTables?:
     | [number, { marginTiers: { lowerBound: string; maxLeverage: number }[] }][]
     | null;
 }): HyperLiquidMarginTier[] | null {
   const { marginTableId, maxLeverage, marginTables } = params;
 
-  if (
-    typeof marginTableId === 'number' &&
-    marginTableId >= SINGLE_TIER_MARGIN_TABLE_ID_MAX
-  ) {
+  if (typeof marginTableId !== 'number' || !Number.isFinite(marginTableId)) {
+    return null;
+  }
+
+  if (marginTableId >= SINGLE_TIER_MARGIN_TABLE_ID_MAX) {
     const table = marginTables?.find(([id]) => id === marginTableId)?.[1];
     const tiers = table?.marginTiers
       ?.map((tier) => ({
@@ -108,11 +111,19 @@ export function resolveHyperLiquidMarginTiers(params: {
     return tiers && tiers.length > 0 ? tiers : null;
   }
 
-  if (isPositiveFinite(maxLeverage)) {
-    return [{ lowerBound: 0, maxLeverage }];
+  if (marginTableId <= 0) {
+    return null;
   }
 
-  return null;
+  const tierMaxLeverage =
+    typeof maxLeverage === 'number' && isPositiveFinite(maxLeverage)
+      ? maxLeverage
+      : marginTableId;
+  if (!isPositiveFinite(tierMaxLeverage)) {
+    return null;
+  }
+
+  return [{ lowerBound: 0, maxLeverage: tierMaxLeverage }];
 }
 
 /**
@@ -162,14 +173,18 @@ export function buildMaintenanceSchedule(
 }
 
 /**
- * Isolated liquidation from entry, margin, size, and a maintenance tier.
+ * Isolated liquidation from mark, margin, size, and a maintenance tier.
  *
- * Long:  `(entry - margin/size - deduction/size) / (1 - mmr)`
- * Short: `(entry + margin/size + deduction/size) / (1 + mmr)`
+ * HyperLiquid liquidations use mark price, not average entry. Isolated
+ * `marginUsed` is mark-based equity (includes unrealized PnL), so the
+ * closed form must use the same reference:
+ *
+ * Long:  `(mark - margin/size - deduction/size) / (1 - mmr)`
+ * Short: `(mark + margin/size + deduction/size) / (1 + mmr)`
  *
  * @param params - Position geometry plus the tier's mmr and deduction.
  * @param params.isLong - Whether the remaining position is long.
- * @param params.entryPrice - Resulting average entry price.
+ * @param params.markPrice - Projected mark after the proposed fill.
  * @param params.margin - Isolated margin after the proposed fill.
  * @param params.positionSize - Absolute remaining size in token units.
  * @param params.maintenanceMarginRate - `1 / (2 * tierMaxLeverage)` for the tier.
@@ -178,7 +193,7 @@ export function buildMaintenanceSchedule(
  */
 export function estimateIsolatedLiquidationPrice(params: {
   isLong: boolean;
-  entryPrice: number;
+  markPrice: number;
   margin: number;
   positionSize: number;
   maintenanceMarginRate: number;
@@ -186,7 +201,7 @@ export function estimateIsolatedLiquidationPrice(params: {
 }): number | null {
   const {
     isLong,
-    entryPrice,
+    markPrice,
     margin,
     positionSize,
     maintenanceMarginRate,
@@ -194,7 +209,7 @@ export function estimateIsolatedLiquidationPrice(params: {
   } = params;
 
   if (
-    !isPositiveFinite(entryPrice) ||
+    !isPositiveFinite(markPrice) ||
     !isPositiveFinite(margin) ||
     !isPositiveFinite(positionSize) ||
     !Number.isFinite(maintenanceMarginRate) ||
@@ -212,7 +227,7 @@ export function estimateIsolatedLiquidationPrice(params: {
   }
 
   const liquidationPrice =
-    (entryPrice +
+    (markPrice +
       direction * (margin / positionSize) +
       direction * (maintenanceDeduction / positionSize)) /
     adjustmentFactor;
@@ -230,7 +245,7 @@ export function estimateIsolatedLiquidationPrice(params: {
  *
  * @param params - Resulting geometry and the asset's maintenance schedule.
  * @param params.isLong - Whether the remaining position is long.
- * @param params.entryPrice - Resulting average entry price.
+ * @param params.markPrice - Projected mark after the proposed fill.
  * @param params.margin - Isolated margin after the proposed fill.
  * @param params.positionSize - Absolute remaining size in token units.
  * @param params.marginTiers - Maintenance tiers, lowest notional first.
@@ -238,7 +253,7 @@ export function estimateIsolatedLiquidationPrice(params: {
  */
 export function estimateIsolatedLiquidationPriceAtTier(params: {
   isLong: boolean;
-  entryPrice: number;
+  markPrice: number;
   margin: number;
   positionSize: number;
   marginTiers: HyperLiquidMarginTier[] | null | undefined;
@@ -251,7 +266,7 @@ export function estimateIsolatedLiquidationPriceAtTier(params: {
   for (const tier of schedule) {
     const liquidationPrice = estimateIsolatedLiquidationPrice({
       isLong: params.isLong,
-      entryPrice: params.entryPrice,
+      markPrice: params.markPrice,
       margin: params.margin,
       positionSize: params.positionSize,
       maintenanceMarginRate: tier.maintenanceMarginRate,
@@ -288,8 +303,9 @@ const resultingLeverage = (params: {
  *
  * Models HyperLiquid's isolated `updateLeverage` (the selected leverage is
  * applied to the whole asset before the fill) and maintenance tiers at the
- * resulting liquidation notional. Cross-margin positions return
- * `{ status: 'unsupported', reason: 'cross_margin' }`.
+ * resulting liquidation notional. Liquidation uses the projected mark, not
+ * average entry, because isolated `marginUsed` is mark-based equity.
+ * Cross-margin positions return `{ status: 'unsupported', reason: 'cross_margin' }`.
  *
  * `price` is the fill or resting-limit price the caller expects. A marketable
  * order should pass its execution price; a limit should pass the limit. The
@@ -363,12 +379,13 @@ export function previewHyperLiquidIsolatedPositionModify(
     resultingDirection: 'long' | 'short';
     resultingSize: number;
     resultingEntryPrice: number;
+    resultingMarkPrice: number;
     resultingNotional: number;
     newMargin: number;
   }): PositionModifyPreviewResult => {
     const liquidationPrice = estimateIsolatedLiquidationPriceAtTier({
       isLong: preview.resultingDirection === 'long',
-      entryPrice: preview.resultingEntryPrice,
+      markPrice: preview.resultingMarkPrice,
       margin: preview.newMargin,
       positionSize: preview.resultingSize,
       marginTiers,
@@ -423,8 +440,7 @@ export function previewHyperLiquidIsolatedPositionModify(
       resultingDirection: openDirection,
       resultingSize,
       resultingEntryPrice,
-      // Post-fill mark is the fill; mixing live mark with fill notional is not
-      // HyperLiquid's displayed leverage when those prices differ.
+      resultingMarkPrice: fillPrice,
       resultingNotional: resultingSize * fillPrice,
       newMargin,
     });
@@ -434,13 +450,16 @@ export function previewHyperLiquidIsolatedPositionModify(
     const remainingRatio = (currentSize - orderSize) / currentSize;
     const resultingSize = currentSize - orderSize;
     const newMargin = Math.max(0, existingMarginAfterLeverage * remainingRatio);
+    const currentMarkPrice = currentNotional / currentSize;
+    const resultingMarkPrice = fillPrice ?? currentMarkPrice;
 
     return withResultingLiquidation({
       kind: 'decrease',
       resultingDirection: openDirection,
       resultingSize,
       resultingEntryPrice: currentEntry,
-      resultingNotional: currentNotional * remainingRatio,
+      resultingMarkPrice,
+      resultingNotional: resultingSize * resultingMarkPrice,
       newMargin,
     });
   }
@@ -462,6 +481,7 @@ export function previewHyperLiquidIsolatedPositionModify(
       resultingDirection: direction,
       resultingSize: leftover,
       resultingEntryPrice: fillPrice,
+      resultingMarkPrice: fillPrice,
       resultingNotional: leftover * fillPrice,
       newMargin: leftoverMargin,
     });

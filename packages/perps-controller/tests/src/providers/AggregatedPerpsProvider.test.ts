@@ -1124,6 +1124,80 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.previewPositionModify).toHaveBeenCalledWith(params);
     });
 
+    it('routes previewPositionModify to an explicit provider', async () => {
+      mockMYXProvider.previewPositionModify.mockResolvedValue({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+
+      const params = {
+        position: createMockPosition('RHEA', '1'),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '1',
+        leverage: 5,
+        providerId: 'myx' as const,
+      };
+
+      await expect(
+        aggregatedProvider.previewPositionModify(params),
+      ).resolves.toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+      expect(mockMYXProvider.previewPositionModify).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('routes previewPositionModify from position.providerId', async () => {
+      mockMYXProvider.previewPositionModify.mockResolvedValue({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+
+      const params = {
+        position: {
+          ...createMockPosition('RHEA', '1'),
+          providerId: 'myx' as const,
+        },
+        direction: 'long' as const,
+        size: '0.1',
+        price: '1',
+        leverage: 5,
+      };
+
+      await expect(
+        aggregatedProvider.previewPositionModify(params),
+      ).resolves.toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+      expect(mockMYXProvider.previewPositionModify).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unregistered previewPositionModify route', async () => {
+      aggregatedProvider.removeProvider('myx');
+
+      await expect(
+        aggregatedProvider.previewPositionModify({
+          position: createMockPosition('BTC', '1'),
+          direction: 'long',
+          size: '0.1',
+          price: '50000',
+          leverage: 10,
+          providerId: 'myx',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+      expect(mockMYXProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
     it('accepts an ordinary fee request held as the routed parameter type', async () => {
       const params: FeeCalculationParams = {
         orderType: 'market',
