@@ -1605,7 +1605,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(2);
     });
 
-    it('places partial TP/SL before cancelling old protection', async () => {
+    it('cancels old protection before placing partial TP/SL', async () => {
       const { exchangeClient } = useStrategyClients({
         info: {
           frontendOpenOrders: jest.fn().mockResolvedValue([
@@ -1642,9 +1642,68 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 456 }],
       });
-      expect(exchangeClient.order.mock.invocationCallOrder[0]).toBeLessThan(
-        exchangeClient.cancel.mock.invocationCallOrder[0],
+      expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+        exchangeClient.order.mock.invocationCallOrder[0],
       );
+    });
+
+    it('restores old protection when a partial TP/SL replacement fails', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Rejected replacement' }] },
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ resting: { oid: 789 } }] },
+          },
+        });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              side: 'A',
+              limitPx: '3400',
+              sz: '0',
+              origSz: '0',
+              oid: 456,
+              timestamp: 1_700_000_000_000,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              triggerCondition: 'Price above 3400',
+              triggerPx: '3400',
+              orderType: 'Take Profit Limit',
+              children: [],
+            },
+          ]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        takeProfitSize: '0.4',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      });
+      expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+        order.mock.invocationCallOrder[0],
+      );
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0]).toMatchObject({
+        grouping: 'positionTpsl',
+        orders: [expect.objectContaining({ p: '3400', s: '0' })],
+      });
     });
   });
 
@@ -5280,7 +5339,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
 
-    it('ages shared capability metadata from the request start', async () => {
+    it('ages capability metadata from request completion', async () => {
       const requestStarted = createDeferred<void>();
       const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
@@ -5296,7 +5355,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       const { infoClient } = useStrategyClients({ info: { meta } });
 
-      const leverage = provider.getMaxLeverage('ETH');
+      const capabilities = provider.getOrderCapabilities({ symbol: 'ETH' });
       await requestStarted.promise;
       jest.advanceTimersByTime(
         PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
@@ -5304,8 +5363,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
       pendingMeta.resolve({
         universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
       });
-      await leverage;
+      expect(await capabilities).toMatchObject({ status: 'ready' });
 
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({ status: 'ready' });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
+      );
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
       ).toMatchObject({ status: 'ready' });
@@ -5878,6 +5945,26 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reason: 'market_not_found',
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries client setup after initialization fails during a network toggle', async () => {
+      const { infoClient } = useStrategyClients();
+      mockClientService.initialize
+        .mockRejectedValueOnce(new Error('initialization failed'))
+        .mockResolvedValueOnce(undefined);
+
+      expect(await provider.toggleTestnet()).toMatchObject({
+        success: false,
+        error: 'initialization failed',
+      });
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({
+        status: 'ready',
+        providerId: 'hyperliquid',
+      });
+      expect(mockClientService.initialize).toHaveBeenCalledTimes(2);
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
     it('does not cache capability metadata that resolves after a network change', async () => {

@@ -1660,6 +1660,38 @@ describe('PerpsController', () => {
       );
     });
 
+    it('waits for network reinitialization before selecting the capability provider', async () => {
+      await controller.init();
+      const replacementProvider = createMockHyperLiquidProvider();
+      replacementProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      jest
+        .mocked(HyperLiquidProvider)
+        .mockImplementationOnce(() => replacementProvider);
+
+      const togglePromise = controller.toggleTestnet();
+      const capabilitiesPromise = controller.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+      expect(replacementProvider.getOrderCapabilities).not.toHaveBeenCalled();
+
+      await expect(togglePromise).resolves.toStrictEqual({
+        success: true,
+        isTestnet: true,
+      });
+      await expect(capabilitiesPromise).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(replacementProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+    });
+
     it('waits for init before selecting the capability provider', async () => {
       let resolveBlock!: () => void;
       const blockingPromise = new Promise<void>((resolve) => {

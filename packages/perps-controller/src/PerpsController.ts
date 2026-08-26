@@ -1350,19 +1350,6 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Awaits the in-flight initialization promise if init is currently running.
-   * Called internally by #getActiveProviderWhenReady().
-   */
-  async #awaitInitializationIfInProgress(): Promise<void> {
-    if (
-      this.state.initializationState === InitializationState.Initializing &&
-      this.#initializationPromise
-    ) {
-      await this.#initializationPromise;
-    }
-  }
-
-  /**
    * Resolve the provider ids that should participate in aggregated cache reads.
    *
    * Providers can still be registering when the first render happens, so we
@@ -2691,8 +2678,24 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<ActivePerpsProvider> {
-    await this.#awaitInitializationIfInProgress();
-    return this.getActiveProvider();
+    while (true) {
+      const pendingReinitialization = this.#reinitializationOperationPromise;
+      if (pendingReinitialization) {
+        await pendingReinitialization;
+        continue;
+      }
+
+      const pendingInitialization = this.#initializationPromise;
+      if (
+        this.state.initializationState === InitializationState.Initializing &&
+        pendingInitialization
+      ) {
+        await pendingInitialization;
+        continue;
+      }
+
+      return this.getActiveProvider();
+    }
   }
 
   /**
@@ -2831,10 +2834,10 @@ export class PerpsController extends BaseController<
     providerId: PerpsProviderType | undefined,
     provider: ActivePerpsProvider,
   ): boolean {
-    return Boolean(
-      providerId &&
+    return (
+      providerId !== undefined &&
       !provider.routesOrdersByProviderId &&
-      providerId !== provider.protocolId,
+      providerId !== provider.protocolId
     );
   }
 
