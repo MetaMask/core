@@ -20,7 +20,10 @@ export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
 export function AbstractPollingControllerBaseMixin<
   TBase extends Constructor,
   PollingInput extends Json,
->(Base: TBase) {
+>(
+  Base: TBase,
+): TBase &
+  (abstract new (...args: unknown[]) => IPollingController<PollingInput>) {
   abstract class AbstractPollingControllerBase
     extends Base
     implements IPollingController<PollingInput>
@@ -99,5 +102,7 @@ export function AbstractPollingControllerBaseMixin<
       this.#callbacks.set(key, callbacks);
     }
   }
-  return AbstractPollingControllerBase;
+
+  return AbstractPollingControllerBase as unknown as TBase &
+    (abstract new (...args: unknown[]) => IPollingController<PollingInput>);
 }
