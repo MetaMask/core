@@ -437,4 +437,344 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       }
     }
   });
+
+  it('averages entry and posts order margin at a limit price away from entry', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'long',
+      size: '1',
+      price: '1800',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('increase');
+    expect(result.resulting.size).toBeCloseTo(2);
+    expect(result.resulting.entryPrice).toBeCloseTo(1900);
+    // Existing $400 at 5x plus 1 * 1800 / 5 = $360.
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 760,
+    });
+  });
+
+  it('does not project an increase or flip when the fill price is missing', () => {
+    const increase = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'long',
+      size: '0.5',
+      price: '0',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+    const flip = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'short',
+      size: '1.5',
+      price: '',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(increase.status).toBe('none');
+    expect(flip.status).toBe('none');
+  });
+
+  it('still projects a reduce when the fill price is missing', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'short',
+      size: '0.4',
+      price: '0',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('decrease');
+    expect(result.resulting.direction).toBe('long');
+  });
+
+  it('does not treat a same-direction reduce-only order as a decrease', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'long',
+      size: '0.4',
+      price: '2000',
+      leverage: 5,
+      reduceOnly: true,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('none');
+  });
+
+  it('keeps extra isolated margin when leverage is unchanged', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({ marginUsed: '800' }),
+      direction: 'long',
+      size: '0.5',
+      price: '2000',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 1000,
+    });
+  });
+
+  it('strips extra isolated margin when leverage increases', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({ marginUsed: '800' }),
+      direction: 'long',
+      size: '0.5',
+      price: '2000',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 300,
+    });
+  });
+
+  it('adds isolated margin when selected leverage is lower than the position', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        leverage: { type: 'isolated', value: 10 },
+        marginUsed: '200',
+      }),
+      direction: 'long',
+      size: '0.5',
+      price: '2000',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    // Existing $2000 / 5 = $400, plus 0.5 * 2000 / 5 = $200.
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 600,
+    });
+    expect(result.resulting.leverage).toBeCloseTo(5);
+  });
+
+  it('projects a short increase, keeping liquidation above entry', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-1',
+        liquidationPrice: '2360',
+      }),
+      direction: 'short',
+      size: '0.5',
+      price: '2000',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('increase');
+    expect(result.resulting.direction).toBe('short');
+    expect(result.resulting.size).toBeCloseTo(1.5);
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 600,
+    });
+    expect(result.resulting.liquidationPrice.available).toBe(true);
+    if (result.resulting.liquidationPrice.available) {
+      expect(result.resulting.liquidationPrice.value).toBeGreaterThan(2000);
+    }
+  });
+
+  it('reallocates a short when increasing at higher leverage', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-1',
+        liquidationPrice: '2360',
+      }),
+      direction: 'short',
+      size: '0.5',
+      price: '2000',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 300,
+    });
+    expect(result.resulting.direction).toBe('short');
+  });
+
+  it('averages a short increase at a limit above entry', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-1',
+        liquidationPrice: '2360',
+      }),
+      direction: 'short',
+      size: '1',
+      price: '2200',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.resulting.entryPrice).toBeCloseTo(2100);
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 840,
+    });
+  });
+
+  it('projects a partial cover of a short using the remaining short direction', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-1',
+        liquidationPrice: '2360',
+      }),
+      direction: 'long',
+      size: '0.4',
+      price: '2000',
+      leverage: 5,
+      reduceOnly: true,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('decrease');
+    expect(result.resulting.direction).toBe('short');
+    expect(result.resulting.size).toBeCloseTo(0.6);
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 240,
+    });
+  });
+
+  it('flips a short leftover into a long at the fill price', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-1',
+        liquidationPrice: '2360',
+      }),
+      direction: 'long',
+      size: '1.5',
+      price: '1900',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('flip');
+    expect(result.resulting.direction).toBe('long');
+    expect(result.resulting.size).toBeCloseTo(0.5);
+    expect(result.resulting.entryPrice).toBeCloseTo(1900);
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 95,
+    });
+    expect(result.resulting.liquidationPrice.available).toBe(true);
+    if (result.resulting.liquidationPrice.available) {
+      expect(result.resulting.liquidationPrice.value).toBeLessThan(1900);
+    }
+  });
+
+  it('fully closes a short without a remaining size', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-1',
+        liquidationPrice: '2360',
+      }),
+      direction: 'long',
+      size: '1',
+      price: '2000',
+      leverage: 5,
+      reduceOnly: true,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result).toMatchObject({
+      status: 'full_close',
+      resultingDirection: 'short',
+    });
+  });
+
+  it('flips a long leftover into a short at a limit away from entry', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'short',
+      size: '1.5',
+      price: '1800',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('flip');
+    expect(result.resulting.direction).toBe('short');
+    expect(result.resulting.size).toBeCloseTo(0.5);
+    expect(result.resulting.entryPrice).toBeCloseTo(1800);
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 90,
+    });
+    expect(result.resulting.liquidationPrice.available).toBe(true);
+    if (result.resulting.liquidationPrice.available) {
+      expect(result.resulting.liquidationPrice.value).toBeGreaterThan(1800);
+    }
+  });
+
+  it('returns none for a negative order size', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'long',
+      size: '-0.5',
+      price: '2000',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('none');
+  });
 });

@@ -1299,7 +1299,12 @@ export type PositionModifyPreviewParams = {
   direction: 'long' | 'short';
   /** Proposed order size in token units. */
   size: string;
-  /** Expected fill or limit price. */
+  /**
+   * Expected fill price for a marketable order, or the resting limit price.
+   * Increases and flips require a positive price; a reduce does not.
+   * Scale, TWAP, and chase orders should pass the expected fill size and price;
+   * this preview models a single fill.
+   */
   price: string;
   /**
    * Isolated leverage the provider will set on the asset before placing.

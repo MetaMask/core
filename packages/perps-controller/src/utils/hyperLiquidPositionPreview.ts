@@ -279,6 +279,14 @@ const resultingLeverage = (params: {
  * resulting liquidation notional. Cross-margin positions return
  * `{ status: 'unsupported', reason: 'cross_margin' }`.
  *
+ * `price` is the fill or resting-limit price the caller expects. A marketable
+ * order should pass its execution price; a limit should pass the limit. The
+ * preview does not distinguish order types itself, does not model whether a
+ * resting limit would fill, and treats scale/TWAP/chase as one aggregated fill.
+ * Decrease margin is the remaining isolated collateral after leverage
+ * reallocation; close fees and realized PnL settle to the account, not the
+ * leftover margin.
+ *
  * @param params - Live isolated position, proposed order, and optional tiers.
  * @returns Discriminated preview; margin and liquidation are independently available.
  */
@@ -380,11 +388,19 @@ export function previewHyperLiquidIsolatedPositionModify(
   };
 
   const isSameDirection = openDirection === direction;
-  const fillPrice = isPositiveFinite(orderPrice) ? orderPrice : currentEntry;
-  const orderNotional = orderSize * fillPrice;
-  const orderMargin = orderNotional / selectedLeverage;
+  const fillPrice = isPositiveFinite(orderPrice) ? orderPrice : null;
 
-  if (isSameDirection && !reduceOnly) {
+  // Reduce-only in the position's own direction cannot add size and does not
+  // close it, so there is no resulting position to project.
+  if (isSameDirection && reduceOnly) {
+    return { status: 'none' };
+  }
+
+  if (isSameDirection) {
+    if (fillPrice === null) {
+      return { status: 'none' };
+    }
+    const orderMargin = (orderSize * fillPrice) / selectedLeverage;
     const resultingSize = currentSize + orderSize;
     const resultingEntryPrice =
       (currentSize * currentEntry + orderSize * fillPrice) / resultingSize;
@@ -418,18 +434,21 @@ export function previewHyperLiquidIsolatedPositionModify(
 
   const leftover = orderSize - currentSize;
   if (leftover > SIZE_EPSILON && !reduceOnly) {
+    if (fillPrice === null) {
+      return { status: 'none' };
+    }
+    const orderMargin = (orderSize * fillPrice) / selectedLeverage;
     const leftoverRatio = leftover / orderSize;
     const leftoverMargin = Math.max(
       0,
       (orderMargin - feeAmountUsd) * leftoverRatio,
     );
-    const resultingEntryPrice = fillPrice;
 
     return withResultingLiquidation({
       kind: 'flip',
       resultingDirection: direction,
       resultingSize: leftover,
-      resultingEntryPrice,
+      resultingEntryPrice: fillPrice,
       newMargin: leftoverMargin,
     });
   }
