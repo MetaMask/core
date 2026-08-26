@@ -5781,16 +5781,21 @@ export class HyperLiquidProvider implements PerpsProvider {
           now - session.lastSnapshotSizeRefreshAt >= session.intervalMs
         ) {
           session.lastSnapshotSizeRefreshAt = now;
+          const snapshotOrderId = session.orderId;
           try {
-            const liveRemainder = await this.#readOrderRemainder(
-              session.orderId,
-            );
-            if (liveRemainder !== null) {
+            const liveRemainder =
+              await this.#readOrderRemainder(snapshotOrderId);
+            if (
+              liveRemainder !== null &&
+              session.orderId === snapshotOrderId &&
+              session.pendingReplacement === null
+            ) {
+              Object.assign(session, { size: liveRemainder });
               snapshotRemainingSize = liveRemainder;
             }
           } catch (error) {
             this.#deps.debugLogger.log('Chase snapshot size refresh failed', {
-              orderId: session.orderId,
+              orderId: snapshotOrderId,
               error: ensureError(error, 'HyperLiquidProvider.getChaseOrders')
                 .message,
             });
@@ -6511,17 +6516,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         session.orderId === params.orderId ||
         session.replacingOrderId === params.orderId,
     );
-    if (owningChase) {
-      this.#stopChaseSession(owningChase[0]);
-      await this.#chaseTickQueue;
-      return await this.#cancelChaseOrder({
-        ...params,
-        orderId: owningChase[0],
-        orderType: 'chase',
-      });
-    }
-
     try {
+      if (owningChase) {
+        this.#stopChaseSession(owningChase[0]);
+        await this.#chaseTickQueue;
+        return await this.#cancelChaseOrder({
+          ...params,
+          orderId: owningChase[0],
+          orderType: 'chase',
+        });
+      }
+
       this.#deps.debugLogger.log('Canceling order:', params);
 
       // Hydrate the asset map before coin validation so a cold start (e.g.

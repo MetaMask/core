@@ -1233,9 +1233,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       });
 
-      const snapshots = await provider.getChaseOrders();
+      const firstSnapshots = await provider.getChaseOrders();
+      const cachedSnapshots = await provider.getChaseOrders();
 
-      expect(snapshots).toContainEqual(
+      expect(firstSnapshots).toContainEqual(
+        expect.objectContaining({
+          handle: result.orderId,
+          remainingSize: '0.2',
+        }),
+      );
+      expect(cachedSnapshots).toContainEqual(
         expect.objectContaining({
           handle: result.orderId,
           remainingSize: '0.2',
@@ -1366,6 +1373,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
       ).toMatchObject({ success: true });
       expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
+    it('returns an error result when child cancellation setup fails', async () => {
+      useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      mockWalletService.getUserAddressWithDefault.mockRejectedValueOnce(
+        new Error('Trading setup failed'),
+      );
+
+      const result = await provider.cancelOrder({
+        orderId: '55',
+        symbol: 'ETH',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: 'Trading setup failed',
+      });
     });
 
     it('blocks new placements while suspension drains an admitted placement', async () => {
