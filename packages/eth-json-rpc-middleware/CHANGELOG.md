@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
+### Fixed
+
+- Accept numeric values for quantity fields in `eth_sendTransaction` / `eth_signTransaction` params ([#9967](https://github.com/MetaMask/core/pull/9967))
+  - `chainId` (top-level and in `authorizationList` entries) and `authorizationList` `nonce` / `yParity` now accept both hex strings and numbers, matching the other quantity fields (`gas`, `value`, `nonce`, etc.) and restoring pre-`24.0.0` behavior
+
 ## [24.0.0]
 
 ### Changed
