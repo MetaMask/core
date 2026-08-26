@@ -2762,6 +2762,32 @@ describe('PerpsController', () => {
       expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
     });
 
+    it('does not report an expected background preload invalidation as an error', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await jest.advanceTimersByTimeAsync(100);
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+
+      await preloadController.disconnect();
+      deferred.resolve(createUserSnapshot());
+      await jest.advanceTimersByTimeAsync(0);
+
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.logger.error).not.toHaveBeenCalled();
+    });
+
     it('preserves last-known-good data when a snapshot request fails', async () => {
       const lastKnownGood = {
         positions: [createMockPosition({ symbol: 'ETH' })],

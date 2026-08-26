@@ -2,6 +2,7 @@
 import {
   parseBoundedNonNegativeDecimal,
   parseBoundedPositiveDecimal,
+  parseFeeAmount,
   stripQuotes,
   parseCommaSeparatedString,
 } from '../../../src/utils/stringParseUtils.js';
@@ -108,4 +109,23 @@ describe('bounded decimal parsing', () => {
     expect(parseBoundedPositiveDecimal('0')).toBeNull();
     expect(parseBoundedPositiveDecimal('0.1')).toBe(0.1);
   });
+});
+
+describe('fee amount parsing', () => {
+  it.each([
+    ['', 0],
+    ['.5', 0.5],
+    ['1e2', 100],
+    [' 100 ', 100],
+    ['1,000', 1000],
+  ])('preserves fee-preview input %p', (value, expected) => {
+    expect(parseFeeAmount(value)).toBe(expected);
+  });
+
+  it.each(['invalid', '100junk', '-1', 'Infinity', '0x10', '1,00', '1,,000'])(
+    'maps unusable fee-preview input %p to zero',
+    (value) => {
+      expect(parseFeeAmount(value)).toBe(0);
+    },
+  );
 });

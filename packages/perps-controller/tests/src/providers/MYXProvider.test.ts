@@ -833,8 +833,26 @@ describe('MYXProvider', () => {
       });
     });
 
-    it.each(['abc', '-1', 'Infinity', '1abc', '', '.5', '1e5', '0x10'])(
-      'rejects invalid amount quote %p',
+    it.each([
+      ['', 0],
+      ['.5', 0.5],
+      ['1e2', 100],
+      [' 100 ', 100],
+      ['1,000', 1000],
+    ])('quotes compatible amount %p', async (amount, expectedAmount) => {
+      const result = await provider.calculateFees({
+        orderType: 'market',
+        symbol: 'RHEA',
+        amount,
+      });
+
+      expect(result.feeAmount).toBe(expectedAmount * 0.0005);
+      expect(result.protocolFeeAmount).toBe(expectedAmount * 0.0005);
+      expect(result.metamaskFeeAmount).toBe(0);
+    });
+
+    it.each(['abc', '-1', 'Infinity', '1abc', '0x10'])(
+      'returns a zero quote for unusable amount %p',
       async (amount) => {
         await expect(
           provider.calculateFees({
@@ -842,7 +860,11 @@ describe('MYXProvider', () => {
             symbol: 'RHEA',
             amount,
           }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        ).resolves.toMatchObject({
+          feeAmount: 0,
+          protocolFeeAmount: 0,
+          metamaskFeeAmount: 0,
+        });
       },
     );
 

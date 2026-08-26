@@ -390,8 +390,9 @@ export type OrderResult = {
   //
   // Failure results can mix filled IDs with orders that may still rest, so a
   // caller must not blindly cancel every ID. When TP/SL protection cannot be
-  // fully restored, these identify the old orders that survived or were
-  // recreated; an empty array means none were confirmed.
+  // fully restored, these identify the old orders that survived, may still be
+  // live when reconciliation failed, or were recreated; an empty array means
+  // none are known or potentially live.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };

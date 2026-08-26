@@ -2561,24 +2561,39 @@ describe('HyperLiquidProvider', () => {
       });
 
       it.each([
-        '',
-        'invalid',
-        '100junk',
-        '-1',
-        'Infinity',
-        '1e5',
-        '.5',
-        '  100',
-      ])('rejects invalid fee amount %p', async (amount) => {
-        await expect(
-          provider.calculateFees({
+        ['', 0],
+        ['.5', 0.5],
+        ['1e2', 100],
+        ['  100 ', 100],
+        ['1,000', 1000],
+      ])('quotes compatible fee amount %p', async (amount, expectedAmount) => {
+        const result = await provider.calculateFees({
+          orderType: 'market',
+          isMaker: false,
+          amount,
+          symbol: 'BTC',
+        });
+
+        expect(result.feeAmount).toBeCloseTo(expectedAmount * 0.00145, 10);
+      });
+
+      it.each(['invalid', '100junk', '-1', 'Infinity', '0x10'])(
+        'returns a zero quote for unusable fee amount %p',
+        async (amount) => {
+          const result = await provider.calculateFees({
             orderType: 'market',
             isMaker: false,
             amount,
             symbol: 'BTC',
-          }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
-      });
+          });
+
+          expect(result).toMatchObject({
+            feeAmount: 0,
+            protocolFeeAmount: 0,
+            metamaskFeeAmount: 0,
+          });
+        },
+      );
 
       it('returns FeeCalculationResult with correct structure', async () => {
         const result = await provider.calculateFees({

@@ -221,7 +221,10 @@ import {
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
-import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
+import {
+  parseBoundedNonNegativeDecimal,
+  parseFeeAmount,
+} from '../utils/stringParseUtils.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 /**
@@ -5846,6 +5849,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
         {
           success: false,
+          submittedSize: formattedSize,
           ...(recoverableOrderIds.length > 0 && {
             childOrderIds: recoverableOrderIds,
           }),
@@ -5888,6 +5892,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             success: false,
             orderId: groupId,
             childOrderIds: recoverableOrderIds,
+            submittedSize: formattedSize,
           },
         );
       }
@@ -5896,6 +5901,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         return createErrorResult(new Error(PERPS_ERROR_CODES.ORDER_REJECTED), {
           success: false,
           childOrderIds: recoverableOrderIds,
+          submittedSize: formattedSize,
         });
       }
 
@@ -6732,13 +6738,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     let callerTerminalResult: ChaseTerminalResolution | null = null;
     let callerStatusUnavailable = false;
-    for (const order of ambiguous) {
-      try {
-        const { remainingSize: live, terminalStatus } =
-          await this.#readOrderRemainder(
-            order.orderId,
-            CHASE_ORDER_STATUS_RETRY_COUNT,
-          );
+    const resolutions = await Promise.allSettled(
+      ambiguous.map((order) =>
+        this.#readOrderRemainder(order.orderId, CHASE_ORDER_STATUS_RETRY_COUNT),
+      ),
+    );
+    resolutions.forEach((resolution, index) => {
+      const order = ambiguous[index];
+      if (resolution.status === 'fulfilled') {
+        const { remainingSize: live, terminalStatus } = resolution.value;
         const delta =
           (live === null ? 0 : parseFloat(live)) - parseFloat(order.size);
         recorded.set(
@@ -6751,23 +6759,25 @@ export class HyperLiquidProvider implements PerpsProvider {
             status: terminalStatus,
           };
         }
-      } catch (error) {
+      } else {
+        const { reason: error } = resolution;
         if (
           error instanceof ChaseOrderStatusUnavailableError &&
           order.orderId === callerOrderId
         ) {
           callerStatusUnavailable = true;
-          continue;
+        } else {
+          // A failed lookup must not stop the chase. Keeping the recorded size
+          // can only over-subtract, which quotes a level deeper rather than
+          // leaving the order stranded at a stale price.
+          this.#deps.debugLogger.log('Chase own-size lookup failed', {
+            orderId: order.orderId,
+            error: ensureError(error, 'HyperLiquidProvider.chaseOwnSize')
+              .message,
+          });
         }
-        // A failed lookup must not stop the chase. Keeping the recorded size can
-        // only over-subtract, which quotes a level deeper rather than leaving
-        // the order stranded at a stale price.
-        this.#deps.debugLogger.log('Chase own-size lookup failed', {
-          orderId: order.orderId,
-          error: ensureError(error, 'HyperLiquidProvider.chaseOwnSize').message,
-        });
       }
-    }
+    });
 
     if (callerStatusUnavailable) {
       return CHASE_ORDER_STATUS_UNAVAILABLE;
@@ -9264,10 +9274,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         const requestedOrderIds = new Set(
           cancelRequests.map((request) => request.o),
         );
-        let confirmedLiveOrderIds: string[] = [];
+        let possiblyLiveOrderIds = Array.from(requestedOrderIds, String);
         try {
           const liveOrders = await this.#fetchOpenOrders({ dexName });
-          confirmedLiveOrderIds = liveOrders
+          possiblyLiveOrderIds = liveOrders
             .filter((order) => requestedOrderIds.has(order.oid))
             .map((order) => String(order.oid));
         } catch (error) {
@@ -9282,7 +9292,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
           );
         }
-        return createProtectionLostResult(confirmedLiveOrderIds);
+        return createProtectionLostResult(possiblyLiveOrderIds);
       }
       oldCancellation.cancelledOrderIds.forEach((orderId) =>
         confirmedCancelledOldOrderIds.add(orderId),
@@ -13115,10 +13125,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
     const parsedAmount =
-      amount === undefined ? undefined : parseBoundedNonNegativeDecimal(amount);
-    if (parsedAmount === null) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
-    }
+      amount === undefined ? undefined : parseFeeAmount(amount);
 
     // Every placement is charged as its execution kind: a stop_market fills as a
     // market order (taker), a stop_limit as a limit order, a scale ladder as the

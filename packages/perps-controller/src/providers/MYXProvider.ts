@@ -118,7 +118,7 @@ import {
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
 import { isStrategyOrderType } from '../utils/orderTypes.js';
-import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
+import { parseFeeAmount } from '../utils/stringParseUtils.js';
 
 // ============================================================================
 // Constants
@@ -1037,12 +1037,7 @@ export class MYXProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
     }
     const parsedAmount =
-      params.amount === undefined
-        ? undefined
-        : parseBoundedNonNegativeDecimal(params.amount);
-    if (parsedAmount === null) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
-    }
+      params.amount === undefined ? undefined : parseFeeAmount(params.amount);
     const protocolFeeAmount =
       parsedAmount === undefined
         ? undefined

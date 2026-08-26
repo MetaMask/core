@@ -1319,6 +1319,27 @@ describe('PerpsController', () => {
       expect(mockTradingServiceInstance.editOrder).not.toHaveBeenCalled();
     });
 
+    it.each(STRATEGY_ORDER_TYPES)(
+      'returns the unsupported result for a %s edit without requiring a route',
+      async (orderType) => {
+        await expect(
+          controller.editOrder({
+            orderId: 'strategy-123',
+            newOrder: {
+              symbol: 'ETH',
+              orderType,
+              isBuy: true,
+              size: '1',
+            },
+          }),
+        ).resolves.toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
+        });
+        expect(mockTradingServiceInstance.editOrder).not.toHaveBeenCalled();
+      },
+    );
+
     it('rejects a conflicting direct-provider route for a position close', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

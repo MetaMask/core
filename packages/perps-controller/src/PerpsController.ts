@@ -1746,9 +1746,6 @@ export class PerpsController extends BaseController<
     const result = cloneUserDataSnapshot(snapshot);
     const timestamp = Date.now();
     const providerNetworkKey = buildProviderCacheKey('hyperliquid', isTestnet);
-    if (!isCurrent()) {
-      throw new Error('User data snapshot context changed');
-    }
     this.update((state) => {
       state.cachedUserDataByProvider[providerNetworkKey] = {
         positions: cachedSnapshot.positions,
@@ -2919,6 +2916,13 @@ export class PerpsController extends BaseController<
    * @returns The updated order result with order ID and status.
    */
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
+    if (isStrategyOrderType(params.newOrder.orderType)) {
+      return {
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
+      };
+    }
+
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.newOrder.orderType,
       providerId: params.newOrder.providerId,
@@ -4572,6 +4576,15 @@ export class PerpsController extends BaseController<
           error?: string;
         }
       | undefined;
+    const staleContextError = 'User data preload context changed';
+    const discardStalePreload = (): boolean => {
+      if (isCurrent()) {
+        return false;
+      }
+      traceData = { success: false, error: staleContextError };
+      this.#debugLog('PerpsController: Discarding stale user data preload');
+      return true;
+    };
 
     try {
       this.#options.infrastructure.tracer.trace({
@@ -4588,8 +4601,8 @@ export class PerpsController extends BaseController<
 
       if (activeProvider === 'hyperliquid') {
         const snapshot = await this.getUserDataSnapshot();
-        if (!isCurrent()) {
-          throw new Error('User data preload context changed');
+        if (discardStalePreload()) {
+          return;
         }
         this.#debugLog('PerpsController: User data preloaded', {
           positionCount: snapshot.positions.length,
@@ -4616,8 +4629,8 @@ export class PerpsController extends BaseController<
         this.getAccountState({ standalone: true, userAddress }),
       ]);
 
-      if (!isCurrent()) {
-        throw new Error('User data preload context changed');
+      if (discardStalePreload()) {
+        return;
       }
 
       if (activeProvider === 'aggregated' && activeProviderInstance) {
@@ -4658,8 +4671,8 @@ export class PerpsController extends BaseController<
           accountState.providerId ?? fallbackProviderId,
         ).accountState = accountState;
 
-        if (!isCurrent()) {
-          throw new Error('User data preload context changed');
+        if (discardStalePreload()) {
+          return;
         }
         this.update((state) => {
           for (const [pid, data] of byProvider) {
@@ -4689,8 +4702,8 @@ export class PerpsController extends BaseController<
       } else {
         // Single provider — store directly under its key
         const ts = Date.now();
-        if (!isCurrent()) {
-          throw new Error('User data preload context changed');
+        if (discardStalePreload()) {
+          return;
         }
         this.update((state) => {
           state.cachedUserDataByProvider[providerNetworkKey] = {
@@ -4729,6 +4742,9 @@ export class PerpsController extends BaseController<
         traceId,
       );
     } catch (error) {
+      if (discardStalePreload()) {
+        return;
+      }
       traceData = {
         success: false,
         error: ensureError(error, 'PerpsController.performUserDataPreload')

@@ -34,6 +34,7 @@ import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 
 // The HyperLiquid SDK is never exercised directly: every exchange and info call
 // goes through the mocked client service below.
@@ -729,6 +730,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         takeProfitPrice: '3500',
         stopLossPrice: '2500',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
       });
 
       expect(result.success).toBe(true);
@@ -814,6 +816,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports lost protection when the old cancel outcome is unknown', async () => {
+      const frontendOpenOrders = jest
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            coin: 'ETH',
+            oid: 456,
+            reduceOnly: true,
+            isTrigger: true,
+            isPositionTpsl: true,
+            orderType: 'Take Profit Limit',
+            children: [],
+          },
+          {
+            coin: 'ETH',
+            oid: 457,
+            reduceOnly: true,
+            isTrigger: true,
+            isPositionTpsl: true,
+            orderType: 'Stop Market',
+            children: [],
+          },
+        ])
+        .mockRejectedValueOnce(new Error('Open orders unavailable'));
       const { exchangeClient } = useStrategyClients({
         exchange: {
           cancel: jest.fn().mockResolvedValue({
@@ -821,34 +846,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
             response: { data: { statuses: ['success'] } },
           }),
         },
-        info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
-            {
-              coin: 'ETH',
-              oid: 456,
-              reduceOnly: true,
-              isTrigger: true,
-              isPositionTpsl: true,
-              orderType: 'Take Profit Limit',
-              children: [],
-            },
-            {
-              coin: 'ETH',
-              oid: 457,
-              reduceOnly: true,
-              isTrigger: true,
-              isPositionTpsl: true,
-              orderType: 'Stop Market',
-              children: [],
-            },
-          ]),
-        },
+        info: { frontendOpenOrders },
       });
 
       const result = await provider.updatePositionTPSL({
         symbol: 'ETH',
         takeProfitPrice: '3500',
         stopLossPrice: '2500',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
       });
 
       expect(result).toStrictEqual({
@@ -2921,6 +2926,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
         childOrderIds: ['11', '22'],
+        submittedSize: '1',
       });
       expect(placed.orderId).toMatch(/^scale:/u);
       if (!placed.orderId) {
@@ -4728,6 +4734,47 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it('reports submitted exposure when a partial ladder fills a rung', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { filled: { oid: 11 } },
+                  { error: 'Insufficient margin' },
+                  { resting: { oid: 33 } },
+                ],
+              },
+            },
+          }),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: ['success'] } },
+          }),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        childOrderIds: ['11'],
+        submittedSize: '1',
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 33 }],
+      });
+    });
+
     it('keeps an incomplete cleanup recoverable by its group handle', async () => {
       const cancel = jest
         .fn()
@@ -4760,6 +4807,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
         childOrderIds: ['11'],
+        submittedSize: '1',
       });
 
       const retried = await provider.cancelOrder({
@@ -8132,6 +8180,119 @@ describe('HyperLiquidProvider - strategy order types', () => {
       jest.useRealTimers();
     });
 
+    it('resolves ambiguous Chase children concurrently', async () => {
+      const pendingFirstStatus = createDeferred<Record<string, unknown>>();
+      const openStatus = (oid: number): Record<string, unknown> => ({
+        status: 'order',
+        order: {
+          status: 'open',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '1',
+            origSz: '1',
+            oid,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+      const orderStatus = jest
+        .fn()
+        .mockImplementation(({ oid }) =>
+          oid === 55
+            ? pendingFirstStatus.promise
+            : Promise.resolve(openStatus(oid)),
+        );
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 77 } }] } },
+        });
+      const l2Book = jest
+        .fn()
+        .mockResolvedValueOnce({
+          coin: 'ETH',
+          levels: [
+            [{ px: '2999', sz: '10', n: 1 }],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        })
+        .mockResolvedValueOnce({
+          coin: 'ETH',
+          levels: [
+            [
+              { px: '2999.1', sz: '2', n: 2 },
+              { px: '2999', sz: '10', n: 1 },
+            ],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        })
+        .mockResolvedValue({
+          coin: 'ETH',
+          levels: [
+            [
+              { px: '2999.2', sz: '1', n: 1 },
+              { px: '2999.1', sz: '1', n: 1 },
+              { px: '2998', sz: '10', n: 1 },
+            ],
+            [{ px: '3001', sz: '10', n: 1 }],
+          ],
+        });
+      useStrategyClients({
+        exchange: { order },
+        info: { l2Book, orderStatus },
+      });
+
+      const first = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+      const second = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+      if (!first.orderId || !second.orderId) {
+        throw new Error('Expected both Chase handles');
+      }
+
+      jest.advanceTimersByTime(1000);
+      for (
+        let index = 0;
+        index < 10 && orderStatus.mock.calls.length < 2;
+        index++
+      ) {
+        await Promise.resolve();
+      }
+
+      expect(
+        orderStatus.mock.calls.map(([params]) => params.oid),
+      ).toStrictEqual([55, 66]);
+
+      pendingFirstStatus.resolve(openStatus(55));
+      for (let index = 0; index < 10; index++) {
+        await Promise.resolve();
+      }
+    });
+
     it('sees external liquidity sharing its level after a partial fill', async () => {
       const order = jest.fn().mockResolvedValue({
         status: 'ok',
@@ -8332,6 +8493,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        submittedSize: '1',
       });
       expect(placed.orderId).toBeUndefined();
       expect(placed.childOrderIds).toStrictEqual(['22']);
