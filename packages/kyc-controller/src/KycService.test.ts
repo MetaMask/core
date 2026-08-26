@@ -567,6 +567,69 @@ describe('KycService', () => {
     });
   });
 
+  describe('submitVendorDisclaimers', () => {
+    const signings = [
+      { id: 'sign-1', customer_id: 'cust-1', content_id: 'disc-1' },
+      { id: 'sign-2', customer_id: 'cust-1', content_id: 'disc-2' },
+    ];
+
+    it('posts accepted disclaimer ids and returns vendor signings', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/iron/disclaimers', {
+          disclaimerIds: ['disc-1', 'disc-2'],
+        })
+        .reply(200, signings);
+      const { service } = getService();
+
+      expect(
+        await service.submitVendorDisclaimers({
+          vendor: 'iron',
+          disclaimerIds: ['disc-1', 'disc-2'],
+        }),
+      ).toStrictEqual(signings);
+    });
+
+    it('accepts extra signing fields and an omitted content_id', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/iron/disclaimers', { disclaimerIds: ['disc-1'] })
+        .reply(200, [{ id: 'sign-1', customer_id: 'cust-1', signed: true }]);
+      const { service } = getService();
+
+      expect(
+        await service.submitVendorDisclaimers({
+          vendor: 'iron',
+          disclaimerIds: ['disc-1'],
+        }),
+      ).toMatchObject([{ id: 'sign-1', customer_id: 'cust-1' }]);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/disclaimers').reply(200, {});
+      const { service } = getService();
+
+      await expect(
+        service.submitVendorDisclaimers({
+          vendor: 'iron',
+          disclaimerIds: ['disc-1'],
+        }),
+      ).rejects.toThrow(
+        /Malformed response received from vendor disclaimers API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/disclaimers').reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.submitVendorDisclaimers({
+          vendor: 'iron',
+          disclaimerIds: ['disc-1'],
+        }),
+      ).rejects.toThrow(/failed with status '500'/u);
+    });
+  });
+
   describe('fetchDisclaimers for a non-MoonPay vendor', () => {
     it('returns Iron disclaimers for a country', async () => {
       const disclaimers = [
@@ -634,38 +697,146 @@ describe('KycService', () => {
     });
   });
 
-  describe('submitConsents', () => {
-    it('posts consents and accepts a 204 response', async () => {
-      nock(MOCK_API_URL)
-        .post('/consents', {
-          ironDisclaimerIds: ['d1'],
-          sumsubTncSigned: true,
-          idosTncSigned: true,
-          kycLevel: 'standard',
-        })
-        .reply(204);
+  describe('fetchSessionDisclaimers', () => {
+    const catalog = {
+      idOS: [
+        {
+          key: 'idos-tos',
+          version: '1',
+          title: 'idOS ToS',
+          url: 'https://idos.example/tos',
+          consented: false,
+        },
+      ],
+      kycProvider: [
+        {
+          key: 'sumsub-tos',
+          version: '1',
+          title: 'SumSub ToS',
+          url: 'https://sumsub.example/tos',
+          consented: false,
+        },
+      ],
+      credentialReusabilityConsentGiven: false,
+    };
+
+    it('returns the session-scoped disclaimer catalog', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid-1/disclaimers').reply(200, catalog);
       const { service } = getService();
 
       expect(
-        await service.submitConsents({
-          disclaimerIds: ['d1'],
-          sumsubTncSigned: true,
-          idosTncSigned: true,
-        }),
-      ).toBeUndefined();
+        await service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+      ).toStrictEqual(catalog);
     });
 
-    it('throws an HttpError on a non-ok response', async () => {
-      nock(MOCK_API_URL).post('/consents').reply(500);
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid-1/disclaimers').reply(200, {});
       const { service } = getService();
 
       await expect(
-        service.submitConsents({
-          disclaimerIds: ['d1'],
-          sumsubTncSigned: true,
-          idosTncSigned: true,
-        }),
+        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_API_URL).get('/sessions/sid-1/disclaimers').reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
       ).rejects.toThrow(/failed with status '500'/u);
+    });
+  });
+
+  describe('submitSessionDisclaimers', () => {
+    const recorded = {
+      idOS: [
+        {
+          key: 'idos-tos',
+          version: '1',
+          title: 'idOS ToS',
+          url: 'https://idos.example/tos',
+          consented: true,
+        },
+      ],
+      kycProvider: [
+        {
+          key: 'sumsub-tos',
+          version: '1',
+          title: 'SumSub ToS',
+          url: 'https://sumsub.example/tos',
+          consented: true,
+        },
+      ],
+      credentialReusabilityConsentGiven: true,
+    };
+
+    it('posts consent records and returns the updated catalog', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/disclaimers', {
+          idOS: [{ key: 'idos-tos', version: '1' }],
+          kycProvider: [{ key: 'sumsub-tos', version: '1' }],
+          credentialReusabilityConsentGiven: true,
+        })
+        .reply(200, recorded);
+      const { service } = getService();
+
+      expect(
+        await service.submitSessionDisclaimers({
+          sessionId: 'sid-1',
+          idOS: [{ key: 'idos-tos', version: '1' }],
+          kycProvider: [{ key: 'sumsub-tos', version: '1' }],
+          credentialReusabilityConsentGiven: true,
+        }),
+      ).toStrictEqual(recorded);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).post('/sessions/sid-1/disclaimers').reply(200, {});
+      const { service } = getService();
+
+      await expect(
+        service.submitSessionDisclaimers({
+          sessionId: 'sid-1',
+          idOS: [],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_API_URL).post('/sessions/sid-1/disclaimers').reply(409);
+      const { service } = getService();
+
+      await expect(
+        service.submitSessionDisclaimers({
+          sessionId: 'sid-1',
+          idOS: [{ key: 'idos-tos', version: '1' }],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        }),
+      ).rejects.toThrow(/failed with status '409'/u);
+    });
+
+    it('treats a 204 response as empty and fails catalog validation', async () => {
+      nock(MOCK_API_URL).post('/sessions/sid-1/disclaimers').reply(204);
+      const { service } = getService();
+
+      await expect(
+        service.submitSessionDisclaimers({
+          sessionId: 'sid-1',
+          idOS: [],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
     });
   });
 
