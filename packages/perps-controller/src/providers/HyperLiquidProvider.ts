@@ -217,7 +217,10 @@ import {
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
-import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
+import {
+  parseBoundedNonNegativeDecimal,
+  parseBoundedPositiveDecimal,
+} from '../utils/stringParseUtils.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 /**
@@ -12331,7 +12334,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
     const parsedAmount =
-      amount === undefined ? undefined : parseBoundedNonNegativeDecimal(amount);
+      amount === undefined ? undefined : parseBoundedPositiveDecimal(amount);
     if (parsedAmount === null) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     }
