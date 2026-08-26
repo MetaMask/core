@@ -5103,6 +5103,14 @@ export class PerpsController extends BaseController<
         this.state.initializationState !== InitializationState.Initialized
       ) {
         await this.#initWithoutDisconnectWait();
+        if (
+          !this.isInitialized ||
+          this.state.initializationState !== InitializationState.Initialized
+        ) {
+          throw new Error(
+            this.state.initializationError ?? 'Provider initialization failed',
+          );
+        }
       }
 
       // Initialization may select a fallback provider. Read the effective

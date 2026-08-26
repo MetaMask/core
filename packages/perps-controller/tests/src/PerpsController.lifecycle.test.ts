@@ -1321,6 +1321,25 @@ describe('PerpsController', () => {
       expect(controller.getActiveProviderOrNull()).toBe(replacementProvider);
     });
 
+    it('rejects a same-provider switch when reinitialization fails after disconnect', async () => {
+      await controller.init();
+      await controller.disconnect();
+      jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+        throw new Error('Provider reinitialization failed');
+      });
+
+      await expect(
+        controller.switchProvider('hyperliquid'),
+      ).resolves.toStrictEqual({
+        success: false,
+        providerId: 'hyperliquid',
+        error: 'Provider reinitialization failed',
+      });
+
+      expect(controller.testGetInitialized()).toBe(false);
+      expect(controller.getActiveProviderOrNull()).toBeNull();
+    });
+
     it.each([
       {
         label: 'network toggle',
