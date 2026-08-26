@@ -489,9 +489,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       throw failure.reason;
     }
 
-    return results
-      .filter((result) => result.status === 'fulfilled')
-      .flatMap((result) => result.value);
+    const snapshots: ChaseOrder[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        snapshots.push(...result.value);
+      }
+    }
+    return snapshots;
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
