@@ -121,14 +121,6 @@ async function resolveCommitSha(projectPath: string): Promise<string | null> {
   }
 }
 
-/** The subset of parsed arguments {@link checkStrategyArgs} validates. */
-type StrategyArgs = {
-  strategy?: string;
-  'root-actions'?: unknown;
-  'root-events'?: unknown;
-  'scan-dir'?: string[];
-};
-
 /**
  * Reject flag combinations that don't make sense, so a mistaken invocation
  * fails instead of silently producing docs built the wrong way.
@@ -137,13 +129,24 @@ type StrategyArgs = {
  * ignored. Used as a yargs `.check`, so failures print alongside usage.
  *
  * @param argv - The parsed arguments.
+ * @param argv.strategy - The selected discovery strategy.
+ * @param argv.rootActions - The parsed root actions type reference.
+ * @param argv.rootEvents - The parsed root events type reference.
+ * @param argv.scanDir - The additional directories to scan.
  * @returns True when the combination is valid.
  */
-function checkStrategyArgs(argv: StrategyArgs): boolean {
-  const rootActions = argv['root-actions'];
-  const rootEvents = argv['root-events'];
-
-  if (argv.strategy !== 'root-messenger') {
+function checkStrategyArgs({
+  strategy,
+  rootActions,
+  rootEvents,
+  scanDir = [],
+}: {
+  strategy?: string;
+  rootActions?: RootTypeReference;
+  rootEvents?: RootTypeReference;
+  scanDir?: string[];
+}): boolean {
+  if (strategy !== 'root-messenger') {
     if (rootActions !== undefined || rootEvents !== undefined) {
       throw new Error(
         '--root-actions and --root-events only apply to --strategy root-messenger.',
@@ -158,7 +161,7 @@ function checkStrategyArgs(argv: StrategyArgs): boolean {
         'each written as "<file>#<TypeName>".',
     );
   }
-  if ((argv['scan-dir'] ?? []).length > 0) {
+  if (scanDir.length > 0) {
     throw new Error(
       '--scan-dir only applies to --strategy scan; --strategy root-messenger reads ' +
         'only the files named by --root-actions and --root-events.',
@@ -204,18 +207,20 @@ async function main(): Promise<void> {
     })
     .option('strategy', {
       type: 'string',
-      choices: ['scan', 'root-messenger'],
+      choices: ['scan', 'root-messenger'] as const,
       description:
         'How to find messenger actions and events. "scan" parses every source and declaration file looking for messenger types. "root-messenger" instead resolves the two types the project declares for its root messenger',
       default: 'scan',
     })
     .option('root-actions', {
       type: 'string',
+      coerce: parseRootTypeReference,
       description:
         'Type aliasing the union of every action on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
     .option('root-events', {
       type: 'string',
+      coerce: parseRootTypeReference,
       description:
         'Type aliasing the union of every event on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
@@ -245,8 +250,6 @@ async function main(): Promise<void> {
       description:
         'Path prefix the built site will be served under, e.g. /core/platform-api/',
     })
-    .coerce('root-actions', parseRootTypeReference)
-    .coerce('root-events', parseRootTypeReference)
     .check(checkStrategyArgs)
     .help().argv;
 
@@ -269,19 +272,34 @@ async function main(): Promise<void> {
   const repoUrl = await resolveRepoUrl(resolvedProjectPath);
 
   // Step 1: Generate docs
-  await generate({
-    projectPath: resolvedProjectPath,
-    outputDir: resolvedOutputDir,
-    projectLabel,
-    commitSha,
-    ...(argv.strategy === 'root-messenger'
-      ? {
-          strategy: 'root-messenger' as const,
-          rootActions: argv['root-actions'] as RootTypeReference,
-          rootEvents: argv['root-events'] as RootTypeReference,
-        }
-      : { strategy: 'scan' as const, scanDirs }),
-  });
+  if (argv.strategy === 'root-messenger') {
+    // Use the same validation as we have in `checkStrategyArgs` to narrow
+    // the types of `rootActions` and `rootEvents`.
+    if (argv.rootActions === undefined || argv.rootEvents === undefined) {
+      throw new Error(
+        '--strategy root-messenger requires both --root-actions and --root-events.',
+      );
+    }
+
+    await generate({
+      projectPath: resolvedProjectPath,
+      outputDir: resolvedOutputDir,
+      projectLabel,
+      commitSha,
+      strategy: 'root-messenger',
+      rootActions: argv.rootActions,
+      rootEvents: argv.rootEvents,
+    });
+  } else {
+    await generate({
+      projectPath: resolvedProjectPath,
+      outputDir: resolvedOutputDir,
+      projectLabel,
+      commitSha,
+      strategy: 'scan',
+      scanDirs,
+    });
+  }
 
   // Step 2: If --build, --serve, or --dev, set up and run Docusaurus
   if (argv.build || argv.serve || argv.dev) {
