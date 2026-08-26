@@ -243,6 +243,33 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     expect(liquidationPrice).toBeGreaterThan(overstatedMarginLiq ?? 0);
   });
 
+  it('reports mark-based leverage when entry differs from mark after a leverage change', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        entryPrice: '2000',
+        positionValue: '2500',
+        marginUsed: '500',
+      }),
+      direction: 'long',
+      size: '0.5',
+      price: '2500',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.resulting.margin).toStrictEqual({
+      available: true,
+      value: 375,
+    });
+    // Mark notional $3750 / $375 = 10x. Entry notional would report ~8.67x.
+    expect(result.resulting.leverage).toBeCloseTo(10);
+    expect(result.resulting.entryPrice).toBeCloseTo(2166.666, 1);
+  });
+
   it('projects a partial decrease using the remaining position direction', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition(),

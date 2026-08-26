@@ -273,14 +273,12 @@ export function estimateIsolatedLiquidationPriceAtTier(params: {
 }
 
 const resultingLeverage = (params: {
-  size: number;
-  entryPrice: number;
+  notional: number;
   margin: number;
   fallback: number;
 }): number => {
-  const notional = params.size * params.entryPrice;
-  if (params.margin > 0 && notional > 0) {
-    return notional / params.margin;
+  if (params.margin > 0 && params.notional > 0) {
+    return params.notional / params.margin;
   }
   return params.fallback;
 };
@@ -365,6 +363,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     resultingDirection: 'long' | 'short';
     resultingSize: number;
     resultingEntryPrice: number;
+    resultingNotional: number;
     newMargin: number;
   }): PositionModifyPreviewResult => {
     const liquidationPrice = estimateIsolatedLiquidationPriceAtTier({
@@ -384,8 +383,7 @@ export function previewHyperLiquidIsolatedPositionModify(
         size: preview.resultingSize,
         entryPrice: preview.resultingEntryPrice,
         leverage: resultingLeverage({
-          size: preview.resultingSize,
-          entryPrice: preview.resultingEntryPrice,
+          notional: preview.resultingNotional,
           margin: preview.newMargin,
           fallback: selectedLeverage,
         }),
@@ -425,6 +423,7 @@ export function previewHyperLiquidIsolatedPositionModify(
       resultingDirection: openDirection,
       resultingSize,
       resultingEntryPrice,
+      resultingNotional: currentNotional + orderSize * fillPrice,
       newMargin,
     });
   }
@@ -439,6 +438,7 @@ export function previewHyperLiquidIsolatedPositionModify(
       resultingDirection: openDirection,
       resultingSize,
       resultingEntryPrice: currentEntry,
+      resultingNotional: currentNotional * remainingRatio,
       newMargin,
     });
   }
@@ -460,6 +460,7 @@ export function previewHyperLiquidIsolatedPositionModify(
       resultingDirection: direction,
       resultingSize: leftover,
       resultingEntryPrice: fillPrice,
+      resultingNotional: leftover * fillPrice,
       newMargin: leftoverMargin,
     });
   }

@@ -1343,6 +1343,10 @@ export type PositionModifyPreviewOpen = {
     /** Resulting token size; always > 0 for `open`. */
     size: number;
     entryPrice: number;
+    /**
+     * Isolated leverage from mark notional / remaining margin, matching
+     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     */
     leverage: number;
     margin: PositionPreviewValue;
     liquidationPrice: PositionPreviewValue;
