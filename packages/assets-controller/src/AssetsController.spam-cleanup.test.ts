@@ -328,8 +328,9 @@ describe('AssetsController spam cleanup', () => {
 
     await withController({}, async ({ controller, messenger }) => {
       messenger.publish('KeyringController:unlock');
-      
+
       // Simulate a concurrent update while the sweep is awaiting the Token API
+      // @ts-expect-error - we are forcing a concurrent update to the state
       controller.update((state) => {
         return {
           ...state,
@@ -349,7 +350,9 @@ describe('AssetsController spam cleanup', () => {
 
       await waitFor(() => {
         expect(controller.state.assetsInfo[MAINNET_SPAM]).toBeUndefined();
-        expect(controller.state.assetsInfo['eip155:1/erc20:0xconcurrent']).toBeDefined();
+        expect(
+          controller.state.assetsInfo['eip155:1/erc20:0xconcurrent'],
+        ).toBeDefined();
       });
     });
   });

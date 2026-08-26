@@ -1,3 +1,5 @@
+import { cloneDeep } from 'lodash';
+
 import {
   createTestApiClient,
   mockSuggestedOccurrenceFloors,
@@ -661,6 +663,32 @@ describe('tempHealAssetsInfoMetadata', () => {
 });
 
 describe('cleanSpamAssets', () => {
+  /**
+   * Run the sweep and apply the resulting patch to a copy of the state, the
+   * way the controller applies it inside `update`.
+   *
+   * @param state - Current controller state (never mutated).
+   * @param captureException - Optional reporter for failures.
+   * @returns The cleaned state copy, or the original state when the sweep has
+   * nothing to remove or fails.
+   */
+  async function runCleanup(
+    state: CleanSpamAssetsState,
+    captureException?: (error: Error) => void,
+  ): Promise<CleanSpamAssetsState> {
+    const result = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+      captureException,
+    });
+    if (!result) {
+      return state;
+    }
+    const nextState = cloneDeep(state);
+    result.applyPatch(nextState, { spamAssetIds: result.spamAssetIds });
+    return nextState;
+  }
+
   function removedAssetIds(
     before: CleanSpamAssetsState,
     after: CleanSpamAssetsState,
@@ -741,10 +769,7 @@ describe('cleanSpamAssets', () => {
       mockV3Assets({ omit: omittedFromResponse, casing });
       const state = buildSpamWalletState({ assetsInfo: buildAssetsInfo(held) });
 
-      const nextState = await cleanSpamAssets({
-        state,
-        apiClient: createTestApiClient(),
-      });
+      const nextState = await runCleanup(state);
 
       expect(removedAssetIds(state, nextState)).toStrictEqual(
         [...removed].sort(),
@@ -763,10 +788,7 @@ describe('cleanSpamAssets', () => {
       assetId.toLowerCase(),
     );
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect([...requestedBatches[0]].sort()).toStrictEqual(
       SWEEPABLE_ASSET_IDS.map((assetId) => assetId.toLowerCase()).sort(),
@@ -789,10 +811,7 @@ describe('cleanSpamAssets', () => {
       assetId.toLowerCase(),
     );
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect([...requestedBatches[0]].sort()).toStrictEqual(
       SWEEPABLE_ASSET_IDS.map((assetId) => assetId.toLowerCase()).sort(),
@@ -812,10 +831,7 @@ describe('cleanSpamAssets', () => {
     const { requestedBatches } = mockV3Assets();
     const state = buildSpamWalletState();
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect([...requestedBatches[0]].sort()).toStrictEqual(
       [...SWEEPABLE_ASSET_IDS].sort(),
@@ -834,10 +850,7 @@ describe('cleanSpamAssets', () => {
       assetsInfo: buildAssetsInfo(OUT_OF_SCOPE_ASSET_IDS),
     });
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect(nextState).toBe(state);
     expect(floorsScope.isDone()).toBe(false);
@@ -851,10 +864,7 @@ describe('cleanSpamAssets', () => {
       assetsInfo: buildAssetsInfo([MAINNET_USDT, OPTIMISM_USDC, BASE_USDC]),
     });
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect(nextState).toBe(state);
   });
@@ -864,10 +874,7 @@ describe('cleanSpamAssets', () => {
     mockV3Assets();
     const state = buildSpamWalletState();
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect(nextState.assetsBalance).toStrictEqual({
       [ACCOUNT_ONE_ID]: {
@@ -918,10 +925,7 @@ describe('cleanSpamAssets', () => {
       times: 2,
     });
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-    });
+    const nextState = await runCleanup(state);
 
     expect(requestedBatches.map((batch) => batch.length)).toStrictEqual([
       50, 1,
@@ -937,11 +941,7 @@ describe('cleanSpamAssets', () => {
     mockV3Assets({ occurrences: {} });
     const captureException = jest.fn();
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-      captureException,
-    });
+    const nextState = await runCleanup(state);
 
     // The 50 assets in the failed batch stay put; the other 51 are dropped.
     expect(Object.keys(nextState.assetsInfo)).toStrictEqual(
@@ -956,11 +956,7 @@ describe('cleanSpamAssets', () => {
     const state = buildSpamWalletState();
     const captureException = jest.fn();
 
-    const nextState = await cleanSpamAssets({
-      state,
-      apiClient: createTestApiClient(),
-      captureException,
-    });
+    const nextState = await runCleanup(state, captureException);
 
     expect(nextState).toBe(state);
     expect(assetsScope.isDone()).toBe(false);
@@ -975,8 +971,6 @@ describe('cleanSpamAssets', () => {
     mockSuggestedOccurrenceFloors({ status: 503 });
     const state = buildSpamWalletState();
 
-    expect(
-      await cleanSpamAssets({ state, apiClient: createTestApiClient() }),
-    ).toBe(state);
+    expect(await runCleanup(state)).toBe(state);
   });
 });

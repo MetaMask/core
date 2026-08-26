@@ -1289,21 +1289,24 @@ export class AssetsController extends BaseController<
 
     try {
       const originalState = this.state;
-      const nextState = await cleanSpamAssets({
+      const result = await cleanSpamAssets({
         state: originalState,
         apiClient: this.#queryApiClient,
         captureException: this.#captureException,
       });
 
-      if (nextState !== originalState) {
-        this.update((state) => {
-          return {
-            ...state,
-            assetsInfo: nextState.assetsInfo,
-            assetsBalance: nextState.assetsBalance,
-          };
-        });
+      if (!result) {
+        return;
       }
+
+      this.update((state) => {
+        result.applyPatch(
+          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          {
+            spamAssetIds: result.spamAssetIds,
+          },
+        );
+      });
     } catch (error) {
       log('Failed to run spam cleanup', { error });
     }

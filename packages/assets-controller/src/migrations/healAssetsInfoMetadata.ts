@@ -622,10 +622,13 @@ export async function cleanSpamAssets({
   state,
   apiClient,
   captureException,
-}: CleanSpamAssetsOptions): Promise<CleanSpamAssetsState> {
+}: CleanSpamAssetsOptions): Promise<{
+  spamAssetIds: Caip19AssetId[];
+  applyPatch: typeof applyCleanupPatch;
+} | null> {
   const candidates = collectSpamCleanupCandidates(state);
   if (candidates.length === 0) {
-    return state;
+    return null;
   }
 
   try {
@@ -650,12 +653,10 @@ export async function cleanSpamAssets({
     }
 
     if (spamAssetIds.length === 0) {
-      return state;
+      return null;
     }
 
-    const nextState = cloneDeep(state);
-    applyCleanupPatch(nextState, { spamAssetIds });
-    return nextState;
+    return { spamAssetIds, applyPatch: applyCleanupPatch };
   } catch (error) {
     // API calls failed, cleanup not performed. Will be retried when next invoked.
     cleanupLog(
@@ -669,7 +670,7 @@ export async function cleanSpamAssets({
         )}`,
       ),
     );
-    return state;
+    return null;
   }
 }
 
@@ -781,7 +782,7 @@ async function fetchSuggestedOccurrenceFloors(
 }
 
 function applyCleanupPatch(
-  state: CleanSpamAssetsState,
+  state: Pick<CleanSpamAssetsState, 'assetsInfo' | 'assetsBalance'>,
   patch: {
     spamAssetIds: Caip19AssetId[];
   },
