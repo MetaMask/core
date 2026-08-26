@@ -29,12 +29,12 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
-import { createMockPosition } from '../../helpers/providerMocks.js';
 
 // The HyperLiquid SDK is never exercised directly: every exchange and info call
 // goes through the mocked client service below.
