@@ -9592,21 +9592,29 @@ export class HyperLiquidProvider implements PerpsProvider {
     results.forEach((result) => {
       if (result.success && result.meta?.universe) {
         const marketsFromDex = result.meta.universe;
-        const filteredMarkets =
-          result.dex === null
-            ? marketsFromDex
-            : marketsFromDex.filter((asset) =>
-                shouldIncludeMarket(
-                  asset.name,
-                  result.dex,
-                  this.#hip3Enabled,
-                  this.#compiledAllowlistPatterns,
-                  this.#compiledBlocklistPatterns,
-                ),
-              );
+        const filteredMarketsWithContexts = marketsFromDex
+          .map((market, index) => ({
+            market,
+            assetCtx: result.assetCtxs[index],
+          }))
+          .filter(
+            ({ market }) =>
+              result.dex === null ||
+              shouldIncludeMarket(
+                market.name,
+                result.dex,
+                this.#hip3Enabled,
+                this.#compiledAllowlistPatterns,
+                this.#compiledBlocklistPatterns,
+              ),
+          );
 
-        combinedUniverse.push(...filteredMarkets);
-        combinedAssetCtxs.push(...result.assetCtxs);
+        combinedUniverse.push(
+          ...filteredMarketsWithContexts.map(({ market }) => market),
+        );
+        combinedAssetCtxs.push(
+          ...filteredMarketsWithContexts.map(({ assetCtx }) => assetCtx),
+        );
         Object.assign(combinedAllMids, result.allMids);
       }
     });

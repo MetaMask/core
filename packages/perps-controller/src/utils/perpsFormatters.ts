@@ -604,6 +604,7 @@ export const formatPercentage = (
  * @returns Formatted funding rate as percentage string
  * @example formatFundingRate(0.0005) => "0.0500%"
  * @example formatFundingRate(-0.0001) => "-0.0100%"
+ * @example formatFundingRate(0.000000059) => "<0.0001%"
  * @example formatFundingRate(undefined) => "0.0000%"
  */
 export const formatFundingRate = (
@@ -618,6 +619,14 @@ export const formatFundingRate = (
 
   const percentage = value * FUNDING_RATE_CONFIG.PercentageMultiplier;
   const formatted = percentage.toFixed(FUNDING_RATE_CONFIG.Decimals);
+  const minimumDisplayPercentage = 10 ** -FUNDING_RATE_CONFIG.Decimals;
+
+  if (value !== 0 && parseFloat(formatted) === 0) {
+    const threshold = minimumDisplayPercentage.toFixed(
+      FUNDING_RATE_CONFIG.Decimals,
+    );
+    return value > 0 ? `<${threshold}%` : `>-${threshold}%`;
+  }
 
   // Check if the result is effectively zero
   if (showZero && parseFloat(formatted) === 0) {

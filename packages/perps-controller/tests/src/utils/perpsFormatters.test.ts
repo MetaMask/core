@@ -283,6 +283,22 @@ describe('formatFundingRate', () => {
     expect(formatFundingRate(0)).toBe('0.0000%');
   });
 
+  it('shows a threshold for positive rates below display precision', () => {
+    const value = 0.000000059;
+
+    const result = formatFundingRate(value);
+
+    expect(result).toBe('<0.0001%');
+  });
+
+  it('shows a threshold for negative rates below display precision', () => {
+    const value = -0.000000059;
+
+    const result = formatFundingRate(value);
+
+    expect(result).toBe('>-0.0001%');
+  });
+
   it('returns empty string for undefined when showZero is false', () => {
     expect(formatFundingRate(undefined, { showZero: false })).toBe('');
   });
