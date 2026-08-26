@@ -2039,7 +2039,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const cacheKey = this.#getCacheKey(network, userAddress);
     const builderAddress = this.#getBuilderAddress(isTestnet);
-    const context = { network, userAddress, builderAddress };
+    const context: BuilderFeeSetupContext = {
+      network,
+      userAddress,
+      builderAddress,
+    };
     const setupKey = this.#getApprovedBuilderKey(
       network,
       userAddress,
