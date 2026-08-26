@@ -12,6 +12,27 @@ import {
   type PerpsPlatformDependencies,
 } from '@metamask/perps-controller';
 
+export type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+};
+
+/**
+ * Create a promise whose settlement is controlled by the test.
+ *
+ * @returns The promise and its resolve and reject callbacks.
+ */
+export const createDeferred = <T>(): Deferred<T> => {
+  let resolve!: Deferred<T>['resolve'];
+  let reject!: Deferred<T>['reject'];
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+};
+
 /**
  * Create a mock EVM account (KeyringAccount)
  */

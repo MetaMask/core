@@ -258,7 +258,7 @@ export type OrderParams = {
   // never be silently dropped. Strategy orders carry no `price`, `triggerPrice`,
   // `timeInForce` or attached TP/SL — the strategy owns its own execution.
   twapDuration?: number; // TWAP window in whole minutes; each provider enforces its own venue's bounds
-  twapRandomize?: boolean; // Randomize the timing of the TWAP slices (default false)
+  twapRandomize?: boolean; // Randomize each TWAP suborder's size by up to ±20% (default false)
   scaleMinPrice?: string; // Lowest limit price in the scale ladder
   scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
   scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
@@ -303,8 +303,8 @@ export type OrderParams = {
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
 
-  // Multi-provider routing (optional: defaults to active/default provider)
-  providerId?: PerpsProviderType; // Optional: override active provider for routing
+  // Multi-provider routing (optional: defaults to active/default provider).
+  providerId?: PerpsProviderType;
 };
 
 export type OrderResult = {
@@ -315,8 +315,13 @@ export type OrderResult = {
    * For an ordinary placement this is the exchange's order ID. For a *strategy*
    * placement it is a handle instead — a venue TWAP id, or a client-generated
    * scale-group or chase-session id — which is what `CancelOrderParams` takes
-   * together with the matching `orderType`. The individual exchange ids a
-   * strategy expanded into are in `childOrderIds`.
+   * together with the matching `orderType` and `providerId`. Scale and chase
+   * handles are held in the provider session that created them. Scale handles
+   * are also encoded in each rung's venue client-order ID, so an open-order
+   * read can recover the group after reconnect. Chase handles cannot be
+   * recovered because every replacement receives a new exchange order ID.
+   * The individual exchange IDs a strategy expanded into are in
+   * `childOrderIds`.
    */
   orderId?: string;
   error?: string;
@@ -327,9 +332,9 @@ export type OrderResult = {
   // real submitted size rather than the caller's pre-normalization params.size.
   submittedSize?: string;
   averagePrice?: string; // Average execution price
-  // Exchange IDs of the individual orders a strategy placement expanded into.
-  // `orderId` carries the strategy handle instead, so these are what a caller
-  // needs to cancel the children directly.
+  // Exchange IDs tied to a multi-order or recovery result. On a successful
+  // strategy placement, `orderId` carries the strategy handle and these IDs
+  // identify its individual children.
   //
   // For a `scale` ladder they stay valid: the rungs are placed once and are not
   // replaced, so they remain cancellable even after the session-scoped handle is
@@ -338,13 +343,61 @@ export type OrderResult = {
   // a new ID that is held in the session rather than reported here, so the value
   // goes stale on the first re-price. Cancel a live chase by its handle.
   //
-  // Absent for every non-strategy placement.
+  // Failure results can mix filled IDs with orders that may still rest, so a
+  // caller must not blindly cancel every ID. When TP/SL protection cannot be
+  // fully restored, these identify the old orders that survived, may still be
+  // live when reconciliation failed, or were recreated; an empty array means
+  // none are known or potentially live.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
 
 export type ChaseOrderStatus =
   (typeof CHASE_ORDER_STATUS)[keyof typeof CHASE_ORDER_STATUS];
+
+export type TwapOrderStatus =
+  | 'active'
+  | 'completed'
+  | 'completed_underfilled'
+  | 'canceled'
+  | 'failed';
+
+export type TwapOrderFill = {
+  fillId: string;
+  orderId: string;
+  side: 'buy' | 'sell';
+  price: string;
+  size: string;
+  fee: string;
+  feeToken: string;
+  builderFee?: string;
+  timestamp: number;
+  transactionHash: string;
+};
+
+/** Current and terminal state of one venue-native TWAP schedule. */
+export type TwapOrder = {
+  orderId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  size: string;
+  executedSize: string;
+  remainingSize: string;
+  executedNotional: string;
+  averagePrice?: string;
+  fillProgressBps: number;
+  timeProgressBps: number;
+  elapsedTimeMilliseconds: number;
+  durationMinutes: number;
+  randomize: boolean;
+  reduceOnly: boolean;
+  status: TwapOrderStatus;
+  startedAt: number;
+  lastUpdated: number;
+  error?: string;
+  fills: TwapOrderFill[];
+  providerId?: PerpsProviderType;
+};
 
 /**
  * Client-visible state of one emulated Chase placement.
@@ -374,6 +427,18 @@ export type ChaseOrder = {
   startedAt: number;
   status: ChaseOrderStatus;
   providerId?: PerpsProviderType;
+};
+
+/** Lifecycle signal emitted when a Chase reaches its configured distance. */
+export type ChaseOrderMaxDistanceReached = {
+  handle: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  restingOrderId: string | null;
+  restingPrice: string;
+  maxDistanceBps: number;
+  timestamp: number;
+  providerId: PerpsProviderType;
 };
 
 export type Position = {
@@ -769,7 +834,8 @@ export type CancelOrderParams = {
    * which is what every existing caller does.
    */
   orderType?: OrderType;
-  providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  // Optional provider override. Omission uses active/default routing.
+  providerId?: PerpsProviderType;
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
 };
@@ -779,7 +845,9 @@ export type CancelOrderResult = {
   /**
    * What was cancelled, named the same way it was placed: an exchange order ID
    * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
-   * chase session — when `CancelOrderParams.orderType` named one.
+   * chase session — when `CancelOrderParams.orderType` named one. Scale and
+   * chase handles can only be cancelled during the provider session that
+   * created them; TWAP IDs are venue-owned.
    */
   orderId?: string;
   error?: string;
@@ -1386,6 +1454,55 @@ export type MaintenanceMarginParams = {
   positionSize?: number; // Optional: for tiered margin systems
 };
 
+/**
+ * Context used to resolve the provider that owns order capabilities.
+ * `symbol` allows providers to narrow capabilities per market, while
+ * `providerId` follows the same explicit-over-default routing as placement.
+ */
+export type GetOrderCapabilitiesParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  providerId?: PerpsProviderType;
+};
+
+/** Provider-owned strategy capabilities for the selected market route. */
+export type DirectProviderOrderCapabilitiesUnavailableReason =
+  | 'provider_unavailable'
+  | 'invalid_symbol'
+  | 'market_not_found'
+  | 'strategy_market_unsupported';
+
+export type RoutedOrderCapabilitiesUnavailableReason =
+  | 'provider_not_found'
+  | 'provider_not_routable'
+  | 'not_implemented';
+
+export type OrderCapabilitiesUnavailableReason =
+  | DirectProviderOrderCapabilitiesUnavailableReason
+  | RoutedOrderCapabilitiesUnavailableReason;
+
+type ReadyPerpsOrderCapabilities = Readonly<{
+  status: 'ready';
+  providerId: PerpsProviderType;
+  supportedStrategies: readonly StrategyOrderType[];
+}>;
+
+export type DirectProviderOrderCapabilities =
+  | ReadyPerpsOrderCapabilities
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: DirectProviderOrderCapabilitiesUnavailableReason;
+    }>;
+
+export type PerpsOrderCapabilities =
+  | ReadyPerpsOrderCapabilities
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: OrderCapabilitiesUnavailableReason;
+    }>;
+
 export type FeeCalculationParams = {
   // Trigger placements are charged as their execution kind (a stop_limit pays
   // limit-order fees when it fills, a stop_market pays taker fees).
@@ -1393,6 +1510,8 @@ export type FeeCalculationParams = {
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
+  // Optional provider override. Omission uses active/default routing.
+  providerId?: PerpsProviderType;
 };
 
 export type FeeCalculationResult = {
@@ -1576,6 +1695,7 @@ export type Order = {
   parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows
   isSynthetic?: boolean; // Whether this order is synthetic (display-only, cancelable only when linked to a real child order ID)
   triggerPrice?: string; // Trigger condition price for trigger orders (e.g., TP/SL trigger level)
+  strategyGroupId?: string; // Recoverable strategy handle shared by related venue orders
   providerId?: PerpsProviderType; // Multi-provider: which provider this order is on (injected by aggregator)
 };
 
@@ -1590,6 +1710,17 @@ export type Funding = {
 export type PerpsProvider = {
   readonly protocolId: string;
 
+  /** Whether this provider routes individual requests by `providerId`. */
+  readonly routesOrdersByProviderId?: boolean;
+
+  /**
+   * Return strategy capabilities for the provider/market route. Providers may
+   * omit this hook; the controller then reports capabilities as unavailable.
+   */
+  getOrderCapabilities?(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities>;
+
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their withdrawal routes
@@ -1599,6 +1730,7 @@ export type PerpsProvider = {
   editOrder(params: EditOrderParams): Promise<OrderResult>;
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
+  getTwapOrders?(): Promise<TwapOrder[]>;
   getChaseOrders?(): Promise<ChaseOrder[]>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;

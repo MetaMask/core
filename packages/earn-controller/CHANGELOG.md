@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.6]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
 
 ## [12.2.5]
 
@@ -507,7 +510,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.6...HEAD
+[12.2.6]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.5...@metamask/earn-controller@12.2.6
 [12.2.5]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...@metamask/earn-controller@12.2.5
 [12.2.4]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.3...@metamask/earn-controller@12.2.4
 [12.2.3]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.2...@metamask/earn-controller@12.2.3

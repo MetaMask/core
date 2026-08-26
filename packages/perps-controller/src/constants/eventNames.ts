@@ -515,7 +515,7 @@ export const PERPS_EVENT_VALUE = {
     SL_EXECUTED: 'sl_executed',
     LIMIT_ORDER_EXECUTED: 'limit_order_executed',
     // Analytics schema value for the app-background conversion notification.
-    CHASE_BACKGROUNDED: 'perps_chase_backgrounded',
+    CHASE_BACKGROUNDED: 'chase_backgrounded',
   },
   CLOSE_TYPE: {
     FULL: 'full',
