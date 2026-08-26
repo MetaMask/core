@@ -387,7 +387,7 @@ const selectMetadata = createBridgeSelector(
  * @param options.quoteRequest - The quote request
  * @returns The USD to fiat exchange rate in string format
  */
-const selectUsdToFiatExchangeRate = createBridgeSelector(
+const selectUsdToCurrencyExchangeRate = createBridgeSelector(
   [
     selectExchangeRateSources,
     ({ quoteRequest }) =>
@@ -409,7 +409,7 @@ const selectUsdToFiatExchangeRate = createBridgeSelector(
 const selectCurrencyValues = createBridgeSelector(
   [
     ({ quotes }) => quotes,
-    selectUsdToFiatExchangeRate,
+    selectUsdToCurrencyExchangeRate,
     (_, { migrationPhase }: BridgeQuotesClientParams) => migrationPhase,
   ],
   (quotes, usdToFiatExchangeRateString, migrationPhase) => {

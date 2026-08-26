@@ -5,7 +5,7 @@ import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { FeeType } from '../../validators/quote.js';
 
-const toFiat = (
+const toCurrency = (
   fee?: Pick<AmountsAndAsset, 'usd' | 'valueInCurrency'>,
   usdToFiatExchangeRate?: BigNumber,
 ): Pick<AmountsAndAsset, 'valueInCurrency'> | undefined => {
@@ -36,10 +36,10 @@ export const toCurrencyValues = (
 
   const { adjustedReturn, priceImpact } = priceData ?? {};
 
-  const priceImpactFiat = toFiat(priceImpact, usdToFiatExchangeRate);
-  const adjustedReturnFiat = toFiat(adjustedReturn, usdToFiatExchangeRate);
+  const priceImpactFiat = toCurrency(priceImpact, usdToFiatExchangeRate);
+  const adjustedReturnFiat = toCurrency(adjustedReturn, usdToFiatExchangeRate);
 
-  const minAmountValueInCurrency = toFiat(
+  const minAmountValueInCurrency = toCurrency(
     {
       usd: dest.minAmountUsd,
       valueInCurrency: dest.minAmountValueInCurrency,
@@ -49,9 +49,9 @@ export const toCurrencyValues = (
 
   return {
     quote: {
-      src: toFiat(src, usdToFiatExchangeRate),
+      src: toCurrency(src, usdToFiatExchangeRate),
       dest: {
-        ...toFiat(dest, usdToFiatExchangeRate),
+        ...toCurrency(dest, usdToFiatExchangeRate),
         ...(minAmountValueInCurrency && {
           minAmountValueInCurrency,
         }),
@@ -64,7 +64,7 @@ export const toCurrencyValues = (
             .map((feeType) => [
               feeType,
               feeData[feeType]?.map((fee) =>
-                toFiat(fee, usdToFiatExchangeRate),
+                toCurrency(fee, usdToFiatExchangeRate),
               ),
             ]),
         ),
