@@ -5691,12 +5691,12 @@ export class PerpsController extends BaseController<
    * Call this when navigating away from Perps screens to prevent battery drain
    */
   async disconnect(): Promise<void> {
-    if (this.#disconnectOperationPromise) {
-      // A later explicit disconnect wins over a preload start deferred during
-      // the operation already in flight.
+    while (this.#disconnectOperationPromise) {
+      // Each explicit disconnect claims a teardown after the operation already
+      // in flight. This lets a later disconnect close providers created by an
+      // init call that was queued behind the same earlier teardown.
       this.#preloadStartRequested = false;
       await this.#disconnectOperationPromise;
-      return;
     }
 
     // A disconnect stops the current preload session. A later start call made

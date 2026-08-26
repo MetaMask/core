@@ -1186,6 +1186,31 @@ describe('PerpsController', () => {
       expect(mockProvider.disconnect).toHaveBeenCalledTimes(2);
     });
 
+    it('lets a later disconnect win over init queued behind a disconnect', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      const replacementProvider = createMockHyperLiquidProvider();
+      mockProvider.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return pendingDisconnect.promise;
+      });
+      jest
+        .mocked(HyperLiquidProvider)
+        .mockImplementationOnce(() => replacementProvider);
+
+      const firstDisconnect = controller.disconnect();
+      await disconnectStarted.promise;
+      const initPromise = controller.init();
+      const secondDisconnect = controller.disconnect();
+      pendingDisconnect.resolve();
+      await Promise.all([firstDisconnect, initPromise, secondDisconnect]);
+
+      expect(replacementProvider.disconnect).toHaveBeenCalledTimes(1);
+      expect(controller.testGetInitialized()).toBe(false);
+      expect(controller.getActiveProviderOrNull()).toBeNull();
+    });
+
     it('does not route an action through a provider being disconnected', async () => {
       await controller.init();
       const disconnectStarted = createDeferred<void>();
