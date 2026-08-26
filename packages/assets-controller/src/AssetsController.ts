@@ -116,7 +116,10 @@ import {
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
-import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata.js';
+import {
+  cleanSpamAssets,
+  tempHealAssetsInfoMetadata,
+} from './migrations/healAssetsInfoMetadata.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -1180,6 +1183,9 @@ export class AssetsController extends BaseController<
     );
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringUnlocked = true;
+      this.#runSpamCleanup().catch((error) => {
+        log('Failed to run spam cleanup', { error });
+      });
       this.#updateActive();
     });
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -1272,6 +1278,32 @@ export class AssetsController extends BaseController<
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
+  }
+
+  async #runSpamCleanup(): Promise<void> {
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
+
+    try {
+      const nextState = await cleanSpamAssets({
+        state: this.state,
+        apiClient: this.#queryApiClient,
+        captureException: this.#captureException,
+      });
+
+      if (nextState !== this.state) {
+        this.update((state) => {
+          return {
+            ...state,
+            assetsInfo: nextState.assetsInfo,
+            assetsBalance: nextState.assetsBalance,
+          };
+        });
+      }
+    } catch (error) {
+      log('Failed to run spam cleanup', { error });
+    }
   }
 
   /**
