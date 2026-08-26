@@ -1296,11 +1296,31 @@ export class AssetsController extends BaseController<
       });
 
       if (nextState !== originalState) {
+        const removedAssets = new Set(
+          Object.keys(originalState.assetsInfo).filter(
+            (assetId) =>
+              nextState.assetsInfo[assetId as Caip19AssetId] === undefined,
+          ),
+        );
+
         this.update((state) => {
+          const assetsInfo = { ...state.assetsInfo };
+          for (const assetId of removedAssets) {
+            delete assetsInfo[assetId as Caip19AssetId];
+          }
+
+          const assetsBalance = { ...state.assetsBalance };
+          for (const accountId of Object.keys(assetsBalance)) {
+            assetsBalance[accountId] = { ...assetsBalance[accountId] };
+            for (const assetId of removedAssets) {
+              delete assetsBalance[accountId][assetId as Caip19AssetId];
+            }
+          }
+
           return {
             ...state,
-            assetsInfo: nextState.assetsInfo,
-            assetsBalance: nextState.assetsBalance,
+            assetsInfo,
+            assetsBalance,
           };
         });
       }
