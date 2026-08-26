@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor!: move `BlockTrackerPollingController` to `user-operation-controller` ([#9882](https://github.com/MetaMask/core/pull/9882))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.6.0` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960))
