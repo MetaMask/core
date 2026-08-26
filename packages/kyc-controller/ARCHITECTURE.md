@@ -123,7 +123,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchDisclaimers`, `createSession`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimers`, `submitSessionDisclaimers`,
-`fetchKycStatus`, `createUkycSession`, `createJourney`.
+`fetchKycStatus`, `createUkycSession`, `setAuthorizations`, `createJourney`.
 
 Endpoints:
 
@@ -138,7 +138,8 @@ Endpoints:
 | `fetchSessionDisclaimers`  | `GET`  | `/sessions/{id}/disclaimers`             | Session-scoped idOS + KYC-provider catalog                                 |
 | `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`             | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents |
 | `fetchKycStatus`           | `GET`  | `/kyc/status`                            | User-keyed simplified KYC status                                           |
-| `createUkycSession`        | `POST` | `/sessions`                              | Start SumSub sub-flow (wrapped key + read-only `ukyc_capability_token`)    |
+| `createUkycSession`        | `POST` | `/sessions`                              | Start SumSub sub-flow; returns encryption schemas for wrapping             |
+| `setAuthorizations`        | `POST` | `/sessions/{id}/authorizations`          | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`   |
 | `createJourney`            | `POST` | `/sessions/{id}/journey`                 | Create verification journey → applicant token                              |
 
 ### 2.3 `crypto.ts`
@@ -373,8 +374,11 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata, wrappedEncryptionKey, ukycCapabilityToken })
+        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata })
         Svc->>API: POST /sessions
+        Note over Ctrl: wrap data_encryption_key and ukyc_capability_token
+        Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })
+        Svc->>API: POST /sessions/{id}/authorizations
         Ctrl->>Svc: createJourney(sessionId)
         Svc->>API: POST /sessions/{id}/journey
         Ctrl->>Launcher: launch({ applicantAccessToken, onTokenExpiration, onStatusChange })
@@ -462,8 +466,8 @@ launcher.
 stateDiagram-v2
     [*] --> idle
     idle --> creatingSession : startSumSub()
-    creatingSession --> fetchingToken : createUkycSession() ok
-    creatingSession --> vendorProcessing : createUkycSession() kycStatus=approved, finalStatus=pending
+    creatingSession --> fetchingToken : setAuthorizations() ok
+    creatingSession --> vendorProcessing : setAuthorizations() kycStatus=approved, finalStatus=pending
     fetchingToken --> launching : createJourney() ok
     launching --> inProgress : onStatusChange (non-Completed)
     launching --> complete : onStatusChange = Completed
@@ -478,7 +482,7 @@ stateDiagram-v2
 > **Already processing on the vendor.** A user who already finished the journey
 > can return to a session the relay has approved (`kycStatus: approved`) while
 > the vendor is still finalizing its decision (`finalStatus: pending`). When
-> session creation reports this, the sub-flow stops at `vendorProcessing`
+> authorizations report this, the sub-flow stops at `vendorProcessing`
 > (setting `statusMessage`) instead of launching the SDK, so an already-approved
 > applicant is not asked to verify again.
 

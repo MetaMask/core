@@ -10,14 +10,17 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 import type { Json } from '@metamask/utils';
+import { stringToBytes } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
-import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import type { CreateUkycSessionParams } from './KycService.js';
+import type {
+  CreateUkycSessionParams,
+  EncryptionSchema,
+} from './KycService.js';
 import type {
   KycConsentDocument,
   KycCustomerIdentity,
@@ -33,9 +36,13 @@ import type {
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
+import type { Jwk } from './ukyc/jwtChain.js';
 import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
 import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
-import { signStorageAccessToken } from './ukyc/storageAccessToken.js';
+import {
+  encodeStorageAccessTokenForHeader,
+  signStorageAccessToken,
+} from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 // === GENERAL ===
@@ -1839,8 +1846,9 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Creates a UKYC session: wrapping-key exchange, DEK wrap, capability
-   * token, and `POST /sessions`. Stores `sumsub.sessionId`. Returns `null`
+   * Creates a UKYC session, wraps the `data_encryption_key` and
+   * `ukyc_capability_token` against the returned encryption schemas, and
+   * submits both via authorizations. Stores `sumsub.sessionId`. Returns `null`
    * when a `reset()` superseded the flow.
    *
    * @param generation - Flow generation captured by the caller.
@@ -1854,62 +1862,66 @@ export class KycController extends BaseController<
   } | null> {
     const jwtToken = MOCK_JWT_TOKEN;
 
-    // Establish a per-session X25519 keypair and exchange our public half for
-    // the server's wrapping key. The private half stays on the device and is
-    // used to derive the shared secret that seals the data_encryption_key.
+    // Establish a per-session X25519 keypair used to seal both secrets. The
+    // private half stays on the device; each encryption schema from session
+    // creation supplies the matching server public key.
     const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = x25519.getPublicKey(sessionClientPrivateKey);
-    const wrappingKey = await this.messenger.call('KycService:getWrappingKey', {
-      sessionClientPublicKey: toBase64Url(sessionClientPublicKey),
-    });
 
-    // Verify the jwtChain against Fractal's JWKS, then confirm the returned
-    // sessionServerPublicKey matches the value attested inside the verified
-    // JWT payload before trusting it for key wrapping.
-    const { keys } = await this.messenger.call('KycService:fetchJwks');
-    const jwtChainPayload = verifyJwtChain(keys, wrappingKey.jwtChain);
-    if (
-      jwtChainPayload.sessionServerPublicKeyX !==
-      wrappingKey.sessionServerPublicKey.x
-    ) {
-      throw new Error(
-        'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
-      );
+    const {
+      sessionId,
+      encryptionDataKey,
+      ukycCapabilityToken: capabilityTokenSchema,
+    } = await this.messenger.call('KycService:createUkycSession', {
+      jwtToken,
+      ...this.#buildUkycSessionVendorFields(),
+    });
+    if (this.#generation !== generation) {
+      return null;
     }
 
-    // Derive the data_encryption_key from the local_user_secret and wrap it
-    // for the session server. Only the wrapped (encrypted) key ever leaves
-    // the device.
+    // Verify each jwtChain against Fractal's JWKS, then confirm the returned
+    // server public key matches the value attested inside the verified JWT
+    // payload before trusting it for wrapping.
+    const { keys } = await this.messenger.call('KycService:fetchJwks');
+    this.#assertAttestedServerPublicKey(keys, encryptionDataKey);
+    this.#assertAttestedServerPublicKey(keys, capabilityTokenSchema);
+
+    // Derive the data_encryption_key from the local_user_secret, mint a
+    // read-only capability token, and wrap both for the session server. Only
+    // the wrapped (encrypted) material ever leaves the device.
     const localUserSecret = await getOrCreateLocalUserSecret(
       this.#localUserSecretStore(),
     );
     const clientMaterial = deriveClientMaterial(localUserSecret);
-    const wrappedEncryptionKey = {
-      sessionId: wrappingKey.id,
-      ...wrapEncryptionKey(
-        sessionClientPrivateKey,
-        wrappingKey.sessionServerPublicKey.x,
-        clientMaterial.dataEncryptionKey,
-      ),
-    };
+    const wrappedEncryptionDataKey = wrapEncryptionKey(
+      sessionClientPrivateKey,
+      encryptionDataKey.serverPublicKey.x,
+      clientMaterial.dataEncryptionKey,
+    );
 
-    // Mint a read-only `ukyc_capability_token` for the session. Only the
-    // client holds the signing key derived from `local_user_secret`, so only
-    // the client can mint it; scoping it to `read` means it authorizes later
-    // storage reads without granting write or delete access.
+    // Only the client holds the signing key derived from `local_user_secret`,
+    // so only the client can mint the token; scoping it to `read` means it
+    // authorizes later storage reads without granting write or delete access.
     const ukycCapabilityToken = signStorageAccessToken({
       material: clientMaterial,
       operations: ['read'],
       expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
     });
+    const wrappedUkycCapabilityToken = wrapEncryptionKey(
+      sessionClientPrivateKey,
+      capabilityTokenSchema.serverPublicKey.x,
+      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
+    );
+    if (this.#generation !== generation) {
+      return null;
+    }
 
-    const { sessionId, kycStatus, finalStatus } = await this.messenger.call(
-      'KycService:createUkycSession',
+    const { kycStatus, finalStatus } = await this.messenger.call(
+      'KycService:setAuthorizations',
       {
-        jwtToken,
-        ...this.#buildUkycSessionVendorFields(),
-        wrappedEncryptionKey,
-        ukycCapabilityToken,
+        sessionId,
+        wrappedEncryptionDataKey,
+        wrappedUkycCapabilityToken,
       },
     );
 
@@ -1933,20 +1945,20 @@ export class KycController extends BaseController<
   /**
    * Runs the SumSub document-verification sub-flow end to end:
    *
-   *  1. requests a per-session wrapping key from the UKYC backend;
-   *  2. verifies its `jwtChain` against the Fractal JWKS and confirms the
-   *     attested session server public key;
+   *  1. creates a UKYC session, receiving per-secret encryption schemas;
+   *  2. verifies each schema's `jwtChain` against the Fractal JWKS and confirms
+   *     the attested session server public key;
    *  3. derives the `data_encryption_key` from the wallet's UKYC
    *     `local_user_secret` and wraps it for the session server;
-   *  4. mints a client-signed, read-only `ukyc_capability_token` and creates
-   *     the UKYC session (handing over the wrapped key and the token);
+   *  4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the
+   *     same way as the encryption key, and submits both via authorizations;
    *  5. fetches the SumSub applicant access token; and
    *  6. presents the SDK via the injected launcher.
    *
    * If a UKYC session already exists (the consents path creates it before
    * recording session disclaimers), steps 1–4 are skipped.
    *
-   * If session creation reports the applicant is already approved on the relay
+   * If authorizations report the applicant is already approved on the relay
    * while the vendor is still finalizing (`kycStatus: approved`,
    * `finalStatus: pending`), the sub-flow stops at step 4 with a
    * `vendorProcessing` status and a message rather than launching the SDK.
@@ -2487,6 +2499,23 @@ export class KycController extends BaseController<
       // @ts-expect-error Avoid "type instantiation is excessively deep".
       updater(state);
     });
+  }
+
+  /**
+   * Confirms that an encryption schema's `serverPublicKey.x` matches the
+   * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
+   * a key that was swapped out-of-band after the chain was signed.
+   *
+   * @param keys - The Fractal JWKS used to verify the chain.
+   * @param schema - The encryption schema returned by session creation.
+   */
+  #assertAttestedServerPublicKey(keys: Jwk[], schema: EncryptionSchema): void {
+    const jwtChainPayload = verifyJwtChain(keys, schema.jwtChain);
+    if (jwtChainPayload.sessionServerPublicKeyX !== schema.serverPublicKey.x) {
+      throw new Error(
+        'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
+      );
+    }
   }
 
   /**
