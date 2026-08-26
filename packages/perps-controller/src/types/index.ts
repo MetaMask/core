@@ -7,6 +7,7 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type {
   CandleData,
   OrderType,
@@ -270,9 +271,10 @@ export type OrderParams = {
    * `splitScaleSizes` for how the sizes are allocated.
    */
   scaleSkew?: number;
-  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 3000, min 1000)
-  chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
-  chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
+  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 15000, min 1000)
+  chaseMaxDurationMs?: number; // Optional hard stop for the chase window (unbounded by default)
+  chaseMaxRepricings?: number; // Optional cap on cancel/replace cycles (unbounded by default)
+  chaseMaxDistanceBps?: number; // Optional directional distance from arrival price where chasing stops
 
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
@@ -339,6 +341,39 @@ export type OrderResult = {
   // Absent for every non-strategy placement.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
+};
+
+export type ChaseOrderStatus =
+  (typeof CHASE_ORDER_STATUS)[keyof typeof CHASE_ORDER_STATUS];
+
+/**
+ * Client-visible state of one emulated Chase placement.
+ *
+ * The handle remains stable while the exchange child ID and resting price can
+ * change on every reprice. Terminal sessions are retained until provider
+ * teardown so clients can observe why chasing stopped and then reconcile the
+ * surviving child through the ordinary orders stream.
+ */
+export type ChaseOrder = {
+  handle: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  originalSize: string;
+  remainingSize: string;
+  arrivalPrice: string;
+  restingPrice: string;
+  restingOrderId: string | null;
+  /** Adverse distance of the resting child from arrival, rounded to whole bps. */
+  distanceChasedBps: number;
+  /**
+   * Optional adverse-touch stop, strictly between 0 and 10,000 bps.
+   * The resting child may sit just inside this boundary after price-grid rounding.
+   */
+  maxDistanceBps?: number;
+  repricings: number;
+  startedAt: number;
+  status: ChaseOrderStatus;
+  providerId?: PerpsProviderType;
 };
 
 export type Position = {
@@ -1453,6 +1488,8 @@ export type PerpsProvider = {
   editOrder(params: EditOrderParams): Promise<OrderResult>;
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
+  getChaseOrders?(): Promise<ChaseOrder[]>;
+  suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;

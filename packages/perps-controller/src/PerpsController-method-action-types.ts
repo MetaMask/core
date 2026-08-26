@@ -121,6 +121,30 @@ export type PerpsControllerCancelOrderAction = {
 };
 
 /**
+ * Read the active provider's retained Chase lifecycle snapshots.
+ * Providers without an emulated Chase implementation return an empty list.
+ *
+ * @returns Current Chase session snapshots.
+ */
+export type PerpsControllerGetChaseOrdersAction = {
+  type: `PerpsController:getChaseOrders`;
+  handler: PerpsController['getChaseOrders'];
+};
+
+/**
+ * Stop Chase repricing for app backgrounding without cancelling the current
+ * resting children.
+ *
+ * @returns Chase snapshots after suspension.
+ * @throws If an aggregated provider cannot suspend every active venue. Other
+ * providers may already be suspended; callers can retry to reconcile them.
+ */
+export type PerpsControllerSuspendChaseOrdersAction = {
+  type: `PerpsController:suspendChaseOrders`;
+  handler: PerpsController['suspendChaseOrders'];
+};
+
+/**
  * Cancel multiple orders in parallel
  * Batch version of cancelOrder() that cancels multiple orders simultaneously
  *
@@ -1229,6 +1253,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
+  | PerpsControllerGetChaseOrdersAction
+  | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction

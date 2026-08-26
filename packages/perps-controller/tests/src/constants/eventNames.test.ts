@@ -353,6 +353,12 @@ describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.FILTER_APPLIED).toBe(
       'filter_applied',
     );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.CHASE_BACKGROUNDED_CONVERTED,
+    ).toBe('chase_backgrounded_converted');
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.CHASE_TERMINATED).toBe(
+      'chase_terminated',
+    );
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SEARCH_RESULT_TAPPED).toBe(
       'search_result_tapped',
     );
@@ -372,6 +378,12 @@ describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
 
   it('exports ACTION.ABANDON_ORDER', () => {
     expect(PERPS_EVENT_VALUE.ACTION.ABANDON_ORDER).toBe('abandon_order');
+  });
+
+  it('exports the Chase background notification schema value', () => {
+    expect(PERPS_EVENT_VALUE.NOTIFICATION_TYPE.CHASE_BACKGROUNDED).toBe(
+      'perps_chase_backgrounded',
+    );
   });
 
   it('exports new BUTTON_CLICKED values', () => {

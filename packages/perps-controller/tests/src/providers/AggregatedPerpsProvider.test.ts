@@ -6,6 +6,7 @@ import type {
   Position,
   MarketInfo,
   Order,
+  ChaseOrder,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 /* eslint-disable */
@@ -43,6 +44,8 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     }),
     getUserNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
     getUserHistory: jest.fn().mockResolvedValue([]),
+    getChaseOrders: jest.fn().mockResolvedValue([]),
+    suspendChaseOrders: jest.fn().mockResolvedValue([]),
     getCurrentAccountId: jest
       .fn()
       .mockResolvedValue(
@@ -427,6 +430,90 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.getFunding();
 
       expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('Chase lifecycle operations', () => {
+    const chaseOrder: ChaseOrder = {
+      handle: 'chase-1',
+      symbol: 'ETH',
+      side: 'buy',
+      originalSize: '1',
+      remainingSize: '1',
+      arrivalPrice: '3000',
+      restingPrice: '3000',
+      restingOrderId: '55',
+      distanceChasedBps: 0,
+      repricings: 0,
+      startedAt: 1,
+      status: 'active',
+    };
+
+    it('aggregates Chase snapshots with their provider IDs', async () => {
+      mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
+
+      await expect(aggregatedProvider.getChaseOrders()).resolves.toContainEqual(
+        { ...chaseOrder, providerId: 'hyperliquid' },
+      );
+    });
+
+    it('retains successful Chase snapshots when another provider fails', async () => {
+      mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
+      mockMYXProvider.getChaseOrders?.mockRejectedValue(
+        new Error('snapshot failed'),
+      );
+
+      await expect(aggregatedProvider.getChaseOrders()).resolves.toStrictEqual([
+        { ...chaseOrder, providerId: 'hyperliquid' },
+      ]);
+    });
+
+    it('suspends every provider and retains provider IDs', async () => {
+      const backgrounded = {
+        ...chaseOrder,
+        status: 'backgrounded' as const,
+      };
+      mockHLProvider.suspendChaseOrders?.mockResolvedValue([backgrounded]);
+
+      await expect(
+        aggregatedProvider.suspendChaseOrders(),
+      ).resolves.toContainEqual({
+        ...backgrounded,
+        providerId: 'hyperliquid',
+      });
+    });
+
+    it('waits for every suspension attempt before rejecting a provider failure', async () => {
+      let resolveHyperLiquid: (orders: ChaseOrder[]) => void = () => undefined;
+      const hyperLiquidSuspension = new Promise<ChaseOrder[]>((resolve) => {
+        resolveHyperLiquid = resolve;
+      });
+      let hyperLiquidCompleted = false;
+      mockHLProvider.suspendChaseOrders?.mockImplementation(async () => {
+        const orders = await hyperLiquidSuspension;
+        hyperLiquidCompleted = true;
+        return orders;
+      });
+      mockMYXProvider.suspendChaseOrders?.mockRejectedValue(
+        new Error('suspension failed'),
+      );
+
+      const suspension = aggregatedProvider.suspendChaseOrders();
+      let aggregateSettled = false;
+      void suspension.then(
+        () => {
+          aggregateSettled = true;
+        },
+        () => {
+          aggregateSettled = true;
+        },
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(aggregateSettled).toBe(false);
+      resolveHyperLiquid([]);
+      await expect(suspension).rejects.toThrow('suspension failed');
+      expect(hyperLiquidCompleted).toBe(true);
     });
   });
 

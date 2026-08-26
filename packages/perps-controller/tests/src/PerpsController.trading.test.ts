@@ -772,6 +772,44 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('Chase lifecycle', () => {
+    const chaseOrder = {
+      handle: 'chase-1',
+      symbol: 'ETH',
+      side: 'buy' as const,
+      originalSize: '1',
+      remainingSize: '1',
+      arrivalPrice: '2999.1',
+      restingPrice: '2999.1',
+      restingOrderId: '55',
+      distanceChasedBps: 0,
+      repricings: 0,
+      startedAt: 1,
+      status: 'active' as const,
+    };
+
+    it('reads Chase lifecycle state from the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getChaseOrders.mockResolvedValue([chaseOrder]);
+
+      await expect(controller.getChaseOrders()).resolves.toStrictEqual([
+        chaseOrder,
+      ]);
+    });
+
+    it('suspends Chase loops through the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const backgrounded = { ...chaseOrder, status: 'backgrounded' as const };
+      mockProvider.suspendChaseOrders.mockResolvedValue([backgrounded]);
+
+      await expect(controller.suspendChaseOrders()).resolves.toStrictEqual([
+        backgrounded,
+      ]);
+    });
+  });
+
   describe('cancelOrders', () => {
     it('delegates to TradingService with withStreamPause callback', async () => {
       markControllerAsInitialized();

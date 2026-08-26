@@ -122,19 +122,21 @@ export const ORDER_SLIPPAGE_CONFIG = {
  * No supported venue exposes a chase as an API action — HyperLiquid documents it
  * as running client-side — so the strategy is run here: a post-only order rests
  * one tick inside the spread and is cancelled and re-placed as the touch moves.
- * The poll floor and the repricing cap exist to keep a chase from turning into a
- * cancel/replace loop against a venue's rate limits. Protocol-agnostic — a
- * provider that gains a native chase ignores these entirely.
+ * The poll floor limits request frequency; callers may also set explicit
+ * duration or repricing caps. Protocol-agnostic — a provider that gains a
+ * native chase ignores these entirely.
  */
 export const CHASE_ORDER_CONFIG = {
+  /** Maximum submissions used to survive a touch moving before an ALO rests. */
+  InitialPlacementAttempts: 3,
   /** How often the touch is re-read when the caller does not say. */
-  DefaultIntervalMs: 3000,
+  DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */
   MinIntervalMs: 1000,
-  /** How long a chase runs before it stops re-pricing and rests. */
-  DefaultMaxDurationMs: 60_000,
-  /** How many cancel/replace cycles a single chase may perform. */
-  DefaultMaxRepricings: 20,
+  /** Internal unbounded sentinel; callers omit the field instead of passing Infinity. */
+  DefaultMaxDurationMs: Number.POSITIVE_INFINITY,
+  /** Internal unbounded sentinel; callers omit the field instead of passing Infinity. */
+  DefaultMaxRepricings: Number.POSITIVE_INFINITY,
   /**
    * How many chases may run at once.
    *
@@ -144,6 +146,18 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
+} as const;
+
+/** Public lifecycle states reported for an emulated Chase order. */
+export const CHASE_ORDER_STATUS = {
+  Active: 'active',
+  TerminationPending: 'termination_pending',
+  Backgrounded: 'backgrounded',
+  MaxDistanceReached: 'max_distance_reached',
+  DurationReached: 'duration_reached',
+  RepricingLimitReached: 'repricing_limit_reached',
+  Filled: 'filled',
+  Failed: 'failed',
 } as const;
 
 /**

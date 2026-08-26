@@ -28,6 +28,7 @@ import type {
   CancelOrderParams,
   CancelOrderResult,
   CancelOrdersResult,
+  ChaseOrder,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -441,6 +442,60 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
     const result = await provider.placeOrder(params);
     return { ...result, providerId };
+  }
+
+  /**
+   * Read all available snapshots, retaining successful providers on a partial failure.
+   *
+   * @returns Chase snapshots from every provider that responded successfully.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getChaseOrders
+          ? (await provider.getChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
+  }
+
+  /**
+   * Attempt to suspend every provider and reject after all attempts settle if
+   * any provider could not suspend safely. Successful providers remain
+   * suspended, so callers may retry to reconcile a partial failure.
+   *
+   * @returns Chase snapshots after every provider suspends successfully.
+   * @throws If any active provider fails to suspend its Chase orders.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.suspendChaseOrders
+          ? (await provider.suspendChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure?.status === 'rejected') {
+      throw failure.reason;
+    }
+
+    const snapshots: ChaseOrder[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        snapshots.push(...result.value);
+      }
+    }
+    return snapshots;
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
