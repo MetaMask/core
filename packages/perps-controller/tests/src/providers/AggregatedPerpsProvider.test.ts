@@ -483,14 +483,37 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
-    it('rejects suspension when any provider cannot suspend safely', async () => {
+    it('waits for every suspension attempt before rejecting a provider failure', async () => {
+      let resolveHyperLiquid: (orders: ChaseOrder[]) => void = () => undefined;
+      const hyperLiquidSuspension = new Promise<ChaseOrder[]>((resolve) => {
+        resolveHyperLiquid = resolve;
+      });
+      let hyperLiquidCompleted = false;
+      mockHLProvider.suspendChaseOrders?.mockImplementation(async () => {
+        const orders = await hyperLiquidSuspension;
+        hyperLiquidCompleted = true;
+        return orders;
+      });
       mockMYXProvider.suspendChaseOrders?.mockRejectedValue(
         new Error('suspension failed'),
       );
 
-      await expect(aggregatedProvider.suspendChaseOrders()).rejects.toThrow(
-        'suspension failed',
+      const suspension = aggregatedProvider.suspendChaseOrders();
+      let aggregateSettled = false;
+      void suspension.then(
+        () => {
+          aggregateSettled = true;
+        },
+        () => {
+          aggregateSettled = true;
+        },
       );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(aggregateSettled).toBe(false);
+      resolveHyperLiquid([]);
+      await expect(suspension).rejects.toThrow('suspension failed');
+      expect(hyperLiquidCompleted).toBe(true);
     });
   });
 
