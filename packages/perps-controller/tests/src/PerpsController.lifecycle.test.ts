@@ -1082,7 +1082,7 @@ describe('PerpsController', () => {
       );
     });
 
-    it('does not restart market preloading while disconnect is in flight', async () => {
+    it('defers market preloading until an in-flight disconnect finishes', async () => {
       await controller.init();
       const disconnectStarted = createDeferred<void>();
       const pendingDisconnect = createDeferred<void>();
@@ -1097,12 +1097,43 @@ describe('PerpsController', () => {
       controller.startMarketDataPreload();
 
       expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
-        'PerpsController: Disconnect in progress, skipping market data preload',
+        'PerpsController: Disconnect in progress, deferring market data preload',
       );
-      expect(mockProvider.getMarketDataWithPrices).not.toHaveBeenCalled();
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).not.toHaveBeenCalled();
 
       pendingDisconnect.resolve();
       await disconnectPromise;
+      await Promise.resolve();
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).toHaveBeenCalledTimes(1);
+      controller.stopMarketDataPreload();
+    });
+
+    it('lets an explicit stop cancel a deferred preload start', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(async () => {
+        disconnectStarted.resolve();
+        await pendingDisconnect.promise;
+        return { success: true };
+      });
+
+      const disconnectPromise = controller.disconnect();
+      await disconnectStarted.promise;
+      controller.startMarketDataPreload();
+      controller.stopMarketDataPreload();
+      pendingDisconnect.resolve();
+      await disconnectPromise;
+      await Promise.resolve();
+
+      expect(
+        mockMarketDataServiceInstance.getMarketDataWithPrices,
+      ).not.toHaveBeenCalled();
     });
 
     it('initializes only after an in-flight disconnect finishes', async () => {

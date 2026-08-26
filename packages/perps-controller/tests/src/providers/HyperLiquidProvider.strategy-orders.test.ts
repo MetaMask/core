@@ -120,6 +120,19 @@ const mockValidateBalance = validateBalance as jest.MockedFunction<
 /** Every method on the mocked info and exchange clients is a jest mock. */
 type MockClient = Record<string, jest.Mock>;
 
+type MockClearinghouseBalance = {
+  marginSummary: {
+    totalMarginUsed: string;
+    accountValue: string;
+  };
+  withdrawable: string;
+  assetPositions: never[];
+  crossMarginSummary: {
+    accountValue: string;
+    totalMarginUsed: string;
+  };
+};
+
 /**
  * Build the read-side client the provider queries.
  *
@@ -346,7 +359,7 @@ const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
 const mockPlatformDependencies: PerpsPlatformDependencies =
   createMockInfrastructure();
 
-const mockMessenger = createMockMessenger();
+let mockMessenger = createMockMessenger();
 
 /**
  * Build a provider backed by the mock services above.
@@ -357,6 +370,7 @@ const mockMessenger = createMockMessenger();
  * @param options.hip3Enabled - Whether HIP-3 routes are enabled.
  * @param options.allowlistMarkets - HIP-3 market allowlist.
  * @param options.blocklistMarkets - HIP-3 market blocklist.
+ * @param options.useUnifiedAccount - Whether HIP-3 orders use unified collateral.
  * @param options.onChaseOrderMaxDistanceReached - Chase boundary callback.
  * @returns The provider under test.
  */
@@ -367,6 +381,7 @@ const createTestProvider = (
     hip3Enabled?: boolean;
     allowlistMarkets?: string[];
     blocklistMarkets?: string[];
+    useUnifiedAccount?: boolean;
     onChaseOrderMaxDistanceReached?: (
       event: ChaseOrderMaxDistanceReached,
     ) => void;
@@ -387,6 +402,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   beforeEach(() => {
     // Reset all mocks
     jest.clearAllMocks();
+    mockMessenger = createMockMessenger();
     (
       mockPlatformDependencies.marketDataFormatters.formatVolume as jest.Mock
     ).mockImplementation((value: number) => `$${value.toFixed(0)}`);
@@ -612,7 +628,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
   const useHip3Capabilities = (
     infoOverrides: MockClient = {},
     providerOptions: {
+      hip3Enabled?: boolean;
       allowlistMarkets?: string[];
+      blocklistMarkets?: string[];
     } = {},
   ): {
     capabilityProvider: HyperLiquidProvider;
@@ -646,6 +664,41 @@ describe('HyperLiquidProvider - strategy order types', () => {
     currentPrice: 3000,
     providerId: PROVIDER_CONFIG.DefaultProvider,
   };
+
+  const activeEthTwapHistory = [
+    {
+      time: 1_700_000_030,
+      twapId: 987,
+      state: {
+        coin: 'ETH',
+        executedNtl: '0',
+        executedSz: '0',
+        minutes: 30,
+        randomize: false,
+        reduceOnly: false,
+        side: 'B',
+        sz: '1',
+        timestamp: 1_700_000_000_000,
+        user: '0x1234567890123456789012345678901234567890',
+      },
+      status: { status: 'activated' },
+    },
+  ];
+
+  const createClearinghouseBalance = (
+    withdrawable: string,
+  ): MockClearinghouseBalance => ({
+    marginSummary: {
+      totalMarginUsed: '0',
+      accountValue: withdrawable,
+    },
+    withdrawable,
+    assetPositions: [],
+    crossMarginSummary: {
+      accountValue: withdrawable,
+      totalMarginUsed: '0',
+    },
+  });
 
   describe('Builder fee policy', () => {
     it('applies one builder context to a default parent and TP/SL batch', async () => {
@@ -1854,7 +1907,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('TWAP cancellation', () => {
     it('uses the TWAP cancel endpoint, never the order cancel endpoint', async () => {
-      const { exchangeClient } = useStrategyClients();
+      const { exchangeClient } = useStrategyClients({
+        info: {
+          twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+        },
+      });
 
       const result = await provider.cancelOrder({
         orderId: '987',
@@ -1902,6 +1959,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
             },
           }),
         },
+        info: {
+          twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+        },
       });
 
       const result = await provider.cancelOrder({
@@ -1925,6 +1985,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
             },
           }),
         },
+        info: {
+          twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+        },
       });
 
       const result = await provider.cancelOrder({
@@ -1936,6 +1999,67 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE);
+    });
+
+    it('rejects a handle that neither tracking nor venue history can authenticate', async () => {
+      const { exchangeClient } = useStrategyClients();
+
+      const result = await provider.cancelOrder({
+        orderId: '654321',
+        symbol: 'ETH',
+        orderType: 'twap',
+        providerId: 'hyperliquid',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        orderId: '654321',
+        error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      });
+      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+    });
+
+    it('preserves handle ownership across provider recreation', async () => {
+      const { exchangeClient } = useStrategyClients();
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
+      await provider.disconnect();
+      const recreatedProvider = createTestProvider({
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+      });
+
+      expect(
+        await recreatedProvider.cancelOrder({
+          orderId: placed.orderId,
+          symbol: 'BTC',
+          orderType: 'twap',
+          providerId: 'hyperliquid',
+        }),
+      ).toStrictEqual({
+        success: false,
+        orderId: placed.orderId,
+        error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+      });
+      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+
+      expect(
+        await recreatedProvider.cancelOrder({
+          orderId: placed.orderId,
+          symbol: 'ETH',
+          orderType: 'twap',
+          providerId: 'hyperliquid',
+        }),
+      ).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+      });
+      expect(exchangeClient.twapCancel).toHaveBeenCalledWith({ a: 1, t: 987 });
     });
 
     it('leaves an ordinary cancel on the order endpoint', async () => {
@@ -2171,6 +2295,131 @@ describe('HyperLiquidProvider - strategy order types', () => {
         timeProgressBps: 10000,
         elapsedTimeMilliseconds: 600_000,
       });
+    });
+
+    it.each([
+      ['waitingForTrigger', 'active'],
+      ['stopped', 'canceled'],
+    ] as const)('maps the venue %s status to %s', async (status, expected) => {
+      useStrategyClients({
+        info: {
+          twapHistory: jest.fn().mockResolvedValue([
+            {
+              time: 1_700_000_030,
+              twapId: 987,
+              state: {
+                coin: 'ETH',
+                executedNtl: '0',
+                executedSz: '0',
+                minutes: 10,
+                randomize: false,
+                reduceOnly: false,
+                side: 'B',
+                sz: '1',
+                timestamp: startedAt,
+                user: userAddress,
+              },
+              status: { status },
+            },
+          ]),
+        },
+      });
+
+      expect(await provider.getTwapOrders()).toContainEqual(
+        expect.objectContaining({ orderId: '987', status: expected }),
+      );
+    });
+
+    it('retries a failed HIP-3 collateral rebalance after provider recreation', async () => {
+      let twapPlaced = false;
+      const clearinghouseState = jest.fn().mockImplementation(({ dex }) => {
+        let withdrawable = '1000';
+        if (dex === 'xyz') {
+          withdrawable = twapPlaced ? '20' : '0';
+        }
+        return Promise.resolve(createClearinghouseBalance(withdrawable));
+      });
+      const twapOrder = jest.fn().mockImplementation(async () => {
+        twapPlaced = true;
+        return {
+          status: 'ok',
+          response: {
+            type: 'twapOrder',
+            data: { status: { running: { twapId: 987 } } },
+          },
+        };
+      });
+      useStrategyClients({
+        exchange: { twapOrder },
+        info: {
+          clearinghouseState,
+          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+          twapHistory: jest.fn().mockResolvedValue([
+            {
+              time: 1_700_000_600,
+              twapId: 987,
+              state: {
+                coin: 'xyz:TSLA',
+                executedNtl: '3000',
+                executedSz: '1',
+                minutes: 30,
+                randomize: false,
+                reduceOnly: false,
+                side: 'B',
+                sz: '1',
+                timestamp: startedAt,
+                user: userAddress,
+              },
+              status: { status: 'finished' },
+            },
+          ]),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+      const initialTransfer = jest
+        .spyOn(provider, 'transferBetweenDexs')
+        .mockResolvedValue({ success: true });
+
+      expect(
+        await provider.placeOrder({
+          ...baseOrder,
+          symbol: 'xyz:TSLA',
+          orderType: 'twap',
+          twapDuration: 30,
+        } satisfies OrderParams),
+      ).toMatchObject({ success: true, orderId: '987' });
+      expect(initialTransfer).toHaveBeenCalledTimes(1);
+      await provider.disconnect();
+
+      const recreatedProvider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+      const rebalance = jest
+        .spyOn(recreatedProvider, 'transferBetweenDexs')
+        .mockResolvedValueOnce({ success: false, error: 'transfer failed' })
+        .mockResolvedValue({ success: true });
+
+      await recreatedProvider.getTwapOrders();
+      expect(rebalance).toHaveBeenCalledTimes(1);
+
+      await recreatedProvider.getTwapOrders();
+      expect(rebalance).toHaveBeenCalledTimes(2);
+
+      await recreatedProvider.getTwapOrders();
+      expect(rebalance).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -2853,6 +3102,47 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order).toHaveBeenCalledTimes(1);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       jest.useRealTimers();
+    });
+
+    it('does not report an externally cancelled child as filled', async () => {
+      const { infoClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } satisfies OrderParams);
+      infoClient.orderStatus.mockResolvedValueOnce({
+        status: 'order',
+        order: {
+          status: 'canceled',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+
+      expect(await provider.getChaseOrders()).toContainEqual(
+        expect.objectContaining({
+          handle: result.orderId,
+          remainingSize: '0',
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Failed,
+        }),
+      );
     });
 
     it('backgrounds every active session without cancelling its resting child', async () => {
@@ -4474,6 +4764,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
         supportedStrategies: ['twap', 'scale', 'chase'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
+    });
+
+    it.each([
+      ['the HIP-3 kill switch is off', { hip3Enabled: false }],
+      ['the market is blocklisted', { blocklistMarkets: ['xyz:TSLA'] }],
+    ])('does not advertise a HIP-3 market when %s', async (_, options) => {
+      const { capabilityProvider } = useHip3Capabilities({}, options);
+
+      expect(
+        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
+      });
+    });
+
+    it('does not advertise a non-USDC-collateral HIP-3 market', async () => {
+      const { capabilityProvider } = useHip3Capabilities({
+        meta: jest.fn().mockResolvedValue({
+          universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+          collateralToken: 1,
+        }),
+      });
+
+      expect(
+        await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
+      });
     });
 
     it('reports a missing HIP-3 market after checking its DEX metadata', async () => {

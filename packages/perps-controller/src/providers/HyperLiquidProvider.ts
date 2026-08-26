@@ -297,7 +297,9 @@ const enum HyperLiquidTwapLifecycleStatus {
   Activated = 'activated',
   Failed = 'error',
   Finished = 'finished',
+  Stopped = 'stopped',
   Terminated = 'terminated',
+  WaitingForTrigger = 'waitingForTrigger',
 }
 
 const enum PerpsTwapLifecycleStatus {
@@ -308,9 +310,33 @@ const enum PerpsTwapLifecycleStatus {
   Failed = 'failed',
 }
 
-type HyperLiquidTwapHistoryEntry = Awaited<
+type SdkHyperLiquidTwapHistoryEntry = Awaited<
   ReturnType<InfoClient['twapHistory']>
 >[number];
+
+type HyperLiquidTwapNonFailureLifecycleStatus =
+  | `${HyperLiquidTwapLifecycleStatus.Activated}`
+  | `${HyperLiquidTwapLifecycleStatus.Finished}`
+  | `${HyperLiquidTwapLifecycleStatus.Stopped}`
+  | `${HyperLiquidTwapLifecycleStatus.Terminated}`
+  | `${HyperLiquidTwapLifecycleStatus.WaitingForTrigger}`;
+
+type HyperLiquidTwapFailureLifecycleStatus =
+  `${HyperLiquidTwapLifecycleStatus.Failed}`;
+
+type HyperLiquidTwapHistoryEntry = Omit<
+  SdkHyperLiquidTwapHistoryEntry,
+  'status'
+> & {
+  status:
+    | {
+        status: HyperLiquidTwapNonFailureLifecycleStatus;
+      }
+    | {
+        status: HyperLiquidTwapFailureLifecycleStatus;
+        description: string;
+      };
+};
 
 type HyperLiquidTwapSliceFillEntry = Awaited<
   ReturnType<InfoClient['userTwapSliceFills']>
@@ -544,14 +570,23 @@ type Hip3TransferContext = {
   transferInfo: Hip3TransferInfo;
 };
 
-type Hip3TwapTransferScope = {
+type TwapOrderScope = {
   network: 'testnet' | 'mainnet';
   userAddress: string;
-  symbol: string;
   orderId: string;
 };
 
-type TwapAccountScope = Pick<Hip3TwapTransferScope, 'network' | 'userAddress'>;
+type TwapAccountScope = Pick<TwapOrderScope, 'network' | 'userAddress'>;
+
+type TrackedTwapOrder = {
+  symbol: string;
+  hip3Transfer?: Hip3TransferContext;
+};
+
+type ChaseOrderRemainder = {
+  remainingSize: string | null;
+  filled: boolean;
+};
 
 type AdaptTwapOrderParams = {
   historyEntry: HyperLiquidTwapHistoryEntry;
@@ -943,8 +978,8 @@ const normalizeTwapHistoryTimestamp = (timestamp: number): number =>
     ? timestamp * MILLISECONDS_PER_SECOND
     : timestamp;
 
-const getHip3TwapTransferKey = (params: Hip3TwapTransferScope): string =>
-  `${params.network}:${params.userAddress.toLowerCase()}:${params.symbol}:${params.orderId}`;
+const getTwapOrderScopeKey = (params: TwapOrderScope): string =>
+  `${params.network}:${params.userAddress.toLowerCase()}:${params.orderId}`;
 
 const resolveTwapOrderStatus = (
   historyEntry: HyperLiquidTwapHistoryEntry,
@@ -953,12 +988,14 @@ const resolveTwapOrderStatus = (
 ): TwapOrderStatus => {
   switch (historyEntry.status.status) {
     case HyperLiquidTwapLifecycleStatus.Activated:
+    case HyperLiquidTwapLifecycleStatus.WaitingForTrigger:
       return PerpsTwapLifecycleStatus.Active;
     case HyperLiquidTwapLifecycleStatus.Finished:
       return executedSize.isLessThan(totalSize)
         ? PerpsTwapLifecycleStatus.CompletedUnderfilled
         : PerpsTwapLifecycleStatus.Completed;
     case HyperLiquidTwapLifecycleStatus.Terminated:
+    case HyperLiquidTwapLifecycleStatus.Stopped:
       return PerpsTwapLifecycleStatus.Canceled;
     case HyperLiquidTwapLifecycleStatus.Failed:
       return PerpsTwapLifecycleStatus.Failed;
@@ -1140,10 +1177,16 @@ export class HyperLiquidProvider implements PerpsProvider {
   // also returned to the caller as `OrderResult.childOrderIds`.
   readonly #scaleOrderGroups = new Map<string, ScaleOrderGroup>();
 
-  // Manual HIP-3 collateral moved for a native TWAP must remain on that DEX
-  // while the venue executes its later slices. Keep the transfer until a
-  // cancellation confirms the schedule is no longer running.
-  readonly #hip3TwapTransfers = new Map<string, Hip3TransferContext>();
+  // Native TWAP IDs and any manual HIP-3 collateral transfer must outlive one
+  // provider instance: controller disconnect/reinitialization replaces the
+  // provider while the venue schedule keeps running. Each controller messenger
+  // owns one registry, so separate controller lifecycles never share handles.
+  static readonly #trackedTwapOrdersByMessenger = new WeakMap<
+    PerpsControllerMessengerBase,
+    Map<string, TrackedTwapOrder>
+  >();
+
+  readonly #trackedTwapOrders: Map<string, TrackedTwapOrder>;
 
   // Chase sessions running on this provider instance, keyed by session handle.
   // Each owns a pending timer, so disconnect has to stop them.
@@ -1205,6 +1248,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   constructor(options: HyperLiquidProviderOptions) {
     this.#deps = options.platformDependencies;
     this.#messenger = options.messenger;
+    const trackedTwapOrders =
+      HyperLiquidProvider.#trackedTwapOrdersByMessenger.get(this.#messenger) ??
+      new Map<string, TrackedTwapOrder>();
+    HyperLiquidProvider.#trackedTwapOrdersByMessenger.set(
+      this.#messenger,
+      trackedTwapOrders,
+    );
+    this.#trackedTwapOrders = trackedTwapOrders;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
     this.#subscriptionBuilderAddressTestnet =
@@ -1353,15 +1404,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     const lifecycleGeneration = this.#lifecycleGeneration;
 
     try {
-      const meta =
+      const marketExists =
         dex === null
-          ? await this.#getFreshOrderCapabilitiesMeta()
-          : await this.#getCachedMeta({ dexName: dex });
+          ? (await this.#getFreshOrderCapabilitiesMeta()).universe.some(
+              (market) => market.name === params.symbol,
+            )
+          : (
+              await this.#fetchMarketsForDex({
+                dex,
+              })
+            ).some((market) => market.name === params.symbol);
       this.#assertProviderLifecycleCurrent(
         lifecycleGeneration,
         'Order capability read',
       );
-      return meta.universe.some((market) => market.name === params.symbol)
+      return marketExists
         ? HYPERLIQUID_ORDER_CAPABILITIES
         : {
             status: 'unavailable',
@@ -4449,11 +4506,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.transferInfo - The transfer information.
    * @param params.transferInfo.amount - The amount value.
    * @param params.transferInfo.sourceDex - The source DEX for the transfer.
+   * @returns Whether the balance check and any required transfer succeeded.
    * @private
    */
   async #handleHip3PostOrderRebalance(
     params: Hip3TransferContext,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const { dexName, transferInfo } = params;
 
     try {
@@ -4491,11 +4549,16 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
           );
 
-          await this.transferBetweenDexs({
+          const transferResult = await this.transferBetweenDexs({
             sourceDex: dexName,
             destinationDex: transferInfo.sourceDex,
             amount: excessAmount.toFixed(USDC_DECIMALS),
           });
+          if (!transferResult.success) {
+            throw new Error(
+              transferResult.error ?? PERPS_ERROR_CODES.TRANSFER_FAILED,
+            );
+          }
 
           this.#deps.debugLogger.log(
             '✅ HyperLiquidProvider: Auto-rebalance completed',
@@ -4505,6 +4568,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               to: transferInfo.sourceDex,
             },
           );
+          return true;
         } catch (rebalanceError) {
           // Don't fail the order if rebalance fails (order already succeeded)
           this.#deps.logger.error(
@@ -4518,6 +4582,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               note: 'Auto-rebalance failed - funds remain on HIP-3 DEX',
             }),
           );
+          return false;
         }
       } else {
         this.#deps.debugLogger.log(
@@ -4528,6 +4593,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             note: 'Excess below minimum transfer threshold',
           },
         );
+        return true;
       }
     } catch (balanceCheckError) {
       // Don't fail the order if balance check fails - log for monitoring
@@ -4541,6 +4607,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           note: 'Failed to verify post-order balance for auto-rebalance',
         }),
       );
+      return false;
     }
   }
 
@@ -5293,30 +5360,33 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw error;
     }
 
-    if (!dexName || !transferInfo) {
-      return result;
-    }
-
     const hasVenueExposure =
       result.success === true ||
       result.orderId !== undefined ||
       (result.childOrderIds?.length ?? 0) > 0;
-    if (!hasVenueExposure) {
+    if (dexName && transferInfo && !hasVenueExposure) {
       await this.#handleHip3OrderRollback({ dexName, transferInfo });
       return result;
     }
 
     if (params.orderType === 'twap' && result.orderId) {
-      this.#hip3TwapTransfers.set(
-        getHip3TwapTransferKey({
+      this.#trackedTwapOrders.set(
+        getTwapOrderScopeKey({
           network,
           userAddress,
-          symbol: params.symbol,
           orderId: result.orderId,
         }),
-        { dexName, transferInfo },
+        {
+          symbol: params.symbol,
+          ...(dexName && transferInfo
+            ? { hip3Transfer: { dexName, transferInfo } }
+            : {}),
+        },
       );
-    } else {
+      return result;
+    }
+
+    if (dexName && transferInfo) {
       await this.#handleHip3PostOrderRebalance({ dexName, transferInfo });
     }
 
@@ -6359,9 +6429,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         const goneOrderId = session.orderId;
         session.orderId = null;
         session.active = false;
-        let remaining: string | null;
+        let remainder: ChaseOrderRemainder;
         try {
-          remaining = await this.#readOrderRemainder(
+          remainder = await this.#readOrderRemainder(
             goneOrderId,
             CHASE_ORDER_STATUS_RETRY_COUNT,
           );
@@ -6377,12 +6447,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           });
           return;
         }
-        session.status =
-          remaining === null
-            ? CHASE_ORDER_STATUS.Filled
-            : CHASE_ORDER_STATUS.Failed;
-        if (remaining !== null) {
-          session.size = remaining;
+        session.status = remainder.filled
+          ? CHASE_ORDER_STATUS.Filled
+          : CHASE_ORDER_STATUS.Failed;
+        if (remainder.remainingSize !== null) {
+          session.size = remainder.remainingSize;
         }
         this.#deps.debugLogger.log('Chase order no longer resting', {
           sessionId,
@@ -6402,9 +6471,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         // No further fills can reach a cancelled order, so what it did not fill
         // is now fixed. Sampling before the cancel would have left a window in
         // which a fill lands and is then re-placed.
-        let remaining: string | null;
+        let remainder: ChaseOrderRemainder;
         try {
-          remaining = await this.#readOrderRemainder(
+          remainder = await this.#readOrderRemainder(
             cancelledOrderId,
             CHASE_ORDER_STATUS_RETRY_COUNT,
           );
@@ -6426,14 +6495,22 @@ export class HyperLiquidProvider implements PerpsProvider {
           return;
         }
 
-        if (remaining === null) {
-          // It filled completely between ticks; there is nothing left to chase.
+        if (remainder.remainingSize === null) {
+          // Nothing is left to chase. Preserve whether the venue actually
+          // confirmed a fill rather than labelling every zero remainder filled.
           session.replacingOrderId = null;
           session.active = false;
-          session.status = CHASE_ORDER_STATUS.Filled;
-          this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
+          session.status = remainder.filled
+            ? CHASE_ORDER_STATUS.Filled
+            : CHASE_ORDER_STATUS.Failed;
+          this.#deps.debugLogger.log('Chase order has no remainder', {
+            sessionId,
+            status: session.status,
+          });
           return;
         }
+
+        const remaining = remainder.remainingSize;
 
         // Published *before* the placement starts, not from the promise it
         // returns: the window opens the moment `#restChaseOrder` is entered, so
@@ -6596,7 +6673,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     let callerStatusUnavailable = false;
     for (const order of ambiguous) {
       try {
-        const live = await this.#readOrderRemainder(
+        const { remainingSize: live } = await this.#readOrderRemainder(
           order.orderId,
           CHASE_ORDER_STATUS_RETRY_COUNT,
         );
@@ -6648,12 +6725,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param orderId - Exchange ID of the order that was just cancelled.
    * @param unknownStatusRetries - Remaining retries for a transient unknown ID.
-   * @returns The unfilled size, or null when nothing is left to chase.
+   * @returns The unfilled size and whether the venue confirmed a full fill.
    */
   async #readOrderRemainder(
     orderId: string,
     unknownStatusRetries = 0,
-  ): Promise<string | null> {
+  ): Promise<ChaseOrderRemainder> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const status = await this.#clientService.getInfoClient().orderStatus({
       user: userAddress,
@@ -6676,11 +6753,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (status.order.status === 'filled') {
-      return null;
+      return { remainingSize: null, filled: true };
     }
 
     const remaining = String(status.order.order.sz);
-    return parseFloat(remaining) > 0 ? remaining : null;
+    return {
+      remainingSize: parseFloat(remaining) > 0 ? remaining : null,
+      filled: false,
+    };
   }
 
   /**
@@ -6893,18 +6973,23 @@ export class HyperLiquidProvider implements PerpsProvider {
         continue;
       }
 
-      const transferKey = getHip3TwapTransferKey({
+      const trackingKey = getTwapOrderScopeKey({
         ...scope,
-        symbol: order.symbol,
         orderId: order.orderId,
       });
-      const transfer = this.#hip3TwapTransfers.get(transferKey);
-      if (!transfer) {
+      const trackedOrder = this.#trackedTwapOrders.get(trackingKey);
+      if (trackedOrder?.symbol !== order.symbol) {
         continue;
       }
 
-      this.#hip3TwapTransfers.delete(transferKey);
-      await this.#handleHip3PostOrderRebalance(transfer);
+      if (
+        trackedOrder.hip3Transfer &&
+        !(await this.#handleHip3PostOrderRebalance(trackedOrder.hip3Transfer))
+      ) {
+        continue;
+      }
+
+      this.#trackedTwapOrders.delete(trackingKey);
     }
   }
 
@@ -6996,7 +7081,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               session.orderId === snapshotOrderId &&
               session.pendingReplacement === null
             ) {
-              if (liveRemainder === null) {
+              if (liveRemainder.remainingSize === null) {
                 session.orderId = null;
                 session.size = '0';
                 session.active = false;
@@ -7004,11 +7089,13 @@ export class HyperLiquidProvider implements PerpsProvider {
                   clearTimeout(session.timer);
                   session.timer = null;
                 }
-                session.status = CHASE_ORDER_STATUS.Filled;
+                session.status = liveRemainder.filled
+                  ? CHASE_ORDER_STATUS.Filled
+                  : CHASE_ORDER_STATUS.Failed;
                 snapshotRemainingSize = '0';
               } else {
-                session.size = liveRemainder;
-                snapshotRemainingSize = liveRemainder;
+                session.size = liveRemainder.remainingSize;
+                snapshotRemainingSize = liveRemainder.remainingSize;
               }
             }
           } catch (error) {
@@ -7152,6 +7239,24 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
     const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const trackingKey = getTwapOrderScopeKey({
+      network,
+      userAddress,
+      orderId: params.orderId,
+    });
+    const trackedOrder = this.#trackedTwapOrders.get(trackingKey);
+    if (trackedOrder) {
+      if (trackedOrder.symbol !== params.symbol) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+      }
+    } else {
+      const venueOrder = (await this.getTwapOrders()).find(
+        (order) => order.orderId === params.orderId,
+      );
+      if (venueOrder?.symbol !== params.symbol) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+      }
+    }
 
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
@@ -7165,16 +7270,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const status = result.response?.data?.status;
     if (classifyCancelStatus(status) !== CancelChildOutcome.Refused) {
-      const transferKey = getHip3TwapTransferKey({
-        network,
-        userAddress,
-        symbol: params.symbol,
-        orderId: params.orderId,
-      });
-      const hip3Transfer = this.#hip3TwapTransfers.get(transferKey);
-      if (hip3Transfer) {
-        this.#hip3TwapTransfers.delete(transferKey);
-        await this.#handleHip3PostOrderRebalance(hip3Transfer);
+      const currentTrackedOrder = this.#trackedTwapOrders.get(trackingKey);
+      if (
+        !currentTrackedOrder?.hip3Transfer ||
+        (await this.#handleHip3PostOrderRebalance(
+          currentTrackedOrder.hip3Transfer,
+        ))
+      ) {
+        this.#trackedTwapOrders.delete(trackingKey);
       }
       return { success: true, orderId: params.orderId };
     }

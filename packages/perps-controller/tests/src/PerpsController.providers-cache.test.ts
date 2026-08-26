@@ -621,13 +621,13 @@ describe('PerpsController', () => {
   });
 
   describe('switchProvider', () => {
-    it('returns success as no-op before init() when already on requested provider', async () => {
-      // Before init(), providers map is empty.
-      // switchProvider should still succeed as a no-op because activeProvider already matches.
+    it('initializes before a same-provider switch on a cold controller', async () => {
       const result = await controller.switchProvider('hyperliquid');
 
       expect(result.success).toBe(true);
       expect(result.providerId).toBe('hyperliquid');
+      expect(controller.testGetInitialized()).toBe(true);
+      expect(controller.getActiveProviderOrNull()).not.toBeNull();
     });
 
     it('returns success without re-init when switching to same provider', async () => {

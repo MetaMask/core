@@ -2836,8 +2836,8 @@ export class PerpsController extends BaseController<
   ): boolean {
     return Boolean(
       providerId &&
-      !provider.routesOrdersByProviderId &&
-      providerId !== provider.protocolId,
+        !provider.routesOrdersByProviderId &&
+        providerId !== provider.protocolId,
     );
   }
 
@@ -3984,6 +3984,8 @@ export class PerpsController extends BaseController<
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
 
+  #preloadStartRequested = false;
+
   #isPreloading = false;
 
   #marketPreloadQueued = false;
@@ -4094,9 +4096,10 @@ export class PerpsController extends BaseController<
    * Watches for isTestnet and hip3ConfigVersion changes to re-preload.
    */
   startMarketDataPreload(): void {
+    this.#preloadStartRequested = true;
     if (this.#disconnectOperationPromise) {
       this.#debugLog(
-        'PerpsController: Disconnect in progress, skipping market data preload',
+        'PerpsController: Disconnect in progress, deferring market data preload',
       );
       return;
     }
@@ -4225,6 +4228,7 @@ export class PerpsController extends BaseController<
    */
   stopMarketDataPreload(): void {
     this.#debugLog('PerpsController: Stopping market data preload');
+    this.#preloadStartRequested = false;
     if (this.#preloadTimer) {
       clearInterval(this.#preloadTimer);
       this.#preloadTimer = null;
@@ -5683,6 +5687,10 @@ export class PerpsController extends BaseController<
       return;
     }
 
+    // A disconnect stops the current preload session. A later start call made
+    // while teardown is in flight sets this back to true and is resumed below.
+    this.#preloadStartRequested = false;
+
     let resolveOperation = (): void => undefined;
     const operation = new Promise<void>((resolve) => {
       resolveOperation = resolve;
@@ -5695,6 +5703,9 @@ export class PerpsController extends BaseController<
       resolveOperation();
       if (this.#disconnectOperationPromise === operation) {
         this.#disconnectOperationPromise = null;
+      }
+      if (this.#preloadStartRequested) {
+        this.startMarketDataPreload();
       }
     }
   }
