@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `action` to `Trade` and optional `isOpen` to `Position`, plus the `TradeAction` type ([#9793](https://github.com/MetaMask/core/pull/9793))
+- Add optional `action` to `Trade` and optional `isOpen` to `Position`, plus the `TradeAction` type ([#9871](https://github.com/MetaMask/core/pull/9871))
   - `action` is the fill's position-lifecycle stage (`opened` / `added` / `reduced` / `closed`), computed by the social-api. Unlike `intent`, it separates a partial exit from a full close.
   - Both are optional so responses from a social-api deployment that predates them still validate.
 
