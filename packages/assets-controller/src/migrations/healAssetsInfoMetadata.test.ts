@@ -1,6 +1,38 @@
-import type { AssetsControllerStateInternal, Caip19AssetId } from '../types.js';
-import type { CurrentAssetsState } from './healAssetsInfoMetadata.js';
 import {
+  createTestApiClient,
+  mockSuggestedOccurrenceFloors,
+  mockV3Assets,
+} from '../__fixtures__/mockTokenApi.js';
+import {
+  ACCOUNT_ONE_ID,
+  ACCOUNT_TWO_ID,
+  ARBITRUM_GMX,
+  BASE_FARTCOIN,
+  BASE_SPAM,
+  BASE_USDC,
+  MAINNET_NATIVE,
+  MAINNET_USDT,
+  MONAD_WMON,
+  OPTIMISM_SPAM,
+  OPTIMISM_USDC,
+  OUT_OF_SCOPE_ASSET_IDS,
+  SEI_USDCN,
+  SPAM_ASSET_IDS,
+  SPAM_WALLET_ASSETS_INFO,
+  SURVIVING_ASSET_IDS,
+  SWEEPABLE_ASSET_IDS,
+  buildAssetsInfo,
+  buildLowercasedSpamWalletState,
+  buildManyTokensState,
+  buildSpamWalletState,
+} from '../__fixtures__/spamWalletState.js';
+import type { AssetsControllerStateInternal, Caip19AssetId } from '../types.js';
+import type {
+  CleanSpamAssetsState,
+  CurrentAssetsState,
+} from './healAssetsInfoMetadata.js';
+import {
+  cleanSpamAssets,
   healAssetsInfoMetadata,
   tempHealAssetsInfoMetadata,
 } from './healAssetsInfoMetadata.js';
@@ -625,5 +657,325 @@ describe('tempHealAssetsInfoMetadata', () => {
         },
       });
     }).not.toThrow();
+  });
+});
+
+describe('cleanSpamAssets', () => {
+  function removedAssetIds(
+    before: CleanSpamAssetsState,
+    after: CleanSpamAssetsState,
+  ): string[] {
+    const remaining = new Set(Object.keys(after.assetsInfo));
+    return Object.keys(before.assetsInfo)
+      .filter((assetId) => !remaining.has(assetId))
+      .sort();
+  }
+
+  const classificationCases: {
+    description: string;
+    held: Caip19AssetId[];
+    omittedFromResponse?: Caip19AssetId[];
+    removed: Caip19AssetId[];
+    casing?: 'lowercase' | 'checksum';
+  }[] = [
+    {
+      description: 'drops every spam token and keeps every genuine one',
+      held: [...SURVIVING_ASSET_IDS, ...SPAM_ASSET_IDS],
+      removed: SPAM_ASSET_IDS,
+    },
+    {
+      // Both tokens appear in two lists. Sei's suggested floor is one, and
+      // Optimism, which the endpoint does not cover, falls back to three.
+      description:
+        'spares a thinly listed token on a chain the API sets a lower floor for',
+      held: [SEI_USDCN, OPTIMISM_SPAM],
+      removed: [OPTIMISM_SPAM],
+    },
+    {
+      // Fartcoin sits exactly on the fallback floor, the airdrop one below it.
+      description:
+        'falls back to a floor of three on chains the API does not cover',
+      held: [BASE_FARTCOIN, OPTIMISM_SPAM],
+      removed: [OPTIMISM_SPAM],
+    },
+    {
+      // The API answers for these with an empty stub rather than a real entry.
+      description: 'drops a token the API has never indexed',
+      held: [BASE_SPAM],
+      removed: [BASE_SPAM],
+    },
+    {
+      // Which is how it answers for every Monad token today, so a real Wrapped
+      // MON holding is swept along with the spam.
+      description:
+        'drops a token the API describes but reports no occurrence count for',
+      held: [MONAD_WMON],
+      removed: [MONAD_WMON],
+    },
+    {
+      description: 'drops a token the API leaves out of its response',
+      held: [MAINNET_USDT, OPTIMISM_USDC],
+      omittedFromResponse: [MAINNET_USDT],
+      removed: [MAINNET_USDT],
+    },
+    {
+      // State keys are EIP-55 checksummed; the API answers in lowercase.
+      description: 'matches the API response to state keys case-insensitively',
+      held: [OPTIMISM_USDC],
+      removed: [],
+    },
+    {
+      // State keys are lowercase; the API answers in EIP-55 checksummed.
+      description: 'matches the API response to state keys case-insensitively when API answers in checksummed IDs',
+      held: [OPTIMISM_USDC.toLowerCase() as Caip19AssetId],
+      removed: [],
+      casing: 'checksum',
+    },
+  ];
+
+  it.each(classificationCases)(
+    '$description',
+    async ({ held, omittedFromResponse, removed, casing }) => {
+      mockSuggestedOccurrenceFloors();
+      mockV3Assets({ omit: omittedFromResponse, casing });
+      const state = buildSpamWalletState({ assetsInfo: buildAssetsInfo(held) });
+
+      const nextState = await cleanSpamAssets({
+        state,
+        apiClient: createTestApiClient(),
+      });
+
+      expect(removedAssetIds(state, nextState)).toStrictEqual(
+        [...removed].sort(),
+      );
+    },
+  );
+
+  it('sweeps a wallet whose EVM asset IDs were never checksummed', async () => {
+    // The wallet is keyed in lowercase but still imported GMX under its
+    // checksummed ID, so the sweep has to hold that one back on a casing its
+    // `assetsInfo` does not share.
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets();
+    const state = buildLowercasedSpamWalletState();
+    const lowercasedSpamAssetIds = SPAM_ASSET_IDS.map((assetId) =>
+      assetId.toLowerCase(),
+    );
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect([...requestedBatches[0]].sort()).toStrictEqual(
+      SWEEPABLE_ASSET_IDS.map((assetId) => assetId.toLowerCase()).sort(),
+    );
+    expect(removedAssetIds(state, nextState)).toStrictEqual(
+      [...lowercasedSpamAssetIds].sort(),
+    );
+    expect(
+      Object.values(nextState.assetsBalance).flatMap((balances) =>
+        Object.keys(balances),
+      ),
+    ).toStrictEqual(expect.not.arrayContaining(lowercasedSpamAssetIds));
+  });
+
+  it('sweeps a wallet whose EVM asset IDs were never checksummed when the API answers in checksummed IDs', async () => {
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets({ casing: 'checksum' });
+    const state = buildLowercasedSpamWalletState();
+    const lowercasedSpamAssetIds = SPAM_ASSET_IDS.map((assetId) =>
+      assetId.toLowerCase(),
+    );
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect([...requestedBatches[0]].sort()).toStrictEqual(
+      SWEEPABLE_ASSET_IDS.map((assetId) => assetId.toLowerCase()).sort(),
+    );
+    expect(removedAssetIds(state, nextState)).toStrictEqual(
+      [...lowercasedSpamAssetIds].sort(),
+    );
+    expect(
+      Object.values(nextState.assetsBalance).flatMap((balances) =>
+        Object.keys(balances),
+      ),
+    ).toStrictEqual(expect.not.arrayContaining(lowercasedSpamAssetIds));
+  });
+
+  it('leaves native, non-EVM, niche-chain, default-tracked, and imported assets out of the sweep', async () => {
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets();
+    const state = buildSpamWalletState();
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect([...requestedBatches[0]].sort()).toStrictEqual(
+      [...SWEEPABLE_ASSET_IDS].sort(),
+    );
+    for (const assetId of OUT_OF_SCOPE_ASSET_IDS) {
+      expect(nextState.assetsInfo[assetId]).toStrictEqual(
+        SPAM_WALLET_ASSETS_INFO[assetId],
+      );
+    }
+  });
+
+  it('makes no network calls when nothing is in scope', async () => {
+    const floorsScope = mockSuggestedOccurrenceFloors();
+    const { scope: assetsScope } = mockV3Assets();
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo(OUT_OF_SCOPE_ASSET_IDS),
+    });
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect(nextState).toBe(state);
+    expect(floorsScope.isDone()).toBe(false);
+    expect(assetsScope.isDone()).toBe(false);
+  });
+
+  it('returns the state it was given when every token clears its floor', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo([MAINNET_USDT, OPTIMISM_USDC, BASE_USDC]),
+    });
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect(nextState).toBe(state);
+  });
+
+  it('stops tracking a spam token for every account holding it', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+    const state = buildSpamWalletState();
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect(nextState.assetsBalance).toStrictEqual({
+      [ACCOUNT_ONE_ID]: {
+        [MAINNET_NATIVE]: { amount: '1204500000000000000' },
+        [MAINNET_USDT]: { amount: '2500000000' },
+        [OPTIMISM_USDC]: { amount: '148230000' },
+        [SEI_USDCN]: { amount: '74500000' },
+      },
+      [ACCOUNT_TWO_ID]: {
+        [BASE_FARTCOIN]: { amount: '1200000000000000000000' },
+        [ARBITRUM_GMX]: { amount: '3400000000000000000' },
+      },
+    });
+    expect(nextState.customAssets).toStrictEqual(state.customAssets);
+  });
+
+  it('does not mutate the state it was given', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+    const state = buildSpamWalletState();
+    const snapshot = structuredClone(state);
+
+    await cleanSpamAssets({ state, apiClient: createTestApiClient() });
+
+    expect(state).toStrictEqual(snapshot);
+  });
+
+  it('refetches occurrence data on every sweep rather than reusing the cache', async () => {
+    // Cached counts would classify the wallet against a stale token list.
+    mockSuggestedOccurrenceFloors({ times: 2 });
+    const { requestedBatches } = mockV3Assets({ times: 2 });
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo([MAINNET_USDT]),
+    });
+    const apiClient = createTestApiClient();
+
+    await cleanSpamAssets({ state, apiClient });
+    await cleanSpamAssets({ state, apiClient });
+
+    expect(requestedBatches).toStrictEqual([[MAINNET_USDT], [MAINNET_USDT]]);
+  });
+
+  it('sweeps large wallets in batches of 50', async () => {
+    const { state } = buildManyTokensState(51);
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets({
+      occurrences: {},
+      times: 2,
+    });
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+    });
+
+    expect(requestedBatches.map((batch) => batch.length)).toStrictEqual([
+      50, 1,
+    ]);
+    expect(nextState.assetsInfo).toStrictEqual({});
+  });
+
+  it('finishes the sweep when a single batch fails', async () => {
+    const { assetIds, state } = buildManyTokensState(101);
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets({ occurrences: {} });
+    mockV3Assets({ status: 502 });
+    mockV3Assets({ occurrences: {} });
+    const captureException = jest.fn();
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+      captureException,
+    });
+
+    // The 50 assets in the failed batch stay put; the other 51 are dropped.
+    expect(Object.keys(nextState.assetsInfo)).toStrictEqual(
+      assetIds.slice(50, 100),
+    );
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it('leaves every asset in place and reports when the floors endpoint fails', async () => {
+    mockSuggestedOccurrenceFloors({ status: 503 });
+    const { scope: assetsScope } = mockV3Assets();
+    const state = buildSpamWalletState();
+    const captureException = jest.fn();
+
+    const nextState = await cleanSpamAssets({
+      state,
+      apiClient: createTestApiClient(),
+      captureException,
+    });
+
+    expect(nextState).toBe(state);
+    expect(assetsScope.isDone()).toBe(false);
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining('503'),
+      }),
+    );
+  });
+
+  it('swallows failures when no captureException is provided', async () => {
+    mockSuggestedOccurrenceFloors({ status: 503 });
+    const state = buildSpamWalletState();
+
+    expect(
+      await cleanSpamAssets({ state, apiClient: createTestApiClient() }),
+    ).toBe(state);
   });
 });
