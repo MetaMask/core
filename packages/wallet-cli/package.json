@@ -53,7 +53,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/config-registry-controller": "^3.1.0",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/remote-feature-flag-controller": "^6.0.0",
+    "@metamask/remote-feature-flag-controller": "^6.0.1",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/storage-service": "^1.0.2",
