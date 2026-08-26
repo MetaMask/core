@@ -1297,7 +1297,8 @@ export class AssetsController extends BaseController<
       if (nextState !== originalState) {
         const removedAssets = new Set(
           Object.keys(originalState.assetsInfo).filter(
-            (assetId) => nextState.assetsInfo[assetId as Caip19AssetId] === undefined,
+            (assetId) =>
+              nextState.assetsInfo[assetId as Caip19AssetId] === undefined,
           ),
         );
 
