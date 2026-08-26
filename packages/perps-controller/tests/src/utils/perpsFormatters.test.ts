@@ -296,7 +296,7 @@ describe('formatFundingRate', () => {
 
     const result = formatFundingRate(value);
 
-    expect(result).toBe('>-0.0001%');
+    expect(result).toBe('-<0.0001%');
   });
 
   it('returns empty string for undefined when showZero is false', () => {

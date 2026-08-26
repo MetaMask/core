@@ -605,6 +605,7 @@ export const formatPercentage = (
  * @example formatFundingRate(0.0005) => "0.0500%"
  * @example formatFundingRate(-0.0001) => "-0.0100%"
  * @example formatFundingRate(0.000000059) => "<0.0001%"
+ * @example formatFundingRate(-0.000000059) => "-<0.0001%"
  * @example formatFundingRate(undefined) => "0.0000%"
  */
 export const formatFundingRate = (
@@ -625,7 +626,7 @@ export const formatFundingRate = (
     const threshold = minimumDisplayPercentage.toFixed(
       FUNDING_RATE_CONFIG.Decimals,
     );
-    return value > 0 ? `<${threshold}%` : `>-${threshold}%`;
+    return value > 0 ? `<${threshold}%` : `-<${threshold}%`;
   }
 
   // Check if the result is effectively zero
