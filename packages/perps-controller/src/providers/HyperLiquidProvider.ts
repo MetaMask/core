@@ -5418,6 +5418,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
+    if (params.orderType === 'chase' && hasVenueExposure) {
+      // A stale placement can fail after its child rests and the best-effort
+      // retraction is refused. With no session left to own that child, keep
+      // manual HIP-3 collateral on its DEX until the caller cancels the
+      // reported exchange ID.
+      return result;
+    }
+
     if (dexName && transferInfo) {
       await this.#handleHip3PostOrderRebalance({ dexName, transferInfo });
     }
@@ -6387,15 +6395,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
     if (rawQuotePrice === CHASE_ORDER_STATUS_UNAVAILABLE) {
-      // The child may still be live. Stop repricing but retain its exchange ID
-      // so the caller can still cancel it through the Chase handle.
-      session.active = false;
-      session.status = CHASE_ORDER_STATUS.Failed;
+      // The child may still be live. Leave it untouched and retry on the next
+      // normal interval instead of permanently stranding the Chase after one
+      // short status outage.
       this.#deps.debugLogger.log('Chase order status unavailable', {
         sessionId,
         orderId: session.orderId,
       });
-      await this.#rebalanceChaseSession(session);
+      this.#scheduleChaseTick(sessionId);
       return;
     }
 
@@ -8332,28 +8339,34 @@ export class HyperLiquidProvider implements PerpsProvider {
         const result = await exchangeClient.cancel({
           cancels: cancelRequests,
         });
+        const statuses = result.response?.data?.statuses ?? [];
 
-        ordinaryOrders.forEach(({ index, order }, statusIndex) => {
-          const status: unknown = result.response.data.statuses[statusIndex];
-          const success = status === 'success';
-          const statusError =
-            isStatusObject(status) && typeof status.error === 'string'
-              ? status.error
-              : undefined;
-          results[index] = {
-            orderId: order.orderId,
-            symbol: order.symbol,
-            success,
-            ...(success
-              ? {}
-              : {
-                  error:
-                    statusError === undefined
-                      ? PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
-                      : this.#mapError(new Error(statusError)).message,
-                }),
-          };
-        });
+        if (
+          result.status === 'ok' &&
+          statuses.length === ordinaryOrders.length
+        ) {
+          ordinaryOrders.forEach(({ index, order }, statusIndex) => {
+            const status: unknown = statuses[statusIndex];
+            const success = status === 'success';
+            const statusError =
+              isStatusObject(status) && typeof status.error === 'string'
+                ? status.error
+                : undefined;
+            results[index] = {
+              orderId: order.orderId,
+              symbol: order.symbol,
+              success,
+              ...(success
+                ? {}
+                : {
+                    error:
+                      statusError === undefined
+                        ? PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
+                        : this.#mapError(new Error(statusError)).message,
+                  }),
+            };
+          });
+        }
       }
     } catch (error) {
       const mappedError = this.#mapError(error);
@@ -10582,6 +10595,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         existingGroup.orderIds = [
           ...new Set([...existingGroup.orderIds, ...group.orderIds]),
         ];
+      } else {
+        this.#deps.debugLogger.log(
+          'Scale group symbol mismatch during recovery',
+          {
+            groupId,
+            existingSymbol: existingGroup.symbol,
+            recoveredSymbol: group.symbol,
+          },
+        );
       }
     }
   }
@@ -12811,6 +12833,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       const newIsTestnet = !this.#clientService.isTestnetMode();
       const disconnectResult = await this.disconnect();
       if (!disconnectResult.success) {
+        // The network did not change. Keep the provider eligible for lazy
+        // recovery instead of leaving this aborted toggle permanently sticky.
+        this.#isDisconnected = false;
         throw new Error(
           disconnectResult.error ??
             'Failed to disconnect before network toggle',
@@ -13277,11 +13302,11 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Apply discounts manually since HyperLiquid API doesn't apply them
         const referralDiscount = parseBoundedNonNegativeDecimal(
-          userFees.activeReferralDiscount ?? '0',
+          userFees.activeReferralDiscount || '0',
           MAX_API_FEE_DISCOUNT,
         );
         const stakingDiscount = parseBoundedNonNegativeDecimal(
-          userFees.activeStakingDiscount?.discount ?? '0',
+          userFees.activeStakingDiscount?.discount || '0',
           MAX_API_FEE_DISCOUNT,
         );
 

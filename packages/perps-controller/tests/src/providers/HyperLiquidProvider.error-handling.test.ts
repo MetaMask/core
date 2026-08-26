@@ -2879,19 +2879,19 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBeCloseTo(113.65, 2);
       });
 
-      it('handles zero discounts correctly', async () => {
+      it('treats empty optional discounts as zero', async () => {
         const testAddress = '0xTestAddress123';
         mockWalletService.getUserAddressWithDefault.mockResolvedValue(
           testAddress,
         );
 
         getMockUserFees().mockResolvedValue({
-          userCrossRate: '0.00045', // 0.045% base taker rate
-          userAddRate: '0.00015', // 0.015% base maker rate
+          userCrossRate: '0.00030', // 0.030% base taker rate
+          userAddRate: '0.00010', // 0.010% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
           userSpotAddRate: '0.00040', // 0.040% spot maker rate
-          activeReferralDiscount: '0.00', // No referral discount
-          activeStakingDiscount: { discount: '0.00' }, // No staking discount
+          activeReferralDiscount: '',
+          activeStakingDiscount: { discount: '' },
         });
 
         const result = await provider.calculateFees({
@@ -2901,9 +2901,8 @@ describe('HyperLiquidProvider', () => {
           symbol: 'BTC',
         });
 
-        // Should use base rates without discounts
-        expect(result.feeRate).toBe(0.00145); // 0.045% + 0.1% MetaMask
-        expect(result.feeAmount).toBe(145);
+        expect(result.feeRate).toBe(0.0013); // 0.030% + 0.1% MetaMask
+        expect(result.feeAmount).toBe(130);
       });
 
       it('applies 2× fee multiplier for HIP-3 assets', async () => {

@@ -2212,12 +2212,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('reports malformed and missing batch cancel statuses as failures', async () => {
+    it('rejects every ordinary cancel when the batch response is truncated', async () => {
       useStrategyClients({
         exchange: {
           cancel: jest.fn().mockResolvedValue({
             status: 'ok',
-            response: { data: { statuses: [{}, 'unexpected'] } },
+            response: { data: { statuses: ['success', 'success'] } },
           }),
         },
       });
@@ -6232,6 +6232,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the current network eligible when disconnect fails during a network toggle', async () => {
+      const { infoClient } = useStrategyClients();
+      mockClientService.disconnect.mockRejectedValueOnce(
+        new Error('disconnect failed'),
+      );
+
+      expect(await provider.toggleTestnet()).toStrictEqual({
+        success: false,
+        isTestnet: false,
+        error: 'disconnect failed',
+      });
+      expect(mockClientService.setTestnetMode).not.toHaveBeenCalled();
+      expect(mockWalletService.setTestnetMode).not.toHaveBeenCalled();
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: ['twap', 'scale', 'chase'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
     it('does not cache capability metadata that resolves after a network change', async () => {
       const requestStarted = createDeferred<void>();
       const pendingMeta = createDeferred<{
@@ -7559,18 +7582,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
     });
 
-    it('does not reprice when the resting child stays unknown after retries', async () => {
-      const order = jest.fn().mockResolvedValue({
-        status: 'ok',
-        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
-      });
+    it('retries on the next tick when the resting child is briefly unknown', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
       const { exchangeClient, infoClient } = useStrategyClients({
         exchange: { order },
-        info: {
-          l2Book: bookThatMoves(),
-          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
-        },
+        info: { l2Book: bookThatMoves() },
       });
+      infoClient.orderStatus
+        .mockResolvedValueOnce({ status: 'unknownOid' })
+        .mockResolvedValueOnce({ status: 'unknownOid' })
+        .mockResolvedValueOnce({ status: 'unknownOid' });
 
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -7578,20 +7608,24 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await jest.advanceTimersByTimeAsync(1200);
 
       expect(infoClient.orderStatus).toHaveBeenCalledTimes(3);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(order).toHaveBeenCalledTimes(1);
-      const snapshots = provider.getChaseOrders();
-      await jest.advanceTimersByTimeAsync(300);
-      expect(await snapshots).toContainEqual(
+      expect(await provider.getChaseOrders()).toContainEqual(
         expect.objectContaining({
           restingOrderId: '55',
-          status: CHASE_ORDER_STATUS.Failed,
+          status: CHASE_ORDER_STATUS.Active,
         }),
       );
-      expect(infoClient.orderStatus).toHaveBeenCalledTimes(6);
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 55 }],
+      });
 
       expect(
         await provider.cancelOrder({
@@ -7604,7 +7638,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderId: placed.orderId,
       });
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [{ a: 1, o: 55 }],
+        cancels: [{ a: 1, o: 66 }],
       });
     });
   });
@@ -8672,6 +8706,76 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed.success).toBe(false);
       expect(placed.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
       expect(placed.childOrderIds).toStrictEqual(['55']);
+    });
+
+    it('retains legacy HIP-3 collateral when an orphaned child still rests', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      let transferred = false;
+      const order = jest.fn().mockImplementation(async () => {
+        disconnected = provider.disconnect();
+        mockClientService.getExchangeClient.mockImplementation(() => {
+          throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
+        });
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        };
+      });
+      useStrategyClients({
+        exchange: {
+          order,
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ error: 'Order could not be found' }] },
+            },
+          }),
+        },
+        info: {
+          clearinghouseState: jest
+            .fn()
+            .mockImplementation(({ dex }) =>
+              Promise.resolve(
+                createClearinghouseBalance(
+                  dex === 'xyz' && !transferred ? '0' : '1000',
+                ),
+              ),
+            ),
+          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+      const transfer = jest
+        .spyOn(provider, 'transferBetweenDexs')
+        .mockImplementation(async () => {
+          transferred = true;
+          return { success: true };
+        });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      } satisfies OrderParams);
+      await disconnected;
+
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+        childOrderIds: ['55'],
+      });
+      expect(transfer).toHaveBeenCalledTimes(1);
     });
 
     it('places nothing when the teardown lands during the book read', async () => {

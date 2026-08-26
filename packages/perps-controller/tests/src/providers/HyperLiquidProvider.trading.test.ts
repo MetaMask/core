@@ -3005,6 +3005,7 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
             cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
               response: {
                 data: {
                   statuses: ['success', 'success'],
@@ -3050,6 +3051,7 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
             cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
               response: {
                 data: {
                   statuses: ['success', { error: 'multi-sig required' }],
@@ -3070,6 +3072,35 @@ describe('HyperLiquidProvider', () => {
         expect(result.results[1].error).toBe(
           PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
         );
+      });
+
+      it('rejects a non-ok batch response even when its statuses say success', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockResolvedValue({
+              status: 'err',
+              response: { data: { statuses: ['success'] } },
+            }),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+        ]);
+
+        expect(result).toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 1,
+          results: [
+            {
+              orderId: '123',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+            },
+          ],
+        });
       });
 
       it('maps recognized batch cancel rejections to a standardized code', async () => {

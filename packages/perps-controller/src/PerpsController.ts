@@ -4986,9 +4986,8 @@ export class PerpsController extends BaseController<
    * @returns The toggle result with success status and current network mode.
    */
   async toggleTestnet(): Promise<ToggleTestnetResult> {
-    const pendingDisconnect = this.#disconnectOperationPromise;
-    if (pendingDisconnect) {
-      await pendingDisconnect;
+    while (this.#disconnectOperationPromise) {
+      await this.#disconnectOperationPromise;
     }
 
     // Prevent concurrent reinitializations
@@ -5092,9 +5091,8 @@ export class PerpsController extends BaseController<
   async switchProvider(
     providerId: PerpsActiveProviderMode,
   ): Promise<SwitchProviderResult> {
-    const pendingDisconnect = this.#disconnectOperationPromise;
-    if (pendingDisconnect) {
-      await pendingDisconnect;
+    while (this.#disconnectOperationPromise) {
+      await this.#disconnectOperationPromise;
     }
 
     // Prevent concurrent switches

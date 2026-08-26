@@ -1211,6 +1211,81 @@ describe('PerpsController', () => {
       expect(controller.getActiveProviderOrNull()).toBeNull();
     });
 
+    it.each([
+      {
+        label: 'network toggle',
+        start: (current: TestablePerpsController) => current.toggleTestnet(),
+        expected: { success: true, isTestnet: true },
+      },
+      {
+        label: 'provider switch',
+        start: (current: TestablePerpsController) =>
+          current.switchProvider('aggregated'),
+        expected: { success: true, providerId: 'aggregated' },
+      },
+    ])(
+      'keeps a $label queued behind a second disconnect',
+      async ({ start, expected }) => {
+        await controller.init();
+        const firstDisconnectStarted = createDeferred<void>();
+        const releaseFirstDisconnect = createDeferred<void>();
+        mockProvider.disconnect.mockImplementationOnce(async () => {
+          firstDisconnectStarted.resolve();
+          await releaseFirstDisconnect.promise;
+          return { success: true };
+        });
+
+        const initializedProvider = createMockHyperLiquidProvider();
+        const initializedProviderCreated = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        const secondDisconnectStarted = createDeferred<void>();
+        const releaseSecondDisconnect = createDeferred<void>();
+        initializedProvider.disconnect.mockImplementationOnce(async () => {
+          secondDisconnectStarted.resolve();
+          await releaseSecondDisconnect.promise;
+          return { success: true };
+        });
+        jest
+          .mocked(mockWait)
+          .mockImplementationOnce(() => releaseInitialization.promise);
+        jest
+          .mocked(HyperLiquidProvider)
+          .mockImplementationOnce(() => {
+            initializedProviderCreated.resolve();
+            return initializedProvider;
+          })
+          .mockImplementation(() => createMockHyperLiquidProvider());
+
+        const firstDisconnect = controller.disconnect();
+        await firstDisconnectStarted.promise;
+        const queuedInitialization = controller.init();
+        const secondDisconnect = controller.disconnect();
+        let operationSettled = false;
+        const operation = start(controller).then((result) => {
+          operationSettled = true;
+          return result;
+        });
+
+        releaseFirstDisconnect.resolve();
+        await initializedProviderCreated.promise;
+        releaseInitialization.resolve();
+        await secondDisconnectStarted.promise;
+
+        expect(controller.isCurrentlyReinitializing()).toBe(false);
+        expect(operationSettled).toBe(false);
+
+        releaseSecondDisconnect.resolve();
+        await Promise.all([
+          firstDisconnect,
+          queuedInitialization,
+          secondDisconnect,
+        ]);
+        await expect(operation).resolves.toStrictEqual(expected);
+        expect(controller.testGetInitialized()).toBe(true);
+        expect(controller.getActiveProviderOrNull()).not.toBeNull();
+      },
+    );
+
     it('does not route an action through a provider being disconnected', async () => {
       await controller.init();
       const disconnectStarted = createDeferred<void>();

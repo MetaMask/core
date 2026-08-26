@@ -258,7 +258,7 @@ export type OrderParams = {
   // never be silently dropped. Strategy orders carry no `price`, `triggerPrice`,
   // `timeInForce` or attached TP/SL — the strategy owns its own execution.
   twapDuration?: number; // TWAP window in whole minutes; each provider enforces its own venue's bounds
-  twapRandomize?: boolean; // Randomize the timing of the TWAP slices (default false)
+  twapRandomize?: boolean; // Randomize each TWAP suborder's size by up to ±20% (default false)
   scaleMinPrice?: string; // Lowest limit price in the scale ladder
   scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
   scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
