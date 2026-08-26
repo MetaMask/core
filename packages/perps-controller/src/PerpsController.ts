@@ -2575,6 +2575,7 @@ export class PerpsController extends BaseController<
       },
       stateManager: {
         update: (updater: (state: PerpsControllerState) => void) =>
+          // @ts-expect-error: TS2589: Type instantiation is excessively deep and possibly infinite.
           this.update(updater),
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
