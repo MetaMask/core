@@ -4986,25 +4986,15 @@ export class PerpsController extends BaseController<
       };
     }
 
-    const pendingInitialization = this.#initializationPromise;
-    if (pendingInitialization) {
-      await pendingInitialization;
-    }
-
-    if (this.isCurrentlyReinitializing()) {
-      return {
-        success: false,
-        isTestnet: this.state.isTestnet,
-        error: PERPS_ERROR_CODES.CLIENT_REINITIALIZING,
-      };
-    }
-
     const completeReinitialization = this.#beginReinitialization();
-
-    // Store previous isTestnet for rollback on failure
     const previousIsTestnet = this.state.isTestnet;
 
     try {
+      const pendingInitialization = this.#initializationPromise;
+      if (pendingInitialization) {
+        await pendingInitialization;
+      }
+
       await this.#cleanupStandaloneProvider();
 
       const previousNetwork = previousIsTestnet ? 'testnet' : 'mainnet';
@@ -5101,39 +5091,29 @@ export class PerpsController extends BaseController<
       };
     }
 
-    const pendingInitialization = this.#initializationPromise;
-    if (pendingInitialization) {
-      await pendingInitialization;
-    }
-
-    if (this.isCurrentlyReinitializing()) {
-      return {
-        success: false,
-        providerId: this.state.activeProvider,
-        error: PERPS_ERROR_CODES.CLIENT_REINITIALIZING,
-      };
-    }
-
-    // Validate provider only after a pending initialization has rebuilt the
-    // registry. Otherwise a switch queued behind disconnect can observe the
-    // intentionally empty teardown state.
-    const isValidProvider =
-      providerId === 'aggregated' || this.providers.has(providerId);
-
-    if (!isValidProvider) {
-      return {
-        success: false,
-        providerId: this.state.activeProvider,
-        error: `Provider ${providerId} not available`,
-      };
-    }
-
     const completeReinitialization = this.#beginReinitialization();
-
-    // Store previous provider for rollback on failure
     const previousProvider = this.state.activeProvider;
 
     try {
+      const pendingInitialization = this.#initializationPromise;
+      if (pendingInitialization) {
+        await pendingInitialization;
+      }
+
+      // Validate provider only after a pending initialization has rebuilt the
+      // registry. Otherwise a switch queued behind disconnect can observe the
+      // intentionally empty teardown state.
+      const isValidProvider =
+        providerId === 'aggregated' || this.providers.has(providerId);
+
+      if (!isValidProvider) {
+        return {
+          success: false,
+          providerId: this.state.activeProvider,
+          error: `Provider ${providerId} not available`,
+        };
+      }
+
       await this.#cleanupStandaloneProvider();
 
       this.#debugLog('PerpsController: Provider switch initiated', {

@@ -798,7 +798,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         takeProfitPrice: '3500',
       });
 
-      expect(result).toMatchObject({
+      expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
       });
@@ -837,9 +837,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         takeProfitPrice: '3500',
       });
 
-      expect(result).toMatchObject({
+      expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        childOrderIds: ['456'],
       });
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
@@ -1471,9 +1472,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         stopLossPrice: '2500',
       });
 
-      expect(result).toMatchObject({
+      expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        childOrderIds: ['457', '123'],
       });
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [
@@ -2535,6 +2537,31 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
+    it('clears a Chase snapshot after its child leaves the book', async () => {
+      const { infoClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } as OrderParams);
+      infoClient.orderStatus.mockResolvedValueOnce({ status: 'unknownOid' });
+
+      const gone = await provider.getChaseOrders();
+      const retained = await provider.getChaseOrders();
+
+      expect(gone).toContainEqual(
+        expect.objectContaining({
+          handle: result.orderId,
+          remainingSize: '0',
+          restingOrderId: null,
+          status: 'filled',
+        }),
+      );
+      expect(retained).toStrictEqual(gone);
+      expect(infoClient.orderStatus).toHaveBeenCalledTimes(1);
+    });
+
     it('backgrounds every active session without cancelling its resting child', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
@@ -2656,7 +2683,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
-      ).toMatchObject({ success: true });
+      ).toStrictEqual({ success: true, orderId: '55' });
       expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 
@@ -2681,10 +2708,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: 'Trading setup failed',
+        orderId: '55',
       });
     });
 
-    it('blocks new placements while suspension drains an admitted placement', async () => {
+    it('backgrounds an admitted placement while blocking newer placements', async () => {
       let settleOrder: ((value: typeof chaseRested) => void) | undefined;
       let notifyOrderStarted: (() => void) | undefined;
       const orderStarted = new Promise<void>((resolve) => {
@@ -2711,11 +2739,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
       settleOrder?.(chaseRested);
 
       const admittedResult = await admitted;
-      await suspension;
+      const backgrounded = await suspension;
       expect(blocked.success).toBe(false);
       expect(blocked.error).toBe(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
-      expect(admittedResult.success).toBe(false);
-      expect(await provider.getChaseOrders()).toStrictEqual([]);
+      expect(admittedResult.success).toBe(true);
+      expect(backgrounded).toStrictEqual([
+        expect.objectContaining({
+          handle: admittedResult.orderId,
+          restingOrderId: '55',
+          status: 'backgrounded',
+        }),
+      ]);
+      expect(await provider.getChaseOrders()).toStrictEqual(backgrounded);
       expect(order).toHaveBeenCalledTimes(1);
     });
 
@@ -2762,6 +2797,42 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
       });
       expect(second.success).toBe(true);
+    });
+
+    it('keeps the terminal reason when cancelling a stopped Chase fails', async () => {
+      jest.useFakeTimers();
+      const cancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+      });
+      useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested), cancel },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+        chaseMaxDurationMs: 1000,
+      } as OrderParams);
+      await jest.advanceTimersByTimeAsync(1000);
+
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+      });
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({
+          handle: placed.orderId,
+          status: 'duration_reached',
+        }),
+      ]);
+      jest.useRealTimers();
     });
 
     it('rejects a cancel for a session it does not hold', async () => {
@@ -2953,6 +3024,54 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await ticking;
       expect(await directCancellation).toMatchObject({ success: true });
+      expect(order).toHaveBeenCalledTimes(1);
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
+    it('does not replace a Chase child cancelled in a batch during a reprice', async () => {
+      let settleCancel: ((value: Record<string, unknown>) => void) | undefined;
+      let notifyCancelStarted: (() => void) | undefined;
+      const cancelStarted = new Promise<void>((resolve) => {
+        notifyCancelStarted = resolve;
+      });
+      const cancel = jest.fn().mockImplementation(async () => {
+        notifyCancelStarted?.();
+        return await new Promise<Record<string, unknown>>((resolve) => {
+          settleCancel = resolve;
+        });
+      });
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValue(chaseRested(66));
+      useStrategyClients({
+        exchange: { order, cancel },
+        info: { l2Book: bookWalkingBids(['2999', '2998']) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      const ticking = jest.advanceTimersByTimeAsync(1000);
+      await cancelStarted;
+      const batchCancellation = provider.cancelOrders([
+        { orderId: '55', symbol: 'ETH' },
+      ]);
+      settleCancel?.({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+
+      await ticking;
+      await expect(batchCancellation).resolves.toStrictEqual({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ orderId: '55', symbol: 'ETH', success: true }],
+      });
       expect(order).toHaveBeenCalledTimes(1);
       expect(cancel).toHaveBeenCalledTimes(1);
       expect(await provider.getChaseOrders()).toStrictEqual([]);
@@ -4418,10 +4537,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('shares one teardown between overlapping disconnects', async () => {
       const { infoClient } = useStrategyClients();
+      const disconnectStarted = createDeferred<void>();
       const pendingDisconnect = createDeferred<void>();
-      mockClientService.disconnect.mockReturnValueOnce(
-        pendingDisconnect.promise,
-      );
+      mockClientService.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return pendingDisconnect.promise;
+      });
 
       const firstResult = provider.disconnect();
       const secondResult = provider.disconnect();
@@ -4434,6 +4555,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reason: 'provider_unavailable',
       });
 
+      await disconnectStarted.promise;
       expect(mockClientService.disconnect).toHaveBeenCalledTimes(1);
       pendingDisconnect.resolve();
       expect(await Promise.all([firstResult, secondResult])).toStrictEqual([

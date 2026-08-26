@@ -1267,6 +1267,55 @@ describe('PerpsController', () => {
       expect(controller.testGetInitialized()).toBe(true);
     });
 
+    it.each([
+      {
+        label: 'network toggle',
+        start: (current: TestablePerpsController) => current.toggleTestnet(),
+      },
+      {
+        label: 'provider switch',
+        start: (current: TestablePerpsController) =>
+          current.switchProvider('aggregated'),
+      },
+    ])(
+      'serializes disconnect behind a $label started during initialization',
+      async ({ start }) => {
+        const pendingInitialization = createDeferred<void>();
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+          throw new Error('Transient initialization failure');
+        });
+        jest
+          .mocked(mockWait)
+          .mockImplementationOnce(() => pendingInitialization.promise);
+
+        const initPromise = controller.init();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initializing,
+        );
+
+        const reinitialization = start(controller);
+        expect(controller.isCurrentlyReinitializing()).toBe(true);
+        let disconnectSettled = false;
+        const disconnectPromise = controller.disconnect().then(() => {
+          disconnectSettled = true;
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(disconnectSettled).toBe(false);
+        pendingInitialization.resolve();
+        await initPromise;
+        await reinitialization;
+        await disconnectPromise;
+
+        expect(mockProvider.disconnect).toHaveBeenCalled();
+        expect(controller.testGetInitialized()).toBe(false);
+        expect(controller.getActiveProviderOrNull()).toBeNull();
+      },
+    );
+
     it('disconnects the provider created by an in-flight network toggle', async () => {
       await controller.init();
       const replacementProvider = createMockHyperLiquidProvider();

@@ -92,6 +92,26 @@ import type {
 } from '../types/index.js';
 import { isStrategyOrderType } from '../utils/orderTypes.js';
 
+/** Error returned when only some providers suspend their Chase orders. */
+export class ChaseOrderSuspensionError extends Error {
+  readonly suspendedOrders: ChaseOrder[];
+
+  readonly failures: { providerId: PerpsProviderType; reason: unknown }[];
+
+  constructor(options: {
+    suspendedOrders: ChaseOrder[];
+    failures: { providerId: PerpsProviderType; reason: unknown }[];
+  }) {
+    const failedProviderIds = options.failures
+      .map(({ providerId }) => providerId)
+      .join(', ');
+    super(`Failed to suspend Chase orders for: ${failedProviderIds}`);
+    this.name = 'ChaseOrderSuspensionError';
+    this.suspendedOrders = options.suspendedOrders;
+    this.failures = options.failures;
+  }
+}
+
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
  * multiple backend providers.
@@ -560,11 +580,13 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
    * suspended, so callers may retry to reconcile a partial failure.
    *
    * @returns Chase snapshots after every provider suspends successfully.
-   * @throws If any active provider fails to suspend its Chase orders.
+   * @throws ChaseOrderSuspensionError if any active provider fails. The error
+   * includes successful snapshots and each failed provider ID.
    */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const providers = this.#getActiveProviders();
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([providerId, provider]) =>
+      providers.map(async ([providerId, provider]) =>
         provider.suspendChaseOrders
           ? (await provider.suspendChaseOrders()).map((order) => ({
               ...order,
@@ -574,16 +596,26 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
       ),
     );
 
-    const failure = results.find((result) => result.status === 'rejected');
-    if (failure?.status === 'rejected') {
-      throw failure.reason;
-    }
-
     const snapshots: ChaseOrder[] = [];
-    for (const result of results) {
+    const failures: {
+      providerId: PerpsProviderType;
+      reason: unknown;
+    }[] = [];
+    results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         snapshots.push(...result.value);
+      } else {
+        failures.push({
+          providerId: providers[index][0],
+          reason: result.reason,
+        });
       }
+    });
+    if (failures.length > 0) {
+      throw new ChaseOrderSuspensionError({
+        suspendedOrders: snapshots,
+        failures,
+      });
     }
     return snapshots;
   }

@@ -507,6 +507,10 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('waits for every suspension attempt before rejecting a provider failure', async () => {
+      const backgrounded = {
+        ...chaseOrder,
+        status: 'backgrounded' as const,
+      };
       let resolveHyperLiquid: (orders: ChaseOrder[]) => void = () => undefined;
       const hyperLiquidSuspension = new Promise<ChaseOrder[]>((resolve) => {
         resolveHyperLiquid = resolve;
@@ -517,9 +521,8 @@ describe('AggregatedPerpsProvider', () => {
         hyperLiquidCompleted = true;
         return orders;
       });
-      mockMYXProvider.suspendChaseOrders?.mockRejectedValue(
-        new Error('suspension failed'),
-      );
+      const providerFailure = new Error('suspension failed');
+      mockMYXProvider.suspendChaseOrders?.mockRejectedValue(providerFailure);
 
       const suspension = aggregatedProvider.suspendChaseOrders();
       let aggregateSettled = false;
@@ -534,8 +537,13 @@ describe('AggregatedPerpsProvider', () => {
       await new Promise((resolve) => setImmediate(resolve));
 
       expect(aggregateSettled).toBe(false);
-      resolveHyperLiquid([]);
-      await expect(suspension).rejects.toThrow('suspension failed');
+      resolveHyperLiquid([backgrounded]);
+      await expect(suspension).rejects.toMatchObject({
+        name: 'ChaseOrderSuspensionError',
+        message: 'Failed to suspend Chase orders for: myx',
+        suspendedOrders: [{ ...backgrounded, providerId: 'hyperliquid' }],
+        failures: [{ providerId: 'myx', reason: providerFailure }],
+      });
       expect(hyperLiquidCompleted).toBe(true);
     });
   });

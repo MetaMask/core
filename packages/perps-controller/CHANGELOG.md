@@ -12,9 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the public Chase lifecycle API (`getChaseOrders` and
   `suspendChaseOrders`), aggregated-provider routing, retained lifecycle
   snapshots, directional max-distance stopping, and idempotent termination of
-  stale or already-gone child orders. Chase repricing defaults to 15 seconds
-  and remains unbounded unless a duration or repricing cap is supplied. Clients
-  should map the new `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
+  stale or already-gone child orders. Clients should map the new
+  `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
   exposing Chase configuration errors. Adds typed analytics interaction values
   for background conversion and termination. An incomplete termination reports
   `termination_pending` while its child remains cancellable. Consumers can use
@@ -33,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Change the default Chase interval from 3 to 15 seconds and remove the default duration and repricing caps. `CHASE_ORDER_CONFIG.DefaultMaxDurationMs` and `DefaultMaxRepricings` are now `undefined`, which callers can pass through without failing validation ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
+- Align the Chase background notification value with the existing bare notification schema as `chase_backgrounded` ([#9948](https://github.com/MetaMask/core/pull/9948))
 - **BREAKING:** Require `providerId` on routed strategy placement, validation, cancellation, and fee quotes so these operations cannot fall back to another protocol ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Consumers must pass the `providerId` returned by `getOrderCapabilities` when placing, validating, cancelling, or quoting a `twap`, `scale`, or `chase` order. Ordinary orders and direct provider calls keep their previous optional routing behavior.
   - Missing strategy routes throw `ORDER_STRATEGY_ROUTE_REQUIRED`. Conflicting direct routes throw `ORDER_STRATEGY_ROUTE_UNAVAILABLE`. Unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
@@ -45,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clients may override builder-fee applicability for HyperLiquid builder-capable standalone actions through optional provider configuration. This includes market, limit, trigger, scale, and chase orders. Quotes and placement use the same policy. Native TWAP cannot be overridden, attached trigger children inherit their parent action, and a position TP/SL update charges when any included trigger policy charges because HyperLiquid accepts one builder context per batch.
   - Position TP/SL replacement completes builder approval before cancellation. Whole-position `positionTpsl` updates keep their established pre-cancel order and restore any confirmed cancellations if the replacement fails. Partial standalone updates place the replacement first, cancel only resting new triggers when a batch is incomplete, and report any filled or still-resting replacement IDs.
   - Failed whole-position recovery returns `TPSL_PROTECTION_LOST`. Its `childOrderIds` list identifies old protection that survived or was recreated, and an empty list means no protection was confirmed.
+  - If only part of the old whole-position protection is cancelled and restoration succeeds, `TPSL_UPDATE_FAILED.childOrderIds` reports both the surviving and recreated protection IDs.
 - **BREAKING:** Reject non-positive or non-plain-decimal `calculateFees` amounts with `ORDER_SIZE_POSITIVE` in HyperLiquid and MYX providers instead of returning a zero or partially parsed quote ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Amount strings must use digits with an optional decimal fraction. Exponential notation, hexadecimal notation, leading or trailing whitespace, and leading-dot decimals are rejected.
 - Wait for in-flight `PerpsController` initialization before validating orders or calculating ordinary and strategy fee quotes instead of throwing `CLIENT_NOT_INITIALIZED`; placement already waited for the same initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
@@ -58,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep selectively allowlisted HIP-3 markets aligned with their volume, open-interest, funding, and previous-price contexts ([#9971](https://github.com/MetaMask/core/pull/9971))
 - Display tiny nonzero funding rates as `<0.0001%` or `-<0.0001%` instead of `0.0000%` ([#9971](https://github.com/MetaMask/core/pull/9971))
+- Preserve an admitted Chase placement when app suspension starts while its first order is in flight. Suspension now waits for it and leaves the child resting as a backgrounded order ([#9948](https://github.com/MetaMask/core/pull/9948))
+- Stop Chase repricing when either single or batch cancellation targets its current child, while keeping cancellation results keyed to the exchange order ID the caller supplied ([#9948](https://github.com/MetaMask/core/pull/9948))
+- Recover the shared Chase tick queue after a rejected tick so later ticks and provider disconnect still run ([#9948](https://github.com/MetaMask/core/pull/9948))
+- Clear stale Chase child IDs when the venue reports the order gone, preserve terminal stop reasons during later cancellation, and retain successful provider snapshots and failed provider IDs when aggregated suspension is partial ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Retract every resting `scale` rung when a batch is only partly accepted, and return a retryable group handle if cleanup leaves any rung on the book ([#9948](https://github.com/MetaMask/core/pull/9948))
   - A successful ladder reports the full requested `submittedSize`. Filled rungs count as accepted, while `childOrderIds` contains only resting rungs that can still be cancelled.
   - A failed ladder reports filled rung IDs alongside any still-resting IDs, while its retryable group handle contains only the resting IDs that cancellation can act on.

@@ -166,6 +166,7 @@ export type {
 
 // Provider interfaces and implementations
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+export { ChaseOrderSuspensionError } from './providers/AggregatedPerpsProvider.js';
 
 // Type definitions (explicit named exports)
 export {

@@ -5683,10 +5683,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       lastSnapshotSizeRefreshAt: 0,
       builder,
       deadline:
-        Date.now() +
-        (params.chaseMaxDurationMs ?? CHASE_ORDER_CONFIG.DefaultMaxDurationMs),
-      maxRepricings:
-        params.chaseMaxRepricings ?? CHASE_ORDER_CONFIG.DefaultMaxRepricings,
+        params.chaseMaxDurationMs === undefined
+          ? Number.POSITIVE_INFINITY
+          : Date.now() + params.chaseMaxDurationMs,
+      maxRepricings: params.chaseMaxRepricings ?? Number.POSITIVE_INFINITY,
       repricings: 0,
       timer: null,
       active: true,
@@ -5873,20 +5873,17 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const timer = setTimeout(() => {
       session.timer = null;
-      this.#chaseTickQueue = this.#chaseTickQueue.then(async () => {
-        // A rejected tick must not stop the session from being cancellable, and
-        // must not surface as an unhandled rejection either.
-        try {
-          await this.#runChaseTick(sessionId);
-        } catch (error: unknown) {
+      this.#chaseTickQueue = this.#chaseTickQueue
+        .then(() => this.#runChaseTick(sessionId))
+        .catch((error: unknown) => {
+          // Resolve the shared queue after every failure. Otherwise one
+          // rejected tick prevents all later ticks and teardown from running.
           this.#deps.debugLogger.log('Chase tick failed', {
             sessionId,
             error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
           });
           this.#recoverFailedChaseTick(sessionId);
-        }
-        return undefined;
-      });
+        });
     }, session.intervalMs);
 
     // Node keeps the process alive for a pending timer; a background chase is
@@ -6433,8 +6430,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
+    const wasActive = session.active;
     session.active = false;
-    session.status = CHASE_ORDER_STATUS.TerminationPending;
+    if (wasActive) {
+      session.status = CHASE_ORDER_STATUS.TerminationPending;
+    }
     if (session.timer) {
       clearTimeout(session.timer);
       session.timer = null;
@@ -6464,12 +6464,21 @@ export class HyperLiquidProvider implements PerpsProvider {
             const liveRemainder =
               await this.#readOrderRemainder(snapshotOrderId);
             if (
-              liveRemainder !== null &&
               session.orderId === snapshotOrderId &&
               session.pendingReplacement === null
             ) {
-              Object.assign(session, { size: liveRemainder });
-              snapshotRemainingSize = liveRemainder;
+              if (liveRemainder === null) {
+                session.orderId = null;
+                session.size = '0';
+                session.active = false;
+                if (session.status === CHASE_ORDER_STATUS.Active) {
+                  session.status = CHASE_ORDER_STATUS.Filled;
+                }
+                snapshotRemainingSize = '0';
+              } else {
+                session.size = liveRemainder;
+                snapshotRemainingSize = liveRemainder;
+              }
             }
           } catch (error) {
             this.#deps.debugLogger.log('Chase snapshot size refresh failed', {
@@ -7288,11 +7297,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (owningChase) {
         this.#stopChaseSession(owningChase[0]);
         await this.#chaseTickQueue;
-        return await this.#cancelChaseOrder({
+        const result = await this.#cancelChaseOrder({
           ...params,
           orderId: owningChase[0],
           orderType: 'chase',
         });
+        return { ...result, orderId: params.orderId };
       }
 
       this.#deps.debugLogger.log('Canceling order:', params);
@@ -7329,7 +7339,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         ],
       });
 
-      const status = result.response?.data?.statuses?.[0];
+      const status: unknown = result.response?.data?.statuses?.[0];
       if (status === 'success') {
         return {
           success: true,
@@ -7340,11 +7350,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // HyperLiquid usually rejects a cancel without throwing: the status entry
       // carries the raw exchange string (e.g. "multi-sig required"). Map it the
       // same way as a thrown rejection so callers get a standardized code
-      // instead of a generic message. The SDK types every status as 'success',
-      // so the rejection shape needs the same cast cancelOrders already uses.
+      // instead of a generic message.
       const rawError =
-        (status as { error?: string } | undefined)?.error ??
-        'Order cancellation failed';
+        isStatusObject(status) && typeof status.error === 'string'
+          ? status.error
+          : 'Order cancellation failed';
 
       return createErrorResult(this.#mapError(new Error(rawError)), {
         success: false,
@@ -7359,7 +7369,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           coin: params.symbol,
         }),
       );
-      return createErrorResult(mappedError, { success: false });
+      return createErrorResult(mappedError, {
+        success: false,
+        ...(owningChase ? { orderId: params.orderId } : {}),
+      });
     }
   }
 
@@ -7373,71 +7386,100 @@ export class HyperLiquidProvider implements PerpsProvider {
   async cancelOrders(
     params: BatchCancelOrdersParams,
   ): Promise<CancelOrdersResult> {
-    try {
-      this.#deps.debugLogger.log('Batch canceling orders:', {
-        count: params.length,
-      });
+    this.#deps.debugLogger.log('Batch canceling orders:', {
+      count: params.length,
+    });
 
-      if (params.length === 0) {
-        return {
-          success: false,
-          successCount: 0,
-          failureCount: 0,
-          results: [],
+    if (params.length === 0) {
+      return {
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+      };
+    }
+
+    const results: CancelOrdersResult['results'] = params.map((order) => ({
+      orderId: order.orderId,
+      symbol: order.symbol,
+      success: false,
+      error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+    }));
+
+    // Resolve Chase ownership before the first await. A queued reprice may
+    // replace the child ID, but the stable session handle still reaches it.
+    const chaseSessions = [...this.#chaseSessions.entries()];
+    const chaseRoutes = params.flatMap((order, index) => {
+      const owner = chaseSessions.find(
+        ([, session]) =>
+          session.orderId === order.orderId ||
+          session.replacingOrderId === order.orderId,
+      );
+      return owner ? [{ handle: owner[0], index, order }] : [];
+    });
+    const chaseIndexes = new Set(chaseRoutes.map(({ index }) => index));
+
+    try {
+      for (const handle of new Set(chaseRoutes.map(({ handle }) => handle))) {
+        this.#stopChaseSession(handle);
+      }
+      if (chaseRoutes.length > 0) {
+        await this.#chaseTickQueue;
+      }
+      for (const { handle, index, order } of chaseRoutes) {
+        const result = await this.#cancelStrategyOrder({
+          orderId: handle,
+          symbol: order.symbol,
+          orderType: 'chase',
+        });
+        results[index] = {
+          orderId: order.orderId,
+          symbol: order.symbol,
+          success: result.success,
+          ...(result.error === undefined ? {} : { error: result.error }),
         };
       }
 
-      // Cancellation carries no builder context, so it must not prompt for a
-      // fee approval that the action cannot use.
-      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
-
-      const exchangeClient = this.#clientService.getExchangeClient();
-
-      // Map orders to SDK format and validate coins
-      const cancelRequests = await Promise.all(
-        params.map(async (order) => {
-          const asset = await this.#getAssetIdWithRepair({
-            symbol: order.symbol,
-            dexName: parseAssetName(order.symbol).dex,
-          });
-          return {
-            a: asset,
-            o: parseInt(order.orderId, 10),
-          };
-        }),
+      const ordinaryOrders = params.flatMap((order, index) =>
+        chaseIndexes.has(index) ? [] : [{ index, order }],
       );
+      if (ordinaryOrders.length > 0) {
+        // Cancellation carries no builder context, so it must not prompt for a
+        // fee approval that the action cannot use.
+        await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+        const exchangeClient = this.#clientService.getExchangeClient();
+        const cancelRequests = await Promise.all(
+          ordinaryOrders.map(async ({ order }) => {
+            const asset = await this.#getAssetIdWithRepair({
+              symbol: order.symbol,
+              dexName: parseAssetName(order.symbol).dex,
+            });
+            return {
+              a: asset,
+              o: parseInt(order.orderId, 10),
+            };
+          }),
+        );
+        const result = await exchangeClient.cancel({
+          cancels: cancelRequests,
+        });
 
-      // Single batch API call
-      const result = await exchangeClient.cancel({
-        cancels: cancelRequests,
-      });
-
-      // Parse response statuses (one per order)
-      const { statuses } = result.response.data;
-      const successCount = statuses.filter(
-        (status) => status === 'success',
-      ).length;
-      const failureCount = statuses.length - successCount;
-
-      return {
-        success: successCount > 0,
-        successCount,
-        failureCount,
-        results: statuses.map((status, index) => {
-          // Map each per-status rejection the same way cancelOrder does, so a
-          // batch cancel reports standardized codes rather than raw exchange
-          // strings for the rejections this provider recognizes.
-          const statusError = (status as { error?: string } | undefined)?.error;
-          return {
-            orderId: params[index].orderId,
-            symbol: params[index].symbol,
+        ordinaryOrders.forEach(({ index, order }, statusIndex) => {
+          const status: unknown = result.response.data.statuses[statusIndex];
+          const statusError =
+            isStatusObject(status) && typeof status.error === 'string'
+              ? status.error
+              : undefined;
+          results[index] = {
+            orderId: order.orderId,
+            symbol: order.symbol,
             success: status === 'success',
-            error: statusError
-              ? this.#mapError(new Error(statusError)).message
-              : undefined,
+            ...(statusError === undefined
+              ? {}
+              : { error: this.#mapError(new Error(statusError)).message }),
           };
-        }),
-      };
+        });
+      }
     } catch (error) {
       const mappedError = this.#mapError(error);
       this.#deps.logger.error(
@@ -7446,22 +7488,26 @@ export class HyperLiquidProvider implements PerpsProvider {
           orderCount: params.length,
         }),
       );
-      // Return all orders as failed
-      return {
-        success: false,
-        successCount: 0,
-        failureCount: params.length,
-        results: params.map((order) => ({
-          orderId: order.orderId,
-          symbol: order.symbol,
-          success: false,
-          error:
+      for (const result of results) {
+        if (
+          !result.success &&
+          result.error === PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
+        ) {
+          result.error =
             error instanceof Error
               ? mappedError.message
-              : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
-        })),
-      };
+              : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED;
+        }
+      }
     }
+
+    const successCount = results.filter(({ success }) => success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
   }
 
   async closePositions(
@@ -8360,7 +8406,18 @@ export class HyperLiquidProvider implements PerpsProvider {
               ...restoration.restoredOrderIds,
             ]);
           }
-          throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+          return createErrorResult(
+            new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+            {
+              success: false,
+              childOrderIds: [
+                ...new Set([
+                  ...oldCancellation.remainingOrderIds.map(String),
+                  ...restoration.restoredOrderIds,
+                ]),
+              ],
+            },
+          );
         }
       }
 

@@ -115,6 +115,18 @@ describe('hyperLiquidValidation - strategy order types', () => {
         }),
       ).toStrictEqual({ isValid: true });
     });
+
+    it('accepts the exported unbounded Chase defaults', () => {
+      expect(
+        validateOrderParams({
+          coin: 'ETH',
+          size: '1',
+          orderType: 'chase',
+          chaseMaxDurationMs: CHASE_ORDER_CONFIG.DefaultMaxDurationMs,
+          chaseMaxRepricings: CHASE_ORDER_CONFIG.DefaultMaxRepricings,
+        }),
+      ).toStrictEqual({ isValid: true });
+    });
   });
 
   describe('validateOrderParams - TWAP', () => {
