@@ -313,5 +313,6 @@
     "./scripts",
     "./codeowners.ts",
     "./knip.config.mts"
-  ]
+  ],
+  "exclude": ["**/.tsc-lint-cache"]
 }
