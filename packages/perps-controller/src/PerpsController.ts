@@ -80,6 +80,7 @@ import type {
   CancelOrdersParams,
   CancelOrdersResult,
   ChaseOrder,
+  ChaseOrderMaxDistanceReached,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -126,6 +127,7 @@ import type {
   SubscribePricesParams,
   SwitchProviderResult,
   ToggleTestnetResult,
+  TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   WithdrawParams,
@@ -839,12 +841,16 @@ const metadata: StateMetadata<PerpsControllerState> = {
   },
 };
 
-/**
- * PerpsController events
- */
+export type PerpsControllerChaseOrderMaxDistanceReachedEvent = {
+  type: 'PerpsController:chaseOrderMaxDistanceReached';
+  payload: [ChaseOrderMaxDistanceReached];
+};
+
+/** PerpsController events. */
 export type PerpsControllerEvents =
   | ControllerStateChangeEvent<'PerpsController', PerpsControllerState>
-  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>;
+  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>
+  | PerpsControllerChaseOrderMaxDistanceReachedEvent;
 
 /**
  * The action which can be used to retrieve the state of the
@@ -940,6 +946,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCachedMarketDataForActiveProvider',
   'getCachedUserDataForActiveProvider',
   'getChaseOrders',
+  'getTwapOrders',
   'getUserDataSnapshot',
   'getCurrentNetwork',
   'getFunding',
@@ -1194,6 +1201,15 @@ export class PerpsController extends BaseController<
   readonly #featureFlagConfigurationService: FeatureFlagConfigurationService;
 
   readonly #rewardsIntegrationService: RewardsIntegrationService;
+
+  readonly #publishChaseOrderMaxDistanceReached = (
+    event: ChaseOrderMaxDistanceReached,
+  ): void => {
+    this.messenger.publish(
+      'PerpsController:chaseOrderMaxDistanceReached',
+      event,
+    );
+  };
 
   constructor({
     messenger,
@@ -1821,9 +1837,7 @@ export class PerpsController extends BaseController<
       subscriptionBuilderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
-      orderFeeConfiguration:
-        this.#options.clientConfig?.providerCredentials?.hyperliquid
-          ?.orderFeeConfiguration,
+      onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
     });
     this.#standaloneProviderIsTestnet = currentIsTestnet;
     this.#standaloneProviderHip3Version = currentHip3Version;
@@ -2359,9 +2373,7 @@ export class PerpsController extends BaseController<
       subscriptionBuilderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
-      orderFeeConfiguration:
-        this.#options.clientConfig?.providerCredentials?.hyperliquid
-          ?.orderFeeConfiguration,
+      onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -2933,6 +2945,17 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+  }
+
+  /**
+   * Read venue-backed TWAP lifecycle records through the active provider.
+   * Providers without native TWAP history return an empty list.
+   *
+   * @returns Current and terminal TWAP schedules with slice fills.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    return provider.getTwapOrders ? await provider.getTwapOrders() : [];
   }
 
   /**

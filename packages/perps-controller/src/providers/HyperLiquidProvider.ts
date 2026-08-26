@@ -1,9 +1,11 @@
-import { CaipAccountId, hasProperty } from '@metamask/utils';
+import { CaipAccountId, hasProperty, isHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import type {
   ExchangeClient,
+  InfoClient,
   UserAbstractionResponse,
 } from '@nktkas/hyperliquid';
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import type { CandlePeriod } from '../constants/chartConfig.js';
@@ -16,7 +18,6 @@ import {
   BUILDER_FEE_CONFIG,
   canonicalizeHyperLiquidDexes,
   FEE_RATES,
-  HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES,
   HYPERLIQUID_ORDER_CAPABILITIES,
   getBridgeInfo,
   getChainId,
@@ -77,6 +78,7 @@ import type {
   CancelOrderResult,
   CancelOrdersResult,
   ChaseOrder,
+  ChaseOrderMaxDistanceReached,
   ChaseOrderStatus,
   CandleData,
   ClosePositionParams,
@@ -115,8 +117,6 @@ import type {
   OrderResult,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
-  HyperLiquidOrderFeeConfiguration,
-  HyperLiquidOrderFeePolicy,
   Position,
   PositionTriggerOrder,
   ReadyToTradeResult,
@@ -131,6 +131,9 @@ import type {
   ToggleTestnetResult,
   TransferBetweenDexsParams,
   TransferBetweenDexsResult,
+  TwapOrder,
+  TwapOrderFill,
+  TwapOrderStatus,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   UserHistoryItem,
@@ -170,6 +173,7 @@ import {
   buildAssetMapping,
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
+  HYPERLIQUID_SCALE_CLOID_MARKER,
   parseAssetName,
 } from '../utils/hyperLiquidAdapter.js';
 import {
@@ -280,10 +284,37 @@ const isRetryableChasePlacementError = (error: unknown): boolean => {
 /**
  * What happened to one order a cancel was asked to remove.
  *
- * `cancelled` and `gone` both mean nothing of it is resting, which is all a
- * caller asked for; only `refused` leaves an order behind.
+ * `Cancelled` and `Gone` both mean nothing of it is resting, which is all a
+ * caller asked for; only `Refused` leaves an order behind.
  */
-type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
+const enum CancelChildOutcome {
+  Cancelled = 'cancelled',
+  Gone = 'gone',
+  Refused = 'refused',
+}
+
+const enum HyperLiquidTwapLifecycleStatus {
+  Activated = 'activated',
+  Failed = 'error',
+  Finished = 'finished',
+  Terminated = 'terminated',
+}
+
+const enum PerpsTwapLifecycleStatus {
+  Active = 'active',
+  Canceled = 'canceled',
+  Completed = 'completed',
+  CompletedUnderfilled = 'completed_underfilled',
+  Failed = 'failed',
+}
+
+type HyperLiquidTwapHistoryEntry = Awaited<
+  ReturnType<InfoClient['twapHistory']>
+>[number];
+
+type HyperLiquidTwapSliceFillEntry = Awaited<
+  ReturnType<InfoClient['userTwapSliceFills']>
+>[number];
 
 type ExchangeCancelRequest = { a: number; o: number };
 
@@ -323,7 +354,7 @@ type BuilderFeeSetupContext = {
  */
 const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
   if (status === 'success') {
-    return 'cancelled';
+    return CancelChildOutcome.Cancelled;
   }
 
   const message = (
@@ -333,8 +364,8 @@ const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
   ).toLowerCase();
 
   return ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker))
-    ? 'gone'
-    : 'refused';
+    ? CancelChildOutcome.Gone
+    : CancelChildOutcome.Refused;
 };
 
 /**
@@ -503,6 +534,52 @@ type PrepareAssetForTradingParams = {
   leverage?: number;
 };
 
+type Hip3TransferInfo = {
+  amount: number;
+  sourceDex: string;
+};
+
+type Hip3TransferContext = {
+  dexName: string;
+  transferInfo: Hip3TransferInfo;
+};
+
+type Hip3TwapTransferScope = {
+  network: 'testnet' | 'mainnet';
+  userAddress: string;
+  symbol: string;
+  orderId: string;
+};
+
+type TwapAccountScope = Pick<Hip3TwapTransferScope, 'network' | 'userAddress'>;
+
+type AdaptTwapOrderParams = {
+  historyEntry: HyperLiquidTwapHistoryEntry;
+  sliceFills: HyperLiquidTwapSliceFillEntry[];
+  now: number;
+};
+
+type ChaseOrderMaxDistanceReachedHandler = (
+  event: ChaseOrderMaxDistanceReached,
+) => void;
+
+type HyperLiquidProviderOptions = {
+  isTestnet?: boolean;
+  hip3Enabled?: boolean;
+  allowlistMarkets?: string[];
+  blocklistMarkets?: string[];
+  priceDeviationLimit?: number;
+  useUnifiedAccount?: boolean;
+  platformDependencies: PerpsPlatformDependencies;
+  messenger: PerpsControllerMessengerBase;
+  initialAssetMapping?: [string, number][];
+  builderAddressTestnet?: string;
+  builderAddressMainnet?: string;
+  subscriptionBuilderAddressTestnet?: string;
+  subscriptionBuilderAddressMainnet?: string;
+  onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+};
+
 type HandleHip3PreOrderParams = {
   dexName: string;
   symbol: string;
@@ -514,7 +591,7 @@ type HandleHip3PreOrderParams = {
 };
 
 type HandleHip3PreOrderResult = {
-  transferInfo: { amount: number; sourceDex: string } | null;
+  transferInfo: Hip3TransferInfo | null;
 };
 
 type SubmitOrderWithRollbackParams = {
@@ -522,7 +599,7 @@ type SubmitOrderWithRollbackParams = {
   grouping: 'na' | 'normalTpsl' | 'positionTpsl';
   isHip3Order: boolean;
   dexName: string | null;
-  transferInfo: { amount: number; sourceDex: string } | null;
+  transferInfo: Hip3TransferInfo | null;
   symbol: string;
   assetId: number;
   chargesMetamaskBuilderFee: boolean;
@@ -555,6 +632,10 @@ type StrategyPlacementContext = {
   szDecimals: number;
   formattedSize: string;
   builder?: BuilderOrderContext;
+  dexName: string | null;
+  network: 'testnet' | 'mainnet';
+  transferInfo: Hip3TransferInfo | null;
+  userAddress: string;
   /** The validated ladder a scale placement submits; absent for other types. */
   ladder?: ScaleLadder;
 };
@@ -570,16 +651,44 @@ type ScaleLadder = {
   sizes: string[];
 };
 
+type ScaleOrderIdentity = {
+  groupId: string;
+  clientOrderIds: Hex[];
+};
+
 /**
  * A scale ladder's children, held so the group can be cancelled as one.
  *
- * Session-scoped on purpose: the IDs also come back to the caller as
- * `OrderResult.childOrderIds`, so a consumer that outlives this provider
- * instance can still cancel them through the ordinary batch cancel.
+ * The group can be rebuilt from open orders because each rung carries the
+ * same recoverable group identity in its venue client-order ID.
  */
 type ScaleOrderGroup = {
-  assetId: number;
+  symbol: string;
   orderIds: string[];
+};
+
+/**
+ * Create one recoverable identity for a Scale ladder and one venue CLOID per
+ * rung. HyperLiquid requires every CLOID to be unique, so the last byte holds
+ * the rung index while the preceding 15 bytes identify the shared group.
+ *
+ * @param count - Number of ladder rungs.
+ * @returns The public group handle and venue client order IDs.
+ */
+const createScaleOrderIdentity = (count: number): ScaleOrderIdentity => {
+  const groupKey = `${HYPERLIQUID_SCALE_CLOID_MARKER}${uuidv4()
+    .replace(/-/gu, '')
+    .slice(0, 22)}`;
+  const clientOrderIds = Array.from({ length: count }, (_, index) => {
+    const clientOrderId: Hex = `0x${groupKey}${index
+      .toString(16)
+      .padStart(2, '0')}`;
+    if (!isHexString(clientOrderId)) {
+      throw new Error('Failed to create Scale client order ID');
+    }
+    return clientOrderId;
+  });
+  return { groupId: `scale:${groupKey}`, clientOrderIds };
 };
 
 /**
@@ -790,6 +899,10 @@ type HyperLiquidOrderFeeContext =
   | Readonly<OrderParams>
   | Readonly<FeeCalculationParams>;
 
+type HyperLiquidOrderFeePolicy = Readonly<{
+  chargesMetamaskBuilderFee: boolean;
+}>;
+
 const MAX_API_FEE_RATE = 1;
 const MAX_API_FEE_DISCOUNT = 1;
 
@@ -799,7 +912,9 @@ const MAX_API_FEE_DISCOUNT = 1;
  * The configuration type makes this map exhaustive, so a new order type cannot
  * inherit a builder-fee policy accidentally. HyperLiquid's dedicated TWAP
  * action has no builder field. Every other standalone placement uses an order
- * action that can carry one builder context.
+ * action that can carry one builder context. This policy is deliberately not a
+ * constructor or order input. A future backend policy must be resolved inside
+ * the provider from its trusted source rather than accepted from a client.
  */
 const HYPERLIQUID_ORDER_FEE_CONFIG = {
   market: { chargesMetamaskBuilderFee: true },
@@ -813,14 +928,61 @@ const HYPERLIQUID_ORDER_FEE_CONFIG = {
   chase: { chargesMetamaskBuilderFee: true },
 } satisfies Record<OrderType, HyperLiquidOrderFeePolicy>;
 
-function resolveConfiguredOrderFeePolicy(
-  configured: HyperLiquidOrderFeePolicy | undefined,
-  fallback: HyperLiquidOrderFeePolicy,
-): HyperLiquidOrderFeePolicy {
-  return typeof configured?.chargesMetamaskBuilderFee === 'boolean'
-    ? configured
-    : fallback;
-}
+const MILLISECONDS_PER_MINUTE = 60_000;
+const MILLISECONDS_PER_SECOND = 1_000;
+
+/**
+ * Normalize the TWAP history timestamp documented in seconds while tolerating
+ * an already-millisecond value from a future SDK response.
+ *
+ * @param timestamp - Venue timestamp in seconds or milliseconds.
+ * @returns Timestamp in milliseconds.
+ */
+const normalizeTwapHistoryTimestamp = (timestamp: number): number =>
+  timestamp < 1_000_000_000_000
+    ? timestamp * MILLISECONDS_PER_SECOND
+    : timestamp;
+
+const getHip3TwapTransferKey = (params: Hip3TwapTransferScope): string =>
+  `${params.network}:${params.userAddress.toLowerCase()}:${params.symbol}:${params.orderId}`;
+
+const resolveTwapOrderStatus = (
+  historyEntry: HyperLiquidTwapHistoryEntry,
+  executedSize: BigNumber,
+  totalSize: BigNumber,
+): TwapOrderStatus => {
+  switch (historyEntry.status.status) {
+    case HyperLiquidTwapLifecycleStatus.Activated:
+      return PerpsTwapLifecycleStatus.Active;
+    case HyperLiquidTwapLifecycleStatus.Finished:
+      return executedSize.isLessThan(totalSize)
+        ? PerpsTwapLifecycleStatus.CompletedUnderfilled
+        : PerpsTwapLifecycleStatus.Completed;
+    case HyperLiquidTwapLifecycleStatus.Terminated:
+      return PerpsTwapLifecycleStatus.Canceled;
+    case HyperLiquidTwapLifecycleStatus.Failed:
+      return PerpsTwapLifecycleStatus.Failed;
+    default:
+      return PerpsTwapLifecycleStatus.Failed;
+  }
+};
+
+const adaptTwapOrderFill = (
+  entry: HyperLiquidTwapSliceFillEntry,
+): TwapOrderFill => ({
+  fillId: entry.fill.tid.toString(),
+  orderId: entry.fill.oid.toString(),
+  side: entry.fill.side === 'B' ? 'buy' : 'sell',
+  price: entry.fill.px,
+  size: entry.fill.sz,
+  fee: entry.fill.fee,
+  feeToken: entry.fill.feeToken,
+  ...(entry.fill.builderFee === undefined
+    ? {}
+    : { builderFee: entry.fill.builderFee }),
+  timestamp: entry.fill.time,
+  transactionHash: entry.fill.hash,
+});
 
 /**
  * HyperLiquid provider implementation
@@ -838,8 +1000,6 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   // Platform dependencies for logging and debugging
   readonly #deps: PerpsPlatformDependencies;
-
-  readonly #orderFeeConfiguration: HyperLiquidOrderFeeConfiguration;
 
   // Service instances
   readonly #clientService: HyperLiquidClientService;
@@ -980,6 +1140,11 @@ export class HyperLiquidProvider implements PerpsProvider {
   // also returned to the caller as `OrderResult.childOrderIds`.
   readonly #scaleOrderGroups = new Map<string, ScaleOrderGroup>();
 
+  // Manual HIP-3 collateral moved for a native TWAP must remain on that DEX
+  // while the venue executes its later slices. Keep the transfer until a
+  // cancellation confirms the schedule is no longer running.
+  readonly #hip3TwapTransfers = new Map<string, Hip3TransferContext>();
+
   // Chase sessions running on this provider instance, keyed by session handle.
   // Each owns a pending timer, so disconnect has to stop them.
   readonly #chaseSessions = new Map<string, ChaseSession>();
@@ -1035,24 +1200,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #priceDeviationLimit: number;
 
-  constructor(options: {
-    isTestnet?: boolean;
-    hip3Enabled?: boolean;
-    allowlistMarkets?: string[];
-    blocklistMarkets?: string[];
-    priceDeviationLimit?: number;
-    useUnifiedAccount?: boolean;
-    platformDependencies: PerpsPlatformDependencies;
-    messenger: PerpsControllerMessengerBase;
-    initialAssetMapping?: [string, number][];
-    builderAddressTestnet?: string;
-    builderAddressMainnet?: string;
-    subscriptionBuilderAddressTestnet?: string;
-    subscriptionBuilderAddressMainnet?: string;
-    orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
-  }) {
+  readonly #onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+
+  constructor(options: HyperLiquidProviderOptions) {
     this.#deps = options.platformDependencies;
-    this.#orderFeeConfiguration = options.orderFeeConfiguration ?? {};
     this.#messenger = options.messenger;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
@@ -1060,6 +1211,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       options.subscriptionBuilderAddressTestnet;
     this.#subscriptionBuilderAddressMainnet =
       options.subscriptionBuilderAddressMainnet;
+    this.#onChaseOrderMaxDistanceReached =
+      options.onChaseOrderMaxDistanceReached;
     this.#priceDeviationLimit =
       options.priceDeviationLimit ??
       HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
@@ -1158,11 +1311,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       ? HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType]
       : undefined;
     if (fallbackPolicy) {
-      const configuredPolicy =
-        params.orderType === 'twap'
-          ? undefined
-          : this.#orderFeeConfiguration[params.orderType];
-      return resolveConfiguredOrderFeePolicy(configuredPolicy, fallbackPolicy);
+      return fallbackPolicy;
     }
 
     this.#deps.debugLogger.log(
@@ -1175,9 +1324,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Return provider-owned strategy support for a routed market.
    * HyperLiquid metadata has no per-market strategy flags. This provider
-   * advertises its implemented strategies uniformly after confirming a
-   * main-DEX market exists. HIP-3 strategies are rejected by placement and
-   * therefore omitted here.
+   * advertises its implemented strategies uniformly after confirming the
+   * routed market exists.
    *
    * @param params - Required market route context.
    * @returns Supported strategy order types.
@@ -1192,7 +1340,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         reason: 'invalid_symbol',
       };
     }
-    const { dex, symbol } = parseAssetName(params.symbol);
+    const { dex } = parseAssetName(params.symbol);
 
     if (this.#isDisconnected) {
       return {
@@ -1202,22 +1350,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
-    if (dex !== null) {
-      // Strategy placement rejects every HIP-3 market before metadata reads.
-      // Report that deterministic routing constraint without claiming that an
-      // arbitrary DEX symbol exists and without issuing irrelevant requests.
-      return HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES;
-    }
-
     const lifecycleGeneration = this.#lifecycleGeneration;
 
     try {
-      const meta = await this.#getFreshOrderCapabilitiesMeta();
+      const meta =
+        dex === null
+          ? await this.#getFreshOrderCapabilitiesMeta()
+          : await this.#getCachedMeta({ dexName: dex });
       this.#assertProviderLifecycleCurrent(
         lifecycleGeneration,
         'Order capability read',
       );
-      return meta.universe.some((market) => market.name === symbol)
+      return meta.universe.some((market) => market.name === params.symbol)
         ? HYPERLIQUID_ORDER_CAPABILITIES
         : {
             status: 'unavailable',
@@ -4307,10 +4451,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.transferInfo.sourceDex - The source DEX for the transfer.
    * @private
    */
-  async #handleHip3PostOrderRebalance(params: {
-    dexName: string;
-    transferInfo: { amount: number; sourceDex: string };
-  }): Promise<void> {
+  async #handleHip3PostOrderRebalance(
+    params: Hip3TransferContext,
+  ): Promise<void> {
     const { dexName, transferInfo } = params;
 
     try {
@@ -4413,10 +4556,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.transferInfo.sourceDex - The source DEX for the transfer.
    * @private
    */
-  async #handleHip3OrderRollback(params: {
-    dexName: string;
-    transferInfo: { amount: number; sourceDex: string };
-  }): Promise<void> {
+  async #handleHip3OrderRollback(params: Hip3TransferContext): Promise<void> {
     const { dexName, transferInfo } = params;
 
     try {
@@ -4919,7 +5059,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // 6. Handle HIP-3 balance management (if applicable)
       const isHip3Order = dexName !== null;
-      let transferInfo: { amount: number; sourceDex: string } | null = null;
+      let transferInfo: Hip3TransferInfo | null = null;
 
       if (isHip3Order && dexName) {
         const effectiveLeverage = params.leverage ?? assetInfo.maxLeverage ?? 1;
@@ -5068,12 +5208,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     if (orderType !== 'chase') {
       const context = await this.#prepareStrategyPlacement(params);
-      if (generation !== this.#strategyGeneration) {
-        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
-      }
-      return orderType === 'twap'
-        ? await this.#placeTwapOrder(params, context, generation)
-        : await this.#placeScaleOrder(params, context, generation);
+      return await this.#submitPreparedStrategy(params, context, async () => {
+        if (generation !== this.#strategyGeneration) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+        return orderType === 'twap'
+          ? await this.#placeTwapOrder(params, context, generation)
+          : await this.#placeScaleOrder(params, context, generation);
+      });
     }
 
     if (this.#chasePlacementBlockers > 0) {
@@ -5106,7 +5248,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       await this.#chaseTickQueue;
       const context = await this.#prepareStrategyPlacement(params);
-      return await this.#startChaseSession(params, context, generation);
+      return await this.#submitPreparedStrategy(
+        params,
+        context,
+        async () => await this.#startChaseSession(params, context, generation),
+      );
     } finally {
       settlePlacement?.();
       this.#chasePlacementWaiters.delete(placementWaiter);
@@ -5115,6 +5261,66 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#resumeChaseTicksAfterPlacement();
       }
     }
+  }
+
+  /**
+   * Submit a prepared strategy and settle any manual HIP-3 collateral move.
+   *
+   * Scale and Chase leave regular orders or fills on the venue, so the normal
+   * HIP-3 post-order balance check can return any unreserved excess. Native
+   * TWAP executes future slices, so its transferred collateral stays on the
+   * routed DEX until cancellation confirms the schedule has stopped.
+   *
+   * @param params - Strategy order parameters.
+   * @param context - Prepared placement and HIP-3 transfer context.
+   * @param submit - Venue submission.
+   * @returns The strategy placement result.
+   */
+  async #submitPreparedStrategy(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+    submit: () => Promise<OrderResult>,
+  ): Promise<OrderResult> {
+    const { dexName, network, transferInfo, userAddress } = context;
+    let result: OrderResult;
+
+    try {
+      result = await submit();
+    } catch (error) {
+      if (dexName && transferInfo) {
+        await this.#handleHip3OrderRollback({ dexName, transferInfo });
+      }
+      throw error;
+    }
+
+    if (!dexName || !transferInfo) {
+      return result;
+    }
+
+    const hasVenueExposure =
+      result.success === true ||
+      result.orderId !== undefined ||
+      (result.childOrderIds?.length ?? 0) > 0;
+    if (!hasVenueExposure) {
+      await this.#handleHip3OrderRollback({ dexName, transferInfo });
+      return result;
+    }
+
+    if (params.orderType === 'twap' && result.orderId) {
+      this.#hip3TwapTransfers.set(
+        getHip3TwapTransferKey({
+          network,
+          userAddress,
+          symbol: params.symbol,
+          orderId: result.orderId,
+        }),
+        { dexName, transferInfo },
+      );
+    } else {
+      await this.#handleHip3PostOrderRebalance({ dexName, transferInfo });
+    }
+
+    return result;
   }
 
   /**
@@ -5131,14 +5337,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
   ): Promise<StrategyPlacementContext> {
     const { dex: dexName } = parseAssetName(params.symbol);
-
-    // A HIP-3 order is preceded by a margin transfer onto the builder DEX and
-    // followed by a rebalance, both of which are wired into the single-order
-    // submit path and its rollback. Rather than half-support that here, a
-    // strategy placement on a HIP-3 market is refused outright.
-    if (dexName !== null) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
-    }
 
     const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
       symbol: params.symbol,
@@ -5235,6 +5433,28 @@ export class HyperLiquidProvider implements PerpsProvider {
     const builder = builderFeeSetupContext
       ? await this.#getBuilderOrderContext(builderFeeSetupContext)
       : undefined;
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const userAddress =
+      builderFeeSetupContext?.userAddress ??
+      (await this.#walletService.getUserAddressWithDefault());
+
+    let transferInfo: Hip3TransferInfo | null = null;
+    if (dexName) {
+      const orderPrice =
+        ladder === undefined
+          ? effectivePrice
+          : Math.max(...ladder.prices.map(Number.parseFloat));
+      const hip3Result = await this.#handleHip3PreOrder({
+        dexName,
+        symbol: params.symbol,
+        orderPrice,
+        positionSize: parseFloat(formattedSize),
+        leverage: params.leverage ?? assetInfo.maxLeverage ?? 1,
+        isBuy: params.isBuy,
+        maxLeverage: assetInfo.maxLeverage,
+      });
+      transferInfo = hip3Result.transferInfo;
+    }
 
     return {
       assetId,
@@ -5242,6 +5462,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       formattedSize,
       ladder,
       builder,
+      dexName,
+      network,
+      transferInfo,
+      userAddress,
     };
   }
 
@@ -5406,7 +5630,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
         remainsLive =
           classifyCancelStatus(cancelResult.response?.data?.status) ===
-          'refused';
+          CancelChildOutcome.Refused;
       } catch (error) {
         this.#deps.debugLogger.log(
           'Stale TWAP placement could not be retracted',
@@ -5463,6 +5687,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
     const { prices, sizes } = ladder;
     const count = prices.length;
+    const { groupId, clientOrderIds } = createScaleOrderIdentity(count);
 
     const orders: SDKOrderParams[] = prices.map((price, index) => ({
       a: assetId,
@@ -5471,6 +5696,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       s: sizes[index],
       r: params.reduceOnly ?? false,
       t: { limit: { tif: 'Gtc' as const } },
+      c: clientOrderIds[index],
     }));
 
     this.#deps.debugLogger.log('Submitting scale ladder', {
@@ -5549,10 +5775,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         ...remainingOrderIds.map(String),
       ];
       if (remainingOrderIds.length > 0) {
-        const groupId = generatePerpsId('scale');
         const remainingRestingOrderIds = remainingOrderIds.map(String);
         this.#scaleOrderGroups.set(groupId, {
-          assetId,
+          symbol: params.symbol,
           orderIds: remainingRestingOrderIds,
         });
         return createErrorResult(
@@ -5575,9 +5800,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_REJECTED);
     }
 
-    const groupId = generatePerpsId('scale');
     this.#scaleOrderGroups.set(groupId, {
-      assetId,
+      symbol: params.symbol,
       orderIds: restingChildOrderIds,
     });
     return {
@@ -5754,7 +5978,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           // that is no longer on the book would send the caller to cancel
           // something already gone; naming one that still rests is the only
           // route left to it.
-          ...(outcome === 'refused' ? { childOrderIds: [orderId] } : {}),
+          ...(outcome === CancelChildOutcome.Refused
+            ? { childOrderIds: [orderId] }
+            : {}),
           submittedSize: formattedSize,
         },
       );
@@ -6111,13 +6337,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         // A refused cancel leaves the child resting. Preserve its ID so the
         // caller that stopped this session can report an incomplete cancel and
         // retry it instead of orphaning the order.
-        if (outcome !== 'refused') {
+        if (outcome !== CancelChildOutcome.Refused) {
           session.orderId = null;
         }
         return;
       }
 
-      if (outcome === 'refused') {
+      if (outcome === CancelChildOutcome.Refused) {
         // The exchange kept the order, so it is still resting at the old price.
         // Placing the replacement anyway would double the position. Leave it
         // alone and try again on the next tick, which is why this falls through
@@ -6127,7 +6353,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           orderId: session.orderId,
         });
         reachedMaxDistance = false;
-      } else if (outcome === 'gone') {
+      } else if (outcome === CancelChildOutcome.Gone) {
         // The order left the book between ticks: it filled, or something else
         // cancelled it. There is nothing left to chase.
         const goneOrderId = session.orderId;
@@ -6268,13 +6494,23 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
-    if (reachedMaxDistance) {
+    if (reachedMaxDistance && session.maxDistanceBps !== undefined) {
       session.active = false;
       session.status = CHASE_ORDER_STATUS.MaxDistanceReached;
       this.#deps.debugLogger.log('Chase max distance reached', {
         sessionId,
         restingPrice: session.restingPrice,
         maxDistanceBps: session.maxDistanceBps,
+      });
+      this.#onChaseOrderMaxDistanceReached?.({
+        handle: sessionId,
+        symbol: session.symbol,
+        side: session.isBuy ? 'buy' : 'sell',
+        restingOrderId: session.orderId,
+        restingPrice: session.restingPrice,
+        maxDistanceBps: session.maxDistanceBps,
+        timestamp: Date.now(),
+        providerId: PROVIDER_CONFIG.DefaultProvider,
       });
       return;
     }
@@ -6461,7 +6697,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     placingClient?: ExchangeClient,
   ): Promise<CancelChildOutcome> {
     if (!session.orderId) {
-      return 'gone';
+      return CancelChildOutcome.Gone;
     }
 
     // Looked up only once there is something to cancel, so a session with
@@ -6481,7 +6717,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (
         ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker))
       ) {
-        return 'gone';
+        return CancelChildOutcome.Gone;
       }
       throw error;
     }
@@ -6520,7 +6756,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
           .message,
       });
-      return 'refused';
+      return CancelChildOutcome.Refused;
     }
   }
 
@@ -6544,6 +6780,192 @@ export class HyperLiquidProvider implements PerpsProvider {
       clearTimeout(session.timer);
       session.timer = null;
     }
+  }
+
+  /**
+   * Adapt one venue TWAP history record and its slice fills to the shared
+   * controller contract.
+   *
+   * @param params - Venue history, fills, and read time.
+   * @returns A TWAP lifecycle record, or null when the venue supplied no ID.
+   */
+  #adaptTwapOrder(params: AdaptTwapOrderParams): TwapOrder | null {
+    const { historyEntry, now } = params;
+    const { state, twapId } = historyEntry;
+    if (twapId === undefined || !Number.isSafeInteger(twapId) || twapId < 0) {
+      return null;
+    }
+
+    const totalSize = new BigNumber(state.sz);
+    const executedSize = new BigNumber(state.executedSz);
+    const executedNotional = new BigNumber(state.executedNtl);
+    let boundedExecutedSize = executedSize;
+    if (executedSize.isLessThan(0)) {
+      boundedExecutedSize = new BigNumber(0);
+    } else if (executedSize.isGreaterThan(totalSize)) {
+      boundedExecutedSize = totalSize;
+    }
+    const rawRemainingSize = totalSize.minus(executedSize);
+    const remainingSize = rawRemainingSize.isGreaterThan(0)
+      ? rawRemainingSize
+      : new BigNumber(0);
+    const status = resolveTwapOrderStatus(
+      historyEntry,
+      executedSize,
+      totalSize,
+    );
+    const fills = params.sliceFills
+      .map(adaptTwapOrderFill)
+      .sort((left, right) => left.timestamp - right.timestamp);
+    const startedAt = state.timestamp;
+    const historyUpdatedAt = normalizeTwapHistoryTimestamp(historyEntry.time);
+    const lastUpdated = Math.max(
+      startedAt,
+      historyUpdatedAt,
+      ...fills.map((fill) => fill.timestamp),
+    );
+    const durationMilliseconds = state.minutes * MILLISECONDS_PER_MINUTE;
+    const elapsedTimeMilliseconds = Math.min(
+      durationMilliseconds,
+      Math.max(
+        0,
+        (status === PerpsTwapLifecycleStatus.Active ? now : lastUpdated) -
+          startedAt,
+      ),
+    );
+    const fillProgressBps = totalSize.isGreaterThan(0)
+      ? boundedExecutedSize
+          .dividedBy(totalSize)
+          .multipliedBy(BASIS_POINTS_DIVISOR)
+          .integerValue(BigNumber.ROUND_FLOOR)
+          .toNumber()
+      : 0;
+    const timeProgressBps =
+      durationMilliseconds > 0
+        ? Math.floor(
+            (elapsedTimeMilliseconds / durationMilliseconds) *
+              BASIS_POINTS_DIVISOR,
+          )
+        : 0;
+
+    return {
+      orderId: twapId.toString(),
+      symbol: state.coin,
+      side: state.side === 'B' ? 'buy' : 'sell',
+      size: state.sz,
+      executedSize: state.executedSz,
+      remainingSize: remainingSize.toFixed(),
+      executedNotional: state.executedNtl,
+      ...(executedSize.isGreaterThan(0) && {
+        averagePrice: executedNotional.dividedBy(executedSize).toFixed(),
+      }),
+      fillProgressBps,
+      timeProgressBps,
+      elapsedTimeMilliseconds,
+      durationMinutes: state.minutes,
+      randomize: state.randomize,
+      reduceOnly: state.reduceOnly,
+      status,
+      startedAt,
+      lastUpdated,
+      ...(historyEntry.status.status ===
+        HyperLiquidTwapLifecycleStatus.Failed && {
+        error: historyEntry.status.description,
+      }),
+      fills,
+    };
+  }
+
+  /**
+   * Return manually moved HIP-3 collateral after a TWAP reaches a terminal
+   * venue state. The scoped registry survives reconnects so an active schedule
+   * cannot lose its eventual cleanup path.
+   *
+   * @param orders - Current and historical TWAP lifecycle records.
+   * @param scope - Current account and network identity.
+   */
+  async #rebalanceTerminalHip3Twaps(
+    orders: TwapOrder[],
+    scope: TwapAccountScope,
+  ): Promise<void> {
+    for (const order of orders) {
+      if (order.status === PerpsTwapLifecycleStatus.Active) {
+        continue;
+      }
+
+      const transferKey = getHip3TwapTransferKey({
+        ...scope,
+        symbol: order.symbol,
+        orderId: order.orderId,
+      });
+      const transfer = this.#hip3TwapTransfers.get(transferKey);
+      if (!transfer) {
+        continue;
+      }
+
+      this.#hip3TwapTransfers.delete(transferKey);
+      await this.#handleHip3PostOrderRebalance(transfer);
+    }
+  }
+
+  /**
+   * Read native TWAP schedules and their slice fills from the venue.
+   *
+   * @returns Current and terminal TWAP lifecycle records, newest first.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    await this.#ensureClientsInitialized();
+    this.#clientService.ensureInitialized();
+
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    const infoClient = this.#clientService.getInfoClient();
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const [history, sliceFills] = await Promise.all([
+      infoClient.twapHistory({ user: userAddress }),
+      infoClient.userTwapSliceFills({ user: userAddress }),
+    ]);
+    this.#assertProviderLifecycleCurrent(
+      lifecycleGeneration,
+      'TWAP lifecycle read',
+    );
+
+    const fillsByTwapId = new Map<number, HyperLiquidTwapSliceFillEntry[]>();
+    for (const sliceFill of sliceFills) {
+      const existing = fillsByTwapId.get(sliceFill.twapId) ?? [];
+      existing.push(sliceFill);
+      fillsByTwapId.set(sliceFill.twapId, existing);
+    }
+
+    const now = Date.now();
+    const ordersById = new Map<string, TwapOrder>();
+    for (const historyEntry of history) {
+      const order = this.#adaptTwapOrder({
+        historyEntry,
+        sliceFills:
+          historyEntry.twapId === undefined
+            ? []
+            : (fillsByTwapId.get(historyEntry.twapId) ?? []),
+        now,
+      });
+      if (!order) {
+        continue;
+      }
+
+      const existing = ordersById.get(order.orderId);
+      if (!existing || order.lastUpdated >= existing.lastUpdated) {
+        ordersById.set(order.orderId, order);
+      }
+    }
+
+    const orders = [...ordersById.values()].sort(
+      (left, right) => right.startedAt - left.startedAt,
+    );
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    await this.#rebalanceTerminalHip3Twaps(orders, {
+      network,
+      userAddress,
+    });
+    return orders;
   }
 
   /**
@@ -6728,6 +7150,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
       dexName: parseAssetName(params.symbol).dex,
@@ -6739,7 +7164,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const status = result.response?.data?.status;
-    if (classifyCancelStatus(status) !== 'refused') {
+    if (classifyCancelStatus(status) !== CancelChildOutcome.Refused) {
+      const transferKey = getHip3TwapTransferKey({
+        network,
+        userAddress,
+        symbol: params.symbol,
+        orderId: params.orderId,
+      });
+      const hip3Transfer = this.#hip3TwapTransfers.get(transferKey);
+      if (hip3Transfer) {
+        this.#hip3TwapTransfers.delete(transferKey);
+        await this.#handleHip3PostOrderRebalance(hip3Transfer);
+      }
       return { success: true, orderId: params.orderId };
     }
 
@@ -6769,9 +7205,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: group.symbol,
+      dexName: parseAssetName(group.symbol).dex,
+    });
     const exchangeClient = this.#clientService.getExchangeClient();
     const cancelRequests = group.orderIds.map((orderId) => ({
-      a: group.assetId,
+      a: assetId,
       o: Number(orderId),
     }));
     const remaining = (
@@ -6793,7 +7233,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // handle registered against what is left means the caller can retry the
     // same cancel rather than being told the ladder is gone when it is not.
     this.#scaleOrderGroups.set(params.orderId, {
-      assetId: group.assetId,
+      symbol: group.symbol,
       orderIds: remaining,
     });
     this.#deps.debugLogger.log('Scale group cancel left children resting', {
@@ -6878,7 +7318,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // a chase that is entirely finished.
     const cancelOutcome = await this.#cancelChaseChild(session);
 
-    if (cancelOutcome === 'refused') {
+    if (cancelOutcome === CancelChildOutcome.Refused) {
       // The order is still resting. The session stays registered — stopped, but
       // still cancellable — so the caller can retry with the same handle.
       this.#deps.debugLogger.log('Chase cancel left its order resting', {
@@ -6948,9 +7388,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       const cancelledOrderIds: number[] = [];
       requests.forEach((request, index) => {
         const outcome = classifyCancelStatus(statuses[index]);
-        if (outcome === 'refused') {
+        if (outcome === CancelChildOutcome.Refused) {
           remainingOrderIds.push(request.o);
-        } else if (outcome === 'cancelled') {
+        } else if (outcome === CancelChildOutcome.Cancelled) {
           cancelledOrderIds.push(request.o);
         }
       });
@@ -8516,9 +8956,28 @@ export class HyperLiquidProvider implements PerpsProvider {
           cancelRequests,
         );
         if (!oldCancellation.responseComplete) {
-          return createProtectionLostResult(
-            cancelRequests.map((request) => String(request.o)),
+          const requestedOrderIds = new Set(
+            cancelRequests.map((request) => request.o),
           );
+          let confirmedLiveOrderIds: string[] = [];
+          try {
+            const liveOrders = await this.#fetchOpenOrders({ dexName });
+            confirmedLiveOrderIds = liveOrders
+              .filter((order) => requestedOrderIds.has(order.oid))
+              .map((order) => String(order.oid));
+          } catch (error) {
+            this.#deps.debugLogger.log(
+              'Could not reconcile TP/SL protection after an incomplete cancel',
+              {
+                symbol,
+                error: ensureError(
+                  error,
+                  'HyperLiquidProvider.updatePositionTPSL.reconcileProtection',
+                ).message,
+              },
+            );
+          }
+          return createProtectionLostResult(confirmedLiveOrderIds);
         }
         oldCancellation.cancelledOrderIds.forEach((orderId) =>
           confirmedCancelledOldOrderIds.add(orderId),
@@ -9800,6 +10259,31 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Rebuild Scale cancellation handles from the group identity persisted on
+   * open venue orders.
+   *
+   * @param orders - Current normalized open orders.
+   */
+  #restoreScaleOrderGroups(orders: Order[]): void {
+    const recovered = new Map<string, ScaleOrderGroup>();
+    for (const order of orders) {
+      if (!order.strategyGroupId) {
+        continue;
+      }
+      const group = recovered.get(order.strategyGroupId) ?? {
+        symbol: order.symbol,
+        orderIds: [],
+      };
+      group.orderIds.push(order.orderId);
+      recovered.set(order.strategyGroupId, group);
+    }
+
+    for (const [groupId, group] of recovered) {
+      this.#scaleOrderGroups.set(groupId, group);
+    }
+  }
+
+  /**
    * Get currently open orders (real-time status)
    * Uses frontendOpenOrders API to get only currently active orders
    * Aggregates orders from all enabled DEXs (main + HIP-3)
@@ -9839,6 +10323,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           { count: orders.length },
         );
 
+        this.#restoreScaleOrderGroups(orders);
         return orders;
       }
 
@@ -9854,6 +10339,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               count: cachedOrders.length,
             },
           );
+          this.#restoreScaleOrderGroups(cachedOrders);
           return cachedOrders;
         }
       }
@@ -9908,6 +10394,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         return adaptOrderFromSDK(order, position);
       });
 
+      this.#restoreScaleOrderGroups(orders);
       return orders;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting currently open orders:', error);

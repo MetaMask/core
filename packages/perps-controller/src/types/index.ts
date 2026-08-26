@@ -361,10 +361,12 @@ export type OrderResult = {
    * placement it is a handle instead — a venue TWAP id, or a client-generated
    * scale-group or chase-session id — which is what `CancelOrderParams` takes
    * together with the matching `orderType` and `providerId`. Scale and chase
-   * handles live only in the provider session that created them. Reconnecting
-   * does not cancel their resting venue orders, but the new provider session
-   * cannot resolve those handles. The individual exchange ids a strategy
-   * expanded into are in `childOrderIds`.
+   * handles are held in the provider session that created them. Scale handles
+   * are also encoded in each rung's venue client-order ID, so an open-order
+   * read can recover the group after reconnect. Chase handles cannot be
+   * recovered because every replacement receives a new exchange order ID.
+   * The individual exchange IDs a strategy expanded into are in
+   * `childOrderIds`.
    */
   orderId?: string;
   error?: string;
@@ -397,6 +399,50 @@ export type OrderResult = {
 export type ChaseOrderStatus =
   (typeof CHASE_ORDER_STATUS)[keyof typeof CHASE_ORDER_STATUS];
 
+export type TwapOrderStatus =
+  | 'active'
+  | 'completed'
+  | 'completed_underfilled'
+  | 'canceled'
+  | 'failed';
+
+export type TwapOrderFill = {
+  fillId: string;
+  orderId: string;
+  side: 'buy' | 'sell';
+  price: string;
+  size: string;
+  fee: string;
+  feeToken: string;
+  builderFee?: string;
+  timestamp: number;
+  transactionHash: string;
+};
+
+/** Current and terminal state of one venue-native TWAP schedule. */
+export type TwapOrder = {
+  orderId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  size: string;
+  executedSize: string;
+  remainingSize: string;
+  executedNotional: string;
+  averagePrice?: string;
+  fillProgressBps: number;
+  timeProgressBps: number;
+  elapsedTimeMilliseconds: number;
+  durationMinutes: number;
+  randomize: boolean;
+  reduceOnly: boolean;
+  status: TwapOrderStatus;
+  startedAt: number;
+  lastUpdated: number;
+  error?: string;
+  fills: TwapOrderFill[];
+  providerId?: PerpsProviderType;
+};
+
 /**
  * Client-visible state of one emulated Chase placement.
  *
@@ -425,6 +471,18 @@ export type ChaseOrder = {
   startedAt: number;
   status: ChaseOrderStatus;
   providerId?: PerpsProviderType;
+};
+
+/** Lifecycle signal emitted when a Chase reaches its configured distance. */
+export type ChaseOrderMaxDistanceReached = {
+  handle: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  restingOrderId: string | null;
+  restingPrice: string;
+  maxDistanceBps: number;
+  timestamp: number;
+  providerId: PerpsProviderType;
 };
 
 export type Position = {
@@ -1017,44 +1075,7 @@ export type HyperLiquidCredentials = {
   subscriptionBuilderAddressTestnet?: string;
   /** Dedicated subscription waiver builder for mainnet. */
   subscriptionBuilderAddressMainnet?: string;
-  /** Optional builder-fee policy overrides. Native TWAP cannot carry a builder fee. */
-  orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
 };
-
-export type HyperLiquidOrderFeePolicy = Readonly<{
-  chargesMetamaskBuilderFee: boolean;
-}>;
-
-/**
- * HyperLiquid standalone placements whose whole native action can opt in or
- * out of one builder context. Attached TP/SL children are not separate actions
- * and inherit their parent's policy.
- */
-export type HyperLiquidConfigurableOrderFeeType = Extract<
-  OrderType,
-  | 'market'
-  | 'limit'
-  | 'stop_market'
-  | 'stop_limit'
-  | 'take_profit_market'
-  | 'take_profit_limit'
-  | 'scale'
-  | 'chase'
->;
-
-/**
- * Optional provider-owned builder-fee overrides. Omitted entries use the
- * HyperLiquid defaults. TWAP is excluded because its native action has no
- * builder field. A standalone trigger is configurable as a whole action.
- * Attached trigger children inherit the policy of their parent order batch.
- * A position TP/SL update charges its single batch when any included trigger
- * policy charges.
- */
-export type HyperLiquidOrderFeeConfiguration = Readonly<
-  Partial<
-    Record<HyperLiquidConfigurableOrderFeeType, HyperLiquidOrderFeePolicy>
-  >
->;
 
 export type MYXCredentials = {
   /** Whether MYX provider is enabled via local env var. */
@@ -1618,6 +1639,7 @@ export type Order = {
   parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows
   isSynthetic?: boolean; // Whether this order is synthetic (display-only, cancelable only when linked to a real child order ID)
   triggerPrice?: string; // Trigger condition price for trigger orders (e.g., TP/SL trigger level)
+  strategyGroupId?: string; // Recoverable strategy handle shared by related venue orders
   providerId?: PerpsProviderType; // Multi-provider: which provider this order is on (injected by aggregator)
 };
 
@@ -1652,6 +1674,7 @@ export type PerpsProvider = {
   editOrder(params: EditOrderParams): Promise<OrderResult>;
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
+  getTwapOrders?(): Promise<TwapOrder[]>;
   getChaseOrders?(): Promise<ChaseOrder[]>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;

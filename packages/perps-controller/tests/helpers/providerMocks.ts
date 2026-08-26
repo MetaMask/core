@@ -29,6 +29,7 @@ export const createMockHyperLiquidProvider =
       editOrder: jest.fn(),
       cancelOrder: jest.fn(),
       cancelOrders: jest.fn(),
+      getTwapOrders: jest.fn().mockResolvedValue([]),
       getChaseOrders: jest.fn().mockResolvedValue([]),
       suspendChaseOrders: jest.fn().mockResolvedValue([]),
       closePosition: jest.fn(),

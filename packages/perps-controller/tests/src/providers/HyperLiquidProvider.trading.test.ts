@@ -18,7 +18,6 @@ import { TradingReadinessCache } from '../../../src/services/TradingReadinessCac
 import type {
   ClosePositionParams,
   DepositParams,
-  HyperLiquidOrderFeeConfiguration,
   Order,
   PerpsPlatformDependencies,
   LiveDataConfig,
@@ -369,7 +368,6 @@ const createTestProvider = (
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
     initialAssetMapping?: [string, number][];
-    orderFeeConfiguration?: HyperLiquidOrderFeeConfiguration;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -1310,33 +1308,6 @@ describe('HyperLiquidProvider', () => {
         b: BUILDER_FEE_CONFIG.MainnetBuilder,
         f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
       });
-    });
-
-    it('closes a position without builder setup when the market fee is disabled', async () => {
-      const exchangeClient = createMockExchangeClient();
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(exchangeClient);
-      provider = createTestProvider({
-        initialAssetMapping: [
-          ['BTC', 0],
-          ['ETH', 1],
-        ],
-        orderFeeConfiguration: {
-          market: { chargesMetamaskBuilderFee: false },
-        },
-      });
-
-      const result = await provider.closePosition({
-        symbol: 'BTC',
-        orderType: 'market',
-      });
-
-      expect(result.success).toBe(true);
-      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
-      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
-        'builder',
-      );
     });
 
     it('repairs missing HIP-3 asset IDs during closePosition after degraded discovery', async () => {
@@ -3224,36 +3195,6 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('closes a batch without builder setup when the market fee is disabled', async () => {
-        const exchangeClient = createMockExchangeClient({
-          order: jest.fn().mockResolvedValue({
-            response: {
-              data: { statuses: [{ filled: {} }, { filled: {} }] },
-            },
-          }),
-        });
-        mockClientService.getExchangeClient = jest
-          .fn()
-          .mockReturnValue(exchangeClient);
-        provider = createTestProvider({
-          initialAssetMapping: [
-            ['BTC', 0],
-            ['ETH', 1],
-          ],
-          orderFeeConfiguration: {
-            market: { chargesMetamaskBuilderFee: false },
-          },
-        });
-
-        const result = await provider.closePositions({ closeAll: true });
-
-        expect(result.success).toBe(true);
-        expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
-        expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
-          'builder',
-        );
-      });
-
       it('rounds each reduce-only close size down to the size grid', async () => {
         // 0.1005 would toFixed(3) up to 0.101 — above the position, which
         // HyperLiquid rejects with "Reduce only order would increase position"
@@ -3679,29 +3620,6 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.updatePositionTPSL(updateParams);
 
       expect(result.success).toBe(true);
-    });
-
-    it('omits builder setup when the take-profit fee policy is disabled', async () => {
-      const exchangeClient = createMockExchangeClient();
-      mockClientService.getExchangeClient = jest
-        .fn()
-        .mockReturnValue(exchangeClient);
-      provider = createTestProvider({
-        orderFeeConfiguration: {
-          take_profit_limit: { chargesMetamaskBuilderFee: false },
-        },
-      });
-
-      const result = await provider.updatePositionTPSL({
-        symbol: 'ETH',
-        takeProfitPrice: '3500',
-      });
-
-      expect(result.success).toBe(true);
-      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
-      expect(exchangeClient.order.mock.calls[0][0]).not.toHaveProperty(
-        'builder',
-      );
     });
   });
 });

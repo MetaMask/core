@@ -134,6 +134,17 @@ export type PerpsControllerCancelOrderAction = {
 };
 
 /**
+ * Read venue-backed TWAP lifecycle records through the active provider.
+ * Providers without native TWAP history return an empty list.
+ *
+ * @returns Current and terminal TWAP schedules with slice fills.
+ */
+export type PerpsControllerGetTwapOrdersAction = {
+  type: `PerpsController:getTwapOrders`;
+  handler: PerpsController['getTwapOrders'];
+};
+
+/**
  * Read the active provider's retained Chase lifecycle snapshots.
  * Providers without an emulated Chase implementation return an empty list.
  *
@@ -1268,6 +1279,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
+  | PerpsControllerGetTwapOrdersAction
   | PerpsControllerGetChaseOrdersAction
   | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction

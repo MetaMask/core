@@ -199,21 +199,14 @@ export const BUILDER_FEE_CONFIG = {
 };
 
 /**
- * Strategies that HyperLiquid can execute for its standard main-DEX perp
- * markets. Providers own this declaration so routed clients never infer
- * support from a provider name.
+ * Strategies that HyperLiquid can execute for its routed perp markets.
+ * Providers own this declaration so clients never infer support from a
+ * provider name.
  */
 export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
   providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
-}) satisfies DirectProviderOrderCapabilities;
-
-/** HyperLiquid strategy placement is not routable on HIP-3 markets. */
-export const HYPERLIQUID_UNSUPPORTED_STRATEGY_CAPABILITIES = Object.freeze({
-  status: 'unavailable',
-  providerId: PROVIDER_CONFIG.DefaultProvider,
-  reason: 'strategy_market_unsupported',
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration

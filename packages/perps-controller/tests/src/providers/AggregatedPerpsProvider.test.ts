@@ -13,6 +13,7 @@ import type {
   MarketInfo,
   Order,
   ChaseOrder,
+  TwapOrder,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
@@ -58,6 +59,7 @@ const createMockProvider = (
     }),
     getUserNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
     getUserHistory: jest.fn().mockResolvedValue([]),
+    getTwapOrders: jest.fn().mockResolvedValue([]),
     getChaseOrders: jest.fn().mockResolvedValue([]),
     suspendChaseOrders: jest.fn().mockResolvedValue([]),
     getCurrentAccountId: jest
@@ -453,6 +455,38 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.getFunding();
 
       expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('TWAP lifecycle operations', () => {
+    const twapOrder: TwapOrder = {
+      orderId: '987',
+      symbol: 'ETH',
+      side: 'buy',
+      size: '1',
+      executedSize: '0.4',
+      remainingSize: '0.6',
+      executedNotional: '1200',
+      averagePrice: '3000',
+      fillProgressBps: 4000,
+      timeProgressBps: 5000,
+      elapsedTimeMilliseconds: 300_000,
+      durationMinutes: 10,
+      randomize: true,
+      reduceOnly: false,
+      status: 'active',
+      startedAt: 1,
+      lastUpdated: 2,
+      fills: [],
+    };
+
+    it('aggregates TWAP records with their provider IDs', async () => {
+      mockHLProvider.getTwapOrders?.mockResolvedValue([twapOrder]);
+
+      expect(await aggregatedProvider.getTwapOrders()).toContainEqual({
+        ...twapOrder,
+        providerId: 'hyperliquid',
+      });
     });
   });
 

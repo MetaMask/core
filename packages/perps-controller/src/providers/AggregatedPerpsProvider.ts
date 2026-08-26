@@ -78,6 +78,7 @@ import type {
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
+  TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   UserHistoryItem,
@@ -552,6 +553,26 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
 
     const result = await provider.placeOrder(params);
     return { ...result, providerId };
+  }
+
+  /**
+   * Read TWAP lifecycle records from every active provider.
+   *
+   * @returns TWAP records with their provider route attached.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getTwapOrders
+          ? (await provider.getTwapOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getTwapOrders').flat();
   }
 
   /**
