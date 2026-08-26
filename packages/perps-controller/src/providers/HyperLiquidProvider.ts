@@ -208,6 +208,7 @@ import {
 } from '../utils/orderCalculations.js';
 import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import {
+  getTriggerDirection,
   getTriggerExecution,
   isLimitExecutionOrderType,
   isStrategyOrderType,
@@ -274,9 +275,20 @@ type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
 
 type ExchangeCancelRequest = { a: number; o: number };
 
+type CancelOrderBatchOutcome = {
+  remainingOrderIds: number[];
+  cancelledOrderIds: number[];
+};
+
 type OrderPlacementOutcome = {
   orderId: string;
   state: 'resting' | 'filled';
+};
+
+type RestorableTpslOrder = {
+  orderId: number;
+  order: SDKOrderParams;
+  chargesMetamaskBuilderFee: boolean;
 };
 
 type BuilderFeeSetupContext = {
@@ -6739,30 +6751,57 @@ export class HyperLiquidProvider implements PerpsProvider {
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelRequest[],
   ): Promise<number[]> {
+    return (await this.#cancelOrderRequestBatch(exchangeClient, requests))
+      .remainingOrderIds;
+  }
+
+  /**
+   * Cancel a batch while distinguishing confirmed cancellations from orders
+   * that were already gone. Replacement rollback may only restore the former.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel requests.
+   * @returns IDs that may still rest and IDs this call confirmed it cancelled.
+   */
+  async #cancelOrderRequestBatch(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelRequest[],
+  ): Promise<CancelOrderBatchOutcome> {
     if (requests.length === 0) {
-      return [];
+      return { remainingOrderIds: [], cancelledOrderIds: [] };
     }
 
     try {
       const result = await exchangeClient.cancel({ cancels: requests });
       const statuses = result.response?.data?.statuses ?? [];
       if (result.status !== 'ok' || statuses.length !== requests.length) {
-        return requests.map((request) => request.o);
+        return {
+          remainingOrderIds: requests.map((request) => request.o),
+          cancelledOrderIds: [],
+        };
       }
 
-      return requests
-        .filter(
-          (_request, index) =>
-            classifyCancelStatus(statuses[index]) === 'refused',
-        )
-        .map((request) => request.o);
+      const remainingOrderIds: number[] = [];
+      const cancelledOrderIds: number[] = [];
+      requests.forEach((request, index) => {
+        const outcome = classifyCancelStatus(statuses[index]);
+        if (outcome === 'refused') {
+          remainingOrderIds.push(request.o);
+        } else if (outcome === 'cancelled') {
+          cancelledOrderIds.push(request.o);
+        }
+      });
+      return { remainingOrderIds, cancelledOrderIds };
     } catch (error) {
       this.#deps.debugLogger.log('Order cancellation batch failed', {
         error: ensureError(error, 'HyperLiquidProvider.cancelOrderRequests')
           .message,
         orderIds: requests.map((request) => request.o),
       });
-      return requests.map((request) => request.o);
+      return {
+        remainingOrderIds: requests.map((request) => request.o),
+        cancelledOrderIds: [],
+      };
     }
   }
 
@@ -7748,12 +7787,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Use live position (from WebSocket) if available, otherwise fetch via REST
       // Preferring WebSocket data avoids rate limiting issues with the REST API
-      let position: Position | undefined = livePosition;
+      let fetchedPosition: Position | undefined;
 
-      if (position) {
+      if (livePosition) {
         this.#deps.debugLogger.log('Using live position from WebSocket', {
-          symbol: position.symbol,
-          size: position.size,
+          symbol: livePosition.symbol,
+          size: livePosition.size,
         });
       } else {
         // Fallback: fetch positions via REST API (legacy behavior)
@@ -7772,9 +7811,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
           throw error;
         }
-        position = positions.find((pos) => pos.symbol === symbol);
+        fetchedPosition = positions.find((pos) => pos.symbol === symbol);
       }
 
+      const position = livePosition ?? fetchedPosition;
       if (!position) {
         throw new Error(`No position found for ${symbol}`);
       }
@@ -7910,25 +7950,76 @@ export class HyperLiquidProvider implements PerpsProvider {
             ]
           : []),
       ];
-      const chargesMetamaskBuilderFee = feePolicyContexts.some(
+      const replacementChargesMetamaskBuilderFee = feePolicyContexts.some(
         (feePolicyContext) =>
           this.#resolveOrderFeePolicy(feePolicyContext)
             .chargesMetamaskBuilderFee,
       );
 
-      // Replacement approval must finish before cancellation; otherwise an
-      // approval failure would remove the position's existing protection.
-      const builderFeeSetupContext = chargesMetamaskBuilderFee
-        ? await this.#ensureReadyForTrading({
-            requiresBuilderFee: true,
-            builderFeeApprovalFailureCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-          })
-        : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
-
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
       // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
       let cancelRequests: ExchangeCancelRequest[] = [];
+      const restorablePositionTpslOrders: RestorableTpslOrder[] = [];
+      const restorableStandaloneTpslOrders: RestorableTpslOrder[] = [];
+
+      // Whole-position replacement must cancel first. Retain the exact trigger
+      // definitions so a definitively failed replacement can put confirmed
+      // cancellations back without changing that exchange ordering contract.
+      const captureRestorableTpslOrders = (tpslOrders: Order[]): void => {
+        if (isPartialTpsl || (!takeProfitPrice && !stopLossPrice)) {
+          return;
+        }
+
+        tpslOrders.forEach((order) => {
+          const orderId = Number(order.orderId);
+          const orderType = order.triggerOrderType;
+          const triggerPrice = order.triggerPrice ?? order.price;
+          if (!Number.isSafeInteger(orderId) || !orderType || !triggerPrice) {
+            throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+          }
+
+          const size = order.isPositionTpsl ? '0' : order.remainingSize;
+          const isBuy = order.side === 'buy';
+          const feePolicyContext = {
+            symbol,
+            isBuy,
+            size,
+            orderType,
+            triggerPrice,
+            reduceOnly: true,
+            ...(isLimitExecutionOrderType(orderType) && {
+              price: order.price,
+            }),
+          } satisfies OrderParams;
+          const restorableOrder = {
+            orderId,
+            order: {
+              a: assetId,
+              b: isBuy,
+              p: order.price,
+              s: size,
+              r: true,
+              t: {
+                trigger: {
+                  isMarket: !isLimitExecutionOrderType(orderType),
+                  triggerPx: triggerPrice,
+                  tpsl: getTriggerDirection(orderType) === 'stop' ? 'sl' : 'tp',
+                },
+              },
+            },
+            chargesMetamaskBuilderFee:
+              this.#resolveOrderFeePolicy(feePolicyContext)
+                .chargesMetamaskBuilderFee,
+          } satisfies RestorableTpslOrder;
+
+          if (order.isPositionTpsl) {
+            restorablePositionTpslOrders.push(restorableOrder);
+          } else {
+            restorableStandaloneTpslOrders.push(restorableOrder);
+          }
+        });
+      };
 
       // Use atomic getter to prevent race condition between check and get
       const cachedOrders =
@@ -7997,6 +8088,9 @@ export class HyperLiquidProvider implements PerpsProvider {
               order.orderType.includes('Stop')),
         );
 
+        captureRestorableTpslOrders(
+          tpslOrders.map((order) => adaptOrderFromSDK(order, position)),
+        );
         cancelRequests = tpslOrders.map((order) => ({
           a: assetId,
           o: order.oid,
@@ -8026,6 +8120,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             (order.detailedOrderType.includes('Take Profit') ||
               order.detailedOrderType.includes('Stop')),
         );
+        captureRestorableTpslOrders(tpslOrders);
         cancelRequests = tpslOrders.map((order) => ({
           a: assetId,
           o: parseInt(order.orderId, 10),
@@ -8085,6 +8180,89 @@ export class HyperLiquidProvider implements PerpsProvider {
         orders.push(slOrder);
       }
 
+      const rollbackRequiresBuilderFee = [
+        ...restorablePositionTpslOrders,
+        ...restorableStandaloneTpslOrders,
+      ].some((order) => order.chargesMetamaskBuilderFee);
+      const requiresBuilderFee =
+        replacementChargesMetamaskBuilderFee || rollbackRequiresBuilderFee;
+
+      // Approval and builder-context resolution both finish before the
+      // pre-cancel. A failure here therefore leaves the old protection intact.
+      const builderFeeSetupContext = requiresBuilderFee
+        ? await this.#ensureReadyForTrading({
+            requiresBuilderFee: true,
+            builderFeeApprovalFailureCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          })
+        : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+      const builderOrderContext = builderFeeSetupContext
+        ? await this.#getBuilderOrderContext(builderFeeSetupContext)
+        : undefined;
+
+      const restoreCancelledProtection = async (
+        cancelledOrderIds: Set<number>,
+      ): Promise<void> => {
+        const protectionGroups: {
+          grouping: 'positionTpsl' | 'na';
+          entries: RestorableTpslOrder[];
+        }[] = [
+          {
+            grouping: 'positionTpsl',
+            entries: restorablePositionTpslOrders,
+          },
+          {
+            grouping: 'na',
+            entries: restorableStandaloneTpslOrders,
+          },
+        ];
+        for (const protection of protectionGroups) {
+          const entries = protection.entries.filter((entry) =>
+            cancelledOrderIds.has(entry.orderId),
+          );
+          if (entries.length === 0) {
+            continue;
+          }
+
+          try {
+            const result = await exchangeClient.order({
+              orders: entries.map((entry) => entry.order),
+              grouping: protection.grouping,
+              ...(entries.some((entry) => entry.chargesMetamaskBuilderFee) &&
+                builderOrderContext && { builder: builderOrderContext }),
+            });
+            const statuses = result.response?.data?.statuses ?? [];
+            const acceptedCount = statuses
+              .slice(0, entries.length)
+              .map((status) => this.#readOrderPlacementOutcome(status))
+              .filter((outcome) => outcome !== undefined).length;
+            if (
+              result.status !== 'ok' ||
+              statuses.length !== entries.length ||
+              acceptedCount !== entries.length
+            ) {
+              this.#deps.logger.error(
+                new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+                this.#getErrorContext(
+                  'updatePositionTPSL > restoreCancelledProtection',
+                  { symbol, grouping: protection.grouping, statuses },
+                ),
+              );
+            }
+          } catch (error) {
+            this.#deps.logger.error(
+              ensureError(
+                error,
+                'HyperLiquidProvider.updatePositionTPSL.restoreCancelledProtection',
+              ),
+              this.#getErrorContext(
+                'updatePositionTPSL > restoreCancelledProtection',
+                { symbol, grouping: protection.grouping },
+              ),
+            );
+          }
+        }
+      };
+
       // Clearing has no replacement batch to preserve. A partial cancellation
       // is reported so the caller can retry the same clear operation.
       if (orders.length === 0) {
@@ -8107,23 +8285,38 @@ export class HyperLiquidProvider implements PerpsProvider {
       // HyperLiquid's position-bound TP/SL replacement contract is proven with
       // pre-cancel ordering. Partial triggers use `na` grouping instead, so they
       // can be placed first and retracted individually if the batch is partial.
+      const confirmedCancelledOldOrderIds = new Set<number>();
       if (!isPartialTpsl) {
-        const remainingOldOrderIds = await this.#cancelOrderRequests(
+        const oldCancellation = await this.#cancelOrderRequestBatch(
           exchangeClient,
           cancelRequests,
         );
-        if (remainingOldOrderIds.length > 0) {
+        oldCancellation.cancelledOrderIds.forEach((orderId) =>
+          confirmedCancelledOldOrderIds.add(orderId),
+        );
+        if (oldCancellation.remainingOrderIds.length > 0) {
+          await restoreCancelledProtection(confirmedCancelledOldOrderIds);
           throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         }
       }
 
-      const result = await exchangeClient.order({
-        orders,
-        grouping: isPartialTpsl ? 'na' : 'positionTpsl',
-        ...(builderFeeSetupContext && {
-          builder: await this.#getBuilderOrderContext(builderFeeSetupContext),
-        }),
-      });
+      const result = await (async (): Promise<
+        Awaited<ReturnType<ExchangeClient['order']>>
+      > => {
+        try {
+          return await exchangeClient.order({
+            orders,
+            grouping: isPartialTpsl ? 'na' : 'positionTpsl',
+            ...(replacementChargesMetamaskBuilderFee &&
+              builderOrderContext && { builder: builderOrderContext }),
+          });
+        } catch (error) {
+          if (!isPartialTpsl) {
+            await restoreCancelledProtection(confirmedCancelledOldOrderIds);
+          }
+          throw error;
+        }
+      })();
 
       const placementStatuses = result.response?.data?.statuses ?? [];
       const placementOutcomes = placementStatuses
@@ -8154,6 +8347,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           ...filledReplacementOrderIds,
           ...remainingReplacementIds.map(String),
         ];
+        if (!isPartialTpsl && recoverableOrderIds.length === 0) {
+          await restoreCancelledProtection(confirmedCancelledOldOrderIds);
+        }
         if (recoverableOrderIds.length > 0) {
           return createErrorResult(
             new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),

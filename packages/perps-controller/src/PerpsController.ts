@@ -2822,46 +2822,18 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Make the legacy direct-provider fallback observable for ordinary orders.
-   * Aggregated mode consumes the route, while direct mode historically ignores
-   * a conflicting ordinary route instead of rejecting it.
-   *
-   * @param operation - Routed operation using the fallback.
-   * @param providerId - Explicit route supplied by the caller.
-   * @param provider - Active direct or routing provider.
-   */
-  #logIgnoredOrdinaryProviderRoute(
-    operation: string,
-    providerId: PerpsProviderType | undefined,
-    provider: ActivePerpsProvider,
-  ): void {
-    if (this.#hasConflictingProviderRoute(providerId, provider)) {
-      this.#debugLog(
-        'PerpsController: Ignoring conflicting ordinary-order provider route',
-        {
-          operation,
-          requestedProviderId: providerId,
-          activeProviderId: provider.protocolId,
-        },
-      );
-    }
-  }
-
-  /**
    * Resolve one routed order operation after any in-flight initialization.
    *
    * @param params - Routed operation context.
-   * @param params.operation - Operation name for fallback diagnostics.
    * @param params.orderType - Order type, when the operation carries one.
    * @param params.providerId - Explicit provider route, when supplied.
    * @returns The initialized provider that owns the operation.
    */
   async #resolveRoutedOrderProvider(params: {
-    operation: string;
     orderType: OrderType | undefined;
     providerId: PerpsProviderType | undefined;
   }): Promise<ActivePerpsProvider> {
-    const { operation, orderType, providerId } = params;
+    const { orderType, providerId } = params;
     const isStrategy =
       orderType !== undefined && isStrategyOrderType(orderType);
     if (isStrategy && !providerId) {
@@ -2869,11 +2841,12 @@ export class PerpsController extends BaseController<
     }
 
     const provider = await this.#getActiveProviderWhenReady();
-    if (isStrategy && this.#hasConflictingProviderRoute(providerId, provider)) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
-    }
-    if (!isStrategy) {
-      this.#logIgnoredOrdinaryProviderRoute(operation, providerId, provider);
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(
+        isStrategy
+          ? PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE
+          : PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
     }
     return provider;
   }
@@ -2889,7 +2862,6 @@ export class PerpsController extends BaseController<
     params: RoutedOrderParams<Params>,
   ): Promise<OrderResult> {
     const provider = await this.#resolveRoutedOrderProvider({
-      operation: 'placeOrder',
       orderType: params.orderType,
       providerId: params.providerId,
     });
@@ -2941,7 +2913,6 @@ export class PerpsController extends BaseController<
     params: RoutedCancelOrderParams<Params>,
   ): Promise<CancelOrderResult> {
     const provider = await this.#resolveRoutedOrderProvider({
-      operation: 'cancelOrder',
       orderType: params.orderType,
       providerId: params.providerId,
     });
@@ -4853,7 +4824,6 @@ export class PerpsController extends BaseController<
     params: RoutedOrderParams<Params>,
   ): Promise<{ isValid: boolean; error?: string }> {
     const provider = await this.#resolveRoutedOrderProvider({
-      operation: 'validateOrder',
       orderType: params.orderType,
       providerId: params.providerId,
     });
@@ -5616,7 +5586,6 @@ export class PerpsController extends BaseController<
     params: RoutedFeeCalculationParams<Params>,
   ): Promise<FeeCalculationResult> {
     const provider = await this.#resolveRoutedOrderProvider({
-      operation: 'calculateFees',
       orderType: params.orderType,
       providerId: params.providerId,
     });

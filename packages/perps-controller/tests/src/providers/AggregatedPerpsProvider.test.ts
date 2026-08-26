@@ -597,28 +597,19 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.orderId).toBe('myx-order-123');
     });
 
-    it('preserves legacy fallback for an unregistered explicit provider', async () => {
-      const result = await aggregatedProvider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        // @ts-expect-error Testing legacy fallback with an invalid provider
-        providerId: 'unknown-provider',
-      });
+    it('rejects an unregistered explicit provider for an ordinary order', async () => {
+      await expect(
+        aggregatedProvider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          // @ts-expect-error Testing an invalid explicit provider route
+          providerId: 'unknown-provider',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
 
-      expect(result).toStrictEqual({
-        success: true,
-        orderId: 'order-123',
-        providerId: 'hyperliquid',
-      });
-      expect(mockHLProvider.placeOrder).toHaveBeenCalledWith({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        providerId: 'unknown-provider',
-      });
+      expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
       expect(mockMYXProvider.placeOrder).not.toHaveBeenCalled();
     });
 
@@ -698,25 +689,18 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.providerId).toBe('myx');
     });
 
-    it('preserves legacy fallback for an unregistered ordinary-order route', async () => {
-      const result = await aggregatedProvider.cancelOrder({
-        orderId: 'order-123',
-        symbol: 'BTC',
-        orderType: 'limit',
-        // @ts-expect-error Testing legacy fallback with an invalid provider
-        providerId: 'unknown-provider',
-      });
+    it('rejects an unregistered explicit provider for an ordinary cancel', async () => {
+      await expect(
+        aggregatedProvider.cancelOrder({
+          orderId: 'order-123',
+          symbol: 'BTC',
+          orderType: 'limit',
+          // @ts-expect-error Testing an invalid explicit provider route
+          providerId: 'unknown-provider',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
 
-      expect(result).toStrictEqual({
-        success: true,
-        providerId: 'hyperliquid',
-      });
-      expect(mockHLProvider.cancelOrder).toHaveBeenCalledWith({
-        orderId: 'order-123',
-        symbol: 'BTC',
-        orderType: 'limit',
-        providerId: 'unknown-provider',
-      });
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
       expect(mockMYXProvider.cancelOrder).not.toHaveBeenCalled();
     });
 
@@ -779,7 +763,7 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockMYXProvider.validateOrder).toHaveBeenCalled();
     });
 
-    it('preserves fallback validation for an ordinary order', async () => {
+    it('rejects an unregistered provider during ordinary validation', async () => {
       const params: Omit<OrderParams, 'providerId'> & {
         providerId: string;
       } = {
@@ -790,10 +774,12 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'unknown-provider',
       };
 
-      // @ts-expect-error Testing legacy fallback with an invalid provider.
-      await aggregatedProvider.validateOrder(params);
+      await expect(
+        // @ts-expect-error Testing an invalid explicit provider route.
+        aggregatedProvider.validateOrder(params),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
 
-      expect(mockHLProvider.validateOrder).toHaveBeenCalledWith(params);
+      expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
       expect(mockMYXProvider.validateOrder).not.toHaveBeenCalled();
     });
 
@@ -1063,22 +1049,19 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
     });
 
-    it('falls back for an unregistered ordinary fee route', async () => {
+    it('rejects an unregistered ordinary fee route', async () => {
       mockHLProvider.calculateFees.mockResolvedValue({ feeRate: 0.001 });
 
-      const result = await routedProvider.calculateFees({
-        orderType: 'market',
-        symbol: 'BTC',
-        // @ts-expect-error Testing legacy fallback with an invalid provider.
-        providerId: 'unknown-provider',
-      });
+      await expect(
+        routedProvider.calculateFees({
+          orderType: 'market',
+          symbol: 'BTC',
+          // @ts-expect-error Testing an invalid explicit provider route.
+          providerId: 'unknown-provider',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
 
-      expect(result).toStrictEqual({ feeRate: 0.001 });
-      expect(mockHLProvider.calculateFees).toHaveBeenCalledWith({
-        orderType: 'market',
-        symbol: 'BTC',
-        providerId: 'unknown-provider',
-      });
+      expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
       expect(mockMYXProvider.calculateFees).not.toHaveBeenCalled();
     });
 
@@ -1133,7 +1116,7 @@ describe('AggregatedPerpsProvider', () => {
 
       await expect(
         aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
-      ).resolves.toBe(capabilities);
+      ).resolves.toStrictEqual(capabilities);
       expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'BTC',
         providerId: 'hyperliquid',
@@ -1182,7 +1165,7 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
-    it('rejects capabilities that omit their provider identity', async () => {
+    it('attaches the route when unavailable capabilities omit provider identity', async () => {
       mockMYXProvider.getOrderCapabilities.mockResolvedValue({
         status: 'unavailable',
         reason: 'market_not_found',
@@ -1196,7 +1179,7 @@ describe('AggregatedPerpsProvider', () => {
       ).resolves.toStrictEqual({
         status: 'unavailable',
         providerId: 'myx',
-        reason: 'provider_not_routable',
+        reason: 'market_not_found',
       });
     });
 

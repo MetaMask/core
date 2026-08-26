@@ -191,23 +191,24 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
   }
 
   /**
-   * Get provider by ID, falling back to default if not found.
+   * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.
-   * @returns The result of the operation.
+   * @returns The selected provider id and instance.
+   * @throws If an explicit provider is not registered.
    */
   #getProviderOrDefault(
     providerId?: PerpsProviderType,
   ): [PerpsProviderType, PerpsProvider] {
-    const id = providerId ?? this.#defaultProvider;
-    const provider = this.#providers.get(id);
-    if (!provider) {
-      this.#deps.debugLogger.log(
-        `[AggregatedPerpsProvider] Provider '${id}' not found, using default`,
-      );
+    if (providerId === undefined) {
       return [this.#defaultProvider, this.#getDefaultProvider()];
     }
-    return [id, provider];
+
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return [providerId, provider];
   }
 
   /**
@@ -299,14 +300,17 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
         ...params,
         providerId,
       });
-      if (capabilities.providerId !== providerId) {
+      if (
+        capabilities.providerId !== undefined &&
+        capabilities.providerId !== providerId
+      ) {
         return {
           status: 'unavailable',
           providerId,
           reason: 'provider_not_routable',
         };
       }
-      return capabilities;
+      return { ...capabilities, providerId };
     } catch (error) {
       this.#deps.debugLogger.log(
         '[AggregatedPerpsProvider] Order capabilities unavailable',
