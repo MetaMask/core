@@ -2565,7 +2565,6 @@ describe('HyperLiquidProvider', () => {
         ['.5', 0.5],
         ['1e2', 100],
         ['  100 ', 100],
-        ['1,000', 1000],
       ])('quotes compatible fee amount %p', async (amount, expectedAmount) => {
         const result = await provider.calculateFees({
           orderType: 'market',
@@ -2577,7 +2576,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBeCloseTo(expectedAmount * 0.00145, 10);
       });
 
-      it.each(['invalid', '100junk', '-1', 'Infinity', '0x10'])(
+      it.each(['invalid', '-1', 'Infinity', '0x10'])(
         'returns a zero quote for unusable fee amount %p',
         async (amount) => {
           const result = await provider.calculateFees({

@@ -16,29 +16,6 @@ export const parseCommaSeparatedString = (value: string): string[] =>
     .filter((item) => item.length > 0);
 
 const NON_NEGATIVE_DECIMAL_PATTERN = /^\d+(?:\.\d+)?$/u;
-const FEE_AMOUNT_PATTERN =
-  /^(?:(?:\d+(?:\.\d*)?|\.\d+)|(?:\d{1,3}(?:,\d{3})+(?:\.\d*)?))(?:e[+-]?\d+)?$/iu;
-
-/**
- * Parse a user-facing amount for a non-blocking fee preview.
- *
- * Fee inputs can be transitional while the user types, and existing clients
- * pass trimmed, exponent, and thousands-separated values. Unusable or negative
- * values produce a zero quote instead of breaking the preview.
- *
- * @param value - Candidate fee amount.
- * @returns The finite non-negative amount, or zero when it cannot be quoted.
- */
-export function parseFeeAmount(value: string): number {
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || !FEE_AMOUNT_PATTERN.test(trimmed)) {
-    return 0;
-  }
-
-  const normalized = trimmed.replace(/,/gu, '');
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-}
 
 /**
  * Parse a plain non-negative decimal within an inclusive upper bound.

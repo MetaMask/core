@@ -221,10 +221,7 @@ import {
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
-import {
-  parseBoundedNonNegativeDecimal,
-  parseFeeAmount,
-} from '../utils/stringParseUtils.js';
+import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 /**
@@ -7075,7 +7072,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol: state.coin,
       side: state.side === 'B' ? 'buy' : 'sell',
       size: state.sz,
-      executedSize: state.executedSz,
+      executedSize: boundedExecutedSize.toString(),
       remainingSize: remainingSize.toFixed(),
       executedNotional: state.executedNtl,
       ...(executedSize.isGreaterThan(0) && {
@@ -13124,8 +13121,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<FeeCalculationResult> {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
+    const numericAmount =
+      amount === undefined ? undefined : Number.parseFloat(amount);
     const parsedAmount =
-      amount === undefined ? undefined : parseFeeAmount(amount);
+      numericAmount === undefined ||
+      (Number.isFinite(numericAmount) && numericAmount >= 0)
+        ? numericAmount
+        : 0;
 
     // Every placement is charged as its execution kind: a stop_market fills as a
     // market order (taker), a stop_limit as a limit order, a scale ladder as the

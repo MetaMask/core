@@ -118,7 +118,6 @@ import {
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
 import { isStrategyOrderType } from '../utils/orderTypes.js';
-import { parseFeeAmount } from '../utils/stringParseUtils.js';
 
 // ============================================================================
 // Constants
@@ -1036,8 +1035,15 @@ export class MYXProvider implements PerpsProvider {
     if (isStrategyOrderType(params.orderType)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
     }
+    const numericAmount =
+      params.amount === undefined
+        ? undefined
+        : Number.parseFloat(params.amount);
     const parsedAmount =
-      params.amount === undefined ? undefined : parseFeeAmount(params.amount);
+      numericAmount === undefined ||
+      (Number.isFinite(numericAmount) && numericAmount >= 0)
+        ? numericAmount
+        : 0;
     const protocolFeeAmount =
       parsedAmount === undefined
         ? undefined

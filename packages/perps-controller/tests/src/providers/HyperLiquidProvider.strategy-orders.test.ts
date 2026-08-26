@@ -2415,40 +2415,54 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('bounds negative venue execution before reporting TWAP progress', async () => {
-      useStrategyClients({
-        info: {
-          twapHistory: jest.fn().mockResolvedValue([
-            {
-              time: 1_700_000_600,
-              twapId: 987,
-              state: {
-                coin: 'ETH',
-                executedNtl: '0',
-                executedSz: '-1',
-                minutes: 10,
-                randomize: false,
-                reduceOnly: false,
-                side: 'B',
-                sz: '10',
-                timestamp: startedAt,
-                user: userAddress,
+    it.each([
+      ['negative', '-1', '0', '10', 0, 'completed_underfilled'],
+      ['oversized', '11', '10', '0', 10_000, 'completed'],
+    ] as const)(
+      'bounds %s venue execution before reporting TWAP progress',
+      async (
+        _label,
+        venueExecutedSize,
+        executedSize,
+        remainingSize,
+        fillProgressBps,
+        status,
+      ) => {
+        useStrategyClients({
+          info: {
+            twapHistory: jest.fn().mockResolvedValue([
+              {
+                time: 1_700_000_600,
+                twapId: 987,
+                state: {
+                  coin: 'ETH',
+                  executedNtl: '0',
+                  executedSz: venueExecutedSize,
+                  minutes: 10,
+                  randomize: false,
+                  reduceOnly: false,
+                  side: 'B',
+                  sz: '10',
+                  timestamp: startedAt,
+                  user: userAddress,
+                },
+                status: { status: 'finished' },
               },
-              status: { status: 'finished' },
-            },
-          ]),
-        },
-      });
+            ]),
+          },
+        });
 
-      expect(await provider.getTwapOrders()).toContainEqual(
-        expect.objectContaining({
-          orderId: '987',
-          remainingSize: '10',
-          fillProgressBps: 0,
-          status: 'completed_underfilled',
-        }),
-      );
-    });
+        expect(await provider.getTwapOrders()).toContainEqual(
+          expect.objectContaining({
+            orderId: '987',
+            executedSize,
+            remainingSize,
+            fillProgressBps,
+            status,
+          }),
+        );
+      },
+    );
 
     it.each([
       ['waitingForTrigger', 'active'],

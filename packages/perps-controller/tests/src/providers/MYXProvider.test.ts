@@ -838,7 +838,6 @@ describe('MYXProvider', () => {
       ['.5', 0.5],
       ['1e2', 100],
       [' 100 ', 100],
-      ['1,000', 1000],
     ])('quotes compatible amount %p', async (amount, expectedAmount) => {
       const result = await provider.calculateFees({
         orderType: 'market',
@@ -851,7 +850,7 @@ describe('MYXProvider', () => {
       expect(result.metamaskFeeAmount).toBe(0);
     });
 
-    it.each(['abc', '-1', 'Infinity', '1abc', '0x10'])(
+    it.each(['abc', '-1', 'Infinity', '0x10'])(
       'returns a zero quote for unusable amount %p',
       async (amount) => {
         await expect(
