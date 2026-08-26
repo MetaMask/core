@@ -14,13 +14,11 @@ import {
   PerpsTraceOperations,
 } from '../types/index.js';
 import type {
-  ActivePerpsProvider,
+  PerpsProvider,
   OrderParams,
-  RoutedOrderParams,
   OrderResult,
   EditOrderParams,
   CancelOrderParams,
-  RoutedCancelOrderParams,
   CancelOrderResult,
   CancelOrdersParams,
   CancelOrdersResult,
@@ -440,7 +438,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     feeResolution?: PerpsFeeResolution;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
@@ -495,9 +493,9 @@ export class TradingService {
    * @param options.reportOrderToDataLake - The report order to data lake value.
    * @returns The result of the operation.
    */
-  async placeOrder<const Params extends OrderParams>(options: {
-    provider: ActivePerpsProvider;
-    params: RoutedOrderParams<Params>;
+  async placeOrder(options: {
+    provider: PerpsProvider;
+    params: OrderParams;
     context: ServiceContext;
     reportOrderToDataLake: (params: {
       action: 'open' | 'close';
@@ -1181,7 +1179,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async editOrder(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: EditOrderParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
@@ -1334,9 +1332,9 @@ export class TradingService {
    * @param options.bulkActionId - Optional batch correlation id.
    * @returns The result of the operation.
    */
-  async cancelOrder<const Params extends CancelOrderParams>(options: {
-    provider: ActivePerpsProvider;
-    params: RoutedCancelOrderParams<Params>;
+  async cancelOrder(options: {
+    provider: PerpsProvider;
+    params: CancelOrderParams;
     context: ServiceContext;
     bulkActionId?: string;
   }): Promise<CancelOrderResult> {
@@ -1475,7 +1473,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async cancelOrders(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: CancelOrdersParams;
     context: ServiceContext;
     withStreamPause: <TResult>(
@@ -1678,7 +1676,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async closePosition(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: ClosePositionParams;
     context: ServiceContext;
     reportOrderToDataLake: (params: {
@@ -1841,7 +1839,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async closePositions(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: ClosePositionsParams;
     context: ServiceContext;
   }): Promise<ClosePositionsResult> {
@@ -2043,7 +2041,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async updatePositionTPSL(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: UpdatePositionTPSLParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
@@ -2218,7 +2216,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async updateMargin(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     symbol: string;
     amount: string;
     context: ServiceContext;
@@ -2334,7 +2332,7 @@ export class TradingService {
    * @returns The result of the operation.
    */
   async flipPosition(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     position: Position;
     trackingData?: TrackingData;
     context: ServiceContext;
@@ -2371,13 +2369,13 @@ export class TradingService {
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
       // live market data for validation and IOC pricing.
-      const orderParams = {
+      const orderParams: OrderParams = {
         symbol: position.symbol,
         isBuy: oppositeDirection,
         size: flipSize.toString(),
         orderType: 'market',
         leverage: position.leverage?.value,
-      } satisfies OrderParams;
+      };
 
       // Emit submitted event before the provider round-trip, keeping flip
       // trades aligned with the consolidated placeOrder pipeline.

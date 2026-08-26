@@ -1,7 +1,6 @@
 /* eslint-disable */
 import {
   parseBoundedNonNegativeDecimal,
-  parseBoundedPositiveDecimal,
   stripQuotes,
   parseCommaSeparatedString,
 } from '../../../src/utils/stringParseUtils.js';
@@ -102,10 +101,5 @@ describe('bounded decimal parsing', () => {
 
   it('rejects values above the supplied bound', () => {
     expect(parseBoundedNonNegativeDecimal('1.1', 1)).toBeNull();
-  });
-
-  it('requires a strictly positive decimal when requested', () => {
-    expect(parseBoundedPositiveDecimal('0')).toBeNull();
-    expect(parseBoundedPositiveDecimal('0.1')).toBe(0.1);
   });
 });

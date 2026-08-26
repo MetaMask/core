@@ -10,8 +10,6 @@ jest.mock('@myx-trade/sdk', () => ({
 }));
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
-import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { MYXProvider } from '../../../src/providers/MYXProvider.js';
 import { MYXClientService } from '../../../src/services/MYXClientService.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
@@ -234,43 +232,6 @@ describe('MYXProvider', () => {
       });
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
-
-    it('does not report stale initialization during disconnect as an error', async () => {
-      mockClientService.getMarkets.mockRejectedValueOnce(
-        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
-      );
-
-      const result = await provider.initialize();
-
-      expect(result).toStrictEqual({
-        success: false,
-        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-      });
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        '[MYXProvider] Ignoring stale initialization after disconnect',
-      );
-    });
-
-    it('discards markets that resolve after disconnect', async () => {
-      let resolveMarkets!: (pools: MYXPoolSymbol[]) => void;
-      mockClientService.getMarkets.mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveMarkets = resolve;
-        }),
-      );
-
-      const initializePromise = provider.initialize();
-      await Promise.resolve();
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-
-      await expect(initializePromise).resolves.toStrictEqual({
-        success: false,
-        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-      });
-      expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
-    });
   });
 
   describe('disconnect', () => {
@@ -367,24 +328,6 @@ describe('MYXProvider', () => {
       const result = await provider.getMarkets();
       expect(result).toEqual([]);
       expect(mockDeps.logger.error).toHaveBeenCalled();
-    });
-
-    it('does not repopulate the market cache after disconnect', async () => {
-      let resolveMarkets!: (pools: MYXPoolSymbol[]) => void;
-      mockClientService.getMarkets.mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveMarkets = resolve;
-        }),
-      );
-
-      const marketsPromise = provider.getMarkets();
-      await Promise.resolve();
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-
-      await expect(marketsPromise).resolves.toStrictEqual([]);
-      expect(mockBuildPoolSymbolMap).not.toHaveBeenCalled();
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
   });
 
@@ -784,201 +727,13 @@ describe('MYXProvider', () => {
     });
 
     it('calculateFees returns default fee rates', async () => {
-      const result = await provider.calculateFees({
-        orderType: 'market',
-        symbol: 'RHEA',
-      });
+      const result = await provider.calculateFees(
+        {} as Parameters<typeof provider.calculateFees>[0],
+      );
 
       expect(result).toEqual({
         feeRate: 0.0005,
-        feeAmount: undefined,
         protocolFeeRate: 0.0005,
-        protocolFeeAmount: undefined,
-        metamaskFeeRate: 0,
-        metamaskFeeAmount: undefined,
-      });
-    });
-
-    it('returns explicit zero MetaMask fees for an amount quote', async () => {
-      const result = await provider.calculateFees({
-        orderType: 'market',
-        symbol: 'RHEA',
-        amount: '1000',
-      });
-
-      expect(result).toStrictEqual({
-        feeRate: 0.0005,
-        feeAmount: 0.5,
-        protocolFeeRate: 0.0005,
-        protocolFeeAmount: 0.5,
-        metamaskFeeRate: 0,
-        metamaskFeeAmount: 0,
-      });
-    });
-
-    it('returns zero fee amounts for a zero notional quote', async () => {
-      const result = await provider.calculateFees({
-        orderType: 'market',
-        symbol: 'RHEA',
-        amount: '0',
-      });
-
-      expect(result).toStrictEqual({
-        feeRate: 0.0005,
-        feeAmount: 0,
-        protocolFeeRate: 0.0005,
-        protocolFeeAmount: 0,
-        metamaskFeeRate: 0,
-        metamaskFeeAmount: 0,
-      });
-    });
-
-    it.each([
-      ['', 0],
-      ['.5', 0.5],
-      ['1e2', 100],
-      [' 100 ', 100],
-    ])('quotes compatible amount %p', async (amount, expectedAmount) => {
-      const result = await provider.calculateFees({
-        orderType: 'market',
-        symbol: 'RHEA',
-        amount,
-      });
-
-      expect(result.feeAmount).toBe(expectedAmount * 0.0005);
-      expect(result.protocolFeeAmount).toBe(expectedAmount * 0.0005);
-      expect(result.metamaskFeeAmount).toBe(0);
-    });
-
-    it.each(['abc', '-1', 'Infinity', '0x10'])(
-      'returns a zero quote for unusable amount %p',
-      async (amount) => {
-        await expect(
-          provider.calculateFees({
-            orderType: 'market',
-            symbol: 'RHEA',
-            amount,
-          }),
-        ).resolves.toMatchObject({
-          feeAmount: 0,
-          protocolFeeAmount: 0,
-          metamaskFeeAmount: 0,
-        });
-      },
-    );
-
-    it.each(['twap', 'scale', 'chase'] as const)(
-      'rejects an unsupported %s strategy fee quote',
-      async (orderType) => {
-        await expect(
-          provider.calculateFees({ orderType, symbol: 'RHEA' }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
-      },
-    );
-  });
-
-  describe('getOrderCapabilities', () => {
-    it('advertises no strategy order capabilities', async () => {
-      const pools = [makePool()];
-      mockClientService.getMarkets.mockResolvedValueOnce(pools);
-      mockFilterMYXExclusiveMarkets.mockReturnValueOnce(pools);
-
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'ready',
-        providerId: 'myx',
-        supportedStrategies: [],
-      });
-      expect(mockClientService.getMarkets).toHaveBeenCalledWith({
-        allowStaleOnError: false,
-        maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
-      });
-      expect(mockBuildPoolSymbolMap).toHaveBeenCalledWith(pools);
-      expect(mockAdaptMarketFromMYX).not.toHaveBeenCalled();
-    });
-
-    it('reports an unknown market as unavailable', async () => {
-      const pools = [makePool()];
-      mockClientService.getMarkets.mockResolvedValueOnce(pools);
-      mockFilterMYXExclusiveMarkets.mockReturnValueOnce(pools);
-
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'UNKNOWN' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'market_not_found',
-      });
-    });
-
-    it('does not replace the provider market cache during capability reads', async () => {
-      const initializedPool = makePool();
-      const capabilityPool = makePool({
-        poolId: '0xcapability',
-        baseSymbol: 'CAPABILITY',
-      });
-      mockClientService.getMarkets
-        .mockResolvedValueOnce([initializedPool])
-        .mockResolvedValueOnce([capabilityPool]);
-      mockBuildPoolSymbolMap.mockImplementation(
-        (pools) => new Map(pools.map((pool) => [pool.poolId, pool.baseSymbol])),
-      );
-      mockClientService.getTickers.mockResolvedValueOnce([]);
-
-      await provider.initialize();
-      await provider.getOrderCapabilities({ symbol: 'CAPABILITY' });
-      await provider.getMarketDataWithPrices();
-
-      expect(mockClientService.getTickers).toHaveBeenCalledWith([
-        initializedPool.poolId,
-      ]);
-    });
-
-    it('discards a capability read that finishes after disconnect', async () => {
-      let resolveMarkets!: (pools: MYXPoolSymbol[]) => void;
-      mockClientService.getMarkets.mockReturnValueOnce(
-        new Promise<MYXPoolSymbol[]>((resolve) => {
-          resolveMarkets = resolve;
-        }),
-      );
-
-      const capabilities = provider.getOrderCapabilities({ symbol: 'RHEA' });
-      await provider.disconnect();
-      resolveMarkets([makePool()]);
-
-      await expect(capabilities).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'provider_unavailable',
-      });
-      expect(mockFilterMYXExclusiveMarkets).not.toHaveBeenCalled();
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-    });
-
-    it.each(['', ' RHEA', 'RHEA ', 'RHEA USDT', 'myx:RHEA'])(
-      'reports malformed symbol %p as invalid',
-      async (symbol) => {
-        await expect(
-          provider.getOrderCapabilities({ symbol }),
-        ).resolves.toStrictEqual({
-          status: 'unavailable',
-          providerId: 'myx',
-          reason: 'invalid_symbol',
-        });
-        expect(mockClientService.getMarkets).not.toHaveBeenCalled();
-      },
-    );
-
-    it('reports unavailable when markets cannot be loaded', async () => {
-      mockClientService.getMarkets.mockRejectedValueOnce(new Error('offline'));
-
-      await expect(
-        provider.getOrderCapabilities({ symbol: 'RHEA' }),
-      ).resolves.toStrictEqual({
-        status: 'unavailable',
-        providerId: 'myx',
-        reason: 'provider_unavailable',
       });
     });
   });

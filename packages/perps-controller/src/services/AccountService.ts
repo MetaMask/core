@@ -16,7 +16,7 @@ import {
   PerpsTraceOperations,
 } from '../types/index.js';
 import type {
-  ActivePerpsProvider,
+  PerpsProvider,
   WithdrawParams,
   WithdrawResult,
   PerpsPlatformDependencies,
@@ -68,7 +68,7 @@ export class AccountService {
    * @returns The withdrawal result containing success status and transaction details.
    */
   async withdraw(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: WithdrawParams;
     context: ServiceContext;
     refreshAccountState: () => Promise<void>;
@@ -393,7 +393,7 @@ export class AccountService {
    * @returns An object indicating whether the withdrawal is valid, with an optional error message.
    */
   async validateWithdrawal(options: {
-    provider: ActivePerpsProvider;
+    provider: PerpsProvider;
     params: WithdrawParams;
   }): Promise<{ isValid: boolean; error?: string }> {
     const { provider, params } = options;

@@ -7,7 +7,6 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
-import { PROVIDER_CONFIG } from '../constants/perpsConfig.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type {
   CandleData,
@@ -304,53 +303,9 @@ export type OrderParams = {
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
 
-  // Multi-provider routing. Strategy placement requires an explicit route at
-  // runtime; ordinary orders default to the active/default provider.
+  // Multi-provider routing (optional: defaults to active/default provider).
   providerId?: PerpsProviderType;
 };
-
-/**
- * Require a provider route whenever a routed request can be a strategy.
- * With the default `Params = never`, this builds the public discriminated
- * union: `{ orderType: 'twap', providerId: 'hyperliquid' }` requires a route,
- * while `{ orderType: 'market' }` does not. With inferred call-site params, a
- * literal ordinary type stays optional and a widened `orderType: OrderType`
- * requires `providerId` because it may contain a strategy at runtime.
- * `OptionalOrderType` is used by cancellation, whose legacy ordinary shape may
- * omit `orderType` entirely.
- */
-type RequireStrategyRoute<
-  BaseParams extends { orderType?: OrderType },
-  Params extends BaseParams = never,
-  OptionalOrderType extends boolean = false,
-> = [Params] extends [never]
-  ? BaseParams &
-      (
-        | Readonly<{
-            orderType: StrategyOrderType;
-            providerId: PerpsProviderType;
-          }>
-        | Readonly<
-            (OptionalOrderType extends true
-              ? { orderType?: Exclude<OrderType, StrategyOrderType> }
-              : { orderType: Exclude<OrderType, StrategyOrderType> }) & {
-              providerId?: PerpsProviderType;
-            }
-          >
-      )
-  : Params &
-      ('orderType' extends keyof Params
-        ? [Extract<Params['orderType'], StrategyOrderType>] extends [never]
-          ? unknown
-          : Readonly<{ providerId: PerpsProviderType }>
-        : unknown);
-
-/**
- * Controller order request. Direct provider calls keep `OrderParams` because
- * they already identify their venue; routed strategy calls must name it.
- */
-export type RoutedOrderParams<Params extends OrderParams = never> =
-  RequireStrategyRoute<OrderParams, Params>;
 
 export type OrderResult = {
   success?: boolean;
@@ -879,16 +834,11 @@ export type CancelOrderParams = {
    * which is what every existing caller does.
    */
   orderType?: OrderType;
-  // Strategy cancellation requires the provider that returned the handle.
-  // Ordinary cancellation keeps the existing active/default routing.
+  // Optional provider override. Omission uses active/default routing.
   providerId?: PerpsProviderType;
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
 };
-
-/** Routed cancellation request with a required venue for strategy handles. */
-export type RoutedCancelOrderParams<Params extends CancelOrderParams = never> =
-  RequireStrategyRoute<CancelOrderParams, Params, true>;
 
 export type CancelOrderResult = {
   success: boolean;
@@ -1449,15 +1399,9 @@ export type FeeCalculationParams = {
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
-  // Strategy quotes require an explicit route at the controller/aggregator
-  // boundary so preview and placement cannot resolve different providers.
+  // Optional provider override. Omission uses active/default routing.
   providerId?: PerpsProviderType;
 };
-
-/** Routed fee quote with a required venue for strategy pricing. */
-export type RoutedFeeCalculationParams<
-  Params extends FeeCalculationParams = never,
-> = RequireStrategyRoute<FeeCalculationParams, Params>;
 
 export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
@@ -1655,8 +1599,8 @@ export type Funding = {
 export type PerpsProvider = {
   readonly protocolId: string;
 
-  /** Direct providers already identify their venue and do not route requests. */
-  readonly routesOrdersByProviderId?: false;
+  /** Whether this provider routes individual requests by `providerId`. */
+  readonly routesOrdersByProviderId?: boolean;
 
   /**
    * Return strategy capabilities for the provider/market route. Providers may
@@ -1664,7 +1608,7 @@ export type PerpsProvider = {
    */
   getOrderCapabilities?(
     params: GetOrderCapabilitiesParams,
-  ): Promise<DirectProviderOrderCapabilities>;
+  ): Promise<PerpsOrderCapabilities>;
 
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
@@ -1855,41 +1799,6 @@ export type PerpsProvider = {
   }): Promise<CandleData>;
 };
 
-/**
- * Provider abstraction that routes strategy operations by `providerId`.
- * Direct providers keep the plain `PerpsProvider` contract because their
- * instance already identifies the venue.
- */
-export type RoutedPerpsProvider = Omit<
-  PerpsProvider,
-  | 'routesOrdersByProviderId'
-  | 'getOrderCapabilities'
-  | 'placeOrder'
-  | 'validateOrder'
-  | 'cancelOrder'
-  | 'calculateFees'
-> & {
-  readonly routesOrdersByProviderId: true;
-  getOrderCapabilities(
-    params: GetOrderCapabilitiesParams,
-  ): Promise<PerpsOrderCapabilities>;
-  placeOrder<const Params extends OrderParams>(
-    params: RoutedOrderParams<Params>,
-  ): Promise<OrderResult>;
-  validateOrder<const Params extends OrderParams>(
-    params: RoutedOrderParams<Params>,
-  ): Promise<{ isValid: boolean; error?: string }>;
-  cancelOrder<const Params extends CancelOrderParams>(
-    params: RoutedCancelOrderParams<Params>,
-  ): Promise<CancelOrderResult>;
-  calculateFees<const Params extends FeeCalculationParams>(
-    params: RoutedFeeCalculationParams<Params>,
-  ): Promise<FeeCalculationResult>;
-};
-
-/** Provider resolved by the controller in direct or aggregated mode. */
-export type ActivePerpsProvider = PerpsProvider | RoutedPerpsProvider;
-
 // ============================================================================
 // Multi-Provider Aggregation Types (Phase 1)
 // ============================================================================
@@ -1898,8 +1807,7 @@ export type ActivePerpsProvider = PerpsProvider | RoutedPerpsProvider;
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType =
-  (typeof PROVIDER_CONFIG.SupportedProviders)[number];
+export type PerpsProviderType = 'hyperliquid' | 'myx';
 
 /**
  * Active provider mode for PerpsController state.

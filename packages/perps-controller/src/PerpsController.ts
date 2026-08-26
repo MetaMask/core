@@ -75,7 +75,6 @@ import type {
   AccountState,
   AssetRoute,
   CancelOrderParams,
-  RoutedCancelOrderParams,
   CancelOrderResult,
   CancelOrdersParams,
   CancelOrdersResult,
@@ -87,7 +86,6 @@ import type {
   DepositWithConfirmationParams,
   EditOrderParams,
   FeeCalculationParams,
-  RoutedFeeCalculationParams,
   FeeCalculationResult,
   FlipPositionParams,
   Funding,
@@ -100,7 +98,6 @@ import type {
   GetOrderFillsParams,
   GetOrdersParams,
   GetPositionsParams,
-  ActivePerpsProvider,
   PerpsProvider,
   LiquidationPriceParams,
   LiveDataConfig,
@@ -111,7 +108,6 @@ import type {
   OrderCapabilitiesUnavailableReason,
   OrderFill,
   OrderParams,
-  RoutedOrderParams,
   OrderResult,
   PerpsControllerConfig,
   PerpsMarketData,
@@ -907,7 +903,7 @@ type BlockedRegionList = {
 };
 
 type UserSnapshotContext = {
-  provider: ActivePerpsProvider;
+  provider: PerpsProvider;
   standaloneProvider: HyperLiquidProvider | null;
   address: string;
   isTestnet: boolean;
@@ -1143,7 +1139,7 @@ export class PerpsController extends BaseController<
    * When activeProvider is 'hyperliquid' or 'myx': points to specific provider directly
    * When activeProvider is 'aggregated': points to AggregatedPerpsProvider wrapper
    */
-  protected activeProviderInstance: ActivePerpsProvider | null = null;
+  protected activeProviderInstance: PerpsProvider | null = null;
 
   /**
    * Cached standalone provider for pre-initialization discovery queries.
@@ -2629,7 +2625,7 @@ export class PerpsController extends BaseController<
    * @returns The active provider (aggregated wrapper or direct provider based on mode)
    * @throws Error if provider is not initialized or reinitializing
    */
-  getActiveProvider(): ActivePerpsProvider {
+  getActiveProvider(): PerpsProvider {
     // Check if we're in the middle of reinitializing
     if (this.isCurrentlyReinitializing()) {
       this.update((state) => {
@@ -2674,7 +2670,7 @@ export class PerpsController extends BaseController<
    *
    * @returns The active provider once initialization completes.
    */
-  async #getActiveProviderWhenReady(): Promise<ActivePerpsProvider> {
+  async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
     while (true) {
       const pendingDisconnect = this.#disconnectOperationPromise;
       if (pendingDisconnect) {
@@ -2708,7 +2704,7 @@ export class PerpsController extends BaseController<
    *
    * @returns The active provider, or null if not initialized/reinitializing
    */
-  getActiveProviderOrNull(): ActivePerpsProvider | null {
+  getActiveProviderOrNull(): PerpsProvider | null {
     // Return null during reinitialization
     if (this.isCurrentlyReinitializing()) {
       return null;
@@ -2737,7 +2733,7 @@ export class PerpsController extends BaseController<
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities> {
-    let activeProvider: ActivePerpsProvider;
+    let activeProvider: PerpsProvider;
     try {
       activeProvider = await this.#getActiveProviderWhenReady();
     } catch (error) {
@@ -2814,15 +2810,13 @@ export class PerpsController extends BaseController<
    * @param provider - Resolved provider.
    * @returns Direct provider identity, if known.
    */
-  #getDirectProviderId(
-    provider: ActivePerpsProvider,
-  ): PerpsProviderType | undefined {
+  #getDirectProviderId(provider: PerpsProvider): PerpsProviderType | undefined {
     if (provider.routesOrdersByProviderId) {
       return undefined;
     }
-    return PROVIDER_CONFIG.SupportedProviders.find(
-      (providerId) => providerId === provider.protocolId,
-    );
+    return Array.from(this.providers.entries()).find(
+      ([, candidate]) => candidate === provider,
+    )?.[0];
   }
 
   /**
@@ -2835,7 +2829,7 @@ export class PerpsController extends BaseController<
    */
   #hasConflictingProviderRoute(
     providerId: PerpsProviderType | undefined,
-    provider: ActivePerpsProvider,
+    provider: PerpsProvider,
   ): boolean {
     return (
       providerId !== undefined &&
@@ -2855,18 +2849,12 @@ export class PerpsController extends BaseController<
   async #resolveRoutedOrderProvider(params: {
     orderType: OrderType | undefined;
     providerId: PerpsProviderType | undefined;
-  }): Promise<ActivePerpsProvider> {
+  }): Promise<PerpsProvider> {
     const { orderType, providerId } = params;
-    const isStrategy =
-      orderType !== undefined && isStrategyOrderType(orderType);
-    if (isStrategy && !providerId) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-    }
-
     const provider = await this.#getActiveProviderWhenReady();
     if (this.#hasConflictingProviderRoute(providerId, provider)) {
       throw new Error(
-        isStrategy
+        orderType !== undefined && isStrategyOrderType(orderType)
           ? PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE
           : PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
       );
@@ -2881,9 +2869,7 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The order result with order ID and status.
    */
-  async placeOrder<const Params extends OrderParams>(
-    params: RoutedOrderParams<Params>,
-  ): Promise<OrderResult> {
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
       providerId: params.providerId,
@@ -2942,9 +2928,7 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns The cancellation result with status.
    */
-  async cancelOrder<const Params extends CancelOrderParams>(
-    params: RoutedCancelOrderParams<Params>,
-  ): Promise<CancelOrderResult> {
+  async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
       providerId: params.providerId,
@@ -4008,7 +3992,7 @@ export class PerpsController extends BaseController<
 
   readonly #userSnapshotRequests = new Map<
     string,
-    { provider: ActivePerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
+    { provider: PerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
   >();
 
   #preloadStateUnsubscribe: (() => void) | null = null;
@@ -4873,8 +4857,8 @@ export class PerpsController extends BaseController<
    * @param params - The operation parameters.
    * @returns True if the condition is met.
    */
-  async validateOrder<const Params extends OrderParams>(
-    params: RoutedOrderParams<Params>,
+  async validateOrder(
+    params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
@@ -5633,14 +5617,14 @@ export class PerpsController extends BaseController<
 
   /**
    * Calculate trading fees through the active provider route.
-   * Each provider owns its fee policy. Strategy quotes require an explicit
-   * provider route so preview and placement cannot use different venues.
+   * Each provider owns its fee policy. An explicit provider route overrides
+   * the active/default provider used by placement.
    *
    * @param params - The operation parameters.
    * @returns The fee calculation result for the trade.
    */
-  async calculateFees<const Params extends FeeCalculationParams>(
-    params: RoutedFeeCalculationParams<Params>,
+  async calculateFees(
+    params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,

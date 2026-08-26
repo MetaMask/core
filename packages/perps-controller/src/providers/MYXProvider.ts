@@ -20,13 +20,8 @@ import {
   MYX_FEE_RATE,
   MYX_PROTOCOL_FEE_RATE,
 } from '../constants/myxConfig.js';
-import {
-  PERFORMANCE_CONFIG,
-  PERPS_CONSTANTS,
-  PROVIDER_CONFIG,
-} from '../constants/perpsConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { MYXClientService } from '../services/MYXClientService.js';
 import { MYXWalletService } from '../services/MYXWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
@@ -50,7 +45,6 @@ import type {
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
-  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -69,7 +63,6 @@ import type {
   OrderResult,
   PerpsPlatformDependencies,
   PerpsMarketData,
-  DirectProviderOrderCapabilities,
   PerpsProvider,
   Position,
   PriceUpdate,
@@ -99,7 +92,6 @@ import type {
   MYXTicker,
 } from '../types/myx-types.js';
 import type { CandleData } from '../types/perps-types.js';
-import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptMarketFromMYX,
@@ -117,7 +109,6 @@ import {
   buildPoolSymbolMap,
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
-import { isStrategyOrderType } from '../utils/orderTypes.js';
 
 // ============================================================================
 // Constants
@@ -126,11 +117,6 @@ import { isStrategyOrderType } from '../utils/orderTypes.js';
 const MYX_NOT_SUPPORTED_ERROR = 'MYX trading not yet supported';
 const MYX_BLOCK_EXPLORER_URL = 'https://bscscan.com';
 const MYX_TESTNET_EXPLORER_URL = 'https://sepolia.arbiscan.io';
-const MYX_ORDER_CAPABILITIES = Object.freeze({
-  status: 'ready',
-  providerId: PROVIDER_CONFIG.MYXProvider,
-  supportedStrategies: Object.freeze([]),
-}) satisfies DirectProviderOrderCapabilities;
 
 // ============================================================================
 // MYXProvider
@@ -143,7 +129,7 @@ const MYX_ORDER_CAPABILITIES = Object.freeze({
  * Trading write operations return errors until Phase 2.
  */
 export class MYXProvider implements PerpsProvider {
-  readonly protocolId = PROVIDER_CONFIG.MYXProvider;
+  readonly protocolId = 'myx';
 
   // Platform dependencies
   readonly #deps: PerpsPlatformDependencies;
@@ -171,8 +157,6 @@ export class MYXProvider implements PerpsProvider {
   // Auth dedup promise
   #authPromise: Promise<void> | null = null;
 
-  #lifecycleGeneration = 0;
-
   constructor(options: {
     isTestnet?: boolean;
     platformDependencies: PerpsPlatformDependencies;
@@ -194,76 +178,6 @@ export class MYXProvider implements PerpsProvider {
       isTestnet: this.#isTestnet,
       hasMessenger: Boolean(this.#messenger),
     });
-  }
-
-  /**
-   * MYX does not currently implement strategy placement, so confirmed markets
-   * report an empty strategy set.
-   *
-   * @param params - Required market route context.
-   * @returns Provider-owned capabilities for the requested market.
-   */
-  async getOrderCapabilities(
-    params: GetOrderCapabilitiesParams,
-  ): Promise<DirectProviderOrderCapabilities> {
-    // MYX market IDs are never DEX-prefixed.
-    if (
-      !isValidCapabilitySymbol(params.symbol, { allowProviderRoute: false })
-    ) {
-      return {
-        status: 'unavailable',
-        providerId: this.protocolId,
-        reason: 'invalid_symbol',
-      };
-    }
-
-    const lifecycleGeneration = this.#lifecycleGeneration;
-    try {
-      const pools = await this.#clientService.getMarkets({
-        allowStaleOnError: false,
-        maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
-      });
-      this.#assertLifecycleCurrent(lifecycleGeneration);
-      const capabilityPools = filterMYXExclusiveMarkets(pools);
-      const capabilityPoolSymbolMap = buildPoolSymbolMap(capabilityPools);
-      const hasMarket = capabilityPools.some(
-        (pool) => capabilityPoolSymbolMap.get(pool.poolId) === params.symbol,
-      );
-
-      return hasMarket
-        ? MYX_ORDER_CAPABILITIES
-        : {
-            status: 'unavailable',
-            providerId: this.protocolId,
-            reason: 'market_not_found',
-          };
-    } catch (caughtError) {
-      const wrappedError = ensureError(
-        caughtError,
-        'MYXProvider.getOrderCapabilities',
-      );
-      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale capabilities after disconnect',
-        );
-        return {
-          status: 'unavailable',
-          providerId: this.protocolId,
-          reason: 'provider_unavailable',
-        };
-      }
-      this.#deps.logger.error(
-        wrappedError,
-        this.#getErrorContext('getOrderCapabilities', {
-          symbol: params.symbol,
-        }),
-      );
-      return {
-        status: 'unavailable',
-        providerId: this.protocolId,
-        reason: 'provider_unavailable',
-      };
-    }
   }
 
   // ============================================================================
@@ -298,13 +212,12 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async initialize(): Promise<InitializeResult> {
-    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Initializing...');
 
       // Fetch initial markets
       const pools = await this.#clientService.getMarkets();
-      this.#assertLifecycleCurrent(lifecycleGeneration);
+
       // Filter to MYX-exclusive markets
       this.#poolsCache = filterMYXExclusiveMarkets(pools);
       this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
@@ -317,12 +230,6 @@ export class MYXProvider implements PerpsProvider {
       return { success: true };
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.initialize');
-      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale initialization after disconnect',
-        );
-        return { success: false, error: wrappedError.message };
-      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('initialize'),
@@ -332,7 +239,6 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async disconnect(): Promise<DisconnectResult> {
-    this.#lifecycleGeneration += 1;
     try {
       this.#deps.debugLogger.log('[MYXProvider] Disconnecting...');
 
@@ -488,23 +394,15 @@ export class MYXProvider implements PerpsProvider {
   // ============================================================================
 
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
-    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Delegate cache freshness to MYXClientService
       const pools = await this.#clientService.getMarkets();
-      this.#assertLifecycleCurrent(lifecycleGeneration);
       this.#poolsCache = filterMYXExclusiveMarkets(pools);
       this.#poolSymbolMap = buildPoolSymbolMap(this.#poolsCache);
 
       return this.#poolsCache.map((pool) => adaptMarketFromMYX(pool));
     } catch (caughtError) {
       const wrappedError = ensureError(caughtError, 'MYXProvider.getMarkets');
-      if (wrappedError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
-        this.#deps.debugLogger.log(
-          '[MYXProvider] Ignoring stale markets after disconnect',
-        );
-        return [];
-      }
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext('getMarkets'),
@@ -514,18 +412,15 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
-    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Ensure we have markets
       if (this.#poolsCache.length === 0) {
         await this.getMarkets();
-        this.#assertLifecycleCurrent(lifecycleGeneration);
       }
 
       // Fetch tickers for all pools
       const poolIds = this.#poolsCache.map((pool) => pool.poolId);
       const tickers = await this.#clientService.getTickers(poolIds);
-      this.#assertLifecycleCurrent(lifecycleGeneration);
 
       // Build ticker map
       const tickerMap = new Map<string, MYXTicker>();
@@ -557,12 +452,6 @@ export class MYXProvider implements PerpsProvider {
         },
       );
       return [];
-    }
-  }
-
-  #assertLifecycleCurrent(lifecycleGeneration: number): void {
-    if (lifecycleGeneration !== this.#lifecycleGeneration) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
   }
 
@@ -1030,34 +919,11 @@ export class MYXProvider implements PerpsProvider {
   }
 
   async calculateFees(
-    params: FeeCalculationParams,
+    _params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    if (isStrategyOrderType(params.orderType)) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
-    }
-    const numericAmount =
-      params.amount === undefined
-        ? undefined
-        : Number.parseFloat(params.amount);
-    const parsedAmount =
-      numericAmount === undefined ||
-      (Number.isFinite(numericAmount) && numericAmount >= 0)
-        ? numericAmount
-        : 0;
-    const protocolFeeAmount =
-      parsedAmount === undefined
-        ? undefined
-        : parsedAmount * MYX_PROTOCOL_FEE_RATE;
-    const feeAmount =
-      parsedAmount === undefined ? undefined : parsedAmount * MYX_FEE_RATE;
-
     return {
       feeRate: MYX_FEE_RATE,
-      feeAmount,
       protocolFeeRate: MYX_PROTOCOL_FEE_RATE,
-      protocolFeeAmount,
-      metamaskFeeRate: 0,
-      metamaskFeeAmount: params.amount === undefined ? undefined : 0,
     };
   }
 

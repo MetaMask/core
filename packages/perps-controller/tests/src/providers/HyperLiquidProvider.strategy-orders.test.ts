@@ -15,6 +15,7 @@ import { TradingReadinessCache } from '../../../src/services/TradingReadinessCac
 import type {
   CancelOrderResult,
   ChaseOrderMaxDistanceReached,
+  FeeCalculationParams,
   Order,
   PerpsPlatformDependencies,
   OrderParams,
@@ -5233,13 +5234,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       'uses the safe builder fee for unknown runtime order type %s',
       async (orderType) => {
         useStrategyClients();
-
-        const fees = await provider.calculateFees({
-          // @ts-expect-error Runtime fallback protects JavaScript consumers.
-          orderType,
+        const runtimeParams = {
+          orderType: 'market',
           amount: '1000',
           symbol: 'ETH',
-        });
+        } satisfies FeeCalculationParams;
+        Object.defineProperty(runtimeParams, 'orderType', { value: orderType });
+
+        const fees = await provider.calculateFees(runtimeParams);
 
         expect(fees.metamaskFeeRate).toBe(BUILDER_FEE_CONFIG.MaxFeeDecimal);
         expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(

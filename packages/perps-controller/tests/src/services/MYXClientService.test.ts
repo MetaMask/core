@@ -2,14 +2,9 @@
 import type { PerpsPlatformDependencies } from '@metamask/perps-controller';
 
 import { MYX_PRICE_POLLING_INTERVAL_MS } from '../../../src/constants/myxConfig.js';
-import { PERFORMANCE_CONFIG } from '../../../src/constants/perpsConfig.js';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { MYXClientService } from '../../../src/services/MYXClientService.js';
 import type { MYXPoolSymbol, MYXTicker } from '../../../src/types/myx-types.js';
-import {
-  createDeferred,
-  createMockInfrastructure,
-} from '../../helpers/serviceMocks.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // ============================================================================
 // Mock @myx-trade/sdk
@@ -212,82 +207,6 @@ describe('MYXClientService', () => {
       expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
     });
 
-    it('does not expose the mutable market cache array', async () => {
-      const pools = [makePool(), makePool({ poolId: '0xpool2' })];
-      mockGetPoolSymbolAll.mockResolvedValueOnce(pools);
-
-      const firstResult = await service.getMarkets();
-      firstResult.splice(0, firstResult.length);
-
-      await expect(service.getMarkets()).resolves.toStrictEqual(pools);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
-    });
-
-    it('shares one refresh across concurrent callers', async () => {
-      const pools = [makePool()];
-      const pendingPools = createDeferred<MYXPoolSymbol[]>();
-      mockGetPoolSymbolAll.mockReturnValueOnce(pendingPools.promise);
-
-      const firstRequest = service.getMarkets();
-      const secondRequest = service.getMarkets({ allowStaleOnError: false });
-
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(1);
-      pendingPools.resolve(pools);
-      await expect(
-        Promise.all([firstRequest, secondRequest]),
-      ).resolves.toStrictEqual([pools, pools]);
-    });
-
-    it('shares a failed refresh while preserving fallback and retry behavior', async () => {
-      const pools = [makePool()];
-      const updatedPools = [makePool({ poolId: '0xpool2' })];
-      mockGetPoolSymbolAll.mockResolvedValueOnce(pools);
-      await service.getMarkets();
-      jest.advanceTimersByTime(
-        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
-      );
-      mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
-
-      const fallbackRequest = service.getMarkets();
-      const strictRequest = service.getMarkets({ allowStaleOnError: false });
-
-      await expect(fallbackRequest).resolves.toStrictEqual(pools);
-      await expect(strictRequest).rejects.toThrow('API down');
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
-
-      mockGetPoolSymbolAll.mockResolvedValueOnce(updatedPools);
-      await expect(
-        service.getMarkets({ allowStaleOnError: false }),
-      ).resolves.toStrictEqual(updatedPools);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(3);
-    });
-
-    it('honours a caller-specific maximum cache age', async () => {
-      const pools = [makePool()];
-      const updatedPools = [makePool({ poolId: '0xpool2' })];
-      mockGetPoolSymbolAll
-        .mockResolvedValueOnce(pools)
-        .mockResolvedValueOnce(updatedPools);
-
-      await service.getMarkets();
-      jest.advanceTimersByTime(
-        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs - 1,
-      );
-      await expect(
-        service.getMarkets({
-          maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
-        }),
-      ).resolves.toStrictEqual(pools);
-      jest.advanceTimersByTime(1);
-
-      await expect(
-        service.getMarkets({
-          maxCacheAgeMs: PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
-        }),
-      ).resolves.toStrictEqual(updatedPools);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
-    });
-
     it('refetches markets after cache TTL expires', async () => {
       const pools = [makePool()];
       const updatedPools = [makePool(), makePool({ poolId: '0xpool2' })];
@@ -297,9 +216,7 @@ describe('MYXClientService', () => {
       await service.getMarkets();
 
       // Advance past cache TTL (5 minutes)
-      jest.advanceTimersByTime(
-        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
-      );
+      jest.advanceTimersByTime(5 * 60 * 1000 + 1);
 
       const result = await service.getMarkets();
 
@@ -314,9 +231,7 @@ describe('MYXClientService', () => {
       await service.getMarkets();
 
       // Expire cache
-      jest.advanceTimersByTime(
-        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
-      );
+      jest.advanceTimersByTime(5 * 60 * 1000 + 1);
 
       mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
 
@@ -324,19 +239,6 @@ describe('MYXClientService', () => {
 
       expect(result).toEqual(pools);
       expect(mockDeps.logger.error).toHaveBeenCalled();
-    });
-
-    it('rejects stale cache when the caller requires current markets', async () => {
-      mockGetPoolSymbolAll.mockResolvedValueOnce([makePool()]);
-      await service.getMarkets();
-      jest.advanceTimersByTime(
-        PERFORMANCE_CONFIG.MarketDataCacheDurationMs + 1,
-      );
-      mockGetPoolSymbolAll.mockRejectedValueOnce(new Error('API down'));
-
-      await expect(
-        service.getMarkets({ allowStaleOnError: false }),
-      ).rejects.toThrow('API down');
     });
 
     it('throws error when fetch fails with no cache', async () => {
@@ -634,28 +536,6 @@ describe('MYXClientService', () => {
   // ==========================================================================
 
   describe('disconnect', () => {
-    it('rejects an in-flight market refresh and retries after disconnect', async () => {
-      const stalePools = [makePool()];
-      const freshPools = [makePool({ poolId: '0xfresh' })];
-      const pendingPools = createDeferred<MYXPoolSymbol[]>();
-      mockGetPoolSymbolAll
-        .mockReturnValueOnce(pendingPools.promise)
-        .mockResolvedValueOnce(freshPools);
-
-      const staleRequest = service.getMarkets({ allowStaleOnError: false });
-      service.disconnect();
-      pendingPools.resolve(stalePools);
-
-      await expect(staleRequest).rejects.toThrow(
-        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-      );
-      expect(mockDeps.logger.error).not.toHaveBeenCalled();
-      await expect(
-        service.getMarkets({ allowStaleOnError: false }),
-      ).resolves.toStrictEqual(freshPools);
-      expect(mockGetPoolSymbolAll).toHaveBeenCalledTimes(2);
-    });
-
     it('stops polling and clears cache', async () => {
       const pools = [makePool()];
       mockGetPoolSymbolAll.mockResolvedValueOnce(pools);

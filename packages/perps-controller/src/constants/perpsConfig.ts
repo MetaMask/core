@@ -652,12 +652,8 @@ export const FUNDING_RATE_CONFIG = {
  * Provider configuration for multi-provider support
  */
 export const PROVIDER_CONFIG = {
-  /** Every provider ID accepted by public routing contracts */
-  SupportedProviders: ['hyperliquid', 'myx'] as const,
   /** Default perpetual DEX provider when no explicit selection exists */
   DefaultProvider: 'hyperliquid' as const,
-  /** MYX perpetual DEX provider */
-  MYXProvider: 'myx' as const,
   /** Force MYX to testnet only (mainnet credentials not yet available) */
   MYX_TESTNET_ONLY: false,
 } as const;

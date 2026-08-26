@@ -30,20 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PerpsController.getTwapOrders`, aggregated-provider routing, and venue-backed TWAP lifecycle records with fill and elapsed-time progress, average price, slice fills, and distinct completed-underfilled status ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Persist a recoverable Scale group identity in each HyperLiquid rung's client order ID and expose it as `Order.strategyGroupId`, so an open-order read can rebuild group cancellation after reconnect ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Emit `PerpsController:chaseOrderMaxDistanceReached` when an in-process Chase stops at its configured boundary. Force-kill detection and push delivery remain Mobile/backend responsibilities because an in-process controller cannot execute after the client is terminated ([#9948](https://github.com/MetaMask/core/pull/9948))
-- **BREAKING:** Add public `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED`, `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND`, `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE`, and `PERPS_ERROR_CODES.TPSL_PROTECTION_LOST` errors for invalid strategy routes, stale provider work, and failed TP/SL recovery ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Consumers that exhaustively map `PerpsErrorCode` must add these five codes.
+- **BREAKING:** Add public `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND`, `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE`, and `PERPS_ERROR_CODES.TPSL_PROTECTION_LOST` errors for invalid strategy routes, stale provider work, and failed TP/SL recovery ([#9948](https://github.com/MetaMask/core/pull/9948))
+  - Consumers that exhaustively map `PerpsErrorCode` must add these four codes.
 
 ### Changed
 
 - **BREAKING:** Change the default Chase interval from 3 to 15 seconds, remove the default duration and repricing caps, and remove the invalid `CHASE_ORDER_CONFIG.DefaultMaxDurationMs` and `DefaultMaxRepricings` sentinels. Callers omit those fields for an unbounded Chase ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
 - Align the Chase background notification value with the existing bare notification schema as `chase_backgrounded` ([#9948](https://github.com/MetaMask/core/pull/9948))
-- **BREAKING:** Require `providerId` on routed strategy placement, validation, cancellation, and fee quotes so these operations cannot fall back to another protocol ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Consumers must pass the `providerId` returned by `getOrderCapabilities` when placing, validating, cancelling, or quoting a `twap`, `scale`, or `chase` order. Ordinary orders and direct provider calls keep their previous optional routing behavior.
-  - Missing strategy routes throw `ORDER_STRATEGY_ROUTE_REQUIRED`. Conflicting direct routes throw `ORDER_STRATEGY_ROUTE_UNAVAILABLE`. Unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
-  - `AggregatedPerpsProvider` implements `RoutedPerpsProvider`, so consumers cannot widen it to the direct `PerpsProvider` contract and drop the strategy route requirement.
-  - Fee calculations now reach a registered selected provider. MYX quotes explicitly report zero MetaMask fee fields. Any explicit order route must resolve to that provider; only omitted routes use the default provider.
+- Route an explicit `providerId` consistently for placement, validation, cancellation, and fee quotes while preserving active/default-provider routing when it is omitted ([#9948](https://github.com/MetaMask/core/pull/9948))
+  - Conflicting direct strategy routes throw `ORDER_STRATEGY_ROUTE_UNAVAILABLE`. Other conflicting direct routes and unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
+  - `AggregatedPerpsProvider` advertises per-request routing through `routesOrdersByProviderId` without changing the existing provider contract.
+  - Fee calculations now reach the registered selected provider. Only omitted routes use the active/default provider.
   - Editing orders, closing positions, updating position TP/SL, and validating position closes apply the same explicit-route check before reaching a service.
-  - MYX rejects `twap`, `scale`, and `chase` fee quotes with `ORDER_STRATEGY_MARKET_UNSUPPORTED` because it does not support strategy orders.
 - Support `twap`, `scale`, and `chase` placement, validation, and cancellation on HyperLiquid HIP-3 markets instead of rejecting the market with `ORDER_STRATEGY_MARKET_UNSUPPORTED` ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Unified account and portfolio margin require no collateral transfer. The legacy `useUnifiedAccount: false` fallback keeps its manual pre-transfer and deferred post-terminal rebalance behavior and remains marked for removal.
 - **BREAKING:** Resolve HyperLiquid builder-fee applicability through an exhaustive provider-owned order policy and exclude the MetaMask builder fee from TWAP quotes ([#9948](https://github.com/MetaMask/core/pull/9948))

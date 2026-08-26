@@ -33,14 +33,10 @@ import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProv
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
-  ActivePerpsProvider,
   GetAvailableDexsParams,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
-  RoutedCancelOrderParams,
-  RoutedFeeCalculationParams,
-  RoutedOrderParams,
 } from '../../src/types/index.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
@@ -280,7 +276,7 @@ class TestablePerpsController extends PerpsController {
    *
    * @param provider - Active direct or routed provider.
    */
-  public testSetActiveProvider(provider: ActivePerpsProvider) {
+  public testSetActiveProvider(provider: PerpsProvider) {
     this.activeProviderInstance = provider;
   }
 
@@ -1107,21 +1103,25 @@ describe('PerpsController', () => {
     });
 
     it.each(STRATEGY_ORDER_TYPES)(
-      'rejects %s placement without an explicit provider route',
+      'routes %s placement without providerId to the active provider',
       async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           symbol: 'ETH',
           orderType,
           isBuy: true,
           size: '1',
-          providerId: undefined,
         };
+        mockTradingServiceInstance.placeOrder.mockResolvedValue({
+          success: true,
+        });
 
-        await expect(
-          // @ts-expect-error Routed strategy placement requires providerId.
-          controller.placeOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        await controller.placeOrder(params);
+
+        expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledWith(
+          expect.objectContaining({ provider: mockProvider, params }),
+        );
       },
     );
 
@@ -1135,7 +1135,7 @@ describe('PerpsController', () => {
         orderType: 'market',
         isBuy: true,
         size: '1',
-      } satisfies RoutedOrderParams;
+      } satisfies OrderParams;
 
       await expect(controller.placeOrder(params)).rejects.toThrow(
         PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
@@ -1183,20 +1183,24 @@ describe('PerpsController', () => {
     });
 
     it.each(STRATEGY_ORDER_TYPES)(
-      'rejects %s cancellation without an explicit provider route',
+      'routes %s cancellation without providerId to the active provider',
       async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           orderId: 'strategy-123',
           symbol: 'ETH',
           orderType,
-          providerId: undefined,
         };
+        mockTradingServiceInstance.cancelOrder.mockResolvedValue({
+          success: true,
+        });
 
-        await expect(
-          // @ts-expect-error Routed strategy cancellation requires providerId.
-          controller.cancelOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
-        expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
+        await controller.cancelOrder(params);
+
+        expect(mockTradingServiceInstance.cancelOrder).toHaveBeenCalledWith(
+          expect.objectContaining({ provider: mockProvider, params }),
+        );
       },
     );
 
@@ -1243,23 +1247,27 @@ describe('PerpsController', () => {
     });
 
     it.each(STRATEGY_ORDER_TYPES)(
-      'rejects %s validation without an explicit provider route',
+      'routes %s validation without providerId to the active provider',
       async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
         const params = {
           symbol: 'ETH',
           orderType,
           isBuy: true,
           size: '1',
-          providerId: undefined,
         };
+        mockMarketDataServiceInstance.validateOrder.mockResolvedValue({
+          isValid: true,
+        });
 
-        await expect(
-          // @ts-expect-error Routed strategy validation requires providerId.
-          controller.validateOrder(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+        await controller.validateOrder(params);
+
         expect(
           mockMarketDataServiceInstance.validateOrder,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({ provider: mockProvider, params }),
+        );
       },
     );
 
@@ -1290,7 +1298,7 @@ describe('PerpsController', () => {
         symbol: 'RHEA',
         providerId: 'myx',
         orderType: 'limit',
-      } satisfies RoutedCancelOrderParams;
+      } satisfies CancelOrderParams;
 
       await expect(controller.cancelOrder(params)).rejects.toThrow(
         PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
@@ -1441,7 +1449,7 @@ describe('PerpsController', () => {
         orderType: 'market',
         symbol: 'RHEA',
         providerId: 'myx',
-      } satisfies RoutedFeeCalculationParams;
+      } satisfies FeeCalculationParams;
 
       await expect(controller.calculateFees(params)).rejects.toThrow(
         PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
@@ -1472,21 +1480,24 @@ describe('PerpsController', () => {
     );
 
     it.each(STRATEGY_ORDER_TYPES)(
-      'rejects a %s fee quote without an explicit provider route',
+      'routes a %s fee quote without providerId to the active provider',
       async (orderType) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const fees = { feeRate: 0.001 };
         const params = {
           orderType,
           symbol: 'ETH',
-          providerId: undefined,
         };
+        mockMarketDataServiceInstance.calculateFees.mockResolvedValue(fees);
 
-        await expect(
-          // @ts-expect-error Routed strategy fee quotes require providerId.
-          controller.calculateFees(params),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
+        await expect(controller.calculateFees(params)).resolves.toEqual(fees);
+
         expect(
           mockMarketDataServiceInstance.calculateFees,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({ provider: mockProvider, params }),
+        );
       },
     );
 

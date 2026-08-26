@@ -4,7 +4,7 @@ import type { Hex } from '@metamask/utils';
 
 import { DEPOSIT_CONFIG } from '../constants/hyperLiquidConfig.js';
 import type {
-  ActivePerpsProvider,
+  PerpsProvider,
   PerpsPlatformDependencies,
   PerpsTransactionParams,
 } from '../types/index.js';
@@ -53,9 +53,7 @@ export class DepositService {
    * @param options.provider - Active provider instance
    * @returns Transaction data ready for TransactionController.addTransaction
    */
-  async prepareTransaction(options: {
-    provider: ActivePerpsProvider;
-  }): Promise<{
+  async prepareTransaction(options: { provider: PerpsProvider }): Promise<{
     transaction: PerpsTransactionParams;
     assetChainId: Hex;
     currentDepositId: string;

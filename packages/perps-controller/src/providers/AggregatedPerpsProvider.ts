@@ -54,7 +54,6 @@ import type {
   InitializeResult,
   PerpsPlatformDependencies,
   PerpsProvider,
-  RoutedPerpsProvider,
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
@@ -87,11 +86,7 @@ import type {
   RawLedgerUpdate,
   PerpsReadOptions,
   PerpsFeeResolution,
-  RoutedCancelOrderParams,
-  RoutedFeeCalculationParams,
-  RoutedOrderParams,
 } from '../types/index.js';
-import { isStrategyOrderType } from '../utils/orderTypes.js';
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -141,7 +136,7 @@ export class ChaseOrderSuspensionError extends Error {
  * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
  * ```
  */
-export class AggregatedPerpsProvider implements RoutedPerpsProvider {
+export class AggregatedPerpsProvider implements PerpsProvider {
   readonly protocolId = 'aggregated';
 
   readonly routesOrdersByProviderId = true;
@@ -223,28 +218,6 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
   ): [PerpsProviderType, PerpsProvider] {
     if (providerId === undefined) {
       return [this.#defaultProvider, this.#getDefaultProvider()];
-    }
-
-    const provider = this.#providers.get(providerId);
-    if (!provider) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
-    }
-    return [providerId, provider];
-  }
-
-  /**
-   * Resolve an order route without substituting another protocol when the
-   * caller supplied an explicit provider.
-   *
-   * @param providerId - Explicit provider route, if any.
-   * @returns The selected provider id and instance.
-   * @throws If an explicit provider is not registered.
-   */
-  #getRequiredProvider(
-    providerId?: PerpsProviderType,
-  ): [PerpsProviderType, PerpsProvider] {
-    if (!providerId) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
     }
 
     const provider = this.#providers.get(providerId);
@@ -538,12 +511,10 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
   // Write Operations (Route to specific provider)
   // ============================================================================
 
-  async placeOrder<const Params extends OrderParams>(
-    params: RoutedOrderParams<Params>,
-  ): Promise<OrderResult> {
-    const [providerId, provider] = isStrategyOrderType(params.orderType)
-      ? this.#getRequiredProvider(params.providerId)
-      : this.#getProviderOrDefault(params.providerId);
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
 
     this.#deps.debugLogger.log('[AggregatedPerpsProvider] placeOrder routing', {
       requestedProvider: params.providerId,
@@ -650,13 +621,10 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
     return { ...result, providerId };
   }
 
-  async cancelOrder<const Params extends CancelOrderParams>(
-    params: RoutedCancelOrderParams<Params>,
-  ): Promise<CancelOrderResult> {
-    const [providerId, provider] =
-      params.orderType !== undefined && isStrategyOrderType(params.orderType)
-        ? this.#getRequiredProvider(params.providerId)
-        : this.#getProviderOrDefault(params.providerId);
+  async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
     const result = await provider.cancelOrder(params);
     return { ...result, providerId };
   }
@@ -736,12 +704,10 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
     return this.#getDefaultProvider().validateDeposit(params);
   }
 
-  async validateOrder<const Params extends OrderParams>(
-    params: RoutedOrderParams<Params>,
+  async validateOrder(
+    params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const [, provider] = isStrategyOrderType(params.orderType)
-      ? this.#getRequiredProvider(params.providerId)
-      : this.#getProviderOrDefault(params.providerId);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.validateOrder(params);
   }
 
@@ -779,12 +745,10 @@ export class AggregatedPerpsProvider implements RoutedPerpsProvider {
     return this.#getDefaultProvider().getMaxLeverage(asset);
   }
 
-  async calculateFees<const Params extends FeeCalculationParams>(
-    params: RoutedFeeCalculationParams<Params>,
+  async calculateFees(
+    params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    const [, provider] = isStrategyOrderType(params.orderType)
-      ? this.#getRequiredProvider(params.providerId)
-      : this.#getProviderOrDefault(params.providerId);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.calculateFees(params);
   }
 
