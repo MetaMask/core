@@ -1,4 +1,7 @@
-import type { PositionModifyPreviewSource } from '../../../src/types/index.js';
+import type {
+  PositionModifyPreviewSource,
+  PositionPreviewValue,
+} from '../../../src/types/index.js';
 import {
   buildMaintenanceSchedule,
   estimateIsolatedLiquidationPrice,
@@ -22,6 +25,14 @@ const isolatedPosition = (
 });
 
 const singleTier25x = [{ lowerBound: 0, maxLeverage: 25 }];
+
+const availablePreviewValue = (preview: PositionPreviewValue): number => {
+  expect(preview.available).toBe(true);
+  if (!preview.available) {
+    throw new Error('Expected an available preview value');
+  }
+  return preview.value;
+};
 
 /** Testnet ETH maintenance tiers. */
 const testnetEthTiers = [
@@ -218,19 +229,18 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       value: 300,
     });
     expect(result.resulting.leverage).toBeCloseTo(10);
-    expect(result.resulting.liquidationPrice.available).toBe(true);
-    if (result.resulting.liquidationPrice.available) {
-      const overstatedMarginLiq = estimateIsolatedLiquidationPrice({
-        isLong: true,
-        entryPrice: 2000,
-        margin: 500,
-        positionSize: 1.5,
-        maintenanceMarginRate: 1 / 50,
-      });
-      expect(result.resulting.liquidationPrice.value).toBeGreaterThan(
-        overstatedMarginLiq ?? 0,
-      );
-    }
+    const liquidationPrice = availablePreviewValue(
+      result.resulting.liquidationPrice,
+    );
+    const overstatedMarginLiq = estimateIsolatedLiquidationPrice({
+      isLong: true,
+      entryPrice: 2000,
+      margin: 500,
+      positionSize: 1.5,
+      maintenanceMarginRate: 1 / 50,
+    });
+    expect(overstatedMarginLiq).not.toBeNull();
+    expect(liquidationPrice).toBeGreaterThan(overstatedMarginLiq ?? 0);
   });
 
   it('projects a partial decrease using the remaining position direction', () => {
@@ -314,11 +324,14 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       marginTiers: singleTier25x,
     });
 
-    expect(result).toMatchObject({
+    expect(result).toStrictEqual({
       status: 'full_close',
+      current: {
+        margin: { available: true, value: 400 },
+        liquidationPrice: { available: true, value: 1640 },
+      },
       resultingDirection: 'long',
     });
-    expect(result.status === 'full_close' && 'resulting' in result).toBe(false);
   });
 
   it('treats a reduce-only overshoot as a full close rather than a flip', () => {
@@ -425,17 +438,13 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
 
     expect(result.resulting.liquidationPrice.available).toBe(true);
-    if (result.resulting.liquidationPrice.available) {
-      expect(result.resulting.liquidationPrice.value).toBeCloseTo(
-        expected ?? 0,
-      );
-      expect(singleTier).not.toBeNull();
-      if (singleTier !== null) {
-        expect(result.resulting.liquidationPrice.value).toBeGreaterThan(
-          singleTier,
-        );
-      }
-    }
+    const liquidationPrice = availablePreviewValue(
+      result.resulting.liquidationPrice,
+    );
+    expect(expected).not.toBeNull();
+    expect(singleTier).not.toBeNull();
+    expect(liquidationPrice).toBeCloseTo(expected ?? 0);
+    expect(liquidationPrice).toBeGreaterThan(singleTier ?? 0);
   });
 
   it('averages entry and posts order margin at a limit price away from entry', () => {
@@ -605,10 +614,9 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       available: true,
       value: 600,
     });
-    expect(result.resulting.liquidationPrice.available).toBe(true);
-    if (result.resulting.liquidationPrice.available) {
-      expect(result.resulting.liquidationPrice.value).toBeGreaterThan(2000);
-    }
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeGreaterThan(2000);
   });
 
   it('reallocates a short when increasing at higher leverage', () => {
@@ -711,10 +719,9 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       available: true,
       value: 95,
     });
-    expect(result.resulting.liquidationPrice.available).toBe(true);
-    if (result.resulting.liquidationPrice.available) {
-      expect(result.resulting.liquidationPrice.value).toBeLessThan(1900);
-    }
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeLessThan(1900);
   });
 
   it('fully closes a short without a remaining size', () => {
@@ -759,10 +766,9 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       available: true,
       value: 90,
     });
-    expect(result.resulting.liquidationPrice.available).toBe(true);
-    if (result.resulting.liquidationPrice.available) {
-      expect(result.resulting.liquidationPrice.value).toBeGreaterThan(1800);
-    }
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeGreaterThan(1800);
   });
 
   it('returns none for a negative order size', () => {

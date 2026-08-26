@@ -75,6 +75,9 @@ const currentFromPosition = (params: {
  * `marginTables` row; missing data returns `null` so liquidation is withheld.
  *
  * @param params - Margin table id, asset max leverage, and optional tables.
+ * @param params.marginTableId - HyperLiquid margin table id from `meta.universe`.
+ * @param params.maxLeverage - Asset max leverage used for single-tier tables.
+ * @param params.marginTables - `meta.marginTables` rows; required for table ids ≥ 50.
  * @returns Tiers for liquidation, or `null` when the table is required but missing.
  */
 export function resolveHyperLiquidMarginTiers(params: {
@@ -165,6 +168,12 @@ export function buildMaintenanceSchedule(
  * Short: `(entry + margin/size + deduction/size) / (1 + mmr)`
  *
  * @param params - Position geometry plus the tier's mmr and deduction.
+ * @param params.isLong - Whether the remaining position is long.
+ * @param params.entryPrice - Resulting average entry price.
+ * @param params.margin - Isolated margin after the proposed fill.
+ * @param params.positionSize - Absolute remaining size in token units.
+ * @param params.maintenanceMarginRate - `1 / (2 * tierMaxLeverage)` for the tier.
+ * @param params.maintenanceDeduction - Continuity deduction at this tier.
  * @returns Liquidation price, or `null` when the inputs cannot produce one.
  */
 export function estimateIsolatedLiquidationPrice(params: {
@@ -220,6 +229,11 @@ export function estimateIsolatedLiquidationPrice(params: {
  * notional (`size * liqPrice`), including that tier's deduction.
  *
  * @param params - Resulting geometry and the asset's maintenance schedule.
+ * @param params.isLong - Whether the remaining position is long.
+ * @param params.entryPrice - Resulting average entry price.
+ * @param params.margin - Isolated margin after the proposed fill.
+ * @param params.positionSize - Absolute remaining size in token units.
+ * @param params.marginTiers - Maintenance tiers, lowest notional first.
  * @returns Liquidation price when a consistent tier exists.
  */
 export function estimateIsolatedLiquidationPriceAtTier(params: {
@@ -335,13 +349,10 @@ export function previewHyperLiquidIsolatedPositionModify(
     return { status: 'none' };
   }
 
-  const currentNotional = (() => {
-    const positionValue = parseFiniteNumber(position.positionValue);
-    if (isPositiveFinite(positionValue)) {
-      return positionValue;
-    }
-    return currentSize * currentEntry;
-  })();
+  const positionValue = parseFiniteNumber(position.positionValue);
+  const currentNotional = isPositiveFinite(positionValue)
+    ? positionValue
+    : currentSize * currentEntry;
 
   const leverageChanged =
     Math.abs(selectedLeverage - currentLeverage) > SIZE_EPSILON;
