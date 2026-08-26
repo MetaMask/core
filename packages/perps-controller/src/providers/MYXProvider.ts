@@ -99,6 +99,7 @@ import type {
   MYXTicker,
 } from '../types/myx-types.js';
 import type { CandleData } from '../types/perps-types.js';
+import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptMarketFromMYX,
@@ -116,7 +117,6 @@ import {
   buildPoolSymbolMap,
   toMYXKlineResolution,
 } from '../utils/myxAdapter.js';
-import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import { isStrategyOrderType } from '../utils/orderTypes.js';
 import { parseBoundedPositiveDecimal } from '../utils/stringParseUtils.js';
 

@@ -1,7 +1,6 @@
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
-import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
 import type {
   PerpsProvider,
   PerpsProviderType,
@@ -16,6 +15,7 @@ import type {
   ChaseOrder,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
+import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
 /* eslint-disable */
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 

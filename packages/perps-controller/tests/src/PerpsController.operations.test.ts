@@ -32,7 +32,6 @@ import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
-import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 import type {
   ActivePerpsProvider,
   GetAvailableDexsParams,
@@ -44,6 +43,7 @@ import type {
   RoutedOrderParams,
 } from '../../src/types/index.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
+import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
 jest.mock('../../src/providers/MYXProvider');

@@ -2565,7 +2565,6 @@ describe('HyperLiquidProvider', () => {
         'invalid',
         '100junk',
         '-1',
-        '0',
         'Infinity',
         '1e5',
         '.5',
@@ -2579,6 +2578,21 @@ describe('HyperLiquidProvider', () => {
             symbol: 'BTC',
           }),
         ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+      });
+
+      it('returns zero fee amounts for a zero quote amount', async () => {
+        const result = await provider.calculateFees({
+          orderType: 'market',
+          isMaker: false,
+          amount: '0',
+          symbol: 'BTC',
+        });
+
+        expect(result).toMatchObject({
+          feeAmount: 0,
+          protocolFeeAmount: 0,
+          metamaskFeeAmount: 0,
+        });
       });
 
       it('returns FeeCalculationResult with correct structure', async () => {

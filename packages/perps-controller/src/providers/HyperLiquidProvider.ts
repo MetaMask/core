@@ -151,6 +151,7 @@ import {
   addSpotBalanceToAccountState,
   aggregateAccountStates,
 } from '../utils/accountUtils.js';
+import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import {
   ensureError,
   isHyperLiquidMultiSigRequiredError,
@@ -182,10 +183,6 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../utils/hyperLiquidValidation.js';
-import {
-  parseBoundedNonNegativeDecimal,
-  parseBoundedPositiveDecimal,
-} from '../utils/stringParseUtils.js';
 import type { StrategyOrderValidationParams } from '../utils/hyperLiquidValidation.js';
 import { generatePerpsId } from '../utils/idUtils.js';
 import { transformMarketData } from '../utils/marketDataTransform.js';
@@ -206,7 +203,6 @@ import {
   splitScaleSizes,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
-import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import {
   getTriggerDirection,
   getTriggerExecution,
@@ -221,6 +217,7 @@ import {
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
+import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 /**
@@ -256,6 +253,9 @@ const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
   'price too far from oracle',
 ];
 
+const CHASE_ORDER_STATUS_RETRY_COUNT = 2;
+const CHASE_ORDER_STATUS_RETRY_DELAY_MS = 100;
+
 const isRetryableChasePlacementError = (error: unknown): boolean => {
   const message = ensureError(
     error,
@@ -279,6 +279,7 @@ type ExchangeCancelRequest = { a: number; o: number };
 type CancelOrderBatchOutcome = {
   remainingOrderIds: number[];
   cancelledOrderIds: number[];
+  responseComplete: boolean;
 };
 
 type OrderPlacementOutcome = {
@@ -5880,7 +5881,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   #scheduleChaseTick(sessionId: string): void {
     const session = this.#chaseSessions.get(sessionId);
-    if (!session?.active) {
+    if (!session?.active || session.timer !== null) {
       return;
     }
 
@@ -6130,7 +6131,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         // No further fills can reach a cancelled order, so what it did not fill
         // is now fixed. Sampling before the cancel would have left a window in
         // which a fill lands and is then re-placed.
-        const remaining = await this.#readOrderRemainder(cancelledOrderId);
+        let remaining: string | null;
+        try {
+          remaining = await this.#readOrderRemainder(
+            cancelledOrderId,
+            CHASE_ORDER_STATUS_RETRY_COUNT,
+          );
+        } catch (error) {
+          session.replacingOrderId = null;
+          throw error;
+        }
 
         // Another round trip, another window for a cancel to land. By now the
         // old order is already off the book, so a cancel that arrived during it
@@ -6138,6 +6148,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // after that would put an order on the book the caller believes is gone
         // and has no handle for.
         if (!session.active || !this.#chaseSessions.has(sessionId)) {
+          session.replacingOrderId = null;
           this.#deps.debugLogger.log('Chase cancelled mid-reprice', {
             sessionId,
           });
@@ -6146,6 +6157,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         if (remaining === null) {
           // It filled completely between ticks; there is nothing left to chase.
+          session.replacingOrderId = null;
           session.active = false;
           session.status = CHASE_ORDER_STATUS.Filled;
           this.#deps.debugLogger.log('Chase order fully filled', { sessionId });
@@ -6338,9 +6350,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * window in which a fill lands and is then re-placed on top.
    *
    * @param orderId - Exchange ID of the order that was just cancelled.
+   * @param unknownStatusRetries - Remaining retries for a transient unknown ID.
    * @returns The unfilled size, or null when nothing is left to chase.
    */
-  async #readOrderRemainder(orderId: string): Promise<string | null> {
+  async #readOrderRemainder(
+    orderId: string,
+    unknownStatusRetries = 0,
+  ): Promise<string | null> {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const status = await this.#clientService.getInfoClient().orderStatus({
       user: userAddress,
@@ -6350,6 +6366,15 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (status.status !== 'order') {
       // unknownOid can be transient while the order-status index catches up.
       // Treating it as a fill would drop the only handle to a live order.
+      if (unknownStatusRetries > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, CHASE_ORDER_STATUS_RETRY_DELAY_MS),
+        );
+        return await this.#readOrderRemainder(
+          orderId,
+          unknownStatusRetries - 1,
+        );
+      }
       throw new Error('Chase order status unavailable');
     }
 
@@ -6494,9 +6519,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                   clearTimeout(session.timer);
                   session.timer = null;
                 }
-                if (session.status === CHASE_ORDER_STATUS.Active) {
-                  session.status = CHASE_ORDER_STATUS.Filled;
-                }
+                session.status = CHASE_ORDER_STATUS.Filled;
                 snapshotRemainingSize = '0';
               } else {
                 session.size = liveRemainder;
@@ -6653,13 +6676,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const status = result.response?.data?.status;
-    if (status === 'success') {
+    if (classifyCancelStatus(status) !== 'refused') {
       return { success: true, orderId: params.orderId };
     }
 
     const rawError =
-      (status as { error?: string } | undefined)?.error ??
-      'TWAP cancellation failed';
+      isStatusObject(status) && typeof status.error === 'string'
+        ? status.error
+        : 'TWAP cancellation failed';
     return createErrorResult(this.#mapError(new Error(rawError)), {
       success: false,
       orderId: params.orderId,
@@ -6839,7 +6863,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     requests: ExchangeCancelRequest[],
   ): Promise<CancelOrderBatchOutcome> {
     if (requests.length === 0) {
-      return { remainingOrderIds: [], cancelledOrderIds: [] };
+      return {
+        remainingOrderIds: [],
+        cancelledOrderIds: [],
+        responseComplete: true,
+      };
     }
 
     try {
@@ -6849,6 +6877,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         return {
           remainingOrderIds: requests.map((request) => request.o),
           cancelledOrderIds: [],
+          responseComplete: false,
         };
       }
 
@@ -6862,7 +6891,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           cancelledOrderIds.push(request.o);
         }
       });
-      return { remainingOrderIds, cancelledOrderIds };
+      return { remainingOrderIds, cancelledOrderIds, responseComplete: true };
     } catch (error) {
       this.#deps.debugLogger.log('Order cancellation batch failed', {
         error: ensureError(error, 'HyperLiquidProvider.cancelOrderRequests')
@@ -6872,6 +6901,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return {
         remainingOrderIds: requests.map((request) => request.o),
         cancelledOrderIds: [],
+        responseComplete: false,
       };
     }
   }
@@ -8422,6 +8452,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           exchangeClient,
           cancelRequests,
         );
+        if (!oldCancellation.responseComplete) {
+          return createProtectionLostResult(
+            cancelRequests.map((request) => String(request.o)),
+          );
+        }
         oldCancellation.cancelledOrderIds.forEach((orderId) =>
           confirmedCancelledOldOrderIds.add(orderId),
         );
@@ -8518,6 +8553,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         // whole-position triggers in either case risks stale or duplicate
         // protection, so return those IDs for caller reconciliation instead.
         if (recoverableOrderIds.length > 0) {
+          if (!isPartialTpsl) {
+            return createProtectionLostResult(recoverableOrderIds);
+          }
           return createErrorResult(
             new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
             {
@@ -12233,7 +12271,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
     const parsedAmount =
-      amount === undefined ? undefined : parseBoundedPositiveDecimal(amount);
+      amount === undefined ? undefined : parseBoundedNonNegativeDecimal(amount);
     if (parsedAmount === null) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
     }

@@ -2824,8 +2824,8 @@ export class PerpsController extends BaseController<
   ): boolean {
     return Boolean(
       providerId &&
-        !provider.routesOrdersByProviderId &&
-        providerId !== provider.protocolId,
+      !provider.routesOrdersByProviderId &&
+      providerId !== provider.protocolId,
     );
   }
 
@@ -5093,6 +5093,16 @@ export class PerpsController extends BaseController<
       const pendingInitialization = this.#initializationPromise;
       if (pendingInitialization) {
         await pendingInitialization;
+      }
+
+      // A completed disconnect leaves no initialization promise to await. Rebuild
+      // the provider registry before same-provider detection or route validation
+      // so a successful switch always leaves a usable active provider.
+      if (
+        !this.isInitialized ||
+        this.state.initializationState !== InitializationState.Initialized
+      ) {
+        await this.#initWithoutDisconnectWait();
       }
 
       // Initialization may select a fallback provider. Read the effective

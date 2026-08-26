@@ -19,13 +19,13 @@ jest.mock('@myx-trade/sdk', () => ({
   OrderStatusEnum: { Successful: 9 },
 }));
 
+import { PERPS_DISK_CACHE_MARKETS } from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
-import { PERPS_DISK_CACHE_MARKETS } from '../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
@@ -1300,6 +1300,25 @@ describe('PerpsController', () => {
         success: true,
         providerId: 'hyperliquid',
       });
+    });
+
+    it('reinitializes before resolving a same-provider switch after disconnect', async () => {
+      await controller.init();
+      await controller.disconnect();
+      const replacementProvider = createMockHyperLiquidProvider();
+      jest
+        .mocked(HyperLiquidProvider)
+        .mockImplementationOnce(() => replacementProvider);
+
+      await expect(
+        controller.switchProvider('hyperliquid'),
+      ).resolves.toStrictEqual({
+        success: true,
+        providerId: 'hyperliquid',
+      });
+
+      expect(controller.testGetInitialized()).toBe(true);
+      expect(controller.getActiveProviderOrNull()).toBe(replacementProvider);
     });
 
     it.each([
