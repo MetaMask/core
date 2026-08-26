@@ -94,7 +94,7 @@
     "@ts-bridge/cli": "^0.6.4",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^30.0.0",
-    "@types/node": "^16.18.54",
+    "@types/node": "^22.13.14",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^30.4.2",
