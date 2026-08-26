@@ -654,32 +654,7 @@ export async function cleanSpamAssets({
     }
 
     const nextState = cloneDeep(state);
-    const customAssetIds = new Set(
-      Object.values(nextState.customAssets)
-        .flat()
-        .map((assetId) => assetId.toLowerCase()),
-    );
-    const spam = new Set(
-      spamAssetIds
-        .map((assetId) => assetId.toLowerCase())
-        .filter((assetId) => !customAssetIds.has(assetId)),
-    );
-    if (spam.size === 0) {
-      return state;
-    }
-    const isSpam = (assetId: string): boolean =>
-      spam.has(assetId.toLowerCase());
-
-    for (const assetId of Object.keys(nextState.assetsInfo).filter(isSpam)) {
-      delete nextState.assetsInfo[assetId as Caip19AssetId];
-    }
-    for (const balances of Object.values(nextState.assetsBalance)) {
-      for (const assetId of Object.keys(balances).filter(isSpam)) {
-        delete balances[assetId as Caip19AssetId];
-      }
-    }
-
-    cleanupLog('Removed spam assets', { count: spam.size });
+    applyCleanupPatch(nextState, { spamAssetIds });
     return nextState;
   } catch (error) {
     // API calls failed, cleanup not performed. Will be retried when next invoked.
@@ -803,4 +778,30 @@ async function fetchSuggestedOccurrenceFloors(
     cleanupLog('Failed to fetch suggested occurrence floors', error);
     throw error;
   }
+}
+
+function applyCleanupPatch(
+  state: CleanSpamAssetsState,
+  patch: {
+    spamAssetIds: Caip19AssetId[];
+  },
+): void {
+  const { spamAssetIds } = patch;
+
+  const spam = new Set(spamAssetIds.map((assetId) => assetId.toLowerCase()));
+  if (spam.size === 0) {
+    return;
+  }
+  const isSpam = (assetId: string): boolean => spam.has(assetId.toLowerCase());
+
+  for (const assetId of Object.keys(state.assetsInfo).filter(isSpam)) {
+    delete state.assetsInfo[assetId as Caip19AssetId];
+  }
+  for (const balances of Object.values(state.assetsBalance)) {
+    for (const assetId of Object.keys(balances).filter(isSpam)) {
+      delete balances[assetId as Caip19AssetId];
+    }
+  }
+
+  cleanupLog('Removed spam assets', { count: spam.size });
 }

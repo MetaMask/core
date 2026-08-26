@@ -1182,9 +1182,10 @@ export class AssetsController extends BaseController<
       clientControllerSelectors.selectIsUiOpen,
     );
 
-    this.messenger.subscribe('KeyringController:unlock', () => {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.messenger.subscribe('KeyringController:unlock', async () => {
       this.#keyringUnlocked = true;
-      this.#runSpamCleanup().catch((error) => {
+      await this.#runSpamCleanup().catch((error) => {
         log('Failed to run spam cleanup', { error });
       });
       this.#updateActive();
@@ -1295,31 +1296,11 @@ export class AssetsController extends BaseController<
       });
 
       if (nextState !== originalState) {
-        const removedAssets = new Set(
-          Object.keys(originalState.assetsInfo).filter(
-            (assetId) =>
-              nextState.assetsInfo[assetId as Caip19AssetId] === undefined,
-          ),
-        );
-
         this.update((state) => {
-          const assetsInfo = { ...state.assetsInfo };
-          for (const assetId of removedAssets) {
-            delete assetsInfo[assetId as Caip19AssetId];
-          }
-
-          const assetsBalance = { ...state.assetsBalance };
-          for (const accountId of Object.keys(assetsBalance)) {
-            assetsBalance[accountId] = { ...assetsBalance[accountId] };
-            for (const assetId of removedAssets) {
-              delete assetsBalance[accountId][assetId as Caip19AssetId];
-            }
-          }
-
           return {
             ...state,
-            assetsInfo,
-            assetsBalance,
+            assetsInfo: nextState.assetsInfo,
+            assetsBalance: nextState.assetsBalance,
           };
         });
       }
