@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.1.7]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
@@ -517,7 +519,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.7...HEAD
+[26.1.7]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.6...@metamask/selected-network-controller@26.1.7
 [26.1.6]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.5...@metamask/selected-network-controller@26.1.6
 [26.1.5]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.4...@metamask/selected-network-controller@26.1.5
 [26.1.4]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.3...@metamask/selected-network-controller@26.1.4

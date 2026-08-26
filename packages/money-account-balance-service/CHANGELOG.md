@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.2]
+
 ### Uncategorized
 
 - chore: removed dev-only changes from money-account-balance-service 2.4.0 changelog entries ([#9742](https://github.com/MetaMask/core/pull/9742))
@@ -144,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.2...HEAD
+[2.4.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...@metamask/money-account-balance-service@2.4.2
 [2.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.0...@metamask/money-account-balance-service@2.4.1
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.3.0...@metamask/money-account-balance-service@2.4.0
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.2.0...@metamask/money-account-balance-service@2.3.0

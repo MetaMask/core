@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.0.0]
+
 ### Changed
 
 - **BREAKING:** `NetworkControllerMessenger` now requires the `ConfigRegistryController:stateChanged` event and `ConfigRegistryController:getNetworkConfigByCaip2ChainId` action to be delegated from the root messenger ([#9879](https://github.com/MetaMask/core/pull/9879))
@@ -1278,7 +1280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.1...@metamask/network-controller@36.0.0
 [35.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.0...@metamask/network-controller@35.0.1
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@34.0.0...@metamask/network-controller@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@33.0.0...@metamask/network-controller@34.0.0
