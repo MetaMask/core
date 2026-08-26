@@ -1,15 +1,24 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../keyring-controller" },
-    { "path": "../messenger" },
-    { "path": "../polling-controller" },
-    { "path": "../remote-feature-flag-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

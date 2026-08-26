@@ -1,11 +1,17 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "lib": ["ES2021", "DOM"],
+    "lib": [
+      "ES2021",
+      "DOM"
+    ],
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "references": [],
-  "include": ["../../types", "./types", "./src"]
+  "include": [
+    "../../types",
+    "./types",
+    "./src"
+  ]
 }

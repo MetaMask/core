@@ -1,16 +1,27 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../client-controller" },
-    { "path": "../connectivity-controller" },
-    { "path": "../keyring-controller" },
-    { "path": "../messenger" },
-    { "path": "../network-controller" },
-    { "path": "../network-enablement-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../client-controller"
+    },
+    {
+      "path": "../connectivity-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../network-enablement-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }
