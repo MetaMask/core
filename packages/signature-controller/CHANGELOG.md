@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [39.2.10]
 
-### Uncategorized
-
-- Revert "Release 1189.0.0" ([#9843](https://github.com/MetaMask/core/pull/9843))
-- Release 1189.0.0 ([#9841](https://github.com/MetaMask/core/pull/9841))
-
 ### Changed
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
