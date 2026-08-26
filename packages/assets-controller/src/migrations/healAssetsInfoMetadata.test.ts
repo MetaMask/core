@@ -726,7 +726,8 @@ describe('cleanSpamAssets', () => {
     },
     {
       // State keys are lowercase; the API answers in EIP-55 checksummed.
-      description: 'matches the API response to state keys case-insensitively when API answers in checksummed IDs',
+      description:
+        'matches the API response to state keys case-insensitively when API answers in checksummed IDs',
       held: [OPTIMISM_USDC.toLowerCase() as Caip19AssetId],
       removed: [],
       casing: 'checksum',

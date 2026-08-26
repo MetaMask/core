@@ -1,8 +1,12 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { AssetsController } from './AssetsController.js';
-import type { AssetsControllerState } from './AssetsController.js';
+import {
+  createMockAssetControllerMessenger,
+  createMockInternalAccount,
+  registerAssetsControllerActions,
+} from './__fixtures__/MockAssetControllerMessenger.js';
+import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import {
   createTestApiClient,
   mockSuggestedOccurrenceFloors,
@@ -28,13 +32,9 @@ import {
   buildAssetsInfo,
   buildSpamWalletState,
 } from './__fixtures__/spamWalletState.js';
-import {
-  createMockAssetControllerMessenger,
-  createMockInternalAccount,
-  registerAssetsControllerActions,
-} from './__fixtures__/MockAssetControllerMessenger.js';
-import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { waitFor } from './__fixtures__/test-utils.js';
+import { AssetsController } from './AssetsController.js';
+import type { AssetsControllerState } from './AssetsController.js';
 
 /**
  * End-to-end coverage for the spam sweep the controller runs on
