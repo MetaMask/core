@@ -377,9 +377,9 @@ export type OrderResult = {
   // real submitted size rather than the caller's pre-normalization params.size.
   submittedSize?: string;
   averagePrice?: string; // Average execution price
-  // Exchange IDs of the individual orders a strategy placement expanded into.
-  // `orderId` carries the strategy handle instead, so these are what a caller
-  // needs to cancel the children directly.
+  // Exchange IDs tied to a multi-order or recovery result. On a successful
+  // strategy placement, `orderId` carries the strategy handle and these IDs
+  // identify its individual children.
   //
   // For a `scale` ladder they stay valid: the rungs are placed once and are not
   // replaced, so they remain cancellable even after the session-scoped handle is
@@ -388,7 +388,10 @@ export type OrderResult = {
   // a new ID that is held in the session rather than reported here, so the value
   // goes stale on the first re-price. Cancel a live chase by its handle.
   //
-  // Absent for every non-strategy placement.
+  // Failure results can mix filled IDs with orders that may still rest, so a
+  // caller must not blindly cancel every ID. When TP/SL protection cannot be
+  // fully restored, these identify the old orders that survived or were
+  // recreated; an empty array means none were confirmed.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };

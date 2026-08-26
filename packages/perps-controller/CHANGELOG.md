@@ -28,8 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preserve compatibility through an optional provider hook and explicit unavailable reasons.
   - Capability reads wait for in-flight controller initialization before resolving the active provider, so discovery uses the provider selected when initialization completes.
   - Capability reads return a typed unavailable result instead of throwing.
-- **BREAKING:** Add public `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED`, `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND`, and `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE` errors for missing or conflicting strategy routes, unknown aggregated routes, and async provider work invalidated by disconnect or a network change ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Consumers that exhaustively map `PerpsErrorCode` must add these four codes.
+- **BREAKING:** Add public `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED`, `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND`, `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE`, and `PERPS_ERROR_CODES.TPSL_PROTECTION_LOST` errors for invalid strategy routes, stale provider work, and failed TP/SL recovery ([#9948](https://github.com/MetaMask/core/pull/9948))
+  - Consumers that exhaustively map `PerpsErrorCode` must add these five codes.
 
 ### Changed
 
@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `calculateFees` now returns a `metamaskFeeRate` and `metamaskFeeAmount` of `0` for TWAP instead of `0.001` and its derived amount. The HyperLiquid protocol/taker fee is unchanged. Fee discounts do not add a MetaMask fee because the native TWAP action has no builder field, so native TWAP produces no MetaMask builder-fee revenue.
   - Clients may override builder-fee applicability for HyperLiquid builder-capable standalone actions through optional provider configuration. This includes market, limit, trigger, scale, and chase orders. Quotes and placement use the same policy. Native TWAP cannot be overridden, attached trigger children inherit their parent action, and a position TP/SL update charges when any included trigger policy charges because HyperLiquid accepts one builder context per batch.
   - Position TP/SL replacement completes builder approval before cancellation. Whole-position `positionTpsl` updates keep their established pre-cancel order and restore any confirmed cancellations if the replacement fails. Partial standalone updates place the replacement first, cancel only resting new triggers when a batch is incomplete, and report any filled or still-resting replacement IDs.
+  - Failed whole-position recovery returns `TPSL_PROTECTION_LOST`. Its `childOrderIds` list identifies old protection that survived or was recreated, and an empty list means no protection was confirmed.
 - **BREAKING:** Reject non-positive or non-plain-decimal `calculateFees` amounts with `ORDER_SIZE_POSITIVE` in HyperLiquid and MYX providers instead of returning a zero or partially parsed quote ([#9948](https://github.com/MetaMask/core/pull/9948))
   - Amount strings must use digits with an optional decimal fraction. Exponential notation, hexadecimal notation, leading or trailing whitespace, and leading-dot decimals are rejected.
 - Wait for in-flight `PerpsController` initialization before validating orders or calculating ordinary and strategy fee quotes instead of throwing `CLIENT_NOT_INITIALIZED`; placement already waited for the same initialization ([#9948](https://github.com/MetaMask/core/pull/9948))

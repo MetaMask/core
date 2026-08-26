@@ -923,6 +923,152 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
     });
 
+    it.each([
+      {
+        label: 'returns a rejected status',
+        restoreResult: {
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Rejected restoration' }] },
+          },
+        },
+      },
+      {
+        label: 'throws',
+        restoreResult: new Error('Restoration unavailable'),
+      },
+    ])(
+      'reports lost protection when restoration $label',
+      async ({ restoreResult }) => {
+        const order = jest.fn().mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Rejected replacement' }] },
+          },
+        });
+        if (restoreResult instanceof Error) {
+          order.mockRejectedValueOnce(restoreResult);
+        } else {
+          order.mockResolvedValueOnce(restoreResult);
+        }
+        useStrategyClients({
+          exchange: { order },
+          info: {
+            frontendOpenOrders: jest.fn().mockResolvedValue([
+              {
+                coin: 'ETH',
+                side: 'A',
+                limitPx: '3400',
+                sz: '0',
+                origSz: '0',
+                oid: 456,
+                timestamp: 1_700_000_000_000,
+                reduceOnly: true,
+                isTrigger: true,
+                isPositionTpsl: true,
+                triggerCondition: 'Price above 3400',
+                triggerPx: '3400',
+                orderType: 'Take Profit Limit',
+                children: [],
+              },
+            ]),
+          },
+        });
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          childOrderIds: [],
+        });
+        expect(order).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it('reports recreated protection IDs when restoration is incomplete', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [
+                { error: 'Rejected take profit' },
+                { error: 'Rejected stop loss' },
+              ],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ resting: { oid: 789 } }] },
+          },
+        });
+      useStrategyClients({
+        exchange: {
+          order,
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: ['success', 'success'] } },
+          }),
+        },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              side: 'A',
+              limitPx: '2450',
+              sz: '0',
+              origSz: '0',
+              oid: 456,
+              timestamp: 1_700_000_000_000,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              triggerCondition: 'Price below 2500',
+              triggerPx: '2500',
+              orderType: 'Stop Market',
+              children: [],
+            },
+            {
+              coin: 'ETH',
+              side: 'A',
+              limitPx: '3400',
+              sz: '0',
+              origSz: '0',
+              oid: 457,
+              timestamp: 1_700_000_000_000,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              triggerCondition: 'Price above 3400',
+              triggerPx: '3400',
+              orderType: 'Take Profit Limit',
+              children: [],
+            },
+          ]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2400',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        childOrderIds: ['789'],
+      });
+      expect(order).toHaveBeenCalledTimes(2);
+    });
+
     it('restores only the order confirmed cancelled when replacement fails', async () => {
       const order = jest
         .fn()
@@ -4034,6 +4180,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
 
+    it('ages shared capability metadata from the request start', async () => {
+      const requestStarted = createDeferred<void>();
+      const pendingMeta = createDeferred<{
+        universe: { name: string; szDecimals: number; maxLeverage: number }[];
+      }>();
+      const meta = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          requestStarted.resolve();
+          return pendingMeta.promise;
+        })
+        .mockResolvedValueOnce({
+          universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+        });
+      const { infoClient } = useStrategyClients({ info: { meta } });
+
+      const leverage = provider.getMaxLeverage('ETH');
+      await requestStarted.promise;
+      jest.advanceTimersByTime(
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
+      );
+      pendingMeta.resolve({
+        universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
+      });
+      await leverage;
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({ status: 'ready' });
+      expect(infoClient.meta).toHaveBeenCalledTimes(2);
+    });
+
     it('isolates capability metadata from overlapping shared cache writes', async () => {
       const sharedRequestStarted = createDeferred<void>();
       const pendingSharedMeta = createDeferred<{
@@ -6394,8 +6572,45 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        submittedSize: '1',
       });
       expect(placed.orderId).toBeUndefined();
+    });
+
+    it('treats an already-finished stale TWAP as retracted', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const twapOrder = jest.fn().mockImplementation(async () => {
+        disconnected = provider.disconnect();
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: {
+            type: 'twapOrder',
+            data: { status: { running: { twapId: 987 } } },
+          },
+        };
+      });
+      const twapCancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          type: 'twapCancel',
+          data: { status: { error: 'Twap not found' } },
+        },
+      });
+      useStrategyClients({ exchange: { twapOrder, twapCancel } });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
+      await disconnected;
+
+      expect(placed).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        submittedSize: '1',
+      });
     });
 
     it('retracts resting scale rungs and registers no stale group after teardown', async () => {

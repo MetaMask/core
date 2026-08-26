@@ -248,6 +248,7 @@ const ALREADY_GONE_CANCEL_MARKERS = [
   'already canceled',
   'already cancelled',
   'order not found',
+  'twap not found',
 ];
 
 const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
@@ -289,6 +290,11 @@ type RestorableTpslOrder = {
   orderId: number;
   order: SDKOrderParams;
   chargesMetamaskBuilderFee: boolean;
+};
+
+type TpslProtectionRestorationOutcome = {
+  restoredOrderIds: string[];
+  success: boolean;
 };
 
 type BuilderFeeSetupContext = {
@@ -535,7 +541,6 @@ type GetOrFetchPriceParams = {
 type StrategyPlacementContext = {
   assetId: number;
   szDecimals: number;
-  finalPositionSize: number;
   formattedSize: string;
   builder?: BuilderOrderContext;
   /** The validated ladder a scale placement submits; absent for other types. */
@@ -1301,17 +1306,17 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     let refreshPromise = this.#orderCapabilitiesMetaRefreshPromise;
     if (!refreshPromise) {
-      const refreshGeneration = lifecycleGeneration;
+      const fetchedAt = Date.now();
       refreshPromise = (async (): Promise<MetaResponse> => {
         const meta = await this.#fetchMeta(null);
         this.#assertProviderLifecycleCurrent(
-          refreshGeneration,
+          lifecycleGeneration,
           'Order capability metadata refresh',
         );
 
         this.#orderCapabilitiesMeta = {
           meta,
-          freshAt: Date.now(),
+          freshAt: fetchedAt,
         };
         return meta;
       })();
@@ -2498,10 +2503,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Cache miss or skipCache=true - fetch from API.
+    const fetchedAt = Date.now();
     const meta = await this.#fetchMeta(dexName);
     const cached = await this.#cacheDexMetadataFromRead({
       dex: dexName,
       meta,
+      fetchedAt,
       lifecycleGeneration,
     });
     if (cached) {
@@ -2557,22 +2564,24 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.dex - DEX name, or null for the main DEX.
    * @param params.meta - Validated DEX metadata.
    * @param params.assetCtxs - Asset contexts shared with subscriptions, if any.
+   * @param params.fetchedAt - Time the metadata request started.
    * @param params.lifecycleGeneration - Lifecycle that produced the metadata.
    */
   #cacheDexMetadata(params: {
     dex: string | null;
     meta: MetaResponse;
     assetCtxs?: PerpsAssetCtx[];
+    fetchedAt: number;
     lifecycleGeneration: number;
   }): void {
-    const { dex, meta, assetCtxs, lifecycleGeneration } = params;
+    const { dex, meta, assetCtxs, fetchedAt, lifecycleGeneration } = params;
     this.#assertCacheWriteLifecycleCurrent(
       lifecycleGeneration,
       'DEX metadata cache write',
     );
     this.#cachedMetaByDex.set(dex, meta);
     if (dex === null && this.#orderCapabilitiesMeta === null) {
-      this.#orderCapabilitiesMeta = { meta, freshAt: Date.now() };
+      this.#orderCapabilitiesMeta = { meta, freshAt: fetchedAt };
     }
     if (assetCtxs) {
       const subscriptionDexKey = dex ?? '';
@@ -2591,6 +2600,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.dex - DEX name, or null for the main DEX.
    * @param params.meta - Validated DEX metadata.
    * @param params.assetCtxs - Asset contexts shared with subscriptions, if any.
+   * @param params.fetchedAt - Time the metadata request started.
    * @param params.lifecycleGeneration - Lifecycle that produced the metadata.
    * @returns Whether the fetched metadata was cached.
    */
@@ -2598,9 +2608,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     dex: string | null;
     meta: MetaResponse;
     assetCtxs?: PerpsAssetCtx[];
+    fetchedAt: number;
     lifecycleGeneration: number;
   }): Promise<boolean> {
-    const { dex, meta, assetCtxs, lifecycleGeneration } = params;
+    const { dex, meta, assetCtxs, fetchedAt, lifecycleGeneration } = params;
     if (
       !this.#isCacheWriteLifecycleCurrent(
         lifecycleGeneration,
@@ -2615,6 +2626,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         dex,
         meta,
         assetCtxs,
+        fetchedAt,
         lifecycleGeneration,
       });
       await this.#backfillAssetMapForDex(dex, meta, lifecycleGeneration);
@@ -3175,6 +3187,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Not cached, fetch and populate cache
         const dexParam = dex ?? undefined;
+        const fetchedAt = Date.now();
         return infoClient
           .metaAndAssetCtxs(dexParam ? { dex: dexParam } : undefined)
           .then((result) => {
@@ -3186,6 +3199,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                 dex,
                 meta,
                 assetCtxs,
+                fetchedAt,
                 lifecycleGeneration,
               });
             }
@@ -5200,7 +5214,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     return {
       assetId,
       szDecimals: assetInfo.szDecimals,
-      finalPositionSize,
       formattedSize,
       ladder,
       builder,
@@ -5366,7 +5379,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           a: assetId,
           t: running.twapId,
         });
-        remainsLive = cancelResult.response?.data?.status !== 'success';
+        remainsLive =
+          classifyCancelStatus(cancelResult.response?.data?.status) ===
+          'refused';
       } catch (error) {
         this.#deps.debugLogger.log(
           'Stale TWAP placement could not be retracted',
@@ -5383,6 +5398,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
         {
           success: false,
+          submittedSize: formattedSize,
           ...(remainsLive && { orderId }),
         },
       );
@@ -6637,7 +6653,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const exchangeClient = this.#clientService.getExchangeClient();
     const cancelRequests = group.orderIds.map((orderId) => ({
       a: group.assetId,
-      o: parseInt(orderId, 10),
+      o: Number(orderId),
     }));
     const remaining = (
       await this.#cancelOrderRequests(exchangeClient, cancelRequests)
@@ -8224,7 +8240,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const restoreCancelledProtection = async (
         cancelledOrderIds: Set<number>,
-      ): Promise<void> => {
+      ): Promise<TpslProtectionRestorationOutcome> => {
+        const restoredOrderIds: string[] = [];
+        let success = true;
         const protectionGroups: {
           grouping: 'positionTpsl' | 'na';
           entries: RestorableTpslOrder[];
@@ -8254,15 +8272,20 @@ export class HyperLiquidProvider implements PerpsProvider {
                 builderOrderContext && { builder: builderOrderContext }),
             });
             const statuses = result.response?.data?.statuses ?? [];
-            const acceptedCount = statuses
+            const outcomes = statuses
               .slice(0, entries.length)
-              .map((status) => this.#readOrderPlacementOutcome(status))
-              .filter((outcome) => outcome !== undefined).length;
+              .map((status) => this.#readOrderPlacementOutcome(status));
+            restoredOrderIds.push(
+              ...outcomes.flatMap((outcome) =>
+                outcome ? [outcome.orderId] : [],
+              ),
+            );
             if (
               result.status !== 'ok' ||
               statuses.length !== entries.length ||
-              acceptedCount !== entries.length
+              outcomes.some((outcome) => outcome === undefined)
             ) {
+              success = false;
               this.#deps.logger.error(
                 new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
                 this.#getErrorContext(
@@ -8272,6 +8295,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               );
             }
           } catch (error) {
+            success = false;
             this.#deps.logger.error(
               ensureError(
                 error,
@@ -8284,7 +8308,16 @@ export class HyperLiquidProvider implements PerpsProvider {
             );
           }
         }
+        return { restoredOrderIds, success };
       };
+
+      const createProtectionLostResult = (
+        survivingOrderIds: string[],
+      ): OrderResult =>
+        createErrorResult(new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST), {
+          success: false,
+          childOrderIds: [...new Set(survivingOrderIds)],
+        });
 
       // Clearing has no replacement batch to preserve. A partial cancellation
       // is reported so the caller can retry the same clear operation.
@@ -8318,28 +8351,38 @@ export class HyperLiquidProvider implements PerpsProvider {
           confirmedCancelledOldOrderIds.add(orderId),
         );
         if (oldCancellation.remainingOrderIds.length > 0) {
-          await restoreCancelledProtection(confirmedCancelledOldOrderIds);
+          const restoration = await restoreCancelledProtection(
+            confirmedCancelledOldOrderIds,
+          );
+          if (!restoration.success) {
+            return createProtectionLostResult([
+              ...oldCancellation.remainingOrderIds.map(String),
+              ...restoration.restoredOrderIds,
+            ]);
+          }
           throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         }
       }
 
-      const result = await (async (): Promise<
-        Awaited<ReturnType<ExchangeClient['order']>>
-      > => {
-        try {
-          return await exchangeClient.order({
-            orders,
-            grouping: isPartialTpsl ? 'na' : 'positionTpsl',
-            ...(replacementChargesMetamaskBuilderFee &&
-              builderOrderContext && { builder: builderOrderContext }),
-          });
-        } catch (error) {
-          if (!isPartialTpsl) {
-            await restoreCancelledProtection(confirmedCancelledOldOrderIds);
+      let result: Awaited<ReturnType<ExchangeClient['order']>>;
+      try {
+        result = await exchangeClient.order({
+          orders,
+          grouping: isPartialTpsl ? 'na' : 'positionTpsl',
+          ...(replacementChargesMetamaskBuilderFee &&
+            builderOrderContext && { builder: builderOrderContext }),
+        });
+      } catch (error) {
+        if (!isPartialTpsl) {
+          const restoration = await restoreCancelledProtection(
+            confirmedCancelledOldOrderIds,
+          );
+          if (!restoration.success) {
+            return createProtectionLostResult(restoration.restoredOrderIds);
           }
-          throw error;
         }
-      })();
+        throw error;
+      }
 
       const placementStatuses = result.response?.data?.statuses ?? [];
       const placementOutcomes = placementStatuses
@@ -8371,8 +8414,17 @@ export class HyperLiquidProvider implements PerpsProvider {
           ...remainingReplacementIds.map(String),
         ];
         if (!isPartialTpsl && recoverableOrderIds.length === 0) {
-          await restoreCancelledProtection(confirmedCancelledOldOrderIds);
+          const restoration = await restoreCancelledProtection(
+            confirmedCancelledOldOrderIds,
+          );
+          if (!restoration.success) {
+            return createProtectionLostResult(restoration.restoredOrderIds);
+          }
         }
+        // A filled replacement may have changed or closed the position, while
+        // an uncancelled replacement may still protect it. Restoring the old
+        // whole-position triggers in either case risks stale or duplicate
+        // protection, so return those IDs for caller reconciliation instead.
         if (recoverableOrderIds.length > 0) {
           return createErrorResult(
             new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
@@ -10505,6 +10557,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     lifecycleGeneration: number,
   ): Promise<DexFetchResult> {
     const dexParam = dex ?? '';
+    const fetchedAt = Date.now();
 
     let metaAndCtxs: [MetaResponse | null, PerpsAssetCtx[]] | null = null;
     try {
@@ -10545,6 +10598,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         dex,
         meta,
         assetCtxs,
+        fetchedAt,
         lifecycleGeneration,
       });
     }
@@ -10751,6 +10805,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         if (assetCtxs.length !== metaForDex.universe.length) {
           try {
+            const fetchedAt = Date.now();
             const freshResult = await infoClient.metaAndAssetCtxs(
               dexParam ? { dex: dexParam } : undefined,
             );
@@ -10776,6 +10831,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               dex,
               meta: freshMeta,
               assetCtxs,
+              fetchedAt,
               lifecycleGeneration,
             });
           } catch (error) {
@@ -11786,6 +11842,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Update all services
       this.#clientService.setTestnetMode(newIsTestnet);
+      // Invalidate reads that started after disconnect completed but before
+      // the clients switched networks.
+      this.#lifecycleGeneration += 1;
       this.#walletService.setTestnetMode(newIsTestnet);
 
       const initializeResult = await this.initialize();
