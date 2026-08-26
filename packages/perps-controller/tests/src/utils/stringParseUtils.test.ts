@@ -96,6 +96,10 @@ describe('bounded decimal parsing', () => {
     },
   );
 
+  it.each([1, null, undefined])('rejects non-string value %p', (value) => {
+    expect(parseBoundedNonNegativeDecimal(value)).toBeNull();
+  });
+
   it('rejects values above the supplied bound', () => {
     expect(parseBoundedNonNegativeDecimal('1.1', 1)).toBeNull();
   });

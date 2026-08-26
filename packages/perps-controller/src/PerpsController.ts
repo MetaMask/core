@@ -2752,7 +2752,15 @@ export class PerpsController extends BaseController<
     }
 
     try {
-      return await activeProvider.getOrderCapabilities(params);
+      const capabilities = await activeProvider.getOrderCapabilities(params);
+      if (
+        capabilities.status === 'unavailable' &&
+        capabilities.providerId === undefined &&
+        resolvedProviderId !== undefined
+      ) {
+        return { ...capabilities, providerId: resolvedProviderId };
+      }
+      return capabilities;
     } catch (error) {
       const safeError = ensureError(
         error,
@@ -2893,7 +2901,10 @@ export class PerpsController extends BaseController<
    * @returns The updated order result with order ID and status.
    */
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.newOrder.orderType,
+      providerId: params.newOrder.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.editOrder({
@@ -2981,7 +2992,10 @@ export class PerpsController extends BaseController<
    * @returns The order result from the close position request.
    */
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.closePosition({
@@ -3026,7 +3040,10 @@ export class PerpsController extends BaseController<
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: undefined,
+      providerId: params.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.updatePositionTPSL({
@@ -4840,7 +4857,10 @@ export class PerpsController extends BaseController<
   async validateClosePosition(
     params: ClosePositionParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const provider = this.getActiveProvider();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     const context = this.#createServiceContext('validateClosePosition');
     return this.#marketDataService.validateClosePosition({
       provider,

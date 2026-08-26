@@ -670,8 +670,8 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
       ).toHaveBeenCalledWith({
-        builder: expect.any(String),
-        maxFeeRate: expect.stringContaining('%'),
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+        maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
       });
 
       // Note: Referral setup is fire-and-forget (non-blocking), so we can't reliably
@@ -1082,8 +1082,8 @@ describe('HyperLiquidProvider', () => {
           orders: expect.any(Array),
           grouping: 'positionTpsl',
           builder: {
-            b: expect.any(String),
-            f: expect.any(Number),
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
           },
         }),
       );
@@ -1105,7 +1105,15 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(mockClientService.getExchangeClient().order).toHaveBeenCalled();
+      expect(mockedCache.getBuilderFee).toHaveBeenCalledTimes(2);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
       ).not.toHaveBeenCalled();

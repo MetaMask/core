@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Missing strategy routes throw `ORDER_STRATEGY_ROUTE_REQUIRED`. Conflicting direct routes throw `ORDER_STRATEGY_ROUTE_UNAVAILABLE`. Unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
   - `AggregatedPerpsProvider` implements `RoutedPerpsProvider`, so consumers cannot widen it to the direct `PerpsProvider` contract and drop the strategy route requirement.
   - Fee calculations now reach a registered selected provider. MYX quotes explicitly report zero MetaMask fee fields. Any explicit order route must resolve to that provider; only omitted routes use the default provider.
+  - Editing orders, closing positions, updating position TP/SL, and validating position closes apply the same explicit-route check before reaching a service.
   - MYX rejects `twap`, `scale`, and `chase` fee quotes with `ORDER_STRATEGY_MARKET_UNSUPPORTED` because it does not support strategy orders.
 - **BREAKING:** Resolve HyperLiquid builder-fee applicability through an exhaustive provider-owned order policy and exclude the MetaMask builder fee from TWAP quotes ([#9948](https://github.com/MetaMask/core/pull/9948))
   - `calculateFees` now returns a `metamaskFeeRate` and `metamaskFeeAmount` of `0` for TWAP instead of `0.001` and its derived amount. The HyperLiquid protocol/taker fee is unchanged. Fee discounts do not add a MetaMask fee because the native TWAP action has no builder field, so native TWAP produces no MetaMask builder-fee revenue.
@@ -58,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Display tiny nonzero funding rates as `<0.0001%` or `-<0.0001%` instead of `0.0000%` ([#9971](https://github.com/MetaMask/core/pull/9971))
 - Retract every resting `scale` rung when a batch is only partly accepted, and return a retryable group handle if cleanup leaves any rung on the book ([#9948](https://github.com/MetaMask/core/pull/9948))
   - A successful ladder reports the full requested `submittedSize`. Filled rungs count as accepted, while `childOrderIds` contains only resting rungs that can still be cancelled.
+  - A failed ladder reports filled rung IDs alongside any still-resting IDs, while its retryable group handle contains only the resting IDs that cancellation can act on.
 - Ignore missing optional MYX constructors when a consumer excludes the MYX module from its bundle ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
 

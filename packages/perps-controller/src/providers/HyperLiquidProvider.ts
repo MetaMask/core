@@ -3202,6 +3202,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           });
       }),
     );
+
     this.#assertCacheWriteLifecycleCurrent(
       lifecycleGeneration,
       'Asset mapping rebuild',
@@ -5453,24 +5454,31 @@ export class HyperLiquidProvider implements PerpsProvider {
     const acceptedCount = outcomes.filter(
       (outcome) => outcome !== undefined,
     ).length;
-    const childOrderIds = outcomes.flatMap((outcome) =>
+    const restingChildOrderIds = outcomes.flatMap((outcome) =>
       outcome?.state === 'resting' ? [outcome.orderId] : [],
+    );
+    const filledChildOrderIds = outcomes.flatMap((outcome) =>
+      outcome?.state === 'filled' ? [outcome.orderId] : [],
     );
 
     if (generation !== this.#strategyGeneration) {
       const remainingOrderIds = await this.#cancelOrderRequests(
         exchangeClient,
-        childOrderIds.map((orderId) => ({
+        restingChildOrderIds.map((orderId) => ({
           a: assetId,
           o: Number(orderId),
         })),
       );
+      const recoverableOrderIds = [
+        ...filledChildOrderIds,
+        ...remainingOrderIds.map(String),
+      ];
       return createErrorResult(
         new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
         {
           success: false,
-          ...(remainingOrderIds.length > 0 && {
-            childOrderIds: remainingOrderIds.map(String),
+          ...(recoverableOrderIds.length > 0 && {
+            childOrderIds: recoverableOrderIds,
           }),
         },
       );
@@ -5483,23 +5491,28 @@ export class HyperLiquidProvider implements PerpsProvider {
     ) {
       this.#deps.debugLogger.log('Scale ladder was not fully accepted', {
         accepted: acceptedCount,
-        resting: childOrderIds.length,
+        filled: filledChildOrderIds.length,
+        resting: restingChildOrderIds.length,
         requested: count,
         statuses,
       });
       const remainingOrderIds = await this.#cancelOrderRequests(
         exchangeClient,
-        childOrderIds.map((orderId) => ({
+        restingChildOrderIds.map((orderId) => ({
           a: assetId,
           o: Number(orderId),
         })),
       );
+      const recoverableOrderIds = [
+        ...filledChildOrderIds,
+        ...remainingOrderIds.map(String),
+      ];
       if (remainingOrderIds.length > 0) {
         const groupId = generatePerpsId('scale');
-        const recoverableOrderIds = remainingOrderIds.map(String);
+        const remainingRestingOrderIds = remainingOrderIds.map(String);
         this.#scaleOrderGroups.set(groupId, {
           assetId,
-          orderIds: recoverableOrderIds,
+          orderIds: remainingRestingOrderIds,
         });
         return createErrorResult(
           new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
@@ -5511,15 +5524,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
+      if (recoverableOrderIds.length > 0) {
+        return createErrorResult(new Error(PERPS_ERROR_CODES.ORDER_REJECTED), {
+          success: false,
+          childOrderIds: recoverableOrderIds,
+        });
+      }
+
       throw new Error(PERPS_ERROR_CODES.ORDER_REJECTED);
     }
 
     const groupId = generatePerpsId('scale');
-    this.#scaleOrderGroups.set(groupId, { assetId, orderIds: childOrderIds });
+    this.#scaleOrderGroups.set(groupId, {
+      assetId,
+      orderIds: restingChildOrderIds,
+    });
     return {
       success: true,
       orderId: groupId,
-      childOrderIds,
+      childOrderIds: restingChildOrderIds,
       submittedSize: formattedSize,
     };
   }
@@ -10796,6 +10819,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }),
     );
+
     // TAT-3304: Exclude non-USDC-collateral HIP-3 DEXs before merging, so
     // getMarketDataWithPrices (and the stale snapshot #cacheFreshMarketDataSnapshot
     // derives from it) enforces the same USDC-only policy as market discovery

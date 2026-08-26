@@ -579,6 +579,24 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
     });
 
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s order to MYX when explicitly requested',
+      async (orderType) => {
+        const params = {
+          symbol: 'RHEA',
+          isBuy: true,
+          size: '0.1',
+          orderType,
+          providerId: 'myx',
+        } as const;
+
+        await routedProvider.placeOrder(params);
+
+        expect(mockMYXProvider.placeOrder).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+      },
+    );
+
     it('injects providerId into result', async () => {
       mockMYXProvider.placeOrder.mockResolvedValue({
         success: true,
@@ -627,6 +645,7 @@ describe('AggregatedPerpsProvider', () => {
           }),
         ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+        expect(mockMYXProvider.placeOrder).not.toHaveBeenCalled();
       },
     );
 
@@ -646,6 +665,7 @@ describe('AggregatedPerpsProvider', () => {
           routedProvider.placeOrder(params),
         ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+        expect(mockMYXProvider.placeOrder).not.toHaveBeenCalled();
       },
     );
   });
@@ -673,6 +693,23 @@ describe('AggregatedPerpsProvider', () => {
         expect.objectContaining({ orderId: 'order-123' }),
       );
     });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s cancel to MYX when explicitly requested',
+      async (orderType) => {
+        const params = {
+          orderId: 'strategy-123',
+          symbol: 'RHEA',
+          orderType,
+          providerId: 'myx',
+        } as const;
+
+        await routedProvider.cancelOrder(params);
+
+        expect(mockMYXProvider.cancelOrder).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
 
     it('injects providerId into result', async () => {
       mockMYXProvider.cancelOrder.mockResolvedValue({
@@ -717,6 +754,7 @@ describe('AggregatedPerpsProvider', () => {
           }),
         ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+        expect(mockMYXProvider.cancelOrder).not.toHaveBeenCalled();
       },
     );
 
@@ -735,6 +773,7 @@ describe('AggregatedPerpsProvider', () => {
           routedProvider.cancelOrder(params),
         ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+        expect(mockMYXProvider.cancelOrder).not.toHaveBeenCalled();
       },
     );
   });
@@ -762,6 +801,24 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(mockMYXProvider.validateOrder).toHaveBeenCalled();
     });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes %s validation to MYX when explicitly requested',
+      async (orderType) => {
+        const params = {
+          symbol: 'RHEA',
+          isBuy: true,
+          size: '0.1',
+          orderType,
+          providerId: 'myx',
+        } as const;
+
+        await routedProvider.validateOrder(params);
+
+        expect(mockMYXProvider.validateOrder).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
+      },
+    );
 
     it('rejects an unregistered provider during ordinary validation', async () => {
       const params: Omit<OrderParams, 'providerId'> & {
@@ -797,6 +854,7 @@ describe('AggregatedPerpsProvider', () => {
           }),
         ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
+        expect(mockMYXProvider.validateOrder).not.toHaveBeenCalled();
       },
     );
 
@@ -816,6 +874,7 @@ describe('AggregatedPerpsProvider', () => {
           routedProvider.validateOrder(params),
         ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_REQUIRED);
         expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
+        expect(mockMYXProvider.validateOrder).not.toHaveBeenCalled();
       },
     );
 

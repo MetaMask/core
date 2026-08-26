@@ -844,6 +844,33 @@ describe('PerpsController', () => {
   });
 
   describe('order capabilities', () => {
+    const setAggregatedProvider = (): AggregatedPerpsProvider => {
+      const myxProvider: PerpsProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'myx',
+      };
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
+      );
+      controller.testSetActiveProvider(aggregatedProvider);
+      return aggregatedProvider;
+    };
+
     it('returns capabilities from the active routed provider', async () => {
       mockProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
         status: 'ready',
@@ -889,6 +916,23 @@ describe('PerpsController', () => {
         status: 'unavailable',
         providerId: 'hyperliquid',
         reason: 'not_implemented',
+      });
+    });
+
+    it('preserves a direct unavailable reason when the provider omits its identity', async () => {
+      mockProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+        status: 'unavailable',
+        reason: 'market_not_found',
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getOrderCapabilities({ symbol: 'UNKNOWN' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
       });
     });
 
@@ -1040,6 +1084,28 @@ describe('PerpsController', () => {
       },
     );
 
+    it('keeps an accepted placement providerId in the service request', async () => {
+      const aggregatedProvider = setAggregatedProvider();
+      const params = {
+        symbol: 'RHEA',
+        providerId: 'myx',
+        orderType: 'twap',
+        isBuy: true,
+        size: '1',
+        twapDuration: 30,
+      } as const;
+      mockTradingServiceInstance.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'twap-123',
+      });
+
+      await controller.placeOrder(params);
+
+      expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: aggregatedProvider, params }),
+      );
+    });
+
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects %s placement without an explicit provider route',
       async (orderType) => {
@@ -1096,6 +1162,26 @@ describe('PerpsController', () => {
       },
     );
 
+    it('keeps an accepted cancellation providerId in the service request', async () => {
+      const aggregatedProvider = setAggregatedProvider();
+      const params = {
+        orderId: 'twap-123',
+        symbol: 'RHEA',
+        providerId: 'myx',
+        orderType: 'twap',
+      } as const;
+      mockTradingServiceInstance.cancelOrder.mockResolvedValue({
+        success: true,
+        orderId: 'twap-123',
+      });
+
+      await controller.cancelOrder(params);
+
+      expect(mockTradingServiceInstance.cancelOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: aggregatedProvider, params }),
+      );
+    });
+
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects %s cancellation without an explicit provider route',
       async (orderType) => {
@@ -1134,6 +1220,27 @@ describe('PerpsController', () => {
         ).not.toHaveBeenCalled();
       },
     );
+
+    it('keeps an accepted validation providerId in the service request', async () => {
+      const aggregatedProvider = setAggregatedProvider();
+      const params = {
+        symbol: 'RHEA',
+        providerId: 'myx',
+        orderType: 'twap',
+        isBuy: true,
+        size: '1',
+        twapDuration: 30,
+      } as const;
+      mockMarketDataServiceInstance.validateOrder.mockResolvedValue({
+        isValid: true,
+      });
+
+      await controller.validateOrder(params);
+
+      expect(mockMarketDataServiceInstance.validateOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: aggregatedProvider, params }),
+      );
+    });
 
     it.each(STRATEGY_ORDER_TYPES)(
       'rejects %s validation without an explicit provider route',
@@ -1190,6 +1297,67 @@ describe('PerpsController', () => {
       );
 
       expect(mockTradingServiceInstance.cancelOrder).not.toHaveBeenCalled();
+    });
+
+    it('rejects a conflicting direct-provider route for an edit', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.editOrder({
+          orderId: 'order-123',
+          newOrder: {
+            symbol: 'RHEA',
+            providerId: 'myx',
+            orderType: 'limit',
+            isBuy: true,
+            size: '1',
+            price: '10',
+          },
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(mockTradingServiceInstance.editOrder).not.toHaveBeenCalled();
+    });
+
+    it('rejects a conflicting direct-provider route for a position close', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.closePosition({ symbol: 'RHEA', providerId: 'myx' }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(mockTradingServiceInstance.closePosition).not.toHaveBeenCalled();
+    });
+
+    it('rejects a conflicting direct-provider route for a TP/SL update', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.updatePositionTPSL({
+          symbol: 'RHEA',
+          providerId: 'myx',
+          takeProfitPrice: '10',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(
+        mockTradingServiceInstance.updatePositionTPSL,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a conflicting direct-provider route for close validation', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.validateClosePosition({
+          symbol: 'RHEA',
+          providerId: 'myx',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(
+        mockMarketDataServiceInstance.validateClosePosition,
+      ).not.toHaveBeenCalled();
     });
   });
 
