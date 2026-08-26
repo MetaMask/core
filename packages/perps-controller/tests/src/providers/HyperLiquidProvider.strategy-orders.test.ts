@@ -3095,6 +3095,74 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it('adds later Scale rungs to a partially recovered group', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue(scaleStatuses),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: ['success', 'success', 'success'] } },
+          }),
+        },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      if (!placed.orderId) {
+        throw new Error('Expected a Scale group handle');
+      }
+      const recreatedProvider = createTestProvider({
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+      });
+      const openOrders = (orderIds: string[]): Order[] =>
+        orderIds.map(
+          (orderId) =>
+            ({
+              orderId,
+              symbol: 'ETH',
+              side: 'buy',
+              orderType: 'limit',
+              size: '1',
+              originalSize: '1',
+              price: '2000',
+              filledSize: '0',
+              remainingSize: '1',
+              status: 'open',
+              timestamp: 1_700_000_000_000,
+              strategyGroupId: placed.orderId,
+            }) satisfies Order,
+        );
+
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue(
+        openOrders(['11', '22']),
+      );
+      await recreatedProvider.getOpenOrders();
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue(
+        openOrders(['11', '22', '33']),
+      );
+      await recreatedProvider.getOpenOrders();
+      await recreatedProvider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(exchangeClient.cancel).toHaveBeenLastCalledWith({
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 22 },
+          { a: 1, o: 33 },
+        ],
+      });
+    });
+
     it('reports an incomplete group cancel and keeps the handle for a retry', async () => {
       const cancel = jest
         .fn()

@@ -10563,11 +10563,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     for (const [groupId, group] of recovered) {
-      if (
-        !this.#cancelledScaleOrderGroups.has(groupId) &&
-        !this.#scaleOrderGroups.has(groupId)
-      ) {
+      if (this.#cancelledScaleOrderGroups.has(groupId)) {
+        continue;
+      }
+      const existingGroup = this.#scaleOrderGroups.get(groupId);
+      if (!existingGroup) {
         this.#scaleOrderGroups.set(groupId, group);
+        continue;
+      }
+      if (existingGroup.symbol === group.symbol) {
+        existingGroup.orderIds = [
+          ...new Set([...existingGroup.orderIds, ...group.orderIds]),
+        ];
       }
     }
   }
