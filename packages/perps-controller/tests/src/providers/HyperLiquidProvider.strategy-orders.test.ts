@@ -2410,6 +2410,41 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it('bounds negative venue execution before reporting TWAP progress', async () => {
+      useStrategyClients({
+        info: {
+          twapHistory: jest.fn().mockResolvedValue([
+            {
+              time: 1_700_000_600,
+              twapId: 987,
+              state: {
+                coin: 'ETH',
+                executedNtl: '0',
+                executedSz: '-1',
+                minutes: 10,
+                randomize: false,
+                reduceOnly: false,
+                side: 'B',
+                sz: '10',
+                timestamp: startedAt,
+                user: userAddress,
+              },
+              status: { status: 'finished' },
+            },
+          ]),
+        },
+      });
+
+      expect(await provider.getTwapOrders()).toContainEqual(
+        expect.objectContaining({
+          orderId: '987',
+          remainingSize: '10',
+          fillProgressBps: 0,
+          status: 'completed_underfilled',
+        }),
+      );
+    });
+
     it.each([
       ['waitingForTrigger', 'active'],
       ['stopped', 'canceled'],
@@ -3003,6 +3038,63 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
     });
 
+    it('does not shrink a live Scale group from a partial open-order snapshot', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue(scaleStatuses),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: ['success', 'success', 'success'] } },
+          }),
+        },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      if (!placed.orderId) {
+        throw new Error('Expected a Scale group handle');
+      }
+
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue(
+        ['11', '22'].map(
+          (orderId) =>
+            ({
+              orderId,
+              symbol: 'ETH',
+              side: 'buy',
+              orderType: 'limit',
+              size: '1',
+              originalSize: '1',
+              price: '2000',
+              filledSize: '0',
+              remainingSize: '1',
+              status: 'open',
+              timestamp: 1_700_000_000_000,
+              strategyGroupId: placed.orderId,
+            }) satisfies Order,
+        ),
+      );
+
+      await provider.getOpenOrders();
+      await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(exchangeClient.cancel).toHaveBeenLastCalledWith({
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 22 },
+          { a: 1, o: 33 },
+        ],
+      });
+    });
+
     it('reports an incomplete group cancel and keeps the handle for a retry', async () => {
       const cancel = jest
         .fn()
@@ -3430,6 +3522,47 @@ describe('HyperLiquidProvider - strategy order types', () => {
           remainingSize: '0.4',
           restingOrderId: null,
           status: CHASE_ORDER_STATUS.Canceled,
+        }),
+      );
+    });
+
+    it('reports a canceled child with no remainder as filled', async () => {
+      const { infoClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } satisfies OrderParams);
+      infoClient.orderStatus.mockResolvedValueOnce({
+        status: 'order',
+        order: {
+          status: 'canceled',
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+
+      expect(await provider.getChaseOrders()).toContainEqual(
+        expect.objectContaining({
+          handle: result.orderId,
+          remainingSize: '0',
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Filled,
         }),
       );
     });
@@ -7157,6 +7290,83 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // size would buy 1.6 ETH in total against a 1 ETH request.
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].orders[0].s).toBe('0.4');
+    });
+
+    it('reports no remainder when the canceled child filled during repricing', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+      });
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: bookThatMoves(),
+          orderStatus: jest
+            .fn()
+            .mockResolvedValueOnce({
+              status: 'order',
+              order: {
+                status: 'open',
+                order: {
+                  coin: 'ETH',
+                  side: 'B',
+                  limitPx: '2999',
+                  sz: '1',
+                  origSz: '1',
+                  oid: 55,
+                  timestamp: 1_700_000_000_000,
+                  isTrigger: false,
+                  triggerCondition: 'N/A',
+                  triggerPx: '0',
+                  children: [],
+                  isPositionTpsl: false,
+                  reduceOnly: false,
+                  orderType: 'Limit',
+                },
+              },
+            })
+            .mockResolvedValue({
+              status: 'order',
+              order: {
+                status: 'filled',
+                order: {
+                  coin: 'ETH',
+                  side: 'B',
+                  limitPx: '2999',
+                  sz: '0',
+                  origSz: '1',
+                  oid: 55,
+                  timestamp: 1_700_000_000_000,
+                  isTrigger: false,
+                  triggerCondition: 'N/A',
+                  triggerPx: '0',
+                  children: [],
+                  isPositionTpsl: false,
+                  reduceOnly: false,
+                  orderType: 'Limit',
+                },
+              },
+            }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(await provider.getChaseOrders()).toContainEqual(
+        expect.objectContaining({
+          handle: placed.orderId,
+          remainingSize: '0',
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Filled,
+        }),
+      );
+      expect(order).toHaveBeenCalledTimes(1);
     });
 
     it('ends the session without cancelling when the order already filled', async () => {

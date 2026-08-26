@@ -1168,12 +1168,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #blocklistMarkets: string[];
 
-  // Emergency kill-switch for the Unified Account migration flow. Defaults
-  // to true and is the expected production state after HL's DEX Abstraction
-  // deprecation. Kept as a constructor option (not removed) so we can
-  // disable the migration via a hot-fix release if a regression surfaces
-  // in the wild — flipping this to false reverts to the legacy programmatic
-  // HIP-3 transfer path that already lives in the codebase.
+  // Legacy rollback switch. MetaMask production supports unified account and
+  // portfolio margin. The false branch and its manual HIP-3 transfers remain
+  // temporarily for rollback compatibility and will be removed separately.
   #useUnifiedAccount: boolean;
 
   // True once DEX discovery has succeeded with real data (not a fallback).
@@ -6557,6 +6554,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           // confirmed a fill rather than labelling every zero remainder filled.
           session.replacingOrderId = null;
           session.active = false;
+          session.size = remainder.remainingSize ?? '0';
           session.status =
             remainder.terminalStatus ?? CHASE_ORDER_STATUS.Failed;
           this.#deps.debugLogger.log('Chase order has no remainder', {
@@ -6831,10 +6829,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           terminalStatus: CHASE_ORDER_STATUS.Filled,
         };
       case 'canceled':
-        return {
-          remainingSize,
-          terminalStatus: CHASE_ORDER_STATUS.Canceled,
-        };
+        return remainingSize === null
+          ? {
+              remainingSize: null,
+              terminalStatus: CHASE_ORDER_STATUS.Filled,
+            }
+          : {
+              remainingSize,
+              terminalStatus: CHASE_ORDER_STATUS.Canceled,
+            };
       default:
         return {
           remainingSize,
@@ -7014,13 +7017,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     } else if (executedSize.isGreaterThan(totalSize)) {
       boundedExecutedSize = totalSize;
     }
-    const rawRemainingSize = totalSize.minus(executedSize);
+    const rawRemainingSize = totalSize.minus(boundedExecutedSize);
     const remainingSize = rawRemainingSize.isGreaterThan(0)
       ? rawRemainingSize
       : new BigNumber(0);
     const status = resolveTwapOrderStatus(
       historyEntry,
-      executedSize,
+      boundedExecutedSize,
       totalSize,
     );
     const fills = params.sliceFills
@@ -10560,7 +10563,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     for (const [groupId, group] of recovered) {
-      if (!this.#cancelledScaleOrderGroups.has(groupId)) {
+      if (
+        !this.#cancelledScaleOrderGroups.has(groupId) &&
+        !this.#scaleOrderGroups.has(groupId)
+      ) {
         this.#scaleOrderGroups.set(groupId, group);
       }
     }
