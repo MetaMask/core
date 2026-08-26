@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If you're passing a messenger adapter directly (it is not defined in its own variable), then it should also "just work".
 - The types for `createUIQueryClient` no longer check that the provided messenger's actions are JSON-compatible ([#9475](https://github.com/MetaMask/core/pull/9475))
   - If you are experiencing any errors calling actions through the query client, check to make sure their parameters are JSON-compatible.
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ## [0.2.2]
 
