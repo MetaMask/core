@@ -1182,11 +1182,10 @@ export class AssetsController extends BaseController<
       clientControllerSelectors.selectIsUiOpen,
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.messenger.subscribe('KeyringController:unlock', async () => {
+    this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringUnlocked = true;
-      await this.#runSpamCleanup().catch((error) => {
-        log('Failed to run spam cleanup', { error });
+      this.#runSpamCleanup().catch(() => {
+        /* Do nothing */
       });
       this.#updateActive();
     });
@@ -1283,7 +1282,12 @@ export class AssetsController extends BaseController<
   }
 
   async #runSpamCleanup(): Promise<void> {
-    if (!this.#isBasicFunctionality()) {
+    const shouldRun =
+      this.#uiOpen &&
+      this.#keyringUnlocked &&
+      this.#accountTreeInitialized &&
+      this.#isBasicFunctionality();
+    if (!shouldRun) {
       return;
     }
 
