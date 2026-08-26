@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add SwapBridge failure telemetry enums and classifiers for a later emit ([#9947](https://github.com/MetaMask/core/pull/9947))
   - New exports: `FailurePhase`, `SwapBridgeErrorCode`, and helpers that classify quote, submit, and status failures from the code path (not from `error_message`)
-  - Optional `failure_phase`, `error_code`, `source_hash_present`, and `destination_hash_present` on Quotes Error, Failed, Submitted, and Completed event context types
+  - Optional `failure_phase` and `error_code` on Quotes Error and Failed event context types
+  - Optional `source_hash_present` and `destination_hash_present` on Failed, Submitted, and Completed event context types
 
 ### Changed
 
