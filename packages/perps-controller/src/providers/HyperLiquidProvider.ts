@@ -2087,6 +2087,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     return context;
   }
 
+  #ensureReadyForTrading(options: {
+    requiresBuilderFee: true;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<BuilderFeeSetupContext>;
+
+  #ensureReadyForTrading(options: {
+    requiresBuilderFee: false;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<undefined>;
+
+  #ensureReadyForTrading(options: {
+    requiresBuilderFee: boolean;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<BuilderFeeSetupContext | undefined>;
+
   async #ensureReadyForTrading(options: {
     requiresBuilderFee: boolean;
     builderFeeApprovalFailureCode?: PerpsErrorCode;
@@ -5149,9 +5164,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Kept after validation so an invalid strategy order never triggers the
     // signature prompts in trading setup — same ordering as `placeOrder`.
     const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
-    const builderFeeSetupContext = await this.#ensureReadyForTrading({
-      requiresBuilderFee: chargesMetamaskBuilderFee,
-    });
+    const builderFeeSetupContext = chargesMetamaskBuilderFee
+      ? await this.#ensureReadyForTrading({ requiresBuilderFee: true })
+      : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
     const assetId = await this.#getAssetIdWithRepair({
       symbol: params.symbol,
@@ -5165,10 +5180,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       leverage: params.leverage,
     });
 
-    const builder = chargesMetamaskBuilderFee
-      ? await this.#getBuilderOrderContext(
-          builderFeeSetupContext ?? (await this.#ensureBuilderFeeSetup()),
-        )
+    const builder = builderFeeSetupContext
+      ? await this.#getBuilderOrderContext(builderFeeSetupContext)
       : undefined;
 
     return {
@@ -7571,19 +7584,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         (context) =>
           this.#resolveOrderFeePolicy(context).chargesMetamaskBuilderFee,
       );
-      const builderFeeSetupContext = chargesMetamaskBuilderFee
-        ? await this.#ensureReadyForTrading({ requiresBuilderFee: true })
+      const builder = chargesMetamaskBuilderFee
+        ? await this.#getBuilderOrderContext(
+            await this.#ensureReadyForTrading({ requiresBuilderFee: true }),
+          )
         : undefined;
 
       // Single batch API call
       const result = await exchangeClient.order({
         orders,
         grouping: 'na',
-        ...(chargesMetamaskBuilderFee && {
-          builder: await this.#getBuilderOrderContext(
-            builderFeeSetupContext ?? (await this.#ensureBuilderFeeSetup()),
-          ),
-        }),
+        ...(builder && { builder }),
       });
 
       // Parse response statuses (one per order)
@@ -7907,12 +7918,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Replacement approval must finish before cancellation; otherwise an
       // approval failure would remove the position's existing protection.
-      const builderFeeSetupContext = await this.#ensureReadyForTrading({
-        requiresBuilderFee: chargesMetamaskBuilderFee,
-        builderFeeApprovalFailureCode: chargesMetamaskBuilderFee
-          ? PERPS_ERROR_CODES.TPSL_UPDATE_FAILED
-          : undefined,
-      });
+      const builderFeeSetupContext = chargesMetamaskBuilderFee
+        ? await this.#ensureReadyForTrading({
+            requiresBuilderFee: true,
+            builderFeeApprovalFailureCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          })
+        : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       // Cancel existing TP/SL orders for this position
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
@@ -8109,13 +8120,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       const result = await exchangeClient.order({
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
-        ...(chargesMetamaskBuilderFee && {
-          builder: await this.#getBuilderOrderContext(
-            builderFeeSetupContext ??
-              (await this.#ensureBuilderFeeSetup(
-                PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-              )),
-          ),
+        ...(builderFeeSetupContext && {
+          builder: await this.#getBuilderOrderContext(builderFeeSetupContext),
         }),
       });
 

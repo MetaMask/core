@@ -1048,7 +1048,7 @@ describe('HyperLiquidProvider', () => {
             }),
             order: jest.fn().mockResolvedValue({
               status: 'ok',
-              response: { data: { statuses: [{ resting: { oid: '999' } }] } },
+              response: { data: { statuses: [{ resting: { oid: 999 } }] } },
             }),
           }),
         );
@@ -1223,8 +1223,8 @@ describe('HyperLiquidProvider', () => {
               response: {
                 data: {
                   statuses: [
-                    { resting: { oid: '999' } },
-                    { resting: { oid: '1000' } },
+                    { resting: { oid: 999 } },
+                    { resting: { oid: 1000 } },
                   ],
                 },
               },
