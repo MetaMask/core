@@ -793,7 +793,7 @@ type ChaseSession = {
    * would otherwise be re-quoted at the undiscounted maximum.
    */
   builder?: BuilderOrderContext;
-  /** Manual HIP-3 collateral retained while this session can still reprice. */
+  /** Manual HIP-3 collateral retained while this session has venue exposure. */
   hip3Transfer?: Hip3TransferContext;
   /** Coalesces concurrent terminal cleanup reads for this session. */
   hip3RebalancePromise?: Promise<boolean>;
@@ -6954,6 +6954,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { hip3Transfer } = session;
     if (!hip3Transfer) {
       return true;
+    }
+    if (
+      session.orderId !== null ||
+      session.replacingOrderId !== null ||
+      session.pendingReplacement !== null
+    ) {
+      return false;
     }
 
     let rebalancePromise = session.hip3RebalancePromise;

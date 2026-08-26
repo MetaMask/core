@@ -3398,7 +3398,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await provider.getChaseOrders()).toStrictEqual(backgrounded);
     });
 
-    it('retains manual HIP-3 collateral until Chase repricing stops', async () => {
+    it('retains HIP-3 collateral while a Chase child rests and retries cleanup', async () => {
       let chasePlaced = false;
       const clearinghouseState = jest.fn().mockImplementation(({ dex }) => {
         let withdrawable = '1000';
@@ -3447,6 +3447,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       await provider.suspendChaseOrders();
 
+      expect(transfer).toHaveBeenCalledTimes(1);
+      await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      });
       expect(transfer).toHaveBeenCalledTimes(2);
       await provider.getChaseOrders();
       expect(transfer).toHaveBeenCalledTimes(3);
