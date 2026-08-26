@@ -22,36 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
   - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
   - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.
-- Add routed, per-market strategy order capabilities through `PerpsController.getOrderCapabilities` ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Discover HyperLiquid main-DEX and HIP-3 support for `twap`, `scale`, and `chase` without inferring it from the provider name.
-  - Preserve compatibility through an optional provider hook and explicit unavailable reasons.
-  - Capability reads wait for in-flight controller initialization before resolving the active provider, so discovery uses the provider selected when initialization completes.
-  - Capability reads return a typed unavailable result instead of throwing.
-- Add `PerpsController.getTwapOrders`, aggregated-provider routing, and venue-backed TWAP lifecycle records with fill and elapsed-time progress, average price, slice fills, and distinct completed-underfilled status ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Persist a recoverable Scale group identity in each HyperLiquid rung's client order ID and expose it as `Order.strategyGroupId`, so an open-order read can rebuild group cancellation after reconnect ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Emit `PerpsController:chaseOrderMaxDistanceReached` when an in-process Chase stops at its configured boundary. Force-kill detection and push delivery remain Mobile/backend responsibilities because an in-process controller cannot execute after the client is terminated ([#9948](https://github.com/MetaMask/core/pull/9948))
-- **BREAKING:** Add public `PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PERPS_ERROR_CODES.PROVIDER_NOT_FOUND`, `PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE`, and `PERPS_ERROR_CODES.TPSL_PROTECTION_LOST` errors for invalid strategy routes, stale provider work, and failed TP/SL recovery ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Consumers that exhaustively map `PerpsErrorCode` must add these four codes.
+- Add per-market strategy capabilities, TWAP lifecycle records, recoverable Scale group IDs, and the Chase max-distance event ([#9948](https://github.com/MetaMask/core/pull/9948))
+- **BREAKING:** Add `ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_LIFECYCLE_STALE`, and `TPSL_PROTECTION_LOST` to `PerpsErrorCode` ([#9948](https://github.com/MetaMask/core/pull/9948))
 
 ### Changed
 
-- **BREAKING:** Change the default Chase interval from 3 to 15 seconds, remove the default duration and repricing caps, and remove the invalid `CHASE_ORDER_CONFIG.DefaultMaxDurationMs` and `DefaultMaxRepricings` sentinels. Callers omit those fields for an unbounded Chase ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
-- Align the Chase background notification value with the existing bare notification schema as `chase_backgrounded` ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Route an explicit `providerId` consistently for placement, validation, cancellation, and fee quotes while preserving active/default-provider routing when it is omitted ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Conflicting direct strategy routes throw `ORDER_STRATEGY_ROUTE_UNAVAILABLE`. Other conflicting direct routes and unknown aggregated routes throw `PROVIDER_NOT_FOUND`.
-  - `AggregatedPerpsProvider` advertises per-request routing through `routesOrdersByProviderId` without changing the existing provider contract.
-  - Fee calculations now reach the registered selected provider. Only omitted routes use the active/default provider.
-  - Editing orders, closing positions, updating position TP/SL, and validating position closes apply the same explicit-route check before reaching a service.
-- Support `twap`, `scale`, and `chase` placement, validation, and cancellation on HyperLiquid HIP-3 markets instead of rejecting the market with `ORDER_STRATEGY_MARKET_UNSUPPORTED` ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - Unified account and portfolio margin require no collateral transfer. The legacy `useUnifiedAccount: false` fallback keeps its manual pre-transfer and deferred post-terminal rebalance behavior and remains marked for removal.
-- **BREAKING:** Resolve HyperLiquid builder-fee applicability through an exhaustive provider-owned order policy and exclude the MetaMask builder fee from TWAP quotes ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - `calculateFees` now returns a `metamaskFeeRate` and `metamaskFeeAmount` of `0` for TWAP instead of `0.001` and its derived amount. The HyperLiquid protocol/taker fee is unchanged. Fee discounts do not add a MetaMask fee because the native TWAP action has no builder field, so native TWAP produces no MetaMask builder-fee revenue.
-  - Builder-fee applicability is private to the provider and cannot be changed through controller configuration, credentials, or order parameters. A future backend policy must be consumed through a trusted provider-owned source rather than a client override.
-  - Position TP/SL replacement completes builder approval before cancellation. Whole-position `positionTpsl` updates keep their established pre-cancel order and restore any confirmed cancellations if the replacement fails. Partial standalone updates place the replacement first, cancel only resting new triggers when a batch is incomplete, and report any filled or still-resting replacement IDs.
-  - Failed whole-position recovery returns `TPSL_PROTECTION_LOST`. Its `childOrderIds` list identifies old protection that survived or was recreated, and an empty list means no protection was confirmed.
-  - If only part of the old whole-position protection is cancelled and restoration succeeds, `TPSL_UPDATE_FAILED.childOrderIds` reports both the surviving and recreated protection IDs.
-- Wait for in-flight `PerpsController` initialization before validating orders or calculating ordinary and strategy fee quotes instead of throwing `CLIENT_NOT_INITIALIZED`; placement already waited for the same initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Make `HyperLiquidProvider.toggleTestnet` await a full disconnect and reinitialization and propagate either failure instead of only resetting lazy initialization flags ([#9948](https://github.com/MetaMask/core/pull/9948))
+- **BREAKING:** Support strategy orders on HyperLiquid HIP-3, route an optional `providerId` consistently, return zero MetaMask builder fee for TWAP through a provider-owned fee policy, and use 15-second unbounded Chase defaults ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
 - Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
 - Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
@@ -61,13 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep selectively allowlisted HIP-3 markets aligned with their volume, open-interest, funding, and previous-price contexts ([#9971](https://github.com/MetaMask/core/pull/9971))
 - Display tiny nonzero funding rates as `<0.0001%` or `-<0.0001%` instead of `0.0000%` ([#9971](https://github.com/MetaMask/core/pull/9971))
-- Preserve an admitted Chase placement when app suspension starts while its first order is in flight. Suspension now waits for it and leaves the child resting as a backgrounded order ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Stop Chase repricing when either single or batch cancellation targets its current child, while keeping cancellation results keyed to the exchange order ID the caller supplied ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Recover the shared Chase tick queue after a rejected tick so later ticks and provider disconnect still run ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Clear stale Chase child IDs when the venue reports the order gone, preserve terminal stop reasons during later cancellation, and retain successful provider snapshots and failed provider IDs when aggregated suspension is partial ([#9948](https://github.com/MetaMask/core/pull/9948))
-- Retract every resting `scale` rung when a batch is only partly accepted, and return a retryable group handle if cleanup leaves any rung on the book ([#9948](https://github.com/MetaMask/core/pull/9948))
-  - A successful ladder reports the full requested `submittedSize`. Filled rungs count as accepted, while `childOrderIds` contains only resting rungs that can still be cancelled.
-  - A failed ladder reports filled rung IDs alongside any still-resting IDs, while its retryable group handle contains only the resting IDs that cancellation can act on.
+- Harden strategy and TP/SL lifecycles across partial failures, suspension, reconnects, provider changes, and teardown; validation and fee quotes now wait for initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Ignore missing optional MYX constructors when a consumer excludes the MYX module from its bundle ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
 
