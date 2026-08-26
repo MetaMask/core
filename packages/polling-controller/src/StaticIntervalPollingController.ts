@@ -11,12 +11,6 @@ import type {
   PollingTokenSetId,
 } from './types.js';
 
-type StaticIntervalPollingControllerInstance<PollingInput extends Json> =
-  IPollingController<PollingInput> & {
-    setIntervalLength(intervalLength: number): void;
-    getIntervalLength(): number | undefined;
-  };
-
 /**
  * StaticIntervalPollingControllerMixin
  * A polling controller that polls on a static interval.
@@ -24,16 +18,13 @@ type StaticIntervalPollingControllerInstance<PollingInput extends Json> =
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
+// This is a function that's used as class, and the return type is inferred from
+// the class defined inside the function scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/naming-convention
 function StaticIntervalPollingControllerMixin<
   TBase extends Constructor,
   PollingInput extends Json,
->(
-  Base: TBase,
-): TBase &
-  (abstract new (
-    ...args: unknown[]
-  ) => StaticIntervalPollingControllerInstance<PollingInput>) {
+>(Base: TBase) {
   abstract class StaticIntervalPollingController
     extends AbstractPollingControllerBaseMixin<TBase, PollingInput>(Base)
     implements IPollingController<PollingInput>
@@ -94,10 +85,7 @@ function StaticIntervalPollingControllerMixin<
     }
   }
 
-  return StaticIntervalPollingController as unknown as TBase &
-    (abstract new (
-      ...args: unknown[]
-    ) => StaticIntervalPollingControllerInstance<PollingInput>);
+  return StaticIntervalPollingController;
 }
 
 class Empty {}
