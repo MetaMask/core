@@ -5750,6 +5750,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     session.active = false;
+    session.status = 'termination_pending';
     if (session.timer) {
       clearTimeout(session.timer);
       session.timer = null;
@@ -5829,19 +5830,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#chaseGeneration += 1;
     try {
       await Promise.all([...this.#chasePlacementWaiters]);
-      const replacements: Promise<void>[] = [];
+      // Clear timers without deactivating sessions, then let any tick already
+      // admitted to the shared queue finish its cancel/replace. Stopping first
+      // can strand a session between children: the old order is cancelled, the
+      // tick observes `active === false`, and suspension reports a resting
+      // Chase that no longer owns an exchange order.
+      this.#pauseChaseTicksForPlacement();
+      await this.#chaseTickQueue;
+
       for (const [sessionId, session] of this.#chaseSessions.entries()) {
         if (!session.active) {
           continue;
         }
         this.#stopChaseSession(sessionId);
         session.status = 'backgrounded';
-        if (session.pendingReplacement) {
-          replacements.push(session.pendingReplacement);
-        }
       }
-      await this.#chaseTickQueue;
-      await Promise.all(replacements);
       return await this.getChaseOrders();
     } finally {
       this.#chasePlacementBlockers -= 1;

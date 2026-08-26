@@ -1432,6 +1432,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(first.error).toBe(
         PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
       );
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({
+          handle: placed.orderId,
+          restingOrderId: '55',
+          status: 'termination_pending',
+        }),
+      ]);
 
       const second = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -1646,6 +1653,53 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order).toHaveBeenCalledTimes(1);
       expect(cancel).toHaveBeenCalledTimes(1);
       expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
+    it('finishes an admitted reprice before suspending its replacement', async () => {
+      let settleCancel: ((value: Record<string, unknown>) => void) | undefined;
+      let notifyCancelStarted: (() => void) | undefined;
+      const cancelStarted = new Promise<void>((resolve) => {
+        notifyCancelStarted = resolve;
+      });
+      const cancel = jest.fn().mockImplementation(async () => {
+        notifyCancelStarted?.();
+        return await new Promise<Record<string, unknown>>((resolve) => {
+          settleCancel = resolve;
+        });
+      });
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce(chaseRested(55))
+        .mockResolvedValue(chaseRested(66));
+      useStrategyClients({
+        exchange: { order, cancel },
+        info: { l2Book: bookWalkingBids(['2999', '2998']) },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } as OrderParams);
+      const ticking = jest.advanceTimersByTimeAsync(1000);
+      await cancelStarted;
+
+      const suspension = provider.suspendChaseOrders();
+      settleCancel?.({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+
+      await ticking;
+      expect(await suspension).toStrictEqual([
+        expect.objectContaining({
+          handle: placed.orderId,
+          restingOrderId: '66',
+          status: 'backgrounded',
+        }),
+      ]);
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(cancel).toHaveBeenCalledTimes(1);
     });
 
     it('leaves the order alone while the touch holds still', async () => {

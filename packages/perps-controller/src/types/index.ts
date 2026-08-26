@@ -344,6 +344,7 @@ export type OrderResult = {
 
 export type ChaseOrderStatus =
   | 'active'
+  | 'termination_pending'
   | 'backgrounded'
   | 'max_distance_reached'
   | 'duration_reached'

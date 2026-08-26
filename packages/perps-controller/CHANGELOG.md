@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and remains unbounded unless a duration or repricing cap is supplied. Clients
   should map the new `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
   exposing Chase configuration errors. Adds typed analytics interaction values
-  for background conversion and termination ([#9961](https://github.com/MetaMask/core/pull/9961)).
+  for background conversion and termination. An incomplete termination reports
+  `termination_pending` while its child remains cancellable ([#9961](https://github.com/MetaMask/core/pull/9961)).
 - **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
   - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
   - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.
