@@ -102,6 +102,8 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
@@ -163,6 +165,10 @@ import {
   formatHyperLiquidSize,
   parseAssetName,
 } from '../utils/hyperLiquidAdapter.js';
+import {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+} from '../utils/hyperLiquidPositionPreview.js';
 import {
   createErrorResult,
   getMaxOrderValue,
@@ -10802,6 +10808,52 @@ export class HyperLiquidProvider implements PerpsProvider {
             : PERPS_ERROR_CODES.UNKNOWN_ERROR,
       };
     }
+  }
+
+  /**
+   * Project the isolated position that would remain after a proposed order.
+   *
+   * Fetches the asset's margin table from cached meta so liquidation uses the
+   * maintenance tier at the resulting liquidation notional. Cross-margin
+   * positions return unsupported without a table lookup.
+   *
+   * @param params - Live position plus the proposed order.
+   * @returns Discriminated preview; margin and liquidation are independently available.
+   */
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    if (params.position.leverage.type === 'cross') {
+      return { status: 'unsupported', reason: 'cross_margin' };
+    }
+
+    const { dex: dexName } = parseAssetName(params.position.symbol);
+    let marginTiers = null;
+
+    try {
+      const meta = await this.#getCachedMeta({ dexName });
+      const assetInfo = meta.universe.find(
+        (universeItem) => universeItem.name === params.position.symbol,
+      );
+      marginTiers = resolveHyperLiquidMarginTiers({
+        marginTableId: assetInfo?.marginTableId,
+        maxLeverage: assetInfo?.maxLeverage ?? params.position.maxLeverage,
+        marginTables: meta.marginTables,
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: margin table unavailable for position preview',
+        {
+          symbol: params.position.symbol,
+          error,
+        },
+      );
+    }
+
+    return previewHyperLiquidIsolatedPositionModify({
+      ...params,
+      marginTiers,
+    });
   }
 
   /**

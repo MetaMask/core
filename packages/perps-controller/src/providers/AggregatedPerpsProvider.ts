@@ -55,6 +55,8 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
@@ -635,6 +637,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
     return this.#getDefaultProvider().calculateFees(params);
+  }
+
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    return this.#getDefaultProvider().previewPositionModify(params);
   }
 
   // ============================================================================

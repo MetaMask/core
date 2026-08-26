@@ -88,6 +88,7 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     calculateMaintenanceMargin: jest.fn().mockResolvedValue(0.05),
     getMaxLeverage: jest.fn().mockResolvedValue(50),
     calculateFees: jest.fn().mockResolvedValue({ feeRate: 0.001 }),
+    previewPositionModify: jest.fn().mockResolvedValue({ status: 'none' }),
 
     // Subscriptions
     subscribeToPrices: jest.fn().mockReturnValue(() => undefined),
@@ -828,6 +829,24 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toEqual({ feeRate: 0.001 });
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
+    });
+
+    it('delegates previewPositionModify to default provider', async () => {
+      mockHLProvider.previewPositionModify.mockResolvedValue({
+        status: 'none',
+      });
+
+      const params = {
+        position: createMockPosition('BTC', '1'),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '50000',
+        leverage: 10,
+      };
+
+      await aggregatedProvider.previewPositionModify(params);
+
+      expect(mockHLProvider.previewPositionModify).toHaveBeenCalledWith(params);
     });
   });
 

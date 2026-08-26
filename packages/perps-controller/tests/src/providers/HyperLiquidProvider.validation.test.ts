@@ -1059,6 +1059,75 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  describe('previewPositionModify', () => {
+    const isolatedPosition = {
+      symbol: 'ETH',
+      size: '1',
+      entryPrice: '2000',
+      positionValue: '2000',
+      marginUsed: '400',
+      leverage: { type: 'isolated' as const, value: 5 },
+      liquidationPrice: '1640',
+      maxLeverage: 25,
+    };
+
+    it('returns unsupported for cross-margin positions without fetching meta', async () => {
+      const result = await provider.previewPositionModify({
+        position: {
+          ...isolatedPosition,
+          leverage: { type: 'cross', value: 5 },
+        },
+        direction: 'long',
+        size: '0.5',
+        price: '2000',
+        leverage: 5,
+      });
+
+      expect(result).toStrictEqual({
+        status: 'unsupported',
+        reason: 'cross_margin',
+      });
+      expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
+    });
+
+    it('uses cached meta margin tables for an isolated increase', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          meta: jest.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 25,
+                marginTableId: 25,
+              },
+            ],
+            marginTables: [],
+          }),
+        }),
+      );
+
+      const result = await provider.previewPositionModify({
+        position: isolatedPosition,
+        direction: 'long',
+        size: '0.5',
+        price: '2000',
+        leverage: 10,
+      });
+
+      expect(result.status).toBe('open');
+      if (result.status !== 'open') {
+        return;
+      }
+      expect(result.kind).toBe('increase');
+      expect(result.resulting.margin).toStrictEqual({
+        available: true,
+        value: 300,
+      });
+      expect(result.resulting.direction).toBe('long');
+    });
+  });
+
   describe('getMaxLeverage', () => {
     it('returns max leverage for an asset', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(

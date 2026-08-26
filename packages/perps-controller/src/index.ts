@@ -61,6 +61,7 @@ export type {
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
   PerpsControllerCalculateMaintenanceMarginAction,
+  PerpsControllerPreviewPositionModifyAction,
   PerpsControllerCancelOrderAction,
   PerpsControllerCancelOrdersAction,
   PerpsControllerClearDepositResultAction,
@@ -261,6 +262,16 @@ export type {
   SubscribeOrderBookParams,
   LiquidationPriceParams,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
+  PositionModifyPreviewSource,
+  PositionModifyPreviewKind,
+  PositionPreviewValue,
+  PositionModifyPreviewCurrent,
+  PositionModifyPreviewOpen,
+  PositionModifyPreviewFullClose,
+  PositionModifyPreviewUnsupported,
+  PositionModifyPreviewNone,
   FeeCalculationParams,
   FeeCalculationResult,
   PerpsSubscriptionBenefits,
@@ -634,6 +645,14 @@ export {
   parseAssetName,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
 } from './utils/index.js';
+export {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+  buildMaintenanceSchedule,
+  estimateIsolatedLiquidationPrice,
+  estimateIsolatedLiquidationPriceAtTier,
+} from './utils/index.js';
+export type { HyperLiquidMarginTier } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type { FiatRangeConfig } from './utils/index.js';
 export {
