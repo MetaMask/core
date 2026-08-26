@@ -112,14 +112,15 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  * `{ forceRefresh: true }` to bypass that cache on the first attempt (e.g.
  * pull-to-refresh); later processing polls always bypass the cache.
  *
- * When the API reports `processingDefiPositions` for any account, this
- * controller polls until indexing finishes or the attempt limit is reached,
- * and only then processes and writes state — mixed ready/processing responses
- * leave prior state untouched. Concurrent calls for the same selected accounts
- * and `vsCurrency` share one in-flight promise so the UI can treat the pending
- * promise as a loading signal. Calls for a different selection or fiat currency
- * start their own fetch and leave any prior poll running, so switching back can
- * join an in-flight fetch for that group and currency.
+ * When the API reports account IDs in the response-level
+ * `processingDefiPositions` array, this controller polls until indexing
+ * finishes or the attempt limit is reached, and only then processes and writes
+ * state — responses that still list processing accounts leave prior state
+ * untouched. Concurrent calls for the same selected accounts and `vsCurrency`
+ * share one in-flight promise so the UI can treat the pending promise as a
+ * loading signal. Calls for a different selection or fiat currency start their
+ * own fetch and leave any prior poll running, so switching back can join an
+ * in-flight fetch for that group and currency.
  *
  * Processing-poll `maxAttempts` / `pollInterval` are read via
  * {@link getProcessingPollConfig} from the `defiControllerV2` remote feature
@@ -188,19 +189,19 @@ export class DeFiPositionsControllerV2 extends BaseController<
   }
 
   /**
-   * Fetches DeFi positions for the selected account group. State is updated only
-   * when every selected account in the response is ready (none report
-   * `processingDefiPositions`); each account key in that response replaces that
-   * account's state (other accounts stay). While any account is still indexing,
-   * prior state is kept and the method polls (invalidating the balances cache
-   * between attempts) until all selected accounts are ready, the attempt limit
-   * is reached, or a request fails. Concurrent calls for the same selected
-   * accounts and `vsCurrency` share one in-flight promise; calls for a different
-   * selection or fiat currency start a new fetch and leave prior polls running
-   * so a later switch back can join them. When a successful ready response
-   * required more than one attempt, or when polling hits the attempt limit
-   * while still processing, reports to Sentry via `messenger.captureException`
-   * (error names `DeFiPositionsV2FetchAttempts` /
+   * Fetches DeFi positions for the selected account group. State is updated
+   * only when the response lists no accounts in its `processingDefiPositions`
+   * array; each resolved account then has its state replaced (other accounts
+   * stay). While any account is still indexing, prior state is kept and the
+   * method polls (invalidating the balances cache between attempts) until no
+   * accounts are processing, the attempt limit is reached, or a request fails.
+   * Concurrent calls for the same selected accounts and `vsCurrency` share one
+   * in-flight promise; calls for a different selection or fiat currency start
+   * a new fetch and leave prior polls running so a later switch back can join
+   * them. When a successful ready response required more than one attempt, or
+   * when polling hits the attempt limit while still processing, reports to
+   * Sentry via `messenger.captureException` (error names
+   * `DeFiPositionsV2FetchAttempts` /
    * `DeFiPositionsV2ProcessingPollExhausted`) so poll limits can be tuned.
    * No-ops when disabled or when the group has no
    * supported accounts. Caching / spam prevention is handled by the apiClient
@@ -296,13 +297,12 @@ export class DeFiPositionsControllerV2 extends BaseController<
         return;
       }
 
-      const stillProcessing = response.accounts.some(
-        (account) => account.processingDefiPositions,
-      );
+      const stillProcessing =
+        (response.processingDefiPositions?.length ?? 0) > 0;
 
-      // Only process and write when every account is ready so a partial
-      // response cannot clear or overwrite positions for accounts that are
-      // still indexing.
+      // Only process and write when no account is still indexing, so a
+      // partial response (whose DeFi rows for processing accounts are
+      // omitted) cannot clear or overwrite positions for those accounts.
       if (!stillProcessing) {
         const positionsByAccount = groupDeFiPositionsV6(
           response,

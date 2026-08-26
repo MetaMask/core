@@ -7,11 +7,13 @@ import {
   domainToParts,
   fetchTimeNow,
   generateParentDomains,
+  getAddressScanSupportedChain,
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
   getPhishingDetectionScanUrlParam,
   isAddressScanSupportedChain,
+  isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
   isTokenScanSupportedChain,
   matchPartsAgainstList,
@@ -1284,6 +1286,54 @@ describe('isAddressScanSupportedChain', () => {
   it('returns false for unknown chains', () => {
     expect(isAddressScanSupportedChain('unknown-chain')).toBe(false);
     expect(isAddressScanSupportedChain('')).toBe(false);
+  });
+});
+
+describe('getAddressScanSupportedChain', () => {
+  it('returns the chain name for an address-scan supported hex chain ID', () => {
+    expect(getAddressScanSupportedChain('0x1')).toBe('ethereum');
+    expect(getAddressScanSupportedChain('0x1237')).toBe('robinhood');
+  });
+
+  it('matches chain IDs case-insensitively', () => {
+    expect(getAddressScanSupportedChain('0X1')).toBe('ethereum');
+  });
+
+  it('returns null for a mapped chain that is not address-scan supported', () => {
+    expect(getAddressScanSupportedChain('0x343b')).toBeNull();
+  });
+
+  it('returns null for an unmapped chain ID', () => {
+    expect(getAddressScanSupportedChain('0xa4ec')).toBeNull();
+    expect(getAddressScanSupportedChain('0xdeadbeef')).toBeNull();
+  });
+
+  it('returns null for non-EVM chain names that are not address-scan supported', () => {
+    expect(getAddressScanSupportedChain('solana')).toBeNull();
+  });
+});
+
+describe('isAddressScanSupportedChainId', () => {
+  it('returns true for address-scan supported hex chain IDs', () => {
+    expect(isAddressScanSupportedChainId('0x1')).toBe(true);
+    expect(isAddressScanSupportedChainId('0x1237')).toBe(true);
+  });
+
+  it('matches chain IDs case-insensitively', () => {
+    expect(isAddressScanSupportedChainId('0X1')).toBe(true);
+  });
+
+  it('returns false for a mapped chain that is not address-scan supported', () => {
+    expect(isAddressScanSupportedChainId('0x343b')).toBe(false);
+  });
+
+  it('returns false for an unmapped chain ID', () => {
+    expect(isAddressScanSupportedChainId('0xa4ec')).toBe(false);
+    expect(isAddressScanSupportedChainId('0xdeadbeef')).toBe(false);
+  });
+
+  it('returns false for non-EVM chain names that are not address-scan supported', () => {
+    expect(isAddressScanSupportedChainId('solana')).toBe(false);
   });
 });
 

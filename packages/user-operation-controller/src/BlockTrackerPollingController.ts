@@ -3,13 +3,13 @@ import type {
   NetworkClientId,
   NetworkClient,
 } from '@metamask/network-controller';
-import type { Json } from '@metamask/utils';
-
 import {
   AbstractPollingControllerBaseMixin,
   getKey,
-} from './AbstractPollingController.js';
-import type { Constructor, PollingTokenSetId } from './types.js';
+  Constructor,
+  PollingTokenSetId,
+} from '@metamask/polling-controller';
+import type { Json } from '@metamask/utils';
 
 /**
  * The minimum input required to start polling for a {@link BlockTrackerPollingController}.

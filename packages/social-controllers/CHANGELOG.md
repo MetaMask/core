@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `action` to `Trade` and optional `isOpen` to `Position`, plus the `TradeAction` type ([#9871](https://github.com/MetaMask/core/pull/9871))
+  - `action` is the fill's position-lifecycle stage (`opened` / `added` / `reduced` / `closed`), computed by the social-api. Unlike `intent`, it separates a partial exit from a full close.
+  - Both are optional so responses from a social-api deployment that predates them still validate.
+
+## [2.7.2]
+
 ### Changed
 
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ## [2.7.1]
 
@@ -140,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.2...HEAD
+[2.7.2]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.1...@metamask/social-controllers@2.7.2
 [2.7.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.0...@metamask/social-controllers@2.7.1
 [2.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.6.0...@metamask/social-controllers@2.7.0
 [2.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.5.0...@metamask/social-controllers@2.6.0

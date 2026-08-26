@@ -111,6 +111,15 @@ async function setupAssetContractControllers({
     }),
   );
 
+  messenger.registerActionHandler('ConfigRegistryController:getState', () => ({
+    configs: {
+      networks: {},
+    },
+    lastFetched: 0,
+    etag: '',
+    version: '1',
+  }));
+
   const networkControllerMessenger: NetworkControllerMessenger = new Messenger({
     namespace: 'NetworkController',
     parent: messenger,
@@ -119,6 +128,8 @@ async function setupAssetContractControllers({
   messenger.delegate({
     messenger: networkControllerMessenger,
     actions: [
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+      'ConfigRegistryController:getState',
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],

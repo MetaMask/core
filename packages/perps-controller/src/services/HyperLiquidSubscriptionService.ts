@@ -68,6 +68,7 @@ import {
 import {
   buildPositionTriggerOrderFromOrder,
   hashTriggerOrders,
+  resolvePositionTriggerSummaryPrice,
 } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
@@ -1182,8 +1183,16 @@ export class HyperLiquidSubscriptionService {
 
       return {
         ...position,
-        takeProfitPrice: tpsl.takeProfitPrice ?? undefined,
-        stopLossPrice: tpsl.stopLossPrice ?? undefined,
+        // The scanned prices only ever come from position-bound triggers, so a
+        // lone quantity-scoped trigger has to be read off the array instead.
+        takeProfitPrice: resolvePositionTriggerSummaryPrice({
+          triggerOrders: takeProfitOrders,
+          scannedPrice: tpsl.takeProfitPrice,
+        }),
+        stopLossPrice: resolvePositionTriggerSummaryPrice({
+          triggerOrders: stopLossOrders,
+          scannedPrice: tpsl.stopLossPrice,
+        }),
         // Counts come from the same arrays as the REST path, so both transports
         // report one definition. Orders whose placement type the exchange did
         // not name (HyperLiquid's ambiguous 'Trigger') are absent from both,
