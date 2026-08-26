@@ -2815,6 +2815,26 @@ describe('Relay Quotes Utils', () => {
         });
       });
 
+      it('does not use a gas fee token if account does not support EIP-7702', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: false,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(getGasFeeTokensMock).not.toHaveBeenCalled();
+      });
+
       it('using estimated gas fee token cost if insufficient native balance and batch', async () => {
         const quote = cloneDeep(QUOTE_MOCK);
 
