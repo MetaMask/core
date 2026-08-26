@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses.
+- Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses. ([#9955](https://github.com/MetaMask/core/pull/9955))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
 ## [20.0.0]

@@ -1861,6 +1861,7 @@ describe('RampsController', () => {
           { sortBy: '1', ids: mockProviders.map(({ id }) => id) },
         ]);
         expect(controller.state.providers.data).toStrictEqual(mockProviders);
+        expect(controller.state.providers).not.toHaveProperty('sorted');
       });
     });
 
