@@ -7,6 +7,7 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type {
   CandleData,
   OrderType,
@@ -343,14 +344,7 @@ export type OrderResult = {
 };
 
 export type ChaseOrderStatus =
-  | 'active'
-  | 'termination_pending'
-  | 'backgrounded'
-  | 'max_distance_reached'
-  | 'duration_reached'
-  | 'repricing_limit_reached'
-  | 'filled'
-  | 'failed';
+  (typeof CHASE_ORDER_STATUS)[keyof typeof CHASE_ORDER_STATUS];
 
 /**
  * Client-visible state of one emulated Chase placement.

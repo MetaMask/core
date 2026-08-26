@@ -31,6 +31,7 @@ import {
 } from '../constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
   HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
@@ -5002,7 +5003,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       repricings: 0,
       timer: null,
       active: true,
-      status: 'active',
+      status: CHASE_ORDER_STATUS.Active,
     };
     // A disconnect landed while the submission was in flight — the one window
     // the checks above cannot close. The order rested, but no strategy is
@@ -5298,7 +5299,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // order and the session stays registered, so cancelling by its handle
       // still reaches that order.
       session.active = false;
-      session.status = 'duration_reached';
+      session.status = CHASE_ORDER_STATUS.DurationReached;
       this.#deps.debugLogger.log('Chase session window closed', { sessionId });
       return;
     }
@@ -5519,7 +5520,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     if (reachedMaxDistance) {
       session.active = false;
-      session.status = 'max_distance_reached';
+      session.status = CHASE_ORDER_STATUS.MaxDistanceReached;
       this.#deps.debugLogger.log('Chase max distance reached', {
         sessionId,
         restingPrice: session.restingPrice,
@@ -5530,7 +5531,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     if (session.repricings >= session.maxRepricings) {
       session.active = false;
-      session.status = 'repricing_limit_reached';
+      session.status = CHASE_ORDER_STATUS.RepricingLimitReached;
       this.#deps.debugLogger.log('Chase repricing cap reached', { sessionId });
       return;
     }
@@ -5750,7 +5751,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     session.active = false;
-    session.status = 'termination_pending';
+    session.status = CHASE_ORDER_STATUS.TerminationPending;
     if (session.timer) {
       clearTimeout(session.timer);
       session.timer = null;
@@ -5843,7 +5844,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           continue;
         }
         this.#stopChaseSession(sessionId);
-        session.status = 'backgrounded';
+        session.status = CHASE_ORDER_STATUS.Backgrounded;
       }
       return await this.getChaseOrders();
     } finally {

@@ -148,6 +148,18 @@ export const CHASE_ORDER_CONFIG = {
   MaxActiveSessions: 5,
 } as const;
 
+/** Public lifecycle states reported for an emulated Chase order. */
+export const CHASE_ORDER_STATUS = {
+  Active: 'active',
+  TerminationPending: 'termination_pending',
+  Backgrounded: 'backgrounded',
+  MaxDistanceReached: 'max_distance_reached',
+  DurationReached: 'duration_reached',
+  RepricingLimitReached: 'repricing_limit_reached',
+  Filled: 'filled',
+  Failed: 'failed',
+} as const;
+
 /**
  * Bounds and step for the user-configurable max slippage preference (basis points).
  * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
