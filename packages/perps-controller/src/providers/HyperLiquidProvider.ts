@@ -274,6 +274,11 @@ type CancelChildOutcome = 'cancelled' | 'gone' | 'refused';
 
 type ExchangeCancelRequest = { a: number; o: number };
 
+type OrderPlacementOutcome = {
+  orderId: string;
+  state: 'resting' | 'filled';
+};
+
 type BuilderFeeSetupContext = {
   network: 'testnet' | 'mainnet';
   userAddress: string;
@@ -974,11 +979,9 @@ export class HyperLiquidProvider implements PerpsProvider {
   // signed traffic and can starve a foreground placement.
   #chaseTickQueue: Promise<void> = Promise.resolve();
 
-  // Bumped by every teardown that clears the chase registry. A placement
-  // captures it before its round trips and refuses to register afterwards if it
-  // has moved: a session registered after a disconnect would schedule a
-  // background timer against a provider that has already been torn down.
-  #chaseGeneration = 0;
+  // Every strategy captures this before its round trips. A changed generation
+  // prevents a late response from registering handles after disconnect.
+  #strategyGeneration = 0;
 
   // Reference-counted because suspension and disconnect may overlap. One
   // lifecycle owner finishing must not reopen placement while another still
@@ -2026,10 +2029,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Approve the standard builder fee once for the current account and network.
    * TWAP never calls this because its native action has no builder field.
+   * Without an approval failure code, approval remains non-blocking and the
+   * returned context describes attribution only; it does not prove approval.
    *
    * @param approvalFailureCode - Operation-specific error to throw when
    * approval is unavailable or fails.
-   * @returns The account, network, and builder covered by this setup.
+   * @returns The account, network, and configured builder for the action.
    */
   async #ensureBuilderFeeSetup(
     approvalFailureCode?: PerpsErrorCode,
@@ -4991,20 +4996,22 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<OrderResult> {
     // Captured before the shared preamble, not after it: that preamble awaits
     // asset info, validation, trading readiness and a leverage update, and a
-    // disconnect during any of them has to be seen by the chase registration
-    // at the end.
+    // disconnect during any of them has to be seen before or after submission.
+    const generation = this.#strategyGeneration;
+
     if (orderType !== 'chase') {
       const context = await this.#prepareStrategyPlacement(params);
+      if (generation !== this.#strategyGeneration) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
       return orderType === 'twap'
-        ? await this.#placeTwapOrder(params, context)
-        : await this.#placeScaleOrder(params, context);
+        ? await this.#placeTwapOrder(params, context, generation)
+        : await this.#placeScaleOrder(params, context, generation);
     }
 
     if (this.#chasePlacementBlockers > 0) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
-    const generation = this.#chaseGeneration;
-
     // The chase slot is claimed before the preamble, not after it: the preamble
     // completes the signing setup and can change the asset's leverage, and a
     // request that is going to be refused for exceeding the venue's cap must
@@ -5263,11 +5270,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before preparation.
    * @returns A promise that resolves to the result.
    */
   async #placeTwapOrder(
     params: OrderParams,
     context: StrategyPlacementContext,
+    generation: number,
   ): Promise<OrderResult> {
     const { assetId, formattedSize } = context;
     const durationMinutes = params.twapDuration;
@@ -5323,9 +5332,39 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(rawError);
     }
 
+    const orderId = running.twapId.toString();
+    if (generation !== this.#strategyGeneration) {
+      let remainsLive = true;
+      try {
+        const cancelResult = await exchangeClient.twapCancel({
+          a: assetId,
+          t: running.twapId,
+        });
+        remainsLive = cancelResult.response?.data?.status !== 'success';
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          'Stale TWAP placement could not be retracted',
+          {
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.placeTwapOrder.retract',
+            ).message,
+            orderId,
+          },
+        );
+      }
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        {
+          success: false,
+          ...(remainsLive && { orderId }),
+        },
+      );
+    }
+
     return {
       success: true,
-      orderId: running.twapId.toString(),
+      orderId,
       submittedSize: formattedSize,
     };
   }
@@ -5335,18 +5374,18 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * The whole ladder goes in a single `order` action, which is one round trip
    * and one signature rather than one per rung. It is **not** atomic: an `na`
-   * grouping evaluates each entry independently, so the response can report
-   * some rungs resting and others rejected. A partial ladder is reported as
-   * such — `submittedSize` covers only the rungs that actually rested — rather
-   * than as a full submission.
+   * grouping evaluates each entry independently. Every rung must either rest
+   * or fill; otherwise all known resting rungs are retracted before failure.
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before preparation.
    * @returns A promise that resolves to the result.
    */
   async #placeScaleOrder(
     params: OrderParams,
     context: StrategyPlacementContext,
+    generation: number,
   ): Promise<OrderResult> {
     const { assetId, formattedSize, ladder, builder } = context;
     // Built and validated in `#prepareStrategyPlacement`, before anything was
@@ -5383,16 +5422,43 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const statuses = result.response?.data?.statuses ?? [];
-    const childOrderIds = statuses
+    const outcomes = statuses
       .slice(0, count)
-      .flatMap((status) => this.#readOrderIdFromStatus(status) ?? []);
+      .map((status) => this.#readOrderPlacementOutcome(status));
+    const acceptedCount = outcomes.filter(
+      (outcome) => outcome !== undefined,
+    ).length;
+    const childOrderIds = outcomes.flatMap((outcome) =>
+      outcome?.state === 'resting' ? [outcome.orderId] : [],
+    );
+
+    if (generation !== this.#strategyGeneration) {
+      const remainingOrderIds = await this.#cancelOrderRequests(
+        exchangeClient,
+        childOrderIds.map((orderId) => ({
+          a: assetId,
+          o: Number(orderId),
+        })),
+      );
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        {
+          success: false,
+          ...(remainingOrderIds.length > 0 && {
+            childOrderIds: remainingOrderIds.map(String),
+          }),
+        },
+      );
+    }
+
     if (
       result.status !== 'ok' ||
       statuses.length !== count ||
-      childOrderIds.length !== count
+      acceptedCount !== count
     ) {
-      this.#deps.debugLogger.log('Scale ladder did not fully rest', {
-        rested: childOrderIds.length,
+      this.#deps.debugLogger.log('Scale ladder was not fully accepted', {
+        accepted: acceptedCount,
+        resting: childOrderIds.length,
         requested: count,
         statuses,
       });
@@ -5400,7 +5466,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         exchangeClient,
         childOrderIds.map((orderId) => ({
           a: assetId,
-          o: parseInt(orderId, 10),
+          o: Number(orderId),
         })),
       );
       if (remainingOrderIds.length > 0) {
@@ -5455,7 +5521,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // already torn down everything this session would run on, so the chase
     // stops here rather than reading the book and putting a fresh order on it
     // for a provider that no longer exists.
-    if (generation !== this.#chaseGeneration) {
+    if (generation !== this.#strategyGeneration) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
 
@@ -5475,7 +5541,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // before the next one, leaving one window that cannot be closed from here
     // — a disconnect arriving while the submission itself is in flight, which
     // the check after it handles.
-    if (generation !== this.#chaseGeneration) {
+    if (generation !== this.#strategyGeneration) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
 
@@ -5510,7 +5576,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         ) {
           throw error;
         }
-        if (generation !== this.#chaseGeneration) {
+        if (generation !== this.#strategyGeneration) {
           throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
         }
         const refreshedQuote = await this.#getChaseQuotePrice({
@@ -5521,7 +5587,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (refreshedQuote === 'gone') {
           throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
         }
-        if (generation !== this.#chaseGeneration) {
+        if (generation !== this.#strategyGeneration) {
           throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
         }
         quotePrice = refreshedQuote;
@@ -5575,7 +5641,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // and the failure is then true of the venue as well as of this provider.
     // Best-effort still: the transport underneath that client may already be
     // closing, so a cancel that does not land falls back to reporting the id.
-    if (generation !== this.#chaseGeneration) {
+    if (generation !== this.#strategyGeneration) {
       this.#deps.debugLogger.log('Chase placement outlived its provider', {
         orderId,
         restingPrice: quotePrice,
@@ -6392,9 +6458,6 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
     this.#chasePlacementBlockers += 1;
-    // Abort a placement that passed the blocker check but has not completed
-    // its final generation check; the waiter below then drains its cleanup.
-    this.#chaseGeneration += 1;
     try {
       await Promise.all([...this.#chasePlacementWaiters]);
       // Clear timers without deactivating sessions, then let any tick already
@@ -6696,23 +6759,38 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param status - A single status from the exchange response.
    * @returns The order ID, or undefined when the entry rested nothing.
    */
-  #readOrderIdFromStatus(status: unknown): string | undefined {
+  #readOrderPlacementOutcome(
+    status: unknown,
+  ): OrderPlacementOutcome | undefined {
     if (!isStatusObject(status)) {
       return undefined;
     }
 
-    // `hasProperty` types the property as `unknown`, so each branch is cast to
-    // the only shape the exchange puts there.
-    const restingOrder = hasProperty(status, 'resting')
-      ? (status.resting as { oid?: number })
-      : undefined;
-    const filledOrder = hasProperty(status, 'filled')
-      ? (status.filled as { oid?: number })
-      : undefined;
+    for (const state of ['resting', 'filled'] as const) {
+      if (!hasProperty(status, state)) {
+        continue;
+      }
+      const order = status[state];
+      if (
+        isStatusObject(order) &&
+        typeof order.oid === 'number' &&
+        Number.isSafeInteger(order.oid) &&
+        order.oid >= 0
+      ) {
+        return { orderId: order.oid.toString(), state };
+      }
+    }
+    return undefined;
+  }
 
-    return (
-      restingOrder?.oid?.toString() ?? filledOrder?.oid?.toString() ?? undefined
-    );
+  /**
+   * Read a valid order ID from a resting or filled placement status.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The order ID, or undefined when the status has no valid ID.
+   */
+  #readOrderIdFromStatus(status: unknown): string | undefined {
+    return this.#readOrderPlacementOutcome(status)?.orderId;
   }
 
   /**
@@ -8015,10 +8093,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Place the complete replacement before removing old protection. The
-      // exchange client exposes separate place and cancel actions for these
-      // triggers; this ordering avoids an unprotected window and makes any
-      // failed new child retractable by its returned ID.
+      // HyperLiquid's position-bound TP/SL replacement contract is proven with
+      // pre-cancel ordering. Partial triggers use `na` grouping instead, so they
+      // can be placed first and retracted individually if the batch is partial.
+      if (!isPartialTpsl) {
+        const remainingOldOrderIds = await this.#cancelOrderRequests(
+          exchangeClient,
+          cancelRequests,
+        );
+        if (remainingOldOrderIds.length > 0) {
+          throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        }
+      }
+
       const result = await exchangeClient.order({
         orders,
         grouping: isPartialTpsl ? 'na' : 'positionTpsl',
@@ -8033,9 +8120,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       const placementStatuses = result.response?.data?.statuses ?? [];
-      const replacementOrderIds = placementStatuses
+      const placementOutcomes = placementStatuses
         .slice(0, orders.length)
-        .flatMap((status) => this.#readOrderIdFromStatus(status) ?? []);
+        .map((status) => this.#readOrderPlacementOutcome(status));
+      const replacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome ? [outcome.orderId] : [],
+      );
+      const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome?.state === 'resting' ? [outcome.orderId] : [],
+      );
+      const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome?.state === 'filled' ? [outcome.orderId] : [],
+      );
       if (
         result.status !== 'ok' ||
         placementStatuses.length !== orders.length ||
@@ -8043,38 +8139,43 @@ export class HyperLiquidProvider implements PerpsProvider {
       ) {
         const remainingReplacementIds = await this.#cancelOrderRequests(
           exchangeClient,
-          replacementOrderIds.map((orderId) => ({
+          restingReplacementOrderIds.map((orderId) => ({
             a: assetId,
-            o: parseInt(orderId, 10),
+            o: Number(orderId),
           })),
         );
-        if (remainingReplacementIds.length > 0) {
+        const recoverableOrderIds = [
+          ...filledReplacementOrderIds,
+          ...remainingReplacementIds.map(String),
+        ];
+        if (recoverableOrderIds.length > 0) {
           return createErrorResult(
             new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
             {
               success: false,
-              childOrderIds: remainingReplacementIds.map(String),
+              childOrderIds: recoverableOrderIds,
             },
           );
         }
         throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
       }
 
-      // The new TP/SL batch is fully live before old orders are removed. If an
-      // old cancellation is refused, return the new IDs so callers can recover
-      // without losing the position's replacement protection.
-      const remainingOldOrderIds = await this.#cancelOrderRequests(
-        exchangeClient,
-        cancelRequests,
-      );
-      if (remainingOldOrderIds.length > 0) {
-        return createErrorResult(
-          new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-          {
-            success: false,
-            childOrderIds: replacementOrderIds,
-          },
+      if (isPartialTpsl) {
+        // Standalone partial triggers can coexist with the old protection. Keep
+        // that protection until the replacement batch is fully accepted.
+        const remainingOldOrderIds = await this.#cancelOrderRequests(
+          exchangeClient,
+          cancelRequests,
         );
+        if (remainingOldOrderIds.length > 0) {
+          return createErrorResult(
+            new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+            {
+              success: false,
+              childOrderIds: replacementOrderIds,
+            },
+          );
+        }
       }
 
       return {
@@ -12199,7 +12300,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #performDisconnect(): Promise<DisconnectResult> {
     this.#chasePlacementBlockers += 1;
-    this.#chaseGeneration += 1;
+    this.#strategyGeneration += 1;
     this.#disconnectOperationsInFlight += 1;
     this.#isDisconnected = true;
     this.#lifecycleGeneration += 1;

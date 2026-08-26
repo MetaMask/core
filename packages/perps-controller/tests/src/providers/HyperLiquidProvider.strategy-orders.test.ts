@@ -807,7 +807,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 
-    it('keeps new protection recoverable when old cancellation is refused', async () => {
+    it('does not replace whole-position protection when pre-cancel is refused', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           cancel: jest.fn().mockResolvedValue({
@@ -840,15 +840,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-        childOrderIds: ['123'],
       });
-      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
-      expect(exchangeClient.order.mock.invocationCallOrder[0]).toBeLessThan(
-        exchangeClient.cancel.mock.invocationCallOrder[0],
-      );
+      expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 
-    it('accepts an old TP/SL order that is already gone after replacement', async () => {
+    it('accepts an old TP/SL order that is already gone before replacement', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           cancel: jest.fn().mockResolvedValue({
@@ -889,8 +885,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: true,
         orderId: 'TP/SL orders placed',
       });
-      expect(exchangeClient.order.mock.invocationCallOrder[0]).toBeLessThan(
-        exchangeClient.cancel.mock.invocationCallOrder[0],
+      expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+        exchangeClient.order.mock.invocationCallOrder[0],
       );
     });
 
@@ -914,7 +910,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.updatePositionTPSL({
         symbol: 'ETH',
         takeProfitPrice: '3500',
+        takeProfitSize: '0.4',
         stopLossPrice: '2500',
+        stopLossSize: '0.6',
       });
 
       expect(result).toMatchObject({
@@ -951,7 +949,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const result = await provider.updatePositionTPSL({
         symbol: 'ETH',
         takeProfitPrice: '3500',
+        takeProfitSize: '0.4',
         stopLossPrice: '2500',
+        stopLossSize: '0.6',
       });
 
       expect(result).toMatchObject({
@@ -964,7 +964,40 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('keeps the full replacement recoverable after a mixed old cancel', async () => {
+    it('reports a filled partial trigger without trying to cancel it', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { filled: { oid: 123 } },
+                  { error: 'Rejected stop loss' },
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        takeProfitSize: '0.4',
+        stopLossPrice: '2500',
+        stopLossSize: '0.6',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        childOrderIds: ['123'],
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it('does not place a whole replacement after a mixed old pre-cancel', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           cancel: jest.fn().mockResolvedValue({
@@ -1009,8 +1042,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-        childOrderIds: ['123', '124'],
       });
+      expect(exchangeClient.order).not.toHaveBeenCalled();
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [
           { a: 1, o: 456 },
@@ -2823,6 +2856,100 @@ describe('HyperLiquidProvider - strategy order types', () => {
         cancels: [{ a: 1, o: 11 }],
       });
     });
+
+    it('accepts filled rungs but exposes only resting rungs for cancellation', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { resting: { oid: 11 } },
+                  { filled: { oid: 22 } },
+                  { resting: { oid: 33 } },
+                ],
+              },
+            },
+          }),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: ['success', 'success'] } },
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: true,
+        childOrderIds: ['11', '33'],
+        submittedSize: '1',
+      });
+
+      const cancelled = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(cancelled.success).toBe(true);
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 33 },
+        ],
+      });
+    });
+
+    it.each([
+      ['negative', -1],
+      ['fractional', 22.5],
+      ['unsafe', Number.MAX_SAFE_INTEGER + 1],
+      ['non-numeric', '22'],
+    ])(
+      'rejects a %s scale order ID and retracts valid rungs',
+      async (_label, oid) => {
+        const { exchangeClient } = useStrategyClients({
+          exchange: {
+            order: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: {
+                data: {
+                  statuses: [
+                    { resting: { oid: 11 } },
+                    { resting: { oid } },
+                    { error: 'Insufficient margin' },
+                  ],
+                },
+              },
+            }),
+          },
+        });
+
+        const placed = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'scale',
+          scaleMinPrice: '2000',
+          scaleMaxPrice: '3000',
+          scaleNumOrders: 3,
+        } satisfies OrderParams);
+
+        expect(placed).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        });
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 11 }],
+        });
+      },
+    );
   });
 
   describe('Chase cancel racing a re-pricing tick', () => {
@@ -5824,6 +5951,99 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(orderStatus).toHaveBeenCalled();
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].orders[0].p).toBe('2999.2');
+    });
+  });
+
+  describe('Strategy placement racing a disconnect', () => {
+    it('retracts a TWAP that finishes after teardown through its captured client', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const twapOrder = jest.fn().mockImplementation(async () => {
+        disconnected = provider.disconnect();
+        mockClientService.getExchangeClient.mockImplementation(() => {
+          throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
+        });
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: {
+            type: 'twapOrder',
+            data: { status: { running: { twapId: 987 } } },
+          },
+        };
+      });
+      const twapCancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { type: 'twapCancel', data: { status: 'success' } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { twapOrder, twapCancel },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
+      await disconnected;
+
+      expect(exchangeClient.twapCancel).toHaveBeenCalledWith({ a: 1, t: 987 });
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(placed.orderId).toBeUndefined();
+    });
+
+    it('retracts resting scale rungs and registers no stale group after teardown', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const order = jest.fn().mockImplementation(async () => {
+        disconnected = provider.disconnect();
+        mockClientService.getExchangeClient.mockImplementation(() => {
+          throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
+        });
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [
+                { resting: { oid: 11 } },
+                { filled: { oid: 22 } },
+                { resting: { oid: 33 } },
+              ],
+            },
+          },
+        };
+      });
+      const cancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success', 'success'] } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order, cancel },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      await disconnected;
+
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 33 },
+        ],
+      });
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(placed.orderId).toBeUndefined();
+      expect(placed.childOrderIds).toBeUndefined();
     });
   });
 
