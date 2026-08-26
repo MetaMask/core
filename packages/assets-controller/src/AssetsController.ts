@@ -752,11 +752,13 @@ export class AssetsController extends BaseController<
   /** Whether the keyring is unlocked. Combined with #uiOpen for #updateActive. */
   #keyringUnlocked = false;
 
-  /**
-   * Whether `AccountTreeController` has finished `init()`. Unlock / UI-open
+  /** Whether `AccountTreeController` has finished `init()`. Unlock / UI-open
    * alone must not start fetches — the tree can still be mid-build.
    */
   #accountTreeInitialized = false;
+
+  /** Whether spam cleanup has run for the current active session. */
+  #spamCleanupSessionActive = false;
 
   readonly #controllerMutex = new Mutex();
 
@@ -1177,6 +1179,7 @@ export class AssetsController extends BaseController<
       'ClientController:stateChange',
       (isUiOpen: boolean) => {
         this.#uiOpen = isUiOpen;
+        this.#onSpamCleanupLifecycleChange();
         this.#updateActive();
       },
       clientControllerSelectors.selectIsUiOpen,
@@ -1184,13 +1187,12 @@ export class AssetsController extends BaseController<
 
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringUnlocked = true;
-      this.#runSpamCleanup().catch(() => {
-        /* Do nothing */
-      });
+      this.#onSpamCleanupLifecycleChange();
       this.#updateActive();
     });
     this.messenger.subscribe('KeyringController:lock', () => {
       this.#keyringUnlocked = false;
+      this.#onSpamCleanupLifecycleChange();
       this.#updateActive();
     });
 
@@ -1217,10 +1219,12 @@ export class AssetsController extends BaseController<
     // for intermediate mutations during that build.
     this.messenger.subscribe('AccountTreeController:initialized', () => {
       this.#accountTreeInitialized = true;
+      this.#onSpamCleanupLifecycleChange();
       this.#updateActive();
     });
     this.messenger.subscribe('AccountTreeController:uninitialized', () => {
       this.#accountTreeInitialized = false;
+      this.#onSpamCleanupLifecycleChange();
       this.#updateActive();
     });
   }
@@ -1279,6 +1283,23 @@ export class AssetsController extends BaseController<
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
+  }
+
+  #onSpamCleanupLifecycleChange(): void {
+    const shouldRun =
+      this.#uiOpen &&
+      this.#keyringUnlocked &&
+      this.#accountTreeInitialized &&
+      this.#isBasicFunctionality();
+
+    if (shouldRun && !this.#spamCleanupSessionActive) {
+      this.#spamCleanupSessionActive = true;
+      this.#runSpamCleanup().catch(() => {
+        /* Do nothing */
+      });
+    } else if (!shouldRun) {
+      this.#spamCleanupSessionActive = false;
+    }
   }
 
   async #runSpamCleanup(): Promise<void> {

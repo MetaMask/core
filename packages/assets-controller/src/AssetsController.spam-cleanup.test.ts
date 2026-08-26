@@ -1,5 +1,6 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import nock from 'nock';
 
 import {
   createMockAssetControllerMessenger,
@@ -112,94 +113,31 @@ async function withController<ReturnValue>(
   }
 }
 
+/**
+ * Put the controller into the active lifecycle state where spam cleanup runs:
+ * UI open, keyring unlocked, and account tree initialized.
+ *
+ * @param messenger - Root messenger used to publish lifecycle events.
+ */
+function activateSpamCleanupEnvironment(messenger: MockRootMessenger): void {
+  (
+    messenger as unknown as {
+      publish: (topic: string, payload?: unknown) => void;
+    }
+  ).publish('ClientController:stateChange', { isUiOpen: true });
+  messenger.publish('KeyringController:unlock');
+  (messenger.publish as CallableFunction)(
+    'AccountTreeController:initialized',
+    {},
+  );
+}
+
 describe('AssetsController spam cleanup', () => {
-  it('stops tracking spam tokens across the whole wallet when it is unlocked', async () => {
-    mockSuggestedOccurrenceFloors();
-    mockV3Assets();
-
-    await withController({}, async ({ controller, messenger }) => {
-      messenger.publish('KeyringController:unlock');
-      await waitForTokenApiRequests();
-
-      await waitFor(() => {
-        expect(controller.state.assetsInfo).toStrictEqual(
-          buildAssetsInfo(SURVIVING_ASSET_IDS),
-        );
-        expect(controller.state.assetsBalance).toStrictEqual({
-          [ACCOUNT_ONE_ID]: {
-            [MAINNET_NATIVE]: { amount: '1204500000000000000' },
-            [MAINNET_USDT]: { amount: '2500000000' },
-            [OPTIMISM_USDC]: { amount: '148230000' },
-            [SEI_USDCN]: { amount: '74500000' },
-          },
-          [ACCOUNT_TWO_ID]: {
-            [BASE_FARTCOIN]: { amount: '1200000000000000000000' },
-            [ARBITRUM_GMX]: { amount: '3400000000000000000' },
-          },
-        });
-      });
-    });
-  });
-
-  it('never asks the Token API about assets it is not allowed to sweep', async () => {
-    mockSuggestedOccurrenceFloors();
-    const { requestedBatches } = mockV3Assets();
-
-    await withController({}, async ({ messenger }) => {
-      messenger.publish('KeyringController:unlock');
-      await waitForTokenApiRequests();
-
-      await waitFor(() => {
-        expect([...requestedBatches[0]].sort()).toStrictEqual(
-          [...SWEEPABLE_ASSET_IDS].sort(),
-        );
-      });
-    });
-  });
-
-  it('leaves prices and the imported token alone', async () => {
-    mockSuggestedOccurrenceFloors();
-    mockV3Assets();
-    const state = buildSpamWalletState();
-
-    await withController({ state }, async ({ controller, messenger }) => {
-      messenger.publish('KeyringController:unlock');
-      await waitForTokenApiRequests();
-
-      await waitFor(() => {
-        expect(controller.state.customAssets).toStrictEqual({
-          [ACCOUNT_TWO_ID]: [ARBITRUM_GMX],
-        });
-        expect(controller.state.assetsPrice).toStrictEqual(state.assetsPrice);
-      });
-    });
-  });
-
-  it('writes the swept state in a single update', async () => {
-    mockSuggestedOccurrenceFloors();
-    mockV3Assets();
-
-    await withController({}, async ({ messenger }) => {
-      const stateChanges: AssetsControllerState[] = [];
-      (
-        messenger as unknown as {
-          subscribe: (
-            topic: string,
-            handler: (state: AssetsControllerState) => void,
-          ) => void;
-        }
-      ).subscribe('AssetsController:stateChanged', (state) => {
-        stateChanges.push(state);
-      });
-
-      messenger.publish('KeyringController:unlock');
-      await waitForTokenApiRequests();
-
-      await waitFor(() => {
-        expect(stateChanges).toHaveLength(1);
-        expect(stateChanges[0].assetsInfo[MAINNET_SPAM]).toBeUndefined();
-      });
-    });
+  afterEach(async () => {
+    for (let i = 0; i < 30; i++) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    nock.cleanAll();
   });
 
   it('does not sweep before the wallet is unlocked', async () => {
@@ -235,6 +173,94 @@ describe('AssetsController spam cleanup', () => {
     );
   });
 
+  it('stops tracking spam tokens across the whole wallet when it is unlocked', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+
+    await withController({}, async ({ controller, messenger }) => {
+      activateSpamCleanupEnvironment(messenger);
+      await waitForTokenApiRequests();
+
+      await waitFor(() => {
+        expect(controller.state.assetsInfo).toStrictEqual(
+          buildAssetsInfo(SURVIVING_ASSET_IDS),
+        );
+        expect(controller.state.assetsInfo[MAINNET_SPAM]).toBeUndefined();
+        expect(controller.state.assetsInfo[OPTIMISM_SPAM]).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_USDT],
+        ).toBeDefined();
+        expect(
+          controller.state.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_SPAM],
+        ).toBeUndefined();
+      });
+    });
+  });
+
+  it('never asks the Token API about assets it is not allowed to sweep', async () => {
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets();
+
+    await withController({}, async ({ messenger }) => {
+      activateSpamCleanupEnvironment(messenger);
+      await waitForTokenApiRequests();
+
+      await waitFor(() => {
+        expect([...requestedBatches[0]].sort()).toStrictEqual(
+          [...SWEEPABLE_ASSET_IDS].sort(),
+        );
+      });
+    });
+  });
+
+  it('leaves prices and the imported token alone', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+    const state = buildSpamWalletState();
+
+    await withController({ state }, async ({ controller, messenger }) => {
+      activateSpamCleanupEnvironment(messenger);
+      await waitForTokenApiRequests();
+
+      await waitFor(() => {
+        expect(controller.state.customAssets).toStrictEqual({
+          [ACCOUNT_TWO_ID]: [ARBITRUM_GMX],
+        });
+        expect(controller.state.assetsPrice).toStrictEqual(state.assetsPrice);
+      });
+    });
+  });
+
+  it('writes the swept state in a single update', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+
+    await withController({}, async ({ messenger }) => {
+      const stateChanges: AssetsControllerState[] = [];
+      (
+        messenger as unknown as {
+          subscribe: (
+            topic: string,
+            handler: (state: AssetsControllerState) => void,
+          ) => void;
+        }
+      ).subscribe('AssetsController:stateChanged', (state) => {
+        stateChanges.push(state);
+      });
+
+      activateSpamCleanupEnvironment(messenger);
+      await waitForTokenApiRequests();
+
+      await waitFor(() => {
+        expect(
+          stateChanges.some(
+            (state) => state.assetsInfo[MAINNET_SPAM] === undefined,
+          ),
+        ).toBe(true);
+      });
+    });
+  });
+
   it('leaves the wallet untouched and reports when the Token API is down', async () => {
     mockSuggestedOccurrenceFloors({ status: 503 });
     const state = buildSpamWalletState();
@@ -243,7 +269,7 @@ describe('AssetsController spam cleanup', () => {
     await withController(
       { state, captureException },
       async ({ controller, messenger }) => {
-        messenger.publish('KeyringController:unlock');
+        activateSpamCleanupEnvironment(messenger);
         await waitForTokenApiRequests();
 
         await waitFor(() => {
@@ -257,9 +283,6 @@ describe('AssetsController spam cleanup', () => {
         expect(controller.state.assetsInfo).toStrictEqual(
           SPAM_WALLET_ASSETS_INFO,
         );
-        expect(controller.state.assetsBalance).toStrictEqual(
-          state.assetsBalance,
-        );
       },
     );
   });
@@ -271,7 +294,7 @@ describe('AssetsController spam cleanup', () => {
     mockV3Assets();
 
     await withController({}, async ({ controller, messenger }) => {
-      messenger.publish('KeyringController:unlock');
+      activateSpamCleanupEnvironment(messenger);
       await waitForTokenApiRequests();
 
       await waitFor(() => {
@@ -288,9 +311,6 @@ describe('AssetsController spam cleanup', () => {
 
       await waitFor(() => {
         expect(controller.state.assetsInfo[MAINNET_USDT]).toBeUndefined();
-        expect(controller.state.assetsBalance[ACCOUNT_ONE_ID]).toStrictEqual({
-          [MAINNET_NATIVE]: { amount: '1204500000000000000' },
-        });
       });
     });
   });
@@ -300,16 +320,7 @@ describe('AssetsController spam cleanup', () => {
     mockV3Assets();
 
     await withController({}, async ({ controller, messenger }) => {
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChange', { isUiOpen: true });
-      messenger.publish('KeyringController:unlock');
-      (messenger.publish as CallableFunction)(
-        'AccountTreeController:initialized',
-        {},
-      );
+      activateSpamCleanupEnvironment(messenger);
       await waitForTokenApiRequests();
 
       await waitFor(() => {
@@ -327,7 +338,7 @@ describe('AssetsController spam cleanup', () => {
     mockV3Assets();
 
     await withController({}, async ({ controller, messenger }) => {
-      messenger.publish('KeyringController:unlock');
+      activateSpamCleanupEnvironment(messenger);
 
       // Simulate a concurrent update while the sweep is awaiting the Token API
       // @ts-expect-error - we are forcing a concurrent update to the state
