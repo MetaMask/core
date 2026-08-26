@@ -11,6 +11,7 @@ import {
 import { cloneDeep } from 'lodash';
 
 import { divideIntoBatches } from '../data-sources/evm-rpc-services/utils/batch.js';
+import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   AccountId,
@@ -19,7 +20,6 @@ import type {
   AssetsControllerStateInternal,
 } from '../types.js';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
-import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';
 
 /**
  * TEMPORARY MODULE — remove in a future release.

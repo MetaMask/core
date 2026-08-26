@@ -1,6 +1,13 @@
+import type { V3AssetResponse } from '@metamask/core-backend';
+
 import type { AssetsControllerStateInternal, Caip19AssetId } from '../types.js';
-import type { CurrentAssetsState } from './healAssetsInfoMetadata.js';
+import type {
+  CleanSpamAssetsState,
+  CurrentAssetsState,
+  SpamTokensApiClient,
+} from './healAssetsInfoMetadata.js';
 import {
+  cleanSpamAssets,
   healAssetsInfoMetadata,
   tempHealAssetsInfoMetadata,
 } from './healAssetsInfoMetadata.js';
@@ -14,6 +21,14 @@ const TOKEN_ADDRESS_LOWER = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 const TOKEN_ADDRESS_CHECKSUMMED = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const FLARE_ASSET_ID =
   `eip155:14/erc20:${TOKEN_ADDRESS_CHECKSUMMED}` as Caip19AssetId;
+
+const MAINNET_LEGIT_ASSET =
+  `eip155:1/erc20:${TOKEN_ADDRESS_CHECKSUMMED}` as Caip19AssetId;
+const MAINNET_SPAM_ASSET =
+  'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+const MAINNET_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
+const MAINNET_MUSD_ASSET =
+  'eip155:1/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Caip19AssetId;
 
 /**
  * Build an empty current AssetsController state, with optional overrides.
@@ -370,6 +385,18 @@ describe('healAssetsInfoMetadata', () => {
       ).toBeNull();
     });
 
+    it('skips tokens with an invalid EIP-55 checksum in the address', () => {
+      expect(
+        healAssetsInfoMetadata(
+          buildLegacyState({
+            ...VALID_TOKEN,
+            address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB49',
+          }),
+          buildCurrentState(),
+        ),
+      ).toBeNull();
+    });
+
     it('skips ERC-721 tokens', () => {
       expect(
         healAssetsInfoMetadata(
@@ -625,5 +652,350 @@ describe('tempHealAssetsInfoMetadata', () => {
         },
       });
     }).not.toThrow();
+  });
+});
+
+/**
+ * Build state for cleanSpamAssets tests.
+ *
+ * @param overrides - Partial state slices to merge over the empty defaults.
+ * @returns The state input for cleanSpamAssets.
+ */
+function buildCleanupState(
+  overrides: Partial<CleanSpamAssetsState> = {},
+): CleanSpamAssetsState {
+  return {
+    assetsInfo: {},
+    assetsBalance: {},
+    customAssets: {},
+    ...overrides,
+  };
+}
+
+/**
+ * Build a minimal V3 asset response for spam-cleanup tests.
+ *
+ * @param assetId - CAIP-19 asset identifier.
+ * @param occurrences - Occurrence count returned by the Token API.
+ * @returns A mock V3 asset response.
+ */
+function createMockAssetResponse(
+  assetId: string,
+  occurrences: number,
+): V3AssetResponse {
+  return {
+    assetId,
+    name: 'Test Token',
+    symbol: 'TST',
+    decimals: 18,
+    iconUrl: 'https://example.com/icon.png',
+    coingeckoId: 'test-token',
+    occurrences,
+    aggregators: ['metamask'],
+    labels: [],
+    erc20Permit: false,
+    fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+    honeypotStatus: { honeypotIs: false },
+    storage: { balance: 1, approval: 2 },
+    isContractVerified: true,
+  };
+}
+
+/**
+ * Build a mock Token API client for spam-cleanup tests.
+ *
+ * @param assetsResponse - Assets returned by fetchV3Assets.
+ * @param suggestedOccurrenceFloors - Floors returned by fetchV1SuggestedOccurrenceFloors.
+ * @returns A mock API client.
+ */
+function createMockApiClient(
+  assetsResponse: V3AssetResponse[] = [],
+  suggestedOccurrenceFloors: Record<string, number> = { '1': 3 },
+): SpamTokensApiClient {
+  return {
+    tokens: {
+      fetchV3Assets: jest.fn().mockResolvedValue(assetsResponse),
+    },
+    token: {
+      fetchV1SuggestedOccurrenceFloors: jest
+        .fn()
+        .mockResolvedValue(suggestedOccurrenceFloors),
+    },
+  };
+}
+
+describe('cleanSpamAssets', () => {
+  it('returns the original state when there are no cleanup candidates', async () => {
+    const state = buildCleanupState();
+
+    const result = await cleanSpamAssets({
+      state,
+      apiClient: createMockApiClient(),
+    });
+
+    expect(result).toBe(state);
+  });
+
+  it.each([
+    [
+      'non-ERC-20 assets',
+      {
+        assetsInfo: {
+          [MAINNET_NATIVE_ASSET]: {
+            type: 'native' as const,
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+          },
+        },
+      },
+    ],
+    [
+      'assets on chains not covered by the Accounts API',
+      {
+        assetsInfo: {
+          [FLARE_ASSET_ID]: {
+            type: 'erc20' as const,
+            symbol: 'TST',
+            name: 'Test Token',
+            decimals: 18,
+          },
+        },
+      },
+    ],
+    [
+      'default tracked assets excluded from cleanup',
+      {
+        assetsInfo: {
+          [MAINNET_MUSD_ASSET]: {
+            type: 'erc20' as const,
+            symbol: 'mUSD',
+            name: 'MetaMask USD',
+            decimals: 6,
+          },
+        },
+      },
+    ],
+    [
+      'custom assets only',
+      {
+        assetsInfo: {
+          [MAINNET_SPAM_ASSET]: {
+            type: 'erc20' as const,
+            symbol: 'SPAM',
+            name: 'Spam Token',
+            decimals: 18,
+          },
+        },
+        customAssets: { [ACCOUNT_ID]: [MAINNET_SPAM_ASSET] },
+      },
+    ],
+  ])(
+    'returns the original state when assetsInfo contains only %s',
+    async (_label, overrides) => {
+      const state = buildCleanupState(overrides);
+
+      const result = await cleanSpamAssets({
+        state,
+        apiClient: createMockApiClient(),
+      });
+
+      expect(result).toBe(state);
+    },
+  );
+
+  it('removes spam assets from assetsInfo and assetsBalance', async () => {
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_LEGIT_ASSET]: {
+          type: 'erc20',
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+        [MAINNET_SPAM_ASSET]: {
+          type: 'erc20',
+          symbol: 'SPAM',
+          name: 'Spam Token',
+          decimals: 18,
+        },
+      },
+      assetsBalance: {
+        [ACCOUNT_ID]: {
+          [MAINNET_LEGIT_ASSET]: { amount: '100' },
+          [MAINNET_SPAM_ASSET]: { amount: '50' },
+        },
+      },
+    });
+    const apiClient = createMockApiClient([
+      createMockAssetResponse(MAINNET_LEGIT_ASSET, 5),
+      createMockAssetResponse(MAINNET_SPAM_ASSET, 1),
+    ]);
+
+    const result = await cleanSpamAssets({ state, apiClient });
+
+    expect(result).not.toBe(state);
+    expect(result.assetsInfo[MAINNET_LEGIT_ASSET]).toBeDefined();
+    expect(result.assetsInfo[MAINNET_SPAM_ASSET]).toBeUndefined();
+    expect(
+      result.assetsBalance[ACCOUNT_ID]?.[MAINNET_LEGIT_ASSET],
+    ).toBeDefined();
+    expect(
+      result.assetsBalance[ACCOUNT_ID]?.[MAINNET_SPAM_ASSET],
+    ).toBeUndefined();
+    expect(apiClient.token.fetchV1SuggestedOccurrenceFloors).toHaveBeenCalled();
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MAINNET_LEGIT_ASSET, MAINNET_SPAM_ASSET],
+      { includeOccurrences: true },
+      { staleTime: 0, gcTime: 0 },
+    );
+  });
+
+  it('does not remove custom assets even when they are below the occurrence floor', async () => {
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_SPAM_ASSET]: {
+          type: 'erc20',
+          symbol: 'SPAM',
+          name: 'Spam Token',
+          decimals: 18,
+        },
+      },
+      assetsBalance: {
+        [ACCOUNT_ID]: {
+          [MAINNET_SPAM_ASSET]: { amount: '1' },
+        },
+      },
+      customAssets: {
+        [ACCOUNT_ID]: [MAINNET_SPAM_ASSET],
+      },
+    });
+    const apiClient = createMockApiClient([
+      createMockAssetResponse(MAINNET_SPAM_ASSET, 1),
+    ]);
+
+    const result = await cleanSpamAssets({ state, apiClient });
+
+    expect(result).toBe(state);
+    expect(apiClient.tokens.fetchV3Assets).not.toHaveBeenCalled();
+  });
+
+  it('uses the default occurrence floor when a chain is missing from the floors response', async () => {
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_SPAM_ASSET]: {
+          type: 'erc20',
+          symbol: 'SPAM',
+          name: 'Spam Token',
+          decimals: 18,
+        },
+      },
+    });
+    const apiClient = createMockApiClient(
+      [createMockAssetResponse(MAINNET_SPAM_ASSET, 2)],
+      {},
+    );
+
+    const result = await cleanSpamAssets({ state, apiClient });
+
+    expect(result.assetsInfo[MAINNET_SPAM_ASSET]).toBeUndefined();
+  });
+
+  it('returns the original state when the occurrence floors fetch fails', async () => {
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_SPAM_ASSET]: {
+          type: 'erc20',
+          symbol: 'SPAM',
+          name: 'Spam Token',
+          decimals: 18,
+        },
+      },
+    });
+    const captureException = jest.fn();
+    const apiClient = createMockApiClient();
+    apiClient.token.fetchV1SuggestedOccurrenceFloors.mockRejectedValueOnce(
+      new Error('floors unavailable'),
+    );
+
+    const result = await cleanSpamAssets({
+      state,
+      apiClient,
+      captureException,
+    });
+
+    expect(result).toBe(state);
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining('floors unavailable'),
+      }),
+    );
+  });
+
+  it('continues cleanup when a batch asset fetch fails', async () => {
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_SPAM_ASSET]: {
+          type: 'erc20',
+          symbol: 'SPAM',
+          name: 'Spam Token',
+          decimals: 18,
+        },
+      },
+    });
+    const apiClient = createMockApiClient();
+    apiClient.tokens.fetchV3Assets.mockRejectedValueOnce(
+      new Error('assets unavailable'),
+    );
+
+    const result = await cleanSpamAssets({ state, apiClient });
+
+    expect(result).toBe(state);
+  });
+
+  it('returns the original state when no assets fall below the occurrence floor', async () => {
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_LEGIT_ASSET]: {
+          type: 'erc20',
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      },
+    });
+    const apiClient = createMockApiClient([
+      createMockAssetResponse(MAINNET_LEGIT_ASSET, 5),
+    ]);
+
+    const result = await cleanSpamAssets({ state, apiClient });
+
+    expect(result).toBe(state);
+  });
+
+  it('removes spam while preserving unrelated custom assets', async () => {
+    const customAssetId =
+      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+    const state = buildCleanupState({
+      assetsInfo: {
+        [MAINNET_SPAM_ASSET]: {
+          type: 'erc20',
+          symbol: 'SPAM',
+          name: 'Spam Token',
+          decimals: 18,
+        },
+      },
+      customAssets: {
+        [ACCOUNT_ID]: [customAssetId],
+      },
+    });
+    const apiClient = createMockApiClient([
+      createMockAssetResponse(MAINNET_SPAM_ASSET, 1),
+    ]);
+
+    const result = await cleanSpamAssets({ state, apiClient });
+
+    expect(result.assetsInfo[MAINNET_SPAM_ASSET]).toBeUndefined();
+    expect(result.customAssets[ACCOUNT_ID]).toStrictEqual([customAssetId]);
   });
 });
