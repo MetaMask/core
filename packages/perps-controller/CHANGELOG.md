@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 1210.0.0 ([#9972](https://github.com/MetaMask/core/pull/9972))
-- Release 1209.0.0 ([#9969](https://github.com/MetaMask/core/pull/9969))
-- feat(perps-controller): add Chase order lifecycle ([#9961](https://github.com/MetaMask/core/pull/9961))
-- Release 1205.0.0 ([#9945](https://github.com/MetaMask/core/pull/9945))
-
 ### Added
 
 - Add the public Chase lifecycle API (`getChaseOrders` and
