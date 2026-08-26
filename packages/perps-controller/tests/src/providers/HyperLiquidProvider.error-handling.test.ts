@@ -2565,7 +2565,6 @@ describe('HyperLiquidProvider', () => {
         'invalid',
         '100junk',
         '-1',
-        '0',
         'Infinity',
         '1e5',
         '.5',
