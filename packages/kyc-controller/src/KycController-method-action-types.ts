@@ -16,10 +16,30 @@ import type { KycController } from './KycController.js';
  * authentication completes (and chains into document verification when KYC
  * is required). When omitted, the flow stops at `form` and the consumer must
  * call `checkKycRequired` manually.
+ * @param params.vendor - Identity vendor for this flow. Non-MoonPay vendors
+ * skip Check/Auth frames and use the consents path. Defaults to `moonpay`.
  */
 export type KycControllerInitializeAction = {
   type: `KycController:initialize`;
   handler: KycController['initialize'];
+};
+
+/**
+ * Creates (or resumes) an empty-shell customer for the given identity
+ * vendor. Exposed so a consumer can ensure the customer exists before
+ * showing T&C screens independently of {@link initialize}.
+ *
+ * A call while a session flow is already in progress is a no-op — matching
+ * {@link initialize} — so a vendor switch cannot leave Check/Auth frames
+ * attached to the wrong vendor. Call {@link reset} first to start over.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor for the customer.
+ * @param params.email - Email for the vendor customer.
+ */
+export type KycControllerCreateVendorCustomerAction = {
+  type: `KycController:createVendorCustomer`;
+  handler: KycController['createVendorCustomer'];
 };
 
 /**
@@ -37,11 +57,18 @@ export type KycControllerLoadDisclaimersAction = {
  * Captures terms acceptance for the currently loaded disclaimers and creates
  * a session.
  *
- * @param params - Optional parameters.
+ * @param params - The parameters.
  * @param params.email - The account email to associate with the session.
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
+ * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
+ * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
+ * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.credentialReusabilityConsentGiven - Whether the customer
+ * consented to reuse existing idOS credentials. Used when recording
+ * session-scoped disclaimers on the consents path. Defaults to `false`.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
@@ -127,6 +154,24 @@ export type KycControllerGetKycStatusAction = {
 };
 
 /**
+ * Returns the vendor-scoped identity for the currently authenticated
+ * customer, or `null` when the flow has not yet captured a vendor customer
+ * id (before authentication or after {@link reset}), or when a MoonPay id
+ * is present under a different `activeVendor`.
+ *
+ * Exposed so consumers (e.g. ramps autoramp creation) can attach the vendor
+ * customer id to downstream calls without reading the full KYC state, which
+ * also holds session/access tokens. The id is session-scoped and never
+ * persisted.
+ *
+ * @returns The current {@link KycCustomerIdentity}, or `null`.
+ */
+export type KycControllerGetCustomerIdentityAction = {
+  type: `KycController:getCustomerIdentity`;
+  handler: KycController['getCustomerIdentity'];
+};
+
+/**
  * Runs the SumSub document-verification sub-flow end to end:
  *
  * 1. creates a UKYC session, receiving per-secret encryption schemas;
@@ -138,6 +183,9 @@ export type KycControllerGetKycStatusAction = {
  * same way as the encryption key, and submits both via authorizations;
  * 5. fetches the SumSub applicant access token; and
  * 6. presents the SDK via the injected launcher.
+ *
+ * If a UKYC session already exists (the consents path creates it before
+ * recording session disclaimers), steps 1–4 are skipped.
  *
  * If authorizations report the applicant is already approved on the relay
  * while the vendor is still finalizing (`kycStatus: approved`,
@@ -152,6 +200,18 @@ export type KycControllerGetKycStatusAction = {
 export type KycControllerStartSumSubAction = {
   type: `KycController:startSumSub`;
   handler: KycController['startSumSub'];
+};
+
+/**
+ * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
+ * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
+ * schedules short-interval polling while the status is `pending`.
+ *
+ * @returns The latest status payload.
+ */
+export type KycControllerRefreshKycStatusAction = {
+  type: `KycController:refreshKycStatus`;
+  handler: KycController['refreshKycStatus'];
 };
 
 /**
@@ -177,10 +237,24 @@ export type KycControllerResetAction = {
 };
 
 /**
+ * Restores the controller to its default state, discarding everything
+ * {@link reset} deliberately keeps: the session email, the persisted terms
+ * acceptance, the per-product KYC-required cache and the user-keyed status.
+ *
+ * Intended for a full wallet reset, where no trace of the previous
+ * customer may survive into the next wallet.
+ */
+export type KycControllerClearStateAction = {
+  type: `KycController:clearState`;
+  handler: KycController['clearState'];
+};
+
+/**
  * Union of all KycController action types.
  */
 export type KycControllerMethodActions =
   | KycControllerInitializeAction
+  | KycControllerCreateVendorCustomerAction
   | KycControllerLoadDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction
@@ -190,6 +264,9 @@ export type KycControllerMethodActions =
   | KycControllerBuildResetFrameUrlAction
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
+  | KycControllerGetCustomerIdentityAction
   | KycControllerStartSumSubAction
+  | KycControllerRefreshKycStatusAction
   | KycControllerGetSessionStatusAction
-  | KycControllerResetAction;
+  | KycControllerResetAction
+  | KycControllerClearStateAction;

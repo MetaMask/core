@@ -11,6 +11,7 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
+  KycControllerStatusChangedEvent,
 } from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
@@ -19,11 +20,15 @@ export type {
   KycControllerBuildResetFrameUrlAction,
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
+  KycControllerClearStateAction,
+  KycControllerCreateVendorCustomerAction,
+  KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
   KycControllerHandleFrameMessageAction,
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
+  KycControllerRefreshKycStatusAction,
   KycControllerResetAction,
   KycControllerStartSumSubAction,
 } from './KycController-method-action-types.js';
@@ -33,10 +38,13 @@ export type {
   ApplicantAccessTokenResponse,
   CapabilityAuthorization,
   CheckKycRequiredParams,
+  CreateVendorCustomerParams,
   CreateSessionParams,
   CreateUkycSessionParams,
   EncryptionSchema,
+  FetchSessionDisclaimersParams,
   GetSessionStatusParams,
+  VendorCustomerResponse,
   JwksResponse,
   KycServiceActions,
   KycServiceCacheUpdatedEvent,
@@ -46,18 +54,25 @@ export type {
   KycServiceMessenger,
   KycServiceOptions,
   SetAuthorizationsParams,
+  SubmitSessionDisclaimersParams,
+  SubmitVendorDisclaimersParams,
   UkycSessionResponse,
 } from './KycService.js';
 export type {
   KycServiceCheckKycRequiredAction,
+  KycServiceCreateVendorCustomerAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
   KycServiceFetchDisclaimersAction,
   KycServiceFetchJwksAction,
+  KycServiceFetchKycStatusAction,
+  KycServiceFetchSessionDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceSetAuthorizationsAction,
+  KycServiceSubmitSessionDisclaimersAction,
+  KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
 export {
@@ -76,14 +91,21 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycConsentDocument,
+  KycConsentRecord,
+  KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
   KycProduct,
+  KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
   KycSumSubStatus,
+  KycUserStatus,
+  KycUserStatusResponse,
   KycVendor,
+  KycVendorSigning,
 } from './types.js';
 
 // UKYC storage-access-token utilities. Exported so a signed capability token can

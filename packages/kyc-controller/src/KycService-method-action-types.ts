@@ -22,6 +22,7 @@ export type KycServiceGetGeoCountryAction = {
  * created.
  *
  * @param params - The parameters.
+ * @param params.vendor - Identity vendor. Defaults to `moonpay`.
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
@@ -42,7 +43,7 @@ export type KycServiceCreateSessionAction = {
 };
 
 /**
- * Checks whether KYC is required for the given access token, country, and
+ * Checks whether KYC is required for the given vendor, country, and
  * capabilities.
  *
  * @param params - The check parameters.
@@ -51,6 +52,78 @@ export type KycServiceCreateSessionAction = {
 export type KycServiceCheckKycRequiredAction = {
   type: `KycService:checkKycRequired`;
   handler: KycService['checkKycRequired'];
+};
+
+/**
+ * Creates (or resumes) an empty-shell customer for the authenticated
+ * canonical user on the given identity vendor. Must run before showing
+ * vendor T&C so the customer exists and resume logic can key off vendor
+ * status.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
+ * @param params.email - Email associated with the customer.
+ * @returns The vendor customer record (subset validated for controller use).
+ */
+export type KycServiceCreateVendorCustomerAction = {
+  type: `KycService:createVendorCustomer`;
+  handler: KycService['createVendorCustomer'];
+};
+
+/**
+ * Records vendor T&C acceptance (`POST /vendors/{vendor}/disclaimers`).
+ * For Iron this creates content signings from the disclaimer ids the
+ * customer accepted. Session-scoped idOS / KYC-provider consents are
+ * recorded separately via {@link submitSessionDisclaimers}. Retries re-POST
+ * the same ids, matching the legacy `POST /consents` signing step.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron`).
+ * @param params.disclaimerIds - Accepted vendor T&C ids.
+ * @returns The vendor signing records.
+ */
+export type KycServiceSubmitVendorDisclaimersAction = {
+  type: `KycService:submitVendorDisclaimers`;
+  handler: KycService['submitVendorDisclaimers'];
+};
+
+/**
+ * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
+ * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
+ * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The catalog, including which documents are already consented.
+ */
+export type KycServiceFetchSessionDisclaimersAction = {
+  type: `KycService:fetchSessionDisclaimers`;
+  handler: KycService['fetchSessionDisclaimers'];
+};
+
+/**
+ * Records idOS + KYC-provider consents for a UKYC session
+ * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
+ * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+ * means those document versions were already recorded for the session.
+ *
+ * @param params - The consent parameters.
+ * @returns The updated catalog after recording.
+ */
+export type KycServiceSubmitSessionDisclaimersAction = {
+  type: `KycService:submitSessionDisclaimers`;
+  handler: KycService['submitSessionDisclaimers'];
+};
+
+/**
+ * Fetches the user-keyed simplified KYC status used by Money toast / banner
+ * surfaces (`GET /kyc/status`).
+ *
+ * @returns The simplified status payload.
+ */
+export type KycServiceFetchKycStatusAction = {
+  type: `KycService:fetchKycStatus`;
+  handler: KycService['fetchKycStatus'];
 };
 
 /**
@@ -130,6 +203,11 @@ export type KycServiceMethodActions =
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
+  | KycServiceCreateVendorCustomerAction
+  | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchSessionDisclaimersAction
+  | KycServiceSubmitSessionDisclaimersAction
+  | KycServiceFetchKycStatusAction
   | KycServiceFetchJwksAction
   | KycServiceCreateUkycSessionAction
   | KycServiceSetAuthorizationsAction

@@ -257,52 +257,52 @@ describe('AccountsApiClient', () => {
       const mockResponse: V6BalancesResponse = {
         unprocessedNetworks: ['eip155:1329'],
         unprocessedIncludeAssetIds: ['eip155:1/erc20:0xabc'],
-        accounts: [
+        balances: [
           {
             accountId: 'eip155:1:0x123',
-            balances: [
-              {
-                category: 'token',
-                assetId: 'eip155:1/erc20:0xc02aaa39',
-                name: 'Wrapped Ether',
-                symbol: 'WETH',
-                decimals: 18,
-                balance: '0.283549083429656057',
-                price: '2119.66',
-              },
-              {
-                category: 'token',
-                assetId:
-                  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-                name: 'USD Coin',
-                symbol: 'USDC',
-                decimals: 7,
-                balance: '10.5',
-                metadata: {
-                  limit: '9223372036854775807',
-                  authorized: true,
-                },
-              },
-              {
-                category: 'defi',
-                assetId: 'eip155:1/erc20:0x4fef9d74',
-                name: 'MetaMask Swaps',
-                symbol: 'MMS',
-                decimals: 18,
-                balance: '1.0',
-                metadata: {
-                  protocolId: 'metamask',
-                  productName: 'MetaMask Swaps',
-                  groupId: 'group-1',
-                  description: 'MetaMask Swaps on ethereum',
-                  protocolUrl: 'https://metamask.io/',
-                  protocolIconUrl: 'https://example.com/icon.jpg',
-                  positionType: 'deposit',
-                  poolAddress: '0x4fef9d741011476750a243ac70b9789a63dd47df',
-                },
-              },
-            ],
-            processingDefiPositions: false,
+            object: 'token',
+            type: 'erc20',
+            assetId: 'eip155:1/erc20:0xc02aaa39',
+            name: 'Wrapped Ether',
+            symbol: 'WETH',
+            decimals: 18,
+            balance: '0.283549083429656057',
+            price: '2119.66',
+          },
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'token',
+            type: 'erc20',
+            assetId:
+              'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 7,
+            balance: '10.5',
+            metadata: {
+              limit: '9223372036854775807',
+              authorized: true,
+            },
+          },
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'defi',
+            type: 'erc20',
+            assetId: 'eip155:1/erc20:0x4fef9d74',
+            name: 'MetaMask Swaps',
+            symbol: 'MMS',
+            decimals: 18,
+            balance: '1.0',
+            metadata: {
+              protocolId: 'metamask',
+              productName: 'MetaMask Swaps',
+              groupId: 'group-1',
+              description: 'MetaMask Swaps on ethereum',
+              protocolUrl: 'https://metamask.io/',
+              protocolIconUrl: 'https://example.com/icon.jpg',
+              positionType: 'deposit',
+              poolAddress: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+            },
           },
         ],
       };
@@ -332,7 +332,7 @@ describe('AccountsApiClient', () => {
       expect(result).toStrictEqual({
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
-        accounts: [],
+        balances: [],
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -995,7 +995,7 @@ describe('AccountsApiClient', () => {
       expect(result).toStrictEqual({
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
-        accounts: [],
+        balances: [],
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });

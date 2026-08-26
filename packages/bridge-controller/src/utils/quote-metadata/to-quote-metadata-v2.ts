@@ -2,10 +2,27 @@ import { parseCaipAssetType } from '@metamask/utils';
 
 import { toBridgeAssetV2 } from '../../coercers/quote-response-v1-to-v2.js';
 import type { DeepPartial } from '../../types.js';
+import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
+import type { BridgeAssetV2 } from '../../validators/bridge-asset.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { getNativeAssetForChainId } from '../bridge.js';
 import { calcAtomicTokenAmount } from '../number-formatters.js';
-import type { QuoteMetadata } from './types.js';
+import { includeIfTruthy } from './include-if-truthy.js';
+import type { QuoteMetadata, TokenAmountValues } from './types.js';
+
+const toAmountAndAsset = (
+  asset?: DeepPartial<BridgeAssetV2>,
+  metadata?: Partial<TokenAmountValues>,
+  extraFields?: DeepPartial<AmountsAndAsset>,
+): DeepPartial<AmountsAndAsset> => {
+  return {
+    amount: calcAtomicTokenAmount(metadata?.amount, asset?.decimals),
+    normalizedAmount: metadata?.amount,
+    valueInCurrency: metadata?.valueInCurrency,
+    usd: metadata?.usd,
+    ...extraFields,
+  };
+};
 
 /**
  * Converts a {@link QuoteMetadata} to a partial {@link QuoteResponse} containing only metadata
@@ -53,20 +70,9 @@ export const toQuoteMetadataV2 = (
   return {
     ...rest,
     quote: {
-      src: {
-        amount: calcAtomicTokenAmount(sentAmount?.amount, srcAsset?.decimals),
-        normalizedAmount: sentAmount?.amount,
-        valueInCurrency: sentAmount?.valueInCurrency,
-        usd: sentAmount?.usd,
-      },
+      src: toAmountAndAsset(srcAsset, sentAmount),
       dest: {
-        amount: calcAtomicTokenAmount(
-          toTokenAmount?.amount,
-          destAsset?.decimals,
-        ),
-        normalizedAmount: toTokenAmount?.amount,
-        valueInCurrency: toTokenAmount?.valueInCurrency,
-        usd: toTokenAmount?.usd,
+        ...toAmountAndAsset(destAsset, toTokenAmount),
         minAmount: calcAtomicTokenAmount(
           minToTokenAmount?.amount,
           destAsset?.decimals,
@@ -76,61 +82,31 @@ export const toQuoteMetadataV2 = (
         minAmountValueInCurrency: minToTokenAmount?.valueInCurrency,
       },
       feeData: {
-        network: [
-          {
-            amount: calcAtomicTokenAmount(
-              networkFeeToUse?.amount,
-              nativeAsset?.decimals,
-            ),
-            normalizedAmount: networkFeeToUse?.amount,
-            valueInCurrency: networkFeeToUse?.valueInCurrency,
-            usd: networkFeeToUse?.usd,
-            asset: nativeAsset,
-          },
-        ],
-        ...(relayerFee &&
-          Object.values(relayerFee).some(Boolean) && {
-            relayer: [
-              {
-                amount: calcAtomicTokenAmount(
-                  relayerFee?.amount,
-                  nativeAsset?.decimals,
-                ),
-                normalizedAmount: relayerFee.amount,
-                valueInCurrency: relayerFee.valueInCurrency,
-                usd: relayerFee.usd,
-                asset: nativeAsset,
-              },
-            ],
-          }),
-        ...(includedTxFees &&
-          Object.values(includedTxFees).some(Boolean) && {
-            txFee: [
-              {
-                amount: calcAtomicTokenAmount(
-                  includedTxFees?.amount,
-                  txFeeAsset?.decimals,
-                ),
-                normalizedAmount: includedTxFees?.amount,
-                valueInCurrency: includedTxFees?.valueInCurrency,
-                usd: includedTxFees?.usd,
-                asset: txFeeAsset,
-              },
-            ],
-          }),
+        ...includeIfTruthy(networkFeeToUse, {
+          network: [
+            toAmountAndAsset(nativeAsset, networkFeeToUse, {
+              asset: nativeAsset,
+            }),
+          ],
+        }),
+        ...includeIfTruthy(relayerFee, {
+          relayer: [
+            toAmountAndAsset(nativeAsset, relayerFee, { asset: nativeAsset }),
+          ],
+        }),
+        ...includeIfTruthy(includedTxFees, {
+          txFee: [
+            toAmountAndAsset(txFeeAsset, includedTxFees, { asset: txFeeAsset }),
+          ],
+        }),
       },
       priceData: {
-        ...(priceImpactToUse &&
-          Object.values(priceImpactToUse).some(Boolean) && {
-            priceImpact: priceImpactToUse,
-          }),
-        ...(adjustedReturn &&
-          Object.values(adjustedReturn).some(Boolean) && {
-            adjustedReturn: {
-              valueInCurrency: adjustedReturn?.valueInCurrency,
-              usd: adjustedReturn?.usd,
-            },
-          }),
+        ...includeIfTruthy(priceImpactToUse, {
+          priceImpact: priceImpactToUse,
+        }),
+        ...includeIfTruthy(adjustedReturn, {
+          adjustedReturn,
+        }),
         swapRate,
       },
     },
