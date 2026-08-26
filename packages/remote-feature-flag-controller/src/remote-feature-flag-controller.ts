@@ -316,10 +316,12 @@ export class RemoteFeatureFlagController extends BaseController<
    * Retrieves the remote feature flags, fetching from the API if necessary.
    * Uses caching to prevent redundant API calls and handles concurrent fetches.
    *
+   * @param force - When `true`, fetch even if the cache has not expired.
+   * Defaults to `false`. Has no effect when the controller is disabled.
    * @returns A promise that resolves to the current set of feature flags.
    */
-  async updateRemoteFeatureFlags(): Promise<void> {
-    if (this.#disabled || !this.#isCacheExpired()) {
+  async updateRemoteFeatureFlags(force = false): Promise<void> {
+    if (this.#disabled || (!force && !this.#isCacheExpired())) {
       return;
     }
 
