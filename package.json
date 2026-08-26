@@ -79,7 +79,7 @@
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.14.191",
-    "@types/node": "^16.18.54",
+    "@types/node": "^22.13.14",
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
