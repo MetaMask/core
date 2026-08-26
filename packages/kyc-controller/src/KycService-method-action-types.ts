@@ -22,6 +22,7 @@ export type KycServiceGetGeoCountryAction = {
  * created.
  *
  * @param params - The parameters.
+ * @param params.vendor - Identity vendor. Defaults to `moonpay`.
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
@@ -42,7 +43,7 @@ export type KycServiceCreateSessionAction = {
 };
 
 /**
- * Checks whether KYC is required for the given access token, country, and
+ * Checks whether KYC is required for the given vendor, country, and
  * capabilities.
  *
  * @param params - The check parameters.
@@ -51,6 +52,44 @@ export type KycServiceCreateSessionAction = {
 export type KycServiceCheckKycRequiredAction = {
   type: `KycService:checkKycRequired`;
   handler: KycService['checkKycRequired'];
+};
+
+/**
+ * Creates (or resumes) an empty-shell customer for the authenticated
+ * canonical user on the given identity vendor. Must run before showing
+ * vendor T&C so the customer exists and resume logic can key off vendor
+ * status.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
+ * @param params.email - Email associated with the customer.
+ * @returns The vendor customer record (subset validated for controller use).
+ */
+export type KycServiceCreateVendorCustomerAction = {
+  type: `KycService:createVendorCustomer`;
+  handler: KycService['createVendorCustomer'];
+};
+
+/**
+ * Posts T&C1 (vendor signings) and T&C2 (Sumsub + idOS) consents for the
+ * authenticated user. The API responds with 204 No Content on success.
+ *
+ * @param params - The consent parameters.
+ */
+export type KycServiceSubmitConsentsAction = {
+  type: `KycService:submitConsents`;
+  handler: KycService['submitConsents'];
+};
+
+/**
+ * Fetches the user-keyed simplified KYC status used by Money toast / banner
+ * surfaces (`GET /kyc/status`).
+ *
+ * @returns The simplified status payload.
+ */
+export type KycServiceFetchKycStatusAction = {
+  type: `KycService:fetchKycStatus`;
+  handler: KycService['fetchKycStatus'];
 };
 
 /**
@@ -133,6 +172,9 @@ export type KycServiceMethodActions =
   | KycServiceFetchDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
+  | KycServiceCreateVendorCustomerAction
+  | KycServiceSubmitConsentsAction
+  | KycServiceFetchKycStatusAction
   | KycServiceGetWrappingKeyAction
   | KycServiceFetchJwksAction
   | KycServiceCreateUkycSessionAction

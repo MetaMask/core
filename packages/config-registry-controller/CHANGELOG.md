@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
+### Added
+
+- Add optional `isAutoEnabled?: boolean` property to `RegistryNetworkConfig.config` ([#9879](https://github.com/MetaMask/core/pull/9879))
+- Add `selectEvmAutoEnabledNetworksChainIds` selector to retrieve the CAIP-2 chain IDs of all EVM networks that are auto-enabled ([#9879](https://github.com/MetaMask/core/pull/9879))
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
 ## [3.0.0]
 
 ### Added
@@ -143,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.0.0...@metamask/config-registry-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@2.0.1...@metamask/config-registry-controller@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@2.0.0...@metamask/config-registry-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@1.0.1...@metamask/config-registry-controller@2.0.0

@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.6]
+
+### Changed
+
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [5.0.5]
+
 ### Changed
 
 - Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
-- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 
 ## [5.0.4]
@@ -178,7 +186,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.6...HEAD
+[5.0.6]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.5...@metamask/sample-controllers@5.0.6
+[5.0.5]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.4...@metamask/sample-controllers@5.0.5
 [5.0.4]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.3...@metamask/sample-controllers@5.0.4
 [5.0.3]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.2...@metamask/sample-controllers@5.0.3
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.1...@metamask/sample-controllers@5.0.2

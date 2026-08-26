@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^3.0.0` to `^3.1.0`. ([#9952](https://github.com/MetaMask/core/pull/9952))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/gas-fee-controller` from `^26.3.1` to `^26.3.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+  - This should have been included in 12.0.0.
+
+## [12.0.0]
+
 ### Added
 
 - Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
@@ -188,7 +214,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...@metamask/wallet@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...@metamask/wallet@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
