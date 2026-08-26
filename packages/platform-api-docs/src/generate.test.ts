@@ -56,6 +56,7 @@ export type FooControllerMessenger = Messenger<'FooController', FooControllerGet
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -94,6 +95,7 @@ export type BarMessenger = Messenger<'Bar', BarAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -134,6 +136,7 @@ export type MyMessenger = Messenger<'My', MyGetAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -169,6 +172,7 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -209,6 +213,7 @@ export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -226,6 +231,7 @@ export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
         generate({
           projectPath: directoryPath,
           outputDir,
+          strategy: 'scan',
           scanDirs: ['nonexistent'],
         }),
       ).rejects.toThrow('No scannable directories found');
@@ -271,6 +277,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -299,6 +306,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -335,6 +343,7 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -377,6 +386,7 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
         commitSha: 'abc1234',
       });
@@ -424,6 +434,7 @@ export type OkMessenger = Messenger<'Ok', OkAction, never>;
         const result = await generate({
           projectPath: directoryPath,
           outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'scan',
           scanDirs: ['src'],
         });
 
@@ -457,6 +468,7 @@ export type EventsOnlyMessenger = Messenger<'EventsOnly', never, EventsOnlyChang
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -492,6 +504,7 @@ export type FirstMessenger = Messenger<'First', FirstAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
       const firstExists = await fs.promises
@@ -515,6 +528,7 @@ export type SecondMessenger = Messenger<'Second', SecondAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
       const stalePresent = await fs.promises
@@ -546,6 +560,7 @@ export type AlphaMessenger = Messenger<'Alpha', AlphaAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -597,6 +612,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -639,6 +655,7 @@ export type DupeMessenger = Messenger<'Dupe', never, DupeEvent>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -675,6 +692,7 @@ export type FooMessenger = Messenger<
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -726,6 +744,7 @@ export type DupeMessenger = Messenger<'Dupe', DupeAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -766,6 +785,7 @@ export type SWMessenger = Messenger<'ServiceWorkerController', never, SWEvent>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -808,6 +828,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -846,6 +867,7 @@ export type NonGhMessenger = Messenger<'NonGh', NonGhGetAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 

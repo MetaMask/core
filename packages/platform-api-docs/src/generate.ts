@@ -136,11 +136,10 @@ async function resolveRepoBaseUrl(
  * capability.
  */
 type ScanStrategyOptions = {
-  strategy?: 'scan';
-  /** Directories (relative to projectPath) to scan for .ts source files. */
+  /** The selected strategy. */
+  strategy: 'scan';
+  /** Directories, relative to the project root, to scan. */
   scanDirs: string[];
-  rootActions?: never;
-  rootEvents?: never;
 };
 
 /**
@@ -149,11 +148,11 @@ type ScanStrategyOptions = {
  * messenger carries every action and event.
  */
 type RootMessengerStrategyOptions = {
+  /** The selected strategy. */
   strategy: 'root-messenger';
-  scanDirs?: never;
-  /** Type aliasing the union of every action. */
+  /** The root messenger actions type reference. */
   rootActions: RootCapabilitiesTypeReference;
-  /** Type aliasing the union of every event. */
+  /** The root messenger events type reference. */
   rootEvents: RootCapabilitiesTypeReference;
 };
 
