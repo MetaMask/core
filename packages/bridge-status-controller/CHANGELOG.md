@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add optional `migrationPhase` to `submitTx`, `submitIntent`, and `submitBatchSell`, used by `toQuoteMetadataV1` to convert V2 quotes. Defaults to `V1Data` (`'1'`) if omitted ([#9744](https://github.com/MetaMask/core/pull/9744))
+- Bump `@metamask/bridge-controller` from `^79.3.1` to `^80.0.0` ([#9978](https://github.com/MetaMask/core/pull/9978))
 
 ## [75.2.1]
 
