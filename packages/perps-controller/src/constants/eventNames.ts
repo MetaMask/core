@@ -485,6 +485,7 @@ export const PERPS_EVENT_VALUE = {
     // Sort / filter interactions
     SORT_APPLIED: 'sort_applied',
     FILTER_APPLIED: 'filter_applied',
+    // Chase interactions
     CHASE_BACKGROUNDED_CONVERTED: 'chase_backgrounded_converted',
     CHASE_TERMINATED: 'chase_terminated',
     // Search interactions
@@ -513,6 +514,7 @@ export const PERPS_EVENT_VALUE = {
     TP_EXECUTED: 'tp_executed',
     SL_EXECUTED: 'sl_executed',
     LIMIT_ORDER_EXECUTED: 'limit_order_executed',
+    // Analytics schema value for the app-background conversion notification.
     CHASE_BACKGROUNDED: 'perps_chase_backgrounded',
   },
   CLOSE_TYPE: {

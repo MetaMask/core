@@ -875,6 +875,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   // lifecycle and are cleared on disconnect.
   readonly #chaseTerminations = new Map<string, Promise<CancelOrderResult>>();
 
+  // Provider-lifetime tombstones make every later retry idempotent. Disconnect
+  // clears them with the rest of the account-scoped Chase registry.
   readonly #terminatedChaseHandles = new Set<string>();
 
   // Chase placements that have reserved a slot against the venue's concurrency

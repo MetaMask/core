@@ -363,9 +363,12 @@ export type ChaseOrder = {
   arrivalPrice: string;
   restingPrice: string;
   restingOrderId: string | null;
-  /** Adverse distance from arrival in basis points, clamped to zero. */
+  /** Adverse distance of the resting child from arrival, clamped to zero. */
   distanceChasedBps: number;
-  /** Optional adverse-distance stop, strictly between 0 and 10,000 bps. */
+  /**
+   * Optional adverse-touch stop, strictly between 0 and 10,000 bps.
+   * The resting child may sit just inside this boundary after price-grid rounding.
+   */
   maxDistanceBps?: number;
   repricings: number;
   startedAt: number;

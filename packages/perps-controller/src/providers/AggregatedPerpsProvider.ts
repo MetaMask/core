@@ -465,12 +465,15 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Suspend every provider, rejecting if any provider cannot suspend safely.
+   * Attempt to suspend every provider and reject after all attempts settle if
+   * any provider could not suspend safely. Successful providers remain
+   * suspended, so callers may retry to reconcile a partial failure.
    *
    * @returns Chase snapshots after every provider suspends successfully.
+   * @throws If any active provider fails to suspend its Chase orders.
    */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
-    const results = await Promise.all(
+    const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([providerId, provider]) =>
         provider.suspendChaseOrders
           ? (await provider.suspendChaseOrders()).map((order) => ({
@@ -481,7 +484,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       ),
     );
 
-    return results.flat();
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure?.status === 'rejected') {
+      throw failure.reason;
+    }
+
+    return results
+      .filter((result) => result.status === 'fulfilled')
+      .flatMap((result) => result.value);
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
