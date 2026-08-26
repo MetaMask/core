@@ -83,6 +83,8 @@ export type {
   ProviderLimit,
   ProviderFiatLimits,
   ProviderLimits,
+  ProviderSortOrder,
+  ProvidersResponse,
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
