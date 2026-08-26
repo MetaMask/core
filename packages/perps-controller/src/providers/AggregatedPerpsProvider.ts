@@ -444,6 +444,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return { ...result, providerId };
   }
 
+  /**
+   * Read all available snapshots, retaining successful providers on a partial failure.
+   *
+   * @returns Chase snapshots from every provider that responded successfully.
+   */
   async getChaseOrders(): Promise<ChaseOrder[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([providerId, provider]) =>
@@ -459,6 +464,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
   }
 
+  /**
+   * Suspend every provider, rejecting if any provider cannot suspend safely.
+   *
+   * @returns Chase snapshots after every provider suspends successfully.
+   */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
     const results = await Promise.all(
       this.#getActiveProviders().map(async ([providerId, provider]) =>

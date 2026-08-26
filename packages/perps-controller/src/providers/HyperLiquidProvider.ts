@@ -5763,7 +5763,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Return stable client-facing snapshots for every Chase session retained by
-   * this provider instance.
+   * this provider instance. A read may refresh the current child order's
+   * remaining size from the venue, throttled to the Chase interval.
    *
    * @returns Current Chase session snapshots.
    */
@@ -5796,10 +5797,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         const arrival = Number.parseFloat(session.arrivalPrice);
         const resting = Number.parseFloat(session.restingPrice);
+        const adverseDistance = session.isBuy
+          ? resting - arrival
+          : arrival - resting;
         const measuredDistance =
-          Number.isFinite(arrival) && arrival > 0 && Number.isFinite(resting)
+          Number.isFinite(arrival) &&
+          arrival > 0 &&
+          Number.isFinite(adverseDistance)
             ? Math.round(
-                (Math.abs(resting - arrival) / arrival) * BASIS_POINTS_DIVISOR,
+                (Math.max(0, adverseDistance) / arrival) * BASIS_POINTS_DIVISOR,
               )
             : 0;
         return {
@@ -11362,8 +11368,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // not a request to cancel the user's positions or orders.
       // Invalidate placements first, then drain every mutation before clearing
       // the registry and tearing down the clients they use.
-      for (const sessionId of this.#chaseSessions.keys()) {
-        this.#stopChaseSession(sessionId);
+      for (const [sessionId, session] of this.#chaseSessions.entries()) {
+        if (session.active) {
+          this.#stopChaseSession(sessionId);
+        }
       }
       await Promise.all([...this.#chasePlacementWaiters]);
       await this.#chaseTickQueue;

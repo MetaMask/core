@@ -1974,6 +1974,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect.objectContaining({
           status: 'active',
           restingPrice: '2900.1',
+          distanceChasedBps: 0,
         }),
       ]);
     });
