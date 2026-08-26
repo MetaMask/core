@@ -1186,6 +1186,35 @@ describe('PerpsController', () => {
       expect(mockProvider.disconnect).toHaveBeenCalledTimes(2);
     });
 
+    it('does not route an action through a provider being disconnected', async () => {
+      await controller.init();
+      const disconnectStarted = createDeferred<void>();
+      const pendingDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(async () => {
+        disconnectStarted.resolve();
+        await pendingDisconnect.promise;
+        return { success: true };
+      });
+
+      const disconnectPromise = controller.disconnect();
+      await disconnectStarted.promise;
+      const orderPromise = controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+      await Promise.resolve();
+
+      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+      pendingDisconnect.resolve();
+      await disconnectPromise;
+      await expect(orderPromise).rejects.toThrow(
+        PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+      );
+      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+    });
+
     it('keeps init queued when disconnect starts during reinitialization', async () => {
       await controller.init();
       const replacementProvider = createMockHyperLiquidProvider();

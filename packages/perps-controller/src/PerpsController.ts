@@ -2679,6 +2679,12 @@ export class PerpsController extends BaseController<
    */
   async #getActiveProviderWhenReady(): Promise<ActivePerpsProvider> {
     while (true) {
+      const pendingDisconnect = this.#disconnectOperationPromise;
+      if (pendingDisconnect) {
+        await pendingDisconnect;
+        continue;
+      }
+
       const pendingReinitialization = this.#reinitializationOperationPromise;
       if (pendingReinitialization) {
         await pendingReinitialization;
