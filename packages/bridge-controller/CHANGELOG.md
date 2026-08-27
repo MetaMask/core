@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Include sufficient-funds and normalized slippage properties in Unified SwapBridge quote metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
+
 ## [80.0.0]
 
 ### Added
@@ -25,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `toQuoteMetadataV2` and `toQuoteResponseV2` omit empty `feeData` / `priceData` objects ([#9744](https://github.com/MetaMask/core/pull/9744))
-- Include sufficient-funds and normalized slippage properties in Unified SwapBridge quote metrics.
 
 ## [79.3.1]
 
