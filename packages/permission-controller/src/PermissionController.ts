@@ -1349,6 +1349,7 @@ export class PermissionController<
         );
 
         if (caveatIndex === -1) {
+          // This error appeared when upgrading to TypeScript 7.
           // @ts-expect-error: TS2589: Type instantiation is excessively deep
           // and possibly infinite.
           permission.caveats.push(caveat);
