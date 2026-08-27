@@ -82,6 +82,7 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
+type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'tradeType'>;
 type RelayStepData = RelayTransactionStep['items'][0]['data'];
 
 type RelayGasResult = {
@@ -323,7 +324,7 @@ async function getSingleQuote(
       ? { ...request, recipient: nonAtomicRecipient }
       : request;
 
-    const body: RelayQuoteRequest = {
+    const body: RelayQuoteRequestDraft = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
@@ -337,7 +338,6 @@ async function getSingleQuote(
         : {}),
       recipient: effectiveRequest.recipient ?? from,
       slippageTolerance,
-      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
@@ -378,13 +378,17 @@ async function getSingleQuote(
     }
 
     if (!body.txs?.length) {
-      body.tradeType = 'EXACT_INPUT';
       body.amount = sourceTokenAmount;
     }
 
-    log('Request body', body);
+    const finalBody: RelayQuoteRequest = {
+      ...body,
+      tradeType: body.txs?.length ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
+    };
 
-    const quote = await fetchRelayQuote(messenger, body, signal);
+    log('Request body', finalBody);
+
+    const quote = await fetchRelayQuote(messenger, finalBody, signal);
 
     log('Fetched relay quote', quote);
 
@@ -469,7 +473,7 @@ async function resolveNonAtomicRecipient(
 async function processTransactions(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  requestBody: RelayQuoteRequest,
+  requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<boolean> {
   // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
@@ -523,7 +527,6 @@ async function processTransactions(
   requestBody.authorizationList = normalizeAuthorizationList(
     delegation.authorizationList,
   );
-  requestBody.tradeType = 'EXACT_OUTPUT';
 
   const tokenTransferData = nestedTransactions?.find((nestedTx) =>
     nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
@@ -560,7 +563,7 @@ async function processTransactions(
 async function processMoneyAccountPostQuote(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  requestBody: RelayQuoteRequest,
+  requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { transactionData: transactionDataList } = messenger.call(
@@ -589,7 +592,6 @@ async function processMoneyAccountPostQuote(
   const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.tradeType = 'EXACT_OUTPUT';
   requestBody.amount = rawAmount;
   requestBody.txs = [
     {
