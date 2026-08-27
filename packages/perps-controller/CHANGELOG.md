@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add typed Scale analytics property, interaction, and setting constants ([#9989](https://github.com/MetaMask/core/pull/9989))
+
 ### Fixed
 
+- Preserve accepted HyperLiquid Scale rungs after a partial batch rejection, report accepted size and weighted average price, and use that exposure in trade analytics ([#9989](https://github.com/MetaMask/core/pull/9989))
 - Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
 
 ## [13.0.0]
