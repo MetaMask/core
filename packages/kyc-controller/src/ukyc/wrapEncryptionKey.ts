@@ -7,12 +7,11 @@ import { base64UrlToBytes, toBase64Url } from '../encoding.js';
  * (X25519 + XSalsa20-Poly1305) established with a per-secret wrapping key
  * returned inside an encryption schema from `createUkycSession`.
  *
- * Unlike {@link wrapUserKey} (which generates a fresh ephemeral keypair per
- * call), this reuses a session client keypair. There is no prior wrapping-key
- * exchange to register that public key, so `data` is
- * `clientPublicKey (32) || ciphertext+tag` and only `{ data, nonce }` need be
- * transmitted. Used for both the `data_encryption_key` and the
- * `ukyc_capability_token`.
+ * Reuses a session client keypair rather than generating a fresh ephemeral
+ * keypair per call. There is no prior wrapping-key exchange to register that
+ * public key, so `data` is `clientPublicKey (32) || ciphertext+tag` and only
+ * `{ data, nonce }` need be transmitted. Used for both the
+ * `data_encryption_key` and the `ukyc_capability_token`.
  */
 
 /**
