@@ -7,23 +7,26 @@ import { wrapEncryptionKey } from './wrapEncryptionKey.js';
 const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);
 
 /**
- * Reverses {@link wrapEncryptionKey} from the server's perspective: opens the
- * NaCl box using the server private key + client public key.
+ * Reverses {@link wrapEncryptionKey} from the server's perspective: reads the
+ * client public key from the first 32 bytes of `data` and opens the NaCl box
+ * with the server private key. This is the only information the session server
+ * has after wrapping-key registration was removed.
  *
  * @param serverPrivateKey - The server's X25519 private key.
- * @param clientPublicKey - The client's X25519 public key.
- * @param encryptedKey - The base64url ciphertext (+ tag).
+ * @param data - The base64url `clientPublicKey || ciphertext+tag`.
  * @param nonce - The base64url nonce.
- * @returns The recovered plaintext key.
+ * @returns The recovered plaintext.
  */
 function unwrap(
   serverPrivateKey: Uint8Array,
-  clientPublicKey: Uint8Array,
-  encryptedKey: string,
+  data: string,
   nonce: string,
 ): Uint8Array {
+  const packed = base64UrlToBytes(data);
+  const clientPublicKey = packed.slice(0, box.publicKeyLength);
+  const ciphertext = packed.slice(box.publicKeyLength);
   const recovered = box.open(
-    base64UrlToBytes(encryptedKey),
+    ciphertext,
     base64UrlToBytes(nonce),
     clientPublicKey,
     serverPrivateKey,
@@ -35,37 +38,82 @@ function unwrap(
 }
 
 describe('UKYC wrapEncryptionKey', () => {
-  it('wraps a key the session server can recover', () => {
+  it('wraps a key the session server can recover using only the packed data', () => {
     const serverKeyPair = box.keyPair();
     const clientKeyPair = box.keyPair();
 
-    const { encryptedKey, nonce } = wrapEncryptionKey(
+    const { data, nonce } = wrapEncryptionKey(
       clientKeyPair.secretKey,
       toBase64Url(serverKeyPair.publicKey),
       DATA_ENCRYPTION_KEY,
     );
 
-    const recovered = unwrap(
-      serverKeyPair.secretKey,
-      clientKeyPair.publicKey,
-      encryptedKey,
-      nonce,
-    );
+    const recovered = unwrap(serverKeyPair.secretKey, data, nonce);
     expect(areUint8ArraysEqual(recovered, DATA_ENCRYPTION_KEY)).toBe(true);
+  });
+
+  it('prefixes the client public key onto data so the server can open the box', () => {
+    const serverKeyPair = box.keyPair();
+    const clientKeyPair = box.keyPair();
+
+    const { data } = wrapEncryptionKey(
+      clientKeyPair.secretKey,
+      toBase64Url(serverKeyPair.publicKey),
+      DATA_ENCRYPTION_KEY,
+    );
+
+    const packed = base64UrlToBytes(data);
+    expect(packed.slice(0, box.publicKeyLength)).toStrictEqual(
+      clientKeyPair.publicKey,
+    );
+  });
+
+  it('cannot be opened if data is treated as ciphertext with no embedded public key', () => {
+    const serverKeyPair = box.keyPair();
+    const clientKeyPair = box.keyPair();
+
+    const { data, nonce } = wrapEncryptionKey(
+      clientKeyPair.secretKey,
+      toBase64Url(serverKeyPair.publicKey),
+      DATA_ENCRYPTION_KEY,
+    );
+
+    const opened = box.open(
+      base64UrlToBytes(data),
+      base64UrlToBytes(nonce),
+      clientKeyPair.publicKey,
+      serverKeyPair.secretKey,
+    );
+    expect(opened).toBeNull();
   });
 
   it('emits base64url fields', () => {
     const serverPublicKey = box.keyPair().publicKey;
     const clientPrivateKey = box.keyPair().secretKey;
 
-    const { encryptedKey, nonce } = wrapEncryptionKey(
+    const { data, nonce } = wrapEncryptionKey(
       clientPrivateKey,
       toBase64Url(serverPublicKey),
       DATA_ENCRYPTION_KEY,
     );
 
-    expect(encryptedKey).toMatch(/^[A-Za-z0-9\-_]+$/u);
+    expect(data).toMatch(/^[A-Za-z0-9\-_]+$/u);
     expect(nonce).toMatch(/^[A-Za-z0-9\-_]+$/u);
+  });
+
+  it('wraps an arbitrary-length payload the session server can recover', () => {
+    const serverKeyPair = box.keyPair();
+    const clientKeyPair = box.keyPair();
+    const tokenBytes = new Uint8Array(64).map((_, i) => i + 1);
+
+    const { data, nonce } = wrapEncryptionKey(
+      clientKeyPair.secretKey,
+      toBase64Url(serverKeyPair.publicKey),
+      tokenBytes,
+    );
+
+    const recovered = unwrap(serverKeyPair.secretKey, data, nonce);
+    expect(areUint8ArraysEqual(recovered, tokenBytes)).toBe(true);
   });
 
   it('uses a fresh nonce per call', () => {
@@ -85,6 +133,6 @@ describe('UKYC wrapEncryptionKey', () => {
     );
 
     expect(first.nonce).not.toBe(second.nonce);
-    expect(first.encryptedKey).not.toBe(second.encryptedKey);
+    expect(first.data).not.toBe(second.data);
   });
 });
