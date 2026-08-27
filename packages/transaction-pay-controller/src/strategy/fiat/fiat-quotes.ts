@@ -29,6 +29,8 @@ import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
 import type { FiatQuote } from './types.js';
 import {
   deriveFiatAssetForFiatPayment,
+  getRampsMetaMaskFee,
+  getRampsProviderFiatFee,
   getRampsQuote,
   isMoneyAccountDepositTransaction,
 } from './utils.js';
@@ -307,12 +309,12 @@ function combineQuotes({
   fiatQuote: RampsQuote;
   relayQuote: TransactionPayQuote<RelayQuote>;
 }): TransactionPayQuote<FiatQuote> {
-  const rampsProviderFee = getRampsProviderFee(fiatQuote);
+  const rampsProviderFee = getRampsProviderFiatFee(fiatQuote);
   const totalProviderFee = new BigNumber(relayQuote.fees.provider.usd)
     .plus(rampsProviderFee)
     .toString(10);
   const rampsProviderFeeStr = rampsProviderFee.toString(10);
-  const metaMaskFee = getSafeFee(fiatQuote.quote.extraFee).toString(10);
+  const metaMaskFee = getRampsMetaMaskFee(fiatQuote).toString(10);
 
   return {
     ...relayQuote,
@@ -339,20 +341,6 @@ function combineQuotes({
   };
 }
 
-/**
- * Ramps providers handle network gas fees themselves but report them separately
- * as `networkFee` alongside their `providerFee`. We combine both into a single
- * ramps provider fee for the `providerFiat` breakdown.
- *
- * @param fiatQuote - The ramps quote containing provider and network fees.
- * @returns Combined ramps provider fee as a BigNumber.
- */
-function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
-  return getSafeFee(fiatQuote.quote.providerFee).plus(
-    getSafeFee(fiatQuote.quote.networkFee),
-  );
-}
-
 function getRelayTotalFeeUsd(
   relayQuote: TransactionPayQuote<RelayQuote>,
 ): BigNumber {
@@ -368,11 +356,4 @@ function getNonGasRelayFeeUsd(
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.targetNetwork.usd)
     .plus(relayQuote.fees.metaMask.usd);
-}
-
-function getSafeFee(value: BigNumber.Value | undefined): BigNumber {
-  const fee = new BigNumber(value ?? 0);
-  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
-    ? fee
-    : new BigNumber(0);
 }

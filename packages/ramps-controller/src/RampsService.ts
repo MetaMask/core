@@ -443,10 +443,6 @@ export type GetQuotesParams = {
    * The ramp action type. Defaults to 'buy'.
    */
   action?: RampAction;
-  /**
-   * Whether fees should be returned separately from the fiat amount.
-   */
-  isFeeExcludedFromFiat?: boolean;
 };
 
 /**
@@ -1407,9 +1403,6 @@ export class RampsService {
     // Add redirect URL if specified
     if (params.redirectUrl) {
       url.searchParams.set('redirectUrl', params.redirectUrl);
-    }
-    if (params.isFeeExcludedFromFiat === true) {
-      url.searchParams.set('isFeeExcludedFromFiat', 'true');
     }
 
     const response = await this.#policy.execute(async () => {

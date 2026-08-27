@@ -2018,7 +2018,6 @@ describe('RampsService', () => {
           amount: '100',
           walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           payments: '/payments/debit-credit-card',
-          isFeeExcludedFromFiat: 'true',
         })
         .reply(200, mockQuotesResponse);
       const { service } = getService();
@@ -2030,8 +2029,7 @@ describe('RampsService', () => {
         amount: 100,
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
-        isFeeExcludedFromFiat: true,
-      } as any);
+      });
       await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;

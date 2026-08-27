@@ -5,6 +5,7 @@ import type {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import {
   NATIVE_TOKEN_ADDRESS,
@@ -82,8 +83,34 @@ const FIAT_QUOTE_MOCK: RampsQuote = {
     networkFee: 0.2,
     paymentMethod: '/payments/debit-credit-card',
     providerFee: 0.5,
-  } as any,
+    totalFees: 1.98,
+  } as unknown as RampsQuote['quote'],
 };
+
+/**
+ * Builds a ramps quote with overridden fee fields.
+ *
+ * @param fees - Fee fields to override on the base mock quote.
+ * @returns A ramps quotes response containing the single overridden quote.
+ */
+function getFiatQuotesResponseWithFees(
+  fees: Record<string, unknown>,
+): RampsQuotesResponse {
+  return {
+    customActions: [],
+    error: [],
+    sorted: [],
+    success: [
+      {
+        ...FIAT_QUOTE_MOCK,
+        quote: {
+          ...FIAT_QUOTE_MOCK.quote,
+          ...fees,
+        } as unknown as RampsQuote['quote'],
+      },
+    ],
+  };
+}
 
 const FIAT_QUOTES_RESPONSE_MOCK: RampsQuotesResponse = {
   customActions: [],
@@ -278,7 +305,6 @@ describe('getFiatQuotes', () => {
           fiat: 'USD',
           paymentMethods: ['/payments/debit-credit-card'],
           restrictToKnownOrNativeProviders: true,
-          isFeeExcludedFromFiat: true,
           walletAddress: WALLET_ADDRESS,
         }),
       );
@@ -319,20 +345,13 @@ describe('getFiatQuotes', () => {
       { extraFee: -1, expected: '0' },
       { extraFee: 'invalid', expected: '0' },
     ])(
-      'maps safe extraFee value $extraFee to the MetaMask fee',
+      'maps unusable extraFee value $extraFee to a zero MetaMask fee when the quote reports no total',
       async ({ extraFee, expected }) => {
-        const rampsQuote = {
-          ...FIAT_QUOTE_MOCK,
-          quote: {
-            ...FIAT_QUOTE_MOCK.quote,
-            extraFee,
-          },
-        } as any;
         const { request } = getRequest({
-          rampsQuotes: {
-            ...FIAT_QUOTES_RESPONSE_MOCK,
-            success: [rampsQuote],
-          },
+          rampsQuotes: getFiatQuotesResponseWithFees({
+            extraFee,
+            totalFees: undefined,
+          }),
         });
 
         const result = await getFiatQuotes(request);
@@ -344,21 +363,110 @@ describe('getFiatQuotes', () => {
       },
     );
 
+    it.each([
+      { extraFee: 0 },
+      { extraFee: undefined },
+      { extraFee: -1 },
+      { extraFee: 'invalid' },
+    ])(
+      'recovers the MetaMask fee from total fees when extraFee is $extraFee',
+      async ({ extraFee }) => {
+        // The ramps backend coerces a missing partner fee to 0, so an unusable
+        // value is indistinguishable from a genuine zero. Reading 0 would
+        // undercharge, since `fees.metaMask` is an addend of `totals.total`
+        // and the client submits `total - providerFiat` as the buy amount.
+        const { request } = getRequest({
+          rampsQuotes: getFiatQuotesResponseWithFees({ extraFee }),
+        });
+
+        const result = await getFiatQuotes(request);
+
+        // totalFees(1.98) - providerFee(0.5) - networkFee(0.2) = 1.28
+        expect(result[0].fees.metaMask).toStrictEqual({
+          fiat: '1.28',
+          usd: '1.28',
+        });
+      },
+    );
+
+    it('keeps a zero MetaMask fee when total fees are fully accounted for', async () => {
+      // The mUSD shape: no partner fee, and `totalFees` equals the on-ramp
+      // provider plus network fee, so there is no remainder to recover.
+      const { request } = getRequest({
+        rampsQuotes: getFiatQuotesResponseWithFees({
+          extraFee: 0,
+          totalFees: 0.7,
+        }),
+      });
+
+      const result = await getFiatQuotes(request);
+
+      expect(result[0].fees.metaMask).toStrictEqual({ fiat: '0', usd: '0' });
+    });
+
+    it('keeps the buckets that determine the submitted amount consistent with the quote', async () => {
+      // The client submits `totals.total - providerFiat` as the amount to buy,
+      // and `total` sums provider + metaMask + network fees + amount. So the
+      // submitted amount reduces to the relay portion plus the MetaMask fee.
+      // If the on-ramp's own fee leaked into `provider - providerFiat`, or the
+      // MetaMask fee stopped matching the quote, the displayed total and the
+      // charged amount would drift apart. That drift is this ticket's bug.
+      getRelayQuotesMock.mockResolvedValue([
+        getRelayQuoteMock({ providerUsd: '1' }),
+      ]);
+      const { request } = getRequest();
+
+      const result = await getFiatQuotes(request);
+
+      const { metaMask, provider, providerFiat } = result[0].fees;
+      const relayPortion = new BigNumber(provider.usd)
+        .minus(providerFiat?.usd ?? 0)
+        .toString(10);
+
+      expect(relayPortion).toBe('1');
+      expect(metaMask.usd).toBe('1.28');
+    });
+
+    it('reports the MetaMask fee the quote charges rather than a share of the amount', async () => {
+      // Regression for the previous `(amountFiat + adjustedAmountFiat) / 100`
+      // formula. Because `adjustedAmountFiat` is `amountFiat` plus the relay
+      // fees, that summed to roughly twice the intended 100 bps. For a $5
+      // order with $0.25 of relay fees it produced about 0.105 (~2.1%), so
+      // this assertion fails unless the fee comes from the quote.
+      getRelayQuotesMock.mockResolvedValue([
+        getRelayQuoteMock({
+          metaMaskUsd: '0',
+          providerUsd: '0.1',
+          sourceNetworkUsd: '0.1',
+          targetNetworkUsd: '0.05',
+        }),
+      ]);
+      const { request } = getRequest({
+        amountFiat: '5',
+        rampsQuotes: getFiatQuotesResponseWithFees({
+          extraFee: 0.05,
+          networkFee: 0.1,
+          providerFee: 0.2,
+          totalFees: 0.35,
+        }),
+      });
+
+      const result = await getFiatQuotes(request);
+
+      expect(result[0].fees.metaMask).toStrictEqual({
+        fiat: '0.05',
+        usd: '0.05',
+      });
+    });
+
     it('ignores invalid or negative ramps provider fees', async () => {
-      const rampsQuote = {
-        ...FIAT_QUOTE_MOCK,
-        quote: {
-          ...FIAT_QUOTE_MOCK.quote,
+      const { request } = getRequest({
+        rampsQuotes: getFiatQuotesResponseWithFees({
           extraFee: 0,
           networkFee: 'invalid',
           providerFee: -1,
-        },
-      } as any;
-      const { request } = getRequest({
-        rampsQuotes: {
-          ...FIAT_QUOTES_RESPONSE_MOCK,
-          success: [rampsQuote],
-        },
+          totalFees: undefined,
+        }),
       });
 
       const result = await getFiatQuotes(request);
@@ -884,7 +992,6 @@ describe('getFiatQuotes', () => {
         assetId: MUSD_CAIP_ID_MOCK,
         autoSelectProvider: true,
         fiat: DEFAULT_FIAT_CURRENCY,
-        isFeeExcludedFromFiat: true,
         paymentMethods: ['/payments/debit-credit-card'],
         restrictToKnownOrNativeProviders: true,
         walletAddress: MONEY_ACCOUNT_ADDRESS,

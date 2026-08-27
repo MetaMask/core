@@ -22,6 +22,8 @@ import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
 import {
+  getRampsMetaMaskFee,
+  getRampsProviderFiatFee,
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
@@ -187,7 +189,12 @@ function combineDirectMusdFiatQuote({
     cryptoAmount: fiatQuote.quote.amountOut,
     decimals: tokenInfo.decimals,
   });
-  const rampsProviderFee = getRampsProviderFee(fiatQuote).toString(10);
+  const rampsProviderFee = getRampsProviderFiatFee(fiatQuote).toString(10);
+  // mUSD is not charged the partner fee on any payment method, but read it
+  // from the quote rather than assuming zero so the discount is driven by the
+  // ramps API. A non-zero value here means mUSD is being charged a partner
+  // fee upstream, which should surface rather than be hidden.
+  const metaMaskFee = getRampsMetaMaskFee(fiatQuote).toString(10);
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
@@ -196,7 +203,7 @@ function combineDirectMusdFiatQuote({
     dust: { fiat: '0', usd: '0' },
     estimatedDuration: 0,
     fees: {
-      metaMask: { fiat: '0', usd: '0' },
+      metaMask: { fiat: metaMaskFee, usd: metaMaskFee },
       provider: { fiat: rampsProviderFee, usd: rampsProviderFee },
       providerFiat: { fiat: rampsProviderFee, usd: rampsProviderFee },
       sourceNetwork: {
@@ -230,10 +237,4 @@ function combineDirectMusdFiatQuote({
     strategy: TransactionPayStrategy.Fiat,
     targetAmount: { fiat: amountFiat, usd: amountFiat },
   };
-}
-
-function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
-  return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
-    fiatQuote.quote.networkFee ?? 0,
-  );
 }
