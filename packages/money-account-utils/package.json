@@ -59,6 +59,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "rimraf": "^5.0.5",
