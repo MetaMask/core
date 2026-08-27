@@ -881,6 +881,19 @@ const MESSENGER_EXPOSED_METHODS = [
  * Manages cryptocurrency on/off ramps functionality.
  */
 /**
+ * The state fields {@link contextStillMatches} reads, narrowed rather than
+ * taking `RampsControllerState`. Callers pass Immer's deep `WritableDraft`, and
+ * checking that against the full state type exceeds the type instantiation
+ * depth limit on declaration emit (TS2589), even though `tsc --noEmit` accepts
+ * it.
+ */
+type ContextGuardState = {
+  userRegion: { regionCode?: string } | null;
+  tokens: { selected: { assetId: string } | null };
+  providers: { selected: { id: string } | null };
+};
+
+/**
  * Whether controller state still describes the context a payment-method
  * request was issued for, so a completed request may write the Buy catalog.
  *
@@ -895,7 +908,7 @@ const MESSENGER_EXPOSED_METHODS = [
  * @returns Whether the write may proceed.
  */
 function contextStillMatches(
-  state: RampsControllerState,
+  state: ContextGuardState,
   context: { region: string; assetId: string; providerId: string },
 ): boolean {
   return (
