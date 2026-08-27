@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use `EXACT_INPUT` Relay quotes when no transaction is embedded, expose the optional `TransactionPayTotals.isInputBased` flag from selected quote semantics, and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))
+- Use `EXACT_INPUT` Relay quotes when no transaction is embedded, expose optional `TransactionPayQuote.isInputBased` and `TransactionPayTotals.isInputBased` flags, and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))
 - Bump `@metamask/sentinel-api-service` from `^1.0.0` to `^1.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ## [27.0.0]

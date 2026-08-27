@@ -2,8 +2,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../index.js';
 import type { TransactionPayControllerMessenger } from '../index.js';
-import type { AcrossQuote } from '../strategy/across/types.js';
-import type { RelayQuote } from '../strategy/relay/types.js';
 import type {
   QuoteRequest,
   TransactionPayQuote,
@@ -50,9 +48,8 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
       usd: '6.66',
     },
   },
-  original: {
-    request: { tradeType: 'exactOutput' },
-  } as AcrossQuote,
+  isInputBased: false,
+  original: {},
   request: {} as QuoteRequest,
   sourceAmount: {
     human: '7.77',
@@ -112,9 +109,8 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
       usd: '12.12',
     },
   },
-  original: {
-    request: { tradeType: 'exactOutput' },
-  } as AcrossQuote,
+  isInputBased: false,
+  original: {},
   request: {} as QuoteRequest,
   sourceAmount: {
     human: '13.13',
@@ -131,24 +127,11 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
 
-function getRelayQuote(
-  tradeType: RelayQuote['request']['tradeType'],
+function getQuote(
+  isInputBased: boolean,
+  quote: TransactionPayQuote<unknown> = QUOTE_1_MOCK,
 ): TransactionPayQuote<unknown> {
-  return {
-    ...QUOTE_1_MOCK,
-    original: { request: { tradeType } } as RelayQuote,
-    strategy: TransactionPayStrategy.Relay,
-  };
-}
-
-function getAcrossQuote(
-  tradeType: AcrossQuote['request']['tradeType'],
-): TransactionPayQuote<unknown> {
-  return {
-    ...QUOTE_2_MOCK,
-    original: { request: { tradeType } } as AcrossQuote,
-    strategy: TransactionPayStrategy.Across,
-  };
+  return { ...quote, isInputBased };
 }
 
 describe('Totals Utils', () => {
@@ -192,13 +175,9 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('52.08');
     });
 
-    it('returns adjusted total for strategies without a provider trade type when isMaxAmount is true', () => {
+    it('returns adjusted total when all quotes are input-based', () => {
       const result = calculateTotals({
-        isMaxAmount: true,
-        quotes: [
-          { ...QUOTE_1_MOCK, strategy: TransactionPayStrategy.Server },
-          { ...QUOTE_2_MOCK, strategy: TransactionPayStrategy.Server },
-        ],
+        quotes: [getQuote(true), getQuote(true, QUOTE_2_MOCK)],
         tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -208,9 +187,9 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('71.68');
     });
 
-    it('returns isInputBased true for an exact-input Relay quote', () => {
+    it('returns isInputBased true for an input-based quote', () => {
       const result = calculateTotals({
-        quotes: [getRelayQuote('EXACT_INPUT')],
+        quotes: [getQuote(true)],
         tokens: [],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -219,9 +198,9 @@ describe('Totals Utils', () => {
       expect(result.isInputBased).toBe(true);
     });
 
-    it('returns isInputBased false for an exact-output Relay quote', () => {
+    it('returns isInputBased false for an output-based quote', () => {
       const result = calculateTotals({
-        quotes: [getRelayQuote('EXACT_OUTPUT')],
+        quotes: [getQuote(false)],
         tokens: [],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -230,9 +209,14 @@ describe('Totals Utils', () => {
       expect(result.isInputBased).toBe(false);
     });
 
-    it('returns isInputBased true for an exact-input Across quote', () => {
+    it('returns isInputBased true regardless of the strategy', () => {
       const result = calculateTotals({
-        quotes: [getAcrossQuote('exactInput')],
+        quotes: [
+          {
+            ...getQuote(true),
+            strategy: TransactionPayStrategy.Server,
+          },
+        ],
         tokens: [],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -241,9 +225,12 @@ describe('Totals Utils', () => {
       expect(result.isInputBased).toBe(true);
     });
 
-    it('returns isInputBased false for an exact-output Across quote', () => {
+    it('returns isInputBased false when the property is omitted', () => {
+      const quoteWithoutInputBased = { ...QUOTE_1_MOCK };
+      delete quoteWithoutInputBased.isInputBased;
+
       const result = calculateTotals({
-        quotes: [getAcrossQuote('exactOutput')],
+        quotes: [quoteWithoutInputBased],
         tokens: [],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -265,7 +252,7 @@ describe('Totals Utils', () => {
 
     it('returns isInputBased false for mixed input- and output-based quotes', () => {
       const result = calculateTotals({
-        quotes: [getRelayQuote('EXACT_INPUT'), QUOTE_2_MOCK],
+        quotes: [getQuote(true), QUOTE_2_MOCK],
         tokens: [],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -276,7 +263,7 @@ describe('Totals Utils', () => {
 
     it('returns isInputBased true when all aggregate quotes are input-based', () => {
       const result = calculateTotals({
-        quotes: [getRelayQuote('EXACT_INPUT'), getAcrossQuote('exactInput')],
+        quotes: [getQuote(true), getQuote(true, QUOTE_2_MOCK)],
         tokens: [],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -285,9 +272,9 @@ describe('Totals Utils', () => {
       expect(result.isInputBased).toBe(true);
     });
 
-    it('does not add Relay fees twice for exact-input quotes', () => {
+    it('does not add fees twice for input-based quotes', () => {
       const quote = {
-        ...getRelayQuote('EXACT_INPUT'),
+        ...getQuote(true),
         fees: {
           ...QUOTE_1_MOCK.fees,
           metaMask: { fiat: '0', usd: '0' },

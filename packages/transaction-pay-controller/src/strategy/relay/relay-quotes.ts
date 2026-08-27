@@ -82,10 +82,7 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
-type RelayQuoteRequestDraft = Omit<
-  RelayQuoteRequest,
-  'amount' | 'tradeType'
->;
+type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'>;
 type RelayStepData = RelayTransactionStep['items'][0]['data'];
 
 type RelayGasResult = {
@@ -768,6 +765,7 @@ async function normalizeQuote(
       sourceNetwork,
       targetNetwork,
     },
+    isInputBased: quote.request.tradeType === 'EXACT_INPUT',
     original: {
       ...quote,
       metamask,

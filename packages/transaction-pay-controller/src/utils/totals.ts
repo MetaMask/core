@@ -2,8 +2,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
 import { TransactionPayStrategy } from '../constants.js';
-import type { AcrossQuote } from '../strategy/across/types.js';
-import type { RelayQuote } from '../strategy/relay/types.js';
 import type {
   FiatValue,
   TransactionPayControllerMessenger,
@@ -19,7 +17,6 @@ import { calculateTransactionGasCost } from './gas.js';
  *
  * @param request - Request parameters.
  * @param request.fiatPaymentAmount - The amount of the transaction in fiat.
- * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.quotes - List of bridge quotes.
  * @param request.messenger - Controller messenger.
  * @param request.tokens - List of required tokens.
@@ -28,14 +25,12 @@ import { calculateTransactionGasCost } from './gas.js';
  */
 export function calculateTotals({
   fiatPaymentAmount,
-  isMaxAmount,
   quotes,
   messenger,
   tokens,
   transaction,
 }: {
   fiatPaymentAmount?: string;
-  isMaxAmount?: boolean;
   quotes: TransactionPayQuote<unknown>[];
   messenger: TransactionPayControllerMessenger;
   tokens: TransactionPayRequiredToken[];
@@ -81,8 +76,7 @@ export function calculateTotals({
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
   const hasQuotes = quotes.length > 0;
   const isInputBased =
-    hasQuotes &&
-    quotes.every((quote) => isQuoteInputBased(quote, Boolean(isMaxAmount)));
+    hasQuotes && quotes.every((quote) => quote.isInputBased === true);
 
   const sourceAmountFiat = getSourceAmount({
     hasFiatStrategy,
@@ -150,35 +144,6 @@ export function calculateTotals({
       usd: totalUsd,
     },
   };
-}
-
-/**
- * Whether a selected quote is driven by its source input amount.
- *
- * @param quote - Selected quote.
- * @param isMaxAmount - Whether the target transaction uses the maximum input.
- * @returns Whether the quote uses input-based semantics.
- */
-function isQuoteInputBased(
-  quote: TransactionPayQuote<unknown>,
-  isMaxAmount: boolean,
-): boolean {
-  if (quote.strategy === TransactionPayStrategy.Relay) {
-    const relayQuote = quote.original as RelayQuote;
-    return relayQuote.request.tradeType === 'EXACT_INPUT';
-  }
-
-  if (quote.strategy === TransactionPayStrategy.Across) {
-    const acrossQuote = quote.original as AcrossQuote;
-    return acrossQuote.request.tradeType === 'exactInput';
-  }
-
-  return (
-    isMaxAmount ||
-    quote.request.isMaxAmount === true ||
-    quote.request.isPostQuote === true ||
-    quote.request.isHyperliquidSource === true
-  );
 }
 
 /**

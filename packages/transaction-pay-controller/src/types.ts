@@ -673,6 +673,9 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Fees associated with the transaction pay quote. */
   fees: TransactionPayFees;
 
+  /** Whether fees are subtracted from the destination amount, meaning the input amount is static. */
+  isInputBased?: boolean;
+
   /** Raw quote data returned by the provider. */
   original: OriginalQuote;
 

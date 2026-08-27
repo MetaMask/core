@@ -183,6 +183,7 @@ describe('fiat-direct-musd', () => {
             },
             targetNetwork: { fiat: '0', usd: '0' },
           }),
+          isInputBased: false,
           original: { rampsQuote: RAMPS_QUOTE_MOCK, relayQuote: undefined },
           request: expect.objectContaining({
             from: MONEY_ACCOUNT_ADDRESS_MOCK,

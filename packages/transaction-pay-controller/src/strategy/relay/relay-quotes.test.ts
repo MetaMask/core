@@ -379,12 +379,14 @@ describe('Relay Quotes Utils', () => {
         json: async () => QUOTE_MOCK,
       } as never);
 
-      await getRelayQuotes({
+      const result = await getRelayQuotes({
         accountSupports7702: true,
         messenger,
         requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
         transaction: TRANSACTION_META_MOCK,
       });
+
+      expect(result[0].isInputBased).toBe(true);
 
       const body = JSON.parse(
         successfulFetchMock.mock.calls[0][1]?.body as string,

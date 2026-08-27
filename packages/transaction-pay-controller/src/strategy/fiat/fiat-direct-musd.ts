@@ -205,6 +205,7 @@ function combineDirectMusdFiatQuote({
       },
       targetNetwork: { fiat: '0', usd: '0' },
     },
+    isInputBased: false,
     original: {
       rampsQuote: fiatQuote,
       relayQuote: undefined,
