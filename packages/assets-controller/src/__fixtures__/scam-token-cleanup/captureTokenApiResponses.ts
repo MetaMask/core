@@ -1,6 +1,6 @@
-import { writeFileSync } from '@metamask/utils/node';
 import { API_URLS } from '@metamask/core-backend';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
+import { writeFileSync } from '@metamask/utils/node';
 
 import { SCAM_WALLET_ASSETS_INFO } from './scamWalletState.js';
 
