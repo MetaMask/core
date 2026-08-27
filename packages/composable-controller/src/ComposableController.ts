@@ -189,6 +189,7 @@ export class ComposableController<
         ChildControllerStateChangeEvents<ComposableControllerState>['type']
       >(`${name}:stateChange`, (childState: StateConstraint) => {
         this.update((state) => {
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
           (state as ComposableControllerStateConstraint)[name] = childState;
         });
       });
