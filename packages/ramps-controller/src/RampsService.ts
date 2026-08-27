@@ -8,7 +8,10 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import packageJson from '../package.json';
 import type { RampsClientIdentity } from './client-identity.js';
-import { getRampsClientIdentityHeaders } from './client-identity.js';
+import {
+  addRampsClientIdentityParams,
+  getRampsClientIdentityHeaders,
+} from './client-identity.js';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
@@ -1101,6 +1104,9 @@ export class RampsService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
+    // Also in the query string (not only headers) so CDN-cached responses
+    // vary per client product / version / environment.
+    addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
   /**

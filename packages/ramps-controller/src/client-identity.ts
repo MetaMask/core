@@ -28,6 +28,16 @@ export type RampsClientIdentity = {
 };
 
 /**
+ * Query-param names mirroring the identity headers. The on-ramp API sits
+ * behind a CDN whose cache key is the URL, so cacheable GETs must carry the
+ * identity in the query string; headers alone would poison the cache across
+ * clients. The API reads params first and falls back to headers.
+ */
+export const RAMPS_CLIENT_PRODUCT_PARAM = 'clientProduct';
+export const RAMPS_CLIENT_VERSION_PARAM = 'clientVersion';
+export const RAMPS_CLIENT_ENVIRONMENT_PARAM = 'clientEnvironment';
+
+/**
  * Builds identity headers, omitting empty values.
  *
  * @param identity - Optional product, version, and environment.
@@ -47,4 +57,29 @@ export function getRampsClientIdentityHeaders(
     headers[RAMPS_CLIENT_ENVIRONMENT_HEADER] = identity.clientEnvironment;
   }
   return headers;
+}
+
+/**
+ * Appends the identity as query params (CDN cache-key friendly), omitting
+ * empty values. See {@link RAMPS_CLIENT_PRODUCT_PARAM}.
+ *
+ * @param url - URL to mutate.
+ * @param identity - Optional product, version, and environment.
+ */
+export function addRampsClientIdentityParams(
+  url: URL,
+  identity: RampsClientIdentity,
+): void {
+  if (identity.clientProduct) {
+    url.searchParams.set(RAMPS_CLIENT_PRODUCT_PARAM, identity.clientProduct);
+  }
+  if (identity.clientVersion) {
+    url.searchParams.set(RAMPS_CLIENT_VERSION_PARAM, identity.clientVersion);
+  }
+  if (identity.clientEnvironment) {
+    url.searchParams.set(
+      RAMPS_CLIENT_ENVIRONMENT_PARAM,
+      identity.clientEnvironment,
+    );
+  }
 }

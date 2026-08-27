@@ -117,9 +117,13 @@ export {
 export type { RampsClientIdentity } from './client-identity.js';
 export {
   getRampsClientIdentityHeaders,
+  addRampsClientIdentityParams,
   RAMPS_CLIENT_PRODUCT_HEADER,
   RAMPS_CLIENT_VERSION_HEADER,
   RAMPS_CLIENT_ENVIRONMENT_HEADER,
+  RAMPS_CLIENT_PRODUCT_PARAM,
+  RAMPS_CLIENT_VERSION_PARAM,
+  RAMPS_CLIENT_ENVIRONMENT_PARAM,
 } from './client-identity.js';
 export type {
   RampsServiceGetDefaultRedirectCallbackUrlAction,
