@@ -224,6 +224,23 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
   };
 
 /**
+ * Fetches the list of MetaMask notification categories from the notifications API,
+ * stores the result in controller state, and returns the categories.
+ *
+ * This method sets the categories-loading flag while the request is in flight
+ * so the UI can reflect the loading state. If the request fails, it logs the
+ * error and throws a generic failure error.
+ *
+ * @returns A promise that resolves to the fetched notification categories.
+ * @throws {Error} If the categories request fails.
+ */
+export type NotificationServicesControllerFetchMetamaskNotificationsCategoriesAction =
+  {
+    type: `NotificationServicesController:fetchMetamaskNotificationsCategories`;
+    handler: NotificationServicesController['fetchMetamaskNotificationsCategories'];
+  };
+
+/**
  * Union of all NotificationServicesController action types.
  */
 export type NotificationServicesControllerMethodActions =
@@ -243,4 +260,5 @@ export type NotificationServicesControllerMethodActions =
   | NotificationServicesControllerDeleteNotificationsByIdAction
   | NotificationServicesControllerMarkMetamaskNotificationsAsReadAction
   | NotificationServicesControllerUpdateMetamaskNotificationsListAction
-  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction;
+  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction
+  | NotificationServicesControllerFetchMetamaskNotificationsCategoriesAction;

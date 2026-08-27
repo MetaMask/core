@@ -29,13 +29,15 @@ export async function makeApiCall<Body = never>(
     headers.Authorization = `Bearer ${options.bearerToken}`;
   }
 
-  if ('body' in options) {
+  let body: string | undefined;
+  if (options.method === 'POST') {
     headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(options.body);
   }
 
   return fetch(endpoint, {
     method: options.method,
     headers,
-    body: 'body' in options ? JSON.stringify(options.body) : undefined,
+    body,
   });
 }

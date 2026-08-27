@@ -3,6 +3,7 @@ import log from 'loglevel';
 import { toRawAPINotification } from '../../shared/to-raw-notification.js';
 import type {
   NormalisedAPINotification,
+  NotificationsCategory,
   Schema,
   UnprocessedRawNotification,
 } from '../types/notification-api/index.js';
@@ -76,11 +77,14 @@ export async function getNotificationsApiConfigCached(
   type RequestBody = { address: string }[];
   type Response = { address: string; enabled: boolean }[];
   const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
-  const apiResponse = await makeApiCall(TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env), {
-    method: 'POST',
-    body,
-    bearerToken,
-  })
+  const apiResponse = await makeApiCall(
+    TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
+    {
+      method: 'POST',
+      body,
+      bearerToken,
+    },
+  )
     .then<Response | null>((response) => (response.ok ? response.json() : null))
     .catch(() => null);
 
@@ -188,24 +192,33 @@ export async function markNotificationsAsRead(
   }
 }
 
+/**
+ * Fetches the notification categories manifest (server-driven settings taxonomy).
+ *
+ * This endpoint is unauthenticated and returns the same manifest for every user.
+ *
+ * @param env - the environment to use for the API call
+ * @returns The list of notification categories, or an empty array on transport or parse errors.
+ */
 export async function getNotificationsCategories(
   env: ENV = 'prd',
-) {
+): Promise<NotificationsCategory[]> {
   type APIResponse =
     Schema.paths['/api/v4/notifications/categories']['get']['responses']['200']['content']['application/json'];
 
-  let categories: APIResponse | null;
-
-  categories = await makeApiCall(NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT(env), {
-    method: 'GET',
-  })
+  const categories: APIResponse | null = await makeApiCall(
+    NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT(env),
+    {
+      method: 'GET',
+    },
+  )
     .then<APIResponse | null>((response) =>
       response.ok ? response.json() : null,
     )
     .catch((error) => {
-      log.error("Error fetching notifications categories", error)
+      log.error('Error fetching notifications categories', error);
 
-      return null
+      return null;
     });
 
   return categories ?? [];

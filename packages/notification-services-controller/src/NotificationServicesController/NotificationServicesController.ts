@@ -377,6 +377,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'disableAccounts',
   'enableAccounts',
   'fetchAndUpdateMetamaskNotifications',
+  'fetchMetamaskNotificationsCategories',
   'getNotificationsByType',
   'deleteNotificationById',
   'deleteNotificationsById',
@@ -1003,14 +1004,14 @@ export class NotificationServicesController extends BaseController<
   /**
    * Updates the state to indicate whether fetching of MetaMask notification categories is in progress.
    *
-   * This method is used to set the `isFetchingMetamaskNotificationCategories` state, which can be utilized
+   * This method is used to set the `isFetchingMetamaskNotificationsCategories` state, which can be utilized
    * to show or hide loading indicators in the UI when notifications categories are being fetched.
    *
-   * @param isFetchingMetamaskNotificationCategories - A boolean value representing the fetching state.
+   * @param isFetchingNotificationCategories - A boolean value representing the fetching state.
    */
   #setIsFetchingNotificationsCategories(
     isFetchingNotificationCategories: boolean,
-  ) {
+  ): void {
     this.update((state) => {
       state.isFetchingMetamaskNotificationsCategories =
         isFetchingNotificationCategories;
@@ -1662,7 +1663,6 @@ export class NotificationServicesController extends BaseController<
     }
   }
 
-
   /**
    * Fetches the list of MetaMask notification categories from the notifications API,
    * stores the result in controller state, and returns the categories.
@@ -1674,7 +1674,9 @@ export class NotificationServicesController extends BaseController<
    * @returns A promise that resolves to the fetched notification categories.
    * @throws {Error} If the categories request fails.
    */
-  public async fetchMetamaskNotificationsCategories() {
+  public async fetchMetamaskNotificationsCategories(): Promise<
+    NotificationsCategory[]
+  > {
     this.#setIsFetchingNotificationsCategories(true);
 
     try {

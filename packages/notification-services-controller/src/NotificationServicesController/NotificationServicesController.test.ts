@@ -38,6 +38,7 @@ import {
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
   mockCreatePerpNotification,
+  mockGetNotificationsCategories,
 } from './__fixtures__/mockServices.js';
 import { waitFor } from './__fixtures__/test-utils.js';
 import { TRIGGER_TYPES } from './constants/index.js';
@@ -47,6 +48,7 @@ import {
   createMockFeatureAnnouncementRaw,
 } from './mocks/mock-feature-announcements.js';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications.js';
+import { getMockNotificationsCategoriesResponse } from './mocks/mockResponses.js';
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PERPS_PREFERENCES,
@@ -63,6 +65,7 @@ import type {
 import { processFeatureAnnouncement } from './processors/index.js';
 import { processNotification } from './processors/process-notifications.js';
 import { processSnapNotification } from './processors/process-snap-notifications.js';
+import * as OnChainNotifications from './services/api-notifications.js';
 import { notificationsConfigCache } from './services/notification-config-cache.js';
 import type { INotification, OrderInput } from './types/index.js';
 
@@ -1259,6 +1262,81 @@ describe('NotificationServicesController', () => {
     });
   });
 
+  describe('fetchMetamaskNotificationsCategories', () => {
+    it('fetches notification categories and updates state', async () => {
+      const { messenger } = mockNotificationMessenger();
+      const mockCategoriesAPI = mockGetNotificationsCategories();
+      const expectedCategories =
+        getMockNotificationsCategoriesResponse().response;
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      const result = await controller.fetchMetamaskNotificationsCategories();
+
+      expect(mockCategoriesAPI.isDone()).toBe(true);
+      expect(result).toStrictEqual(expectedCategories);
+      expect(controller.state.metamaskNotificationsCategories).toStrictEqual(
+        expectedCategories,
+      );
+      expect(controller.state.isFetchingMetamaskNotificationsCategories).toBe(
+        false,
+      );
+    });
+
+    it('returns an empty array and resets loading state when the API fails', async () => {
+      const { messenger } = mockNotificationMessenger();
+      const mockCategoriesAPI = mockGetNotificationsCategories({
+        status: 500,
+        body: { error: 'mock api failure' },
+      });
+      const mockLogError = mockErrorLog();
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      const result = await controller.fetchMetamaskNotificationsCategories();
+
+      expect(mockCategoriesAPI.isDone()).toBe(true);
+      expect(result).toStrictEqual([]);
+      expect(controller.state.metamaskNotificationsCategories).toStrictEqual(
+        [],
+      );
+      expect(controller.state.isFetchingMetamaskNotificationsCategories).toBe(
+        false,
+      );
+      mockLogError.mockRestore();
+    });
+
+    it('throws and resets loading state when fetching categories throws', async () => {
+      const { messenger } = mockNotificationMessenger();
+      const mockLogError = mockErrorLog();
+      const getCategoriesSpy = jest
+        .spyOn(OnChainNotifications, 'getNotificationsCategories')
+        .mockRejectedValue(new Error('unexpected error'));
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await expect(
+        controller.fetchMetamaskNotificationsCategories(),
+      ).rejects.toThrow('Failed to fetch notifications categories');
+
+      expect(controller.state.metamaskNotificationsCategories).toStrictEqual(
+        [],
+      );
+      expect(controller.state.isFetchingMetamaskNotificationsCategories).toBe(
+        false,
+      );
+      expect(mockLogError).toHaveBeenCalled();
+      getCategoriesSpy.mockRestore();
+      mockLogError.mockRestore();
+    });
+  });
+
   describe('getNotificationsByType', () => {
     it('can fetch notifications by their type', async () => {
       const { messenger } = mockNotificationMessenger();
@@ -1850,6 +1928,7 @@ describe('NotificationServicesController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "metamaskNotificationsCategories": [],
           "metamaskNotificationsList": [],
           "metamaskNotificationsReadList": [],
           "subscriptionAccountsSeen": [],
@@ -1875,6 +1954,7 @@ describe('NotificationServicesController', () => {
           "isFeatureAnnouncementsEnabled": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
+          "metamaskNotificationsCategories": [],
           "metamaskNotificationsList": [],
           "subscriptionAccountsSeen": [],
         }
@@ -1899,6 +1979,7 @@ describe('NotificationServicesController', () => {
           "isFeatureAnnouncementsEnabled": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
+          "metamaskNotificationsCategories": [],
           "metamaskNotificationsList": [],
           "metamaskNotificationsReadList": [],
           "subscriptionAccountsSeen": [],
@@ -1924,10 +2005,12 @@ describe('NotificationServicesController', () => {
           "isCheckingAccountsPresence": false,
           "isFeatureAnnouncementsEnabled": false,
           "isFetchingMetamaskNotifications": false,
+          "isFetchingMetamaskNotificationsCategories": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
           "isUpdatingMetamaskNotifications": false,
           "isUpdatingMetamaskNotificationsAccount": [],
+          "metamaskNotificationsCategories": [],
           "metamaskNotificationsList": [],
           "metamaskNotificationsReadList": [],
           "subscriptionAccountsSeen": [],
