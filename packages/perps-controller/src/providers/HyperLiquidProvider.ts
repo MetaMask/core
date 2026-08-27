@@ -243,6 +243,35 @@ type ScaleBulkOrderResponse = {
   };
 };
 
+type ScaleBulkOrderStatusKind = 'accepted' | 'error';
+
+const getScaleBulkOrderStatusKind = (
+  status: unknown,
+): ScaleBulkOrderStatusKind | undefined => {
+  if (!isStatusObject(status) || Object.keys(status).length !== 1) {
+    return undefined;
+  }
+
+  if (hasProperty(status, 'error')) {
+    return typeof status.error === 'string' ? 'error' : undefined;
+  }
+
+  for (const state of ['resting', 'filled'] as const) {
+    if (!hasProperty(status, state)) {
+      continue;
+    }
+    const order = status[state];
+    return isStatusObject(order) &&
+      typeof order.oid === 'number' &&
+      Number.isSafeInteger(order.oid) &&
+      order.oid >= 0
+      ? 'accepted'
+      : undefined;
+  }
+
+  return undefined;
+};
+
 /**
  * Recover the bulk order response that the pinned SDK wraps in an
  * `ApiRequestError` when any rung is rejected.
@@ -279,12 +308,15 @@ const getScaleBulkOrderResponseFromError = (
   }
 
   const { statuses } = data;
+  if (!Array.isArray(statuses) || statuses.length !== expectedStatusCount) {
+    return undefined;
+  }
+
+  const statusKinds = statuses.map(getScaleBulkOrderStatusKind);
   if (
-    !Array.isArray(statuses) ||
-    statuses.length !== expectedStatusCount ||
-    !statuses.some(
-      (status) => isStatusObject(status) && typeof status.error === 'string',
-    )
+    statusKinds.some((kind) => kind === undefined) ||
+    !statusKinds.includes('accepted') ||
+    !statusKinds.includes('error')
   ) {
     return undefined;
   }

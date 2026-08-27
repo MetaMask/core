@@ -4825,6 +4825,97 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it.each([
       [
+        'waiting status',
+        [
+          { resting: { oid: 11 } },
+          { error: 'Insufficient margin' },
+          'waitingForFill',
+        ],
+      ],
+      [
+        'invalid order ID',
+        [
+          { resting: { oid: 11 } },
+          { error: 'Insufficient margin' },
+          { resting: { oid: -1 } },
+        ],
+      ],
+      [
+        'hybrid accepted and error entry',
+        [
+          { resting: { oid: 11 } },
+          { error: 'Insufficient margin' },
+          { resting: { oid: 33 }, error: 'Invalid status' },
+        ],
+      ],
+    ])(
+      'does not unwrap a mixed response with a %s',
+      async (label, statuses) => {
+        const error = new TestApiRequestError(
+          {
+            status: 'ok',
+            response: { type: 'order', data: { statuses } },
+          },
+          `Malformed bulk response: ${label}`,
+        );
+        const { exchangeClient } = useStrategyClients({
+          exchange: { order: jest.fn().mockRejectedValue(error) },
+        });
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'scale',
+          scaleMinPrice: '2000',
+          scaleMaxPrice: '3000',
+          scaleNumOrders: 3,
+        } satisfies OrderParams);
+
+        expect(result).toMatchObject({
+          success: false,
+          error: `Malformed bulk response: ${label}`,
+        });
+        expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      },
+    );
+
+    it('preserves an all-rejected SDK error for existing error mapping', async () => {
+      const error = new TestApiRequestError(
+        {
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: {
+              statuses: [
+                { error: 'Multi-sig required' },
+                { error: 'Multi-sig required' },
+                { error: 'Multi-sig required' },
+              ],
+            },
+          },
+        },
+        'order 0: Multi-sig required',
+      );
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockRejectedValue(error) },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
         'top-level',
         new TestApiRequestError(
           { status: 'err', response: 'Invalid nonce' },
