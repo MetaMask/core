@@ -1,5 +1,6 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import {
   createMockAssetControllerMessenger,
@@ -43,11 +44,19 @@ import type { AssetsControllerState } from './AssetsController.js';
  * `AssetsController.test.ts`, which is already very large.
  */
 
+/**
+ * Mirror & subset of `assetsUnifyState`
+ */
+const UNLOCK_CLEANUP_ENABLED_FLAGS = {
+  assetsUnifyState: { useUnlockCleanup: true },
+};
+
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
   queryApiClient?: ApiPlatformClient;
   isBasicFunctionality?: () => boolean;
   captureException?: (error: Error) => void;
+  remoteFeatureFlags?: FeatureFlags;
 };
 
 type WithControllerCallback<ReturnValue> = (args: {
@@ -64,6 +73,8 @@ type WithControllerCallback<ReturnValue> = (args: {
  * @param options.queryApiClient - The API client to query.
  * @param options.isBasicFunctionality - Basic functionality getter.
  * @param options.captureException - Sentry-compatible failure reporter.
+ * @param options.remoteFeatureFlags - Remote feature flags (defaults to the
+ * spam sweep being enabled so existing sweep tests keep running).
  * @param fn - Callback run with the controller and messenger.
  * @returns Whatever the callback returns.
  */
@@ -73,6 +84,7 @@ async function withController<ReturnValue>(
     queryApiClient = createTestApiClient(),
     isBasicFunctionality = (): boolean => true,
     captureException,
+    remoteFeatureFlags = UNLOCK_CLEANUP_ENABLED_FLAGS,
   }: WithControllerOptions,
   fn: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
@@ -95,6 +107,7 @@ async function withController<ReturnValue>(
     accounts,
     enabledNetworkMap: { eip155: { '1': true, '10': true } },
     nativeAssetIdentifiers: { 'eip155:1': MAINNET_NATIVE },
+    remoteFeatureFlags,
   });
 
   const controller = new AssetsController({
@@ -228,6 +241,48 @@ describe('AssetsController spam cleanup', () => {
         await new Promise((resolve) => setTimeout(resolve, 250));
 
         expect(floorsScope.isDone()).toBe(false);
+        expect(controller.state.assetsInfo).toStrictEqual(
+          SPAM_WALLET_ASSETS_INFO,
+        );
+      },
+    );
+  });
+
+  it('does not sweep when the useUnlockCleanup feature flag is off', async () => {
+    const floorsScope = mockSuggestedOccurrenceFloors();
+    const { scope: assetsScope } = mockV3Assets();
+
+    await withController(
+      {
+        remoteFeatureFlags: {
+          assetsUnifyState: { useUnlockCleanup: false },
+        },
+      },
+      async ({ controller, messenger }) => {
+        messenger.publish('KeyringController:unlock');
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        expect(floorsScope.isDone()).toBe(false);
+        expect(assetsScope.isDone()).toBe(false);
+        expect(controller.state.assetsInfo).toStrictEqual(
+          SPAM_WALLET_ASSETS_INFO,
+        );
+      },
+    );
+  });
+
+  it('does not sweep when the useUnlockCleanup feature flag is missing', async () => {
+    const floorsScope = mockSuggestedOccurrenceFloors();
+    const { scope: assetsScope } = mockV3Assets();
+
+    await withController(
+      { remoteFeatureFlags: {} },
+      async ({ controller, messenger }) => {
+        messenger.publish('KeyringController:unlock');
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        expect(floorsScope.isDone()).toBe(false);
+        expect(assetsScope.isDone()).toBe(false);
         expect(controller.state.assetsInfo).toStrictEqual(
           SPAM_WALLET_ASSETS_INFO,
         );

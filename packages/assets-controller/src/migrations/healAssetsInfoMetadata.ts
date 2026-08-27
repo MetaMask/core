@@ -591,6 +591,25 @@ function addCustomAssetAddition(
 
 const cleanupLog = createModuleLogger(projectLogger, 'cleanSpamAssets');
 
+/**
+ * TEMPORARY — feature flag for unlock spam cleanup
+ *
+ * @param remoteFeatureFlags - RemoteFeatureFlag state.
+ * @returns `true` only when the flag explicitly enables the cleanup.
+ */
+export function isUnlockCleanupEnabled(remoteFeatureFlags: unknown): boolean {
+  if (!isObject(remoteFeatureFlags)) {
+    return false;
+  }
+
+  const flag = remoteFeatureFlags.assetsUnifyState;
+  return (
+    isObject(flag) &&
+    hasProperty(flag, 'useUnlockCleanup') &&
+    flag.useUnlockCleanup === true
+  );
+}
+
 const FETCH_TIMEOUT_MS = 15_000;
 const DEFAULT_OCCURRENCE_FLOOR = 3;
 

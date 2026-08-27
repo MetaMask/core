@@ -118,6 +118,7 @@ import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import {
   cleanSpamAssets,
+  isUnlockCleanupEnabled,
   tempHealAssetsInfoMetadata,
 } from './migrations/healAssetsInfoMetadata.js';
 import type {
@@ -1283,8 +1284,19 @@ export class AssetsController extends BaseController<
   }
 
   async #runSpamCleanup(): Promise<void> {
-    const shouldRun = this.#keyringUnlocked && this.#isBasicFunctionality();
-    if (!shouldRun) {
+    try {
+      const shouldRun =
+        this.#keyringUnlocked &&
+        this.#isBasicFunctionality() &&
+        isUnlockCleanupEnabled(
+          this.messenger.call('RemoteFeatureFlagController:getState')
+            ?.remoteFeatureFlags,
+        );
+      if (!shouldRun) {
+        return;
+      }
+    } catch (error) {
+      log('Failed to start spam cleanup', { error });
       return;
     }
 

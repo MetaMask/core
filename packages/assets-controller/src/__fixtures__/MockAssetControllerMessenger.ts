@@ -10,6 +10,7 @@ import {
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import {
   AssetsControllerMessenger,
@@ -265,7 +266,7 @@ export type RegisterAssetsControllerActionsOptions = {
   enabledNetworkMap?: Record<string, Record<string, boolean>>;
   nativeAssetIdentifiers?: Record<string, string>;
   networkState?: NetworkState;
-  remoteFeatureFlags?: Record<string, boolean>;
+  remoteFeatureFlags?: FeatureFlags;
   clientControllerState?: { isUiOpen: boolean };
 };
 

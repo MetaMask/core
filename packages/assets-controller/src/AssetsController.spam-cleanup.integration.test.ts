@@ -1,5 +1,6 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import {
   createMockAssetControllerMessenger,
@@ -36,11 +37,19 @@ import type { AssetsControllerState } from './AssetsController.js';
  * the HTTP boundary are mocked.
  */
 
+/**
+ * Mirror & subset of `assetsUnifyState`
+ */
+const UNLOCK_CLEANUP_ENABLED_FLAGS = {
+  assetsUnifyState: { useUnlockCleanup: true },
+};
+
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
   queryApiClient?: ApiPlatformClient;
   isBasicFunctionality?: () => boolean;
   captureException?: (error: Error) => void;
+  remoteFeatureFlags?: FeatureFlags;
 };
 
 type WithControllerCallback<ReturnValue> = (args: {
@@ -54,6 +63,7 @@ async function withController<ReturnValue>(
     queryApiClient = createTestApiClient(),
     isBasicFunctionality = (): boolean => true,
     captureException,
+    remoteFeatureFlags = UNLOCK_CLEANUP_ENABLED_FLAGS,
   }: WithControllerOptions,
   fn: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
@@ -81,6 +91,7 @@ async function withController<ReturnValue>(
     accounts,
     enabledNetworkMap: { eip155: { '1': true, '10': true, '8453': true } },
     nativeAssetIdentifiers: SCAM_WALLET_NATIVE_ASSET_IDENTIFIERS,
+    remoteFeatureFlags,
   });
 
   const controller = new AssetsController({
@@ -172,5 +183,24 @@ describe('AssetsController scam-token cleanup (example state)', () => {
       // The full 83-asset registry is untouched until unlock.
       expect(Object.keys(controller.state.assetsInfo)).toHaveLength(83);
     });
+  });
+
+  it('does not sweep when the useUnlockCleanup feature flag is off', async () => {
+    mockSweepApis();
+
+    await withController(
+      {
+        remoteFeatureFlags: {
+          assetsUnifyState: { useUnlockCleanup: false },
+        },
+      },
+      async ({ controller, messenger }) => {
+        messenger.publish('KeyringController:unlock');
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        // The full 83-asset registry is untouched while the flag is off.
+        expect(Object.keys(controller.state.assetsInfo)).toHaveLength(83);
+      },
+    );
   });
 });

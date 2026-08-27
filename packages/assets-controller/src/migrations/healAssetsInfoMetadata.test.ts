@@ -36,6 +36,7 @@ import type {
 import {
   cleanSpamAssets,
   healAssetsInfoMetadata,
+  isUnlockCleanupEnabled,
   tempHealAssetsInfoMetadata,
 } from './healAssetsInfoMetadata.js';
 
@@ -659,6 +660,42 @@ describe('tempHealAssetsInfoMetadata', () => {
         },
       });
     }).not.toThrow();
+  });
+});
+
+describe('isUnlockCleanupEnabled', () => {
+  it('returns true when the assetsUnifyState flag sets useUnlockCleanup to true', () => {
+    expect(
+      isUnlockCleanupEnabled({ assetsUnifyState: { useUnlockCleanup: true } }),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'useUnlockCleanup explicitly false',
+      { assetsUnifyState: { useUnlockCleanup: false } },
+    ],
+    [
+      'useUnlockCleanup missing from the flag',
+      { assetsUnifyState: { enabled: true, featureVersion: '1' } },
+    ],
+    [
+      'useUnlockCleanup a string',
+      { assetsUnifyState: { useUnlockCleanup: 'true' } },
+    ],
+    [
+      'useUnlockCleanup a number',
+      { assetsUnifyState: { useUnlockCleanup: 1 } },
+    ],
+    ['assetsUnifyState flag missing', {}],
+    ['assetsUnifyState flag null', { assetsUnifyState: null }],
+    ['assetsUnifyState flag not an object', { assetsUnifyState: true }],
+    ['flags state undefined', undefined],
+    ['flags state null', null],
+    ['flags state not an object', true],
+    ['flags state a string', 'assetsUnifyState'],
+  ])('returns false when %s', (_caseName, remoteFeatureFlags) => {
+    expect(isUnlockCleanupEnabled(remoteFeatureFlags)).toBe(false);
   });
 });
 
