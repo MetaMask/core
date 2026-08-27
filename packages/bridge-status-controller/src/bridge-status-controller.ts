@@ -9,9 +9,10 @@ import {
   InputPrimaryDenomination,
   QuoteResponse,
   toQuoteMetadataV1,
-  mergeQuoteMetadata,
   toQuoteResponseV1,
+  isQuoteResponseV2,
 } from '@metamask/bridge-controller';
+import type { QuoteMetadataMigrationPhase } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
   StatusTypes,
@@ -23,10 +24,8 @@ import {
   PollingStatus,
   formatChainIdToHex,
 } from '@metamask/bridge-controller';
-import { QuoteResponseSchemaV1 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { is } from '@metamask/superstruct';
 import {
   TransactionStatus,
   TransactionType,
@@ -99,7 +98,14 @@ import {
   getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
-import { getTraceParams } from './utils/trace.js';
+import {
+  getSwapOperationCompletedTraceParams,
+  getTraceParams,
+} from './utils/trace.js';
+import type {
+  SwapOperationResult,
+  SwapOperationTerminalStage,
+} from './utils/trace.js';
 import {
   getTransactionMetaById,
   getTransactions,
@@ -339,6 +345,36 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
+  readonly #traceSwapOperationCompleted = async (
+    historyKey: string | undefined,
+    result: SwapOperationResult,
+    terminalStage: SwapOperationTerminalStage,
+  ): Promise<void> => {
+    if (!historyKey) {
+      return;
+    }
+
+    const historyItem = this.state.txHistory[historyKey];
+    const featureId = historyItem?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE;
+    if (
+      !historyItem ||
+      historyItem.batchSellData ||
+      !ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId)
+    ) {
+      return;
+    }
+
+    await this.#trace(
+      getSwapOperationCompletedTraceParams(
+        historyItem,
+        historyKey,
+        result,
+        terminalStage,
+      ),
+      () => undefined,
+    );
+  };
+
   readonly #onTransactionFailed = ({
     txMeta,
     historyKey,
@@ -348,9 +384,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     historyKey?: string;
     isApprovalTxMeta: boolean;
   }): void => {
-    // Check if the history item is already marked as a failure
     const isHistoryItemAlreadyFailed = historyKey
       ? this.state.txHistory[historyKey]?.status.status === StatusTypes.FAILED
+      : false;
+    const isIntent = historyKey
+      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
       : false;
 
     this.#updateHistoryItem({
@@ -364,10 +402,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    // Skip tracking if this is a duplicate failed event for the same history item
-    // This can happen if the transaction includes an approval tx that fails
     if (isHistoryItemAlreadyFailed) {
       return;
+    }
+
+    if (!isIntent) {
+      this.#traceSwapOperationCompleted(historyKey, 'error', 'source').catch(
+        () => undefined,
+      );
     }
 
     // Report finalized failure for swap/bridge transactions.
@@ -413,6 +455,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyKey,
       txHash: txMeta.hash,
     });
+    const isIntent = historyKey
+      ? Boolean(this.state.txHistory[historyKey]?.quote.intent)
+      : false;
 
     const isSwap =
       txMeta.type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
@@ -446,6 +491,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         txMeta.chainId,
         txMeta.hash,
       );
+      if (!isIntent) {
+        this.#traceSwapOperationCompleted(
+          historyKey,
+          'success',
+          'source',
+        ).catch(() => undefined);
+      }
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         historyKey,
@@ -1102,6 +1154,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           settlementTxHash,
         );
 
+        await this.#traceSwapOperationCompleted(
+          bridgeTxMetaId,
+          status.status === StatusTypes.COMPLETE ? 'success' : 'error',
+          isCrossChain(
+            historyItem.quote.srcChainId,
+            historyItem.quote.destChainId,
+          )
+            ? 'destination'
+            : 'source',
+        ).catch(() => undefined);
+
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
@@ -1330,6 +1393,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           case SubmitStep.PublishCompletedEvent: {
             const completedHistoryItem =
               this.state.txHistory[payload.historyKey];
+            this.#traceSwapOperationCompleted(
+              payload.historyKey,
+              'success',
+              'source',
+            ).catch(() => undefined);
             this.#quoteStatusManager.reportFinalised(
               payload.historyKey,
               true,
@@ -1372,6 +1440,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @param batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
    * @param inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
+   * @param migrationPhase - The active migration phase for the quote response
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1390,6 +1459,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     tokenSecurityTypeDestination?: string | null,
     batchSellTrades?: BatchSellTradesResponse | null,
     inputPrimaryDenomination?: InputPrimaryDenomination,
+    migrationPhase?: QuoteMetadataMigrationPhase,
   ): Promise<TransactionMeta> => {
     /**
      * If there are multiple quote responses, we assume that they all originate from the same src chain
@@ -1401,11 +1471,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       : [maybeQuoteResponses];
     // Convert quote responses to V1 format and preserve metadata for consistency
     const quoteResponses = quoteResponsesV1orV2.map((quote) => {
-      if (is(quote, QuoteResponseSchemaV1)) {
+      if (!isQuoteResponseV2(quote)) {
         return quote;
       }
-      const quoteMetadata = toQuoteMetadataV1(quote);
-      return mergeQuoteMetadata(toQuoteResponseV1(quote), quoteMetadata);
+
+      const quoteMetadataV1 = toQuoteMetadataV1(quote, migrationPhase);
+
+      // This coercion omits legacy metadata from the resulting V1 quote
+      const quoteResponseV1 = toQuoteResponseV1(quote);
+
+      // Merge legacy-shaped metadata to V1-shaped quote response
+      return { ...quoteResponseV1, ...quoteMetadataV1 };
     });
     const quoteResponse = quoteResponses[0];
 
@@ -1531,6 +1607,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
    * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.quotesReceivedContext - The context for the QuotesReceived event
+   * @param params.migrationPhase - The active migration phase for the quote response
    * @returns A lightweight TransactionMeta-like object for history linking
    * @throws An error if intent or transaction submission fails before they get published
    */
@@ -1544,12 +1621,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     inputPrimaryDenomination?: InputPrimaryDenomination;
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
+    migrationPhase?: QuoteMetadataMigrationPhase;
   }): Promise<TransactionMeta> => {
     const {
       quoteResponse,
       accountAddress,
       location,
       abTests,
+      migrationPhase,
       activeAbTests,
       tokenSecurityTypeDestination,
       inputPrimaryDenomination,
@@ -1569,6 +1648,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       tokenSecurityTypeDestination,
       undefined,
       inputPrimaryDenomination,
+      migrationPhase,
     );
   };
 
@@ -1581,6 +1661,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
     tokenSecurityTypeDestination?: string | null;
+    migrationPhase?: QuoteMetadataMigrationPhase;
   }): Promise<TransactionMeta> => {
     /**
      * Retrieve the batch sell trades from the BridgeController's state to ensure we submit
@@ -1600,6 +1681,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       params.activeAbTests,
       params.tokenSecurityTypeDestination,
       batchSellTrades,
+      undefined,
+      params.migrationPhase,
     );
   };
 

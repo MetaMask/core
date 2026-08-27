@@ -180,6 +180,10 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #getCanonicalProfileId: () => string;
+
+  readonly #metaMetricsFlags: ReadonlySet<string>;
+
   readonly #clientVersion: SemVerVersion;
 
   readonly #defaultFeatureFlags: FeatureFlags;
@@ -196,6 +200,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
+   * @param options.getCanonicalProfileId - Returns the canonical profile identifier used for threshold flags by default. Must return an empty string, rather than throwing, when the identifier is unavailable.
+   * @param options.metaMetricsFlags - Names of feature flags that should use MetaMetrics ID for threshold assignment.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    * @param options.defaultFeatureFlags - Client-side default feature flags used as the lowest-precedence layer under processed remote flags and local overrides. Not persisted.
@@ -207,6 +213,8 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
+    getCanonicalProfileId,
+    metaMetricsFlags = [],
     clientVersion,
     prevClientVersion,
     defaultFeatureFlags = {},
@@ -215,6 +223,8 @@ export class RemoteFeatureFlagController extends BaseController<
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
+    getCanonicalProfileId: () => string;
+    metaMetricsFlags?: readonly string[];
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
@@ -258,6 +268,8 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#getCanonicalProfileId = getCanonicalProfileId;
+    this.#metaMetricsFlags = new Set(metaMetricsFlags);
     this.#clientVersion = clientVersion;
 
     this.messenger.registerMethodActionHandlers(
@@ -304,10 +316,12 @@ export class RemoteFeatureFlagController extends BaseController<
    * Retrieves the remote feature flags, fetching from the API if necessary.
    * Uses caching to prevent redundant API calls and handles concurrent fetches.
    *
+   * @param force - When `true`, fetch even if the cache has not expired.
+   * Defaults to `false`. Has no effect when the controller is disabled.
    * @returns A promise that resolves to the current set of feature flags.
    */
-  async updateRemoteFeatureFlags(): Promise<void> {
-    if (this.#disabled || !this.#isCacheExpired()) {
+  async updateRemoteFeatureFlags(force = false): Promise<void> {
+    if (this.#disabled || (!force && !this.#isCacheExpired())) {
       return;
     }
 
@@ -405,6 +419,21 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
+   * Selects the identifier used to bucket a threshold flag. Flags named in
+   * `metaMetricsFlags` segment by MetaMetrics ID; all others segment by
+   * canonical profile ID.
+   *
+   * @param featureFlagName - The name of the feature flag being processed.
+   * @returns The segmentation identifier, which may be empty when unavailable.
+   */
+  #getSegmentationId(featureFlagName: string): string {
+    if (this.#metaMetricsFlags.has(featureFlagName)) {
+      return this.#getMetaMetricsId();
+    }
+    return this.#getCanonicalProfileId();
+  }
+
+  /**
    * Resolves raw feature flags into the values that apply to this client and
    * user, selecting version and threshold entries and reconciling the
    * threshold cache against the flags the server currently serves.
@@ -446,19 +475,11 @@ export class RemoteFeatureFlagController extends BaseController<
           continue;
         }
 
-        // Skip threshold processing if metaMetricsId is not available
-        if (!metaMetricsId) {
-          // Preserve array as-is when user hasn't opted into MetaMetrics
-          processedFlags[remoteFeatureFlagName] = processedValue;
-          continue;
-        }
-
         // Explicit-ID matching: check before hash-based threshold, bypasses cache
         const normalizedMetaMetricsId = metaMetricsId.trim().toLowerCase();
-        const explicitMatch = findExplicitIdMatch(
-          processedValue,
-          normalizedMetaMetricsId,
-        );
+        const explicitMatch = normalizedMetaMetricsId
+          ? findExplicitIdMatch(processedValue, normalizedMetaMetricsId)
+          : undefined;
 
         if (explicitMatch) {
           processedValue = explicitMatch.value;
@@ -467,13 +488,21 @@ export class RemoteFeatureFlagController extends BaseController<
               explicitMatch.name;
           }
         } else {
+          const segmentationId = this.#getSegmentationId(remoteFeatureFlagName);
+
+          if (!segmentationId) {
+            processedFlags[remoteFeatureFlagName] = processedValue;
+            continue;
+          }
+
           // Fall back to hash-based threshold selection with cache
-          const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+          const cacheKey =
+            `${segmentationId}:${remoteFeatureFlagName}` as const;
           let thresholdValue = this.state.thresholdCache?.[cacheKey];
 
           if (thresholdValue === undefined) {
             thresholdValue = await calculateThresholdForFlag(
-              metaMetricsId,
+              segmentationId,
               remoteFeatureFlagName,
             );
 
@@ -510,13 +539,17 @@ export class RemoteFeatureFlagController extends BaseController<
       ...thresholdCacheUpdates,
     };
 
-    // Drop cached thresholds for flags this user is no longer served.
+    // Drop cached thresholds for flags this user is no longer served, under
+    // either identifier they may have been bucketed by.
+    const canonicalProfileId = this.#getCanonicalProfileId();
     const currentFlagNames = Object.keys(remoteFeatureFlags);
     for (const cacheKey of Object.keys(thresholdCache)) {
-      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
+      const [cachedSegmentationId, ...cachedFlagNameParts] =
+        cacheKey.split(':');
       const cachedFlagName = cachedFlagNameParts.join(':');
       if (
-        cachedMetaMetricsId === metaMetricsId &&
+        (cachedSegmentationId === metaMetricsId ||
+          cachedSegmentationId === canonicalProfileId) &&
         !currentFlagNames.includes(cachedFlagName)
       ) {
         delete thresholdCache[cacheKey];

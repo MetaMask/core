@@ -487,6 +487,7 @@ linkStyle default opacity:0.5
   network_connection_banner_controller --> network_enablement_controller;
   network_controller --> analytics_controller;
   network_controller --> base_controller;
+  network_controller --> config_registry_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
@@ -661,6 +662,7 @@ linkStyle default opacity:0.5
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> claims_controller;
+  wallet --> config_registry_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
@@ -676,6 +678,7 @@ linkStyle default opacity:0.5
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> config_registry_controller;
   wallet_cli --> messenger;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;

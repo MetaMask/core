@@ -7,6 +7,8 @@ export const PERPS_ERROR_CODES = {
   CLIENT_NOT_INITIALIZED: 'CLIENT_NOT_INITIALIZED',
   CLIENT_REINITIALIZING: 'CLIENT_REINITIALIZING',
   PROVIDER_NOT_AVAILABLE: 'PROVIDER_NOT_AVAILABLE',
+  PROVIDER_NOT_FOUND: 'PROVIDER_NOT_FOUND',
+  PROVIDER_LIFECYCLE_STALE: 'PROVIDER_LIFECYCLE_STALE',
   TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
   BRIDGE_CONTRACT_NOT_FOUND: 'BRIDGE_CONTRACT_NOT_FOUND',
   WITHDRAW_FAILED: 'WITHDRAW_FAILED',
@@ -60,19 +62,21 @@ export const PERPS_ERROR_CODES = {
   ORDER_STRATEGY_PARAMS_NOT_SUPPORTED: 'ORDER_STRATEGY_PARAMS_NOT_SUPPORTED', // Strategy field supplied on an order type that does not own it
   ORDER_STRATEGY_FIELD_UNSUPPORTED: 'ORDER_STRATEGY_FIELD_UNSUPPORTED', // price / triggerPrice / timeInForce / attached TP/SL supplied on a strategy placement
   ORDER_STRATEGY_MARKET_UNSUPPORTED: 'ORDER_STRATEGY_MARKET_UNSUPPORTED', // The provider cannot run a strategy placement on this market
-  ORDER_STRATEGY_HANDLE_UNKNOWN: 'ORDER_STRATEGY_HANDLE_UNKNOWN', // Cancel referenced a scale group or chase session this provider does not hold
+  ORDER_STRATEGY_ROUTE_UNAVAILABLE: 'ORDER_STRATEGY_ROUTE_UNAVAILABLE', // The requested strategy provider route does not match the active direct provider
+  ORDER_STRATEGY_HANDLE_UNKNOWN: 'ORDER_STRATEGY_HANDLE_UNKNOWN', // Strategy cancel handle is invalid or this provider session does not hold it
   ORDER_EDIT_STRATEGY_UNSUPPORTED: 'ORDER_EDIT_STRATEGY_UNSUPPORTED', // editOrder cannot modify a strategy placement; cancel by its handle and place again
   ORDER_STRATEGY_CANCEL_INCOMPLETE: 'ORDER_STRATEGY_CANCEL_INCOMPLETE', // Part of a strategy placement is still resting after a cancel; the handle stays valid for a retry
   ORDER_TWAP_DURATION_REQUIRED: 'ORDER_TWAP_DURATION_REQUIRED', // TWAP placed without twapDuration
   ORDER_TWAP_DURATION_INVALID: 'ORDER_TWAP_DURATION_INVALID', // twapDuration not a whole number of minutes within the venue's bounds
   ORDER_SCALE_RANGE_REQUIRED: 'ORDER_SCALE_RANGE_REQUIRED', // Scale placed without both ladder bounds
-  ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds non-positive or inverted
+  ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds or skew are invalid
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
   ORDER_SCALE_SIZE_TOO_SMALL: 'ORDER_SCALE_SIZE_TOO_SMALL', // Total size cannot give every ladder rung a non-zero slice
   ORDER_SCALE_NOTIONAL_TOO_SMALL: 'ORDER_SCALE_NOTIONAL_TOO_SMALL', // Ladder notional split across the rungs leaves each below the venue's per-order minimum
   ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size
   ORDER_CHASE_INTERVAL_INVALID: 'ORDER_CHASE_INTERVAL_INVALID', // chaseIntervalMs below the minimum poll interval
   ORDER_CHASE_DURATION_INVALID: 'ORDER_CHASE_DURATION_INVALID', // chaseMaxDurationMs shorter than one poll interval, or chaseMaxRepricings non-positive
+  ORDER_CHASE_MAX_DISTANCE_INVALID: 'ORDER_CHASE_MAX_DISTANCE_INVALID', // chaseMaxDistanceBps must be finite, greater than 0, and less than 10,000 when supplied
   ORDER_CHASE_ABANDONED: 'ORDER_CHASE_ABANDONED', // The provider was torn down while the chase was being placed; its order rests but no strategy runs
   ORDER_CHASE_LIMIT_REACHED: 'ORDER_CHASE_LIMIT_REACHED', // The venue's cap on simultaneously active chase orders is already in use
   ORDER_CHASE_TOUCH_UNAVAILABLE: 'ORDER_CHASE_TOUCH_UNAVAILABLE', // The order book returned no price on the side the chase must rest at
@@ -109,6 +113,7 @@ export const PERPS_ERROR_CODES = {
   POSITION_WOULD_FLIP: 'POSITION_WOULD_FLIP',
   MARGIN_ADJUSTMENT_FAILED: 'MARGIN_ADJUSTMENT_FAILED',
   TPSL_UPDATE_FAILED: 'TPSL_UPDATE_FAILED',
+  TPSL_PROTECTION_LOST: 'TPSL_PROTECTION_LOST',
   // Order execution errors
   ORDER_REJECTED: 'ORDER_REJECTED',
   SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',

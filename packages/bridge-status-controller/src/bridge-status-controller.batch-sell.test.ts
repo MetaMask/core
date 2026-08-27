@@ -7,7 +7,6 @@ import type {
 import {
   BatchSellTransactionType,
   FeatureId,
-  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -165,8 +164,9 @@ const mockQuotes = mockBatchSellErc20Erc20
       gasSponsored: undefined,
     },
   }))
-  .map((quote) =>
-    mergeQuoteMetadata(quote, {
+  .map((quote) => ({
+    ...quote,
+    ...{
       sentAmount: {
         usd: '100',
         valueInCurrency: '200',
@@ -175,8 +175,8 @@ const mockQuotes = mockBatchSellErc20Erc20
         usd: '101',
         valueInCurrency: '201',
       },
-    }),
-  );
+    },
+  }));
 const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
   chainId: 10,
   from: '0xaccount1',

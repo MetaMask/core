@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Add support for cache persistence ([#9445](https://github.com/MetaMask/core/pull/9445))
@@ -33,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `handleAll`
     - `handleWhen`
 - Export types `DataServiceActions` and `DataServiceEvents` ([#9475](https://github.com/MetaMask/core/pull/9475))
+- Add `responseStruct` option to `fetchQuery` and `fetchInfiniteQuery` for validating query responses using Superstruct ([#9540](https://github.com/MetaMask/core/pull/9540))
+  - When provided, the struct is used to validate the response and for inferring the return type of the query
 
 ### Changed
 
@@ -41,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
   - The option types accepted by `fetchQuery`, `fetchInfiniteQuery`, and `invalidateQueries` now follow the query-core v5 API. Subclasses need to rename `cacheTime` to `gcTime`.
   - `fetchInfiniteQuery` now requires `initialPageParam` and `getNextPageParam`, matching query-core's options for infinite queries. This also lets `TPageParam` be inferred instead of spelled out in the type parameters.
+- **BREAKING:** `fetchQuery` and `fetchInfiniteQuery` now take one more type parameter: `TDataStruct` is the third parameter and the others have been shifted up ([#9540](https://github.com/MetaMask/core/pull/9540))
+- **BREAKING:** Improve type safety of constructor by ensuring the messenger has required actions/events ([#9525](https://github.com/MetaMask/core/pull/9525))
+  - No change needed, unless the messenger being passed into the constructor was typed incorrectly.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
@@ -71,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.3...@metamask/base-data-service@1.0.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.2...@metamask/base-data-service@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.1...@metamask/base-data-service@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.0...@metamask/base-data-service@0.1.1

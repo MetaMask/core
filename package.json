@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1199.0.0",
+  "version": "1212.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -63,7 +63,7 @@
     "@actions/github": "^9.1.1",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/create-release-branch": "^4.2.1",
+    "@metamask/create-release-branch": "^4.2.2",
     "@metamask/eslint-config": "^15.0.0",
     "@metamask/eslint-config-jest": "^15.0.0",
     "@metamask/eslint-config-nodejs": "^15.0.0",
@@ -71,7 +71,7 @@
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/json-rpc-engine": "^10.5.0",
-    "@metamask/network-controller": "^35.0.1",
+    "@metamask/network-controller": "^36.0.0",
     "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.11.0",
     "@ts-bridge/cli": "^0.6.4",
@@ -137,7 +137,9 @@
       "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
-      "jest>@jest/core>jest-resolve>unrs-resolver": false
+      "jest>@jest/core>jest-resolve>unrs-resolver": false,
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
   }
 }
