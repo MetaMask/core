@@ -7737,7 +7737,7 @@ __metadata:
     jest: "npm:^30.4.2"
     rimraf: "npm:^5.0.5"
     ts-jest: "npm:^29.4.11"
-    tstyche: "npm:^5.0.2"
+    tstyche: "npm:^7.2.3"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -26931,17 +26931,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tstyche@npm:^5.0.2":
-  version: 5.0.2
-  resolution: "tstyche@npm:5.0.2"
+"tstyche@npm:^7.2.3":
+  version: 7.2.3
+  resolution: "tstyche@npm:7.2.3"
   peerDependencies:
-    typescript: ">=5.0"
+    typescript: ">=5.4"
   peerDependenciesMeta:
     typescript:
       optional: true
   bin:
-    tstyche: ./build/bin.js
-  checksum: 10/bbc11c2f7c5c1cbf4f848a9af1eef947cf9b2643491a59fb7dbaa903bb15bba620dad24904c3db6279f206a23599d97d47f9d9e00473c54f6bb9375a7dc26178
+    tstyche: ./dist/bin.js
+  checksum: 10/b0ea5340ce7140b7f3fd8f713ebf37957fe1b0477aa4071ea3bbc7b08953d507ee146fe25b086b00240c69e55f28a4d8a9ca6b9d11954e7c2e9a075dd8cc6f5a
   languageName: node
   linkType: hard
 
