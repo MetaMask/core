@@ -157,6 +157,14 @@ describe('History Utils', () => {
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
     });
 
+    it('persists customSlippage when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        customSlippage: true,
+      });
+      expect(txHistoryItem.customSlippage).toBe(true);
+    });
+
     it('persists inputPrimaryDenomination when provided', () => {
       const txHistoryItem = getInitialHistoryItem({
         ...baseArgs,

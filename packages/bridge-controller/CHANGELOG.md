@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Include sufficient-funds and normalized slippage properties in Unified SwapBridge quote metrics.
+
 ## [79.3.1]
 
 ### Changed
