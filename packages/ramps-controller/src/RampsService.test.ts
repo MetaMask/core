@@ -48,13 +48,8 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
-    it('sends client identity headers and query params when constructor options are set', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io', {
-        reqheaders: {
-          'x-metamask-clientproduct': 'metamask-mobile',
-          'x-metamask-clientversion': '8.9.0',
-        },
-      })
+    it('sends client identity query params when constructor options are set', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({
           sdk: '2.1.6',

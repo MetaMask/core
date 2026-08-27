@@ -1666,15 +1666,10 @@ describe('TransakService', () => {
       expect(result.orderType).toBe('DEPOSIT');
     });
 
-    it('sends client identity headers and query params on ramps API order fetches', async () => {
+    it('sends client identity query params on ramps API order fetches', async () => {
       const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
 
-      nock(STAGING_ORDERS_BASE, {
-        reqheaders: {
-          'x-metamask-clientproduct': 'metamask-mobile',
-          'x-metamask-clientversion': '8.9.0',
-        },
-      })
+      nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
         .query(
           (query) =>

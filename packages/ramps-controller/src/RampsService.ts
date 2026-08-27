@@ -8,10 +8,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import packageJson from '../package.json';
 import type { RampsClientIdentity } from './client-identity.js';
-import {
-  addRampsClientIdentityParams,
-  getRampsClientIdentityHeaders,
-} from './client-identity.js';
+import { addRampsClientIdentityParams } from './client-identity.js';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
@@ -1019,16 +1016,11 @@ export class RampsService {
    *
    * @returns Headers containing the `Authorization: Bearer <token>` entry.
    */
-  #getClientIdentityHeaders(): Record<string, string> {
-    return getRampsClientIdentityHeaders(this.#clientIdentity);
-  }
-
   async #getRequestHeaders(): Promise<Record<string, string>> {
     const bearerToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
     );
     return {
-      ...this.#getClientIdentityHeaders(),
       Authorization: `Bearer ${bearerToken}`,
     };
   }
@@ -1128,9 +1120,7 @@ export class RampsService {
       const url = new URL(path, baseUrl);
       this.#addCommonParams(url, options.action);
 
-      const response = await this.#fetch(url, {
-        headers: this.#getClientIdentityHeaders(),
-      });
+      const response = await this.#fetch(url);
       if (!response.ok) {
         throw new HttpError(
           response.status,
@@ -1231,9 +1221,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url, {
-        headers: this.#getClientIdentityHeaders(),
-      });
+      const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1306,9 +1294,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url, {
-        headers: this.#getClientIdentityHeaders(),
-      });
+      const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1360,9 +1346,7 @@ export class RampsService {
     url.searchParams.set('provider', options.provider);
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url, {
-        headers: this.#getClientIdentityHeaders(),
-      });
+      const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1531,9 +1515,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url, {
-        headers: this.#getClientIdentityHeaders(),
-      });
+      const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1580,9 +1562,7 @@ export class RampsService {
     callbackApiUrl.searchParams.set('url', callbackUrl);
 
     const callbackResponse = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(callbackApiUrl, {
-        headers: this.#getClientIdentityHeaders(),
-      });
+      const fetchResponse = await this.#fetch(callbackApiUrl);
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,

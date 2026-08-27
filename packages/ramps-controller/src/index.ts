@@ -116,10 +116,7 @@ export {
 } from './RampsService.js';
 export type { RampsClientIdentity } from './client-identity.js';
 export {
-  getRampsClientIdentityHeaders,
   addRampsClientIdentityParams,
-  RAMPS_CLIENT_PRODUCT_HEADER,
-  RAMPS_CLIENT_VERSION_HEADER,
   RAMPS_CLIENT_PRODUCT_PARAM,
   RAMPS_CLIENT_VERSION_PARAM,
 } from './client-identity.js';

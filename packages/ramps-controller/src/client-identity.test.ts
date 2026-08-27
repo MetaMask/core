@@ -1,36 +1,4 @@
-import {
-  addRampsClientIdentityParams,
-  getRampsClientIdentityHeaders,
-  RAMPS_CLIENT_PRODUCT_HEADER,
-  RAMPS_CLIENT_VERSION_HEADER,
-} from './client-identity.js';
-
-describe('getRampsClientIdentityHeaders', () => {
-  it('returns an empty object when no identity is provided', () => {
-    expect(getRampsClientIdentityHeaders({})).toStrictEqual({});
-  });
-
-  it('omits empty string values', () => {
-    expect(
-      getRampsClientIdentityHeaders({
-        clientProduct: '',
-        clientVersion: '',
-      }),
-    ).toStrictEqual({});
-  });
-
-  it('includes only the fields that are set', () => {
-    expect(
-      getRampsClientIdentityHeaders({
-        clientProduct: 'metamask-mobile',
-        clientVersion: '8.9.0',
-      }),
-    ).toStrictEqual({
-      [RAMPS_CLIENT_PRODUCT_HEADER]: 'metamask-mobile',
-      [RAMPS_CLIENT_VERSION_HEADER]: '8.9.0',
-    });
-  });
-});
+import { addRampsClientIdentityParams } from './client-identity.js';
 
 describe('addRampsClientIdentityParams', () => {
   it('appends all identity fields as query params', () => {

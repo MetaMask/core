@@ -8,10 +8,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import packageJson from '../package.json';
 import type { RampsClientIdentity } from './client-identity.js';
-import {
-  addRampsClientIdentityParams,
-  getRampsClientIdentityHeaders,
-} from './client-identity.js';
+import { addRampsClientIdentityParams } from './client-identity.js';
 import { RAMPS_SDK_VERSION } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
@@ -829,8 +826,7 @@ export class TransakService {
         method: 'GET',
         headers: {
           Accept: 'application/json',
-          ...getRampsClientIdentityHeaders(this.#clientIdentity),
-        },
+            },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(
@@ -1223,7 +1219,6 @@ export class TransakService {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       Authorization: `Bearer ${bearerToken}`,
-      ...getRampsClientIdentityHeaders(this.#clientIdentity),
     };
     if (this.#accessToken?.accessToken) {
       headers['x-transak-access-token'] = this.#accessToken.accessToken;
@@ -1316,8 +1311,7 @@ export class TransakService {
         method: 'GET',
         headers: {
           Accept: 'application/json',
-          ...getRampsClientIdentityHeaders(this.#clientIdentity),
-        },
+            },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(

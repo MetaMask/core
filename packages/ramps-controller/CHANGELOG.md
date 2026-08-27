@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `clientProduct` and `clientVersion` constructor options on `RampsService` and `TransakService`, sent on every on-ramp API fetch as `x-metamask-clientproduct` / `x-metamask-clientversion` headers and as `clientProduct` / `clientVersion` query params, so the API can evaluate version-gated feature flags per client. Query params are required because the on-ramp CDN cache key is the URL. Also exports the `RampsClientIdentity` type, the `getRampsClientIdentityHeaders` / `addRampsClientIdentityParams` helpers, and the header/param name constants.
+- Add optional `clientProduct` and `clientVersion` constructor options on `RampsService` and `TransakService`, sent on every on-ramp API fetch as `clientProduct` / `clientVersion` query params so the API can evaluate version-gated feature flags per client. Identity travels in the URL (not headers) because the on-ramp CDN cache key is the URL. Also exports the `RampsClientIdentity` type, the `addRampsClientIdentityParams` helper, and the param name constants.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ### Changed

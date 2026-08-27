@@ -1,10 +1,3 @@
-/**
- * Client identity headers sent on every on-ramp API request, matching the
- * convention used by `@metamask/core-backend` and the bridge status API.
- */
-export const RAMPS_CLIENT_PRODUCT_HEADER = 'x-metamask-clientproduct';
-export const RAMPS_CLIENT_VERSION_HEADER = 'x-metamask-clientversion';
-
 /** Host-supplied MetaMask client identity. All fields optional. */
 export type RampsClientIdentity = {
   /** Product id, e.g. `metamask-mobile` or `metamask-extension`. */
@@ -14,31 +7,13 @@ export type RampsClientIdentity = {
 };
 
 /**
- * Query-param names mirroring the identity headers. The on-ramp CDN cache
- * key is the URL, so cacheable GETs must carry the identity in the query
- * string. The API reads params first and falls back to headers.
+ * Query-param names for the client identity, sent on every on-ramp API
+ * request. Identity travels in the URL (not headers) because the on-ramp CDN
+ * cache key is the URL — the API's version-gated feature flags evaluate these
+ * params so cached responses always match the requesting cohort.
  */
 export const RAMPS_CLIENT_PRODUCT_PARAM = 'clientProduct';
 export const RAMPS_CLIENT_VERSION_PARAM = 'clientVersion';
-
-/**
- * Builds identity headers, omitting empty values.
- *
- * @param identity - Optional product and version.
- * @returns Headers to merge onto on-ramp fetches.
- */
-export function getRampsClientIdentityHeaders(
-  identity: RampsClientIdentity,
-): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (identity.clientProduct) {
-    headers[RAMPS_CLIENT_PRODUCT_HEADER] = identity.clientProduct;
-  }
-  if (identity.clientVersion) {
-    headers[RAMPS_CLIENT_VERSION_HEADER] = identity.clientVersion;
-  }
-  return headers;
-}
 
 /**
  * Appends the identity as query params (CDN cache-key friendly), omitting
