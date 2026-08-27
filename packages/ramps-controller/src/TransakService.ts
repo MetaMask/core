@@ -7,6 +7,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
+import type { RampsClientIdentity } from './client-identity.js';
+import { getRampsClientIdentityHeaders } from './client-identity.js';
 import { RAMPS_SDK_VERSION } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
@@ -510,6 +512,8 @@ export class TransakService {
    */
   readonly #referrerDomain: string;
 
+  readonly #clientIdentity: RampsClientIdentity;
+
   constructor({
     messenger,
     environment = TransakEnvironment.Staging,
@@ -520,6 +524,9 @@ export class TransakService {
     orderRetryDelayMs = 2000,
     rampsApiBaseUrlOverride,
     referrerDomain = TRANSAK_REFERRER_DOMAIN,
+    clientProduct,
+    clientVersion,
+    clientEnvironment,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -530,6 +537,9 @@ export class TransakService {
     orderRetryDelayMs?: number;
     rampsApiBaseUrlOverride?: string;
     referrerDomain?: string;
+    clientProduct?: string;
+    clientVersion?: string;
+    clientEnvironment?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -545,6 +555,11 @@ export class TransakService {
     this.#orderRetryDelayMs = orderRetryDelayMs;
     this.#rampsApiBaseUrlOverride = rampsApiBaseUrlOverride;
     this.#referrerDomain = referrerDomain;
+    this.#clientIdentity = {
+      clientProduct,
+      clientVersion,
+      clientEnvironment,
+    };
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -806,7 +821,10 @@ export class TransakService {
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'GET',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...getRampsClientIdentityHeaders(this.#clientIdentity),
+        },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(
@@ -1199,6 +1217,7 @@ export class TransakService {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       Authorization: `Bearer ${bearerToken}`,
+      ...getRampsClientIdentityHeaders(this.#clientIdentity),
     };
     if (this.#accessToken?.accessToken) {
       headers['x-transak-access-token'] = this.#accessToken.accessToken;
@@ -1289,7 +1308,10 @@ export class TransakService {
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'GET',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...getRampsClientIdentityHeaders(this.#clientIdentity),
+        },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(

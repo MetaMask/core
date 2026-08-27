@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `clientProduct`, `clientVersion`, and `clientEnvironment` constructor options on `RampsService` and `TransakService`. When set, they are sent on every on-ramp API fetch as `x-metamask-clientproduct`, `x-metamask-clientversion`, and `x-metamask-clientenvironment` (RFFC-aligned build flavor) so the API can evaluate version- and environment-gated feature flags per client. Also exports the `RampsClientIdentity` type, the `getRampsClientIdentityHeaders` helper, and the header-name constants.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ### Changed

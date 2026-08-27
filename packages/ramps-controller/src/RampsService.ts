@@ -7,6 +7,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
+import type { RampsClientIdentity } from './client-identity.js';
+import { getRampsClientIdentityHeaders } from './client-identity.js';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
@@ -906,6 +908,8 @@ export class RampsService {
    */
   readonly #baseUrlOverride?: string;
 
+  readonly #clientIdentity: RampsClientIdentity;
+
   /**
    * Constructs a new RampsService object.
    *
@@ -920,6 +924,9 @@ export class RampsService {
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    * @param args.baseUrlOverride - Optional base URL override for local development.
+   * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
+   * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
+   * @param args.clientEnvironment - Optional RFFC-aligned build flavor (`prod`/`rc`/`exp`/`dev`).
    */
   constructor({
     messenger,
@@ -928,6 +935,9 @@ export class RampsService {
     fetch: fetchFunction,
     policyOptions = {},
     baseUrlOverride,
+    clientProduct,
+    clientVersion,
+    clientEnvironment,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
@@ -935,6 +945,9 @@ export class RampsService {
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
     baseUrlOverride?: string;
+    clientProduct?: string;
+    clientVersion?: string;
+    clientEnvironment?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -943,6 +956,11 @@ export class RampsService {
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
+    this.#clientIdentity = {
+      clientProduct,
+      clientVersion,
+      clientEnvironment,
+    };
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -1002,11 +1020,16 @@ export class RampsService {
    *
    * @returns Headers containing the `Authorization: Bearer <token>` entry.
    */
+  #getClientIdentityHeaders(): Record<string, string> {
+    return getRampsClientIdentityHeaders(this.#clientIdentity);
+  }
+
   async #getRequestHeaders(): Promise<Record<string, string>> {
     const bearerToken = await this.#messenger.call(
       'AuthenticationController:getBearerToken',
     );
     return {
+      ...this.#getClientIdentityHeaders(),
       Authorization: `Bearer ${bearerToken}`,
     };
   }
@@ -1103,7 +1126,9 @@ export class RampsService {
       const url = new URL(path, baseUrl);
       this.#addCommonParams(url, options.action);
 
-      const response = await this.#fetch(url);
+      const response = await this.#fetch(url, {
+        headers: this.#getClientIdentityHeaders(),
+      });
       if (!response.ok) {
         throw new HttpError(
           response.status,
@@ -1204,7 +1229,9 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, {
+        headers: this.#getClientIdentityHeaders(),
+      });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1277,7 +1304,9 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, {
+        headers: this.#getClientIdentityHeaders(),
+      });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1329,7 +1358,9 @@ export class RampsService {
     url.searchParams.set('provider', options.provider);
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, {
+        headers: this.#getClientIdentityHeaders(),
+      });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1498,7 +1529,9 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, {
+        headers: this.#getClientIdentityHeaders(),
+      });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1545,7 +1578,9 @@ export class RampsService {
     callbackApiUrl.searchParams.set('url', callbackUrl);
 
     const callbackResponse = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(callbackApiUrl);
+      const fetchResponse = await this.#fetch(callbackApiUrl, {
+        headers: this.#getClientIdentityHeaders(),
+      });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,

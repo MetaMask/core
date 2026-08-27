@@ -1666,6 +1666,36 @@ describe('TransakService', () => {
       expect(result.orderType).toBe('DEPOSIT');
     });
 
+    it('sends client identity headers on ramps API order fetches', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE, {
+        reqheaders: {
+          'x-metamask-clientproduct': 'metamask-mobile',
+          'x-metamask-clientversion': '8.9.0',
+          'x-metamask-clientenvironment': 'rc',
+        },
+      })
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(true)
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+          clientEnvironment: 'rc',
+        },
+      });
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.id).toBe(depositOrderId);
+    });
+
     it('omits the wallet query parameter when it is undefined', async () => {
       const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
 
