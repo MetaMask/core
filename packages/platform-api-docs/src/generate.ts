@@ -15,8 +15,8 @@ import {
   generateNamespacePage,
   generateSidebars,
 } from './markdown.js';
-import type { RootTypeReference } from './root-messenger-discovery.js';
-import { discoverFromRootMessenger } from './root-messenger-discovery.js';
+import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
+import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-discovery.js';
 import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 /**
@@ -136,11 +136,10 @@ async function resolveRepoBaseUrl(
  * capability.
  */
 type ScanStrategyOptions = {
-  strategy?: 'scan';
-  /** Directories (relative to projectPath) to scan for .ts source files. */
+  /** The selected strategy. */
+  strategy: 'scan';
+  /** Directories, relative to the project root, to scan. */
   scanDirs: string[];
-  rootActions?: never;
-  rootEvents?: never;
 };
 
 /**
@@ -149,12 +148,12 @@ type ScanStrategyOptions = {
  * messenger carries every action and event.
  */
 type RootMessengerStrategyOptions = {
+  /** The selected strategy. */
   strategy: 'root-messenger';
-  scanDirs?: never;
-  /** Type aliasing the union of every action. */
-  rootActions: RootTypeReference;
-  /** Type aliasing the union of every event. */
-  rootEvents: RootTypeReference;
+  /** The root messenger actions type reference. */
+  rootActions: RootCapabilitiesTypeReference;
+  /** The root messenger events type reference. */
+  rootEvents: RootCapabilitiesTypeReference;
 };
 
 /**
@@ -573,7 +572,7 @@ async function collectByScanning(
  * @param options - The root-messenger strategy options.
  * @returns The extracted capabilities.
  */
-function collectFromRootMessenger(
+function collectFromRootMessengerCapabilities(
   projectPath: string,
   options: RootMessengerStrategyOptions,
 ): MessengerCapabilityPacket[] {
@@ -584,22 +583,29 @@ function collectFromRootMessenger(
       `and events from ${rootEvents.filePath}#${rootEvents.typeName}...`,
   );
 
-  const { packets, skipped } = discoverFromRootMessenger({
-    projectPath,
-    actions: rootActions,
-    events: rootEvents,
-  });
+  const { capabilityPackets, skippedCapabilities } =
+    discoverFromRootMessengerCapabilitiesTypes({
+      projectPath,
+      rootActionsTypeReference: rootActions,
+      rootEventsTypeReference: rootEvents,
+    });
 
   // Report rather than drop silently: a jump in any of these usually means the
   // project changed how it declares its capabilities.
-  warnSkipped('declared inline, with no name to document', skipped.unnamed);
-  warnSkipped('whose shape could not be read', skipped.unextractable);
+  warnSkipped(
+    'declared inline, with no name to document',
+    skippedCapabilities.unnamedCapabilities,
+  );
+  warnSkipped(
+    'whose shape could not be read',
+    skippedCapabilities.unextractableCapabilities,
+  );
 
   // Both unions resolving to nothing is always a misconfiguration — a wrong
   // type name, or imports that didn't resolve. Failing here matters because
   // generation would otherwise replace an existing docs directory with an
   // empty one and exit successfully.
-  if (packets.length === 0) {
+  if (capabilityPackets.length === 0) {
     throw new Error(
       `No messenger actions or events found in ` +
         `${rootActions.filePath}#${rootActions.typeName} or ` +
@@ -609,7 +615,7 @@ function collectFromRootMessenger(
     );
   }
 
-  return packets;
+  return capabilityPackets;
 }
 
 /** How many skipped capability types to name before summarizing the rest. */
@@ -649,7 +655,7 @@ export async function generate(
 
   const allItems =
     options.strategy === 'root-messenger'
-      ? collectFromRootMessenger(projectPath, options)
+      ? collectFromRootMessengerCapabilities(projectPath, options)
       : await collectByScanning(projectPath, options.scanDirs);
 
   console.log(

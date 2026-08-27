@@ -3,8 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import {
-  discoverFromRootMessenger,
-  parseRootTypeReference,
+  discoverFromRootMessengerCapabilitiesTypes,
+  parseRootCapabilitiesTypeReference,
 } from './root-messenger-discovery.js';
 
 const { withinSandbox } = createSandbox(
@@ -22,8 +22,8 @@ jest.setTimeout(60_000);
 const MESSENGER_PRELUDE = `
 type Messenger<Namespace, Actions, Events> = {
   __namespace: Namespace;
-  __actions: Actions;
-  __events: Events;
+  __rootActionsTypeReference: Actions;
+  __rootEventsTypeReference: Events;
 };
 
 type MessengerActions<TMessenger> =
@@ -55,10 +55,10 @@ async function writeFixture(
   await fs.promises.writeFile(absolutePath, contents);
 }
 
-describe('parseRootTypeReference', () => {
+describe('parseRootCapabilitiesTypeReference', () => {
   it('splits a "<file>#<TypeName>" reference into its parts', () => {
     expect(
-      parseRootTypeReference('app/core/types.ts#GlobalActions'),
+      parseRootCapabilitiesTypeReference('app/core/types.ts#GlobalActions'),
     ).toStrictEqual({
       filePath: 'app/core/types.ts',
       typeName: 'GlobalActions',
@@ -66,32 +66,38 @@ describe('parseRootTypeReference', () => {
   });
 
   it('keeps "#" characters that appear in the file path portion', () => {
-    expect(parseRootTypeReference('a#b/types.ts#GlobalActions')).toStrictEqual({
+    expect(
+      parseRootCapabilitiesTypeReference('a#b/types.ts#GlobalActions'),
+    ).toStrictEqual({
       filePath: 'a#b/types.ts',
       typeName: 'GlobalActions',
     });
   });
 
   it('throws when the reference has no "#" separator', () => {
-    expect(() => parseRootTypeReference('app/core/types.ts')).toThrow(
+    expect(() =>
+      parseRootCapabilitiesTypeReference('app/core/types.ts'),
+    ).toThrow(
       'Expected a reference of the form "<file>#<TypeName>", got "app/core/types.ts".',
     );
   });
 
   it('throws when the file path portion is empty', () => {
-    expect(() => parseRootTypeReference('#GlobalActions')).toThrow(
+    expect(() => parseRootCapabilitiesTypeReference('#GlobalActions')).toThrow(
       'Expected a reference of the form "<file>#<TypeName>", got "#GlobalActions".',
     );
   });
 
   it('throws when the type name portion is empty', () => {
-    expect(() => parseRootTypeReference('app/core/types.ts#')).toThrow(
+    expect(() =>
+      parseRootCapabilitiesTypeReference('app/core/types.ts#'),
+    ).toThrow(
       'Expected a reference of the form "<file>#<TypeName>", got "app/core/types.ts#".',
     );
   });
 });
 
-describe('discoverFromRootMessenger', () => {
+describe('discoverFromRootMessengerCapabilitiesTypes', () => {
   it('extracts capabilities from a hand-written union of type references', async () => {
     expect.assertions(3);
 
@@ -121,14 +127,20 @@ export type GlobalEvents = FooControllerStateChangeEvent;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toHaveLength(2);
-      expect(result.packets[0]).toMatchObject({
+      expect(result.capabilityPackets).toHaveLength(2);
+      expect(result.capabilityPackets[0]).toMatchObject({
         typeName: 'FooControllerGetStateAction',
         typeString: 'FooController:getState',
         kind: 'action',
@@ -136,7 +148,7 @@ export type GlobalEvents = FooControllerStateChangeEvent;
         handlerOrPayload: '() => FooState',
         sourceFile: path.join('app', 'types.ts'),
       });
-      expect(result.packets[1]).toMatchObject({
+      expect(result.capabilityPackets[1]).toMatchObject({
         typeName: 'FooControllerStateChangeEvent',
         typeString: 'FooController:stateChange',
         kind: 'event',
@@ -186,19 +198,19 @@ export type RootMessengerEvents = MessengerEvents<ChildMessengers>;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: {
+        rootActionsTypeReference: {
           filePath: 'app/messenger.ts',
           typeName: 'RootMessengerActions',
         },
-        events: {
+        rootEventsTypeReference: {
           filePath: 'app/messenger.ts',
           typeName: 'RootMessengerEvents',
         },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         {
           typeName: 'AccountOrderControllerUpdateAction',
           typeString: 'AccountOrderController:updateAccountsList',
@@ -211,9 +223,9 @@ export type RootMessengerEvents = MessengerEvents<ChildMessengers>;
           kind: 'event',
         },
       ]);
-      expect(result.skipped).toStrictEqual({
-        unnamed: [],
-        unextractable: [],
+      expect(result.skippedCapabilities).toStrictEqual({
+        unnamedCapabilities: [],
+        unextractableCapabilities: [],
       });
     });
   });
@@ -251,13 +263,19 @@ export type GlobalEvents = BarControllerStateChangeEvent;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         {
           typeName: 'BarControllerGetStateAction',
           typeString: 'BarController:getState',
@@ -295,13 +313,19 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         {
           typeName: 'QuxRunAction',
           typeString: 'Qux:run',
@@ -336,13 +360,19 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toStrictEqual([
+      expect(result.capabilityPackets).toStrictEqual([
         {
           typeName: 'BazDoActionOriginal',
           typeString: 'Baz:do',
@@ -381,14 +411,22 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([{ typeString: 'Good:do' }]);
-      expect(result.skipped.unnamed).toStrictEqual([
+      expect(result.capabilityPackets).toMatchObject([
+        { typeString: 'Good:do' },
+      ]);
+      expect(result.skippedCapabilities.unnamedCapabilities).toStrictEqual([
         'string',
         '{ type: "Anonymous:withAnUnusuallyLongDeclaration"; handler: (first: string, ...',
       ]);
@@ -411,10 +449,16 @@ export type GlobalEvents = never;
       );
 
       expect(() =>
-        discoverFromRootMessenger({
+        discoverFromRootMessengerCapabilitiesTypes({
           projectPath: directoryPath,
-          actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-          events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+          rootActionsTypeReference: {
+            filePath: 'app/types.ts',
+            typeName: 'GlobalActions',
+          },
+          rootEventsTypeReference: {
+            filePath: 'app/types.ts',
+            typeName: 'GlobalEvents',
+          },
         }),
       ).toThrow(
         'app/types.ts#GlobalActions, named by --root-actions, resolved to ' +
@@ -446,10 +490,16 @@ export type GlobalEvents = SomeEvent;
       );
 
       expect(() =>
-        discoverFromRootMessenger({
+        discoverFromRootMessengerCapabilitiesTypes({
           projectPath: directoryPath,
-          actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-          events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+          rootActionsTypeReference: {
+            filePath: 'app/types.ts',
+            typeName: 'GlobalActions',
+          },
+          rootEventsTypeReference: {
+            filePath: 'app/types.ts',
+            typeName: 'GlobalEvents',
+          },
         }),
       ).toThrow(
         // The whole union has become plain `any` — `GoodOne` and `GoodTwo` are
@@ -480,17 +530,27 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([{ typeString: 'Named:do' }]);
-      expect(result.skipped.unnamed).toStrictEqual([
+      expect(result.capabilityPackets).toMatchObject([
+        { typeString: 'Named:do' },
+      ]);
+      expect(result.skippedCapabilities.unnamedCapabilities).toStrictEqual([
         '{ type: "Anonymous:do"; handler: () => void; }',
       ]);
-      expect(result.skipped.unextractable).toStrictEqual([]);
+      expect(
+        result.skippedCapabilities.unextractableCapabilities,
+      ).toStrictEqual([]);
     });
   });
 
@@ -507,14 +567,20 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toStrictEqual([]);
-      expect(result.skipped.unnamed).toStrictEqual([
+      expect(result.capabilityPackets).toStrictEqual([]);
+      expect(result.skippedCapabilities.unnamedCapabilities).toStrictEqual([
         '{ type: "Anonymous:do"; handler: () => void; }',
       ]);
     });
@@ -538,16 +604,22 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         { typeName: 'GenericAction', typeString: 'Gen:do', kind: 'action' },
       ]);
-      expect(result.skipped.unnamed).toStrictEqual([]);
+      expect(result.skippedCapabilities.unnamedCapabilities).toStrictEqual([]);
     });
   });
 
@@ -569,13 +641,19 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         {
           typeName: 'GenericAction',
           typeString: 'Gen:do',
@@ -585,7 +663,9 @@ export type GlobalEvents = never;
           handlerOrPayload: '(value: Value) => void',
         },
       ]);
-      expect(result.skipped.unextractable).toStrictEqual([]);
+      expect(
+        result.skippedCapabilities.unextractableCapabilities,
+      ).toStrictEqual([]);
     });
   });
 
@@ -617,22 +697,28 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         {
           typeString: 'QuxController:do',
           jsDoc: 'Does the qux thing.',
           sourceFile: path.join('app', 'qux-controller.ts'),
         },
       ]);
-      expect(result.skipped).toStrictEqual({
-        unnamed: [],
-        unextractable: [],
+      expect(result.skippedCapabilities).toStrictEqual({
+        unnamedCapabilities: [],
+        unextractableCapabilities: [],
       });
     });
   });
@@ -658,14 +744,22 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([{ typeString: 'Named:do' }]);
-      expect(result.skipped.unnamed).toStrictEqual([
+      expect(result.capabilityPackets).toMatchObject([
+        { typeString: 'Named:do' },
+      ]);
+      expect(result.skippedCapabilities.unnamedCapabilities).toStrictEqual([
         '{ type: "Anonymous:do"; handler: () => void; }',
       ]);
     });
@@ -694,14 +788,24 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([{ typeString: 'Good:do' }]);
-      expect(result.skipped.unextractable).toStrictEqual([
+      expect(result.capabilityPackets).toMatchObject([
+        { typeString: 'Good:do' },
+      ]);
+      expect(
+        result.skippedCapabilities.unextractableCapabilities,
+      ).toStrictEqual([
         `UnnamespacedAction (${path.join('app', 'types.ts')}:7)`,
       ]);
     });
@@ -728,13 +832,19 @@ export type GlobalEvents = SplitDoneEvent;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/actions.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/events.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/actions.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/events.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toMatchObject([
+      expect(result.capabilityPackets).toMatchObject([
         { typeString: 'Split:do', kind: 'action' },
         { typeString: 'Split:done', kind: 'event' },
       ]);
@@ -746,10 +856,16 @@ export type GlobalEvents = SplitDoneEvent;
 
     await withinSandbox(async ({ directoryPath }) => {
       expect(() =>
-        discoverFromRootMessenger({
+        discoverFromRootMessengerCapabilitiesTypes({
           projectPath: directoryPath,
-          actions: { filePath: 'app/missing.ts', typeName: 'GlobalActions' },
-          events: { filePath: 'app/missing.ts', typeName: 'GlobalEvents' },
+          rootActionsTypeReference: {
+            filePath: 'app/missing.ts',
+            typeName: 'GlobalActions',
+          },
+          rootEventsTypeReference: {
+            filePath: 'app/missing.ts',
+            typeName: 'GlobalEvents',
+          },
         }),
       ).toThrow(
         `Could not read ${path.join(directoryPath, 'app', 'missing.ts')}, which was named by --root-actions.`,
@@ -768,10 +884,16 @@ export type GlobalEvents = SplitDoneEvent;
       );
 
       expect(() =>
-        discoverFromRootMessenger({
+        discoverFromRootMessengerCapabilitiesTypes({
           projectPath: directoryPath,
-          actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-          events: { filePath: 'app/types.ts', typeName: 'NotDeclared' },
+          rootActionsTypeReference: {
+            filePath: 'app/types.ts',
+            typeName: 'GlobalActions',
+          },
+          rootEventsTypeReference: {
+            filePath: 'app/types.ts',
+            typeName: 'NotDeclared',
+          },
         }),
       ).toThrow(
         `No type alias named "NotDeclared" in ${path.join('app', 'types.ts')}, which was named by --root-events.`,
@@ -792,16 +914,22 @@ export type GlobalEvents = never;
 `,
       );
 
-      const result = discoverFromRootMessenger({
+      const result = discoverFromRootMessengerCapabilitiesTypes({
         projectPath: directoryPath,
-        actions: { filePath: 'app/types.ts', typeName: 'GlobalActions' },
-        events: { filePath: 'app/types.ts', typeName: 'GlobalEvents' },
+        rootActionsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalActions',
+        },
+        rootEventsTypeReference: {
+          filePath: 'app/types.ts',
+          typeName: 'GlobalEvents',
+        },
       });
 
-      expect(result.packets).toStrictEqual([]);
-      expect(result.skipped).toStrictEqual({
-        unnamed: [],
-        unextractable: [],
+      expect(result.capabilityPackets).toStrictEqual([]);
+      expect(result.skippedCapabilities).toStrictEqual({
+        unnamedCapabilities: [],
+        unextractableCapabilities: [],
       });
     });
   });

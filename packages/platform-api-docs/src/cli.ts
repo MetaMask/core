@@ -7,8 +7,58 @@ import npmWhich from 'npm-which';
 import yargs from 'yargs';
 
 import { generate, resolveRepoUrl } from './generate.js';
-import type { RootTypeReference } from './root-messenger-discovery.js';
-import { parseRootTypeReference } from './root-messenger-discovery.js';
+import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
+import { parseRootCapabilitiesTypeReference } from './root-messenger-discovery.js';
+
+/**
+ * Arguments shared by both discovery strategies.
+ */
+type CommonArguments = {
+  /** Whether to build the generated site. */
+  build: boolean;
+  /** Whether to serve the production build. */
+  serve: boolean;
+  /** Whether to serve the development site. */
+  dev: boolean;
+  /** Path to the project being documented. */
+  'project-path': string;
+  /** Directory where generated documentation is written. */
+  output?: string;
+  /** Label displayed in the generated documentation. */
+  'project-label'?: string;
+  /** URL where the generated site is served. */
+  'site-url'?: string;
+  /** Base path where the generated site is served. */
+  'site-base-url'?: string;
+};
+
+/**
+ * Arguments for the strategy that scans configured source directories.
+ */
+type ScanStrategyArguments = {
+  /** The selected strategy. */
+  strategy: 'scan';
+  /** Directories, relative to the project root, to scan. */
+  scanDir: string[];
+};
+
+/**
+ * Arguments for the strategy that resolves a root messenger's type unions.
+ */
+type RootMessengerStrategyArguments = {
+  /** The selected strategy. */
+  strategy: 'root-messenger';
+  /** The root messenger actions type reference. */
+  rootActions: RootCapabilitiesTypeReference;
+  /** The root messenger events type reference. */
+  rootEvents: RootCapabilitiesTypeReference;
+};
+
+/**
+ * Parsed CLI arguments, discriminated by the selected discovery strategy.
+ */
+type ParsedArguments = CommonArguments &
+  (ScanStrategyArguments | RootMessengerStrategyArguments);
 
 /**
  * Locate the Docusaurus binary in this package's `node_modules/.bin`. Using
@@ -121,14 +171,6 @@ async function resolveCommitSha(projectPath: string): Promise<string | null> {
   }
 }
 
-/** The subset of parsed arguments {@link checkStrategyArgs} validates. */
-type StrategyArgs = {
-  strategy?: string;
-  'root-actions'?: unknown;
-  'root-events'?: unknown;
-  'scan-dir'?: string[];
-};
-
 /**
  * Reject flag combinations that don't make sense, so a mistaken invocation
  * fails instead of silently producing docs built the wrong way.
@@ -137,19 +179,30 @@ type StrategyArgs = {
  * ignored. Used as a yargs `.check`, so failures print alongside usage.
  *
  * @param argv - The parsed arguments.
+ * @param argv.strategy - The selected discovery strategy.
+ * @param argv.rootActions - The parsed root actions type reference.
+ * @param argv.rootEvents - The parsed root events type reference.
+ * @param argv.scanDir - The additional directories to scan.
  * @returns True when the combination is valid.
  */
-function checkStrategyArgs(argv: StrategyArgs): boolean {
-  const rootActions = argv['root-actions'];
-  const rootEvents = argv['root-events'];
-
-  if (argv.strategy !== 'root-messenger') {
+function checkStrategyArgs({
+  strategy,
+  rootActions,
+  rootEvents,
+  scanDir = [],
+}: {
+  strategy?: 'root-messenger' | 'scan';
+  rootActions?: RootCapabilitiesTypeReference;
+  rootEvents?: RootCapabilitiesTypeReference;
+  scanDir?: string[];
+}): ScanStrategyArguments | RootMessengerStrategyArguments {
+  if (strategy !== 'root-messenger') {
     if (rootActions !== undefined || rootEvents !== undefined) {
       throw new Error(
         '--root-actions and --root-events only apply to --strategy root-messenger.',
       );
     }
-    return true;
+    return { strategy: 'scan', scanDir };
   }
 
   if (rootActions === undefined || rootEvents === undefined) {
@@ -158,21 +211,27 @@ function checkStrategyArgs(argv: StrategyArgs): boolean {
         'each written as "<file>#<TypeName>".',
     );
   }
-  if ((argv['scan-dir'] ?? []).length > 0) {
+  if (scanDir.length > 0) {
     throw new Error(
       '--scan-dir only applies to --strategy scan; --strategy root-messenger reads ' +
         'only the files named by --root-actions and --root-events.',
     );
   }
 
-  return true;
+  return { strategy, rootActions, rootEvents };
 }
 
 /**
- * Main CLI entry point.
+ * Parse and validate CLI arguments.
+ *
+ * @param argumentsForParsing - Arguments to parse, excluding the Node and
+ * script paths.
+ * @returns Parsed arguments, discriminated by discovery strategy.
  */
-async function main(): Promise<void> {
-  const argv = await yargs(process.argv.slice(2))
+async function parseArguments(
+  argumentsForParsing: string[] = process.argv.slice(2),
+): Promise<ParsedArguments> {
+  const argv = await yargs(argumentsForParsing)
     .command(
       '$0 [project-path]',
       'Produces documentation for the platform API, the set of actions and events available in clients through the message bus.',
@@ -204,27 +263,29 @@ async function main(): Promise<void> {
     })
     .option('strategy', {
       type: 'string',
-      choices: ['scan', 'root-messenger'],
       description:
         'How to find messenger actions and events. "scan" parses every source and declaration file looking for messenger types. "root-messenger" instead resolves the two types the project declares for its root messenger',
       default: 'scan',
     })
+    .choices('strategy', ['scan', 'root-messenger'] as const)
     .option('root-actions', {
       type: 'string',
+      coerce: parseRootCapabilitiesTypeReference,
       description:
         'Type aliasing the union of every action on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
     .option('root-events', {
       type: 'string',
+      coerce: parseRootCapabilitiesTypeReference,
       description:
         'Type aliasing the union of every event on the root messenger, written as "<file>#<TypeName>" (required with --strategy root-messenger)',
     })
     .option('scan-dir', {
-      type: 'string',
-      array: true,
+      type: 'array',
+      string: true,
       description:
         'Additional directories within the project to scan for messenger actions and events (note: may be specified multiple times)',
-      default: [] as string[],
+      default: [],
     })
     .option('output', {
       type: 'string',
@@ -245,43 +306,71 @@ async function main(): Promise<void> {
       description:
         'Path prefix the built site will be served under, e.g. /core/platform-api/',
     })
-    .coerce('root-actions', parseRootTypeReference)
-    .coerce('root-events', parseRootTypeReference)
-    .check(checkStrategyArgs)
-    .help().argv;
+    .help()
+    .parse();
 
-  const projectPathArg = argv['project-path'];
-  const resolvedProjectPath = path.resolve(
-    typeof projectPathArg === 'string' ? projectPathArg : '.',
-  );
+  const strategyArguments = checkStrategyArgs(argv);
+
+  const projectPath = argv['project-path'];
+  if (typeof projectPath !== 'string') {
+    throw new Error('Expected --project-path to be a string.');
+  }
+
+  return {
+    build: argv.build,
+    serve: argv.serve,
+    dev: argv.dev,
+    'project-path': projectPath,
+    output: argv.output,
+    'project-label': argv['project-label'],
+    'site-url': argv['site-url'],
+    'site-base-url': argv['site-base-url'],
+    ...strategyArguments,
+  };
+}
+
+/**
+ * Main CLI entry point.
+ */
+async function main(): Promise<void> {
+  const argv = await parseArguments();
+
+  const resolvedProjectPath = path.resolve(argv['project-path']);
   const resolvedOutputDir = path.resolve(
     argv.output ?? path.join(resolvedProjectPath, '.platform-api-docs'),
   );
-  const scanDirs = ['src', ...argv['scan-dir']].filter(
-    (dir, index, dirs) => dirs.indexOf(dir) === index,
-  );
   const projectLabel =
-    typeof argv['project-label'] === 'string' &&
-    argv['project-label'].length > 0
+    argv['project-label'] && argv['project-label'].length > 0
       ? argv['project-label']
       : null;
   const commitSha = await resolveCommitSha(resolvedProjectPath);
   const repoUrl = await resolveRepoUrl(resolvedProjectPath);
 
   // Step 1: Generate docs
-  await generate({
-    projectPath: resolvedProjectPath,
-    outputDir: resolvedOutputDir,
-    projectLabel,
-    commitSha,
-    ...(argv.strategy === 'root-messenger'
-      ? {
-          strategy: 'root-messenger' as const,
-          rootActions: argv['root-actions'] as RootTypeReference,
-          rootEvents: argv['root-events'] as RootTypeReference,
-        }
-      : { strategy: 'scan' as const, scanDirs }),
-  });
+  if (argv.strategy === 'root-messenger') {
+    await generate({
+      projectPath: resolvedProjectPath,
+      outputDir: resolvedOutputDir,
+      projectLabel,
+      commitSha,
+      strategy: 'root-messenger',
+      rootActions: argv.rootActions,
+      rootEvents: argv.rootEvents,
+    });
+  } else {
+    const scanDirs = ['src', ...argv.scanDir].filter(
+      (dir, index, dirs) => dirs.indexOf(dir) === index,
+    );
+
+    await generate({
+      projectPath: resolvedProjectPath,
+      outputDir: resolvedOutputDir,
+      projectLabel,
+      commitSha,
+      strategy: 'scan',
+      scanDirs,
+    });
+  }
 
   // Step 2: If --build, --serve, or --dev, set up and run Docusaurus
   if (argv.build || argv.serve || argv.dev) {
