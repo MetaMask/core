@@ -38,6 +38,8 @@
     "lint:misc:check": "yarn lint:misc --check",
     "lint:teams": "tsx scripts/lint-teams-json.ts",
     "lint:tsc": "tsc --build tsconfig.lint.json",
+    "lint:tsc:clean": "yarn lint:tsc:only-clean && yarn lint:tsc",
+    "lint:tsc:only-clean": "rimraf -g 'packages/*/.tsc-lint-cache' '.tsc-lint-cache'",
     "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
     "lint:tsconfigs:fix": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
