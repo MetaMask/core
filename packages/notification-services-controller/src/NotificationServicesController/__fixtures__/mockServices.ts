@@ -2,6 +2,7 @@ import nock from 'nock';
 
 import {
   getMockOnChainNotificationsConfig,
+  getMockUpdateOnChainNotifications,
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
@@ -31,6 +32,19 @@ export const mockGetOnChainNotificationsConfig = (
 ): nock.Scope => {
   const mockResponse = getMockOnChainNotificationsConfig();
   const reply = mockReply ?? { status: 200, body: mockResponse.response };
+
+  const mockEndpoint = nock(mockResponse.url)
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const mockUpdateOnChainNotifications = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const mockResponse = getMockUpdateOnChainNotifications();
+  const reply = mockReply ?? { status: 204 };
 
   const mockEndpoint = nock(mockResponse.url)
     .post('')
