@@ -247,7 +247,11 @@ export type KeyringControllerSignPersonalMessageAction = {
 };
 
 /**
- * Successful outcome of {@link RampsController.registerMoneyAccountWallet}.
+ * Outcome of {@link RampsController.registerMoneyAccountWallet}.
+ *
+ * `lookupUnavailable` means the address list could not be fetched or parsed.
+ * It is not the same as unregistered — callers must not treat it as a cue to
+ * submit a new ownership proof.
  */
 export type MoneyAccountWalletRegistrationResult =
   | {
@@ -257,7 +261,16 @@ export type MoneyAccountWalletRegistrationResult =
   | {
       type: 'registeredDisabled';
       registration: SelfHostedRegistration;
+    }
+  | {
+      type: 'lookupUnavailable';
+      error: WalletRegistrationError;
     };
+
+type LookupUnavailableResult = Extract<
+  MoneyAccountWalletRegistrationResult,
+  { type: 'lookupUnavailable' }
+>;
 
 /**
  * User Storage / auth actions needed for autoramp Backup & Sync.
@@ -2806,7 +2819,8 @@ export class RampsController extends BaseController<
    *
    * @param params - Money Account wallet registration parameters.
    * @param params.address - Monad Money Account address.
-   * @returns The successful registration state.
+   * @returns The registration state, or `{ type: 'lookupUnavailable' }` when
+   * the address-list lookup fails (never treated as unregistered).
    */
   async registerMoneyAccountWallet({
     address,
@@ -2837,17 +2851,34 @@ export class RampsController extends BaseController<
     // customer id before the first lookup.
     const customerId = await this.resolveAutorampCustomerId();
 
-    const lookup = async (): Promise<RegistrationStatus> => {
+    const toLookupUnavailableResult = (
+      error: unknown,
+    ): LookupUnavailableResult => {
+      machine = transitionWalletRegistration(machine, {
+        type: 'LOOKUP_FAILED',
+      });
+      return {
+        type: 'lookupUnavailable',
+        error:
+          error instanceof WalletRegistrationError
+            ? error
+            : new WalletRegistrationError('lookupUnavailable', {
+                message: 'self-hosted address lookup failed',
+                body: error instanceof Error ? error.message : undefined,
+              }),
+      };
+    };
+
+    const lookup = async (): Promise<
+      RegistrationStatus | LookupUnavailableResult
+    > => {
       try {
         return await this.messenger.call(
           'NeoBankService:getWalletRegistrationStatus',
           { customerId, address },
         );
       } catch (error) {
-        machine = transitionWalletRegistration(machine, {
-          type: 'LOOKUP_FAILED',
-        });
-        throw error;
+        return toLookupUnavailableResult(error);
       }
     };
 
@@ -2867,8 +2898,17 @@ export class RampsController extends BaseController<
       return toExistingResult(status);
     };
 
-    const existingStatus = await lookup();
-    const existingResult = applyLookup(existingStatus);
+    const resolveLookup = async (): Promise<
+      MoneyAccountWalletRegistrationResult | undefined
+    > => {
+      const status = await lookup();
+      if (status.type === 'lookupUnavailable') {
+        return status;
+      }
+      return applyLookup(status);
+    };
+
+    const existingResult = await resolveLookup();
     if (existingResult) {
       return existingResult;
     }
@@ -2957,7 +2997,7 @@ export class RampsController extends BaseController<
           machine.status === 'disambiguate409' ||
           machine.status === 'checkThenRetry'
         ) {
-          const reconciledResult = applyLookup(await lookup());
+          const reconciledResult = await resolveLookup();
           if (reconciledResult) {
             return reconciledResult;
           }

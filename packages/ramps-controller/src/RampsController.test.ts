@@ -9729,16 +9729,69 @@ describe('RampsController', () => {
       });
     });
 
-    it('rethrows an initial lookup failure without signing', async () => {
+    it('returns lookupUnavailable when the initial status lookup fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerWalletRegistrationHandlers(rootMessenger);
-        const error = new Error('lookup failed');
+        const error = new WalletRegistrationError('lookupUnavailable', {
+          httpStatus: 500,
+          body: 'boom',
+        });
         handlers.getWalletRegistrationStatus.mockRejectedValue(error);
 
-        await expect(
-          controller.registerMoneyAccountWallet({ address: '0xabc' }),
-        ).rejects.toBe(error);
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'lookupUnavailable',
+          error,
+        });
         expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('wraps a non-typed initial lookup failure as lookupUnavailable', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockRejectedValue(
+          new Error('lookup failed'),
+        );
+
+        const result = await controller.registerMoneyAccountWallet({
+          address: '0xabc',
+        });
+
+        expect(result).toMatchObject({
+          type: 'lookupUnavailable',
+          error: expect.objectContaining({
+            name: 'WalletRegistrationError',
+            kind: 'lookupUnavailable',
+            body: 'lookup failed',
+          }),
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns lookupUnavailable when conflict reconciliation cannot list addresses', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const lookupError = new WalletRegistrationError('lookupUnavailable', {
+          httpStatus: 503,
+        });
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockRejectedValueOnce(lookupError);
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'lookupUnavailable',
+          error: lookupError,
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(1);
       });
     });
 

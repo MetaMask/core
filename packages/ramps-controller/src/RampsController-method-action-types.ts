@@ -324,7 +324,8 @@ export type RampsControllerCreateAutorampAction = {
  *
  * @param params - Money Account wallet registration parameters.
  * @param params.address - Monad Money Account address.
- * @returns The successful registration state.
+ * @returns The registration state, or `{ type: 'lookupUnavailable' }` when
+ * the address-list lookup fails (never treated as unregistered).
  */
 export type RampsControllerRegisterMoneyAccountWalletAction = {
   type: `RampsController:registerMoneyAccountWallet`;
