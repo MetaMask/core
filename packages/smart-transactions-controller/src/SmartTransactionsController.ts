@@ -34,7 +34,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { klona } from 'klona';
+import { cloneDeep } from 'lodash-es';
 
 import {
   DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS,
@@ -487,9 +487,9 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     smartTransaction: SmartTransaction,
     prevSmartTransaction?: SmartTransaction,
   ) {
-    let updatedSmartTransaction = klona(smartTransaction);
+    let updatedSmartTransaction = cloneDeep(smartTransaction);
     updatedSmartTransaction = {
-      ...klona(prevSmartTransaction),
+      ...cloneDeep(prevSmartTransaction),
       ...updatedSmartTransaction,
     };
 
@@ -635,7 +635,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
           stx.txParams?.nonce === smartTransaction.txParams?.nonce &&
           stx.status?.startsWith('cancelled'),
       );
-      const snapshot = klona(smartTransaction);
+      const snapshot = cloneDeep(smartTransaction);
       const history = [snapshot];
       const historifiedSmartTransaction = { ...smartTransaction, history };
       const nextSmartTransactions =
