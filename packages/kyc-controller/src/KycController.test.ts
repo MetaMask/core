@@ -1550,7 +1550,9 @@ describe('KycController', () => {
     });
 
     it('runs the full sub-flow and completes', async () => {
-      await withController(async ({ controller, handlers, launcher }) => {
+      await withController(
+        { options: { state: { geoCountry: 'USA' } } },
+        async ({ controller, handlers, launcher }) => {
         launcher.launch.mockImplementation(
           async ({ onStatusChange, onTokenExpiration }) => {
             onStatusChange?.('idle', 'InProgress');
@@ -1574,6 +1576,7 @@ describe('KycController', () => {
           expect.objectContaining({
             jwtToken: 'mock-jwt-token',
             sessionClientPublicKey: expect.stringMatching(/^[A-Za-z0-9_-]+$/u),
+            residenceCountry: 'USA',
             vendorMetadata: expect.objectContaining({
               moonPayAccessToken: null,
               moonPayUserId: null,
@@ -1627,6 +1630,20 @@ describe('KycController', () => {
         // onTokenExpiration re-fetches the applicant access token.
         expect(handlers.createJourney).toHaveBeenCalledTimes(2);
       });
+    });
+
+    it('forwards the resolved geo country as residenceCountry', async () => {
+      await withController(
+        { options: { state: { geoCountry: 'FRA' } } },
+        async ({ controller, handlers }) => {
+          await controller.startSumSub();
+
+          expect(handlers.createUkycSession).toHaveBeenCalledWith(
+            expect.objectContaining({ residenceCountry: 'FRA' }),
+          );
+          expect(handlers.getGeoCountry).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('stops with a vendorProcessing status when the relay approved but the vendor is still pending', async () => {
@@ -2948,7 +2965,10 @@ describe('KycController', () => {
             handlers.fetchSessionDisclaimers.mock.invocationCallOrder[0],
           );
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
-            expect.objectContaining({ vendor: 'iron' }),
+            expect.objectContaining({
+              vendor: 'iron',
+              residenceCountry: 'USA',
+            }),
           );
           expect(launcher.launch).toHaveBeenCalled();
           expect(controller.buildCheckFrameUrl()).toBeNull();
@@ -4385,7 +4405,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { activeVendor: 'iron', phase: 'submit' },
+            state: { activeVendor: 'iron', phase: 'submit', geoCountry: 'USA' },
           },
         },
         async ({ controller, handlers }) => {
@@ -4409,7 +4429,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { activeVendor: 'iron', phase: 'submit' },
+            state: { activeVendor: 'iron', phase: 'submit', geoCountry: 'USA' },
           },
         },
         async ({ controller, handlers }) => {

@@ -326,6 +326,10 @@ export type CreateUkycSessionParams = {
    */
   sessionClientPublicKey: string;
   /**
+   * Country of residence in ISO 3166-1 alpha-3 format (e.g. `USA`, `GBR`).
+   */
+  residenceCountry: string;
+  /**
    * Identity vendor for the UKYC session. Defaults to `moonpay` for the
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
@@ -797,7 +801,8 @@ export class KycService extends BaseDataService<
    * Creates a UKYC session for the SumSub document-verification sub-flow.
    *
    * The client registers its per-session X25519 public key so the server can
-   * later open boxes sealed with the matching private key. The response
+   * later open boxes sealed with the matching private key, and supplies the
+   * customer's ISO 3166-1 alpha-3 country of residence. The response
    * carries per-secret encryption schemas (`encryptionDataKey` and
    * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
    * the read-only `ukyc_capability_token` and submit them via
@@ -820,6 +825,7 @@ export class KycService extends BaseDataService<
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
             sessionClientPublicKey: params.sessionClientPublicKey,
+            residenceCountry: params.residenceCountry,
             vendorMetadata: params.vendorMetadata ?? {},
           }),
         }),

@@ -374,7 +374,7 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, vendorMetadata })
+        Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, residenceCountry, vendorMetadata })
         Svc->>API: POST /sessions
         Note over Ctrl: wrap data_encryption_key and ukyc_capability_token
         Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })

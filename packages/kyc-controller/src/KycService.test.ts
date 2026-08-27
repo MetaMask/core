@@ -12,6 +12,7 @@ import { KycService } from './KycService.js';
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
 const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
+const RESIDENCE_COUNTRY = 'USA';
 
 describe('KycService', () => {
   afterEach(() => {
@@ -293,6 +294,7 @@ describe('KycService', () => {
             body.jwtToken === 'jwt' &&
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             body.wrappedEncryptionKey === undefined &&
             body.ukycCapabilityToken === undefined,
         )
@@ -303,6 +305,7 @@ describe('KycService', () => {
         await service.createUkycSession({
           jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
         }),
       ).toStrictEqual(response);
@@ -316,6 +319,7 @@ describe('KycService', () => {
         service.createUkycSession({
           jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
@@ -883,6 +887,7 @@ describe('KycService', () => {
           return (
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             body.vendorMetadata?.moonPayAccessToken === 'tok' &&
             body.wrappedEncryptionKey === undefined &&
             body.ukycCapabilityToken === undefined
@@ -895,6 +900,7 @@ describe('KycService', () => {
         await service.createUkycSession({
           jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { moonPayAccessToken: 'tok' },
         }),
       ).toStrictEqual(response);
@@ -911,6 +917,7 @@ describe('KycService', () => {
           return (
             body.vendorId === 'iron' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             JSON.stringify(body.vendorMetadata) === '{}'
           );
         })
@@ -921,6 +928,7 @@ describe('KycService', () => {
         await service.createUkycSession({
           jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'iron',
         }),
       ).toStrictEqual(response);

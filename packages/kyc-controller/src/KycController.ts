@@ -1871,6 +1871,20 @@ export class KycController extends BaseController<
     const sessionClientPublicKey = toBase64Url(
       x25519.getPublicKey(sessionClientPrivateKey),
     );
+    // Residence is the ISO 3166-1 alpha-3 country already resolved for
+    // disclaimers / KYC-required; fetch it if this sub-flow started without
+    // that earlier step.
+    const residenceCountry =
+      this.state.geoCountry ??
+      (await this.messenger.call('KycService:getGeoCountry'));
+    if (this.#generation !== generation) {
+      return null;
+    }
+    if (residenceCountry !== this.state.geoCountry) {
+      this.#updateIfCurrent(generation, (state) => {
+        state.geoCountry = residenceCountry;
+      });
+    }
 
     const {
       sessionId,
@@ -1879,6 +1893,7 @@ export class KycController extends BaseController<
     } = await this.messenger.call('KycService:createUkycSession', {
       jwtToken,
       sessionClientPublicKey,
+      residenceCountry,
       ...this.#buildUkycSessionVendorFields(),
     });
     if (this.#generation !== generation) {
