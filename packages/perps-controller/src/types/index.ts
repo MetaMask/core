@@ -336,18 +336,19 @@ export type OrderResult = {
   // strategy placement, `orderId` carries the strategy handle and these IDs
   // identify its individual children.
   //
-  // For a `scale` ladder they stay valid: the rungs are placed once and are not
-  // replaced, so they remain cancellable even after the session-scoped handle is
+  // For a `scale` ladder these identify every accepted rung, including fills.
+  // Only resting IDs are cancellable and retained by the strategy handle. Scale
+  // rungs are never replaced, so a resting ID stays valid after the handle is
   // gone. For a `chase` this is only the order resting at placement time — the
   // strategy cancels and re-places as the touch moves, and each replacement has
   // a new ID that is held in the session rather than reported here, so the value
   // goes stale on the first re-price. Cancel a live chase by its handle.
   //
-  // Failure results can mix filled IDs with orders that may still rest, so a
-  // caller must not blindly cancel every ID. When TP/SL protection cannot be
-  // fully restored, these identify the old orders that survived, may still be
-  // live when reconciliation failed, or were recreated; an empty array means
-  // none are known or potentially live.
+  // Scale success and failure results can mix filled IDs with orders that may
+  // still rest, so a caller must not blindly cancel every ID. When TP/SL
+  // protection cannot be fully restored, these identify the old orders that
+  // survived, may still be live when reconciliation failed, or were recreated;
+  // an empty array means none are known or potentially live.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
