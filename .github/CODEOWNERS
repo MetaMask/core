@@ -126,6 +126,7 @@
 /packages/shield-controller                 @MetaMask/web3auth
 /packages/subscription-controller           @MetaMask/web3auth
 /packages/claims-controller                 @MetaMask/web3auth
+/packages/money-account-subscription-controller           @MetaMask/web3auth
 
 ## Universal KYC Team
 /packages/kyc-controller    @MetaMask/universal-kyc
