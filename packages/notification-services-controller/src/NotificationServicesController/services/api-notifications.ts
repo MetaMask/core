@@ -43,6 +43,10 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${NOTIFICATION_API(env)}/api/v4/notifications/mark-as-read`;
 
+export const NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT = (
+  env: ENV = 'prd',
+): string => `${NOTIFICATION_API(env)}/api/v4/notifications/categories`;
+
 /**
  * fetches notification config (accounts enabled vs disabled)
  *
@@ -72,12 +76,11 @@ export async function getNotificationsApiConfigCached(
   type RequestBody = { address: string }[];
   type Response = { address: string; enabled: boolean }[];
   const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
-  const apiResponse = await makeApiCall(
-    bearerToken,
-    TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
-    'POST',
+  const apiResponse = await makeApiCall(TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env), {
+    method: 'POST',
     body,
-  )
+    bearerToken,
+  })
     .then<Response | null>((response) => (response.ok ? response.json() : null))
     .catch(() => null);
 
@@ -121,12 +124,11 @@ export async function getAPINotifications(
     locale,
     platform,
   };
-  const notifications = await makeApiCall(
-    bearerToken,
-    NOTIFICATION_API_LIST_ENDPOINT(env),
-    'POST',
+  const notifications = await makeApiCall(NOTIFICATION_API_LIST_ENDPOINT(env), {
+    method: 'POST',
     body,
-  )
+    bearerToken,
+  })
     .then<APIResponse | null>((response) =>
       response.ok ? response.json() : null,
     )
@@ -176,13 +178,35 @@ export async function markNotificationsAsRead(
   };
 
   try {
-    await makeApiCall(
-      bearerToken,
-      NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(env),
-      'POST',
+    await makeApiCall(NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(env), {
+      method: 'POST',
       body,
-    );
+      bearerToken,
+    });
   } catch (error) {
     log.error('Error marking notifications as read:', error);
   }
+}
+
+export async function getNotificationsCategories(
+  env: ENV = 'prd',
+) {
+  type APIResponse =
+    Schema.paths['/api/v4/notifications/categories']['get']['responses']['200']['content']['application/json'];
+
+  let categories: APIResponse | null;
+
+  categories = await makeApiCall(NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT(env), {
+    method: 'GET',
+  })
+    .then<APIResponse | null>((response) =>
+      response.ok ? response.json() : null,
+    )
+    .catch((error) => {
+      log.error("Error fetching notifications categories", error)
+
+      return null
+    });
+
+  return categories ?? [];
 }

@@ -34,6 +34,8 @@ export type PlatformNotification =
 export type OnChainNotification =
   components['schemas']['OnChainNotificationV4'];
 
+export type NotificationsCategory = components['schemas']['NotificationCategory']
+
 type ConvertToEnum<Kind> = {
   [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
 }[TRIGGER_TYPES];

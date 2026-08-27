@@ -12,7 +12,7 @@ import {
 } from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -40,7 +40,10 @@ import type {
 } from '../NotificationServicesPushController/index.js';
 import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types.js';
 import { TRIGGER_TYPES } from './constants/notification-schema.js';
-import type { NormalisedAPINotification } from './index.js';
+import type {
+  NormalisedAPINotification,
+  NotificationsCategory,
+} from './index.js';
 import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types.js';
 import {
   processAndFilterNotifications,
@@ -50,6 +53,7 @@ import type { ENV } from './services/api-notifications.js';
 import {
   getAPINotifications,
   getNotificationsApiConfigCached,
+  getNotificationsCategories,
   markNotificationsAsRead,
 } from './services/api-notifications.js';
 import { getFeatureAnnouncementNotifications } from './services/feature-announcements.js';
@@ -100,6 +104,10 @@ export type NotificationServicesControllerState = {
    */
   metamaskNotificationsReadList: string[];
   /**
+   * List of notification categories
+   */
+  metamaskNotificationsCategories: NotificationsCategory[];
+  /**
    * Flag that indicates that the creating notifications is in progress
    */
   isUpdatingMetamaskNotifications: boolean;
@@ -109,6 +117,11 @@ export type NotificationServicesControllerState = {
    * when fetching notifications
    */
   isFetchingMetamaskNotifications: boolean;
+  /**
+   * Flag that indicates that fetching notification categories
+   * is in progress. Used for readiness checks for categories consumers
+   */
+  isFetchingMetamaskNotificationsCategories: boolean;
   /**
    * Flag that indicates that the updating notifications for a specific address is in progress
    */
@@ -157,6 +170,12 @@ const metadata: StateMetadata<NotificationServicesControllerState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
+  metamaskNotificationsCategories: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
   isUpdatingMetamaskNotifications: {
     includeInStateLogs: false,
     persist: false,
@@ -181,6 +200,12 @@ const metadata: StateMetadata<NotificationServicesControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  isFetchingMetamaskNotificationsCategories: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 export const defaultState: NotificationServicesControllerState = {
   subscriptionAccountsSeen: [],
@@ -189,10 +214,12 @@ export const defaultState: NotificationServicesControllerState = {
   isFeatureAnnouncementsEnabled: false,
   metamaskNotificationsList: [],
   metamaskNotificationsReadList: [],
+  metamaskNotificationsCategories: [],
   isUpdatingMetamaskNotifications: false,
   isFetchingMetamaskNotifications: false,
   isUpdatingMetamaskNotificationsAccount: [],
   isCheckingAccountsPresence: false,
+  isFetchingMetamaskNotificationsCategories: false,
 };
 
 export type NotificationServicesControllerEnableNotificationsOptions = {
@@ -385,7 +412,7 @@ type AllowedActions =
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
-  ControllerStateChangeEvent<
+  ControllerStateChangedEvent<
     typeof controllerName,
     NotificationServicesControllerState
   >;
@@ -970,6 +997,23 @@ export class NotificationServicesController extends BaseController<
         state.isUpdatingMetamaskNotificationsAccount.filter(
           (existingAccount) => !accounts.includes(existingAccount),
         );
+    });
+  }
+
+  /**
+   * Updates the state to indicate whether fetching of MetaMask notification categories is in progress.
+   *
+   * This method is used to set the `isFetchingMetamaskNotificationCategories` state, which can be utilized
+   * to show or hide loading indicators in the UI when notifications categories are being fetched.
+   *
+   * @param isFetchingMetamaskNotificationCategories - A boolean value representing the fetching state.
+   */
+  #setIsFetchingNotificationsCategories(
+    isFetchingNotificationCategories: boolean,
+  ) {
+    this.update((state) => {
+      state.isFetchingMetamaskNotificationsCategories =
+        isFetchingNotificationCategories;
     });
   }
 
@@ -1615,6 +1659,37 @@ export class NotificationServicesController extends BaseController<
       await createPerpOrderNotification(bearerToken, input);
     } catch {
       // Do Nothing
+    }
+  }
+
+
+  /**
+   * Fetches the list of MetaMask notification categories from the notifications API,
+   * stores the result in controller state, and returns the categories.
+   *
+   * This method sets the categories-loading flag while the request is in flight
+   * so the UI can reflect the loading state. If the request fails, it logs the
+   * error and throws a generic failure error.
+   *
+   * @returns A promise that resolves to the fetched notification categories.
+   * @throws {Error} If the categories request fails.
+   */
+  public async fetchMetamaskNotificationsCategories() {
+    this.#setIsFetchingNotificationsCategories(true);
+
+    try {
+      const categories = await getNotificationsCategories();
+
+      this.update((state) => {
+        state.metamaskNotificationsCategories = categories;
+      });
+
+      return categories;
+    } catch (error) {
+      log.error('Failed to fetch notifications categories', error);
+      throw new Error('Failed to fetch notifications categories');
+    } finally {
+      this.#setIsFetchingNotificationsCategories(false);
     }
   }
 }
