@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getPaymentMethodsForContext(options)` and `RampsController:getPaymentMethodsForContext` messenger action for context-scoped payment-method retrieval aligned with `getQuotes` provider resolution ([#9801](https://github.com/MetaMask/core/pull/9801))
+  - Supports explicit `providers`, selected-provider (UB2) context, and headless auto-select / restrict paths, including `moneyHeadlessAllProviders` widening with allowlist pick-survivor intersection.
+  - Request-only by default (`updateState` unset/false): does not mutate Buy `paymentMethods.data` / `.selected`.
+  - Fans out per contributing provider and dedupes by canonical payment id, keeping the first-seen entry. Payment-method metadata is provider-invariant: the API serves it from a per-region catalog and the `provider` query narrows that catalog by id-set membership without rewriting fields, so colliding entries carry identical values.
+  - Returns a single provider's payment-method list unchanged; deduping applies only to multi-provider fan-out.
+  - Normalizes stored region codes before stateful context writes while keeping missing-region checks fail-closed.
+  - Partial provider failures still return methods from successful fetches.
+  - Throws when `updateState: true` resolves more than one provider, before any payment-method fetch is issued. The shared Buy catalog has one slot per region, token, and selected provider, so a fan-out write cannot be ordered against a concurrent one. Callers wanting a multi-provider catalog must pass `updateState: false` and read the returned `methods`.
+- Export `normalizeRampsAssetId()` so consuming clients can canonicalize CAIP-19 asset ids the way the Ramps API expects instead of maintaining duplicate copies of the rule ([#9801](https://github.com/MetaMask/core/pull/9801))
+  - Lowercases `eip155` asset ids, matching the namespace case-insensitively, and passes other namespaces through verbatim so case-sensitive references (Solana base58, bitcoin bech32) are preserved.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ### Changed
@@ -16,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses. ([#9955](https://github.com/MetaMask/core/pull/9955))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.1.0` ([#9945](https://github.com/MetaMask/core/pull/9945), [#9980](https://github.com/MetaMask/core/pull/9980))
+
+### Fixed
+
+- `providerServesAsset()` and `getProvidersServingAsset()` no longer lowercase non-EVM CAIP-19 asset references when matching a provider's `supportedCryptoCurrencies` ([#9801](https://github.com/MetaMask/core/pull/9801))
+  - Solana base58 and bitcoin bech32 references are case-sensitive, so lowercasing both sides could report a provider as serving an asset it does not serve. EVM ids still match regardless of checksum casing.
 
 ## [20.0.0]
 
