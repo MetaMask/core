@@ -59,8 +59,8 @@ export {
   getStatusFailureTelemetry,
   getSubmitErrorCode,
   getSubmitFailureTelemetry,
-} from './utils/failure-telemetry.js';
+} from './utils/metrics.js';
 export type {
   FailureTelemetryProperties,
   HashPresenceProperties,
-} from './utils/failure-telemetry.js';
+} from './utils/metrics.js';
