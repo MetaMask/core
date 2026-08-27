@@ -362,6 +362,16 @@ export type {
   HyperLiquidNetwork,
 } from './types/index.js';
 export type { PerpsToken } from './types/index.js';
+export type {
+  FundingSession,
+  FundingSessionStatus,
+  FundingLeg,
+  FundingLegKind,
+  FundingLegStatus,
+  FundingLegCapability,
+  FundingLegQuoteSnapshot,
+  FundingLegFailure,
+} from './types/index.js';
 
 // Constants (explicit named exports)
 export {

@@ -32,8 +32,10 @@ import {
   firstNonEmpty,
   resolveMyxAuthConfig,
 } from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import type { FundingSession } from '../../src/types/FundingSession.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
@@ -613,6 +615,65 @@ describe('PerpsController', () => {
 
       await expect(controller.getPositions()).rejects.toThrow(errorMessage);
       expect(mockMarketDataServiceInstance.getPositions).toHaveBeenCalled();
+    });
+  });
+
+  describe('funding sessions', () => {
+    /** A representative session as the funding composer (A2+) would create it. */
+    const buildSampleSession = (): FundingSession => ({
+      id: 'fs-1',
+      accountAddress: '0xabc0000000000000000000000000000000000001',
+      createdAt: 1700000000000,
+      updatedAt: 1700000001000,
+      status: 'active',
+      legs: [
+        {
+          kind: 'swap',
+          capability: { requiresDeviceSignature: false, silent: true },
+          status: 'confirmed',
+          quote: {
+            srcAsset: 'eip155:1/erc20:0xeth',
+            destAsset: 'eip155:42161/erc20:0xusdc',
+            estimatedAmountOut: '100000000',
+            fetchedAt: 1700000000000,
+          },
+          externalId: 'bridge-status-tx-1',
+        },
+        {
+          kind: 'deposit',
+          capability: { requiresDeviceSignature: true, silent: false },
+          status: 'pending',
+          externalId: 'deposit-request-1',
+        },
+      ],
+      depositRequestId: 'deposit-request-1',
+    });
+
+    it('defaults fundingSessions to an empty array', () => {
+      expect(controller.state.fundingSessions).toEqual([]);
+    });
+
+    it('round-trips fundingSessions through persistence serialization', () => {
+      // Arrange: seed a session as the composer would, then serialize the
+      // state exactly like the client's persistence layer does.
+      const session = buildSampleSession();
+      controller.testUpdate((state) => {
+        state.fundingSessions = [session];
+      });
+      const persistedState = JSON.parse(
+        JSON.stringify(controller.state),
+      ) as PerpsControllerState;
+
+      // Act: rehydrate a fresh controller from the persisted state, mirroring
+      // how the client restores controller state on launch.
+      const rehydratedController = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: persistedState,
+        infrastructure: mockInfrastructure,
+      });
+
+      // Assert: the slice survives the serialize → rehydrate round trip.
+      expect(rehydratedController.state.fundingSessions).toEqual([session]);
     });
   });
 

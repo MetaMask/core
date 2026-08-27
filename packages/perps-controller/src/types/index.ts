@@ -2318,6 +2318,7 @@ export function isVersionGatedFeatureFlag(
 // from the root barrel via `export * from './types.js'`.
 // ============================================================================
 export type * from './perps-types.js';
+export type * from './FundingSession.js';
 export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {

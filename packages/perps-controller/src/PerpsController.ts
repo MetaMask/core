@@ -87,6 +87,7 @@ import type {
   FeeCalculationResult,
   FlipPositionParams,
   Funding,
+  FundingSession,
   GetAccountStateParams,
   GetAvailableDexsParams,
   GetFundingParams,
@@ -405,6 +406,9 @@ export type PerpsControllerState = {
     depositId?: string;
   }[];
 
+  // Funding sessions (persistent, D8). Progress tracker over Resting Points.
+  fundingSessions: FundingSession[];
+
   // Eligibility (Geo-Blocking)
   isEligible: boolean;
 
@@ -570,6 +574,7 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     activeWithdrawalId: null,
   },
   depositRequests: [],
+  fundingSessions: [],
   lastError: null,
   lastUpdateTimestamp: 0,
   isEligible: false,
@@ -709,6 +714,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     usedInUi: true,
   },
   depositRequests: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  fundingSessions: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: false,
