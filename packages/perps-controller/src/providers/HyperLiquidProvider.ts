@@ -10535,9 +10535,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         const adaptedOrder = adaptOrderFromSDK(order, undefined);
         let historicalOrderType = adaptedOrder.orderType;
         if (!adaptedOrder.triggerOrderType) {
-          historicalOrderType = order.orderType
-            ?.toLowerCase()
-            .includes('limit')
+          historicalOrderType = order.orderType?.toLowerCase().includes('limit')
             ? 'limit'
             : 'market';
         }
