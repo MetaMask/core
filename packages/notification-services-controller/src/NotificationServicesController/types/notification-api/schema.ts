@@ -21,6 +21,8 @@ export type paths = {
     /**
      * List both platform and on-chain notifications for a certain user/address(es)
      * @description Same behaviour as /api/v3/notifications, but the returned notification_type and notification_subtype are taken directly from the producer-set database fields: platform notifications expose platform_notifications.notification_type / notification_subtype, while on-chain notifications expose the constant "wallet_activity" as notification_type and notifications_part.kind as notification_subtype. Clients should distinguish the two shapes structurally (presence of "payload" for on-chain vs "template" for platform).
+     *
+     *     Both shapes also carry a "category": the category_id of the settings category the notification_type belongs to, resolved server-side from the same manifest served by GET /api/v4/notifications/categories. It lets clients group or filter a notification list with the same taxonomy the settings screen uses, without duplicating the notification_type -> category mapping client-side.
      */
     post: {
       parameters: {
@@ -100,6 +102,53 @@ export type paths = {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v4/notifications/categories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List notification categories (server-driven settings manifest)
+     * @description Read-only manifest that drives the client notification-settings UX. It is a single artifact identical for every user and platform: the client renders only the entries whose `visible_on` includes its own platform, in the order they appear in the array, and toggles the AUS preference keys listed in `aus_keys`. It ties together the AUS preference keys (user-storage), the platform notification_types, and the UX grouping, so changing the taxonomy no longer requires a client release.
+     *     Presentation (labels, descriptions, icons) is client-owned for now and keyed off `category_id`; server-side localization is a future, additive change. This endpoint is unauthenticated — it carries no per-user state.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The notification categories manifest */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['NotificationCategories'];
+          };
+        };
+        /** @description Internal server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -393,6 +442,31 @@ export type components = {
      * @enum {string}
      */
     AppPlatform: 'portfolio' | 'extension' | 'mobile';
+    /** @description The full set of notification categories, in display order. Returned in its entirety to every client regardless of platform; the client renders only the entries whose `visible_on` includes its platform, in the order they appear here. */
+    NotificationCategories: components['schemas']['NotificationCategory'][];
+    NotificationCategory: {
+      /**
+       * @description Stable identifier for the category. The client keys its localized copy and icon off this value.
+       * @example trading_activity
+       */
+      category_id: string;
+      /** @description Platforms on which the client should render this category. An empty array means it is hidden everywhere but still present in the manifest (so the set of categories stays complete with respect to the platform notification_types). */
+      visible_on: components['schemas']['AppPlatform'][];
+      /**
+       * @description The user-storage notification-preference keys this category toggles. The AUS key is the toggle pivot: turning the category off disables every listed key, turning it on enables them. An empty array means the category is display-only (not user-toggleable).
+       * @example [
+       *       "perps"
+       *     ]
+       */
+      aus_keys: string[];
+      /**
+       * @description The platform notification_type values this category covers. Advisory / validation only — the client toggles `aus_keys`, not these. May be empty when a category maps to an AUS-only key (e.g. `marketing`, or the reserved on-chain `wallet_activity`) that has no platform notification_type.
+       * @example [
+       *       "perps"
+       *     ]
+       */
+      notification_types: string[];
+    };
     NotificationInputV3: {
       /** @example en-US */
       locale: string;
@@ -493,6 +567,11 @@ export type components = {
        */
       notification_type: string;
       /**
+       * @description The `category_id` of the settings category this notification belongs to, derived server-side from `notification_type` via the manifest served by GET /api/v4/notifications/categories. Empty string when no category covers the notification_type (e.g. a type newer than the manifest); clients should treat that, and any category_id they do not know, as uncategorized.
+       * @example trading_activity
+       */
+      category: string;
+      /**
        * @description Producer-set platform_notifications.notification_subtype value.
        * @example position_liquidated
        */
@@ -514,6 +593,11 @@ export type components = {
       id: string;
       /** @enum {string} */
       notification_type: 'wallet_activity';
+      /**
+       * @description The `category_id` of the settings category this notification belongs to, derived server-side from `notification_type` via the manifest served by GET /api/v4/notifications/categories.
+       * @example wallet_activity
+       */
+      category: string;
       /**
        * @description notifications_part.kind value.
        * @example metamask_swap_completed
