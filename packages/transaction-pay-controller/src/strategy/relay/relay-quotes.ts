@@ -82,7 +82,10 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
-type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'tradeType'>;
+type RelayQuoteRequestDraft = Omit<
+  RelayQuoteRequest,
+  'amount' | 'tradeType'
+>;
 type RelayStepData = RelayTransactionStep['items'][0]['data'];
 
 type RelayGasResult = {
@@ -284,7 +287,6 @@ async function getSingleQuote(
 
   const {
     from,
-    isMaxAmount,
     sourceChainId,
     sourceTokenAddress,
     sourceTokenAmount,
@@ -304,11 +306,6 @@ async function getSingleQuote(
   );
 
   try {
-    // Explicit source-driven flows use EXACT_INPUT immediately. Other flows
-    // start as EXPECTED_OUTPUT until transaction processing determines whether
-    // the request embeds transactions.
-    const useExactInput = Boolean(isMaxAmount || request.isPostQuote);
-
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
@@ -325,7 +322,6 @@ async function getSingleQuote(
       : request;
 
     const body: RelayQuoteRequestDraft = {
-      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
@@ -358,13 +354,15 @@ async function getSingleQuote(
       messenger,
     );
 
+    let transactionAmount: string | undefined;
+
     if (
       !processedTransactions &&
       isAtomic &&
       effectiveRequest.isPostQuote &&
       effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
     ) {
-      await processMoneyAccountPostQuote(
+      transactionAmount = await processMoneyAccountPostQuote(
         transaction,
         effectiveRequest,
         body,
@@ -377,13 +375,13 @@ async function getSingleQuote(
       body.refundTo = effectiveRequest.refundTo;
     }
 
-    if (!body.txs?.length) {
-      body.amount = sourceTokenAmount;
-    }
-
+    const hasTransactions = Boolean(body.txs?.length);
     const finalBody: RelayQuoteRequest = {
       ...body,
-      tradeType: body.txs?.length ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
+      amount:
+        transactionAmount ??
+        (hasTransactions ? targetAmountMinimum : sourceTokenAmount),
+      tradeType: hasTransactions ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
     };
 
     log('Request body', finalBody);
@@ -565,7 +563,7 @@ async function processMoneyAccountPostQuote(
   request: QuoteRequest,
   requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
-): Promise<void> {
+): Promise<string | undefined> {
   const { transactionData: transactionDataList } = messenger.call(
     'TransactionPayController:getState',
   );
@@ -585,14 +583,13 @@ async function processMoneyAccountPostQuote(
 
   if (!overrideCalls.length) {
     log('No payment override calls for money account post-quote');
-    return;
+    return undefined;
   }
 
   const fundingRecipient = recipient ?? request.from;
   const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.amount = rawAmount;
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
@@ -609,6 +606,8 @@ async function processMoneyAccountPostQuote(
   log('Added money account deposit calls to quote body', {
     callCount: overrideCalls.length,
   });
+
+  return rawAmount;
 }
 
 /**

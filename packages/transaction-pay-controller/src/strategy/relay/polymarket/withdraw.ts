@@ -132,7 +132,7 @@ export async function buildPolymarketDepositWalletSimulation(
 }
 
 export async function applyPolymarketDepositWalletOverrides(
-  body: Omit<RelayQuoteRequest, 'tradeType'>,
+  body: Omit<RelayQuoteRequest, 'amount' | 'tradeType'>,
   request: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
