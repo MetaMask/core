@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Include `direction` on pending trade configurations so a 30-second draft restores long/short with size ([#9992](https://github.com/MetaMask/core/pull/9992))
+
 ### Fixed
 
 - Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
