@@ -352,6 +352,11 @@ type OrderPlacementOutcome = {
   state: 'resting' | 'filled';
 };
 
+type TpslOrderPlacementOutcome = {
+  orderId?: string;
+  state: 'resting' | 'filled' | 'waitingForTrigger' | 'rejected' | 'unknown';
+};
+
 type RestorableTpslOrder = {
   orderId: number;
   order: SDKOrderParams;
@@ -7760,6 +7765,161 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Classify one TP/SL placement response.
+   *
+   * HyperLiquid acknowledges a resting trigger with the bare
+   * `waitingForTrigger` string, which is successful but carries no order ID.
+   * Other placement paths still require a resting or filled ID.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The TP/SL-specific placement outcome.
+   */
+  #readTpslOrderPlacementOutcome(status: unknown): TpslOrderPlacementOutcome {
+    const placement = this.#readOrderPlacementOutcome(status);
+    if (placement) {
+      return placement;
+    }
+    if (status === 'waitingForTrigger') {
+      return { state: 'waitingForTrigger' };
+    }
+    if (isStatusObject(status) && hasProperty(status, 'error')) {
+      return { state: 'rejected' };
+    }
+    return { state: 'unknown' };
+  }
+
+  /**
+   * Capture open orders without turning a read failure into a placement
+   * failure. The snapshot is needed only if an accepted trigger later needs an
+   * ID for cleanup after another leg fails.
+   *
+   * @param dexName - DEX to query, or null for the main DEX.
+   * @returns The open orders, or undefined when the snapshot failed.
+   */
+  async #captureTpslOpenOrders(
+    dexName: string | null,
+  ): Promise<FrontendOrder[] | undefined> {
+    try {
+      return await this.#fetchOpenOrders({ dexName });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Could not capture open orders before TP/SL placement',
+        {
+          error: ensureError(error, 'HyperLiquidProvider.captureTpslOpenOrders')
+            .message,
+          dex: dexName ?? 'main',
+        },
+      );
+      return undefined;
+    }
+  }
+
+  /**
+   * Recover IDs omitted from waiting trigger acknowledgements.
+   *
+   * HyperLiquid does not preserve submission order in `frontendOpenOrders`, so
+   * each unresolved leg is matched by its submitted trigger attributes and
+   * accepted only when exactly one new order qualifies.
+   *
+   * @param params - Reconciliation parameters.
+   * @param params.outcomes - Classified placement responses.
+   * @param params.orders - Submitted TP/SL orders.
+   * @param params.previousOrders - Orders resting before submission.
+   * @param params.dexName - DEX queried for the placement.
+   * @param params.symbol - Market the triggers protect.
+   * @returns Outcomes enriched with unambiguous exchange order IDs.
+   */
+  async #reconcileTpslOrderPlacementOutcomes(params: {
+    outcomes: TpslOrderPlacementOutcome[];
+    orders: SDKOrderParams[];
+    previousOrders: FrontendOrder[] | undefined;
+    dexName: string | null;
+    symbol: string;
+  }): Promise<TpslOrderPlacementOutcome[]> {
+    if (
+      params.previousOrders === undefined ||
+      !params.outcomes.some(
+        (outcome) =>
+          (outcome.state === 'waitingForTrigger' ||
+            outcome.state === 'unknown') &&
+          outcome.orderId === undefined,
+      )
+    ) {
+      return params.outcomes;
+    }
+
+    try {
+      const previousOrderIds = new Set(
+        params.previousOrders.map((order) => order.oid.toString()),
+      );
+      const appearedOrders = (
+        await this.#fetchOpenOrders({ dexName: params.dexName })
+      ).filter(
+        (order) =>
+          order.coin === params.symbol &&
+          order.reduceOnly &&
+          order.isTrigger &&
+          !previousOrderIds.has(order.oid.toString()),
+      );
+      const claimedOrderIds = new Set<number>();
+
+      return params.outcomes.map((outcome, index) => {
+        if (
+          outcome.orderId !== undefined ||
+          (outcome.state !== 'waitingForTrigger' && outcome.state !== 'unknown')
+        ) {
+          return outcome;
+        }
+
+        const submittedOrder = params.orders[index];
+        const trigger = hasProperty(submittedOrder.t, 'trigger')
+          ? submittedOrder.t.trigger
+          : undefined;
+        if (
+          !isStatusObject(trigger) ||
+          !hasProperty(trigger, 'triggerPx') ||
+          (typeof trigger.triggerPx !== 'string' &&
+            typeof trigger.triggerPx !== 'number') ||
+          !hasProperty(trigger, 'tpsl') ||
+          (trigger.tpsl !== 'tp' && trigger.tpsl !== 'sl')
+        ) {
+          return outcome;
+        }
+        const submittedSize = parseFloat(String(submittedOrder.s));
+        const submittedTriggerPrice = parseFloat(String(trigger.triggerPx));
+        const expectedOrderType =
+          trigger.tpsl === 'tp' ? 'Take Profit' : 'Stop';
+        const candidates = appearedOrders.filter(
+          (order) =>
+            !claimedOrderIds.has(order.oid) &&
+            (order.side === 'B') === submittedOrder.b &&
+            parseFloat(order.sz) === submittedSize &&
+            parseFloat(order.triggerPx) === submittedTriggerPrice &&
+            order.orderType.includes(expectedOrderType),
+        );
+        if (candidates.length !== 1) {
+          return outcome;
+        }
+
+        claimedOrderIds.add(candidates[0].oid);
+        return { ...outcome, orderId: candidates[0].oid.toString() };
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Could not reconcile TP/SL placement order IDs',
+        {
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.reconcileTpslOrderPlacementOutcomes',
+          ).message,
+          symbol: params.symbol,
+        },
+      );
+      return params.outcomes;
+    }
+  }
+
+  /**
    * Read a valid order ID from a resting or filled placement status.
    *
    * @param status - A single status from the exchange response.
@@ -9199,6 +9359,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
 
           try {
+            const openOrdersBeforeRestoration =
+              await this.#captureTpslOpenOrders(dexName);
             const result = await exchangeClient.order({
               orders: entries.map((entry) => entry.order),
               grouping: protection.grouping,
@@ -9206,18 +9368,28 @@ export class HyperLiquidProvider implements PerpsProvider {
                 builderOrderContext && { builder: builderOrderContext }),
             });
             const statuses = result.response?.data?.statuses ?? [];
-            const outcomes = statuses
+            const rawOutcomes = statuses
               .slice(0, entries.length)
-              .map((status) => this.#readOrderPlacementOutcome(status));
+              .map((status) => this.#readTpslOrderPlacementOutcome(status));
+            const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
+              outcomes: rawOutcomes,
+              orders: entries.map((entry) => entry.order),
+              previousOrders: openOrdersBeforeRestoration,
+              dexName,
+              symbol,
+            });
             restoredOrderIds.push(
               ...outcomes.flatMap((outcome) =>
-                outcome ? [outcome.orderId] : [],
+                outcome.orderId ? [outcome.orderId] : [],
               ),
             );
             if (
               result.status !== 'ok' ||
               statuses.length !== entries.length ||
-              outcomes.some((outcome) => outcome === undefined)
+              outcomes.some(
+                (outcome) =>
+                  outcome.state === 'rejected' || outcome.state === 'unknown',
+              )
             ) {
               success = false;
               this.#deps.logger.error(
@@ -9338,6 +9510,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       let result: Awaited<ReturnType<ExchangeClient['order']>>;
+      const openOrdersBeforePlacement =
+        await this.#captureTpslOpenOrders(dexName);
       try {
         result = await exchangeClient.order({
           orders,
@@ -9356,65 +9530,93 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const placementStatuses = result.response?.data?.statuses ?? [];
-      const placementOutcomes = placementStatuses
+      const initialPlacementOutcomes = placementStatuses
         .slice(0, orders.length)
-        .map((status) => this.#readOrderPlacementOutcome(status));
-      const replacementOrderIds = placementOutcomes.flatMap((outcome) =>
-        outcome ? [outcome.orderId] : [],
-      );
-      const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
-        outcome?.state === 'resting' ? [outcome.orderId] : [],
-      );
-      const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
-        outcome?.state === 'filled' ? [outcome.orderId] : [],
-      );
-      if (
-        result.status !== 'ok' ||
-        placementStatuses.length !== orders.length ||
-        replacementOrderIds.length !== orders.length
-      ) {
-        const remainingReplacementIds = await this.#cancelOrderRequests(
-          exchangeClient,
-          restingReplacementOrderIds.map((orderId) => ({
-            a: assetId,
-            o: Number(orderId),
-          })),
+        .map((status) => this.#readTpslOrderPlacementOutcome(status));
+      const placementAccepted =
+        result.status === 'ok' &&
+        placementStatuses.length === orders.length &&
+        initialPlacementOutcomes.every(
+          (outcome) =>
+            outcome.state === 'resting' ||
+            outcome.state === 'filled' ||
+            outcome.state === 'waitingForTrigger',
         );
-        const recoverableOrderIds = [
-          ...filledReplacementOrderIds,
-          ...remainingReplacementIds.map(String),
-        ];
-        if (recoverableOrderIds.length === 0) {
-          const restoration = await restoreCancelledProtection(
-            confirmedCancelledOldOrderIds,
-          );
-          if (!restoration.success) {
-            return createProtectionLostResult(restoration.restoredOrderIds);
-          }
-        }
-        // A filled replacement may have changed or closed the position, while
-        // an uncancelled replacement may still protect it. Restoring the old
-        // whole-position triggers in either case risks stale or duplicate
-        // protection, so return those IDs for caller reconciliation instead.
-        if (recoverableOrderIds.length > 0) {
-          if (!isPartialTpsl) {
-            return createProtectionLostResult(recoverableOrderIds);
-          }
-          return createErrorResult(
-            new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-            {
-              success: false,
-              childOrderIds: recoverableOrderIds,
-            },
-          );
-        }
-        throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+
+      if (placementAccepted) {
+        return {
+          success: true,
+          orderId: 'TP/SL orders placed',
+        };
       }
 
-      return {
-        success: true,
-        orderId: 'TP/SL orders placed',
-      };
+      const placementOutcomes = await this.#reconcileTpslOrderPlacementOutcomes(
+        {
+          outcomes: initialPlacementOutcomes,
+          orders,
+          previousOrders: openOrdersBeforePlacement,
+          dexName,
+          symbol,
+        },
+      );
+      const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        (outcome.state === 'resting' ||
+          outcome.state === 'waitingForTrigger' ||
+          outcome.state === 'unknown') &&
+        outcome.orderId
+          ? [outcome.orderId]
+          : [],
+      );
+      const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome.state === 'filled' && outcome.orderId ? [outcome.orderId] : [],
+      );
+      const hasUnresolvedPlacement =
+        placementStatuses.length !== orders.length ||
+        placementOutcomes.some(
+          (outcome) =>
+            (outcome.state === 'waitingForTrigger' ||
+              outcome.state === 'unknown') &&
+            outcome.orderId === undefined,
+        );
+      const remainingReplacementIds = await this.#cancelOrderRequests(
+        exchangeClient,
+        restingReplacementOrderIds.map((orderId) => ({
+          a: assetId,
+          o: Number(orderId),
+        })),
+      );
+      const recoverableOrderIds = [
+        ...filledReplacementOrderIds,
+        ...remainingReplacementIds.map(String),
+      ];
+      if (hasUnresolvedPlacement) {
+        return createProtectionLostResult(recoverableOrderIds);
+      }
+      if (recoverableOrderIds.length === 0) {
+        const restoration = await restoreCancelledProtection(
+          confirmedCancelledOldOrderIds,
+        );
+        if (!restoration.success) {
+          return createProtectionLostResult(restoration.restoredOrderIds);
+        }
+      }
+      // A filled replacement may have changed or closed the position, while
+      // an uncancelled replacement may still protect it. Restoring the old
+      // whole-position triggers in either case risks stale or duplicate
+      // protection, so return those IDs for caller reconciliation instead.
+      if (recoverableOrderIds.length > 0) {
+        if (!isPartialTpsl) {
+          return createProtectionLostResult(recoverableOrderIds);
+        }
+        return createErrorResult(
+          new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+          {
+            success: false,
+            childOrderIds: recoverableOrderIds,
+          },
+        );
+      }
+      throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
