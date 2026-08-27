@@ -306,8 +306,7 @@ async function getSingleQuote(
     // Explicit source-driven flows use EXACT_INPUT immediately. Other flows
     // start as EXPECTED_OUTPUT until transaction processing determines whether
     // the request embeds transactions.
-    const useExactInput =
-      (isMaxAmount ?? false) || (request.isPostQuote ?? false);
+    const useExactInput = Boolean(isMaxAmount || request.isPostQuote);
 
     const useExecute =
       supports7702 &&
