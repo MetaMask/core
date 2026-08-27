@@ -41,14 +41,7 @@ export {
   getQuotesReceivedProperties,
 } from './utils/metrics/properties.js';
 
-export {
-  getHashPresenceProperties,
-  getQuoteFetchErrorCode,
-  getStatusFailurePhase,
-  getStatusFailureTelemetry,
-  getSubmitErrorCode,
-  getSubmitFailureTelemetry,
-} from './utils/metrics/failure-telemetry.js';
+export { getQuoteFetchErrorCode } from './utils/metrics/failure-telemetry.js';
 
 export type {
   ChainConfiguration,

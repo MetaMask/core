@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add SwapBridge submit and status failure telemetry classifiers for a later emit ([#9947](https://github.com/MetaMask/core/pull/9947))
+  - New exports: `getHashPresenceProperties`, `getStatusFailurePhase`, `getSubmitErrorCode`, `getSubmitFailureTelemetry`, and `getStatusFailureTelemetry`
+  - Classifies submit and status failures from the code path (not from `error_message`)
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^80.1.0` to `^80.1.1` ([#10035](https://github.com/MetaMask/core/pull/10035))
