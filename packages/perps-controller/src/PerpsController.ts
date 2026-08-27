@@ -56,6 +56,17 @@ import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import {
+  completeSession as completeSessionTransition,
+  failPreflight as failPreflightTransition,
+  legEvent,
+  markPreflightPassed as markPreflightPassedTransition,
+  pauseSession as pauseSessionTransition,
+  resumeSession as resumeSessionTransition,
+  retryLeg as retryLegTransition,
+  startSession as startSessionTransition,
+} from './services/fundingSessionTransitions.js';
+import type { TransitionContext } from './services/fundingSessionTransitions.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
@@ -87,6 +98,7 @@ import type {
   FeeCalculationResult,
   FlipPositionParams,
   Funding,
+  FundingLeg,
   FundingSession,
   GetAccountStateParams,
   GetAvailableDexsParams,
@@ -169,6 +181,13 @@ import { wait } from './utils/wait.js';
 
 /** Derived type for logger options from PerpsLogger interface */
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
+
+/**
+ * Maximum number of terminal (completed/failed) funding sessions retained in
+ * state (D8). Excess terminal sessions are evicted oldest-first by updatedAt
+ * on every funding-session write; non-terminal sessions are never pruned.
+ */
+const MAX_TERMINAL_FUNDING_SESSIONS = 20;
 
 function cloneUserDataSnapshot(
   snapshot: PerpsUserDataSnapshot,
@@ -3139,6 +3158,266 @@ export class PerpsController extends BaseController<
     this.update((state) => {
       state.lastWithdrawResult = null;
     });
+  }
+
+  // ============================================================================
+  // Funding Sessions (composed funding flow: swap → bridge → deposit Legs)
+  // Wrappers around the pure guards in services/fundingSessionTransitions.ts.
+  // The guards own transition rules; these methods own lookup, state replace,
+  // and terminal-session pruning. No new messenger events — engine sync rides
+  // the existing stateChange.
+  // ============================================================================
+
+  /**
+   * Prune terminal (completed/failed) funding sessions down to
+   * {@link MAX_TERMINAL_FUNDING_SESSIONS}, evicting oldest-first by updatedAt.
+   * Non-terminal sessions (preflight/active/paused) are never pruned.
+   *
+   * @param state - The controller state to prune in place.
+   */
+  #pruneTerminalFundingSessions(state: PerpsControllerState): void {
+    const terminalSessions = state.fundingSessions.filter(
+      (session) =>
+        session.status === 'completed' || session.status === 'failed',
+    );
+    const excess = terminalSessions.length - MAX_TERMINAL_FUNDING_SESSIONS;
+    if (excess <= 0) {
+      return;
+    }
+    const evictedIds = new Set(
+      [...terminalSessions]
+        .sort((a, b) => a.updatedAt - b.updatedAt)
+        .slice(0, excess)
+        .map((session) => session.id),
+    );
+    state.fundingSessions = state.fundingSessions.filter(
+      (session) => !evictedIds.has(session.id),
+    );
+  }
+
+  /**
+   * Apply a pure funding-session transition to the session with the given id:
+   * find by id (throwing if unknown), apply with the controller clock, replace
+   * the entry in state, then prune terminal sessions. Mirrors how
+   * depositRequests entries are updated in place within a single update().
+   *
+   * @param sessionId - The id of the session to transition.
+   * @param transition - Pure guard applied with `{ now: Date.now() }`.
+   * @returns The updated session.
+   * @throws If no session with the given id exists in state.
+   */
+  #applyFundingTransition(
+    sessionId: string,
+    transition: (
+      session: FundingSession,
+      ctx: TransitionContext,
+    ) => FundingSession,
+  ): FundingSession {
+    let updatedSession: FundingSession | undefined;
+    this.update((state) => {
+      const sessionIndex = state.fundingSessions.findIndex(
+        (session) => session.id === sessionId,
+      );
+      const currentSession = state.fundingSessions[sessionIndex];
+      if (!currentSession) {
+        // Error style matches the pure guards in fundingSessionTransitions.ts.
+        throw new Error(`Funding session ${sessionId}: not found`);
+      }
+      updatedSession = transition(currentSession, { now: Date.now() });
+      state.fundingSessions[sessionIndex] = updatedSession;
+      this.#pruneTerminalFundingSessions(state);
+    });
+    if (!updatedSession) {
+      throw new Error(`Funding session ${sessionId}: not found`);
+    }
+    return updatedSession;
+  }
+
+  /**
+   * Start a new funding session in 'preflight' status with every Leg pending.
+   * Template legs are normalized by the pure guard (stale externalId/failure
+   * stripped).
+   *
+   * @param accountAddress - The Trading EOA the deposit will credit.
+   * @param legs - Template legs for the composed flow.
+   * @returns The newly created session.
+   */
+  startFundingSession(
+    accountAddress: string,
+    legs: FundingLeg[],
+  ): FundingSession {
+    const session = startSessionTransition(accountAddress, legs, {
+      now: Date.now(),
+    });
+    this.update((state) => {
+      // Newest-first, matching depositRequests ordering.
+      state.fundingSessions.unshift(session);
+      this.#pruneTerminalFundingSessions(state);
+    });
+    return session;
+  }
+
+  /**
+   * Transition a funding session from 'preflight' to 'active'.
+   *
+   * @param sessionId - The id of the session.
+   * @returns The updated session.
+   * @throws If the session does not exist or is not in 'preflight' status.
+   */
+  markPreflightPassed(sessionId: string): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      markPreflightPassedTransition(session, ctx),
+    );
+  }
+
+  /**
+   * Transition a funding session from 'preflight' to 'failed' (no funds have
+   * moved). The reason is not persisted on the session (per the A2 ruling) —
+   * it is logged for diagnostics instead.
+   *
+   * @param sessionId - The id of the session.
+   * @param reason - Why preflight failed; logged, not stored.
+   * @returns The updated session.
+   * @throws If the session does not exist or is not in 'preflight' status.
+   */
+  failPreflight(sessionId: string, reason: string): FundingSession {
+    const updated = this.#applyFundingTransition(sessionId, (session, ctx) =>
+      failPreflightTransition(session, reason, ctx),
+    );
+    this.#debugLog('PerpsController: funding session preflight failed', {
+      sessionId,
+      reason,
+    });
+    return updated;
+  }
+
+  /**
+   * Mark a Leg as awaiting the user's signature.
+   *
+   * @param sessionId - The id of the session owning the leg.
+   * @param legIndex - Index of the leg.
+   * @returns The updated session.
+   * @throws If the session or leg is missing, or the leg is not 'pending'.
+   */
+  legAwaitingSignature(sessionId: string, legIndex: number): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      legEvent(session, legIndex, { type: 'awaiting_signature' }, ctx),
+    );
+  }
+
+  /**
+   * Mark a Leg as submitted on-chain, recording the external id
+   * (BridgeStatusController txHistory key or depositRequests id).
+   *
+   * @param sessionId - The id of the session owning the leg.
+   * @param legIndex - Index of the leg.
+   * @param externalId - External tracking id for the submitted leg.
+   * @returns The updated session.
+   * @throws If the session or leg is missing, or the leg is not
+   * 'awaiting_signature'.
+   */
+  legSubmitted(
+    sessionId: string,
+    legIndex: number,
+    externalId: string,
+  ): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      legEvent(session, legIndex, { type: 'submitted', externalId }, ctx),
+    );
+  }
+
+  /**
+   * Mark a Leg as confirmed. Confirming Leg i advances Leg i+1 to pending;
+   * confirming the last Leg does NOT complete the session (credit detection
+   * is mobile-side).
+   *
+   * @param sessionId - The id of the session owning the leg.
+   * @param legIndex - Index of the leg.
+   * @returns The updated session.
+   * @throws If the session or leg is missing, or the leg is not 'submitted'.
+   */
+  legConfirmed(sessionId: string, legIndex: number): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      legEvent(session, legIndex, { type: 'confirmed' }, ctx),
+    );
+  }
+
+  /**
+   * Mark a Leg as failed with a reason and retryable flag.
+   *
+   * @param sessionId - The id of the session owning the leg.
+   * @param legIndex - Index of the leg.
+   * @param reason - Why the leg failed.
+   * @param retryable - Whether the leg may be retried.
+   * @returns The updated session.
+   * @throws If the session or leg is missing, or the leg is neither
+   * 'awaiting_signature' nor 'submitted'.
+   */
+  legFailed(
+    sessionId: string,
+    legIndex: number,
+    reason: string,
+    retryable: boolean,
+  ): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      legEvent(session, legIndex, { type: 'failed', reason, retryable }, ctx),
+    );
+  }
+
+  /**
+   * Return a failed Leg to 'pending' so the composer may retry it. Only
+   * allowed for retryable failures whose predecessor Legs are confirmed.
+   *
+   * @param sessionId - The id of the session owning the leg.
+   * @param legIndex - Index of the leg.
+   * @returns The updated session.
+   * @throws If the leg is not failed, not retryable, or a predecessor is
+   * unconfirmed.
+   */
+  retryLeg(sessionId: string, legIndex: number): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      retryLegTransition(session, legIndex, ctx),
+    );
+  }
+
+  /**
+   * Pause an active funding session (D10).
+   *
+   * @param sessionId - The id of the session.
+   * @returns The updated session.
+   * @throws If the session does not exist or is not 'active'.
+   */
+  pauseSession(sessionId: string): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      pauseSessionTransition(session, ctx),
+    );
+  }
+
+  /**
+   * Resume a paused funding session (D10).
+   *
+   * @param sessionId - The id of the session.
+   * @returns The updated session.
+   * @throws If the session does not exist or is not 'paused'.
+   */
+  resumeSession(sessionId: string): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      resumeSessionTransition(session, ctx),
+    );
+  }
+
+  /**
+   * Complete an active funding session. Driven by mobile-side credit
+   * detection, never by the last Leg confirming.
+   *
+   * @param sessionId - The id of the session.
+   * @returns The updated session.
+   * @throws If the session does not exist or is not 'active'.
+   */
+  completeSession(sessionId: string): FundingSession {
+    return this.#applyFundingTransition(sessionId, (session, ctx) =>
+      completeSessionTransition(session, ctx),
+    );
   }
 
   /**
