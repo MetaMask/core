@@ -20,6 +20,74 @@ import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-dis
 import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 /**
+ * Options for the `scan` strategy, which reads every `*Messenger` type alias
+ * in every file it can find. Used when no single messenger aggregates every
+ * capability.
+ */
+type ScanStrategyOptions = {
+  /** The selected strategy. */
+  strategy: 'scan';
+  /** Directories, relative to the project root, to scan. */
+  scanDirs: string[];
+};
+
+/**
+ * Options for the `root-messenger` strategy, which resolves the unions a
+ * project declares for its root messenger instead of scanning. Used when one
+ * messenger carries every action and event.
+ */
+type RootMessengerStrategyOptions = {
+  /** The selected strategy. */
+  strategy: 'root-messenger';
+  /** The root messenger actions type reference. */
+  rootActions: RootCapabilitiesTypeReference;
+  /** The root messenger events type reference. */
+  rootEvents: RootCapabilitiesTypeReference;
+};
+
+/**
+ * Options for the generate function.
+ */
+export type GenerateOptions = {
+  /** Absolute path to the project to scan. */
+  projectPath: string;
+  /** Absolute path to the output directory for generated docs. */
+  outputDir: string;
+  /**
+   * Short label identifying the project the docs were generated from (e.g.
+   * "Core", "Extension"). Stamped in the index page title.
+   */
+  projectLabel?: string | null;
+  /**
+   * Git commit SHA the docs were generated from. Stamped in the index page
+   * intro so engineers know how current the site is.
+   */
+  commitSha?: string | null;
+} & (ScanStrategyOptions | RootMessengerStrategyOptions);
+
+/**
+ * Result returned by the generate function.
+ */
+export type GenerateResult = {
+  namespaces: number;
+  actions: number;
+  events: number;
+};
+
+/**
+ * The set of directories available to scan for messenger types, resolved from
+ * the project's filesystem layout.
+ */
+type ScanSources = {
+  /** User-configured scan dirs that exist on disk (relative to projectPath). */
+  scanDirs: string[];
+  /** Absolute path to `packages/` if it exists, otherwise null. */
+  packagesDir: string | null;
+  /** Absolute path to `node_modules/@metamask/` if it exists, otherwise null. */
+  nodeModulesDir: string | null;
+};
+
+/**
  * Compute a deduplication score for a messenger item, preferring items with
  * JSDoc and from the "home" package whose name matches the namespace.
  *
@@ -129,74 +197,6 @@ async function resolveRepoBaseUrl(
   const ref = commitSha ?? (await resolveDefaultBranch(projectPath));
   return `${repoUrl}/blob/${ref}/`;
 }
-
-/**
- * Options for the `scan` strategy, which reads every `*Messenger` type alias
- * in every file it can find. Used when no single messenger aggregates every
- * capability.
- */
-type ScanStrategyOptions = {
-  /** The selected strategy. */
-  strategy: 'scan';
-  /** Directories, relative to the project root, to scan. */
-  scanDirs: string[];
-};
-
-/**
- * Options for the `root-messenger` strategy, which resolves the unions a
- * project declares for its root messenger instead of scanning. Used when one
- * messenger carries every action and event.
- */
-type RootMessengerStrategyOptions = {
-  /** The selected strategy. */
-  strategy: 'root-messenger';
-  /** The root messenger actions type reference. */
-  rootActions: RootCapabilitiesTypeReference;
-  /** The root messenger events type reference. */
-  rootEvents: RootCapabilitiesTypeReference;
-};
-
-/**
- * Options for the generate function.
- */
-export type GenerateOptions = {
-  /** Absolute path to the project to scan. */
-  projectPath: string;
-  /** Absolute path to the output directory for generated docs. */
-  outputDir: string;
-  /**
-   * Short label identifying the project the docs were generated from (e.g.
-   * "Core", "Extension"). Stamped in the index page title.
-   */
-  projectLabel?: string | null;
-  /**
-   * Git commit SHA the docs were generated from. Stamped in the index page
-   * intro so engineers know how current the site is.
-   */
-  commitSha?: string | null;
-} & (ScanStrategyOptions | RootMessengerStrategyOptions);
-
-/**
- * Result returned by the generate function.
- */
-export type GenerateResult = {
-  namespaces: number;
-  actions: number;
-  events: number;
-};
-
-/**
- * The set of directories available to scan for messenger types, resolved from
- * the project's filesystem layout.
- */
-type ScanSources = {
-  /** User-configured scan dirs that exist on disk (relative to projectPath). */
-  scanDirs: string[];
-  /** Absolute path to `packages/` if it exists, otherwise null. */
-  packagesDir: string | null;
-  /** Absolute path to `node_modules/@metamask/` if it exists, otherwise null. */
-  nodeModulesDir: string | null;
-};
 
 /**
  * Discover which configured source locations actually exist on disk.
