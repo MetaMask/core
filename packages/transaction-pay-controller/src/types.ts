@@ -838,7 +838,7 @@ export type TransactionPayTotals = {
   /** Total fees for the target transaction and all quotes. */
   fees: TransactionPayFees;
 
-  /** Whether all selected quotes are driven by the source input amount. */
+  /** Whether the selected quotes subtract fees from the destination amount, meaning the input amount is static. */
   isInputBased?: boolean;
 
   /** Total amount of source token required. */
