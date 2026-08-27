@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "12.2.0",
+  "version": "13.0.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -111,15 +111,15 @@
   },
   "devDependencies": {
     "@metamask/account-tree-controller": "^8.0.0",
-    "@metamask/authenticated-user-storage": "^3.0.1",
+    "@metamask/authenticated-user-storage": "^3.0.2",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/geolocation-controller": "^1.0.0",
     "@metamask/keyring-controller": "^27.1.1",
     "@metamask/keyring-internal-api": "^12.0.0",
-    "@metamask/network-controller": "^35.0.1",
+    "@metamask/network-controller": "^36.0.0",
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^6.0.0",
-    "@metamask/transaction-controller": "^69.5.2",
+    "@metamask/transaction-controller": "^69.6.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/uuid": "^8.3.0",

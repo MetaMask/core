@@ -127,6 +127,22 @@ export type Provider = {
 };
 
 /**
+ * Backend-defined ordering for providers.
+ */
+export type ProviderSortOrder = {
+  sortBy: string;
+  ids: string[];
+};
+
+/**
+ * Response from the region providers API.
+ */
+export type ProvidersResponse = {
+  providers: Provider[];
+  sorted?: ProviderSortOrder[];
+};
+
+/**
  * Represents a payment method for funding a purchase.
  */
 export type PaymentMethod = {
@@ -1239,7 +1255,7 @@ export class RampsService {
       crypto?: string | string[];
       payments?: string | string[];
     },
-  ): Promise<{ providers: Provider[] }> {
+  ): Promise<ProvidersResponse> {
     const normalizedRegion = regionCode.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/providers`),
@@ -1276,7 +1292,7 @@ export class RampsService {
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
         );
       }
-      return fetchResponse.json() as Promise<{ providers: Provider[] }>;
+      return fetchResponse.json() as Promise<Partial<ProvidersResponse>>;
     });
 
     if (!response || typeof response !== 'object') {
@@ -1287,7 +1303,10 @@ export class RampsService {
       throw new Error('Malformed response received from providers API');
     }
 
-    return response;
+    return {
+      providers: response.providers,
+      sorted: Array.isArray(response.sorted) ? response.sorted : [],
+    };
   }
 
   /**

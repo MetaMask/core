@@ -1,7 +1,10 @@
 import type { CaipAssetId, CaipChainId, Hex } from '@metamask/utils';
 
 import { MarketCategory } from '../types/index.js';
-import type { MarketType } from '../types/index.js';
+import type {
+  DirectProviderOrderCapabilities,
+  MarketType,
+} from '../types/index.js';
 import type {
   HyperLiquidNetwork,
   HyperLiquidEndpoints,
@@ -12,6 +15,8 @@ import type {
   TradingDefaultsConfig,
   FeeRatesConfig,
 } from '../types/perps-types.js';
+import { STRATEGY_ORDER_TYPES } from '../utils/orderTypes.js';
+import { PROVIDER_CONFIG } from './perpsConfig.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;
@@ -193,6 +198,17 @@ export const BUILDER_FEE_CONFIG = {
     .replace(/\.?0+$/u, '')}%`,
 };
 
+/**
+ * Strategies that HyperLiquid can execute for its routed perp markets.
+ * Providers own this declaration so clients never infer support from a
+ * provider name.
+ */
+export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
+  status: 'ready',
+  providerId: PROVIDER_CONFIG.DefaultProvider,
+  supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
+}) satisfies DirectProviderOrderCapabilities;
+
 // Referral code configuration
 export const REFERRAL_CONFIG = {
   // Production referral code
@@ -367,6 +383,8 @@ export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
   'xyz:ARM': MarketCategory.Stock,
   'xyz:BX': MarketCategory.Stock,
   'xyz:LITE': MarketCategory.Stock,
+  'xyz:CBRS': MarketCategory.Stock,
+  'xyz:SPCX': MarketCategory.Stock,
 
   // xyz DEX - Stocks (Korea)
   'xyz:SKHX': MarketCategory.Stock,
@@ -378,8 +396,6 @@ export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
   'xyz:KIOXIA': MarketCategory.Stock,
 
   // xyz DEX - Pre-IPO
-  'xyz:CBRS': MarketCategory.PreIpo,
-  'xyz:SPCX': MarketCategory.PreIpo,
   'xyz:IPOP': MarketCategory.PreIpo,
 
   // xyz DEX - Indices

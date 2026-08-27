@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "8.1.2",
+  "version": "9.0.0",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "Ethereum",

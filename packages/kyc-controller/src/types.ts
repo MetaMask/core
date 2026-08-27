@@ -8,29 +8,76 @@
 
 /**
  * A MetaMask feature that consumes KYC. Used to key the per-product
- * "is KYC required" cache so ramps and card can share one controller.
+ * "is KYC required" cache so ramps, card, and money can share one controller.
  */
-export type KycProduct = 'ramps' | 'card';
+export type KycProduct = 'ramps' | 'card' | 'money';
 
 /**
  * Identity vendors supported behind the KYC surface.
+ *
+ * - `moonpay` — MoonPay Check/Auth frames + SumSub documents.
+ * - `iron` — Iron-only Money/VBA path: empty-shell customer → consents →
+ *   SumSub, with no MoonPay Check/Auth frames.
  */
-export type KycVendor = 'moonpay';
+export type KycVendor = 'moonpay' | 'iron';
+
+/**
+ * Vendor-scoped identity for the currently authenticated KYC customer.
+ *
+ * Exposed to consumers (e.g. ramps) that must attach the vendor customer id to
+ * downstream provider calls without reading the full KYC state, which also
+ * holds session/access tokens. The identifier is session-scoped: it is only
+ * available once the customer has authenticated through the current flow and
+ * is cleared on `reset()`.
+ */
+export type KycCustomerIdentity = {
+  /** The identity vendor that issued {@link KycCustomerIdentity.id}. */
+  vendor: KycVendor;
+  /** The vendor customer id (e.g. MoonPay customer UUID). */
+  id: string;
+};
+
+/**
+ * User-keyed KYC status returned by `GET /kyc/status` and stored for toast /
+ * banner rendering. Collapses vendor + SumSub / relay state into the offsite
+ * contract.
+ */
+export type KycUserStatus =
+  | 'not-started'
+  | 'pending'
+  | 'need-more-information'
+  | 'terminal-failure'
+  | 'completed';
+
+/**
+ * Payload from `GET /kyc/status`, including optional fields that power the
+ * 3-state error contract (retryable SumSub vs terminal vs EDD).
+ */
+export type KycUserStatusResponse = {
+  status: KycUserStatus;
+  /** Present when the user can reopen a SumSub session (retryable path). */
+  sumsubSessionId?: string;
+  /** Machine-readable error code for terminal / EDD UX. */
+  errorCode?: string;
+};
 
 /**
  * Phases of the end-to-end identity flow.
  *
  * - `idle` — nothing started.
  * - `terms` — waiting for the customer to accept the vendor terms.
- * - `session` — creating the vendor session.
- * - `check` — running the invisible connection-check frame.
- * - `auth` — running the visible authentication (OTP) frame.
+ * - `session` — creating the vendor session (MoonPay) or creating the UKYC
+ *   session and recording session-scoped disclaimers (non-MoonPay vendors).
+ * - `check` — running the invisible connection-check frame (MoonPay only).
+ * - `auth` — running the visible authentication (OTP) frame (MoonPay only).
  * - `form` — authenticated. When the flow is scoped to a product, the
  *   KYC-required check runs automatically from here; otherwise the consumer
- *   drives it manually via `checkKycRequired`.
- * - `submit` — submitting the KYC-required check.
- * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub`. When KYC is
- *   required, the document-verification sub-flow is launched automatically.
+ *   drives it manually via `checkKycRequired`. Consents-path vendors skip
+ *   this phase.
+ * - `submit` — submitting the KYC-required check / launching SumSub.
+ * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub` /
+ *   `userStatus`. When KYC is required, the document-verification sub-flow is
+ *   launched automatically.
  * - `error` — flow halted; see `error`.
  */
 export type KycPhase =
@@ -91,8 +138,8 @@ export type KycSessionStatus = {
 };
 
 /**
- * A single disclaimer/term the customer must accept before a session is
- * created.
+ * A single disclaimer/term the customer must accept before a vendor session is
+ * created (`GET /vendors/{vendor}/disclaimers`).
  */
 export type KycDisclaimer = {
   id: string;
@@ -100,6 +147,59 @@ export type KycDisclaimer = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   display_name: string;
   url: string;
+};
+
+/**
+ * A vendor T&C signing returned by `POST /vendors/{vendor}/disclaimers`.
+ */
+export type KycVendorSigning = {
+  /** Iron signing id. */
+  id: string;
+  // Mirrors the vendor API response field, which is snake_case.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  customer_id: string;
+  // Mirrors the vendor API response field, which is snake_case.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  content_id?: string;
+};
+
+/**
+ * A legal document in the session-scoped idOS / KYC-provider catalog
+ * (`GET`/`POST /sessions/{sessionId}/disclaimers`).
+ */
+export type KycConsentDocument = {
+  /** Stable identifier of the legal document. */
+  key: string;
+  /** Version of the document currently in force. */
+  version: string;
+  /** Human-readable document title. */
+  title: string;
+  /** URL the document body is hosted at. */
+  url: string;
+  /** Whether this session already consented to this document version. */
+  consented: boolean;
+};
+
+/**
+ * A consent record posted for a catalog document. `key` and `version` must
+ * match the current session catalog.
+ */
+export type KycConsentRecord = {
+  key: string;
+  version: string;
+};
+
+/**
+ * Session-scoped disclaimer catalog returned by
+ * `GET`/`POST /sessions/{sessionId}/disclaimers`.
+ */
+export type KycSessionDisclaimers = {
+  /** idOS legal documents. */
+  idOS: KycConsentDocument[];
+  /** KYC provider (SumSub) legal documents. */
+  kycProvider: KycConsentDocument[];
+  /** Whether the user consented to reuse existing idOS credentials. */
+  credentialReusabilityConsentGiven: boolean;
 };
 
 /**

@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [111.1.3]
+
 ### Changed
 
-- Update `DeFiPositionsControllerV2` for the flat Accounts API v6 balances response: processing polling is driven by the response-level `processingDefiPositions` account-ID array ([#9911](https://github.com/MetaMask/core/pull/9911))
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-enablement-controller` from `^6.0.4` to `^6.0.5` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.6.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [111.1.2]
+
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
 - Bump `@metamask/network-enablement-controller` from `^6.0.3` to `^6.0.4` ([#9923](https://github.com/MetaMask/core/pull/9923))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/core-backend` from `^8.1.2` to `^9.0.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+
+### Fixed
+
+- Read DeFi balances from the flat Accounts API v6 `balances` response ([#9911](https://github.com/MetaMask/core/pull/9911))
 
 ## [111.1.1]
 
@@ -3431,7 +3448,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.3...HEAD
+[111.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.2...@metamask/assets-controllers@111.1.3
+[111.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.1...@metamask/assets-controllers@111.1.2
 [111.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.0...@metamask/assets-controllers@111.1.1
 [111.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.0.0...@metamask/assets-controllers@111.1.0
 [111.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@110.1.1...@metamask/assets-controllers@111.0.0

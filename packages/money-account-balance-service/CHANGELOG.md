@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.3]
+
 ### Changed
 
-- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/money-account-api-data-service` from `^0.4.0` to `^0.4.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [2.4.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
@@ -140,7 +149,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.3...HEAD
+[2.4.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.2...@metamask/money-account-balance-service@2.4.3
+[2.4.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...@metamask/money-account-balance-service@2.4.2
 [2.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.0...@metamask/money-account-balance-service@2.4.1
 [2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.3.0...@metamask/money-account-balance-service@2.4.0
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.2.0...@metamask/money-account-balance-service@2.3.0

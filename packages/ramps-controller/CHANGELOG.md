@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isFeeExcludedFromFiat` quote requests and preserve the provider `extraFee` response field. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add the `extraFee` field to the `Quote` type so consumers can read the partner (MetaMask) fee the ramps API already returns alongside `providerFee` and `networkFee`. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
 ### Changed
 
+- Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses. ([#9955](https://github.com/MetaMask/core/pull/9955))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 
 ## [20.0.0]
