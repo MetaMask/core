@@ -2933,7 +2933,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('reports filled rungs but keeps only resting rungs in a recovery group', async () => {
+    it('reports accepted IDs after a non-ok response but keeps only resting rungs recoverable', async () => {
       const cancel = jest
         .fn()
         .mockResolvedValueOnce({
