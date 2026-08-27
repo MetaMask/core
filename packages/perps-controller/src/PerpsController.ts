@@ -183,6 +183,16 @@ import { wait } from './utils/wait.js';
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
 
 /**
+ * Outcome applied to a funding session's deposit Leg from the deposit path
+ * (composed funding flow). Confirmation carries the depositRequests id so the
+ * Leg links to its history entry; failure carries the reason (retryable is
+ * always true — the user keeps their funds and may re-attempt the deposit).
+ */
+type DepositLegOutcome =
+  | { type: 'confirmed'; depositRequestId?: string }
+  | { type: 'failed'; reason: string };
+
+/**
  * Maximum number of terminal (completed/failed) funding sessions retained in
  * state (D8). Excess terminal sessions are evicted oldest-first by updatedAt
  * on every funding-session write; non-terminal sessions are never pruned.
@@ -2861,7 +2871,7 @@ export class PerpsController extends BaseController<
   async depositWithConfirmation(
     params: DepositWithConfirmationParams = {},
   ): Promise<{ result: Promise<string> }> {
-    const { amount, placeOrder } = params;
+    const { amount, placeOrder, fundingSessionId } = params;
 
     let currentDepositId: string | undefined;
 
@@ -2994,6 +3004,16 @@ export class PerpsController extends BaseController<
               }
             });
 
+            // Composed funding flow: confirm the session's deposit Leg and
+            // link it to the depositRequests entry. Bookkeeping only — it can
+            // never break the deposit path (errors are caught + logged).
+            if (fundingSessionId) {
+              this.#applyDepositLegOutcome(fundingSessionId, {
+                type: 'confirmed',
+                depositRequestId: currentDepositId,
+              });
+            }
+
             // Clear depositInProgress after a short delay
             setTimeout(() => {
               this.update((state) => {
@@ -3032,6 +3052,15 @@ export class PerpsController extends BaseController<
                   requestToUpdate.success = false;
                 }
               });
+
+              // Composed funding flow: the deposit Leg failed (user kept
+              // their funds, so the Leg is retryable).
+              if (fundingSessionId) {
+                this.#applyDepositLegOutcome(fundingSessionId, {
+                  type: 'failed',
+                  reason: 'cancelled',
+                });
+              }
             } else {
               // Transaction failed after confirmation - show error toast
               this.update((state) => {
@@ -3057,6 +3086,15 @@ export class PerpsController extends BaseController<
                   }
                 }
               });
+
+              // Composed funding flow: the deposit Leg failed (user kept
+              // their funds, so the Leg is retryable).
+              if (fundingSessionId) {
+                this.#applyDepositLegOutcome(fundingSessionId, {
+                  type: 'failed',
+                  reason: errorMessage,
+                });
+              }
             }
           });
       } else if (depositOrderResult) {
@@ -3073,6 +3111,16 @@ export class PerpsController extends BaseController<
                 requestToUpdate.txHash = actualTxHash;
               }
             });
+
+            // Composed funding flow: confirm the session's deposit Leg and
+            // link it to the depositRequests entry. Bookkeeping only — it can
+            // never break the deposit path (errors are caught + logged).
+            if (fundingSessionId) {
+              this.#applyDepositLegOutcome(fundingSessionId, {
+                type: 'confirmed',
+                depositRequestId: currentDepositId,
+              });
+            }
             return undefined;
           })
           .catch((error) => {
@@ -3096,6 +3144,15 @@ export class PerpsController extends BaseController<
                 requestToUpdate.success = false;
               }
             });
+
+            // Composed funding flow: the deposit Leg failed (user kept
+            // their funds, so the Leg is retryable).
+            if (fundingSessionId) {
+              this.#applyDepositLegOutcome(fundingSessionId, {
+                type: 'failed',
+                reason: isCancellation ? 'cancelled' : errorMessage,
+              });
+            }
           });
       }
 
@@ -3231,6 +3288,71 @@ export class PerpsController extends BaseController<
       throw new Error(`Funding session ${sessionId}: not found`);
     }
     return updatedSession;
+  }
+
+  /**
+   * Apply a deposit outcome to the deposit Leg of a funding session (composed
+   * funding flow). Called from the deposit lifecycle callbacks, which run
+   * outside any update(), so reusing the public session actions here is safe
+   * from nested-update hazards.
+   *
+   * Bookkeeping only: every error — including the idempotency throw from the
+   * pure guards when a confirmed Leg is re-confirmed (duplicated success
+   * application) — is caught and logged so the deposit path can never crash
+   * because of session bookkeeping.
+   *
+   * @param fundingSessionId - The session to update.
+   * @param outcome - The deposit-leg outcome to apply.
+   */
+  #applyDepositLegOutcome(
+    fundingSessionId: string,
+    outcome: DepositLegOutcome,
+  ): void {
+    try {
+      const session = this.state.fundingSessions.find(
+        (candidate) => candidate.id === fundingSessionId,
+      );
+      const depositLegIndex = session?.legs.findIndex(
+        (leg) => leg.kind === 'deposit',
+      );
+      if (!session || depositLegIndex === undefined || depositLegIndex === -1) {
+        // Exactly one deposit Leg exists by construction; a missing session
+        // or Leg is a defect state — log it, never crash the deposit path.
+        this.#debugLog(
+          'PerpsController: funding session deposit leg not found for outcome',
+          { sessionId: fundingSessionId, outcomeType: outcome.type },
+        );
+        return;
+      }
+      if (outcome.type === 'confirmed') {
+        this.legConfirmed(fundingSessionId, depositLegIndex);
+        if (outcome.depositRequestId) {
+          this.update((state) => {
+            const linked = state.fundingSessions.find(
+              (candidate) => candidate.id === fundingSessionId,
+            );
+            if (linked) {
+              linked.depositRequestId = outcome.depositRequestId;
+            }
+          });
+        }
+      } else {
+        this.legFailed(fundingSessionId, depositLegIndex, outcome.reason, true);
+      }
+    } catch (error) {
+      // Idempotency mechanism (A2): a duplicated success application throws
+      // inside the pure guard (confirmed Legs are never re-run). Swallow and
+      // log — the deposit path must never crash because of bookkeeping.
+      this.#debugLog(
+        'PerpsController: funding session deposit leg outcome skipped',
+        {
+          sessionId: fundingSessionId,
+          outcomeType: outcome.type,
+          error: ensureError(error, 'PerpsController.depositWithConfirmation')
+            .message,
+        },
+      );
+    }
   }
 
   /**

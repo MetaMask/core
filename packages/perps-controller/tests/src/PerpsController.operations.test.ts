@@ -31,6 +31,8 @@ import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
+  FundingLegStatus,
+  FundingSession,
   GetAvailableDexsParams,
   PerpsProvider,
   PerpsPlatformDependencies,
@@ -1798,6 +1800,266 @@ describe('PerpsController', () => {
         expect(depositController.state.lastDepositTransactionId).toBeNull();
         expect(depositController.state.lastDepositResult).toBeNull();
       }
+    });
+
+    describe('funding session linkage', () => {
+      const fundingSessionId = 'funding-deposit-link-1';
+
+      /**
+       * A session with a confirmed swap Leg followed by the deposit Leg, as
+       * the composed funding flow would have it right before the deposit
+       * transaction is confirmed on-chain.
+       *
+       * @param depositLegStatus - Status of the deposit Leg.
+       * @returns A linked funding session.
+       */
+      const buildLinkedSession = (
+        depositLegStatus: FundingLegStatus = 'submitted',
+      ): FundingSession => ({
+        id: fundingSessionId,
+        accountAddress: '0x1234567890123456789012345678901234567890',
+        createdAt: 1_700_000_000_000,
+        updatedAt: 1_700_000_000_000,
+        status: 'active',
+        legs: [
+          {
+            kind: 'swap',
+            capability: { requiresDeviceSignature: false, silent: true },
+            status: 'confirmed',
+          },
+          {
+            kind: 'deposit',
+            capability: { requiresDeviceSignature: false, silent: true },
+            status: depositLegStatus,
+          },
+        ],
+      });
+
+      const seedFundingSession = (session: FundingSession): void => {
+        depositController.testUpdate((state) => {
+          state.fundingSessions = [session];
+        });
+      };
+
+      it('confirms the deposit leg and links the depositRequestId on success', async () => {
+        // Arrange
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        seedFundingSession(buildLinkedSession());
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          fundingSessionId,
+        });
+        await result;
+
+        // Assert
+        const session = depositController.state.fundingSessions[0];
+        expect(session?.legs[1]?.status).toBe('confirmed');
+        expect(session?.depositRequestId).toBe(mockDepositId);
+        // The plain deposit path is unaffected by the linkage.
+        expect(depositController.state.depositRequests[0]?.status).toBe(
+          'completed',
+        );
+        expect(depositController.state.depositRequests[0]?.success).toBe(true);
+      });
+
+      it('does not crash when the deposit leg was already confirmed (duplicated success)', async () => {
+        // Arrange: the deposit Leg is already confirmed, so the second
+        // 'confirmed' application throws inside the pure guard and must be
+        // caught + logged, never propagated to the deposit path.
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        seedFundingSession(buildLinkedSession('confirmed'));
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          fundingSessionId,
+        });
+        await result;
+
+        // Assert: the deposit still completed and session state is consistent.
+        expect(depositController.state.depositRequests[0]?.status).toBe(
+          'completed',
+        );
+        const session = depositController.state.fundingSessions[0];
+        expect(session?.legs[1]?.status).toBe('confirmed');
+        expect(session?.status).toBe('active');
+        expect(depositInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          expect.stringContaining('deposit leg outcome skipped'),
+          expect.objectContaining({ sessionId: fundingSessionId }),
+        );
+      });
+
+      it('marks the deposit leg failed as retryable when the user cancels', async () => {
+        // Arrange
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        seedFundingSession(buildLinkedSession());
+        depositMockCall.mockImplementation(
+          (action: string, ..._args: unknown[]) => {
+            if (
+              action ===
+              'AccountTreeController:getAccountsFromSelectedAccountGroup'
+            ) {
+              return [
+                {
+                  address: '0x1234567890123456789012345678901234567890',
+                  type: 'eip155:eoa',
+                },
+              ];
+            }
+            if (action === 'TransactionController:addTransaction') {
+              return Promise.resolve({
+                result: Promise.reject(
+                  new Error('User rejected transaction signature'),
+                ),
+                transactionMeta: mockTransactionMeta,
+              });
+            }
+            if (action === 'NetworkController:findNetworkClientIdByChainId') {
+              return mockNetworkClientId;
+            }
+            if (action === 'RemoteFeatureFlagController:getState') {
+              return { remoteFeatureFlags: {} };
+            }
+            return undefined;
+          },
+        );
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          fundingSessionId,
+        });
+        await expect(result).rejects.toThrow('User rejected');
+
+        // Assert
+        const depositLeg = depositController.state.fundingSessions[0]?.legs[1];
+        expect(depositLeg?.status).toBe('failed');
+        expect(depositLeg?.failure?.reason).toBe('cancelled');
+        expect(depositLeg?.failure?.retryable).toBe(true);
+      });
+
+      it('marks the deposit leg failed as retryable when the transaction fails', async () => {
+        // Arrange
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        seedFundingSession(buildLinkedSession());
+        depositMockCall.mockImplementation(
+          (action: string, ..._args: unknown[]) => {
+            if (
+              action ===
+              'AccountTreeController:getAccountsFromSelectedAccountGroup'
+            ) {
+              return [
+                {
+                  address: '0x1234567890123456789012345678901234567890',
+                  type: 'eip155:eoa',
+                },
+              ];
+            }
+            if (action === 'TransactionController:addTransaction') {
+              return Promise.resolve({
+                result: Promise.reject(new Error('Network error occurred')),
+                transactionMeta: mockTransactionMeta,
+              });
+            }
+            if (action === 'NetworkController:findNetworkClientIdByChainId') {
+              return mockNetworkClientId;
+            }
+            if (action === 'RemoteFeatureFlagController:getState') {
+              return { remoteFeatureFlags: {} };
+            }
+            return undefined;
+          },
+        );
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          fundingSessionId,
+        });
+        await expect(result).rejects.toThrow('Network error occurred');
+
+        // Assert
+        const depositLeg = depositController.state.fundingSessions[0]?.legs[1];
+        expect(depositLeg?.status).toBe('failed');
+        expect(depositLeg?.failure?.reason).toBe('Network error occurred');
+        expect(depositLeg?.failure?.retryable).toBe(true);
+      });
+
+      it('leaves funding sessions untouched when no fundingSessionId is provided', async () => {
+        // Arrange
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        const seed = buildLinkedSession();
+        seedFundingSession(seed);
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+        });
+        await result;
+
+        // Assert: the seeded session is byte-identical to its pre-deposit state.
+        expect(depositController.state.fundingSessions[0]).toStrictEqual(seed);
+      });
+
+      it('does not crash the deposit when the referenced session is missing', async () => {
+        // Arrange: exactly one deposit Leg exists by construction, so an
+        // unknown session id is a defect state — log it, never crash.
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          fundingSessionId: 'funding-unknown',
+        });
+        await result;
+
+        // Assert: the deposit completed normally.
+        expect(depositController.state.depositRequests[0]?.status).toBe(
+          'completed',
+        );
+      });
+
+      it('confirms the deposit leg for the deposit+order flow on success', async () => {
+        // Arrange
+        depositController.testMarkInitialized();
+        depositController.testSetProviders(
+          new Map([['hyperliquid', mockProvider]]),
+        );
+        seedFundingSession(buildLinkedSession());
+
+        // Act
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          placeOrder: true,
+          fundingSessionId,
+        });
+        await result;
+
+        // Assert
+        const session = depositController.state.fundingSessions[0];
+        expect(session?.legs[1]?.status).toBe('confirmed');
+        expect(session?.depositRequestId).toBe(mockDepositId);
+      });
     });
   });
 

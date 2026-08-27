@@ -793,6 +793,11 @@ export type DepositWithConfirmationParams = {
   amount?: string;
   /** If true, uses addTransaction instead of submit to avoid navigation (e.g. deposit + place order flow) */
   placeOrder?: boolean;
+  /**
+   * Funding session whose deposit Leg this deposit fulfils (composed funding
+   * flow). Absent = plain deposit with no session bookkeeping.
+   */
+  fundingSessionId?: string;
 };
 
 export type DepositResult = {
