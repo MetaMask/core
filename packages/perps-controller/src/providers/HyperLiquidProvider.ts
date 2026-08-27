@@ -5775,8 +5775,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * The whole ladder goes in a single `order` action, which is one round trip
    * and one signature rather than one per rung. It is **not** atomic: an `na`
-   * grouping evaluates each entry independently. Every rung must either rest
-   * or fill; otherwise all known resting rungs are retracted before failure.
+   * grouping evaluates each entry independently. Accepted rungs remain live and
+   * are returned to the caller when another rung is rejected.
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
@@ -5788,7 +5788,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     context: StrategyPlacementContext,
     generation: number,
   ): Promise<OrderResult> {
-    const { assetId, formattedSize, ladder, builder } = context;
+    const { assetId, szDecimals, formattedSize, ladder, builder } = context;
     // Built and validated in `#prepareStrategyPlacement`, before anything was
     // signed, so what is submitted here is exactly what the minimums were
     // applied to.
@@ -5824,19 +5824,56 @@ export class HyperLiquidProvider implements PerpsProvider {
       ...(builder && { builder }),
     });
 
-    const statuses = result.response?.data?.statuses ?? [];
+    const rawStatuses = result.response?.data?.statuses;
+    const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
     const outcomes = statuses
       .slice(0, count)
       .map((status) => this.#readOrderPlacementOutcome(status));
     const acceptedCount = outcomes.filter(
       (outcome) => outcome !== undefined,
     ).length;
-    const restingChildOrderIds = outcomes.flatMap((outcome) =>
-      outcome?.state === 'resting' ? [outcome.orderId] : [],
+    const acceptedRungs = outcomes.flatMap((outcome, index) =>
+      outcome === undefined
+        ? []
+        : [
+            {
+              orderId: outcome.orderId,
+              state: outcome.state,
+              price: prices[index],
+              size: sizes[index],
+            },
+          ],
     );
-    const filledChildOrderIds = outcomes.flatMap((outcome) =>
-      outcome?.state === 'filled' ? [outcome.orderId] : [],
+    const acceptedChildOrderIds = acceptedRungs.map((rung) => rung.orderId);
+    const restingChildOrderIds = acceptedRungs.flatMap((rung) =>
+      rung.state === 'resting' ? [rung.orderId] : [],
     );
+    const filledChildOrderIds = acceptedRungs.flatMap((rung) =>
+      rung.state === 'filled' ? [rung.orderId] : [],
+    );
+    const buildAcceptedResult = (): OrderResult => {
+      const submittedSize =
+        acceptedCount === count
+          ? formattedSize
+          : formatHyperLiquidSize({
+              size: acceptedRungs.reduce(
+                (total, rung) => total + parseFloat(rung.size),
+                0,
+              ),
+              szDecimals,
+            });
+      const submittedValue = acceptedRungs.reduce(
+        (total, rung) => total + parseFloat(rung.size) * parseFloat(rung.price),
+        0,
+      );
+      return {
+        success: true,
+        orderId: groupId,
+        childOrderIds: acceptedChildOrderIds,
+        submittedSize,
+        averagePrice: String(submittedValue / parseFloat(submittedSize)),
+      };
+    };
 
     if (generation !== this.#strategyGeneration) {
       const remainingOrderIds = await this.#cancelOrderRequests(
@@ -5874,6 +5911,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         requested: count,
         statuses,
       });
+      const isValidPartial =
+        result.status === 'ok' &&
+        statuses.length === count &&
+        acceptedCount > 0 &&
+        acceptedCount < count;
+      if (isValidPartial) {
+        this.#scaleOrderGroups.set(groupId, {
+          symbol: params.symbol,
+          orderIds: restingChildOrderIds,
+        });
+        return buildAcceptedResult();
+      }
       const remainingOrderIds = await this.#cancelOrderRequests(
         exchangeClient,
         restingChildOrderIds.map((orderId) => ({
@@ -5917,12 +5966,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol: params.symbol,
       orderIds: restingChildOrderIds,
     });
-    return {
-      success: true,
-      orderId: groupId,
-      childOrderIds: restingChildOrderIds,
-      submittedSize: formattedSize,
-    };
+    return buildAcceptedResult();
   }
 
   /**

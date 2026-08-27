@@ -2871,16 +2871,24 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result.success).toBe(true);
       expect(result.childOrderIds).toStrictEqual(['11', '22', '33']);
+      expect(result.submittedSize).toBe('1');
+      expect(result.averagePrice).toBe('2499.95');
       expect(result.orderId).toMatch(/^scale:/u);
     });
 
-    it('fails when the ladder rested nothing', async () => {
+    it('fails when every rung is rejected', async () => {
       useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
             status: 'ok',
             response: {
-              data: { statuses: [{ error: 'Insufficient margin' }] },
+              data: {
+                statuses: [
+                  { error: 'Insufficient margin' },
+                  { error: 'Insufficient margin' },
+                  { error: 'Insufficient margin' },
+                ],
+              },
             },
           }),
         },
@@ -2896,6 +2904,33 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_REJECTED);
+    });
+
+    it.each([
+      ['missing', undefined],
+      ['non-array', { resting: { oid: 11 } }],
+    ])('rejects %s placement statuses', async (_label, statuses) => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses } },
+          }),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+      });
     });
 
     it('reports filled rungs but keeps only resting rungs in a recovery group', async () => {
@@ -2914,7 +2949,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
-            status: 'ok',
+            status: 'err',
             response: {
               data: {
                 statuses: [
@@ -4718,14 +4753,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
     };
 
-    it('retracts every rung when the ladder only partly rests', async () => {
+    it('keeps accepted rungs when the ladder only partly rests', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue(partlyRested),
-          cancel: jest.fn().mockResolvedValue({
-            status: 'ok',
-            response: { data: { statuses: ['success', 'success'] } },
-          }),
         },
       });
 
@@ -4738,18 +4769,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       expect(result).toMatchObject({
-        success: false,
-        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        success: true,
+        childOrderIds: ['11', '33'],
+        submittedSize: '0.6667',
+        averagePrice: '2499.9250037498123',
       });
-      expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [
-          { a: 1, o: 11 },
-          { a: 1, o: 33 },
-        ],
-      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
 
-    it('reports submitted exposure when a partial ladder fills a rung', async () => {
+    it('returns filled and resting IDs but cancels only resting rungs', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
@@ -4780,11 +4808,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       expect(result).toMatchObject({
-        success: false,
-        error: PERPS_ERROR_CODES.ORDER_REJECTED,
-        childOrderIds: ['11'],
-        submittedSize: '1',
+        success: true,
+        childOrderIds: ['11', '33'],
+        submittedSize: '0.6667',
+        averagePrice: '2499.9250037498123',
       });
+
+      const cancelled = await provider.cancelOrder({
+        orderId: result.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(cancelled.success).toBe(true);
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 33 }],
       });
@@ -4805,7 +4841,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(partlyRested),
+          order: jest.fn().mockResolvedValue({
+            ...partlyRested,
+            status: 'err',
+          }),
           cancel,
         },
       });
@@ -4843,7 +4882,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('accepts filled rungs but exposes only resting rungs for cancellation', async () => {
+    it('accepts filled rungs and exposes all accepted IDs in the result', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
@@ -4875,8 +4914,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(placed).toMatchObject({
         success: true,
-        childOrderIds: ['11', '33'],
+        childOrderIds: ['11', '22', '33'],
         submittedSize: '1',
+        averagePrice: '2499.95',
       });
 
       const cancelled = await provider.cancelOrder({
@@ -4900,7 +4940,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ['unsafe', Number.MAX_SAFE_INTEGER + 1],
       ['non-numeric', '22'],
     ])(
-      'rejects a %s scale order ID and retracts valid rungs',
+      'ignores a %s scale order ID while preserving valid rungs',
       async (_label, oid) => {
         const { exchangeClient } = useStrategyClients({
           exchange: {
@@ -4928,12 +4968,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         } satisfies OrderParams);
 
         expect(placed).toMatchObject({
-          success: false,
-          error: PERPS_ERROR_CODES.ORDER_REJECTED,
+          success: true,
+          childOrderIds: ['11'],
+          submittedSize: '0.3334',
+          averagePrice: '2000',
         });
-        expect(exchangeClient.cancel).toHaveBeenCalledWith({
-          cancels: [{ a: 1, o: 11 }],
-        });
+        expect(exchangeClient.cancel).not.toHaveBeenCalled();
       },
     );
   });

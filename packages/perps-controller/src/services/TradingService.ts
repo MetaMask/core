@@ -188,6 +188,9 @@ export class TradingService {
       result?.success === true
         ? PERPS_EVENT_VALUE.STATUS.EXECUTED
         : PERPS_EVENT_VALUE.STATUS.FAILED;
+    const trackedOrderSize = parseFloat(
+      result?.filledSize ?? result?.submittedSize ?? params.size,
+    );
 
     // Build base properties
     const properties: PerpsAnalyticsProperties = {
@@ -198,9 +201,7 @@ export class TradingService {
         : PERPS_EVENT_VALUE.DIRECTION.SHORT,
       [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
       [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(String(params.leverage ?? 1)),
-      [PERPS_EVENT_PROPERTY.ORDER_SIZE]: parseFloat(
-        result?.filledSize ?? params.size,
-      ),
+      [PERPS_EVENT_PROPERTY.ORDER_SIZE]: trackedOrderSize,
       [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
     };
 
@@ -250,12 +251,12 @@ export class TradingService {
     }
 
     // Calculate order value in USD (size * price)
-    const orderSize = parseFloat(result?.filledSize ?? params.size);
     const assetPrice = result?.averagePrice
       ? parseFloat(result.averagePrice)
       : params.trackingData?.marketPrice;
-    if (assetPrice && orderSize) {
-      properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] = orderSize * assetPrice;
+    if (assetPrice && trackedOrderSize) {
+      properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
+        trackedOrderSize * assetPrice;
     }
 
     // Add success-specific properties

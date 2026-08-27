@@ -411,6 +411,43 @@ describe('TradingService', () => {
       );
     });
 
+    it('tracks accepted Scale size and weighted average price', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'ETH',
+        isBuy: true,
+        size: '1',
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+        trackingData: { marketPrice: 3000 },
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'scale:group',
+        submittedSize: '0.6667',
+        averagePrice: '2499.9250037498123',
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          order_size: 0.6667,
+          asset_price: 2499.9250037498123,
+        }),
+      );
+      const resultProperties =
+        mockDeps.metrics.trackPerpsEvent.mock.calls[1][1];
+      expect(resultProperties.order_value).toBeCloseTo(1666.7);
+    });
+
     it('includes trade_with_token and mm_pay fields when trackingData has tradeWithToken and pay token/network', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
