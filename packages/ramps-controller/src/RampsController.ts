@@ -58,6 +58,7 @@ import type {
   RampsToken,
   RampsServiceActions,
   RampsOrder,
+  ProvidersResponse,
 } from './RampsService.js';
 import { RampsOrderStatus } from './RampsService.js';
 import type {
@@ -1766,7 +1767,7 @@ export class RampsController extends BaseController<
       crypto?: string | string[];
       payments?: string | string[];
     },
-  ): Promise<{ providers: Provider[] }> {
+  ): Promise<ProvidersResponse> {
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -1777,7 +1778,7 @@ export class RampsController extends BaseController<
       options?.payments,
     ]);
 
-    const { providers } = await this.executeRequest(
+    const response = await this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call(
@@ -1796,6 +1797,7 @@ export class RampsController extends BaseController<
         isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
+    const { providers } = response;
 
     this.update((state) => {
       const userRegionCode = state.userRegion?.regionCode;
@@ -1805,7 +1807,7 @@ export class RampsController extends BaseController<
       }
     });
 
-    return { providers };
+    return response;
   }
 
   /**

@@ -634,6 +634,79 @@ describe('SocialService', () => {
       expect(result.positions[0].trades[0].classification).toBeNull();
     });
 
+    it('passes the position lifecycle fields through', async () => {
+      const position = {
+        ...mockPosition,
+        isOpen: true,
+        trades: [{ ...mockTrade, action: 'added' }],
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [position],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].isOpen).toBe(true);
+      expect(result.positions[0].trades[0].action).toBe('added');
+    });
+
+    // The social-api ships independently of this package, so a response from a
+    // deployment that predates `action`/`isOpen` must still validate — clients
+    // fall back to deriving the stage from the trade history.
+    it('accepts a position without the lifecycle fields', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [mockPosition],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].isOpen).toBeUndefined();
+      expect(result.positions[0].trades[0].action).toBeUndefined();
+    });
+
+    it('rejects an unknown trade action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [
+              {
+                ...mockPosition,
+                trades: [{ ...mockTrade, action: 'flipped' }],
+              },
+            ],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchOpenPositions({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
+      );
+    });
+
     it('rejects an invalid perpPositionType', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

@@ -70,6 +70,7 @@ export type {
 export {
   type QuoteMetadata,
   type TokenAmountValues,
+  QuoteMetadataMigrationPhase,
 } from './utils/quote-metadata/types.js';
 export {
   validateQuoteResponseV1,
@@ -117,6 +118,7 @@ export {
 export {
   validateQuoteResponse,
   type QuoteResponse,
+  isQuoteResponseV2,
 } from './validators/quote-response.js';
 export type { Quote } from './validators/quote.js';
 export { FeeType, DiscountType } from './validators/quote.js';
@@ -128,6 +130,7 @@ export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.j
 export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
 
 export { sumAmounts } from './utils/number-formatters.js';
+export { assetIdsMatch } from './utils/assets.js';
 
 export {
   validateQuoteStreamComplete,

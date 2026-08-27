@@ -14,6 +14,7 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
+  GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
@@ -66,11 +67,13 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #fiatOptions?: TransactionPayFiatOptions;
+
   readonly #getAmountData?: GetAmountDataCallback;
 
-  readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+  readonly #getBalance?: GetBalanceCallback;
 
-  readonly #fiatOptions?: TransactionPayFiatOptions;
+  readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
   readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
@@ -87,6 +90,7 @@ export class TransactionPayController extends BaseController<
   constructor({
     fiatOptions,
     getAmountData,
+    getBalance,
     getDelegationTransaction,
     getPaymentOverrideData,
     getStrategy,
@@ -102,9 +106,10 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.#getAmountData = getAmountData;
-    this.#getDelegationTransaction = getDelegationTransaction;
     this.#fiatOptions = fiatOptions;
+    this.#getAmountData = getAmountData;
+    this.#getBalance = getBalance;
+    this.#getDelegationTransaction = getDelegationTransaction;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
@@ -369,7 +374,12 @@ export class TransactionPayController extends BaseController<
         isPostQuoteUpdated ||
         isAccountOverrideUpdated
       ) {
-        updateSourceAmounts(transactionId, current as never, this.messenger);
+        updateSourceAmounts(
+          transactionId,
+          current as never,
+          this.messenger,
+          this.#getBalance,
+        );
 
         shouldUpdateQuotes = true;
       }

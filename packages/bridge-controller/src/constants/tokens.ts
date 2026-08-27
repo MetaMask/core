@@ -208,7 +208,7 @@ const ROBINHOOD_SWAPS_TOKEN_OBJECT = {
 const ARC_SWAPS_TOKEN_OBJECT = {
   symbol: 'USDC',
   name: 'USDC',
-  address: '0x0000000000000000000000000000000000000000',
+  address: DEFAULT_TOKEN_ADDRESS,
   decimals: 18,
   iconUrl: '',
 } as const;
@@ -264,6 +264,5 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   XLM: 'slip44:148',
   MON: 'slip44:268435779',
   HYPE: 'slip44:2457',
-  // It won't be displayed - hidden on UI client side
-  USDC: 'erc20:0x0000000000000000000000000000000000000000',
+  USDC: 'slip44:5042',
 };

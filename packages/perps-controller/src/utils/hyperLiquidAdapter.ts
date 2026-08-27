@@ -48,6 +48,25 @@ type FrontendOrderWithParentTpsl = FrontendOrder & {
   stopLossOrderId?: unknown;
 };
 
+export const HYPERLIQUID_SCALE_CLOID_MARKER = '4d4d5343';
+
+/**
+ * Recover the Scale group shared by MetaMask-generated rung CLOIDs.
+ *
+ * @param clientOrderId - HyperLiquid client order ID.
+ * @returns The Scale handle, or undefined for an unrelated order.
+ */
+const readScaleGroupId = (clientOrderId: string | null): string | undefined => {
+  const normalized = clientOrderId?.toLowerCase();
+  if (
+    normalized?.length !== 34 ||
+    !normalized.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)
+  ) {
+    return undefined;
+  }
+  return `scale:${normalized.slice(2, -2)}`;
+};
+
 const readOptionalString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
 
@@ -344,6 +363,11 @@ export function adaptOrderFromSDK(
     isTrigger,
     reduceOnly,
   };
+
+  const strategyGroupId = readScaleGroupId(rawOrder.cloid);
+  if (strategyGroupId) {
+    order.strategyGroupId = strategyGroupId;
+  }
 
   if (typeof rawOrder.isPositionTpsl === 'boolean') {
     order.isPositionTpsl = rawOrder.isPositionTpsl;

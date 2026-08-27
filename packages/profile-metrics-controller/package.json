@@ -55,7 +55,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^39.0.7",
+    "@metamask/accounts-controller": "^39.1.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-controller": "^27.1.1",
@@ -66,7 +66,7 @@
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^69.5.1",
+    "@metamask/transaction-controller": "^69.6.1",
     "@metamask/utils": "^11.11.0",
     "async-mutex": "^0.5.0",
     "uuid": "^8.3.2"

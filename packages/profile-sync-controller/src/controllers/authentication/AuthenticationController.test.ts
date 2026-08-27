@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -13,6 +14,10 @@ import {
   MOCK_ACCESS_JWT,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
+import {
+  getMessageSigningPublicKey,
+  signMessageWithMessageSigningKey,
+} from '../../shared/utils/message-signing.js';
 import { AuthenticationController } from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
@@ -24,10 +29,39 @@ import {
   MOCK_OATH_TOKEN_RESPONSE,
 } from './mocks/mockResponses.js';
 
+jest.mock('../../shared/utils/message-signing.js', () => ({
+  MESSAGE_SIGNING_SNAP_ID: 'npm:@metamask/message-signing-snap',
+  getMessageSigningPublicKey: jest.fn(async () => 'MOCK_PUBLIC_KEY'),
+  signMessageWithMessageSigningKey: jest.fn(async () => 'MOCK_SIGNED_MESSAGE'),
+  deriveMessageSigningPrivateKey: jest.fn(),
+  deriveSip6PrivateKey: jest.fn(),
+}));
+
+const MOCK_HD_SEED = new Uint8Array(64).fill(1);
+
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
   'MOCK_ENTROPY_SOURCE_ID2',
 ];
+
+const MOCK_HD_KEYRINGS = MOCK_ENTROPY_SOURCE_IDS.map((id) => ({
+  type: KeyringTypes.hd,
+  accounts: [] as string[],
+  metadata: { id, name: '' },
+}));
+
+const mockHdKeyrings = (
+  ...ids: string[]
+): {
+  type: typeof KeyringTypes.hd;
+  accounts: string[];
+  metadata: { id: string; name: string };
+}[] =>
+  ids.map((id) => ({
+    type: KeyringTypes.hd,
+    accounts: [],
+    metadata: { id, name: '' },
+  }));
 
 type SrpLoginRequestBody = {
   metametrics?: {
@@ -118,12 +152,8 @@ describe('AuthenticationController', () => {
     it('should create access token(s) and update state', async () => {
       const metametrics = createMockAuthMetaMetrics();
       const mockEndpoints = arrangeAuthAPIs();
-      const {
-        messenger,
-        mockSnapGetPublicKey,
-        mockSnapGetAllPublicKeys,
-        mockSnapSignMessage,
-      } = createMockAuthenticationMessenger();
+      const { messenger, mockGetPublicKey, mockSignMessage } =
+        createMockAuthenticationMessenger();
 
       const controller = new AuthenticationController({
         messenger,
@@ -131,12 +161,11 @@ describe('AuthenticationController', () => {
       });
 
       const result = await controller.performSignIn();
-      // 1 from `performSignIn` itself + 1 from `#doPair` →
-      // `#getCanonicalProfileId` → `#getPrimaryEntropySourceId` (cold cache).
-      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(2);
-      expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(2);
+      // SRP enumeration uses KeyringController; native SIP-6 is used for
+      // getPublicKey / signMessage during cold login.
+      expect(mockGetPublicKey).toHaveBeenCalledTimes(2);
       // Primary and secondary tags produce distinct messages, so both are signed.
-      expect(mockSnapSignMessage).toHaveBeenCalledTimes(2);
+      expect(mockSignMessage).toHaveBeenCalledTimes(2);
       mockEndpoints.mockNonceUrl.done();
       mockEndpoints.mockSrpLoginUrl.done();
       mockEndpoints.mockOAuth2TokenUrl.done();
@@ -151,10 +180,10 @@ describe('AuthenticationController', () => {
       }
     });
 
-    it('leverages the _snapSignMessageCache', async () => {
+    it('leverages the signMessage cache', async () => {
       const metametrics = createMockAuthMetaMetrics();
       const mockEndpoints = arrangeAuthAPIs();
-      const { messenger, mockSnapSignMessage } =
+      const { messenger, mockSignMessage } =
         createMockAuthenticationMessenger();
 
       const controller = new AuthenticationController({
@@ -166,7 +195,7 @@ describe('AuthenticationController', () => {
       controller.performSignOut();
       await controller.performSignIn();
       // Both tagged login messages are cached across sign-out / sign-in.
-      expect(mockSnapSignMessage).toHaveBeenCalledTimes(2);
+      expect(mockSignMessage).toHaveBeenCalledTimes(2);
       mockEndpoints.mockNonceUrl.done();
       mockEndpoints.mockSrpLoginUrl.done();
       mockEndpoints.mockOAuth2TokenUrl.done();
@@ -179,7 +208,7 @@ describe('AuthenticationController', () => {
     it('signs primary and secondary login tags for multi-SRP wallets', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
-      const { messenger, mockSnapSignMessage } =
+      const { messenger, mockSignMessage } =
         createMockAuthenticationMessenger();
 
       const controller = new AuthenticationController({
@@ -189,8 +218,8 @@ describe('AuthenticationController', () => {
 
       await controller.performSignIn();
 
-      const signedMessages = mockSnapSignMessage.mock.calls.map(
-        (call) => (call[0] as { message: string }).message,
+      const signedMessages = mockSignMessage.mock.calls.map(
+        (call) => call[0] as string,
       );
       expect(signedMessages).toStrictEqual(
         expect.arrayContaining([
@@ -205,13 +234,14 @@ describe('AuthenticationController', () => {
       arrangeAuthAPIs();
       const {
         messenger,
-        mockSnapSignMessage,
-        mockSnapGetAllPublicKeys,
+        mockSignMessage,
+        mockKeyringControllerGetState,
         mockSeedlessOnboardingGetState,
       } = createMockAuthenticationMessenger();
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        [MOCK_ENTROPY_SOURCE_IDS[0], 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
       mockSeedlessOnboardingGetState.mockReturnValue({
         vault: 'encrypted',
         authConnection: 'google',
@@ -224,10 +254,9 @@ describe('AuthenticationController', () => {
 
       await controller.performSignIn();
 
-      expect(mockSnapSignMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringMatching(/^metamask:[^:]+:[^:]+:primary$/u),
-        }),
+      expect(mockSignMessage).toHaveBeenCalledWith(
+        expect.stringMatching(/^metamask:[^:]+:[^:]+:primary$/u),
+        MOCK_HD_SEED,
       );
     });
 
@@ -245,12 +274,13 @@ describe('AuthenticationController', () => {
       });
       const {
         messenger,
-        mockSnapGetAllPublicKeys,
+        mockKeyringControllerGetState,
         mockSeedlessOnboardingGetState,
       } = createMockAuthenticationMessenger();
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        [MOCK_ENTROPY_SOURCE_IDS[0], 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
       mockSeedlessOnboardingGetState.mockReturnValue({
         vault: 'encrypted',
         authConnection: 'google',
@@ -339,12 +369,13 @@ describe('AuthenticationController', () => {
       });
       const {
         messenger,
-        mockSnapGetAllPublicKeys,
+        mockKeyringControllerGetState,
         mockSeedlessOnboardingGetState,
       } = createMockAuthenticationMessenger();
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        [MOCK_ENTROPY_SOURCE_IDS[0], 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
       mockSeedlessOnboardingGetState.mockReturnValue(seedlessState);
 
       const controller = new AuthenticationController({
@@ -374,12 +405,13 @@ describe('AuthenticationController', () => {
       });
       const {
         messenger,
-        mockSnapGetAllPublicKeys,
+        mockKeyringControllerGetState,
         mockSeedlessOnboardingGetState,
       } = createMockAuthenticationMessenger();
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        [MOCK_ENTROPY_SOURCE_IDS[0], 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
       mockSeedlessOnboardingGetState.mockImplementation(() => {
         throw new Error('SeedlessOnboardingController unavailable');
       });
@@ -417,7 +449,10 @@ describe('AuthenticationController', () => {
       arrangeAuthAPIs();
       const metametrics = createMockAuthMetaMetrics();
 
-      mockKeyringControllerGetState.mockReturnValue({ isUnlocked: true });
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: MOCK_HD_KEYRINGS,
+      });
 
       const controller = new AuthenticationController({
         messenger,
@@ -443,7 +478,7 @@ describe('AuthenticationController', () => {
      */
     async function testAndAssertFailingEndpoints(
       endpointFail: 'nonce' | 'login' | 'token',
-    ) {
+    ): Promise<void> {
       const mockEndpoints = mockAuthenticationFlowEndpoints({
         endpointFail,
       });
@@ -482,12 +517,13 @@ describe('AuthenticationController', () => {
     it('does NOT call pairProfiles when only 1 SRP exists, but clears needsProfilePairing', async () => {
       const metametrics = createMockAuthMetaMetrics();
       const mockEndpoints = arrangeAuthAPIs();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
 
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        ['SINGLE_ENTROPY_SOURCE_ID', 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings('SINGLE_ENTROPY_SOURCE_ID'),
+      });
 
       const controller = new AuthenticationController({
         messenger,
@@ -771,12 +807,13 @@ describe('AuthenticationController', () => {
     it('epoch check: a concurrent requestProfilePairing during single-SRP performSignIn keeps the gate set', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
 
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        ['SINGLE_ENTROPY_SOURCE_ID', 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings('SINGLE_ENTROPY_SOURCE_ID'),
+      });
 
       const controller = new AuthenticationController({
         messenger,
@@ -791,10 +828,10 @@ describe('AuthenticationController', () => {
       expect(controller.state.needsProfilePairing).toBe(true);
     });
 
-    it('epoch check: a requestProfilePairing fired from inside #doPair (between snap call and pair API completion) keeps the gate set', async () => {
+    it('epoch check: a requestProfilePairing fired from inside #doPair (during primary entropy ID resolve) keeps the gate set', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
 
       const controller = new AuthenticationController({
@@ -803,24 +840,23 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      // `#snapGetAllPublicKeys` is called twice per `performSignIn`:
-      //  1. directly inside `performSignIn` (to enumerate SRPs)
-      //  2. indirectly inside `#doPair` → `#getCanonicalProfileId` →
-      //     `#getPrimaryEntropySourceId` (cold cache)
-      // We hook the second call to fire the rearm — this is the realistic
-      // production race window (e.g. user adds an SRP while the pair API
-      // request is in flight).
-      mockSnapGetAllPublicKeys
-        .mockResolvedValueOnce(
-          MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']),
-        )
-        .mockImplementationOnce(async () => {
+      // Keyring reads during this performSignIn:
+      //  1. SRP enumeration at the start of `performSignIn`
+      //  2. `#doPair` → `#getCanonicalProfileId` → `#getPrimaryEntropySourceId`
+      // Fire the rearm on (2) so we cover the in-#doPair race window
+      // (e.g. user adds an SRP while pairing is in flight), not enumeration.
+      let keyringReads = 0;
+      mockKeyringControllerGetState.mockImplementation(() => {
+        keyringReads += 1;
+        if (keyringReads === 2) {
           controller.requestProfilePairing();
-          return MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']);
-        });
+        }
+        return { isUnlocked: true, keyrings: MOCK_HD_KEYRINGS };
+      });
 
       await controller.performSignIn();
 
+      expect(keyringReads).toBeGreaterThanOrEqual(2);
       expect(controller.state.needsProfilePairing).toBe(true);
     });
   });
@@ -993,7 +1029,7 @@ describe('AuthenticationController', () => {
 
     it('resolves undefined entropySourceId to primary and stores token', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
       arrangeAuthAPIs();
 
@@ -1005,7 +1041,7 @@ describe('AuthenticationController', () => {
       const result = await controller.getBearerToken();
       expect(result).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
 
-      expect(mockSnapGetAllPublicKeys).toHaveBeenCalled();
+      expect(mockKeyringControllerGetState).toHaveBeenCalled();
       expect(controller.state.isSignedIn).toBe(true);
       expect(
         controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]],
@@ -1029,9 +1065,9 @@ describe('AuthenticationController', () => {
       expect(resultUndefined).toBe(resultExplicit);
     });
 
-    it('caches the primary entropySourceId resolution across calls', async () => {
+    it('resolves primary entropySourceId from the HD keyring without signing', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockGetPublicKey, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
       const originalState = mockSignedInState();
       const controller = new AuthenticationController({
@@ -1044,15 +1080,19 @@ describe('AuthenticationController', () => {
       await controller.getBearerToken();
       await controller.getBearerToken();
 
-      // Only the first call hits the snap; subsequent calls hit the cache.
-      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
+      // Cached session: no identify/sign; only keyring for primary ID.
+      expect(mockGetPublicKey).not.toHaveBeenCalled();
+      expect(mockKeyringControllerGetState).toHaveBeenCalled();
     });
 
-    it('throws when snap returns no entropy sources', async () => {
+    it('throws when no HD keyring is available', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
-      mockSnapGetAllPublicKeys.mockResolvedValue([]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [],
+      });
 
       const controller = new AuthenticationController({
         messenger,
@@ -1060,23 +1100,7 @@ describe('AuthenticationController', () => {
       });
 
       await expect(controller.getBearerToken()).rejects.toThrow(
-        'No entropy sources found from snap',
-      );
-    });
-
-    it('throws when primary entropy source ID is undefined', async () => {
-      const metametrics = createMockAuthMetaMetrics();
-      const { messenger, mockSnapGetAllPublicKeys } =
-        createMockAuthenticationMessenger();
-      mockSnapGetAllPublicKeys.mockResolvedValue([[undefined, 'MOCK_KEY']]);
-
-      const controller = new AuthenticationController({
-        messenger,
-        metametrics,
-      });
-
-      await expect(controller.getBearerToken()).rejects.toThrow(
-        'Primary entropy source ID is undefined',
+        'no HD keyring available',
       );
     });
   });
@@ -1208,12 +1232,13 @@ describe('AuthenticationController', () => {
     it('should re-login primary SRP and return fresh canonical regardless of SRP count', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
 
-      mockSnapGetAllPublicKeys.mockResolvedValue([
-        ['SINGLE_ENTROPY_SOURCE_ID', 'MOCK_PUBLIC_KEY'],
-      ]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings('SINGLE_ENTROPY_SOURCE_ID'),
+      });
 
       const originalState = mockSignedInState();
       const controller = new AuthenticationController({
@@ -1229,12 +1254,15 @@ describe('AuthenticationController', () => {
       ).toBeDefined();
     });
 
-    it('should throw if snap returns no entropy sources', async () => {
+    it('should throw if no HD keyring is available', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const { messenger, mockSnapGetAllPublicKeys } =
+      const { messenger, mockKeyringControllerGetState } =
         createMockAuthenticationMessenger();
 
-      mockSnapGetAllPublicKeys.mockResolvedValue([]);
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [],
+      });
 
       const controller = new AuthenticationController({
         messenger,
@@ -1242,7 +1270,7 @@ describe('AuthenticationController', () => {
       });
 
       await expect(controller.refreshCanonicalProfileId()).rejects.toThrow(
-        expect.any(Error),
+        'no HD keyring available',
       );
     });
   });
@@ -1616,7 +1644,10 @@ const controllerName = 'AuthenticationController';
  *
  * @returns Auth Messenger
  */
-function createAuthenticationMessenger() {
+function createAuthenticationMessenger(): {
+  messenger: AuthenticationControllerMessenger;
+  baseMessenger: RootMessenger;
+} {
   const rootMessenger = getRootMessenger();
   const messenger = new Messenger<
     typeof controllerName,
@@ -1631,7 +1662,7 @@ function createAuthenticationMessenger() {
     messenger,
     actions: [
       'KeyringController:getState',
-      'SnapController:handleRequest',
+      'KeyringController:withKeyringV2Unsafe',
       'SeedlessOnboardingController:getState',
     ],
     events: ['KeyringController:lock', 'KeyringController:unlock'],
@@ -1645,54 +1676,61 @@ function createAuthenticationMessenger() {
  *
  * @returns Mock Auth Messenger
  */
-function createMockAuthenticationMessenger() {
+function createMockAuthenticationMessenger(): {
+  messenger: AuthenticationControllerMessenger;
+  baseMessenger: RootMessenger;
+  mockGetPublicKey: jest.Mock;
+  mockSignMessage: jest.Mock;
+  mockKeyringControllerGetState: jest.Mock;
+  mockWithKeyringV2Unsafe: jest.Mock;
+  mockSeedlessOnboardingGetState: jest.Mock;
+} {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
 
   const mockCall = jest.spyOn(messenger, 'call');
-  const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
-  const mockSnapGetAllPublicKeys = jest
-    .fn()
-    .mockResolvedValue(
-      MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']),
-    );
-  const mockSnapSignMessage = jest
-    .fn()
-    .mockResolvedValue('MOCK_SIGNED_MESSAGE');
+  const mockGetPublicKey = jest.mocked(getMessageSigningPublicKey);
+  const mockSignMessage = jest.mocked(signMessageWithMessageSigningKey);
+  mockGetPublicKey.mockReset().mockResolvedValue('MOCK_PUBLIC_KEY');
+  mockSignMessage.mockReset().mockResolvedValue('MOCK_SIGNED_MESSAGE');
 
-  const mockKeyringControllerGetState = jest
+  const mockKeyringControllerGetState = jest.fn().mockReturnValue({
+    isUnlocked: true,
+    keyrings: MOCK_HD_KEYRINGS,
+  });
+
+  const mockWithKeyringV2Unsafe = jest
     .fn()
-    .mockReturnValue({ isUnlocked: true });
+    .mockImplementation(
+      async (
+        _selector: { id: string },
+        operation: (context: {
+          keyring: { type: string; seed?: Uint8Array };
+          metadata: { id: string; name: string };
+        }) => Promise<unknown>,
+      ) => {
+        return operation({
+          keyring: { type: 'hd', seed: MOCK_HD_SEED },
+          metadata: { id: 'mock', name: '' },
+        });
+      },
+    );
 
   const mockSeedlessOnboardingGetState = jest
     .fn()
     .mockReturnValue({ vault: null });
 
-  mockCall.mockImplementation((...args) => {
-    const [actionType, params] = args;
-    if (actionType === 'SnapController:handleRequest') {
-      if (typeof params === 'string') {
-        throw new Error(
-          `MOCK_FAIL - unsupported SnapController:handleRequest call: ${params}`,
-        );
-      }
-
-      if (params?.request.method === 'getPublicKey') {
-        return mockSnapGetPublicKey();
-      }
-
-      if (params?.request.method === 'getAllPublicKeys') {
-        return mockSnapGetAllPublicKeys();
-      }
-
-      if (params?.request.method === 'signMessage') {
-        return mockSnapSignMessage(params.request.params);
-      }
-
-      throw new Error(
-        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
-          params?.request.method as string
-        }`,
-      );
+  mockCall.mockImplementation((...args: unknown[]) => {
+    const [actionType] = args;
+    if (actionType === 'KeyringController:withKeyringV2Unsafe') {
+      const [, selector, operation] = args as [
+        typeof actionType,
+        { id: string },
+        (context: {
+          keyring: { type: string; seed?: Uint8Array };
+          metadata: { id: string; name: string };
+        }) => Promise<unknown>,
+      ];
+      return mockWithKeyringV2Unsafe(selector, operation);
     }
 
     if (actionType === 'KeyringController:getState') {
@@ -1711,10 +1749,10 @@ function createMockAuthenticationMessenger() {
   return {
     messenger,
     baseMessenger,
-    mockSnapGetPublicKey,
-    mockSnapGetAllPublicKeys,
-    mockSnapSignMessage,
+    mockGetPublicKey,
+    mockSignMessage,
     mockKeyringControllerGetState,
+    mockWithKeyringV2Unsafe,
     mockSeedlessOnboardingGetState,
   };
 }
@@ -1728,14 +1766,8 @@ function createMockAuthenticationMessenger() {
  */
 function mockAuthenticationFlowEndpoints(params?: {
   endpointFail: 'nonce' | 'login' | 'token' | 'lineage' | 'customerService';
-}) {
-  const {
-    mockNonceUrl,
-    mockOAuth2TokenUrl,
-    mockSrpLoginUrl,
-    mockUserProfileLineageUrl,
-    mockCustomerServiceTokenUrl,
-  } = arrangeAuthAPIs({
+}): ReturnType<typeof arrangeAuthAPIs> {
+  return arrangeAuthAPIs({
     mockNonceUrl:
       params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
     mockSrpLoginUrl:
@@ -1747,14 +1779,6 @@ function mockAuthenticationFlowEndpoints(params?: {
     mockCustomerServiceTokenUrl:
       params?.endpointFail === 'customerService' ? { status: 500 } : undefined,
   });
-
-  return {
-    mockNonceUrl,
-    mockOAuth2TokenUrl,
-    mockSrpLoginUrl,
-    mockUserProfileLineageUrl,
-    mockCustomerServiceTokenUrl,
-  };
 }
 
 /**
@@ -1762,7 +1786,10 @@ function mockAuthenticationFlowEndpoints(params?: {
  *
  * @returns mock metametrics method
  */
-function createMockAuthMetaMetrics() {
+function createMockAuthMetaMetrics(): {
+  getMetaMetricsId: jest.Mock;
+  agent: typeof Platform.EXTENSION;
+} {
   const getMetaMetricsId = jest
     .fn()
     .mockReturnValue(MOCK_LOGIN_RESPONSE.profile.metametrics_id);

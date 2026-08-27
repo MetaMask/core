@@ -35,6 +35,7 @@ export type { CacheEntry } from './CacheManager.js';
 export {
   PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
   getPhishingDetectionScanUrlParam,
+  isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
 } from './utils.js';
 

@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.2]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
-- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.6.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
 
 ## [5.0.1]
 
@@ -302,7 +304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@5.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@5.0.2...HEAD
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@5.0.1...@metamask/gator-permissions-controller@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@5.0.0...@metamask/gator-permissions-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.3...@metamask/gator-permissions-controller@5.0.0
 [4.2.3]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.2...@metamask/gator-permissions-controller@4.2.3

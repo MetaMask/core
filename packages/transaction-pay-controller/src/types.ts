@@ -215,6 +215,33 @@ export type GetAmountDataCallback = (
   request: GetAmountDataRequest,
 ) => Promise<GetAmountDataResponse>;
 
+/** Request passed to {@link GetBalanceCallback}. */
+export type GetBalanceRequest = {
+  /** Metadata of the transaction whose source balance is being resolved. */
+  transaction: TransactionMeta;
+  /** Pay-controller state for the transaction. */
+  transactionData: TransactionData;
+};
+
+/** Balance override returned by {@link GetBalanceCallback}. */
+export type GetBalanceResponse = {
+  /** Balance in atomic format without factoring token decimals. */
+  balanceRaw: string;
+};
+
+/**
+ * Optional client-supplied callback that overrides the built-in
+ * pay-token / required-token balance lookup used for `isMaxAmount`
+ * source-amount calculation. Enables alternate balance sources
+ * (perps, predict, money-account, post-quote, etc.) without adding
+ * conditional branches inside the controller. MUST be synchronous:
+ * it runs inside the controller state-update block.
+ * Return `undefined` to fall back to the built-in token balance.
+ */
+export type GetBalanceCallback = (
+  request: GetBalanceRequest,
+) => GetBalanceResponse | undefined;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -253,6 +280,9 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 export type TransactionPayControllerOptions = {
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
   getAmountData?: GetAmountDataCallback;
+
+  /** Optional callback to override the source balance used for max-amount calculation. */
+  getBalance?: GetBalanceCallback;
 
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;

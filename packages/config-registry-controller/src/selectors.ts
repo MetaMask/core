@@ -1,3 +1,4 @@
+import { CaipChainId, KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import { filterNetworks } from './config-registry-api-service/filters.js';
@@ -35,5 +36,34 @@ export const selectFeaturedNetworks = createSelector(
       result[config.chainId] = config;
     });
     return result;
+  },
+);
+
+/**
+ * Returns the list of CAIP-2 chain IDs for networks that are auto-enabled in the
+ * config registry.
+ *
+ * @param state - The config registry controller state.
+ * @returns The list of CAIP-2 chain IDs for auto-enabled networks.
+ */
+export const selectEvmAutoEnabledNetworksChainIds = createSelector(
+  selectNetworks,
+  (networks): CaipChainId[] =>
+    Object.values(networks)
+      .filter(
+        ({ chainId, config }) =>
+          chainId.startsWith(KnownCaipNamespace.Eip155) &&
+          config.isAutoEnabled &&
+          config.isActive &&
+          !config.isDeprecated,
+      )
+      .map((config) => config.chainId),
+  {
+    // Messenger selector subscriptions only skip work when the result is
+    // referentially equal, so keep the previous array when the IDs are the same.
+    memoizeOptions: {
+      resultEqualityCheck: (a: CaipChainId[], b: CaipChainId[]) =>
+        a.length === b.length && a.every((chainId, i) => chainId === b[i]),
+    },
   },
 );

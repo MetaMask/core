@@ -17,6 +17,7 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
@@ -28,6 +29,7 @@ import type {
   CancelOrderParams,
   CancelOrderResult,
   CancelOrdersResult,
+  ChaseOrder,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -42,6 +44,7 @@ import type {
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -61,6 +64,7 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsOrderCapabilities,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
@@ -73,6 +77,7 @@ import type {
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
+  TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   UserHistoryItem,
@@ -80,7 +85,28 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
+  PerpsFeeResolution,
 } from '../types/index.js';
+
+/** Error returned when only some providers suspend their Chase orders. */
+export class ChaseOrderSuspensionError extends Error {
+  readonly suspendedOrders: ChaseOrder[];
+
+  readonly failures: { providerId: PerpsProviderType; reason: unknown }[];
+
+  constructor(options: {
+    suspendedOrders: ChaseOrder[];
+    failures: { providerId: PerpsProviderType; reason: unknown }[];
+  }) {
+    const failedProviderIds = options.failures
+      .map(({ providerId }) => providerId)
+      .join(', ');
+    super(`Failed to suspend Chase orders for: ${failedProviderIds}`);
+    this.name = 'ChaseOrderSuspensionError';
+    this.suspendedOrders = options.suspendedOrders;
+    this.failures = options.failures;
+  }
+}
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
@@ -112,6 +138,8 @@ import type {
  */
 export class AggregatedPerpsProvider implements PerpsProvider {
   readonly protocolId = 'aggregated';
+
+  readonly routesOrdersByProviderId = true;
 
   readonly #providers: Map<PerpsProviderType, PerpsProvider>;
 
@@ -179,23 +207,24 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Get provider by ID, falling back to default if not found.
+   * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.
-   * @returns The result of the operation.
+   * @returns The selected provider id and instance.
+   * @throws If an explicit provider is not registered.
    */
   #getProviderOrDefault(
     providerId?: PerpsProviderType,
   ): [PerpsProviderType, PerpsProvider] {
-    const id = providerId ?? this.#defaultProvider;
-    const provider = this.#providers.get(id);
-    if (!provider) {
-      this.#deps.debugLogger.log(
-        `[AggregatedPerpsProvider] Provider '${id}' not found, using default`,
-      );
+    if (providerId === undefined) {
       return [this.#defaultProvider, this.#getDefaultProvider()];
     }
-    return [id, provider];
+
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return [providerId, provider];
   }
 
   /**
@@ -234,6 +263,61 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
     return this.#getDefaultProvider().getWithdrawalRoutes(params);
+  }
+
+  /**
+   * Resolve capabilities with the same explicit-provider/default-provider
+   * selection used by order placement. Unknown routes return a typed
+   * unavailable result instead of throwing a placement error.
+   *
+   * @param params - Market and optional provider route.
+   * @returns Capabilities from the selected provider.
+   */
+  async getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getOrderCapabilities) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const capabilities = await provider.getOrderCapabilities({
+        ...params,
+        providerId,
+      });
+      if (
+        capabilities.providerId !== undefined &&
+        capabilities.providerId !== providerId
+      ) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...capabilities, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Order capabilities unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
   }
 
   // ============================================================================
@@ -442,6 +526,92 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return { ...result, providerId };
   }
 
+  /**
+   * Read TWAP lifecycle records from every active provider.
+   *
+   * @returns TWAP records with their provider route attached.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getTwapOrders
+          ? (await provider.getTwapOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getTwapOrders').flat();
+  }
+
+  /**
+   * Read all available snapshots, retaining successful providers on a partial failure.
+   *
+   * @returns Chase snapshots from every provider that responded successfully.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getChaseOrders
+          ? (await provider.getChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
+  }
+
+  /**
+   * Attempt to suspend every provider and reject after all attempts settle if
+   * any provider could not suspend safely. Successful providers remain
+   * suspended, so callers may retry to reconcile a partial failure.
+   *
+   * @returns Chase snapshots after every provider suspends successfully.
+   * @throws ChaseOrderSuspensionError if any active provider fails. The error
+   * includes successful snapshots and each failed provider ID.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const providers = this.#getActiveProviders();
+    const results = await Promise.allSettled(
+      providers.map(async ([providerId, provider]) =>
+        provider.suspendChaseOrders
+          ? (await provider.suspendChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    const snapshots: ChaseOrder[] = [];
+    const failures: {
+      providerId: PerpsProviderType;
+      reason: unknown;
+    }[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        snapshots.push(...result.value);
+      } else {
+        failures.push({
+          providerId: providers[index][0],
+          reason: result.reason,
+        });
+      }
+    });
+    if (failures.length > 0) {
+      throw new ChaseOrderSuspensionError({
+        suspendedOrders: snapshots,
+        failures,
+      });
+    }
+    return snapshots;
+  }
+
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
     // EditOrderParams contains OrderParams in newOrder which may have providerId
     const [providerId, provider] = this.#getProviderOrDefault(
@@ -578,7 +748,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    return this.#getDefaultProvider().calculateFees(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateFees(params);
   }
 
   // ============================================================================
@@ -654,6 +825,24 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         provider.setUserFeeDiscount(discountBips);
       }
     });
+  }
+
+  setUserFeeResolution(resolution: PerpsFeeResolution | undefined): void {
+    this.#providers.forEach((provider) => {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(resolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(resolution?.discountBips);
+      }
+    });
+  }
+
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const provider =
+      this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
+    return provider.approveSubscriptionBuilderFee
+      ? provider.approveSubscriptionBuilderFee()
+      : false;
   }
 
   // ============================================================================

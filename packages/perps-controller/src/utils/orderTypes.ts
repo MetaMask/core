@@ -2,6 +2,7 @@ import type { Order, PositionTriggerOrder } from '../types/index.js';
 import type {
   OrderExecution,
   OrderType,
+  StrategyOrderType,
   TriggerDirection,
   TriggerOrderType,
 } from '../types/perps-types.js';
@@ -18,6 +19,26 @@ export const TRIGGER_ORDER_TYPES = [
 ] as const satisfies readonly TriggerOrderType[];
 
 /**
+ * All strategy placement types, in a stable order suitable for iteration
+ * (validation tables, e2e matrices).
+ */
+export const STRATEGY_ORDER_TYPES = [
+  'twap',
+  'scale',
+  'chase',
+] as const satisfies readonly StrategyOrderType[];
+
+/**
+ * Bounds on how many limit orders a scale placement may fan out into.
+ *
+ * A ladder needs at least two rungs to span a range at all; the upper bound
+ * keeps a single placement from consuming a venue's per-account open-order
+ * budget. Protocol-agnostic: a provider whose venue is stricter narrows this
+ * further in its own validation.
+ */
+export const SCALE_ORDER_COUNT = { min: 2, max: 20 } as const;
+
+/**
  * Order types whose price field (`OrderParams.price`) is a real limit price the
  * exchange must honour, as opposed to a slippage cap derived from the market.
  */
@@ -25,6 +46,24 @@ const LIMIT_EXECUTION_ORDER_TYPES = [
   'limit',
   'stop_limit',
   'take_profit_limit',
+] as const satisfies readonly OrderType[];
+
+/**
+ * Order types that rest limit orders on the book, whatever decides their price.
+ *
+ * A superset of `LIMIT_EXECUTION_ORDER_TYPES`: a scale ladder and a chase both
+ * rest limit orders, but they derive their own prices rather than taking one
+ * from `OrderParams.price`, so they are limit *execution* without being
+ * limit-*priced*. A TWAP is absent because its suborders cross the book.
+ *
+ * The distinction matters wherever execution is what is being charged or
+ * bounded — fee tier, max order value — as opposed to where the caller's price
+ * field is being read.
+ */
+const LIMIT_RESTING_ORDER_TYPES = [
+  ...LIMIT_EXECUTION_ORDER_TYPES,
+  'scale',
+  'chase',
 ] as const satisfies readonly OrderType[];
 
 /**
@@ -37,6 +76,19 @@ export function isTriggerOrderType(
   orderType: OrderType,
 ): orderType is TriggerOrderType {
   return (TRIGGER_ORDER_TYPES as readonly OrderType[]).includes(orderType);
+}
+
+/**
+ * Check whether an order type is a strategy placement (TWAP / scale / chase).
+ *
+ * @param orderType - Order type to check.
+ * @returns True when the placement expands into an execution schedule rather
+ * than a single order.
+ */
+export function isStrategyOrderType(
+  orderType: OrderType,
+): orderType is StrategyOrderType {
+  return (STRATEGY_ORDER_TYPES as readonly OrderType[]).includes(orderType);
 }
 
 /**
@@ -58,13 +110,19 @@ export function isLimitExecutionOrderType(orderType: OrderType): boolean {
  * Get how an order executes, ignoring whether it is trigger-gated.
  *
  * This is also the coarse execution type that consumers predating trigger orders
- * understand (fee tiers, max order value, analytics).
+ * understand (fee tiers, max order value, analytics). It answers "does this rest
+ * on the book or cross it", which is not the same question as
+ * `isLimitExecutionOrderType` — a scale ladder and a chase rest limit orders
+ * without carrying an `OrderParams.price`.
  *
  * @param orderType - Order type to inspect.
- * @returns `'limit'` for limit and `*_limit` types, `'market'` otherwise.
+ * @returns `'limit'` for limit, `*_limit`, `scale` and `chase`; `'market'`
+ * otherwise, including `twap`, whose suborders cross the book.
  */
 export function getTriggerExecution(orderType: OrderType): OrderExecution {
-  return isLimitExecutionOrderType(orderType) ? 'limit' : 'market';
+  return (LIMIT_RESTING_ORDER_TYPES as readonly OrderType[]).includes(orderType)
+    ? 'limit'
+    : 'market';
 }
 
 /**
@@ -192,6 +250,38 @@ export function buildPositionTriggerOrderFromOrder(params: {
       rawSize < absolutePositionSize,
     reduceOnly: Boolean(order.reduceOnly),
   };
+}
+
+/**
+ * Resolve the scalar TP/SL summary price a position reports for one direction.
+ *
+ * The scalar fields are only ever scanned from position-bound triggers, so a
+ * position whose only take profit (or stop loss) is quantity-scoped reported a
+ * count of 1 with no price — and a client that renders the scalar showed
+ * nothing. When the direction has exactly one trigger order, that order is the
+ * price, whether or not it is position-bound.
+ *
+ * Two or more triggers keep the scanned value: no single price describes them,
+ * and clients render the count instead. Zero triggers keep it too, because it
+ * still carries the TP/SL of a *pending* order on the market, which the arrays
+ * deliberately exclude.
+ *
+ * @param params - Resolution parameters
+ * @param params.triggerOrders - Trigger orders attached to the position for one direction
+ * @param params.scannedPrice - Price scanned from position-bound triggers, if any
+ * @returns The price to report, or undefined when there is none
+ */
+export function resolvePositionTriggerSummaryPrice(params: {
+  triggerOrders: PositionTriggerOrder[];
+  scannedPrice?: string;
+}): string | undefined {
+  const { triggerOrders, scannedPrice } = params;
+
+  if (triggerOrders.length === 1) {
+    return triggerOrders[0].triggerPrice;
+  }
+
+  return scannedPrice;
 }
 
 /**

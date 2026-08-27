@@ -22,6 +22,7 @@ import {
   validateQuoteResponseV1,
   toQuoteResponseV2,
 } from '@metamask/bridge-controller';
+import type { TraceRequest } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -52,6 +53,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
+  TraceName,
 } from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
@@ -313,8 +315,8 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  quoteResponse: mergeQuoteMetadata(
-    {
+  quoteResponse: {
+    ...{
       quote: getMockQuote({ srcChainId, destChainId }),
       trade: {
         chainId: srcChainId,
@@ -327,7 +329,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
       approval: undefined,
       estimatedProcessingTimeInSeconds: 15,
     },
-    {
+    ...{
       sentAmount: {
         amount: '1.234',
         valueInCurrency: undefined,
@@ -355,7 +357,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
       swapRate: '1.234',
       cost: { valueInCurrency: undefined, usd: undefined },
     },
-  ),
+  },
   accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
@@ -588,6 +590,21 @@ const MockTxHistory = {
 };
 
 const addTransactionBatchFn = jest.fn();
+
+const createTraceCallback = (traceRequests: TraceRequest[]) =>
+  jest
+    .fn()
+    .mockImplementation(
+      async (request: TraceRequest, callback?: () => unknown) => {
+        traceRequests.push(request);
+        return await callback?.();
+      },
+    );
+
+const getSwapOperationCompletedTrace = (
+  traceRequests: TraceRequest[],
+): TraceRequest | undefined =>
+  traceRequests.find(({ name }) => name === TraceName.SwapOperationCompleted);
 
 function getRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
@@ -1770,6 +1787,157 @@ describe('BridgeStatusController', () => {
       });
     });
 
+    describe('swap operation completion tracing', () => {
+      it.each([
+        {
+          name: 'success',
+          result: 'success',
+          response: (): StatusResponse => MockStatusResponse.getComplete(),
+          destinationTxHash: '0xdestTxHash1',
+        },
+        {
+          name: 'failure',
+          result: 'error',
+          response: (): StatusResponse => MockStatusResponse.getFailed(),
+          destinationTxHash: undefined,
+        },
+      ])('records $name', async (scenario) => {
+        jest.useFakeTimers();
+        const startTime = 1729964825189;
+        const completionTime = 1736277625746;
+        jest.spyOn(Date, 'now').mockImplementation(() => completionTime);
+        const traceRequests: TraceRequest[] = [];
+
+        await withController(
+          {
+            options: {
+              traceFn: createTraceCallback(traceRequests),
+            },
+          },
+          async ({ rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            jest
+              .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+              .mockResolvedValueOnce({
+                status: scenario.response(),
+                validationFailures: [],
+              });
+
+            rootMessenger.call(
+              'BridgeStatusController:startPollingForBridgeTxStatus',
+              getMockStartPollingForBridgeTxStatusArgs(),
+            );
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            const trace = getSwapOperationCompletedTrace(traceRequests);
+            expect(trace).toStrictEqual(
+              expect.objectContaining({
+                name: TraceName.SwapOperationCompleted,
+                startTime,
+                data: expect.objectContaining({
+                  srcChainId: 'eip155:42161',
+                  destChainId: 'eip155:10',
+                  provider: 'lifi_across',
+                  swap_type: 'crosschain',
+                  terminal_stage: 'destination',
+                  quote_id: '197c402f-cb96-4096-9f8c-54aed84ca776',
+                  transaction_id: 'bridgeTxMetaId1',
+                  src_tx_hash: '0xsrcTxHash1',
+                  result: scenario.result,
+                }),
+              }),
+            );
+            expect(trace?.data?.dest_tx_hash ?? null).toBe(
+              scenario.destinationTxHash ?? null,
+            );
+            expect(
+              traceRequests.filter(
+                ({ name }) => name === TraceName.SwapOperationCompleted,
+              ),
+            ).toHaveLength(1);
+          },
+        );
+      });
+
+      it.each([
+        {
+          name: 'same-chain success',
+          history: () => MockTxHistory.getPendingSwap(),
+          transactionId: 'swapTxMetaId1',
+          transactionType: TransactionType.swap,
+          transactionStatus: TransactionStatus.confirmed,
+          result: 'success',
+          swapType: 'single_chain',
+        },
+        {
+          name: 'cross-chain source failure',
+          history: () => MockTxHistory.getPending(),
+          transactionId: 'bridgeTxMetaId1',
+          transactionType: TransactionType.bridge,
+          transactionStatus: TransactionStatus.failed,
+          result: 'error',
+          swapType: 'crosschain',
+        },
+      ])(
+        'records $name',
+        async ({
+          history,
+          transactionId,
+          transactionType,
+          transactionStatus,
+          result,
+          swapType,
+        }) => {
+          const traceRequests: TraceRequest[] = [];
+
+          await withController(
+            {
+              options: {
+                state: {
+                  txHistory: history(),
+                },
+                traceFn: createTraceCallback(traceRequests),
+              },
+            },
+            async ({ rootMessenger }) => {
+              registerDefaultActionHandlers(rootMessenger);
+              rootMessenger.publish(
+                'TransactionController:transactionStatusUpdated',
+                {
+                  transactionMeta: {
+                    chainId: CHAIN_IDS.ARBITRUM,
+                    hash: '0xsourceTxHash',
+                    networkClientId: 'eth-id',
+                    time: Date.now(),
+                    txParams: {} as unknown as TransactionParams,
+                    type: transactionType,
+                    status: transactionStatus,
+                    id: transactionId,
+                  } as TransactionMeta,
+                },
+              );
+              await flushPromises();
+
+              expect(
+                getSwapOperationCompletedTrace(traceRequests),
+              ).toStrictEqual(
+                expect.objectContaining({
+                  name: TraceName.SwapOperationCompleted,
+                  data: expect.objectContaining({
+                    result,
+                    swap_type: swapType,
+                    terminal_stage: 'source',
+                    transaction_id: transactionId,
+                  }),
+                }),
+              );
+            },
+          );
+        },
+      );
+    });
+
     it.each([
       {
         status: TransactionStatus.confirmed,
@@ -2260,40 +2428,43 @@ describe('BridgeStatusController', () => {
       trade:
         'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=',
     };
-    const mockQuoteResponse = mergeQuoteMetadata(mockQuote, {
-      sentAmount: {
-        amount: '1',
-        valueInCurrency: '100',
-        usd: '100',
+    const mockQuoteResponse = {
+      ...mockQuote,
+      ...{
+        sentAmount: {
+          amount: '1',
+          valueInCurrency: '100',
+          usd: '100',
+        },
+        toTokenAmount: {
+          amount: '0.5',
+          valueInCurrency: '1000',
+          usd: '1000',
+        },
+        minToTokenAmount: {
+          amount: '0.475',
+          valueInCurrency: '950',
+          usd: '950',
+        },
+        totalNetworkFee: {
+          amount: '0.1',
+          valueInCurrency: '10',
+          usd: '10',
+        },
+        gasFee: {
+          total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
+        },
+        adjustedReturn: {
+          valueInCurrency: '985',
+          usd: '985',
+        },
+        cost: {
+          valueInCurrency: '15',
+          usd: '15',
+        },
+        swapRate: '0.5',
       },
-      toTokenAmount: {
-        amount: '0.5',
-        valueInCurrency: '1000',
-        usd: '1000',
-      },
-      minToTokenAmount: {
-        amount: '0.475',
-        valueInCurrency: '950',
-        usd: '950',
-      },
-      totalNetworkFee: {
-        amount: '0.1',
-        valueInCurrency: '10',
-        usd: '10',
-      },
-      gasFee: {
-        total: { amount: '0.05', valueInCurrency: '5', usd: '5' },
-      },
-      adjustedReturn: {
-        valueInCurrency: '985',
-        usd: '985',
-      },
-      cost: {
-        valueInCurrency: '15',
-        usd: '15',
-      },
-      swapRate: '0.5',
-    });
+    };
 
     const mockSolanaAccount = {
       id: 'solana-account-1',
@@ -4396,6 +4567,7 @@ describe('BridgeStatusController', () => {
         ...quoteWithoutApproval,
         quote: {
           ...quoteWithoutApproval.quote,
+          slippage: 0.01,
           gasIncluded: true,
           gasIncluded7702: false,
           feeData: {

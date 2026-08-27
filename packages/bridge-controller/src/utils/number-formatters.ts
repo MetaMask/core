@@ -3,6 +3,7 @@ import { BigNumber } from 'bignumber.js';
 
 import type { DeepPartial } from '../types.js';
 import type { QuoteResponse } from '../validators/quote-response.js';
+import { assetIdsMatch } from './assets.js';
 
 /**
  * 1500000 -> 1.5
@@ -82,8 +83,11 @@ export const sumAmounts = (
   /**
    * Fees and prices can be denominated in different assets, so we need to check if all fees have the same units
    */
-  const isSameAssetForAllFees =
-    new Set(fees.map((fee) => fee.asset?.assetId?.toLowerCase())).size === 1;
+  const isSameAssetForAllFees = fees.reduce(
+    (acc, fee) =>
+      acc && assetIdsMatch(fee.asset?.assetId, fees[0]?.asset?.assetId),
+    true,
+  );
 
   /**
    * Keys that require the asset to be the same for all fees

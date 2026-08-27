@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lowercases `eip155` asset ids, matching the namespace case-insensitively, and passes other namespaces through verbatim so case-sensitive references (Solana base58, bitcoin bech32) are preserved.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 
+### Changed
+
+- Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses. ([#9955](https://github.com/MetaMask/core/pull/9955))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
 ### Fixed
 
 - `providerServesAsset()` and `getProvidersServingAsset()` no longer lowercase non-EVM CAIP-19 asset references when matching a provider's `supportedCryptoCurrencies` ([#9801](https://github.com/MetaMask/core/pull/9801))

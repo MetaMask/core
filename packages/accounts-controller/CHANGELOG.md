@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [39.1.0]
+
+### Added
+
+- Add `clearState` method to reset controller state to defaults, exposed as `AccountsController:clearState` ([#9799](https://github.com/MetaMask/core/pull/9799))
+- Export `getDefaultAccountsControllerState` helper ([#9799](https://github.com/MetaMask/core/pull/9799))
+
 ## [39.0.7]
 
 ### Changed
@@ -876,7 +889,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...HEAD
+[39.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.0...@metamask/accounts-controller@39.1.1
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.7...@metamask/accounts-controller@39.1.0
 [39.0.7]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.6...@metamask/accounts-controller@39.0.7
 [39.0.6]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.5...@metamask/accounts-controller@39.0.6
 [39.0.5]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.4...@metamask/accounts-controller@39.0.5
