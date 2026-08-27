@@ -153,6 +153,7 @@ export {
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
 export {
+  normalizeRampsAssetId,
   providerServesAsset,
   getProvidersServingAsset,
   regionHasProviderForAsset,

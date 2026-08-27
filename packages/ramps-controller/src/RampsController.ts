@@ -22,6 +22,7 @@ import {
 import { mergePaymentMethodsById } from './paymentMethodMerge.js';
 import {
   getProvidersServingAsset,
+  normalizeRampsAssetId,
   providerServesAsset,
 } from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
@@ -273,13 +274,6 @@ function normalizeRampsErrorForRethrow(
   return Object.assign(new Error(errorInfo.message), {
     errorKey: errorInfo.errorKey,
   });
-}
-
-function normalizeAssetIdForContext(assetId: string): string {
-  const trimmedAssetId = assetId.trim();
-  return trimmedAssetId.startsWith('eip155:')
-    ? trimmedAssetId.toLowerCase()
-    : trimmedAssetId;
 }
 
 // === STATE ===
@@ -923,15 +917,6 @@ export class RampsController extends BaseController<
 
   #initPromise: Promise<void> | null = null;
 
-  #paymentMethodsContextSequence = 0;
-
-  readonly #latestPaymentMethodsContextSequence = new Map<string, number>();
-
-  readonly #pendingPaymentMethodsContextSequences = new Map<
-    string,
-    Set<number>
-  >();
-
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
    * defensive path when get() returns undefined in the finally block.
@@ -1255,75 +1240,6 @@ export class RampsController extends BaseController<
   #isProviderCurrent(normalizedProviderId: string): boolean {
     const current = this.state.providers.selected?.id ?? '';
     return current === normalizedProviderId;
-  }
-
-  #beginPaymentMethodsContextRequest(contextKey: string): number {
-    this.#paymentMethodsContextSequence += 1;
-    const sequence = this.#paymentMethodsContextSequence;
-    this.#latestPaymentMethodsContextSequence.set(contextKey, sequence);
-    const pendingSequences =
-      this.#pendingPaymentMethodsContextSequences.get(contextKey) ?? new Set();
-    pendingSequences.add(sequence);
-    this.#pendingPaymentMethodsContextSequences.set(
-      contextKey,
-      pendingSequences,
-    );
-    return sequence;
-  }
-
-  #isLatestPaymentMethodsContextRequest(
-    contextKey: string,
-    sequence: number,
-  ): boolean {
-    return (
-      this.#latestPaymentMethodsContextSequence.get(contextKey) === sequence
-    );
-  }
-
-  #failPaymentMethodsContextRequest(
-    contextKey: string,
-    sequence: number,
-  ): void {
-    if (
-      this.#latestPaymentMethodsContextSequence.get(contextKey) !== sequence
-    ) {
-      return;
-    }
-
-    const pendingSequences =
-      this.#pendingPaymentMethodsContextSequences.get(contextKey);
-    let latestEarlierSequence: number | undefined;
-    for (const pendingSequence of pendingSequences ?? []) {
-      if (
-        pendingSequence < sequence &&
-        (latestEarlierSequence === undefined ||
-          pendingSequence > latestEarlierSequence)
-      ) {
-        latestEarlierSequence = pendingSequence;
-      }
-    }
-
-    if (latestEarlierSequence === undefined) {
-      this.#latestPaymentMethodsContextSequence.delete(contextKey);
-    } else {
-      this.#latestPaymentMethodsContextSequence.set(
-        contextKey,
-        latestEarlierSequence,
-      );
-    }
-  }
-
-  #finishPaymentMethodsContextRequest(
-    contextKey: string,
-    sequence: number,
-  ): void {
-    const pendingSequences =
-      this.#pendingPaymentMethodsContextSequences.get(contextKey);
-    pendingSequences?.delete(sequence);
-    if (!pendingSequences || pendingSequences.size === 0) {
-      this.#pendingPaymentMethodsContextSequences.delete(contextKey);
-      this.#latestPaymentMethodsContextSequence.delete(contextKey);
-    }
   }
 
   /**
@@ -1957,7 +1873,9 @@ export class RampsController extends BaseController<
    * By default this is request-only: it does **not** mutate
    * `paymentMethods.data` or `paymentMethods.selected`. Pass `updateState:
    * true` only when the caller explicitly wants Buy-catalog write semantics
-   * (UB2). Headless / MM Pay selection stays TPC-owned.
+   * (UB2). Headless / MM Pay selection stays TPC-owned. `updateState: true`
+   * throws when the resolved provider set holds more than one provider, because
+   * the write guards cannot tell two such requests apart.
    *
    * Methods are request-eligible for the resolved provider set; they are not
    * guaranteed to produce a quote for every amount (provider fiat limits still
@@ -1995,177 +1913,139 @@ export class RampsController extends BaseController<
     if (assetId === '') {
       throw new Error('assetId is required.');
     }
-    const normalizedAssetContext = normalizeAssetIdForContext(assetId);
+    const normalizedAssetContext = normalizeRampsAssetId(assetId);
     const updateState = options.updateState === true;
     const providerIdForState =
       options.providers?.length === 1
         ? options.providers[0].trim()
         : (this.state.providers.selected?.id.trim() ?? '');
-    const stateContextKey = createCacheKey('paymentMethodsStateContext', [
-      normalizedRegion,
-      normalizedAssetContext,
-      providerIdForState,
-    ]);
-    const requestSequence = updateState
-      ? this.#beginPaymentMethodsContextRequest(stateContextKey)
-      : null;
 
-    try {
-      const providerIds = await this.#resolveProviderIdsForPaymentMethods({
-        assetId,
-        region: normalizedRegion,
-        providers: options.providers,
-        autoSelectProvider: options.autoSelectProvider,
-        preferredProviderIds: options.preferredProviderIds,
-        restrictToKnownOrNativeProviders:
-          options.restrictToKnownOrNativeProviders,
-      });
+    const providerIds = await this.#resolveProviderIdsForPaymentMethods({
+      assetId,
+      region: normalizedRegion,
+      providers: options.providers,
+      autoSelectProvider: options.autoSelectProvider,
+      preferredProviderIds: options.preferredProviderIds,
+      restrictToKnownOrNativeProviders:
+        options.restrictToKnownOrNativeProviders,
+    });
 
-      if (providerIds.length === 0) {
-        if (updateState) {
-          this.update((state) => {
-            const regionMatches =
-              state.userRegion?.regionCode?.trim().toLowerCase() ===
-              normalizedRegion;
-            const assetMatches =
-              normalizeAssetIdForContext(
-                state.tokens.selected?.assetId ?? '',
-              ) === normalizedAssetContext;
-            const providerMatches =
-              (state.providers.selected?.id.trim() ?? '') ===
-              providerIdForState;
-            const requestIsCurrent =
-              requestSequence !== null &&
-              this.#isLatestPaymentMethodsContextRequest(
-                stateContextKey,
-                requestSequence,
-              );
-            if (
-              regionMatches &&
-              assetMatches &&
-              providerMatches &&
-              requestIsCurrent
-            ) {
-              state.paymentMethods.data = [];
-              state.paymentMethods.selected = null;
-            }
-          });
-        }
-        return { methods: [], selected: null, providerIds };
-      }
-
-      const settled = await Promise.allSettled(
-        providerIds.map(async (providerId) => {
-          const cacheKey = createCacheKey('getPaymentMethodsForContext', [
-            normalizedRegion,
-            assetId,
-            providerId,
-          ]);
-          return this.executeRequest(
-            cacheKey,
-            async () => {
-              return this.messenger.call('RampsService:getPaymentMethods', {
-                region: normalizedRegion,
-                assetId,
-                provider: providerId,
-              });
-            },
-            {
-              forceRefresh: options.forceRefresh,
-              ttl: options.ttl,
-              // Intentionally omit resourceType / isResultCurrent so this
-              // request-only path never drives Buy paymentMethods loading or
-              // selection state unless `updateState` is explicitly set below.
-            },
-          );
-        }),
+    // A fan-out across several providers produces a merged catalog whose value
+    // depends on the provider set, but the write guards below only compare
+    // region, selected token, and selected provider. Two concurrent
+    // multi-provider requests share all three, so nothing distinguishes them
+    // and the slower one would silently overwrite the faster one.
+    if (updateState && providerIds.length > 1) {
+      throw new Error(
+        `getPaymentMethodsForContext cannot write paymentMethods state for ${providerIds.length} resolved providers. Use updateState: false, or request exactly one provider.`,
       );
+    }
 
-      const successfulLists: PaymentMethod[][] = [];
-      const failures: unknown[] = [];
-      for (const result of settled) {
-        if (result.status === 'fulfilled') {
-          successfulLists.push(result.value.payments);
-        } else {
-          failures.push(result.reason);
-        }
-      }
-
-      if (successfulLists.length === 0) {
-        const firstFailure = failures[0];
-        throw firstFailure instanceof Error
-          ? firstFailure
-          : new Error('Failed to fetch payment methods for context.');
-      }
-
-      const methods = mergePaymentMethodsById(successfulLists);
-      const preferredId =
-        options.preferPaymentMethodId ?? this.state.paymentMethods.selected?.id;
-      let selected =
-        (preferredId
-          ? (methods.find((method) => method.id === preferredId) ?? null)
-          : null) ??
-        methods[0] ??
-        null;
-
+    if (providerIds.length === 0) {
       if (updateState) {
         this.update((state) => {
           const regionMatches =
             state.userRegion?.regionCode?.trim().toLowerCase() ===
             normalizedRegion;
           const assetMatches =
-            normalizeAssetIdForContext(state.tokens.selected?.assetId ?? '') ===
+            normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
             normalizedAssetContext;
           const providerMatches =
             (state.providers.selected?.id.trim() ?? '') === providerIdForState;
-          const requestIsCurrent =
-            requestSequence !== null &&
-            this.#isLatestPaymentMethodsContextRequest(
-              stateContextKey,
-              requestSequence,
-            );
-          if (
-            regionMatches &&
-            assetMatches &&
-            providerMatches &&
-            requestIsCurrent
-          ) {
-            const currentSelection = state.paymentMethods.selected?.id;
-            selected =
-              (currentSelection
-                ? (methods.find((method) => method.id === currentSelection) ??
-                  null)
-                : null) ??
-              (options.preferPaymentMethodId
-                ? (methods.find(
-                    (method) => method.id === options.preferPaymentMethodId,
-                  ) ?? null)
-                : null) ??
-              methods[0] ??
-              null;
-            state.paymentMethods.data = methods;
-            state.paymentMethods.selected = selected;
+          if (regionMatches && assetMatches && providerMatches) {
+            state.paymentMethods.data = [];
+            state.paymentMethods.selected = null;
           }
         });
       }
+      return { methods: [], selected: null, providerIds };
+    }
 
-      return { methods, selected, providerIds };
-    } catch (error) {
-      if (requestSequence !== null) {
-        this.#failPaymentMethodsContextRequest(
-          stateContextKey,
-          requestSequence,
+    const settled = await Promise.allSettled(
+      providerIds.map(async (providerId) => {
+        const cacheKey = createCacheKey('getPaymentMethodsForContext', [
+          normalizedRegion,
+          assetId,
+          providerId,
+        ]);
+        return this.executeRequest(
+          cacheKey,
+          async () => {
+            return this.messenger.call('RampsService:getPaymentMethods', {
+              region: normalizedRegion,
+              assetId,
+              provider: providerId,
+            });
+          },
+          {
+            forceRefresh: options.forceRefresh,
+            ttl: options.ttl,
+            // Intentionally omit resourceType / isResultCurrent so this
+            // request-only path never drives Buy paymentMethods loading or
+            // selection state unless `updateState` is explicitly set below.
+          },
         );
-      }
-      throw error;
-    } finally {
-      if (requestSequence !== null) {
-        this.#finishPaymentMethodsContextRequest(
-          stateContextKey,
-          requestSequence,
-        );
+      }),
+    );
+
+    const successfulLists: PaymentMethod[][] = [];
+    const failures: unknown[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        successfulLists.push(result.value.payments);
+      } else {
+        failures.push(result.reason);
       }
     }
+
+    if (successfulLists.length === 0) {
+      const firstFailure = failures[0];
+      throw firstFailure instanceof Error
+        ? firstFailure
+        : new Error('Failed to fetch payment methods for context.');
+    }
+
+    const methods = mergePaymentMethodsById(successfulLists);
+    const preferredId =
+      options.preferPaymentMethodId ?? this.state.paymentMethods.selected?.id;
+    let selected =
+      (preferredId
+        ? (methods.find((method) => method.id === preferredId) ?? null)
+        : null) ??
+      methods[0] ??
+      null;
+
+    if (updateState) {
+      this.update((state) => {
+        const regionMatches =
+          state.userRegion?.regionCode?.trim().toLowerCase() ===
+          normalizedRegion;
+        const assetMatches =
+          normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
+          normalizedAssetContext;
+        const providerMatches =
+          (state.providers.selected?.id.trim() ?? '') === providerIdForState;
+        if (regionMatches && assetMatches && providerMatches) {
+          const currentSelection = state.paymentMethods.selected?.id;
+          selected =
+            (currentSelection
+              ? (methods.find((method) => method.id === currentSelection) ??
+                null)
+              : null) ??
+            (options.preferPaymentMethodId
+              ? (methods.find(
+                  (method) => method.id === options.preferPaymentMethodId,
+                ) ?? null)
+              : null) ??
+            methods[0] ??
+            null;
+          state.paymentMethods.data = methods;
+          state.paymentMethods.selected = selected;
+        }
+      });
+    }
+
+    return { methods, selected, providerIds };
   }
 
   /**
