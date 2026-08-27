@@ -954,7 +954,8 @@ export type GlobalEvents = FooControllerStateChangeEvent;
 `,
       );
 
-      // A messenger type outside the root unions. The scan strategy would pick
+      // A messenger type outside the root capability collections. The scan
+      // strategy would pick
       // it up; the root-messenger strategy must not, since it isn't reachable
       // from the root messenger.
       await fs.promises.writeFile(
@@ -1155,7 +1156,8 @@ export type GlobalEvents = never;
             },
           }),
         ).rejects.toThrow(
-          'named by --root-actions, resolved to `Missing` rather than a union',
+          "named by --root-actions, resolved to `Missing`. It's likely that an " +
+            'individual action or event type is also `Missing`',
         );
       } finally {
         warn.mockRestore();

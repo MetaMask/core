@@ -14,12 +14,10 @@ import {
 import type { MessengerCapabilityPacket } from './types.js';
 
 // ---------------------------------------------------------------------------
-// The `root-messenger` strategy: resolve the unions a project declares for its
-// root messenger and let the type checker enumerate them. Going through the
-// checker rather than the AST means a union works whether it is written by
-// hand or computed (e.g. derived from a registry via `ReturnType<...>`). Each
-// capability it reports is handed to the shared extractor in `extraction.ts`,
-// so the output matches what the `scan` strategy produces.
+// The `root-messenger` strategy: resolve the types a project declares for its
+// collection of root messenger actions and events and let TypeScript walk them.
+// Each capability type found is handed to the shared extractor in
+// `extraction.ts`, so the output matches what the `scan` strategy produces.
 // ---------------------------------------------------------------------------
 
 /**
@@ -43,8 +41,8 @@ export type RootCapabilitiesTypeReference = {
  */
 type SkippedCapabilities = {
   /**
-   * Capabilities declared inline in the union, so there is no name or JSDoc to
-   * document.
+   * Capabilities declared inline in the capability collection type, so there is
+   * no name or JSDoc to document.
    */
   unnamedCapabilities: string[];
   /*
@@ -377,9 +375,9 @@ function extractFromMessengerCapabilitiesUnionTypeDeclaration({
     .getTypeNodeOrThrow()
     .getType();
 
-  // TypeScript absorbs `any | T` into `any` and `unknown | T` into `unknown`,
-  // so a single member the checker can't resolve — typically a failed import —
-  // erases every other capability in the union. Fail instead of emitting a
+  // If one or more of the constituent capabilities in the collection is `any`
+  // or `unknown` — e.g. its import failed — then the type of the whole
+  // collection will also be `any` or `unknown`. Fail instead of emitting a
   // catalog that looks complete but silently isn't.
   if (
     capabilityCollectionType.isAny() ||
@@ -387,10 +385,10 @@ function extractFromMessengerCapabilitiesUnionTypeDeclaration({
   ) {
     throw new Error(
       `${capabilityCollectionTypeReference.filePath}#${capabilityCollectionTypeReference.typeName}, named by ${commandLineOptionName}, ` +
-        `resolved to \`${capabilityCollectionType.getText()}\` rather than a union of ` +
-        `capabilities. This usually means an import in that file could not be ` +
-        `resolved; because TypeScript absorbs the rest of a union into ` +
-        `\`any\`, every other capability in it would be missing.`,
+        `resolved to \`${capabilityCollectionType.getText()}\`. ` +
+        `It's likely that an individual action or event type is also \`${capabilityCollectionType.getText()}\`, ` +
+        `which may be due to a failed import. ` +
+        `You will need to fix this first before generating docs for this project.`,
     );
   }
 
@@ -453,18 +451,18 @@ function extractFromMessengerCapabilitiesUnionTypeDeclaration({
 }
 
 /**
- * Resolves `<file>#<TypeName>` references to messenger actions and events union
- * types within the given project (e.g. `RootMessengerActions` or
- * `RootMessengerEvents`), walks the union to collect all of the containing
+ * Resolves `<file>#<TypeName>` references to messenger actions and events
+ * collection types within the given project (e.g. `RootMessengerActions` or
+ * `RootMessengerEvents`), walks the collection to gather all of the containing
  * capability types (e.g. `NetworkControllerAddNetworkAction`), then packages
  * them so that they can be displayed within the documentation site.
  *
  * @param args - The arguments to this function.
  * @param args.projectPath -Absolute path to the project to scan.
  * @param args.rootActionsTypeReference - A reference to a messenger
- * actions union type within the project, in `<file>#<TypeName>` format.
+ * actions collection type within the project, in `<file>#<TypeName>` format.
  * @param args.rootEventsTypeReference - A reference to a messenger events
- * union type within the project, in `<file>#<TypeName>` format.
+ * collection type within the project, in `<file>#<TypeName>` format.
  * @returns The extracted capabilities plus any capabilities that were skipped.
  */
 export function discoverFromRootMessengerCapabilitiesTypes({

@@ -19,6 +19,9 @@ import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.j
 import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-discovery.js';
 import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
+/** How many skipped capability types to name before summarizing the rest. */
+const MAX_SKIPPED_SHOWN = 10;
+
 /**
  * Options for the `scan` strategy, which reads every `*Messenger` type alias
  * in every file it can find. Used when no single messenger aggregates every
@@ -32,9 +35,9 @@ type ScanStrategyOptions = {
 };
 
 /**
- * Options for the `root-messenger` strategy, which resolves the unions a
- * project declares for its root messenger instead of scanning. Used when one
- * messenger carries every action and event.
+ * Options for the `root-messenger` strategy, which walks the types a
+ * project declares for its root messenger capabilities instead of scanning the
+ * entire repo. Used when one messenger carries every action and event.
  */
 type RootMessengerStrategyOptions = {
   /** The selected strategy. */
@@ -566,7 +569,9 @@ async function collectByScanning(
 }
 
 /**
- * Collect capabilities by resolving the project's root messenger unions.
+ * Using the project's root messenger capability collection types as
+ * entrypoints, collect the constituent individual capability types and package
+ * them so that they can be displayed within the documentation site.
  *
  * @param projectPath - The project root path.
  * @param options - The root-messenger strategy options.
@@ -601,25 +606,22 @@ function collectFromRootMessengerCapabilities(
     skippedCapabilities.unextractableCapabilities,
   );
 
-  // Both unions resolving to nothing is always a misconfiguration — a wrong
-  // type name, or imports that didn't resolve. Failing here matters because
-  // generation would otherwise replace an existing docs directory with an
-  // empty one and exit successfully.
+  // If both capability collection types resolve to nothing, it's always a
+  // misconfiguration (a wrong type name, or imports that didn't resolve).
+  // Failing here matters because generation would otherwise replace an existing
+  // docs directory with an empty one and exit successfully.
   if (capabilityPackets.length === 0) {
     throw new Error(
       `No messenger actions or events found in ` +
         `${rootActions.filePath}#${rootActions.typeName} or ` +
         `${rootEvents.filePath}#${rootEvents.typeName}. ` +
-        `Check that these types name the unions carrying every capability, ` +
-        `and that their imports resolve.`,
+        `Check that these types name the collections carrying every ` +
+        `capability, and that their imports resolve.`,
     );
   }
 
   return capabilityPackets;
 }
-
-/** How many skipped capability types to name before summarizing the rest. */
-const MAX_SKIPPED_SHOWN = 10;
 
 /**
  * Warn about capability types that couldn't be documented, naming them so the

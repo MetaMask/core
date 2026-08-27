@@ -49,29 +49,19 @@ Options:
 
 ## Strategies
 
-Which strategy to use depends on whether the project has a single messenger
-carrying every action and event.
+Which strategy to use depends on whether the project has a single messenger carrying every action and event.
 
 ### `scan` (default)
 
-Parses every TypeScript source and declaration file it can find — the scan
-directories, `packages/*/src`, and `node_modules/@metamask/*/dist` — and reads
-every `*Messenger` type alias it encounters.
+Parses every TypeScript source and declaration file it can find — the scan directories, `packages/*/src`, and `node_modules/@metamask/*/dist` — and reads every `*Messenger` type alias it encounters.
 
-Use this when no single messenger aggregates every capability, as in a monorepo
-of independently published packages.
+Use this when no single messenger aggregates every capability, as in a monorepo of independently published packages.
 
 ### `root-messenger`
 
-Resolves the two types the project declares for its root messenger — the union
-of every action and the union of every event — and lets the TypeScript type
-checker enumerate them. Only the files named on the command line are opened.
+Resolves the two types the project declares for its root messenger capabilities — the collection of every action and the collection of every event — and lets the TypeScript type checker walk them. Only the files named on the command line are opened.
 
-Use this when the project has one root messenger carrying every action and
-event, as a client application built on these packages does. It is
-substantially faster than `scan`, because it reads what the project already
-declares instead of re-deriving it, and it documents only what is reachable
-through that messenger.
+Use this when the project has one root messenger carrying every action and event, as a client application built on these packages does. It is substantially faster than `scan`, because it reads what the project already declares instead of re-deriving it, and it documents only what is reachable through that messenger.
 
 ```
 platform-api-docs \
@@ -80,15 +70,9 @@ platform-api-docs \
   --root-events 'src/messenger.ts#RootEvents'
 ```
 
-Each reference names a type alias, written by hand or computed — the type
-checker resolves either.
+Each reference names a type alias, written by hand or computed — the type checker resolves either.
 
-The docs contain exactly what the named types contain, so those types should be
-the ones carrying every capability rather than a narrowed subset. Capability
-types that can't be documented are reported rather than dropped silently: those
-declared inline in the union (with no name or JSDoc to document), and those
-whose shape can't be read (most often a `type` property that isn't a namespaced
-string literal).
+The docs contain exactly what the named types contain, so those types should be the ones carrying every capability rather than a narrowed subset. Capability types that can't be documented are reported rather than dropped silently: those declared inline in the capability collection type (with no name or JSDoc to document), and those whose shape can't be read (most often a `type` property that isn't a namespaced string literal).
 
 ## Contributing
 

@@ -339,7 +339,8 @@ export type GlobalEvents = never;
 
   // TypeScript collapses `type A = B` before the checker hands us a
   // constituent, so the docs name the type the chain ends at rather than the
-  // one the root union referenced. Surprising, but consistent with `scan`.
+  // one the root capability collection referenced. Surprising, but
+  // consistent with `scan`.
   it('documents the underlying type when the union references an alias of an alias', async () => {
     expect.assertions(1);
 
@@ -433,7 +434,7 @@ export type GlobalEvents = never;
     });
   });
 
-  it('throws when a root union resolves to `any`', async () => {
+  it('throws when a root capability collection resolves to `any`', async () => {
     expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -462,7 +463,8 @@ export type GlobalEvents = never;
         }),
       ).toThrow(
         'app/types.ts#GlobalActions, named by --root-actions, resolved to ' +
-          '`Missing` rather than a union of capabilities',
+          "`Missing`. It's likely that an individual action or event type " +
+          'is also `Missing`',
       );
     });
   });
@@ -502,10 +504,11 @@ export type GlobalEvents = SomeEvent;
           },
         }),
       ).toThrow(
-        // The whole union has become plain `any` — `GoodOne` and `GoodTwo` are
-        // no longer visible to the checker at all.
+        // The whole collection has become plain `any` — `GoodOne` and
+        // `GoodTwo` are no longer visible to the checker at all.
         'app/types.ts#GlobalActions, named by --root-actions, resolved to ' +
-          '`any` rather than a union of capabilities',
+          "`any`. It's likely that an individual action or event type is " +
+          'also `any`',
       );
     });
   });
@@ -623,7 +626,7 @@ export type GlobalEvents = never;
     });
   });
 
-  it('documents a lone generic instantiation, whose alias symbol is the root union itself', async () => {
+  it('documents a lone generic instantiation, whose alias symbol is the root capability collection itself', async () => {
     expect.assertions(2);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -901,7 +904,7 @@ export type GlobalEvents = SplitDoneEvent;
     });
   });
 
-  it('returns no packets when both root unions resolve to `never`', async () => {
+  it('returns no packets when both root capability collections resolve to `never`', async () => {
     expect.assertions(2);
 
     await withinSandbox(async ({ directoryPath }) => {
