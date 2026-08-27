@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `uint8ArrayToMnemonic` converts little-endian `Uint16` English BIP-39 wordlist indices into a mnemonic string.
   - `convertMnemonicToWordlistIndices` converts a mnemonic string into little-endian `Uint16` wordlist indices encoded as a `Uint8Array`.
 - Add `@metamask/scure-bip39` as a dependency ([#300](https://github.com/MetaMask/utils/pull/300))
+- Add optimized `sha512` and `sha384` utility functions ([#305](https://github.com/MetaMask/utils/pull/305))
 
 ## [11.11.0]
 

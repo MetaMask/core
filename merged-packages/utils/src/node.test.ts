@@ -162,6 +162,8 @@ describe('node', () => {
         "remove0x",
         "satisfiesVersionRange",
         "sha256",
+        "sha384",
+        "sha512",
         "signedBigIntToBytes",
         "stringToBytes",
         "timeSince",
