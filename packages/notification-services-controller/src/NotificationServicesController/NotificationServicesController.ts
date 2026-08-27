@@ -262,18 +262,24 @@ export {
  * @param bearerToken - JWT used to query the Trigger API.
  * @param accounts - The keyring accounts to check.
  * @param env - The environment to use for the Trigger API call.
- * @returns The enabled addresses, as returned by the Trigger API.
+ * @returns The enabled addresses, as returned by the Trigger API, or `null` if
+ * the Trigger API could not be read.
  */
 const getEnabledAccounts = async (
   bearerToken: string,
   accounts: string[],
   env: ENV,
-): Promise<string[]> => {
+): Promise<string[] | null> => {
   const triggerConfig = await getNotificationsApiConfigCached(
     bearerToken,
     accounts,
     env,
   );
+
+  if (triggerConfig === null) {
+    return null;
+  }
+
   return triggerConfig
     .filter((addressConfig) => Boolean(addressConfig.enabled))
     .map((addressConfig) => addressConfig.address);
@@ -941,6 +947,13 @@ export class NotificationServicesController extends BaseController<
         this.#env,
       );
 
+      if (enabledAddresses === null) {
+        // "No addresses" unregisters the device, so an unreadable subscription
+        // list must not be treated as an empty one: leave the existing links
+        // alone until we can read the real state.
+        return;
+      }
+
       await this.#registerPushNotifications(enabledAddresses);
     } catch {
       // Do nothing, failing silently.
@@ -966,6 +979,13 @@ export class NotificationServicesController extends BaseController<
         accounts,
         this.#env,
       );
+
+      if (triggerConfig === null) {
+        // Reporting every account as disabled would misrepresent the user's
+        // settings, so surface the failure instead.
+        throw new Error('Failed to read wallet-activity subscriptions');
+      }
+
       const enabledByAddress = new Map(
         triggerConfig.map((addressConfig) => [
           addressConfig.address.toLowerCase(),
@@ -1036,7 +1056,8 @@ export class NotificationServicesController extends BaseController<
 
       const { accounts } = this.#accounts.listAccounts();
 
-      // 1. Read existing AUS notification preferences and initialize only if absent.
+      // 1. Read existing AUS notification preferences. Their absence is what
+      // marks a first-time setup, and they are initialized in step 3.
       const preferences = await this.messenger.call(
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
@@ -1047,14 +1068,6 @@ export class NotificationServicesController extends BaseController<
       );
 
       const isFirstTimeSetup = preferences === null;
-
-      if (isFirstTimeSetup) {
-        await this.messenger.call(
-          'AuthenticatedUserStorageService:putNotificationPreferences',
-          buildFreshPreferences(hasMarketingConsent, productAnnouncementEnabled),
-          this.#featureAnnouncementEnv.platform,
-        );
-      }
 
       const isPushEnabled =
         preferences?.walletActivity.pushNotificationsEnabled ?? true;
@@ -1075,6 +1088,14 @@ export class NotificationServicesController extends BaseController<
         this.#env,
       );
 
+      if (accountsWithNotifications === null) {
+        // An unreadable subscription list is not an empty one. Subscribing
+        // every account here would re-enable ones the user had turned off, and
+        // registering push for that guessed list would send activity for them,
+        // so fail and let the caller retry.
+        throw new Error('Failed to read wallet-activity subscriptions');
+      }
+
       if (isFirstTimeSetup && accountsWithNotifications.length === 0) {
         await updateOnChainNotifications(
           bearerToken,
@@ -1082,6 +1103,19 @@ export class NotificationServicesController extends BaseController<
           this.#env,
         );
         accountsWithNotifications = accounts;
+      }
+
+      // 3. Initialize the preferences blob, only once the subscriptions above
+      // are in place. Its existence is what makes the next run a re-subscribe
+      // rather than a first-time setup, so writing it earlier would let a
+      // failed subscribe leave the user enabled with no accounts subscribed
+      // and no second chance to seed them.
+      if (isFirstTimeSetup) {
+        await this.messenger.call(
+          'AuthenticatedUserStorageService:putNotificationPreferences',
+          buildFreshPreferences(hasMarketingConsent, productAnnouncementEnabled),
+          this.#featureAnnouncementEnv.platform,
+        );
       }
 
       if (opts.registerPushNotifications ?? true) {
@@ -1289,14 +1323,16 @@ export class NotificationServicesController extends BaseController<
             accounts,
             this.#env,
           );
-          const notifications = await getAPINotifications(
-            bearerToken,
-            addressesWithNotifications,
-            this.#locale(),
-            this.#featureAnnouncementEnv.platform,
-            this.#env,
-          ).catch(() => []);
-          rawOnChainNotifications.push(...notifications);
+          if (addressesWithNotifications !== null) {
+            const notifications = await getAPINotifications(
+              bearerToken,
+              addressesWithNotifications,
+              this.#locale(),
+              this.#featureAnnouncementEnv.platform,
+              this.#env,
+            ).catch(() => []);
+            rawOnChainNotifications.push(...notifications);
+          }
         } catch {
           // Do nothing
         }

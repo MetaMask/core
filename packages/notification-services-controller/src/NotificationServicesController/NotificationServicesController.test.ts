@@ -556,6 +556,25 @@ describe('NotificationServicesController', () => {
         [ADDRESS_3]: false,
       });
     });
+
+    it('throws rather than reporting every account as disabled when the Trigger API is unreadable', async () => {
+      const mocks = mockNotificationMessenger();
+      mockErrorLog();
+      mockGetOnChainNotificationsConfig({
+        status: 500,
+        body: { error: 'mock api failure' },
+      });
+
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await expect(
+        controller.checkAccountsPresence([ADDRESS_1, ADDRESS_2]),
+      ).rejects.toThrow('Failed to read wallet-activity subscriptions');
+      expect(controller.state.isCheckingAccountsPresence).toBe(false);
+    });
   });
 
   describe('createOnChainTriggers', () => {
@@ -732,6 +751,50 @@ describe('NotificationServicesController', () => {
           ADDRESS_1,
           ADDRESS_2,
         ]);
+      });
+
+      it('fails without subscribing anything when the Trigger API config cannot be read', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockDisablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 500,
+          body: { error: 'mock api failure' },
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+
+        await expect(controller.createOnChainTriggers()).rejects.toThrow(
+          'Failed to create On Chain triggers',
+        );
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        // No preferences blob, so a retry is still treated as a first-time
+        // setup and can seed the subscriptions this run failed to create.
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
       });
 
       it('leaves existing Trigger API subscriptions alone, so previously disabled accounts stay disabled', async () => {
@@ -1737,6 +1800,7 @@ describe('NotificationServicesController', () => {
 
     it('should sign a user in if not already signed in', async () => {
       const mocks = arrangeMocks();
+      mockGetOnChainNotificationsConfig();
       mocks.mockIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
@@ -1755,6 +1819,7 @@ describe('NotificationServicesController', () => {
         // No AUS preferences yet — fresh initialization.
         configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
       });
+      mockGetOnChainNotificationsConfig();
 
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
@@ -1962,6 +2027,30 @@ describe('NotificationServicesController', () => {
       // The push API rejects a registration with no addresses, which would
       // leave the device's existing links in place.
       expect(mockDisablePushNotifications).toHaveBeenCalled();
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+
+    it('leaves existing push links alone when the Trigger API is unreadable', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+      } = arrangeMocks();
+      mockGetOnChainNotificationsConfig({
+        status: 500,
+        body: { error: 'mock api failure' },
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+        state: { isNotificationServicesEnabled: true },
+      });
+
+      await controller.enablePushNotifications();
+
+      // An unreadable list is not an empty one: unregistering here would
+      // silently stop push for every account over a transient outage.
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
       expect(mockEnablePushNotifications).not.toHaveBeenCalled();
     });
 

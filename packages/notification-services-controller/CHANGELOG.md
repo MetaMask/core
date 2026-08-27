@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `getNotificationsApiConfigCached` now returns `null` when the Trigger API could not be read, and an empty array only when the API reported that no address is subscribed ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - Previously both cases returned an empty array, so callers could not tell "the user has nothing enabled" from "we failed to ask", and acting on the guess re-subscribed or unregistered addresses behind the user.
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ### Fixed
@@ -21,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The user-level `walletActivity.inAppNotificationsEnabled` and `walletActivity.pushNotificationsEnabled` toggles are still read from Authenticated User Storage. They contain no addresses, so they remain correct to share across a paired profile. An unreadable preferences blob is treated as both toggles enabled, so a storage outage no longer empties the notification list.
 - Unregister the device from push notifications when no account has notifications enabled ([#9985](https://github.com/MetaMask/core/pull/9985))
   - The push API rejects a registration with no addresses, and that request is what performs the delete-and-reinsert of the device's links, so the rejection left the previous links in place and push kept arriving after a user disabled every account.
+- `enableAccounts` and `disableAccounts` now reject when the Trigger API rejects the subscription change, instead of reporting success and caching a state the server never applied ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - A 4xx/5xx response was treated as success, so the settings UI showed the new toggle position and push links were added or removed for a subscription that did not change.
+- A failed Trigger API config read no longer re-enables accounts or unregisters the device ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - `createOnChainTriggers` now fails instead of reading a failed config query as "no subscriptions yet", which could subscribe every keyring account for a user who had turned them off, and it writes the preferences blob only after those subscriptions are in place so a failed run can still be retried as a first-time setup.
+  - `enablePushNotifications` leaves the device's existing push links alone rather than unregistering it, and `checkAccountsPresence` rejects rather than reporting every account as disabled.
 
 ## [26.0.1]
 
