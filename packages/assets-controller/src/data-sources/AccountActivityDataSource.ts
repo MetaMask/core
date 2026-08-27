@@ -382,9 +382,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
     try {
       // Act on every namespace (eip155, solana, etc.); AssetsController is
       // multichain. Only skip identifiers that are not valid CAIP-2 chain IDs.
-      const validChains = chainIds.filter((chainId) =>
-        isCaipChainId(chainId),
-      ) as ChainId[];
+      const validChains = chainIds.filter((chainId) => isCaipChainId(chainId));
 
       if (validChains.length === 0) {
         return;
