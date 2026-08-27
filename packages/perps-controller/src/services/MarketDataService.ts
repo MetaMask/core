@@ -913,9 +913,9 @@ export class MarketDataService {
       });
 
       // Prefer a separately configured atomic snapshot only for an exact,
-      // still-current provider/network/DEX identity. A rejected snapshot has
-      // one lexical fallback to the provider below and is not followed by a
-      // second legacy Terminal request.
+      // still-current provider/network/DEX identity. When the snapshot cannot
+      // supply prices, retain Terminal metadata through the legacy endpoint
+      // while falling back to provider prices below.
       let snapshotAttempted = false;
       if (
         globalSnapshot &&
@@ -954,13 +954,11 @@ export class MarketDataService {
         }
       }
 
-      // Fetch Terminal API metadata before provider data when enabled.
-      // Terminal metadata enriches the provider result (name, keywords, tags,
-      // categories) but never replaces live pricing / funding data.
+      // Fetch Terminal metadata before provider data when enabled, or when the
+      // configured snapshot failed and provider prices need metadata parity.
       let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
       if (
-        !snapshotAttempted &&
-        useTerminalApi &&
+        (useTerminalApi || snapshotAttempted) &&
         this.#deps.terminalMarketService
       ) {
         try {

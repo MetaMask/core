@@ -1268,6 +1268,10 @@ describe('MarketDataService', () => {
         clearCache: jest.fn(),
         logError: jest.fn(),
       };
+      mockTerminalService.fetchMarkets.mockResolvedValue({
+        markets: [],
+        metadata: new Map(),
+      });
 
       serviceWithTerminal = new MarketDataService({
         ...mockDeps,
@@ -1519,7 +1523,7 @@ describe('MarketDataService', () => {
         ['stale', new Error('snapshot stale')],
         ['context mismatch', new Error('snapshot identity mismatch')],
       ])(
-        'falls back to the provider exactly once on %s',
+        'falls back to Terminal metadata and provider prices on %s',
         async (_name, error) => {
           mockTerminalService.fetchGlobalSnapshot?.mockRejectedValue(error);
           mockProvider.getMarketDataWithPrices.mockResolvedValue(
@@ -1534,9 +1538,73 @@ describe('MarketDataService', () => {
 
           expect(result).toStrictEqual(providerMarketData);
           expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
-          expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+          expect(mockTerminalService.fetchMarkets).toHaveBeenCalledTimes(1);
         },
       );
+
+      it('applies Terminal v1 category metadata after snapshot failure', async () => {
+        const unitreeMarket: PerpsMarketData = {
+          symbol: 'xyz:UNITREE',
+          name: 'xyz:UNITREE',
+          maxLeverage: '10x',
+          price: '$1.00',
+          change24h: '+$0.10',
+          change24hPercent: '+10.00%',
+          volume: '$100000',
+          isHip3: true,
+          isNewMarket: true,
+        };
+        mockTerminalService.fetchGlobalSnapshot?.mockRejectedValue(
+          new Error('snapshot unavailable'),
+        );
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: [],
+          metadata: new Map<string, TerminalAssetMetadata>([
+            ['xyz:UNITREE', { marketType: 'pre-ipo' }],
+          ]),
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue([unitreeMarket]);
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: false },
+          context: createGlobalSnapshotContext({
+            enabledDexes: ['main', 'xyz'],
+          }),
+        });
+
+        expect(result[0]?.marketType).toBe('pre-ipo');
+        expect(result[0]?.isNewMarket).toBe(false);
+        expect(mockTerminalService.fetchGlobalSnapshot).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(mockTerminalService.fetchMarkets).toHaveBeenCalledTimes(1);
+        expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps provider fallback when Terminal v1 also fails', async () => {
+        mockTerminalService.fetchGlobalSnapshot?.mockRejectedValue(
+          new Error('snapshot unavailable'),
+        );
+        mockTerminalService.fetchMarkets.mockRejectedValue(
+          new Error('metadata unavailable'),
+        );
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          context: createGlobalSnapshotContext(),
+        });
+
+        expect(result).toStrictEqual(providerMarketData);
+        expect(mockProvider.getMarketDataWithPrices).toHaveBeenCalledTimes(1);
+        expect(mockTerminalService.logError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'metadata unavailable' }),
+          'getMarketDataWithPrices',
+        );
+      });
 
       it('rejects a snapshot context race without calling the captured provider', async () => {
         mockTerminalService.fetchGlobalSnapshot?.mockResolvedValue({
@@ -1654,7 +1722,8 @@ describe('MarketDataService', () => {
           provider: mockProvider,
           context: createGlobalSnapshotContext({ isCurrent }),
         });
-        await Promise.resolve();
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(resolveProvider).toBeDefined();
         resolveProvider?.(providerMarketData);
 
         await expect(pending).rejects.toThrow('snapshot context changed');

@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Map Terminal v1 `category` aliases (`pre_ipo` → `pre-ipo`, `stocks` → `stock`) when `marketType` is absent, so Pre-IPO markets such as Unitree appear under that filter without a static symbol list
 - Clear `isNewMarket` on the v1 Terminal enrich path once a `marketType` is applied, matching the v2 snapshot rule so categorized HIP-3 markets are not also in the controller `new` bucket
 - Reclassify `xyz:CBRS` and `xyz:SPCX` from `pre-ipo` to `stock` in `HIP3_ASSET_MARKET_TYPES` now that they are public (Terminal already sends `stocks`). Leave `xyz:IPOP` as Pre-IPO
+- Preserve Terminal v1 category metadata when the v2 snapshot falls back to provider prices
 
 ## [12.1.0]
 
