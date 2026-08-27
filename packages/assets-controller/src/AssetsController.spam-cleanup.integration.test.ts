@@ -7,11 +7,11 @@ import {
   registerAssetsControllerActions,
 } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
-import { mockSweepApis } from './__fixtures__/scam-token-cleanup/api-responses/index.js';
 import {
   createTestApiClient,
   waitForTokenApiRequests,
 } from './__fixtures__/mockTokenApi.js';
+import { mockSweepApis } from './__fixtures__/scam-token-cleanup/api-responses/index.js';
 import {
   SCAM_WALLET_ACCOUNT_ADDRESS,
   SCAM_WALLET_ACCOUNT_ID,
