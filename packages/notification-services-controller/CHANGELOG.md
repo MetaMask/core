@@ -13,13 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **BREAKING:** Wallet-activity addresses are once again sourced from the keyring and the Trigger API instead of Authenticated User Storage, which stops users receiving notifications for addresses they do not hold ([#0000](https://github.com/MetaMask/core/pull/0000))
+- **BREAKING:** Wallet-activity addresses are once again sourced from the keyring and the Trigger API instead of Authenticated User Storage, which stops users receiving notifications for addresses they do not hold ([#9985](https://github.com/MetaMask/core/pull/9985))
   - Authenticated User Storage is keyed by canonical profile ID, which profile pairing shares across every SRP belonging to the same user, so an address list stored there pooled the addresses of unrelated SRPs and delivered each installation the union of all of them. Addresses are keyring-scoped and cannot live in profile-scoped storage.
   - `checkAccountsPresence`, `fetchAndUpdateMetamaskNotifications` and `enablePushNotifications` now take the candidate addresses from the keyring and read the per-address enabled bit from the Trigger API. An installation can therefore only ever ask about addresses it holds.
   - `enableAccounts` and `disableAccounts` now write subscriptions to the Trigger API. The endpoint is a per-address upsert, so two installations authenticating as the same profile no longer clobber each other's subscriptions.
   - `createOnChainTriggers` no longer writes addresses into `walletActivity.accounts`; it writes an empty list. It subscribes the keyring's accounts only when initializing preferences for the first time and the Trigger API has no subscriptions yet, so the daily re-subscribe can no longer re-enable accounts the user turned off.
   - The user-level `walletActivity.inAppNotificationsEnabled` and `walletActivity.pushNotificationsEnabled` toggles are still read from Authenticated User Storage. They contain no addresses, so they remain correct to share across a paired profile. An unreadable preferences blob is treated as both toggles enabled, so a storage outage no longer empties the notification list.
-- Unregister the device from push notifications when no account has notifications enabled ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Unregister the device from push notifications when no account has notifications enabled ([#9985](https://github.com/MetaMask/core/pull/9985))
   - The push API rejects a registration with no addresses, and that request is what performs the delete-and-reinsert of the device's links, so the rejection left the previous links in place and push kept arriving after a user disabled every account.
 
 ## [26.0.1]
