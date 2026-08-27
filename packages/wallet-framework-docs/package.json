@@ -63,6 +63,7 @@
     "raw-loader": "^4.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3"

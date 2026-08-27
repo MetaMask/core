@@ -164,6 +164,18 @@ module.exports = defineConfig({
             'scripts.build:all',
             'tsc --build tsconfig.build.json --verbose',
           );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:clean',
+            'yarn build:only-clean && yarn build',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:only-clean',
+            `rimraf './dist' './tsconfig.build.tsbuildinfo'`,
+          );
         }
 
         // All non-root packages must have the same "build:docs" script (aside

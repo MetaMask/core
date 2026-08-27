@@ -34,6 +34,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-cli",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -74,6 +76,7 @@
     "jest": "^30.4.2",
     "jest-environment-node": "^30.4.1",
     "nock": "^13.3.1",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3"
