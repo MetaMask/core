@@ -529,7 +529,6 @@ export class TransakService {
     referrerDomain = TRANSAK_REFERRER_DOMAIN,
     clientProduct,
     clientVersion,
-    clientEnvironment,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -542,7 +541,6 @@ export class TransakService {
     referrerDomain?: string;
     clientProduct?: string;
     clientVersion?: string;
-    clientEnvironment?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -561,7 +559,6 @@ export class TransakService {
     this.#clientIdentity = {
       clientProduct,
       clientVersion,
-      clientEnvironment,
     };
 
     this.#messenger.registerMethodActionHandlers(

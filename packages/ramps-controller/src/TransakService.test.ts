@@ -1673,15 +1673,13 @@ describe('TransakService', () => {
         reqheaders: {
           'x-metamask-clientproduct': 'metamask-mobile',
           'x-metamask-clientversion': '8.9.0',
-          'x-metamask-clientenvironment': 'rc',
         },
       })
         .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
         .query(
           (query) =>
             query.clientProduct === 'metamask-mobile' &&
-            query.clientVersion === '8.9.0' &&
-            query.clientEnvironment === 'rc',
+            query.clientVersion === '8.9.0',
         )
         .reply(200, MOCK_DEPOSIT_ORDER);
 
@@ -1689,7 +1687,6 @@ describe('TransakService', () => {
         options: {
           clientProduct: 'metamask-mobile',
           clientVersion: '8.9.0',
-          clientEnvironment: 'rc',
         },
       });
 

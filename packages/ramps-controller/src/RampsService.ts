@@ -929,7 +929,6 @@ export class RampsService {
    * @param args.baseUrlOverride - Optional base URL override for local development.
    * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
    * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
-   * @param args.clientEnvironment - Optional RFFC-aligned build flavor (`prod`/`rc`/`exp`/`dev`).
    */
   constructor({
     messenger,
@@ -940,7 +939,6 @@ export class RampsService {
     baseUrlOverride,
     clientProduct,
     clientVersion,
-    clientEnvironment,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
@@ -950,7 +948,6 @@ export class RampsService {
     baseUrlOverride?: string;
     clientProduct?: string;
     clientVersion?: string;
-    clientEnvironment?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -962,7 +959,6 @@ export class RampsService {
     this.#clientIdentity = {
       clientProduct,
       clientVersion,
-      clientEnvironment,
     };
 
     this.#messenger.registerMethodActionHandlers(

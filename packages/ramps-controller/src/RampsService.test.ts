@@ -53,7 +53,6 @@ describe('RampsService', () => {
         reqheaders: {
           'x-metamask-clientproduct': 'metamask-mobile',
           'x-metamask-clientversion': '8.9.0',
-          'x-metamask-clientenvironment': 'rc',
         },
       })
         .get('/geolocation')
@@ -63,14 +62,12 @@ describe('RampsService', () => {
           context: 'mobile-ios',
           clientProduct: 'metamask-mobile',
           clientVersion: '8.9.0',
-          clientEnvironment: 'rc',
         })
         .reply(200, 'us-tx');
       const { rootMessenger } = getService({
         options: {
           clientProduct: 'metamask-mobile',
           clientVersion: '8.9.0',
-          clientEnvironment: 'rc',
         },
       });
 
