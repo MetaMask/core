@@ -10527,26 +10527,19 @@ export class HyperLiquidProvider implements PerpsProvider {
             normalizedStatus = 'queued';
         }
 
-        // Calculate filled and remaining size
-        const originalSize = parseFloat(order.origSz || order.sz);
-        const currentSize = parseFloat(order.sz);
-        const filledSize = originalSize - currentSize;
-
         const adaptedOrder = adaptOrderFromSDK(order, undefined);
-        let historicalOrderType = adaptedOrder.orderType;
-        if (!adaptedOrder.triggerOrderType) {
-          historicalOrderType = order.orderType?.toLowerCase().includes('limit')
-            ? 'limit'
-            : 'market';
-        }
+        // limitPx is also populated as a slippage cap for market orders, so the
+        // exchange's detailed type is the reliable execution-mode source.
+        const historicalOrderType = order.orderType
+          ?.toLowerCase()
+          .includes('limit')
+          ? 'limit'
+          : 'market';
 
         return {
           ...adaptedOrder,
           orderType: historicalOrderType,
-          size: order.sz,
-          originalSize: order.origSz || order.sz,
-          filledSize: filledSize.toString(),
-          remainingSize: currentSize.toString(),
+          remainingSize: parseFloat(order.sz).toString(),
           status: normalizedStatus,
           timestamp: statusTimestamp,
           lastUpdated: statusTimestamp,

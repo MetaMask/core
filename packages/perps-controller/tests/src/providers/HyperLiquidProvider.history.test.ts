@@ -534,6 +534,53 @@ describe('HyperLiquidProvider', () => {
       expect(result).toEqual([]);
     });
 
+    it('preserves history when an order is missing runtime-required fields', async () => {
+      mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+        {
+          order: {
+            oid: 123,
+            coin: 'BTC',
+            side: 'A',
+            sz: '0.5',
+            origSz: '1.0',
+            limitPx: '50000',
+            orderType: 'Limit',
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'filled',
+          statusTimestamp: 1640995200000,
+        },
+        {
+          order: {
+            oid: undefined,
+            coin: 'ETH',
+            side: 'B',
+            sz: '0.1',
+            origSz: '0.1',
+            limitPx: '',
+            orderType: undefined,
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'open',
+          statusTimestamp: 1640995300000,
+        },
+      ]);
+
+      const result = await provider.getOrders();
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        orderId: '123',
+        orderType: 'limit',
+      });
+      expect(result[1]).toMatchObject({
+        orderId: '',
+        orderType: 'market',
+      });
+    });
+
     it('properly transform getOrders with reduceOnly and isTrigger fields', async () => {
       const historicalOrdersData = [
         {
@@ -691,6 +738,8 @@ describe('HyperLiquidProvider', () => {
         reduceOnly: false,
         isTrigger: false,
       });
+      expect(result[3].triggerPrice).toBeUndefined();
+      expect(result[3].triggerOrderType).toBeUndefined();
     });
 
     it('properly transform getOpenOrders with reduceOnly and isTrigger fields', async () => {
