@@ -403,8 +403,8 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
     });
   });
 
-  it('warns and continues when a single source file fails to read', async () => {
-    expect.assertions(2);
+  it('skips unreadable source files and still documents the rest', async () => {
+    expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
       const srcDir = path.join(directoryPath, 'src');
@@ -421,28 +421,21 @@ export type OkAction = {
 export type OkMessenger = Messenger<'Ok', OkAction, never>;
 `,
       );
-      // A broken symlink pointing nowhere. Discovery surfaces it (it's not a
-      // directory), but reading it throws ENOENT — exercising the per-file
-      // failure path in `extractFromDirectory`.
+      // A broken symlink pointing nowhere. It matches `**‍/*.ts` by name, but
+      // cannot be read, so it must not stop the valid file being documented.
       await fs.promises.symlink(
         '/this/path/does/not/exist',
         path.join(srcDir, 'Bad.ts'),
       );
 
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      try {
-        const result = await generate({
-          projectPath: directoryPath,
-          outputDir: path.join(directoryPath, '.docs'),
-          strategy: 'scan',
-          scanDirs: ['src'],
-        });
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
+        scanDirs: ['src'],
+      });
 
-        expect(result.actions).toBe(1);
-        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Bad.ts'));
-      } finally {
-        warnSpy.mockRestore();
-      }
+      expect(result.actions).toBe(1);
     });
   });
 
