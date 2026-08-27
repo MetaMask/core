@@ -313,6 +313,7 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           chainUpdates.forEach(({ chain, entry }) => {
+            // This error appeared when upgrading to TypeScript 7.
             // @ts-expect-error: TS2589: Type instantiation is excessively deep and possibly infinite.
             state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
           });
