@@ -5,13 +5,14 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToString } from '@metamask/utils';
+import { areUint8ArraysEqual, bytesToString } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { x25519 } from '@noble/curves/ed25519';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
   KycController,
@@ -1572,12 +1573,32 @@ describe('KycController', () => {
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             jwtToken: 'mock-jwt-token',
+            sessionClientPublicKey: expect.stringMatching(/^[A-Za-z0-9_-]+$/u),
             vendorMetadata: expect.objectContaining({
               moonPayAccessToken: null,
               moonPayUserId: null,
             }),
           }),
         );
+        const { sessionClientPublicKey } =
+          handlers.createUkycSession.mock.calls[0][0] as {
+            sessionClientPublicKey: string;
+          };
+        const sessionClientPublicKeyBytes = base64UrlToBytes(
+          sessionClientPublicKey,
+        );
+        expect(sessionClientPublicKeyBytes).toHaveLength(32);
+        expect(
+          areUint8ArraysEqual(
+            x25519.getPublicKey(mockWrapEncryptionKey.mock.calls[0][0]),
+            sessionClientPublicKeyBytes,
+          ),
+        ).toBe(true);
+        expect(
+          toBase64Url(
+            x25519.getPublicKey(mockWrapEncryptionKey.mock.calls[1][0]),
+          ),
+        ).toBe(sessionClientPublicKey);
         expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
           'wrappedEncryptionKey',
         );

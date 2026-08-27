@@ -7,10 +7,9 @@ import { base64UrlToBytes, toBase64Url } from '../encoding.js';
  * (X25519 + XSalsa20-Poly1305) established with a per-secret wrapping key
  * returned inside an encryption schema from `createUkycSession`.
  *
- * Reuses a session client keypair rather than generating a fresh ephemeral
- * keypair per call. There is no prior wrapping-key exchange to register that
- * public key, so `data` is `clientPublicKey (32) || ciphertext+tag` and only
- * `{ data, nonce }` need be transmitted. Used for both the
+ * Reuses a session client keypair whose public half is registered on
+ * `createUkycSession`. `data` is still `clientPublicKey (32) || ciphertext+tag`
+ * so the box can be opened from `{ data, nonce }` alone. Used for both the
  * `data_encryption_key` and the `ukyc_capability_token`.
  */
 
@@ -31,9 +30,8 @@ export type WrappedEncryptionKeyParts = {
  * The box is sealed with NaCl's `crypto_box`, keyed by the X25519 shared secret
  * between our session client private key and the session server public key
  * from an encryption schema (`encryptionDataKey` or `ukycCapabilityToken`)
- * returned by `createUkycSession`. The 32-byte client public key is prefixed
- * onto `data` so the server can open the box without a prior key-registration
- * step.
+ * returned by `createUkycSession`. The 32-byte client public key is still
+ * prefixed onto `data` so the box is self-describing on the wire.
  *
  * @param sessionClientPrivateKey - Our session's X25519 private key.
  * @param sessionServerPublicKey - The server's X25519 public key (base64url).

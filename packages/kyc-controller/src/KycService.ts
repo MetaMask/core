@@ -320,6 +320,12 @@ export type SubmitSessionDisclaimersParams = {
 export type CreateUkycSessionParams = {
   jwtToken: string;
   /**
+   * The client's per-session X25519 public key (unpadded base64url). Generated
+   * with the matching private key used later to wrap authorizations, so the
+   * session server can open those boxes.
+   */
+  sessionClientPublicKey: string;
+  /**
    * Identity vendor for the UKYC session. Defaults to `moonpay` for the
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
@@ -790,7 +796,9 @@ export class KycService extends BaseDataService<
   /**
    * Creates a UKYC session for the SumSub document-verification sub-flow.
    *
-   * The response carries per-secret encryption schemas (`encryptionDataKey` and
+   * The client registers its per-session X25519 public key so the server can
+   * later open boxes sealed with the matching private key. The response
+   * carries per-secret encryption schemas (`encryptionDataKey` and
    * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
    * the read-only `ukyc_capability_token` and submit them via
    * {@link KycService.setAuthorizations}.
@@ -811,6 +819,7 @@ export class KycService extends BaseDataService<
             vendorId: params.vendor ?? 'moonpay',
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
+            sessionClientPublicKey: params.sessionClientPublicKey,
             vendorMetadata: params.vendorMetadata ?? {},
           }),
         }),

@@ -138,7 +138,7 @@ Endpoints:
 | `fetchSessionDisclaimers`  | `GET`  | `/sessions/{id}/disclaimers`             | Session-scoped idOS + KYC-provider catalog                                 |
 | `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`             | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents |
 | `fetchKycStatus`           | `GET`  | `/kyc/status`                            | User-keyed simplified KYC status                                           |
-| `createUkycSession`        | `POST` | `/sessions`                              | Start SumSub sub-flow; returns encryption schemas for wrapping             |
+| `createUkycSession`        | `POST` | `/sessions`                              | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
 | `setAuthorizations`        | `POST` | `/sessions/{id}/authorizations`          | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`   |
 | `createJourney`            | `POST` | `/sessions/{id}/journey`                 | Create verification journey → applicant token                              |
 
@@ -374,7 +374,7 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata })
+        Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, vendorMetadata })
         Svc->>API: POST /sessions
         Note over Ctrl: wrap data_encryption_key and ukyc_capability_token
         Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })

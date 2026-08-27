@@ -141,12 +141,14 @@ export type KycServiceFetchJwksAction = {
 };
 
 /**
- * Creates a UKYC session for the SumSub document-verification sub-flow.
- *
- * The response carries per-secret encryption schemas (`encryptionDataKey` and
- * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
- * the read-only `ukyc_capability_token` and submit them via
- * {@link KycService.setAuthorizations}.
+   * Creates a UKYC session for the SumSub document-verification sub-flow.
+   *
+   * The client registers its per-session X25519 public key so the server can
+   * later open boxes sealed with the matching private key. The response
+   * carries per-secret encryption schemas (`encryptionDataKey` and
+   * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
+   * the read-only `ukyc_capability_token` and submit them via
+   * {@link KycService.setAuthorizations}.
  *
  * @param params - The session parameters.
  * @returns The UKYC session id and encryption schemas.
