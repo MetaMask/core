@@ -63,7 +63,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/money-account-api-data-service": "^0.4.1",
     "@metamask/network-controller": "^36.0.0",
-    "@metamask/remote-feature-flag-controller": "^6.0.0",
+    "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0"
   },
