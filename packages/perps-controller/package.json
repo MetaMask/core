@@ -50,7 +50,9 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/perps-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/perps-controller",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -90,6 +92,7 @@
     "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",

@@ -30,6 +30,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/messenger-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/messenger-cli",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -54,6 +56,7 @@
     "jest": "^30.4.2",
     "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3"
