@@ -559,6 +559,7 @@ describe('HyperLiquidProvider', () => {
             sz: '0.0',
             origSz: '2.0',
             limitPx: '3500',
+            triggerPx: '3450',
             orderType: 'Take Profit Limit',
             reduceOnly: true,
             isTrigger: true,
@@ -574,12 +575,29 @@ describe('HyperLiquidProvider', () => {
             sz: '0.1',
             origSz: '0.1',
             limitPx: '45000',
+            triggerPx: '45500',
             orderType: 'Stop Market',
             reduceOnly: true,
             isTrigger: true,
           },
           status: 'triggered',
           statusTimestamp: 1640995400000,
+        },
+        {
+          order: {
+            oid: 126,
+            coin: 'ETH',
+            side: 'B',
+            sz: '0.0',
+            origSz: '1.0',
+            limitPx: '3600',
+            triggerPx: '',
+            orderType: 'Market',
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'filled',
+          statusTimestamp: 1640995500000,
         },
       ];
       mockClientService.getInfoClient = jest.fn().mockReturnValue({
@@ -596,7 +614,7 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.getOrders();
 
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(4);
 
       // Check first order - regular limit order (not closing)
       expect(result[0]).toMatchObject({
@@ -622,7 +640,13 @@ describe('HyperLiquidProvider', () => {
         size: '0.0',
         originalSize: '2.0',
         price: '3500',
+        triggerPrice: '3450',
+        triggerOrderType: 'take_profit_limit',
+        filledSize: '2',
+        remainingSize: '0',
         status: 'filled',
+        timestamp: 1640995300000,
+        lastUpdated: 1640995300000,
         detailedOrderType: 'Take Profit Limit',
         reduceOnly: true,
         isTrigger: true,
@@ -637,10 +661,35 @@ describe('HyperLiquidProvider', () => {
         size: '0.1',
         originalSize: '0.1',
         price: '45000',
+        triggerPrice: '45500',
+        triggerOrderType: 'stop_market',
+        filledSize: '0',
+        remainingSize: '0.1',
         status: 'triggered',
+        timestamp: 1640995400000,
+        lastUpdated: 1640995400000,
         detailedOrderType: 'Stop Market',
         reduceOnly: true,
         isTrigger: true,
+      });
+
+      // Check fourth order - regular market order with a slippage-cap price
+      expect(result[3]).toMatchObject({
+        orderId: '126',
+        symbol: 'ETH',
+        side: 'buy',
+        orderType: 'market',
+        size: '0.0',
+        originalSize: '1.0',
+        price: '3600',
+        filledSize: '1',
+        remainingSize: '0',
+        status: 'filled',
+        timestamp: 1640995500000,
+        lastUpdated: 1640995500000,
+        detailedOrderType: 'Market',
+        reduceOnly: false,
+        isTrigger: false,
       });
     });
 

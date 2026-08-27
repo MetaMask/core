@@ -10493,8 +10493,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Transform HyperLiquid orders to abstract Order type
       const orders: Order[] = (rawOrders || []).map((rawOrder) => {
         const { order, status, statusTimestamp } = rawOrder;
-        // Normalize side: HyperLiquid uses 'A' (Ask/Sell) and 'B' (Bid/Buy)
-        const normalizedSide = order.side === 'B' ? 'buy' : 'sell';
 
         // Normalize status
         let normalizedStatus: Order['status'];
@@ -10534,24 +10532,26 @@ export class HyperLiquidProvider implements PerpsProvider {
         const currentSize = parseFloat(order.sz);
         const filledSize = originalSize - currentSize;
 
-        return {
-          orderId: order.oid?.toString() || '',
-          symbol: order.coin,
-          side: normalizedSide,
-          orderType: order.orderType?.toLowerCase().includes('limit')
+        const adaptedOrder = adaptOrderFromSDK(order, undefined);
+        let historicalOrderType = adaptedOrder.orderType;
+        if (!adaptedOrder.triggerOrderType) {
+          historicalOrderType = order.orderType
+            ?.toLowerCase()
+            .includes('limit')
             ? 'limit'
-            : 'market',
+            : 'market';
+        }
+
+        return {
+          ...adaptedOrder,
+          orderType: historicalOrderType,
           size: order.sz,
           originalSize: order.origSz || order.sz,
-          price: order.limitPx || '0',
           filledSize: filledSize.toString(),
           remainingSize: currentSize.toString(),
           status: normalizedStatus,
           timestamp: statusTimestamp,
           lastUpdated: statusTimestamp,
-          detailedOrderType: order.orderType, // Full order type from exchange (e.g., 'Take Profit Limit', 'Stop Market')
-          isTrigger: order.isTrigger,
-          reduceOnly: order.reduceOnly,
         };
       });
 
