@@ -19,7 +19,10 @@ import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
 } from './orderStatus.js';
-import { mergePaymentMethodsById } from './paymentMethodMerge.js';
+import {
+  mergePaymentMethodsById,
+  pickPaymentMethod,
+} from './paymentMethodMerge.js';
 import {
   getProvidersServingAsset,
   normalizeRampsAssetId,
@@ -876,6 +879,32 @@ const MESSENGER_EXPOSED_METHODS = [
 /**
  * Manages cryptocurrency on/off ramps functionality.
  */
+/**
+ * Whether controller state still describes the context a payment-method
+ * request was issued for, so a completed request may write the Buy catalog.
+ *
+ * Compared at commit time rather than against a snapshot, so an older request
+ * that returns after the context moved on is dropped.
+ *
+ * @param state - Controller state at commit time.
+ * @param context - The context the request was issued for.
+ * @param context.region - Normalized region code.
+ * @param context.assetId - Canonicalized CAIP-19 asset id.
+ * @param context.providerId - Trimmed provider id, or an empty string.
+ * @returns Whether the write may proceed.
+ */
+function contextStillMatches(
+  state: RampsControllerState,
+  context: { region: string; assetId: string; providerId: string },
+): boolean {
+  return (
+    state.userRegion?.regionCode?.trim().toLowerCase() === context.region &&
+    normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
+      context.assetId &&
+    (state.providers.selected?.id.trim() ?? '') === context.providerId
+  );
+}
+
 export class RampsController extends BaseController<
   typeof controllerName,
   RampsControllerState,
@@ -1941,18 +1970,16 @@ export class RampsController extends BaseController<
       );
     }
 
+    const writeContext = {
+      region: normalizedRegion,
+      assetId: normalizedAssetContext,
+      providerId: providerIdForState,
+    };
+
     if (providerIds.length === 0) {
       if (updateState) {
         this.update((state) => {
-          const regionMatches =
-            state.userRegion?.regionCode?.trim().toLowerCase() ===
-            normalizedRegion;
-          const assetMatches =
-            normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
-            normalizedAssetContext;
-          const providerMatches =
-            (state.providers.selected?.id.trim() ?? '') === providerIdForState;
-          if (regionMatches && assetMatches && providerMatches) {
+          if (contextStillMatches(state, writeContext)) {
             state.paymentMethods.data = [];
             state.paymentMethods.selected = null;
           }
@@ -2006,39 +2033,20 @@ export class RampsController extends BaseController<
     }
 
     const methods = mergePaymentMethodsById(successfulLists);
-    const preferredId =
-      options.preferPaymentMethodId ?? this.state.paymentMethods.selected?.id;
-    let selected =
-      (preferredId
-        ? (methods.find((method) => method.id === preferredId) ?? null)
-        : null) ??
-      methods[0] ??
-      null;
+    let selected = pickPaymentMethod(methods, [
+      options.preferPaymentMethodId,
+      this.state.paymentMethods.selected?.id,
+    ]);
 
     if (updateState) {
       this.update((state) => {
-        const regionMatches =
-          state.userRegion?.regionCode?.trim().toLowerCase() ===
-          normalizedRegion;
-        const assetMatches =
-          normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
-          normalizedAssetContext;
-        const providerMatches =
-          (state.providers.selected?.id.trim() ?? '') === providerIdForState;
-        if (regionMatches && assetMatches && providerMatches) {
-          const currentSelection = state.paymentMethods.selected?.id;
-          selected =
-            (currentSelection
-              ? (methods.find((method) => method.id === currentSelection) ??
-                null)
-              : null) ??
-            (options.preferPaymentMethodId
-              ? (methods.find(
-                  (method) => method.id === options.preferPaymentMethodId,
-                ) ?? null)
-              : null) ??
-            methods[0] ??
-            null;
+        if (contextStillMatches(state, writeContext)) {
+          // The stored selection outranks the caller's preference: the user may
+          // have picked a method while this request was in flight.
+          selected = pickPaymentMethod(methods, [
+            state.paymentMethods.selected?.id,
+            options.preferPaymentMethodId,
+          ]);
           state.paymentMethods.data = methods;
           state.paymentMethods.selected = selected;
         }

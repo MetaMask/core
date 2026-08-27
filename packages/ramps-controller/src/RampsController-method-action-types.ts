@@ -224,7 +224,9 @@ export type RampsControllerGetPaymentMethodsAction = {
  * By default this is request-only: it does **not** mutate
  * `paymentMethods.data` or `paymentMethods.selected`. Pass `updateState:
  * true` only when the caller explicitly wants Buy-catalog write semantics
- * (UB2). Headless / MM Pay selection stays TPC-owned.
+ * (UB2). Headless / MM Pay selection stays TPC-owned. `updateState: true`
+ * throws when the resolved provider set holds more than one provider, because
+ * the write guards cannot tell two such requests apart.
  *
  * Methods are request-eligible for the resolved provider set; they are not
  * guaranteed to produce a quote for every amount (provider fiat limits still

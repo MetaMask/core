@@ -14,6 +14,27 @@ import type { PaymentMethod } from './RampsService.js';
  * @param lists - Payment method arrays in provider contribution order.
  * @returns Deduped payment methods.
  */
+/**
+ * Picks the payment method to select: the first `preferredIds` entry still
+ * present in `methods`, otherwise the first method.
+ *
+ * @param methods - Candidate payment methods, in display order.
+ * @param preferredIds - Preferred ids in priority order; falsy ids are skipped.
+ * @returns The selection, or null when `methods` is empty.
+ */
+export function pickPaymentMethod(
+  methods: PaymentMethod[],
+  preferredIds: (string | undefined)[],
+): PaymentMethod | null {
+  for (const id of preferredIds) {
+    const match = id ? methods.find((method) => method.id === id) : undefined;
+    if (match) {
+      return match;
+    }
+  }
+  return methods[0] ?? null;
+}
+
 export function mergePaymentMethodsById(
   lists: PaymentMethod[][],
 ): PaymentMethod[] {
