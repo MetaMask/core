@@ -1,3 +1,5 @@
+import { HyperliquidError } from '@nktkas/hyperliquid';
+
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
@@ -39,7 +41,9 @@ import {
 
 // The HyperLiquid SDK is never exercised directly: every exchange and info call
 // goes through the mocked client service below.
-jest.mock('@nktkas/hyperliquid', () => ({}));
+jest.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class MockHyperliquidError extends Error {},
+}));
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
@@ -91,6 +95,16 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
 // Mock TradingReadinessCache - global singleton for signing operation caching
 // Use jest.createMockFromModule for proper mock creation
 jest.mock('../../../src/services/TradingReadinessCache');
+
+class TestApiRequestError extends HyperliquidError {
+  readonly response: unknown;
+
+  constructor(response: unknown, message?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.response = response;
+  }
+}
 
 const MockedHyperLiquidClientService =
   HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
@@ -4743,6 +4757,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     const partlyRested = {
       status: 'ok',
       response: {
+        type: 'order',
         data: {
           statuses: [
             { resting: { oid: 11 } },
@@ -4752,6 +4767,100 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       },
     };
+
+    it('recovers a mixed Scale response thrown by the SDK', async () => {
+      const response = {
+        status: 'ok' as const,
+        response: {
+          type: 'order' as const,
+          data: {
+            statuses: [
+              { resting: { oid: 11 } },
+              { filled: { oid: 22 } },
+              { error: 'Insufficient margin' },
+            ],
+          },
+        },
+      };
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest
+            .fn()
+            .mockRejectedValue(
+              new TestApiRequestError(response, 'order 2: Insufficient margin'),
+            ),
+          cancel: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: ['success'] } },
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: true,
+        childOrderIds: ['11', '22'],
+        submittedSize: '0.6667',
+        averagePrice: '2249.962501874906',
+      });
+
+      expect(
+        await provider.cancelOrder({
+          orderId: placed.orderId,
+          symbol: 'ETH',
+          orderType: 'scale',
+        }),
+      ).toMatchObject({ success: true });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 11 }],
+      });
+    });
+
+    it.each([
+      [
+        'top-level',
+        new TestApiRequestError(
+          { status: 'err', response: 'Invalid nonce' },
+          'Invalid nonce',
+        ),
+        PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
+      ],
+      [
+        'malformed',
+        new TestApiRequestError(
+          {
+            status: 'ok',
+            response: { type: 'order', data: { statuses: 'invalid' } },
+          },
+          'Malformed bulk response',
+        ),
+        'Malformed bulk response',
+      ],
+      ['unrelated SDK', new HyperliquidError('SDK failure'), 'SDK failure'],
+      ['non-SDK', new Error('Network unavailable'), 'Network unavailable'],
+    ])('does not unwrap a %s SDK error', async (_label, error, message) => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockRejectedValue(error) },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({ success: false, error: message });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
 
     it('keeps accepted rungs when the ladder only partly rests', async () => {
       const { exchangeClient } = useStrategyClients({

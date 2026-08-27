@@ -5,6 +5,7 @@ import type {
   InfoClient,
   UserAbstractionResponse,
 } from '@nktkas/hyperliquid';
+import { HyperliquidError } from '@nktkas/hyperliquid';
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -233,6 +234,63 @@ import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
  */
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
+
+type ScaleBulkOrderResponse = {
+  status: 'ok';
+  response: {
+    type: 'order';
+    data: { statuses: unknown[] };
+  };
+};
+
+/**
+ * Recover the bulk order response that the pinned SDK wraps in an
+ * `ApiRequestError` when any rung is rejected.
+ *
+ * @param error - The SDK error thrown by `ExchangeClient.order`.
+ * @param expectedStatusCount - Number of Scale rungs submitted.
+ * @returns The complete bulk order response, or undefined for any other error.
+ */
+const getScaleBulkOrderResponseFromError = (
+  error: unknown,
+  expectedStatusCount: number,
+): ScaleBulkOrderResponse | undefined => {
+  if (
+    !(error instanceof HyperliquidError) ||
+    error.name !== 'ApiRequestError' ||
+    !hasProperty(error, 'response')
+  ) {
+    return undefined;
+  }
+
+  const result = error.response;
+  if (!isStatusObject(result) || result.status !== 'ok') {
+    return undefined;
+  }
+
+  const { response } = result;
+  if (!isStatusObject(response) || response.type !== 'order') {
+    return undefined;
+  }
+
+  const { data } = response;
+  if (!isStatusObject(data)) {
+    return undefined;
+  }
+
+  const { statuses } = data;
+  if (
+    !Array.isArray(statuses) ||
+    statuses.length !== expectedStatusCount ||
+    !statuses.some(
+      (status) => isStatusObject(status) && typeof status.error === 'string',
+    )
+  ) {
+    return undefined;
+  }
+
+  return result as ScaleBulkOrderResponse;
+};
 
 /**
  * Exchange messages that mean a cancel was refused because the order is not on
@@ -5818,11 +5876,20 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const exchangeClient = this.#clientService.getExchangeClient();
-    const result = await exchangeClient.order({
-      orders,
-      grouping: 'na',
-      ...(builder && { builder }),
-    });
+    let result: ScaleBulkOrderResponse;
+    try {
+      result = await exchangeClient.order({
+        orders,
+        grouping: 'na',
+        ...(builder && { builder }),
+      });
+    } catch (error) {
+      const bulkResponse = getScaleBulkOrderResponseFromError(error, count);
+      if (!bulkResponse) {
+        throw error;
+      }
+      result = bulkResponse;
+    }
 
     const rawStatuses = result.response?.data?.statuses;
     const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
