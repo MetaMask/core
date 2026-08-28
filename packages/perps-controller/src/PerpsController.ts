@@ -106,6 +106,7 @@ import type {
   MarketInfo,
   Order,
   OrderCapabilitiesUnavailableReason,
+  OrderDirection,
   OrderFill,
   OrderParams,
   OrderResult,
@@ -456,6 +457,7 @@ export type PerpsControllerState = {
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
           reduceOnly?: boolean; // Whether the order may only reduce a position
+          direction?: OrderDirection; // Long vs short
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -473,6 +475,7 @@ export type PerpsControllerState = {
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
           reduceOnly?: boolean; // Whether the order may only reduce a position
+          direction?: OrderDirection; // Long vs short
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -6049,6 +6052,7 @@ export class PerpsController extends BaseController<
    * @param config.limitPrice - The limit price.
    * @param config.orderType - The order type.
    * @param config.reduceOnly - Whether the order may only reduce a position.
+   * @param config.direction - Long or short.
    * @param config.selectedPaymentToken - The selected payment token.
    */
   savePendingTradeConfiguration(
@@ -6061,6 +6065,7 @@ export class PerpsController extends BaseController<
       limitPrice?: string;
       orderType?: OrderType;
       reduceOnly?: boolean;
+      direction?: OrderDirection;
       /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
       selectedPaymentToken?: PerpsSelectedPaymentToken | null;
     },
@@ -6109,6 +6114,7 @@ export class PerpsController extends BaseController<
         limitPrice?: string;
         orderType?: OrderType;
         reduceOnly?: boolean;
+        direction?: OrderDirection;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined {

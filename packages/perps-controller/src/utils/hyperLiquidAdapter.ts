@@ -277,7 +277,7 @@ export function adaptOrderFromSDK(
   );
 
   // Extract basic fields with appropriate conversions
-  const orderId = rawOrder.oid.toString();
+  const orderId = rawOrder.oid?.toString() || '';
   const symbol = rawOrder.coin;
   const side: 'buy' | 'sell' = rawOrder.side === 'B' ? 'buy' : 'sell';
   const detailedOrderType = rawOrder.orderType;
@@ -293,7 +293,7 @@ export function adaptOrderFromSDK(
     // source for how the order actually executes.
     orderType = getTriggerExecution(triggerOrderType);
   } else if (
-    detailedOrderType.toLowerCase().includes('limit') ||
+    detailedOrderType?.toLowerCase().includes('limit') ||
     rawOrder.limitPx
   ) {
     orderType = 'limit';

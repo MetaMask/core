@@ -604,6 +604,44 @@ export type FooAction = {
     });
   });
 
+  it('escapes angle brackets in JSDoc for MDX safety', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+
+      const items = await extractFromWrittenFile(
+        filePath,
+        withMessenger(
+          `
+/**
+ * Reads a Promise<Foo[]> from somewhere.
+ *
+ * @param filter - Accepts an Array<string> of ids.
+ * @returns Promise<PointsBoostDto[]> - The active boosts.
+ */
+export type FooAction = {
+  type: 'Foo:bar';
+  handler: (filter: string[]) => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+        directoryPath,
+      );
+
+      // An unescaped `<` is read by MDX as the start of a JSX tag, which
+      // fails the site build rather than rendering.
+      expect(items[0].jsDoc).toContain('Promise\\<Foo[]> from somewhere.');
+      expect(items[0].params[0].description).toContain(
+        'Array\\<string> of ids.',
+      );
+      expect(items[0].returns).toBe(
+        'Promise\\<PointsBoostDto[]> - The active boosts.',
+      );
+    });
+  });
+
   it('extracts multiple types from the same file', async () => {
     expect.assertions(3);
 
