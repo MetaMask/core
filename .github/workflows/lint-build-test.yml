@@ -329,6 +329,7 @@ jobs:
     if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
@@ -375,6 +376,7 @@ jobs:
     if: contains(fromJson(needs.prepare.outputs.package-names), '@metamask/wallet-cli')
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         node-version: [20.x, 22.x, 24.x]
     steps:
