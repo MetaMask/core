@@ -127,17 +127,32 @@ export type KycServiceFetchKycStatusAction = {
 };
 
 /**
- * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`s
- * returned inside encryption schemas from {@link KycService.createUkycSession}.
+ * Fetches the idOS enclave JWKS used to verify the
+ * `encryptionDataKey` schema's `jwtChain` from
+ * {@link KycService.createUkycSession}.
  *
- * This is an unauthenticated request to a well-known path on the Fractal
+ * This is an unauthenticated request to a well-known path on the idOS enclave
  * host, distinct from the UKYC base URL.
  *
  * @returns The JWKS keys.
  */
-export type KycServiceFetchJwksAction = {
-  type: `KycService:fetchJwks`;
-  handler: KycService['fetchJwks'];
+export type KycServiceFetchIdosEnclaveJwksAction = {
+  type: `KycService:fetchIdosEnclaveJwks`;
+  handler: KycService['fetchIdosEnclaveJwks'];
+};
+
+/**
+ * Fetches the idOS relay JWKS used to verify the `ukycCapabilityToken`
+ * schema's `jwtChain` from {@link KycService.createUkycSession}.
+ *
+ * This is an unauthenticated request to a well-known path on the idOS relay
+ * host, distinct from both the UKYC base URL and the idOS enclave.
+ *
+ * @returns The JWKS keys.
+ */
+export type KycServiceFetchIdosRelayJwksAction = {
+  type: `KycService:fetchIdosRelayJwks`;
+  handler: KycService['fetchIdosRelayJwks'];
 };
 
 /**
@@ -211,7 +226,8 @@ export type KycServiceMethodActions =
   | KycServiceFetchSessionDisclaimersAction
   | KycServiceSubmitSessionDisclaimersAction
   | KycServiceFetchKycStatusAction
-  | KycServiceFetchJwksAction
+  | KycServiceFetchIdosEnclaveJwksAction
+  | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction

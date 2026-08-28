@@ -4,8 +4,8 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { base64UrlToBytes } from '../encoding.js';
 
 /**
- * Verifies the `jwtChain` returned by the Fractal encryption service against
- * its published JWKS.
+ * Verifies an encryption-schema `jwtChain` against the issuer's published JWKS
+ * (idOS enclave for `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
  *
  * The signature check is done with `@noble/curves` (rather than WebCrypto
  * `subtle`) because not every MetaMask runtime exposes a `subtle`
@@ -14,7 +14,7 @@ import { base64UrlToBytes } from '../encoding.js';
  */
 
 /**
- * A single Ed25519 (OKP) JSON Web Key from the Fractal JWKS.
+ * A single Ed25519 (OKP) JSON Web Key from an issuer JWKS.
  */
 export type Jwk = {
   kty: string;
@@ -65,7 +65,7 @@ function decodeJsonSegment<Type>(segment: string, label: string): Type {
  * published Ed25519 signing key and checks the EdDSA signature over the
  * `header.payload` input. Returns the decoded, verified payload.
  *
- * @param keys - The JWKS keys published by the Fractal encryption service.
+ * @param keys - The issuer JWKS keys used to verify the chain.
  * @param jwtChain - The compact-serialized EdDSA JWT from an encryption schema.
  * @returns The verified JWT payload.
  */
