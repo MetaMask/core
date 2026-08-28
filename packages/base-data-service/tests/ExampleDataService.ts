@@ -137,7 +137,7 @@ export class ExampleDataService extends BaseDataService<
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          if (pageParam &&  'after' in pageParam) {
+          if (pageParam && 'after' in pageParam) {
             url.searchParams.set('after', pageParam.after);
           } else if (pageParam && 'before' in pageParam) {
             url.searchParams.set('before', pageParam.before);
