@@ -304,10 +304,13 @@ function buildDeclarationFileExclusions(root: string): string[] {
  * Add every file matching a set of glob patterns to the project, in a stable
  * order.
  *
- * ts-morph promises nothing about the order it returns matches in, so results
- * are sorted by path. Downstream deduplication keeps the first of two
- * equally-scored items, which would otherwise make output depend on the
- * filesystem.
+ * ts-morph promises nothing about the order it returns matches in, and
+ * deduplication downstream keeps the first of two equally-scored items, so an
+ * unsorted list would let the filesystem decide which source link a capability
+ * gets.
+ *
+ * Ordering is by code unit rather than `localeCompare`, which collates
+ * differently depending on the locale the process happens to run under.
  *
  * @param project - The shared ts-morph project.
  * @param patterns - Glob patterns to match, including `!` exclusions.
@@ -319,7 +322,13 @@ function addSourceFiles(
 ): ReturnType<Project['addSourceFilesAtPaths']> {
   return project
     .addSourceFilesAtPaths(patterns)
-    .sort((a, b) => a.getFilePath().localeCompare(b.getFilePath()));
+    .sort(
+      (fileA, fileB) =>
+        // Subtracting the two comparisons keeps this branchless, so it reads
+        // the same whichever order the matcher happened to return.
+        Number(fileA.getFilePath() > fileB.getFilePath()) -
+        Number(fileA.getFilePath() < fileB.getFilePath()),
+    );
 }
 
 /**
