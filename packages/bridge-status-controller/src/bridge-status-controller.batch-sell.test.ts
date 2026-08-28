@@ -326,6 +326,7 @@ describe('BridgeStatusController', () => {
                           price_impact: 0,
                           provider: 'socket_across',
                           quoted_time_minutes: 1,
+                          slippage_limit: 0,
                           stx_enabled: stxEnabled,
                           swap_type: 'single_chain',
                           token_address_destination:
@@ -772,6 +773,7 @@ describe('BridgeStatusController', () => {
                 price_impact: 0,
                 provider: 'socket_across',
                 quoted_time_minutes: 1,
+                slippage_limit: 0,
                 stx_enabled: stxEnabled,
                 swap_type: 'single_chain',
                 token_address_destination:
@@ -815,6 +817,7 @@ describe('BridgeStatusController', () => {
                 price_impact: 0,
                 provider: 'socket_across',
                 quoted_time_minutes: 1,
+                slippage_limit: 0,
                 stx_enabled: false,
                 swap_type: 'single_chain',
                 token_address_destination:

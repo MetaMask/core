@@ -16,6 +16,7 @@ import {
   MetricsSwapType,
   MetaMetricsSwapsEventSource,
   FeatureId,
+  UnifiedSwapBridgeEventName,
 } from '@metamask/bridge-controller';
 import type {
   AccountHardwareType,
@@ -27,6 +28,7 @@ import type {
   TradeData,
   RequestMetadata,
   BatchSellTradesResponse,
+  RequiredEventContextFromClient,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -192,6 +194,7 @@ export const getPriceImpactFromQuote = (
  * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
  * @param batchSellTrades - The batch sell trades response
  * @param batchId - The batch ID of the transaction batch.
+ * @param quotesReceivedContext - The client context captured when quotes were received.
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -204,6 +207,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   tokenSecurityTypeDestination?: string | null,
   batchSellTrades?: BatchSellTradesResponse | null,
   batchId?: Hex,
+  quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -225,7 +229,9 @@ export const getPreConfirmationPropertiesFromQuote = (
     usd_amount_source: Number(quoteResponse?.sentAmount?.usd ?? 0),
     stx_enabled: isStxEnabled,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
-    custom_slippage: false, // TODO detect whether the user changed the default slippage
+    slippage_limit:
+      quotesReceivedContext?.slippage_limit ?? quote.slippage ?? 0,
+    custom_slippage: quotesReceivedContext?.custom_slippage ?? false,
     location,
     ...(abTests &&
       Object.keys(abTests).length > 0 && {
@@ -259,12 +265,29 @@ export const getRequestMetadataFromHistory = (
   historyItem: BridgeHistoryItem,
   account?: AccountsControllerState['internalAccounts']['accounts'][string],
 ): RequestMetadata => {
-  const { quote, slippagePercentage, isStxEnabled } = historyItem;
+  const {
+    quote,
+    slippagePercentage,
+    isStxEnabled,
+    customSlippage,
+    batchSellData,
+    featureId,
+  } = historyItem;
   const accountHardwareType = getAccountHardwareType(account);
+  const isBatchSell =
+    Boolean(batchSellData) || featureId === FeatureId.BATCH_SELL;
+  const isUnifiedSwapBridge =
+    featureId === undefined || featureId === FeatureId.UNIFIED_SWAP_BRIDGE;
+  let inferredCustomSlippage = false;
+  if (isBatchSell) {
+    inferredCustomSlippage = isCustomSlippage(slippagePercentage ?? 0);
+  } else if (!isUnifiedSwapBridge) {
+    inferredCustomSlippage = isCustomSlippage(slippagePercentage);
+  }
 
   return {
-    slippage_limit: slippagePercentage,
-    custom_slippage: isCustomSlippage(slippagePercentage),
+    slippage_limit: slippagePercentage ?? 0,
+    custom_slippage: customSlippage ?? inferredCustomSlippage,
     usd_amount_source: Number(historyItem.pricingData?.amountSentInUsd ?? 0),
     swap_type: getSwapType(quote.srcChainId, quote.destChainId),
     account_hardware_type: accountHardwareType,
@@ -306,6 +329,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
     token_symbol_destination: transactionMeta.destinationTokenSymbol ?? '',
     usd_amount_source: 0,
+    slippage_limit: 0,
     stx_enabled: false,
     token_address_source:
       formatAddressToAssetId(
