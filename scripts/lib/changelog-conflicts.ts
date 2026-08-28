@@ -262,10 +262,17 @@ export async function mergeChangelogs({
   repoUrl: string;
   tagPrefix: string;
 }): Promise<{ content: string; mergedEntryCount: number }> {
+  // `ours` is used as the base to mutate and stringify. During a Git merge,
+  // `ours` is the current branch (HEAD); during a rebase, it's the upstream
+  // branch being rebased onto. In both cases, that's the side more likely to
+  // already contain entries also present in `theirs`, so preserving its
+  // existing order (and only appending genuinely new entries from `theirs`)
+  // produces more intuitive results than the reverse.
   const ours = parseChangelog({
     changelogContent: oursContent,
     repoUrl,
     tagPrefix,
+    formatter: oxfmt,
     shouldExtractPrLinks: true,
   });
 
@@ -273,26 +280,25 @@ export async function mergeChangelogs({
     changelogContent: theirsContent,
     repoUrl,
     tagPrefix,
-    formatter: oxfmt,
     shouldExtractPrLinks: true,
   });
 
   let mergedEntryCount = mergeReleaseChanges(
-    theirs.getUnreleasedChanges(),
     ours.getUnreleasedChanges(),
+    theirs.getUnreleasedChanges(),
   );
 
-  const theirsVersions = new Set(
-    theirs.getReleases().map(({ version }) => version),
+  const oursVersions = new Set(
+    ours.getReleases().map(({ version }) => version),
   );
 
-  for (const oursRelease of ours.getReleases()) {
-    if (!theirsVersions.has(oursRelease.version)) {
+  for (const theirsRelease of theirs.getReleases()) {
+    if (!oursVersions.has(theirsRelease.version)) {
       // `addRelease` can only add to the very start or end of the release
       // list, so insert at the start and then reposition it into its
       // correct descending-SemVer slot among the existing releases.
-      theirs.addRelease(oursRelease);
-      const releases = theirs.getReleases();
+      ours.addRelease(theirsRelease);
+      const releases = ours.getReleases();
       const [inserted] = releases.splice(0, 1);
 
       const sortedIndex = releases.findIndex(({ version }) =>
@@ -303,16 +309,18 @@ export async function mergeChangelogs({
       releases.splice(insertIndex, 0, inserted);
     }
 
-    const theirsReleaseChanges = theirs.getReleaseChanges(oursRelease.version);
-    const oursReleaseChanges = ours.getReleaseChanges(oursRelease.version);
+    const oursReleaseChanges = ours.getReleaseChanges(theirsRelease.version);
+    const theirsReleaseChanges = theirs.getReleaseChanges(
+      theirsRelease.version,
+    );
     mergedEntryCount += mergeReleaseChanges(
-      theirsReleaseChanges,
-      oursReleaseChanges ?? {},
+      oursReleaseChanges,
+      theirsReleaseChanges ?? {},
     );
   }
 
   return {
-    content: await theirs.toString(),
+    content: await ours.toString(),
     mergedEntryCount,
   };
 }

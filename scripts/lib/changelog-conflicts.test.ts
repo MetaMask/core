@@ -66,11 +66,11 @@ describe('changelog-conflicts', () => {
 
       expect(mergedEntryCount).toBe(1);
       const addedIndex = content.indexOf('### Added');
-      const theirsIndex = content.indexOf('Added theirs entry');
       const oursIndex = content.indexOf('Added ours entry');
+      const theirsIndex = content.indexOf('Added theirs entry');
       expect(addedIndex).toBeGreaterThan(-1);
-      expect(theirsIndex).toBeGreaterThan(addedIndex);
-      expect(oursIndex).toBeGreaterThan(theirsIndex);
+      expect(oursIndex).toBeGreaterThan(addedIndex);
+      expect(theirsIndex).toBeGreaterThan(oursIndex);
     });
 
     it('does not duplicate an entry that both sides added (identified by PR number)', async () => {
@@ -132,7 +132,7 @@ ${sharedEntry}`);
         tagPrefix: TAG_PREFIX,
       });
 
-      expect(mergedEntryCount).toBe(1);
+      expect(mergedEntryCount).toBe(0);
       expect(content.match(/Added shared entry/gu)).toHaveLength(1);
       expect(content).toContain(
         'Added a second, distinct entry from the same PR',
@@ -143,13 +143,13 @@ ${sharedEntry}`);
       const oursContent = buildChangelog(
         `### Changed
 
-- **BREAKING:** Ours breaking entry ([#30](${REPO_URL}/pull/30))`,
+- **BREAKING:** Ours existing breaking entry ([#31](${REPO_URL}/pull/31))
+- Ours existing non-breaking entry ([#32](${REPO_URL}/pull/32))`,
       );
       const theirsContent = buildChangelog(
         `### Changed
 
-- **BREAKING:** Theirs existing breaking entry ([#31](${REPO_URL}/pull/31))
-- Theirs existing non-breaking entry ([#32](${REPO_URL}/pull/32))`,
+- **BREAKING:** Theirs breaking entry ([#30](${REPO_URL}/pull/30))`,
       );
 
       const { content, mergedEntryCount } = await mergeChangelogs({
@@ -161,11 +161,11 @@ ${sharedEntry}`);
 
       expect(mergedEntryCount).toBe(1);
       const existingBreakingIndex = content.indexOf(
-        'Theirs existing breaking entry',
+        'Ours existing breaking entry',
       );
-      const newBreakingIndex = content.indexOf('Ours breaking entry');
+      const newBreakingIndex = content.indexOf('Theirs breaking entry');
       const nonBreakingIndex = content.indexOf(
-        'Theirs existing non-breaking entry',
+        'Ours existing non-breaking entry',
       );
       expect(existingBreakingIndex).toBeLessThan(newBreakingIndex);
       expect(newBreakingIndex).toBeLessThan(nonBreakingIndex);
@@ -198,7 +198,7 @@ ${sharedEntry}`);
     });
 
     it('merges in a release version that only exists on one side', async () => {
-      const oursContent = `# Changelog
+      const theirsContent = `# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -223,7 +223,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [2.0.0]: ${REPO_URL}/compare/${TAG_PREFIX}1.0.0...${TAG_PREFIX}2.0.0
 [1.0.0]: ${REPO_URL}/releases/tag/${TAG_PREFIX}1.0.0
 `;
-      const theirsContent = buildChangelog('');
+      const oursContent = buildChangelog('');
 
       const { content, mergedEntryCount } = await mergeChangelogs({
         oursContent,
@@ -238,7 +238,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     });
 
     it('appends a new release version that is older than every existing release', async () => {
-      const oursContent = `# Changelog
+      const theirsContent = `# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -263,7 +263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [2.0.0]: ${REPO_URL}/compare/${TAG_PREFIX}0.5.0...${TAG_PREFIX}2.0.0
 [0.5.0]: ${REPO_URL}/releases/tag/${TAG_PREFIX}0.5.0
 `;
-      const theirsContent = `# Changelog
+      const oursContent = `# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -296,7 +296,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     });
 
     it('inserts a new release version into its correct descending-SemVer position, not just at the start or end', async () => {
-      const oursContent = `# Changelog
+      const theirsContent = `# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -328,7 +328,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [2.0.0]: ${REPO_URL}/compare/${TAG_PREFIX}1.0.0...${TAG_PREFIX}2.0.0
 [1.0.0]: ${REPO_URL}/releases/tag/${TAG_PREFIX}1.0.0
 `;
-      const theirsContent = `# Changelog
+      const oursContent = `# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -370,6 +370,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       expect(content).toContain(
         `[3.0.0]: ${REPO_URL}/compare/${TAG_PREFIX}2.0.0...${TAG_PREFIX}3.0.0`,
       );
+    });
+
+    it('keeps an entry shared by both sides in its "ours" position, appending only genuinely new entries', async () => {
+      // Regression test for a rebase scenario: "ours" (the branch being
+      // rebased onto) has since gained a new entry, while "theirs" (the
+      // replayed commit) already contained an entry that also exists in
+      // "ours". Only the entry unique to "ours" should be appended; the
+      // shared entry should not move.
+      const oursContent = buildChangelog(
+        `### Changed
+
+- New entry only on ours ([#6388](${REPO_URL}/pull/6388))
+- Shared entry ([#9960](${REPO_URL}/pull/9960))`,
+      );
+      const theirsContent = buildChangelog(
+        `### Changed
+
+- **BREAKING:** Breaking entry only on theirs ([#9168](${REPO_URL}/pull/9168))
+- Shared entry ([#9960](${REPO_URL}/pull/9960))`,
+      );
+
+      const { content, mergedEntryCount } = await mergeChangelogs({
+        oursContent,
+        theirsContent,
+        repoUrl: REPO_URL,
+        tagPrefix: TAG_PREFIX,
+      });
+
+      expect(mergedEntryCount).toBe(1);
+      const breakingIndex = content.indexOf('Breaking entry only on theirs');
+      const newEntryIndex = content.indexOf('New entry only on ours');
+      const sharedIndex = content.indexOf('Shared entry');
+      expect(breakingIndex).toBeLessThan(newEntryIndex);
+      expect(newEntryIndex).toBeLessThan(sharedIndex);
     });
   });
 
