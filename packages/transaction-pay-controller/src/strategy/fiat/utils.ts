@@ -390,3 +390,87 @@ export function extractProviderCode(
 
   return parts.length === 1 ? parts[0] : null;
 }
+
+/**
+ * Coerces a quote fee field into a usable non-negative amount.
+ *
+ * Ramps quotes type their fee fields as `number | string | undefined`, and a
+ * provider can report a value we cannot use (missing, `NaN`, or negative).
+ * Treating those as zero matches how the rest of the ramps surface reads fee
+ * fields (`partnerFees ?? 0` in the client analytics payloads, `extraFee ?? 0`
+ * in the aggregator quote list), so quotes stay usable instead of being
+ * discarded over a single bad field.
+ *
+ * @param value - Raw fee value from a ramps quote.
+ * @returns The fee as a non-negative finite BigNumber, or zero.
+ */
+export function getSafeFee(value: BigNumber.Value | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
+}
+
+/**
+ * Combined on-ramp provider fee for the `providerFiat` breakdown.
+ *
+ * Ramps providers handle network gas fees themselves but report them
+ * separately as `networkFee` alongside their own `providerFee`. Both are the
+ * on-ramp's cost, so they combine into a single bucket. The partner
+ * (MetaMask) fee is deliberately excluded; it is reported separately by
+ * {@link getRampsMetaMaskFee} and would otherwise be counted twice.
+ *
+ * @param fiatQuote - The ramps quote containing provider and network fees.
+ * @returns Combined on-ramp provider fee.
+ */
+export function getRampsProviderFiatFee(fiatQuote: RampsQuote): BigNumber {
+  return getSafeFee(fiatQuote.quote.providerFee).plus(
+    getSafeFee(fiatQuote.quote.networkFee),
+  );
+}
+
+/**
+ * MetaMask's partner fee for a ramps quote.
+ *
+ * The ramps API reports it as `extraFee`, disjoint from `providerFee` and
+ * `networkFee` (the three sum to `totalFees`). Reading it from the quote is
+ * what lets the fee vary per quote, including the zero partner fee charged on
+ * mUSD.
+ *
+ * `extraFee` needs a fallback because the ramps backend coerces a missing
+ * partner fee to `0`, making an absent field indistinguishable from a genuine
+ * zero. That matters more than a display glitch: `fees.metaMask` is an addend
+ * of `totals.total`, and the client submits `total - providerFiat` as the
+ * amount to buy, so silently reading `0` would undercharge. When the quote
+ * also reports `totalFees`, recover the partner fee as the remainder instead.
+ *
+ * @param fiatQuote - The ramps quote to read fees from.
+ * @returns MetaMask's partner fee, or zero when the quote reports none.
+ */
+export function getRampsMetaMaskFee(fiatQuote: RampsQuote): BigNumber {
+  const extraFee = getSafeFee(fiatQuote.quote.extraFee);
+
+  if (extraFee.isGreaterThan(0)) {
+    return extraFee;
+  }
+
+  const { totalFees } = fiatQuote.quote;
+
+  if (totalFees === undefined) {
+    return extraFee;
+  }
+
+  const remainder = getSafeFee(totalFees).minus(
+    getRampsProviderFiatFee(fiatQuote),
+  );
+
+  if (remainder.isGreaterThan(0)) {
+    log('Recovered MetaMask fee from quote total fees', {
+      extraFee: extraFee.toString(10),
+      recovered: remainder.toString(10),
+    });
+    return remainder;
+  }
+
+  return extraFee;
+}
