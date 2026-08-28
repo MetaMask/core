@@ -581,6 +581,41 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it.each([
+      ['Limit', 'limit'],
+      ['Market', 'market'],
+      ['Stop Limit', 'limit'],
+      ['Stop Market', 'market'],
+      ['Take Profit Limit', 'limit'],
+      ['Take Profit Market', 'market'],
+      ['Unexpected Limit', 'market'],
+    ])(
+      'maps the exact historical order type %s to %s',
+      async (orderType, expected) => {
+        mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+          {
+            order: {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              origSz: '0.1',
+              limitPx: '50000',
+              orderType,
+              reduceOnly: false,
+              isTrigger: false,
+            },
+            status: 'open',
+            statusTimestamp: 1640995200000,
+          },
+        ]);
+
+        const result = await provider.getOrders();
+
+        expect(result[0].orderType).toBe(expected);
+      },
+    );
+
     it('properly transform getOrders with reduceOnly and isTrigger fields', async () => {
       const historicalOrdersData = [
         {

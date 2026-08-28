@@ -32,6 +32,7 @@ import {
   USDC_DECIMALS,
   USDC_SYMBOL,
 } from '../constants/hyperLiquidConfig.js';
+import { DETAILED_ORDER_TYPES } from '../constants/orderTypes.js';
 import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
@@ -59,6 +60,7 @@ import {
 } from '../services/TradingReadinessCache.js';
 import type {
   FrontendOrder,
+  OrderType as HyperLiquidOrderType,
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
@@ -223,6 +225,15 @@ import {
 } from '../utils/standaloneInfoClient.js';
 import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
+
+const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
+  [DETAILED_ORDER_TYPES.LIMIT]: 'limit',
+  [DETAILED_ORDER_TYPES.MARKET]: 'market',
+  [DETAILED_ORDER_TYPES.STOP_LIMIT]: 'limit',
+  [DETAILED_ORDER_TYPES.STOP_MARKET]: 'market',
+  [DETAILED_ORDER_TYPES.TAKE_PROFIT_LIMIT]: 'limit',
+  [DETAILED_ORDER_TYPES.TAKE_PROFIT_MARKET]: 'market',
+} as const satisfies Record<HyperLiquidOrderType, Order['orderType']>;
 
 /**
  * Type guard to check if a status is an object (not a string literal like "waitingForFill")
@@ -10530,10 +10541,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         const adaptedOrder = adaptOrderFromSDK(order, undefined);
         // limitPx is also populated as a slippage cap for market orders, so the
         // exchange's detailed type is the reliable execution-mode source.
-        const historicalOrderType = order.orderType
-          ?.toLowerCase()
-          .includes('limit')
-          ? 'limit'
+        const historicalOrderType = hasProperty(
+          HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE,
+          order.orderType,
+        )
+          ? HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE[order.orderType]
           : 'market';
 
         return {
