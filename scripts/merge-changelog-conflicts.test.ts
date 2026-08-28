@@ -32,12 +32,14 @@ describe('merge-changelog-conflicts', () => {
   });
 
   it('logs each resolved file and exits cleanly', async () => {
-    jest.spyOn(changelogConflicts, 'resolveChangelogConflicts').mockResolvedValue({
-      resolved: [
-        { path: 'packages/example/CHANGELOG.md', mergedEntryCount: 2 },
-      ],
-      skipped: [],
-    });
+    jest
+      .spyOn(changelogConflicts, 'resolveChangelogConflicts')
+      .mockResolvedValue({
+        resolved: [
+          { path: 'packages/example/CHANGELOG.md', mergedEntryCount: 2 },
+        ],
+        skipped: [],
+      });
 
     await main();
 
@@ -51,15 +53,17 @@ describe('merge-changelog-conflicts', () => {
   });
 
   it('warns about skipped files and exits with a non-zero code', async () => {
-    jest.spyOn(changelogConflicts, 'resolveChangelogConflicts').mockResolvedValue({
-      resolved: [],
-      skipped: [
-        {
-          path: 'packages/example/CHANGELOG.md',
-          reason: 'Malformed release header',
-        },
-      ],
-    });
+    jest
+      .spyOn(changelogConflicts, 'resolveChangelogConflicts')
+      .mockResolvedValue({
+        resolved: [],
+        skipped: [
+          {
+            path: 'packages/example/CHANGELOG.md',
+            reason: 'Malformed release header',
+          },
+        ],
+      });
 
     await main();
 
