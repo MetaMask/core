@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
+  PaymentMethodsForContextResponse,
   UserRegion,
   ResourceState,
   TransakState,
@@ -25,6 +26,7 @@ export type {
   RampsControllerSetSelectedTokenAction,
   RampsControllerGetProvidersAction,
   RampsControllerGetPaymentMethodsAction,
+  RampsControllerGetPaymentMethodsForContextAction,
   RampsControllerSetSelectedPaymentMethodAction,
   RampsControllerGetQuotesAction,
   RampsControllerAddOrderAction,
@@ -153,6 +155,7 @@ export {
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
 export {
+  normalizeRampsAssetId,
   providerServesAsset,
   getProvidersServingAsset,
   regionHasProviderForAsset,
