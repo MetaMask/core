@@ -144,6 +144,53 @@ export type MyMessenger = Messenger<'My', MyGetAction, never>;
     });
   });
 
+  it('scans a package whose name collides with an exclusion pattern', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // The exclusions drop directories named `test`, `dist` and friends. They
+      // must be anchored at each package's `src`, not at `packages`, or a
+      // package that happens to be *called* `test` is dropped whole.
+      const pkgSrc = path.join(directoryPath, 'packages', 'test', 'src');
+      await fs.promises.mkdir(pkgSrc, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(pkgSrc, 'Controller.ts'),
+        `
+export type TestPkgGetAction = {
+  type: 'TestPkg:get';
+  handler: () => string;
+};
+
+export type TestPkgMessenger = Messenger<'TestPkg', TestPkgGetAction, never>;
+`,
+      );
+      // A genuine test directory nested inside that package is still excluded.
+      const nestedTestDir = path.join(pkgSrc, 'test');
+      await fs.promises.mkdir(nestedTestDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(nestedTestDir, 'Helper.ts'),
+        `
+export type NestedGetAction = {
+  type: 'Nested:get';
+  handler: () => string;
+};
+
+export type NestedMessenger = Messenger<'Nested', NestedGetAction, never>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(1);
+      expect(result.namespaces).toBe(1);
+    });
+  });
+
   it('scans node_modules/@metamask/*/dist/ for .d.cts files', async () => {
     expect.assertions(1);
 

@@ -261,10 +261,16 @@ function logScanPlan(sources: ScanSources): void {
  * path falls outside the working directory — which is the normal case, since
  * this runs from wherever the consumer invoked it.
  *
- * @param root - Resolved directory the positive pattern is rooted at.
+ * `contentRoot` must be the directory the matched *files* live under, not an
+ * ancestor of it. Anchoring at `packages/` rather than `packages/*‍/src` would
+ * make the first path segment a package name, so a workspace package called
+ * `test` or `dist` would match `test/**` and be dropped whole.
+ *
+ * @param contentRoot - Resolved directory, or directory glob, that the matched
+ * files live directly under.
  * @returns The exclusion patterns.
  */
-function buildTsSourceExclusions(root: string): string[] {
+function buildTsSourceExclusions(contentRoot: string): string[] {
   return [
     'node_modules/**',
     'dist/**',
@@ -276,7 +282,7 @@ function buildTsSourceExclusions(root: string): string[] {
     '*.test-d.ts',
     '*.spec.ts',
     '*.d.ts',
-  ].map((pattern) => `!${root}/**/${pattern}`);
+  ].map((pattern) => `!${contentRoot}/**/${pattern}`);
 }
 
 /**
@@ -370,10 +376,13 @@ async function scanSources(
 
   if (sources.packagesDir) {
     const root = await toGlobPath(sources.packagesDir);
+    // Anchored at each package's `src`, not at `packages` itself, so a package
+    // whose name collides with an exclusion (`test`, `dist`) isn't dropped.
+    const contentRoot = `${root}/*/src`;
     sourceFiles.push(
       ...addSourceFiles(project, [
-        `${root}/*/src/**/*.ts`,
-        ...buildTsSourceExclusions(root),
+        `${contentRoot}/**/*.ts`,
+        ...buildTsSourceExclusions(contentRoot),
       ]),
     );
   }
