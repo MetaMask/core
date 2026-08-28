@@ -153,5 +153,17 @@ describe('lighterConfig', () => {
       // 10/30000 = 0.000333... → rounded up to 0.00034 at 5 decimals.
       expect(size).toBeCloseTo(0.00034, 6);
     });
+
+    it.each([
+      [{ ...market, minBaseAmount: '0.0002oops' }, 100],
+      [{ ...market, minQuoteAmount: 'missing' }, 100],
+      [{ ...market, supportedSizeDecimals: Number.NaN }, 100],
+      [market, Number.NaN],
+      [market, 0],
+    ])('fails closed for malformed minimum-size input', (input, price) => {
+      expect(() => computeLighterMinOrderSize(input, price)).toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
   });
 });

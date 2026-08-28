@@ -318,10 +318,26 @@ export function computeLighterMinOrderSize(
   >,
   price: number,
 ): number {
-  const minBase = parseFloat(market.minBaseAmount);
-  const minQuote = parseFloat(market.minQuoteAmount);
+  const minBase = parseLighterStrictDecimal(market.minBaseAmount);
+  const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
+  if (
+    minBase === null ||
+    !Number.isFinite(minBase) ||
+    minBase <= 0 ||
+    minQuote === null ||
+    !Number.isFinite(minQuote) ||
+    minQuote <= 0 ||
+    !Number.isFinite(price) ||
+    price <= 0 ||
+    !Number.isSafeInteger(market.supportedSizeDecimals) ||
+    market.supportedSizeDecimals < 0
+  ) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid market minimum-size metadata`,
+    );
+  }
   const step = 10 ** -market.supportedSizeDecimals;
-  const byQuote = price > 0 ? minQuote / price : minBase;
+  const byQuote = minQuote / price;
   const raw = Math.max(minBase, byQuote);
   // Small epsilon guards against float artifacts (0.1 / 1e-5 = 10000.0000002)
   // pushing the ceil one step too high.
