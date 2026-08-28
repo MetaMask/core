@@ -188,6 +188,18 @@ describe('lighterAdapter', () => {
       expect(adapted.size).toBe('-0.5');
     });
 
+    it('maps the venue margin mode and defaults older captures to cross', () => {
+      const isolated = adaptPositionFromLighter({
+        ...position,
+        marginMode: 1,
+      });
+      expect(isolated.leverage.type).toBe('isolated');
+
+      const cross = adaptPositionFromLighter({ ...position, marginMode: 0 });
+      expect(cross.leverage.type).toBe('cross');
+      expect(adaptPositionFromLighter(position).leverage.type).toBe('cross');
+    });
+
     it('returns null liquidation price when zero', () => {
       const adapted = adaptPositionFromLighter({
         ...position,

@@ -16,6 +16,7 @@
 set -euo pipefail
 
 LIGHTER_GO_REF="${LIGHTER_GO_REF:-05a2bbcbbc3db2de7941313fd6524e5744ee5336}"
+GO_TOOLCHAIN="go1.26.0"
 
 OUT_DIR="temp/lighter-wasm"
 while [ $# -gt 0 ]; do
@@ -45,7 +46,7 @@ echo "Building main.wasm from source (commit $UPSTREAM_COMMIT)..."
 # sha256 anywhere. (Upstream's committed blob is NOT reproducible: it
 # was built without -trimpath and embeds the author's laptop paths, so
 # the upstream compare below stays informational by nature.)
-(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm GOTOOLCHAIN=go1.26.0 go build -trimpath -ldflags="-s -w" -o main.wasm)
+(cd "$REPO_DIR/web-wasm" && env GOOS=js GOARCH=wasm GOTOOLCHAIN="$GO_TOOLCHAIN" go build -trimpath -ldflags="-s -w" -o main.wasm)
 
 # Upstream's committed blob, for the informational hash-compare.
 UPSTREAM_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
@@ -59,14 +60,14 @@ fi
 # Re-run the build so the artifact we ship is unambiguously source-built,
 # and prove SELF-reproducibility: a forced full recompile must produce
 # the identical hash.
-(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm GOTOOLCHAIN=go1.26.0 go build -trimpath -ldflags="-s -w" -o main.wasm)
+(cd "$REPO_DIR/web-wasm" && env GOOS=js GOARCH=wasm GOTOOLCHAIN="$GO_TOOLCHAIN" go build -trimpath -ldflags="-s -w" -o main.wasm)
 FIRST_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
-(cd "$REPO_DIR/web-wasm" && GOOS=js GOARCH=wasm GOTOOLCHAIN=go1.26.0 go build -a -trimpath -ldflags="-s -w" -o main.wasm)
+(cd "$REPO_DIR/web-wasm" && env GOOS=js GOARCH=wasm GOTOOLCHAIN="$GO_TOOLCHAIN" go build -a -trimpath -ldflags="-s -w" -o main.wasm)
 BUILT_SHA="$(shasum -a 256 "$REPO_DIR/web-wasm/main.wasm" | awk '{print $1}')"
 cp "$REPO_DIR/web-wasm/main.wasm" "$OUT_DIR/main.wasm"
 
 # Stage Go's wasm_exec.js runtime (path moved from misc/ to lib/ in Go 1.24).
-GOROOT_DIR="$(go env GOROOT)"
+GOROOT_DIR="$(env GOTOOLCHAIN="$GO_TOOLCHAIN" go env GOROOT)"
 if [ -f "$GOROOT_DIR/lib/wasm/wasm_exec.js" ]; then
   cp "$GOROOT_DIR/lib/wasm/wasm_exec.js" "$OUT_DIR/wasm_exec.js"
 elif [ -f "$GOROOT_DIR/misc/wasm/wasm_exec.js" ]; then
@@ -89,12 +90,12 @@ cat > "$OUT_DIR/manifest.json" <<EOF
   "source": "https://github.com/elliottech/lighter-go",
   "branch": "web-wasm",
   "commit": "$UPSTREAM_COMMIT",
-  "goVersion": "$(go version | awk '{print $3}')",
+  "goVersion": "$(env GOTOOLCHAIN="$GO_TOOLCHAIN" go version | awk '{print $3}')",
   "builtSha256": "$BUILT_SHA",
   "upstreamCommittedSha256": "$COMMITTED_SHA",
   "reproducibleMatch": $MATCH,
   "selfReproducible": true,
-  "toolchain": "go1.26.0 (GOTOOLCHAIN-pinned) + -trimpath",
+  "toolchain": "$GO_TOOLCHAIN (GOTOOLCHAIN-pinned) + -trimpath",
   "upstreamBlobNote": "upstream committed blob built without -trimpath; embeds author-machine paths, byte-match impossible by construction",
   "sizeBytes": $SIZE_BYTES
 }

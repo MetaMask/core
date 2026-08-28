@@ -52,9 +52,9 @@
         "action": "assert_output",
         "source": "sign-only",
         "stream": "stdout",
-        "contains": "PHASE_PASS: sign-only (7/7 checks)",
+        "contains": "PHASE_PASS: sign-only (9/9 checks)",
         "next": "assert-sign-only-json",
-        "intent": "Verify all 7 sign-only checks passed"
+        "intent": "Verify all 9 sign-only checks passed"
       },
       "assert-sign-only-json": {
         "action": "assert_json",

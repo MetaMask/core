@@ -225,6 +225,17 @@ const snapToLighterSizeGrid = (
 };
 
 /**
+ * Parse a candle field without JavaScript's null/boolean/blank coercions.
+ *
+ * @param value - Raw candle field from the venue.
+ * @returns A finite number, or null when the field is malformed.
+ */
+const toFiniteCandleNumber = (value: unknown): number | null => {
+  const parsed = typeof value === 'number' ? value : parseStrictDecimal(value);
+  return parsed !== null && Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
  * Map one venue candle onto the CandleStick contract, or null when any
  * field is non-finite. WS/REST candle payloads are cast at the boundary,
  * not validated — a malformed candle stringified blind reaches the chart
@@ -235,23 +246,21 @@ const snapToLighterSizeGrid = (
  * @returns The contract candle, or null when unmappable.
  */
 const toFiniteCandle = (candle: LighterCandle): CandleStick | null => {
-  const time = Number(candle?.t);
+  const time = toFiniteCandleNumber(candle?.t);
   const fields = [candle?.o, candle?.h, candle?.l, candle?.c, candle?.v].map(
-    Number,
+    toFiniteCandleNumber,
   );
-  if (
-    !Number.isFinite(time) ||
-    fields.some((value) => !Number.isFinite(value))
-  ) {
+  if (time === null || fields.some((value) => value === null)) {
     return null;
   }
+  const [open, high, low, close, volume] = fields as number[];
   return {
     time,
-    open: String(candle.o),
-    high: String(candle.h),
-    low: String(candle.l),
-    close: String(candle.c),
-    volume: String(candle.v),
+    open: String(open),
+    high: String(high),
+    low: String(low),
+    close: String(close),
+    volume: String(volume),
   };
 };
 
@@ -7994,15 +8003,12 @@ export class LighterProvider implements PerpsProvider {
   };
 
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    // The params.isTestnet OVERRIDE is part of the route contract (HL
-    // honors it too): DepositService requests { isTestnet: false } to
-    // scaffold the deposit-and-trade transaction on a chain the wallet
-    // can reach. Lighter TESTNET itself settles on a venue-hosted devnet
-    // L1 (chain 123456) the wallet cannot reach — advertising it made
-    // pay-with flows build a transaction on an unknown chain ("Invalid
-    // chain ID 0x1e240") — so the effective-testnet answer is NO routes:
-    // trade from the venue balance, top up via the venue faucet.
-    const isTestnet = params?.isTestnet ?? this.#isTestnet;
+    // A testnet-bound provider must never advertise the mainnet bridge,
+    // even when DepositService supplies its legacy `{ isTestnet: false }`
+    // hint. Lighter testnet settles on a venue-hosted devnet L1 (chain
+    // 123456) the wallet cannot reach, so fail closed and use the faucet.
+    // A mainnet provider still honors an explicit testnet request.
+    const isTestnet = this.#isTestnet || params?.isTestnet === true;
     if (isTestnet) {
       return [];
     }
@@ -8010,8 +8016,8 @@ export class LighterProvider implements PerpsProvider {
   }
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    // Same devnet-L1 reality and the same override contract as deposits.
-    const isTestnet = params?.isTestnet ?? this.#isTestnet;
+    // Same devnet-L1 reality and fail-closed network binding as deposits.
+    const isTestnet = this.#isTestnet || params?.isTestnet === true;
     if (isTestnet) {
       return [];
     }

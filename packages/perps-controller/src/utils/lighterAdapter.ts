@@ -404,7 +404,9 @@ export function adaptPositionFromLighter(
     unrealizedPnl: position.unrealizedPnl,
     marginUsed: String(marginUsed),
     leverage: {
-      type: 'cross',
+      // Older venue captures omit marginMode and therefore retain the
+      // historical cross default. Current payloads use 1 for isolated.
+      type: position.marginMode === 1 ? 'isolated' : 'cross',
       value: leverageValue,
     },
     liquidationPrice:

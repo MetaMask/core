@@ -8476,6 +8476,23 @@ describe('LighterProvider', () => {
           c: [
             { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
             { t: 1500, o: 1, h: 2, l: 0.5, v: 10 }, // missing close
+            {
+              t: 1600,
+              o: null as unknown as number,
+              h: 2,
+              l: 0.5,
+              c: 1.5,
+              v: 10,
+            },
+            { t: 1700, o: '', h: 2, l: 0.5, c: 1.5, v: 10 },
+            {
+              t: 1800,
+              o: false as unknown as number,
+              h: 2,
+              l: 0.5,
+              c: 1.5,
+              v: 10,
+            },
           ],
         });
       const candleCallback = jest.fn();
@@ -8501,6 +8518,9 @@ describe('LighterProvider', () => {
             { t: 2000, o: 1.5, h: 2.5, l: 1, c: 2, v: 5 },
             { t: 3000, o: 'x', h: 2, l: 1, c: 2, v: 5 },
             { o: 1, h: 2, l: 1, c: 2, v: 5 },
+            { t: 4000, o: null, h: 2, l: 1, c: 2, v: 5 },
+            { t: 5000, o: '', h: 2, l: 1, c: 2, v: 5 },
+            { t: 6000, o: false, h: 2, l: 1, c: 2, v: 5 },
           ],
         }),
       });
@@ -9156,14 +9176,12 @@ describe('LighterProvider', () => {
       const { provider } = buildProvider();
       expect(provider.getDepositRoutes()).toStrictEqual([]);
       expect(provider.getWithdrawalRoutes()).toStrictEqual([]);
-      // The isTestnet OVERRIDE is honored (route contract): a testnet
-      // provider asked for mainnet routes returns the Ethereum L1 bridge
-      // — DepositService uses this to scaffold the deposit-and-trade
-      // transaction on a chain the wallet can reach.
-      const [scaffoldRoute] = provider.getDepositRoutes({ isTestnet: false });
-      expect(scaffoldRoute.chainId).toBe('eip155:1');
-      expect(scaffoldRoute.contractAddress).toBe(
-        '0x3B4D794a66304F130a4Db8F2551B0070dfCf5ca7',
+      // A caller hint must never override the provider's venue network:
+      // DepositService currently asks for mainnet routes, and advertising
+      // one here would fund mainnet while trading remains on testnet.
+      expect(provider.getDepositRoutes({ isTestnet: false })).toStrictEqual([]);
+      expect(provider.getWithdrawalRoutes({ isTestnet: false })).toStrictEqual(
+        [],
       );
 
       const { provider: mainnetProvider } = buildProvider({
@@ -9177,6 +9195,9 @@ describe('LighterProvider', () => {
       expect(mainnetRoute.assetId).toContain(
         'erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       );
+      expect(
+        mainnetProvider.getDepositRoutes({ isTestnet: true }),
+      ).toStrictEqual([]);
     });
   });
 
