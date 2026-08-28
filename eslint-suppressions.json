@@ -2073,7 +2073,7 @@
       "count": 4
     },
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {
