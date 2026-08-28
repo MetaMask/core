@@ -3,12 +3,21 @@ import type { Provider } from './RampsService.js';
 /**
  * Canonicalizes a CAIP-19 asset id for comparison against Ramps API values.
  *
- * The Ramps API stores EVM asset ids lowercased, while callers routinely
- * arrive with EIP-55 checksummed hex from other controllers, and the providers
- * API returns both forms. Namespaces outside `eip155` carry case-sensitive
- * references (Solana base58, bitcoin bech32) and must pass through verbatim,
- * so lowercasing is restricted to EVM ids rather than applied to the whole
- * string.
+ * CAIP-19 does not constrain the case of the asset reference, and the Ramps API
+ * is not consistent about it. Every `eip155` key in `regions/{region}/providers`
+ * `supportedCryptoCurrencies` is lowercase, while `regions/{region}/topTokens`
+ * returns four mainnet `assetId` values EIP-55 checksummed (USDT, USDC, WBTC,
+ * LINK) in both its `topTokens` and `allTokens` lists, with no lowercase
+ * duplicate. Callers also supply checksummed ids of their own from other
+ * controllers, so the two sides of a comparison can disagree on case for the
+ * same asset.
+ *
+ * Non-EVM references are case-sensitive (Solana base58, Tron base58, bitcoin
+ * bech32), so lowercasing is restricted to `eip155` rather than applied to the
+ * whole string. This is a tightening: for EVM ids a plain `toLowerCase()` on
+ * both sides already matched. Current API data carries non-EVM ids in identical
+ * case on both endpoints, so the passthrough guards against future drift rather
+ * than fixing an observed mismatch.
  *
  * The namespace itself is matched case-insensitively, so an `EIP155:` prefix
  * is treated as EVM even though CAIP-19 defines namespaces as lowercase.
