@@ -31,11 +31,13 @@ type PackageMetadata = {
 };
 
 type ConflictResolution = {
+  /** OS-native path, for display (e.g. in a terminal). */
   path: string;
   mergedEntryCount: number;
 };
 
 type ConflictSkip = {
+  /** OS-native path, for display (e.g. in a terminal). */
   path: string;
   reason: string;
 };
@@ -362,10 +364,13 @@ export async function resolveChangelogConflicts(): Promise<ConflictResolutionRes
         'utf8',
       );
 
-      resolved.push({ path: changelogPath, mergedEntryCount });
+      resolved.push({
+        path: path.normalize(changelogPath),
+        mergedEntryCount,
+      });
     } catch (error) {
       skipped.push({
-        path: changelogPath,
+        path: path.normalize(changelogPath),
         reason: getErrorMessage(error),
       });
     }
