@@ -1,12 +1,15 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ### Added
-- Add `idosRelayBaseUrl` on `KycService` and `KycService.fetchIdosRelayJwks()` to fetch the idOS relay well-known JWKS used to verify the `ukycCapabilityToken` encryption schema. `encryptionDataKey` continues to verify against idOS enclave JWKS via `fetchIdosEnclaveJwks` / `idosEnclaveBaseUrl`.
+
+- Add `idosRelayBaseUrl` on `KycService` and `KycService.fetchIdosRelayJwks()` to fetch the idOS relay well-known JWKS used to verify the `ukycCapabilityToken` encryption schema. `encryptionDataKey` continues to verify against idOS enclave JWKS via `fetchIdosEnclaveJwks` / `idosEnclaveBaseUrl`. ([#10008](https://github.com/MetaMask/core/pull/10008))
 - Add session-scoped disclaimer APIs on `KycService` for the idOS / KYC-provider catalog ([#9979](https://github.com/MetaMask/core/pull/9979)):
   - `fetchSessionDisclaimers({ sessionId })` calls `GET /sessions/{sessionId}/disclaimers`
   - `submitSessionDisclaimers({ sessionId, idOS, kycProvider, credentialReusabilityConsentGiven })` calls `POST /sessions/{sessionId}/disclaimers`
@@ -26,8 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KycController.clearState()` (and the `KycController:clearState` action) restoring the default state, including the fields `reset()` preserves: the session email, terms acceptance, the per-product KYC-required cache and the user-keyed status. Intended for a full wallet reset. ([#9958](https://github.com/MetaMask/core/pull/9958))
 
 ### Changed
-- **BREAKING:** Rename `fractalEncryptionBaseUrl` to `idosEnclaveBaseUrl`, `KycService.fetchJwks` / `KycService:fetchJwks` / `KycServiceFetchJwksAction` to `fetchIdosEnclaveJwks` / `KycService:fetchIdosEnclaveJwks` / `KycServiceFetchIdosEnclaveJwksAction`, and related Fractal encryption naming to idOS enclave.
-- **BREAKING:** Verify `encryptionDataKey` against idOS enclave JWKS (`KycService:fetchIdosEnclaveJwks` / `idosEnclaveBaseUrl`) and `ukycCapabilityToken` against idOS relay JWKS (`KycService:fetchIdosRelayJwks` / `idosRelayBaseUrl`) when wrapping UKYC authorizations, instead of validating both schemas against Fractal. Hosts must supply `idosRelayBaseUrl` on `KycService` construction (same class of requirement as `idosEnclaveBaseUrl`).
+
+- **BREAKING:** Rename `fractalEncryptionBaseUrl` to `idosEnclaveBaseUrl`, `KycService.fetchJwks` / `KycService:fetchJwks` / `KycServiceFetchJwksAction` to `fetchIdosEnclaveJwks` / `KycService:fetchIdosEnclaveJwks` / `KycServiceFetchIdosEnclaveJwksAction`, and related Fractal encryption naming to idOS enclave. ([#10008](https://github.com/MetaMask/core/pull/10008))
+- **BREAKING:** Verify `encryptionDataKey` against idOS enclave JWKS (`KycService:fetchIdosEnclaveJwks` / `idosEnclaveBaseUrl`) and `ukycCapabilityToken` against idOS relay JWKS (`KycService:fetchIdosRelayJwks` / `idosRelayBaseUrl`) when wrapping UKYC authorizations, instead of validating both schemas against Fractal. Hosts must supply `idosRelayBaseUrl` on `KycService` construction (same class of requirement as `idosEnclaveBaseUrl`). ([#10008](https://github.com/MetaMask/core/pull/10008))
 - **BREAKING:** Require `sessionClientPublicKey` (unpadded base64url X25519 public key) and `residenceCountry` (ISO 3166-1 alpha-3) on `KycService.createUkycSession` (`POST /sessions`). The controller generates the per-session keypair before creating the session and uses the private half to wrap authorizations; residence country is taken from the resolved geo country. ([#9993](https://github.com/MetaMask/core/pull/9993))
 - **BREAKING:** Replace wrapping-key exchange (`KycService.getWrappingKey`) and sending wrapped keys at session creation with encryption schemas from `createUkycSession` plus `setAuthorizations` (`POST /sessions/{id}/authorizations`). `createUkycSession` no longer accepts `wrappedEncryptionKey` or `ukycCapabilityToken`; both secrets are wrapped on the client against per-secret schemas and posted separately. ([#9944](https://github.com/MetaMask/core/pull/9944))
 - **BREAKING:** Replace `KycService.submitConsents` (`POST /consents`) with session-scoped `fetchSessionDisclaimers` / `submitSessionDisclaimers` plus vendor T&C recording via `submitVendorDisclaimers`. Consents now use `{ key, version }` document records plus `credentialReusabilityConsentGiven` instead of Iron disclaimer ids and boolean T&C flags, and they require a UKYC session id. Iron content ids are posted separately to `POST /vendors/{vendor}/disclaimers`. The consents path records vendor T&Cs, then creates the UKYC session, then records session disclaimers. A 409 conflict is re-checked with a GET and only treated as success when every accepted document is consented. ([#9979](https://github.com/MetaMask/core/pull/9979))
@@ -38,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ### Fixed
+
 - Clear leftover MoonPay `sessionToken`, `accessToken`, and Check/Auth frame credentials when `initialize` or `createVendorCustomer` switches to another vendor, so `buildCheckFrameUrl` cannot return a MoonPay URL for a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Rewind the consents path when SumSub fails before completion (thrown step or SDK close without `Completed`), instead of refreshing user status and forcing `phase` to `done`. A terminal UKYC rejection after the SDK completed still finishes as `done` so the decision can be reflected in user status. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Make `createVendorCustomer` a no-op during in-progress phases (matching `initialize`), so a vendor switch cannot leave Check/Auth frames attached to the wrong vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))

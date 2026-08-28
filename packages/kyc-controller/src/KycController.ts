@@ -1905,10 +1905,11 @@ export class KycController extends BaseController<
     // the verified JWT payload before trusting it for wrapping.
     // `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken` by the
     // idOS relay.
-    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = await Promise.all([
-      this.messenger.call('KycService:fetchIdosEnclaveJwks'),
-      this.messenger.call('KycService:fetchIdosRelayJwks'),
-    ]);
+    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
+      await Promise.all([
+        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+        this.messenger.call('KycService:fetchIdosRelayJwks'),
+      ]);
     this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
     this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
 

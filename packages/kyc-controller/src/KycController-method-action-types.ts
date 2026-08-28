@@ -175,9 +175,10 @@ export type KycControllerGetCustomerIdentityAction = {
  * Runs the SumSub document-verification sub-flow end to end:
  *
  * 1. creates a UKYC session, receiving per-secret encryption schemas;
- * 2. verifies the `encryptionDataKey` schema's `jwtChain` against the idOS
- * enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against the
- * idOS relay JWKS, then confirms each attested session server public key;
+ * 2. verifies the `encryptionDataKey` schema's `jwtChain` against the
+ * idOS enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
+ * the idOS relay JWKS, then confirms each attested session server public
+ * key;
  * 3. derives the `data_encryption_key` from the wallet's UKYC
  * `local_user_secret` and wraps it for the session server;
  * 4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the

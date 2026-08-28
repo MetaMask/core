@@ -246,7 +246,9 @@ describe('KycService', () => {
       const response = {
         keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
       };
-      nock(MOCK_IDOS_ENCLAVE_URL).get('/.well-known/jwks.json').reply(200, response);
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
       const { service } = getService();
 
       expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);

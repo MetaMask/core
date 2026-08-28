@@ -1829,7 +1829,9 @@ describe('KycController', () => {
         const idosRelayKeys = [
           { kty: 'OKP', crv: 'Ed25519', x: 'relay', kid: 'r1' },
         ];
-        handlers.fetchIdosEnclaveJwks.mockResolvedValue({ keys: idosEnclaveKeys });
+        handlers.fetchIdosEnclaveJwks.mockResolvedValue({
+          keys: idosEnclaveKeys,
+        });
         handlers.fetchIdosRelayJwks.mockResolvedValue({ keys: idosRelayKeys });
         handlers.createUkycSession.mockResolvedValue(
           ukycSessionResponse({
