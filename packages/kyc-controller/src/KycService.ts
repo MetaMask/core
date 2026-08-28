@@ -29,6 +29,7 @@ import type { KycServiceMethodActions } from './KycService-method-action-types.j
 import type {
   KycConsentRecord,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycUserStatusResponse,
@@ -261,9 +262,17 @@ const ConsentDocumentStruct = type({
   consented: boolean(),
 });
 
-const SessionDisclaimersResponseStruct = type({
+const DisclaimersCatalogFields = {
   idOS: array(ConsentDocumentStruct),
   kycProvider: array(ConsentDocumentStruct),
+} as const;
+
+/** Global catalog from `GET /disclaimers` (no credential-reuse flag). */
+const GlobalDisclaimersResponseStruct = type(DisclaimersCatalogFields);
+
+/** Session catalog from `GET`/`POST /sessions/{id}/disclaimers`. */
+const SessionDisclaimersResponseStruct = type({
+  ...DisclaimersCatalogFields,
   credentialReusabilityConsentGiven: boolean(),
 });
 
@@ -305,8 +314,18 @@ export type SubmitVendorDisclaimersParams = {
 };
 
 export type FetchSessionDisclaimersParams = {
-  /** UKYC session id from {@link KycService.createUkycSession}. */
-  sessionId: string;
+  /**
+   * UKYC session id from {@link KycService.createUkycSession}. When set,
+   * fetches `GET /sessions/{sessionId}/disclaimers`. Mutually exclusive with
+   * `country`.
+   */
+  sessionId?: string;
+  /**
+   * ISO 3166-1 alpha-3 country code. Required for the global catalog
+   * (`GET /disclaimers?country=`). Must not be set when `sessionId` is
+   * provided.
+   */
+  country?: string;
 };
 
 export type SubmitSessionDisclaimersParams = {
@@ -690,32 +709,88 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
-   * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
-   * session; vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
+   * Fetches the idOS + KYC-provider disclaimer catalog.
+   *
+   * - With `sessionId`: `GET /sessions/{sessionId}/disclaimers` (includes
+   *   per-session `consented` flags and `credentialReusabilityConsentGiven`).
+   *   Do not pass `country`.
+   * - With `country` (ISO 3166-1 alpha-3): `GET /disclaimers?country=` for the
+   *   global catalog (no credential-reuse field). Do not pass `sessionId`.
+   *
+   * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
    *
    * @param params - The parameters.
-   * @param params.sessionId - The UKYC session id.
-   * @returns The catalog, including which documents are already consented.
+   * @returns The catalog. Session fetches include
+   * `credentialReusabilityConsentGiven`; global fetches do not.
    */
+  fetchSessionDisclaimers(params: {
+    sessionId: string;
+  }): Promise<KycSessionDisclaimers>;
+
+  fetchSessionDisclaimers(params: {
+    country: string;
+  }): Promise<KycDisclaimersCatalog>;
+
   async fetchSessionDisclaimers(
-    params: FetchSessionDisclaimersParams,
-  ): Promise<KycSessionDisclaimers> {
-    const url = new URL(
-      `/sessions/${encodeURIComponent(params.sessionId)}/disclaimers`,
-      this.#baseUrl,
-    );
+    params: FetchSessionDisclaimersParams = {},
+  ): Promise<KycDisclaimersCatalog | KycSessionDisclaimers> {
+    const sessionId =
+      typeof params.sessionId === 'string' && params.sessionId.length > 0
+        ? params.sessionId
+        : undefined;
+    const country =
+      typeof params.country === 'string' && params.country.length > 0
+        ? params.country
+        : undefined;
+
+    if (sessionId && country) {
+      throw new Error(
+        'KycService.fetchSessionDisclaimers: sessionId and country must not be provided together.',
+      );
+    }
+
+    if (sessionId) {
+      const url = new URL(
+        `/sessions/${encodeURIComponent(sessionId)}/disclaimers`,
+        this.#baseUrl,
+      );
+      const data = await this.fetchQuery({
+        queryKey: [`${this.name}:fetchSessionDisclaimers`, sessionId],
+        queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+        // Consent state can change after a POST, so always re-fetch.
+        staleTime: 0,
+        gcTime: 0,
+      });
+      return this.#validateResponse(
+        data,
+        SessionDisclaimersResponseStruct,
+        'session disclaimers',
+      );
+    }
+
+    if (!country) {
+      throw new Error(
+        'KycService.fetchSessionDisclaimers: country is required when sessionId is omitted.',
+      );
+    }
+    if (country.length !== 3) {
+      throw new Error(
+        `KycService.fetchSessionDisclaimers: country must be an ISO 3166-1 alpha-3 code (received "${country}").`,
+      );
+    }
+
+    const url = new URL('/disclaimers', this.#baseUrl);
+    url.searchParams.set('country', country);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimers`, params.sessionId],
+      queryKey: [`${this.name}:fetchSessionDisclaimers`, country],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Consent state can change after a POST, so always re-fetch.
       staleTime: 0,
       gcTime: 0,
     });
     return this.#validateResponse(
       data,
-      SessionDisclaimersResponseStruct,
-      'session disclaimers',
+      GlobalDisclaimersResponseStruct,
+      'disclaimers',
     );
   }
 

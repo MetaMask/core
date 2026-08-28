@@ -88,13 +88,18 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 };
 
 /**
- * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
- * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
- * session; vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
+ * Fetches the idOS + KYC-provider disclaimer catalog.
  *
- * @param params - The parameters.
- * @param params.sessionId - The UKYC session id.
- * @returns The catalog, including which documents are already consented.
+ * - With `sessionId`: `GET /sessions/{sessionId}/disclaimers` (includes
+ *   `credentialReusabilityConsentGiven`). Do not pass `country`.
+ * - With `country` (ISO 3166-1 alpha-3): `GET /disclaimers?country=` (catalog
+ *   only). Do not pass `sessionId`.
+ *
+ * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
+ *
+ * @param params - Either `{ sessionId }` or `{ country }`.
+ * @returns The catalog. Session fetches include
+ * `credentialReusabilityConsentGiven`; global fetches do not.
  */
 export type KycServiceFetchSessionDisclaimersAction = {
   type: `KycService:fetchSessionDisclaimers`;

@@ -136,7 +136,7 @@ Endpoints:
 | `checkKycRequired`         | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
 | `createVendorCustomer`     | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
 | `submitVendorDisclaimers`  | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor T&C signings (`disclaimerIds`)                                           |
-| `fetchSessionDisclaimers`  | `GET`  | `/sessions/{id}/disclaimers`                 | Session-scoped idOS + KYC-provider catalog                                             |
+| `fetchSessionDisclaimers`  | `GET`  | `/disclaimers?country=` or `/sessions/{id}/disclaimers` | idOS + KYC-provider catalog (`country` XOR `sessionId`; global omits credential-reuse) |
 | `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`                 | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
 | `fetchKycStatus`           | `GET`  | `/kyc/status`                                | User-keyed simplified KYC status                                                       |
 | `fetchIdosEnclaveJwks`     | `GET`  | `{idosEnclaveBaseUrl}/.well-known/jwks.json` | idOS enclave JWKS for `encryptionDataKey` attestation                                  |
@@ -343,7 +343,7 @@ sequenceDiagram
     Svc->>Geo: getGeolocation()
     Note over Svc: map alpha-2 → alpha-3 locally
     Ctrl->>Svc: fetchVendorDisclaimers({ country })
-    Svc->>API: GET /disclaimers
+    Svc->>API: GET /vendors/moonpay/disclaimers?country=
     Ctrl-->>UI: phase = terms (+ disclaimers)
 
     User->>Ctrl: acceptTermsAndStartSession({ email, sumsubTncSigned, idosTncSigned })

@@ -96,6 +96,7 @@ export type {
   KycConsentRecord,
   KycCustomerIdentity,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
   KycSessionDisclaimers,

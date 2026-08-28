@@ -740,7 +740,7 @@ describe('KycService', () => {
   });
 
   describe('fetchSessionDisclaimers', () => {
-    const catalog = {
+    const documents = {
       idOS: [
         {
           key: 'idos-tos',
@@ -759,6 +759,9 @@ describe('KycService', () => {
           consented: false,
         },
       ],
+    };
+    const catalog = {
+      ...documents,
       credentialReusabilityConsentGiven: false,
     };
 
@@ -771,8 +774,111 @@ describe('KycService', () => {
       ).toStrictEqual(catalog);
     });
 
+    it('returns the global disclaimer catalog for a country', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, documents);
+      const { service } = getService();
+
+      expect(
+        await service.fetchSessionDisclaimers({ country: 'USA' }),
+      ).toStrictEqual(documents);
+    });
+
+    it('uses the global catalog for an empty sessionId when country is set', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'FRA' })
+        .reply(200, documents);
+      const { service } = getService();
+
+      expect(
+        await service.fetchSessionDisclaimers({
+          sessionId: '',
+          country: 'FRA',
+        }),
+      ).toStrictEqual(documents);
+    });
+
+    it('throws when neither sessionId nor country is provided', async () => {
+      const { service } = getService();
+
+      await expect(service.fetchSessionDisclaimers()).rejects.toThrow(
+        /country.*required/iu,
+      );
+    });
+
+    it('throws when country is not a 3-character code', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ country: 'US' }),
+      ).rejects.toThrow(/ISO 3166-1 alpha-3/u);
+    });
+
+    it('throws when both sessionId and country are provided', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({
+          sessionId: 'sid-1',
+          country: 'USA',
+        }),
+      ).rejects.toThrow(/must not be provided together/iu);
+    });
+
+    it('throws on a malformed global catalog response', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, {});
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ country: 'USA' }),
+      ).rejects.toThrow(/Malformed response received from disclaimers API/u);
+    });
+
+    it('throws when the global catalog is missing kycProvider', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(200, { idOS: [] });
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ country: 'USA' }),
+      ).rejects.toThrow(/Malformed response received from disclaimers API/u);
+    });
+
+    it('throws an HttpError on a non-ok global catalog response', async () => {
+      nock(MOCK_API_URL)
+        .get('/disclaimers')
+        .query({ country: 'USA' })
+        .reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ country: 'USA' }),
+      ).rejects.toThrow(/failed with status '500'/u);
+    });
+
     it('throws on a malformed response', async () => {
       nock(MOCK_API_URL).get('/sessions/sid-1/disclaimers').reply(200, {});
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws when the session catalog omits credentialReusabilityConsentGiven', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid-1/disclaimers')
+        .reply(200, documents);
       const { service } = getService();
 
       await expect(
