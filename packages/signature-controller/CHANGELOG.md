@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
 
 ## [39.2.10]
 
