@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New Lighter types/constants exports, `KeyringController:signPersonalMessage` in the allowed messenger actions (type-only), and durable-settlement surfacing on the controller: `getPendingManualRecoveries`, `getRecoveredDispatches`, `acknowledgeRecoveredDispatch` actions with `PerpsPendingManualRecovery` / `PerpsRecoveredDispatch` exported types and `OrderResult.partialState`.
   - `LiquidationPriceParams` and `MaintenanceMarginParams` gain an optional `providerId`, and `getMaxLeverage` accepts the same optional route, so aggregated calculations use the provider that owns the market or position.
 
+### Fixed
+
+- Prevent transient HyperLiquid WebSocket disconnects from failing the first TP/SL update by checking builder-fee approval over HTTP ([#9997](https://github.com/MetaMask/core/pull/9997))
+- Stop reporting `TPSL_UPDATE_FAILED` from `updatePositionTPSL` when HyperLiquid accepts a trigger with `waitingForTrigger`; accepted triggers without response order IDs are reconciled before mixed-failure cleanup ([#9995](https://github.com/MetaMask/core/pull/9995))
+
 ## [13.1.0]
 
 ### Added
@@ -22,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics ([#9982](https://github.com/MetaMask/core/pull/9982)).
 - Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
 
 ## [13.0.0]
