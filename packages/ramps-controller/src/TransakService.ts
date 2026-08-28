@@ -794,8 +794,8 @@ export class TransakService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
-    // Also in the query string (not only headers) so CDN-cached responses
-    // vary per client product / version / environment.
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
     addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
@@ -809,8 +809,8 @@ export class TransakService {
 
     url.searchParams.set('action', 'deposit');
     url.searchParams.set('context', this.#context);
-    // Also in the query string (not only headers) so CDN-cached responses
-    // vary per client product / version / environment.
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
     addRampsClientIdentityParams(url, this.#clientIdentity);
 
     if (params) {
@@ -824,9 +824,7 @@ export class TransakService {
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: { Accept: 'application/json' },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(
@@ -1309,9 +1307,7 @@ export class TransakService {
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: { Accept: 'application/json' },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(

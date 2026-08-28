@@ -1092,8 +1092,8 @@ export class RampsService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
-    // Also in the query string (not only headers) so CDN-cached responses
-    // vary per client product / version / environment.
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
     addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
