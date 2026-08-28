@@ -736,6 +736,27 @@ describe('MYXProvider', () => {
         protocolFeeRate: 0.0005,
       });
     });
+
+    it('previewPositionModify returns unsupported', async () => {
+      expect(
+        await provider.previewPositionModify({
+          position: {
+            symbol: 'RHEA',
+            size: '1',
+            entryPrice: '1',
+            positionValue: '1',
+            marginUsed: '1',
+            leverage: { type: 'isolated', value: 5 },
+            liquidationPrice: '0.5',
+            maxLeverage: 20,
+          },
+          direction: 'long',
+          size: '0.1',
+          price: '1',
+          leverage: 5,
+        }),
+      ).toEqual({ status: 'unsupported', reason: 'provider' });
+    });
   });
 
   // ==========================================================================
