@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+## [75.4.0]
+
+### Added
 
 - Preserve explicit slippage intent and normalized slippage limits in post-submission Unified SwapBridge metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^80.0.0` to `^80.1.0` ([#10002](https://github.com/MetaMask/core/pull/10002))
 
 ## [75.3.0]
 
@@ -1527,7 +1533,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.4.0...HEAD
+[75.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.3.0...@metamask/bridge-status-controller@75.4.0
 [75.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.2.1...@metamask/bridge-status-controller@75.3.0
 [75.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.2.0...@metamask/bridge-status-controller@75.2.1
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.1.0...@metamask/bridge-status-controller@75.2.0
