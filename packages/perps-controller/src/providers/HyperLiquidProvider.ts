@@ -3779,7 +3779,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     builder: string,
     userAddress: string,
   ): Promise<number | null> {
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
 
     return infoClient.maxBuilderFee({
       user: userAddress,
