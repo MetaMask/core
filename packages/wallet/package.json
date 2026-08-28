@@ -69,7 +69,7 @@
     "@metamask/messenger": "^2.0.0",
     "@metamask/network-controller": "^36.0.0",
     "@metamask/passkey-controller": "^3.1.0",
-    "@metamask/remote-feature-flag-controller": "^6.0.0",
+    "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/seedless-onboarding-controller": "^10.1.1",
     "@metamask/shield-controller": "^6.0.1",

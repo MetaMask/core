@@ -82,7 +82,7 @@
     "@metamask/polling-controller": "^16.0.9",
     "@metamask/preferences-controller": "^23.1.0",
     "@metamask/profile-sync-controller": "^29.0.0",
-    "@metamask/remote-feature-flag-controller": "^6.0.0",
+    "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
