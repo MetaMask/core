@@ -115,6 +115,30 @@ ${sharedEntry}`);
       ).toHaveLength(1);
     });
 
+    it('keeps distinct entries that share the same PR number', async () => {
+      const sharedEntry = `- Added shared entry ([#20](${REPO_URL}/pull/20))`;
+      const oursContent = buildChangelog(`### Added
+
+${sharedEntry}
+- Added a second, distinct entry from the same PR ([#20](${REPO_URL}/pull/20))`);
+      const theirsContent = buildChangelog(`### Added
+
+${sharedEntry}`);
+
+      const { content, mergedEntryCount } = await mergeChangelogs({
+        oursContent,
+        theirsContent,
+        repoUrl: REPO_URL,
+        tagPrefix: TAG_PREFIX,
+      });
+
+      expect(mergedEntryCount).toBe(1);
+      expect(content.match(/Added shared entry/gu)).toHaveLength(1);
+      expect(content).toContain(
+        'Added a second, distinct entry from the same PR',
+      );
+    });
+
     it('inserts a new breaking entry below existing breaking entries, above non-breaking ones', async () => {
       const oursContent = buildChangelog(
         `### Changed

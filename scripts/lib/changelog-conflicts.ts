@@ -149,19 +149,16 @@ function isBreakingChange(change: Change): boolean {
 }
 
 /**
- * Build a key that identifies "the same change" across both conflict sides,
- * preferring the PR numbers (since wording may drift slightly between
- * sides) and falling back to the description.
+ * Build a key that identifies "the same change" across both conflict sides.
+ * Includes the PR numbers alongside the description, since a single PR can add
+ * multiple distinct changelog entries that all reference it.
  *
  * @param change - The change entry.
  * @returns The dedup key for the change.
  */
 function getChangeKey(change: Change): string {
-  if (change.prNumbers.length > 0) {
-    return `pr:${[...change.prNumbers].sort().join(',')}`;
-  }
-
-  return `desc:${change.description.trim()}`;
+  const prKey = [...change.prNumbers].sort().join(',');
+  return `${prKey}:${change.description.trim()}`;
 }
 
 /**
@@ -241,8 +238,8 @@ function mergeReleaseChanges(
 /**
  * Merge two conflicting versions of a changelog by taking the union of their
  * entries: every entry unique to either side is kept, deduplicated by PR
- * number (falling back to description), with new `**BREAKING:**` entries
- * placed below existing breaking entries and other new entries appended.
+ * number and description together, with new `**BREAKING:**` entries placed
+ * below existing breaking entries and other new entries appended.
  *
  * @param options - Options.
  * @param options.oursContent - The changelog content on the "ours" conflict
