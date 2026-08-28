@@ -166,8 +166,28 @@ export const getQuotesReceivedProperties = (
   recommendedQuote?: null | QuoteResponse,
   usdBalanceSource?: number,
   hasSufficientGasForQuote?: boolean | null,
+  options: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    custom_slippage?: boolean;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    slippage_limit?: number;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    usd_amount_source?: number;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    token_symbol_source?: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    token_symbol_destination?: string | null;
+  } = {},
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
+  const quoteUsdAmountSource = activeQuote?.quote?.src?.usd;
+  const quoteTokenSymbolSource = activeQuote?.quote.src.asset.symbol;
+  const quoteTokenSymbolDestination = activeQuote?.quote.dest.asset.symbol;
+  const usdAmountSource = Number(
+    quoteUsdAmountSource ?? options.usd_amount_source ?? 0,
+  );
+  const slippageLimit =
+    options.slippage_limit ?? activeQuote?.quote?.slippage ?? 0;
   return {
     can_submit: isSubmittable,
     gas_included: Boolean(activeQuote?.quote?.gasIncluded),
@@ -178,19 +198,25 @@ export const getQuotesReceivedProperties = (
     usd_quoted_gas: Number(activeQuote?.quote?.feeData?.network?.[0]?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.quote?.dest?.usd ?? 0),
     usd_balance_source: usdBalanceSource ?? 0,
-    usd_amount_source: Number(activeQuote?.quote?.src?.usd ?? 0),
+    usd_amount_source: usdAmountSource,
+    slippage_limit: slippageLimit,
     best_quote_provider: recommendedQuote
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,
     provider,
-    token_symbol_source: activeQuote?.quote.src.asset.symbol ?? '',
-    token_symbol_destination: activeQuote?.quote.dest.asset.symbol ?? null,
+    token_symbol_source:
+      quoteTokenSymbolSource ?? options.token_symbol_source ?? '',
+    token_symbol_destination:
+      quoteTokenSymbolDestination ?? options.token_symbol_destination ?? null,
     warnings,
     price_impact: Number(
       activeQuote?.quote.priceData?.priceImpact?.amount ?? 0,
     ),
     ...(hasSufficientGasForQuote !== undefined && {
       has_sufficient_gas_for_quote: hasSufficientGasForQuote,
+    }),
+    ...(options.custom_slippage !== undefined && {
+      custom_slippage: options.custom_slippage,
     }),
     feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
