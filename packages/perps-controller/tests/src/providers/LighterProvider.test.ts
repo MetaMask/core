@@ -1,3 +1,5 @@
+import { webcrypto } from 'crypto';
+
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import {
   LighterApiError,
@@ -68,27 +70,20 @@ const acknowledgeAllRecovered = async (
   return outcomes;
 };
 
-/* eslint-disable n/no-unsupported-features/node-builtins, n/global-require, @typescript-eslint/no-require-imports -- test-only WebCrypto polyfill: Node 20+ exposes the global, the Node 18 CI floor does not; the provider falls back gracefully in production */
 /**
- * The WebCrypto object under test. Node 20+ exposes it as a global;
- * Node 18 (the CI floor) does not, so fall back to node:crypto's
- * webcrypto and INSTALL it as the global the provider reads — the
- * spies below must intercept the same object the code under test uses.
+ * The WebCrypto object under test. Install Node's implementation as the
+ * global the provider reads when the Jest environment does not expose it;
+ * the spies below must intercept the same object the code under test uses.
  *
  * @returns The WebCrypto object the provider draws randomness from.
  */
-const ensureWebCrypto = (): Crypto => {
-  const holder = globalThis as { crypto?: Crypto };
-  if (!holder.crypto) {
-    const { webcrypto } = require('crypto') as { webcrypto: Crypto };
-    Object.defineProperty(globalThis, 'crypto', {
-      value: webcrypto,
-      configurable: true,
-    });
-  }
-  return holder.crypto as Crypto;
+const ensureWebCrypto = (): typeof webcrypto => {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: webcrypto,
+    configurable: true,
+  });
+  return webcrypto;
 };
-/* eslint-enable n/no-unsupported-features/node-builtins, n/global-require, @typescript-eslint/no-require-imports */
 
 const resolveJournalPayloadKey = (
   disk: Map<string, string>,
@@ -2204,12 +2199,7 @@ describe('LighterProvider', () => {
     // place of the actually-submitted one (FIFO desync).
     const nonceFromTxInfo = (txInfo: string): number | undefined => {
       try {
-        const parsed = (
-          JSON.parse(txInfo) as {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            Nonce?: unknown;
-          }
-        ).Nonce;
+        const parsed = (JSON.parse(txInfo) as Record<string, unknown>).Nonce;
         return typeof parsed === 'number' ? parsed : undefined;
       } catch {
         return undefined;
@@ -2443,12 +2433,12 @@ describe('LighterProvider', () => {
           };
           let wireNonce: number | undefined;
           try {
-            wireNonce = (
-              JSON.parse(result.txInfo ?? '') as {
-                // eslint-disable-next-line @typescript-eslint/naming-convention
-                Nonce?: number;
-              }
-            ).Nonce;
+            const parsed = JSON.parse(result.txInfo ?? '') as Record<
+              string,
+              unknown
+            >;
+            wireNonce =
+              typeof parsed.Nonce === 'number' ? parsed.Nonce : undefined;
           } catch {
             wireNonce = undefined;
           }

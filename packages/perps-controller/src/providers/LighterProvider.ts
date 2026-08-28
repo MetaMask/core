@@ -508,8 +508,7 @@ const requireSignedTxIdentity = (signed: {
   }
   let expiresAt: unknown;
   try {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    expiresAt = (JSON.parse(signed.txInfo ?? '') as { ExpiredAt?: unknown })
+    expiresAt = (JSON.parse(signed.txInfo ?? '') as Record<string, unknown>)
       .ExpiredAt;
   } catch {
     expiresAt = undefined;
@@ -701,10 +700,7 @@ const extractDispatchIdentity = (signed: {
       : null;
   let expiresAt: number | null = null;
   try {
-    const wire = JSON.parse(signed.txInfo ?? '') as {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      ExpiredAt?: unknown;
-    };
+    const wire = JSON.parse(signed.txInfo ?? '') as Record<string, unknown>;
     expiresAt =
       typeof wire.ExpiredAt === 'number' &&
       Number.isSafeInteger(wire.ExpiredAt) &&

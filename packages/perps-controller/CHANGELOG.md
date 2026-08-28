@@ -90,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Target market and user preload measurements to their named traces, and omit wallet addresses from user-preload trace data ([#9906](https://github.com/MetaMask/core/pull/9906))
+
 ## [12.0.0]
 
 ### Added
