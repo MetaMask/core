@@ -1,5 +1,6 @@
 import type { ReleaseChanges } from '@metamask/auto-changelog';
 import { oxfmt, parseChangelog } from '@metamask/auto-changelog';
+import { getErrorMessage } from '@metamask/utils';
 import execa from 'execa';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -18,23 +19,28 @@ const BREAKING_CHANGE_PATTERN = /^\*\*BREAKING:?\*\*/u;
 type Category = keyof ReleaseChanges;
 type Change = NonNullable<ReleaseChanges[Category]>[number];
 
-export type PackageMetadata = {
+type PackageJson = {
+  name?: string;
+  repository?: { url?: string };
+};
+
+type PackageMetadata = {
   name: string;
   repoUrl: string;
   tagPrefix: string;
 };
 
-export type ConflictResolution = {
+type ConflictResolution = {
   path: string;
   mergedEntryCount: number;
 };
 
-export type ConflictSkip = {
+type ConflictSkip = {
   path: string;
   reason: string;
 };
 
-export type ConflictResolutionResult = {
+type ConflictResolutionResult = {
   resolved: ConflictResolution[];
   skipped: ConflictSkip[];
 };
@@ -79,11 +85,31 @@ export async function readGitBlob(
 }
 
 /**
+ * Read and parse a `package.json` file, preferring the working tree copy
+ * since it's normally not part of the conflict; if it can't be parsed there
+ * (e.g. it's also mid-merge and contains conflict markers), it's re-read
+ * from the "ours" conflict stage instead.
+ *
+ * @param packageJsonPath - The repo-relative path of the `package.json` file.
+ * @returns The parsed `package.json` contents.
+ */
+async function readPackageJson(packageJsonPath: string): Promise<PackageJson> {
+  try {
+    const content = await fs.readFile(
+      path.join(ROOT_WORKSPACE, packageJsonPath),
+      'utf8',
+    );
+
+    return JSON.parse(content);
+  } catch {
+    const content = await readGitBlob(':2', packageJsonPath);
+    return JSON.parse(content);
+  }
+}
+
+/**
  * Resolve the package name and repository URL for the package that owns the
- * given changelog file. `package.json` is read from the working tree, since
- * it's normally not part of the conflict; if it can't be parsed there (e.g.
- * it's also mid-merge and contains conflict markers), it's re-read from the
- * "ours" conflict stage instead.
+ * given changelog file.
  *
  * @param changelogPath - The repo-relative path of the changelog file.
  * @returns The package's name, repository URL, and changelog tag prefix.
@@ -96,22 +122,11 @@ export async function resolvePackageMetadata(
     'package.json',
   );
 
-  let packageJson;
-  try {
-    const content = await fs.readFile(
-      path.join(ROOT_WORKSPACE, packageJsonPath),
-      'utf8',
-    );
-    packageJson = JSON.parse(content);
-  } catch {
-    const content = await readGitBlob(':2', packageJsonPath);
-    packageJson = JSON.parse(content);
-  }
-
+  const packageJson = await readPackageJson(packageJsonPath);
   const repositoryUrl = packageJson.repository?.url;
   if (!packageJson.name || !repositoryUrl) {
     throw new Error(
-      `Could not resolve package name/repository for '${changelogPath}'.`,
+      `Could not resolve package name or repository for "${changelogPath}".`,
     );
   }
 
@@ -160,29 +175,32 @@ function getChangeKey(change: Change): string {
  * @returns The number of new entries added to `base`.
  */
 function mergeCategoryEntries(base: Change[], incoming: Change[]): number {
+  const initialLength = base.length;
   const existingKeys = new Set(base.map(getChangeKey));
-  let addedCount = 0;
 
   for (const change of incoming) {
     const key = getChangeKey(change);
     if (existingKeys.has(key)) {
       continue;
     }
+
     existingKeys.add(key);
-    addedCount += 1;
 
     if (isBreakingChange(change)) {
-      let insertIndex = 0;
-      while (insertIndex < base.length && isBreakingChange(base[insertIndex])) {
-        insertIndex += 1;
-      }
+      const firstNonBreakingIndex = base.findIndex(
+        (entry) => !isBreakingChange(entry),
+      );
+
+      const insertIndex =
+        firstNonBreakingIndex === -1 ? base.length : firstNonBreakingIndex;
+
       base.splice(insertIndex, 0, change);
     } else {
       base.push(change);
     }
   }
 
-  return addedCount;
+  return base.length - initialLength;
 }
 
 /**
@@ -253,6 +271,7 @@ export async function mergeChangelogs({
     tagPrefix,
     shouldExtractPrLinks: true,
   });
+
   const theirs = parseChangelog({
     changelogContent: theirsContent,
     repoUrl,
@@ -278,13 +297,13 @@ export async function mergeChangelogs({
       theirs.addRelease(oursRelease);
       const releases = theirs.getReleases();
       const [inserted] = releases.splice(0, 1);
-      let sortedIndex = releases.findIndex(({ version }) =>
+
+      const sortedIndex = releases.findIndex(({ version }) =>
         gt(inserted.version, version),
       );
-      if (sortedIndex === -1) {
-        sortedIndex = releases.length;
-      }
-      releases.splice(sortedIndex, 0, inserted);
+
+      const insertIndex = sortedIndex === -1 ? releases.length : sortedIndex;
+      releases.splice(insertIndex, 0, inserted);
     }
 
     const theirsReleaseChanges = theirs.getReleaseChanges(oursRelease.version);
@@ -343,7 +362,7 @@ export async function resolveChangelogConflicts(): Promise<ConflictResolutionRes
     } catch (error) {
       skipped.push({
         path: changelogPath,
-        reason: error instanceof Error ? error.message : String(error),
+        reason: getErrorMessage(error),
       });
     }
   }

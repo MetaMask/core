@@ -452,7 +452,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       await expect(
         resolvePackageMetadata('packages/example/CHANGELOG.md'),
       ).rejects.toThrow(
-        "Could not resolve package name/repository for 'packages/example/CHANGELOG.md'.",
+        'Could not resolve package name or repository for "packages/example/CHANGELOG.md".',
       );
     });
   });
@@ -485,7 +485,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
           if (args[0] === 'add') {
             return { stdout: '' };
           }
-          throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
+          throw new Error(
+            `Unexpected execa call: ${command} ${args.join(' ')}`,
+          );
         },
       );
 
@@ -529,7 +531,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
           if (args[0] === 'show' && args[1] === `:3:${changelogPath}`) {
             return { stdout: buildChangelog('') };
           }
-          throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
+          throw new Error(
+            `Unexpected execa call: ${command} ${args.join(' ')}`,
+          );
         },
       );
 

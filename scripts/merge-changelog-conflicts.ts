@@ -1,6 +1,5 @@
 import { resolveChangelogConflicts } from './lib/changelog-conflicts.js';
 
-// Run the script immediately.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
@@ -26,7 +25,9 @@ export async function main(): Promise<void> {
 
   for (const { path, mergedEntryCount } of resolved) {
     const entryWord = mergedEntryCount === 1 ? 'entry' : 'entries';
-    console.log(`Resolved ${path} (merged ${mergedEntryCount} new ${entryWord}).`);
+    console.log(
+      `Resolved ${path} (merged ${mergedEntryCount} new ${entryWord}).`,
+    );
   }
 
   for (const { path, reason } of skipped) {
