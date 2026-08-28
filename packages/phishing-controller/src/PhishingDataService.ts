@@ -8,6 +8,11 @@ import type {
 } from '@metamask/base-data-service';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
 import type { Infer, Struct } from '@metamask/superstruct';
 import {
   array,
@@ -19,11 +24,6 @@ import {
   type,
   unknown,
 } from '@metamask/superstruct';
-import type {
-  StorageServiceGetItemAction,
-  StorageServiceRemoveItemAction,
-  StorageServiceSetItemAction,
-} from '@metamask/storage-service';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';

@@ -11,7 +11,6 @@ import type {
 } from '@metamask/base-controller';
 import { HttpError, isValidHexAddress } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { getErrorMessage } from '@metamask/utils';
 import type {
   TransactionControllerGetStateAction,
   TransactionControllerState,
@@ -22,6 +21,7 @@ import {
   getEffectiveRecipient,
   TransactionStatus,
 } from '@metamask/transaction-controller';
+import { getErrorMessage } from '@metamask/utils';
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
