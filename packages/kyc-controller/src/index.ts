@@ -66,6 +66,7 @@ export type {
   KycServiceCreateUkycSessionAction,
   KycServiceFetchDisclaimersAction,
   KycServiceFetchJwksAction,
+  KycServiceFetchIdosRelayJwksAction,
   KycServiceFetchKycStatusAction,
   KycServiceFetchSessionDisclaimersAction,
   KycServiceGetGeoCountryAction,

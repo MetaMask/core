@@ -11,6 +11,7 @@ import { KycService } from './KycService.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
+const MOCK_IDOS_RELAY_URL = 'https://idos-relay.dev-api.cx.metamask.io';
 const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
 const RESIDENCE_COUNTRY = 'USA';
 
@@ -256,7 +257,7 @@ describe('KycService', () => {
       const { service } = getService({ fractalEncryptionBaseUrl: null });
 
       await expect(service.fetchJwks()).rejects.toThrow(
-        /fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify encryption schemas/u,
+        /fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema/u,
       );
     });
 
@@ -267,7 +268,40 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(service.fetchJwks()).rejects.toThrow(
-        /Malformed response received from JWKS API/u,
+        /Malformed response received from Fractal JWKS API/u,
+      );
+    });
+  });
+
+  describe('fetchIdosRelayJwks', () => {
+    it('fetches the JWKS from the idOS relay well-known path', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'r1' }],
+      };
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+    });
+
+    it('throws when no idOS relay base URL is configured', async () => {
+      const { service } = getService({ idosRelayBaseUrl: null });
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema/u,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [{ kty: 'OKP' }] });
+      const { service } = getService();
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /Malformed response received from idOS relay JWKS API/u,
       );
     });
   });
@@ -992,6 +1026,8 @@ type RootMessenger = Messenger<
  * @param args.baseUrl - Base URL of the KYC API.
  * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
  * option so the service falls back to an empty string.
+ * @param args.idosRelayBaseUrl - idOS relay base URL; `null` omits the option
+ * so the service falls back to an empty string.
  * @param args.omitFetch - When true, omit the `fetch` option so the service
  * falls back to the runtime's native `fetch`.
  * @returns The service, root messenger, and service messenger.
@@ -1004,6 +1040,8 @@ function getService({
   // `null` means "omit the option entirely" (exercises the constructor's
   // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
   fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
+  // Same `null` omission convention as `fractalEncryptionBaseUrl`.
+  idosRelayBaseUrl = MOCK_IDOS_RELAY_URL,
   // When true, omit the `fetch` option so the service falls back to the
   // runtime's native `fetch` (which nock intercepts).
   omitFetch = false,
@@ -1013,6 +1051,7 @@ function getService({
   defaultPolicy?: boolean;
   baseUrl?: string;
   fractalEncryptionBaseUrl?: string | null;
+  idosRelayBaseUrl?: string | null;
   omitFetch?: boolean;
 } = {}): {
   service: KycService;
@@ -1048,6 +1087,7 @@ function getService({
     messenger,
     baseUrl,
     ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
+    ...(idosRelayBaseUrl === null ? {} : { idosRelayBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
 

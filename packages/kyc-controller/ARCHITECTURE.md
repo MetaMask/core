@@ -123,7 +123,8 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchDisclaimers`, `createSession`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimers`, `submitSessionDisclaimers`,
-`fetchKycStatus`, `createUkycSession`, `setAuthorizations`, `createJourney`.
+`fetchKycStatus`, `fetchJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
+`createJourney`, `getSessionStatus`.
 
 Endpoints:
 
@@ -138,6 +139,8 @@ Endpoints:
 | `fetchSessionDisclaimers`  | `GET`  | `/sessions/{id}/disclaimers`             | Session-scoped idOS + KYC-provider catalog                                             |
 | `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`             | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
 | `fetchKycStatus`           | `GET`  | `/kyc/status`                            | User-keyed simplified KYC status                                                       |
+| `fetchJwks`     | `GET`  | `{fractalEncryptionBaseUrl}/.well-known/jwks.json` | Fractal JWKS for `encryptionDataKey` attestation                      |
+| `fetchIdosRelayJwks`       | `GET`  | `{idosRelayBaseUrl}/.well-known/jwks.json` | idOS relay JWKS for `ukycCapabilityToken` attestation                        |
 | `createUkycSession`        | `POST` | `/sessions`                              | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
 | `setAuthorizations`        | `POST` | `/sessions/{id}/authorizations`          | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
 | `createJourney`            | `POST` | `/sessions/{id}/journey`                 | Create verification journey → applicant token                                          |
@@ -376,7 +379,7 @@ sequenceDiagram
     opt kycRequired === true → auto-launch document verification
         Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, residenceCountry, vendorMetadata })
         Svc->>API: POST /sessions
-        Note over Ctrl: wrap data_encryption_key and ukyc_capability_token
+        Note over Ctrl: verify encryptionDataKey vs Fractal JWKS,<br/>ukycCapabilityToken vs idOS relay JWKS;<br/>wrap data_encryption_key and ukyc_capability_token
         Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })
         Svc->>API: POST /sessions/{id}/authorizations
         Ctrl->>Svc: createJourney(sessionId)
@@ -554,7 +557,7 @@ graph TB
         direction TB
         subgraph engine["Engine wiring"]
             CInit["kyc-controller-init.ts<br/>new KycController({ messenger, state, sumsubLauncher })"]
-            SInit["kyc-service-init.ts<br/>new KycService({ env, messenger, baseUrl })"]
+            SInit["kyc-service-init.ts<br/>new KycService({ messenger, baseUrl, fractalEncryptionBaseUrl, idosRelayBaseUrl })"]
             CMsgr["kyc-controller-messenger.ts<br/>delegates KycService:*"]
             SMsgr["kyc-service-messenger.ts<br/>delegates Auth + Geolocation"]
             Launcher["reactNativeSumSubLauncher.ts<br/>lazy-loads @sumsub/react-native-mobilesdk-module"]

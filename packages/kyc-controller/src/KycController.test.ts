@@ -1584,6 +1584,19 @@ describe('KycController', () => {
               }),
             }),
           );
+          expect(handlers.fetchJwks).toHaveBeenCalledTimes(1);
+          expect(handlers.fetchIdosRelayJwks).toHaveBeenCalledTimes(1);
+          expect(mockVerifyJwtChain).toHaveBeenCalledTimes(2);
+          expect(mockVerifyJwtChain).toHaveBeenNthCalledWith(
+            1,
+            [],
+            'jwt.chain.sig',
+          );
+          expect(mockVerifyJwtChain).toHaveBeenNthCalledWith(
+            2,
+            [],
+            'jwt.chain.sig',
+          );
           const { sessionClientPublicKey } = handlers.createUkycSession.mock
             .calls[0][0] as {
             sessionClientPublicKey: string;
@@ -1756,6 +1769,22 @@ describe('KycController', () => {
       });
     });
 
+    it('does not submit authorizations when reset() runs while fetching idOS relay JWKS', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.fetchIdosRelayJwks.mockImplementation(async () => {
+          controller.reset();
+          return { keys: [] };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({});
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('idle');
+      });
+    });
+
     it('does not write vendorProcessing state when reset() runs while setting authorizations', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         handlers.setAuthorizations.mockImplementation(async () => {
@@ -1789,6 +1818,52 @@ describe('KycController', () => {
         expect(handlers.createJourney).not.toHaveBeenCalled();
         expect(launcher.launch).not.toHaveBeenCalled();
         expect(controller.state.sumsub.status).toBe('idle');
+      });
+    });
+
+    it('verifies encryptionDataKey against Fractal JWKS and capability token against idOS relay JWKS', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const fractalKeys = [
+          { kty: 'OKP', crv: 'Ed25519', x: 'fractal', kid: 'f1' },
+        ];
+        const idosRelayKeys = [
+          { kty: 'OKP', crv: 'Ed25519', x: 'relay', kid: 'r1' },
+        ];
+        handlers.fetchJwks.mockResolvedValue({ keys: fractalKeys });
+        handlers.fetchIdosRelayJwks.mockResolvedValue({ keys: idosRelayKeys });
+        handlers.createUkycSession.mockResolvedValue(
+          ukycSessionResponse({
+            encryptionDataKey: {
+              serverPublicKey: {
+                kty: 'OKP',
+                crv: 'X25519',
+                x: 'spk-x',
+              },
+              jwtChain: 'encryption.jwt.chain',
+            },
+            ukycCapabilityToken: {
+              serverPublicKey: {
+                kty: 'OKP',
+                crv: 'X25519',
+                x: 'spk-x',
+              },
+              jwtChain: 'capability.jwt.chain',
+            },
+          }),
+        );
+
+        await controller.startSumSub();
+
+        expect(mockVerifyJwtChain).toHaveBeenNthCalledWith(
+          1,
+          fractalKeys,
+          'encryption.jwt.chain',
+        );
+        expect(mockVerifyJwtChain).toHaveBeenNthCalledWith(
+          2,
+          idosRelayKeys,
+          'capability.jwt.chain',
+        );
       });
     });
 
@@ -4570,6 +4645,7 @@ type ServiceHandlers = {
   submitSessionDisclaimers: jest.Mock;
   fetchKycStatus: jest.Mock;
   fetchJwks: jest.Mock;
+  fetchIdosRelayJwks: jest.Mock;
   createUkycSession: jest.Mock;
   setAuthorizations: jest.Mock;
   createJourney: jest.Mock;
@@ -4605,6 +4681,7 @@ const SERVICE_ACTIONS = [
   'KycService:submitSessionDisclaimers',
   'KycService:fetchKycStatus',
   'KycService:fetchJwks',
+  'KycService:fetchIdosRelayJwks',
   'KycService:createUkycSession',
   'KycService:setAuthorizations',
   'KycService:createJourney',
@@ -4726,6 +4803,7 @@ function withController<ReturnValue>(
     }),
     fetchKycStatus: jest.fn().mockResolvedValue({ status: 'pending' }),
     fetchJwks: jest.fn().mockResolvedValue({ keys: [] }),
+    fetchIdosRelayJwks: jest.fn().mockResolvedValue({ keys: [] }),
     createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
     setAuthorizations: jest.fn().mockResolvedValue(sessionStatus('approved')),
     createJourney: jest
@@ -4774,6 +4852,10 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:fetchJwks',
     handlers.fetchJwks,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchIdosRelayJwks',
+    handlers.fetchIdosRelayJwks,
   );
   rootMessenger.registerActionHandler(
     'KycService:createUkycSession',
