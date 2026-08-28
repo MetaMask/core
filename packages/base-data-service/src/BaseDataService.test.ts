@@ -1,10 +1,21 @@
-import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import {
+  MOCK_ANY_NAMESPACE,
+  Messenger,
+  MessengerActions,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import {
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
 import { hashKey } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
 
 import {
   ExampleDataService,
+  ExampleMessenger,
   serviceName,
 } from '../tests/ExampleDataService.js';
 import {
@@ -25,6 +36,14 @@ const MOCK_ASSETS = [
   'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
 ];
 
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction,
+  never
+>;
+
 describe('BaseDataService', () => {
   beforeAll(() => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
@@ -42,7 +61,7 @@ describe('BaseDataService', () => {
   });
 
   it('handles basic queries', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
     expect(await service.getAssets(MOCK_ASSETS)).toStrictEqual([
@@ -68,7 +87,7 @@ describe('BaseDataService', () => {
   });
 
   it('handles paginated queries', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
     const page1 = await service.getActivity(TEST_ADDRESS);
@@ -85,7 +104,7 @@ describe('BaseDataService', () => {
   });
 
   it('handles paginated queries starting at a specific page', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
     const page2 = await service.getActivity(TEST_ADDRESS, {
@@ -104,7 +123,7 @@ describe('BaseDataService', () => {
   });
 
   it('handles backwards queries starting at a specific page', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
     const page3 = await service.getActivity(TEST_ADDRESS, {
@@ -122,7 +141,7 @@ describe('BaseDataService', () => {
   });
 
   it('emits `:cacheUpdated` events when cache is updated', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
     const publishSpy = jest.spyOn(messenger, 'publish');
@@ -174,7 +193,7 @@ describe('BaseDataService', () => {
   });
 
   it('emits `:cacheUpdated` events when cache entry is removed', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
     const publishSpy = jest.spyOn(messenger, 'publish');
@@ -199,7 +218,7 @@ describe('BaseDataService', () => {
   });
 
   it('does not emit events after being destroyed', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
     const publishSpy = jest.spyOn(messenger, 'publish');
 
@@ -211,7 +230,7 @@ describe('BaseDataService', () => {
   });
 
   it('invalidates queries when requested', async () => {
-    const messenger = new Messenger({ namespace: serviceName });
+    const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
     const publishSpy = jest.spyOn(messenger, 'publish');
 
@@ -219,8 +238,9 @@ describe('BaseDataService', () => {
 
     expect(publishSpy).toHaveBeenCalledTimes(6);
 
-    const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
-    await service.invalidateQueries({ queryKey });
+    await service.invalidateQueries({
+      queryKey: ['ExampleDataService:getAssets', MOCK_ASSETS],
+    });
 
     expect(publishSpy).toHaveBeenCalledTimes(8);
   });
@@ -239,7 +259,7 @@ describe('BaseDataService', () => {
     });
 
     it('throws when fetchQuery response fails struct validation', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
+      const messenger = createServiceMessenger();
       const service = new ExampleDataService(messenger);
 
       mockAssets({ status: 200, body: { foo: 'bar' } });
@@ -266,7 +286,7 @@ describe('BaseDataService', () => {
     });
 
     it('retries failed queries using the service policy', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
+      const messenger = createServiceMessenger();
       const service = new ExampleDataService(messenger);
 
       mockAssets({ status: 500 });
@@ -300,7 +320,7 @@ describe('BaseDataService', () => {
     });
 
     it('throws after exhausting service policy retries', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
+      const messenger = createServiceMessenger();
       const service = new ExampleDataService(messenger);
 
       mockAssets({ status: 500, body: { error: 'internal server error' } });
@@ -315,7 +335,7 @@ describe('BaseDataService', () => {
     });
 
     it('breaks the circuit after consecutive failures', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
+      const messenger = createServiceMessenger();
       const service = new ExampleDataService(messenger);
 
       mockAssets({ status: 500, body: { error: 'internal server error' } });
@@ -336,18 +356,13 @@ describe('BaseDataService', () => {
 
   describe('persistence', () => {
     it('persists the cache using the StorageService', async () => {
-      const rootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-        captureException: console.error,
-      });
-
       const setItem = jest.fn();
-      rootMessenger.registerActionHandler('StorageService:setItem', setItem);
-
-      const messenger = rootMessenger.buildChild({
-        namespace: serviceName,
-        actions: ['StorageService:getItem', 'StorageService:setItem'],
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:setItem': setItem,
+        },
       });
+      const messenger = createServiceMessenger(rootMessenger);
       const service = new ExampleDataService(messenger);
 
       mockAssets();
@@ -414,81 +429,73 @@ describe('BaseDataService', () => {
     });
 
     it('rehydrates the cache using the StorageService', async () => {
-      const rootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-        captureException: console.error,
-      });
-
-      rootMessenger.registerActionHandler('StorageService:setItem', jest.fn());
-      rootMessenger.registerActionHandler('StorageService:getItem', () => {
-        return {
-          result: {
-            state: {
-              queries: [
-                {
-                  queryHash:
-                    '["ExampleDataService:getAssets",["eip155:1/slip44:60","bip122:000000000019d6689c085ae165831e93/slip44:0","eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f"]]',
-                  queryKey: [
-                    'ExampleDataService:getAssets',
-                    [
-                      'eip155:1/slip44:60',
-                      'bip122:000000000019d6689c085ae165831e93/slip44:0',
-                      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-                    ],
+      const getItem = jest.fn().mockResolvedValue({
+        result: {
+          state: {
+            queries: [
+              {
+                queryHash:
+                  '["ExampleDataService:getAssets",["eip155:1/slip44:60","bip122:000000000019d6689c085ae165831e93/slip44:0","eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f"]]',
+                queryKey: [
+                  'ExampleDataService:getAssets',
+                  [
+                    'eip155:1/slip44:60',
+                    'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                    'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
                   ],
-                  state: {
-                    data: [
-                      {
-                        assetId:
-                          'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-                        decimals: 18,
-                        name: 'Dai Stablecoin',
-                        symbol: 'DAI',
-                      },
-                      {
-                        assetId:
-                          'bip122:000000000019d6689c085ae165831e93/slip44:0',
-                        decimals: 8,
-                        name: 'Bitcoin',
-                        symbol: 'BTC',
-                      },
-                      {
-                        assetId: 'eip155:1/slip44:60',
-                        decimals: 18,
-                        name: 'Ethereum',
-                        symbol: 'ETH',
-                      },
-                    ],
-                    dataUpdateCount: 1,
-                    dataUpdatedAt: Date.now(),
-                    error: null,
-                    errorUpdateCount: 0,
-                    errorUpdatedAt: 0,
-                    fetchFailureCount: 0,
-                    fetchFailureReason: null,
-                    fetchMeta: null,
-                    fetchStatus: 'idle',
-                    isInvalidated: false,
-                    status: 'success',
-                  },
+                ],
+                state: {
+                  data: [
+                    {
+                      assetId:
+                        'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                      decimals: 18,
+                      name: 'Dai Stablecoin',
+                      symbol: 'DAI',
+                    },
+                    {
+                      assetId:
+                        'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                      decimals: 8,
+                      name: 'Bitcoin',
+                      symbol: 'BTC',
+                    },
+                    {
+                      assetId: 'eip155:1/slip44:60',
+                      decimals: 18,
+                      name: 'Ethereum',
+                      symbol: 'ETH',
+                    },
+                  ],
+                  dataUpdateCount: 1,
+                  dataUpdatedAt: Date.now(),
+                  error: null,
+                  errorUpdateCount: 0,
+                  errorUpdatedAt: 0,
+                  fetchFailureCount: 0,
+                  fetchFailureReason: null,
+                  fetchMeta: null,
+                  fetchStatus: 'idle',
+                  isInvalidated: false,
+                  status: 'success',
                 },
-              ],
-              mutations: [],
-            },
-            timestamp: Date.now(),
+              },
+            ],
+            mutations: [],
           },
-        };
+          timestamp: Date.now(),
+        },
       });
-
-      const messenger = rootMessenger.buildChild({
-        namespace: serviceName,
-        actions: ['StorageService:getItem', 'StorageService:setItem'],
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
       });
-      const spy = jest.spyOn(messenger, 'call');
+      const messenger = createServiceMessenger(rootMessenger);
       const service = new ExampleDataService(messenger);
-      service.init();
 
-      await rootMessenger.waitUntil('ExampleDataService:cacheUpdated');
+      service.init();
+      await messenger.waitUntil('ExampleDataService:cacheUpdated');
 
       mockAssets({ status: 500 });
 
@@ -496,87 +503,48 @@ describe('BaseDataService', () => {
 
       expect(result).toHaveLength(3);
 
-      expect(spy).toHaveBeenCalledWith(
-        'StorageService:getItem',
-        serviceName,
-        STORAGE_SERVICE_KEY,
-      );
+      expect(getItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
     });
 
     it('discards the cache if it has expired', async () => {
-      const rootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-        captureException: console.error,
-      });
-
-      rootMessenger.registerActionHandler('StorageService:setItem', jest.fn());
-      rootMessenger.registerActionHandler('StorageService:getItem', () => {
-        return {
-          result: {
-            state: {
-              queries: [],
-              mutations: [],
-            },
-            timestamp: 1783516587702,
+      const getItem = jest.fn().mockResolvedValue({
+        result: {
+          state: {
+            queries: [],
+            mutations: [],
           },
-        };
+          timestamp: 1783516587702,
+        },
       });
-
-      rootMessenger.registerActionHandler(
-        'StorageService:removeItem',
-        jest.fn(),
-      );
-
-      const messenger = rootMessenger.buildChild({
-        namespace: serviceName,
-        actions: [
-          'StorageService:getItem',
-          'StorageService:setItem',
-          'StorageService:removeItem',
-        ],
+      const removeItem = jest.fn();
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+          'StorageService:removeItem': removeItem,
+        },
       });
-
-      const callSpy = jest.spyOn(messenger, 'call');
+      const messenger = createServiceMessenger(rootMessenger);
       const publishSpy = jest.spyOn(messenger, 'publish');
-
       const service = new ExampleDataService(messenger);
       service.init();
 
-      expect(callSpy).toHaveBeenCalledWith(
-        'StorageService:getItem',
-        serviceName,
-        STORAGE_SERVICE_KEY,
-      );
+      expect(getItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
 
       expect(publishSpy).not.toHaveBeenCalled();
 
       await Promise.resolve();
 
-      expect(callSpy).toHaveBeenCalledWith(
-        'StorageService:removeItem',
-        serviceName,
-        STORAGE_SERVICE_KEY,
-      );
+      expect(removeItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
     });
 
     it('removes the persisted cache from the StorageService if the cache is empty', async () => {
-      const rootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-        captureException: console.error,
-      });
-
-      const setItem = jest.fn();
       const removeItem = jest.fn();
-      rootMessenger.registerActionHandler('StorageService:setItem', setItem);
-      rootMessenger.registerActionHandler(
-        'StorageService:removeItem',
-        removeItem,
-      );
-
-      const messenger = rootMessenger.buildChild({
-        namespace: serviceName,
-        actions: ['StorageService:setItem', 'StorageService:removeItem'],
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:removeItem': removeItem,
+        },
       });
+      const messenger = createServiceMessenger(rootMessenger);
       const service = new ExampleDataService(messenger);
 
       mockAssets();
@@ -590,8 +558,13 @@ describe('BaseDataService', () => {
     });
 
     it('skips persisting cache if persistConfig is not set', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
-      const callSpy = jest.spyOn(messenger, 'call');
+      const setItem = jest.fn();
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:setItem': setItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
       const service = new ExampleDataService(messenger, {});
 
       mockAssets();
@@ -600,59 +573,97 @@ describe('BaseDataService', () => {
 
       jest.runAllTimers();
 
-      expect(callSpy).not.toHaveBeenCalledWith(
-        'StorageService:setItem',
-        expect.anything(),
-        expect.anything(),
-        expect.anything(),
-      );
+      expect(setItem).not.toHaveBeenCalled();
     });
 
     it('skips rehydrating cache if persistConfig is not set', async () => {
-      const messenger = new Messenger({ namespace: serviceName });
-      const callSpy = jest.spyOn(messenger, 'call');
+      const setItem = jest.fn();
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:setItem': setItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
       const service = new ExampleDataService(messenger, {});
 
       service.init();
 
-      expect(callSpy).not.toHaveBeenCalledWith(
-        'StorageService:getItem',
-        expect.anything(),
-        expect.anything(),
-      );
+      expect(setItem).not.toHaveBeenCalled();
     });
 
     it('ignores rehydration if the StorageService fails', async () => {
-      const rootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-        captureException: console.error,
+      const getItem = jest.fn().mockResolvedValue({
+        error: new Error('Failed to retrieve item.'),
       });
-
-      rootMessenger.registerActionHandler('StorageService:setItem', jest.fn());
-      rootMessenger.registerActionHandler('StorageService:getItem', () => {
-        return {
-          error: new Error('Failed to retrieve item.'),
-        };
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
       });
-
-      const messenger = rootMessenger.buildChild({
-        namespace: serviceName,
-        actions: ['StorageService:getItem', 'StorageService:setItem'],
-      });
-
-      const callSpy = jest.spyOn(messenger, 'call');
+      const messenger = createServiceMessenger(rootMessenger);
       const publishSpy = jest.spyOn(messenger, 'publish');
-
       const service = new ExampleDataService(messenger);
       service.init();
 
-      expect(callSpy).toHaveBeenCalledWith(
-        'StorageService:getItem',
-        serviceName,
-        STORAGE_SERVICE_KEY,
-      );
+      expect(getItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
 
       expect(publishSpy).not.toHaveBeenCalled();
     });
   });
 });
+
+/**
+ * Create a root messenger.
+ *
+ * @param args - The arguments.
+ * @param args.actionHandlers - The action handlers to mock.
+ * @returns The root messenger.
+ */
+function createRootMessenger({
+  actionHandlers = {
+    'StorageService:getItem': jest.fn(),
+    'StorageService:setItem': jest.fn(),
+    'StorageService:removeItem': jest.fn(),
+  },
+}: {
+  actionHandlers?: {
+    [Action in MessengerActions<RootMessenger> as Action['type']]?: Action['handler'];
+  };
+} = {}): RootMessenger {
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+    captureException: console.error,
+  });
+
+  for (const [actionType, actionHandler] of Object.entries(actionHandlers)) {
+    // @ts-expect-error TypeScript puts all types and all handlers into
+    // two unions, making it impossible to tell which belongs to which
+    messenger.registerActionHandler(actionType, actionHandler);
+  }
+
+  return messenger;
+}
+
+/**
+ * Create an ExampleDataService messenger.
+ *
+ * @param rootMessenger - The root messenger to derive the ExampleDataService
+ * messenger from.
+ * @returns The ExampleDataService messenger.
+ */
+function createServiceMessenger(
+  rootMessenger = createRootMessenger(),
+): ExampleMessenger {
+  const messenger: ExampleMessenger = new Messenger({
+    namespace: serviceName,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'StorageService:getItem',
+      'StorageService:setItem',
+      'StorageService:removeItem',
+    ],
+    messenger,
+  });
+  return messenger;
+}

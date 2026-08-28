@@ -1,4 +1,9 @@
 import { Messenger } from '@metamask/messenger';
+import {
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
 import { object, number, string, array } from '@metamask/superstruct';
 import {
   CaipAssetType,
@@ -22,7 +27,10 @@ export const serviceName = 'ExampleDataService';
 
 export type ExampleDataServiceActions =
   | ExampleDataServiceMethodActions
-  | DataServiceInvalidateQueriesAction<typeof serviceName>;
+  | DataServiceInvalidateQueriesAction<typeof serviceName>
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction;
 
 export type ExampleDataServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
