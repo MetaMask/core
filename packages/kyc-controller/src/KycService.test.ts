@@ -571,6 +571,25 @@ describe('KycService', () => {
         /Malformed response received from vendor customers API/u,
       );
     });
+
+    it('sends one request per call when two calls overlap', async () => {
+      const scope = nock(MOCK_API_URL)
+        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .times(2)
+        .reply(200, {
+          id: 'iron-1',
+          email: 'a@b.co',
+          status: 'SigningsRequired',
+        });
+      const { service } = getService();
+
+      await Promise.all([
+        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+      ]);
+
+      expect(scope.isDone()).toBe(true);
+    });
   });
 
   describe('submitVendorDisclaimers', () => {
