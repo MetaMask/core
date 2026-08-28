@@ -9373,6 +9373,71 @@ describe('LighterProvider', () => {
       expect(after.success).toBe(true);
     });
 
+    it('keeps an exact-hash pending transaction unresolved until it reaches a terminal status', async () => {
+      const registeredKey = '9c'.repeat(40);
+      const infra = createMockInfrastructure();
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:7',
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [
+            {
+              nonce: 42,
+              txHash: 'abab000000000042',
+              expiresAt: 9_999_999_999_999,
+              kind: 13,
+              intent: 'withdraw:25',
+              owner: null,
+            },
+          ],
+          recovered: [],
+        }),
+      );
+      const built = buildProvider({
+        registeredKey,
+        platformDependencies: infra,
+      });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+      let txStatus = 1;
+      built.clientInstance.getTx.mockImplementation(async () => ({
+        code: 200,
+        hash: 'abab000000000042',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        nonce: 42,
+        status: txStatus,
+      }));
+
+      const pendingRetry = await built.provider.withdraw({ amount: '25' });
+      expect(pendingRetry.success).toBe(false);
+      expect(pendingRetry.error).toContain('unresolved outcome');
+      expect(await built.provider.getRecoveredDispatches()).toStrictEqual([]);
+      const pendingDoc = JSON.parse(
+        (await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:7',
+        )) as string,
+      ) as {
+        consumedFloor: number;
+        entries: unknown[];
+        recovered: unknown[];
+      };
+      expect(pendingDoc.consumedFloor).toBe(0);
+      expect(pendingDoc.entries).toHaveLength(1);
+      expect(pendingDoc.recovered).toHaveLength(0);
+
+      txStatus = 3;
+      const settledRetry = await built.provider.withdraw({ amount: '25' });
+      expect(settledRetry.success).toBe(false);
+      expect(settledRetry.error).toContain('actually completed');
+      const outcomes = await built.provider.getRecoveredDispatches();
+      expect(outcomes).toHaveLength(1);
+      await built.provider.acknowledgeRecoveredDispatch(outcomes[0].recoveryId);
+      expect((await built.provider.withdraw({ amount: '25' })).success).toBe(
+        true,
+      );
+    });
+
     it('getRecoveredDispatches is READ-ONLY and acknowledgment is selective per stable id', async () => {
       const registeredKey = '9c'.repeat(40);
       const infra = createMockInfrastructure();

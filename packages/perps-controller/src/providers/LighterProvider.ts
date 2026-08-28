@@ -1857,6 +1857,18 @@ export class LighterProvider implements PerpsProvider {
             lookedUp.nonce === entry.nonce &&
             typeof lookedUp.status === 'number';
           if (matchesIdentity) {
+            // A matching hash is not enough to prove the transaction's
+            // outcome. Non-terminal statuses must retain the unresolved
+            // entry so no acknowledgment can make the intent retryable
+            // while the original transaction is still in flight.
+            if (
+              lookedUp.status !== 3 &&
+              lookedUp.status !== 4 &&
+              lookedUp.status !== 5
+            ) {
+              remaining.push(entry);
+              continue;
+            }
             doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
             const floor = this.#nonceReservations.get(reservationKey) ?? 0;
             this.#nonceReservations.set(
@@ -1875,12 +1887,6 @@ export class LighterProvider implements PerpsProvider {
               );
             } else if (lookedUp.status === 3) {
               quarantine(entry, 'succeeded', 'tx-status:3');
-            } else {
-              quarantine(
-                entry,
-                'unknown',
-                `tx-status:${String(lookedUp.status ?? -1)}`,
-              );
             }
             continue;
           }
