@@ -7789,32 +7789,6 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Capture open orders without turning a read failure into a placement
-   * failure. The snapshot is needed only if an accepted trigger later needs an
-   * ID for cleanup after another leg fails.
-   *
-   * @param dexName - DEX to query, or null for the main DEX.
-   * @returns The open orders, or undefined when the snapshot failed.
-   */
-  async #captureTpslOpenOrders(
-    dexName: string | null,
-  ): Promise<FrontendOrder[] | undefined> {
-    try {
-      return await this.#fetchOpenOrders({ dexName });
-    } catch (error) {
-      this.#deps.debugLogger.log(
-        'Could not capture open orders before TP/SL placement',
-        {
-          error: ensureError(error, 'HyperLiquidProvider.captureTpslOpenOrders')
-            .message,
-          dex: dexName ?? 'main',
-        },
-      );
-      return undefined;
-    }
-  }
-
-  /**
    * Recover IDs omitted from waiting trigger acknowledgements.
    *
    * HyperLiquid does not preserve submission order in `frontendOpenOrders`, so
@@ -7824,7 +7798,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params - Reconciliation parameters.
    * @param params.outcomes - Classified placement responses.
    * @param params.orders - Submitted TP/SL orders.
-   * @param params.previousOrders - Orders resting before submission.
+   * @param params.previousOrderIds - Order IDs observed before submission.
    * @param params.dexName - DEX queried for the placement.
    * @param params.symbol - Market the triggers protect.
    * @returns Outcomes enriched with unambiguous exchange order IDs.
@@ -7832,16 +7806,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #reconcileTpslOrderPlacementOutcomes(params: {
     outcomes: TpslOrderPlacementOutcome[];
     orders: SDKOrderParams[];
-    previousOrders: FrontendOrder[] | undefined;
+    previousOrderIds: ReadonlySet<string>;
     dexName: string | null;
     symbol: string;
   }): Promise<TpslOrderPlacementOutcome[]> {
     if (
-      params.previousOrders === undefined ||
       !params.outcomes.some(
         (outcome) =>
-          (outcome.state === 'waitingForTrigger' ||
-            outcome.state === 'unknown') &&
+          outcome.state === 'waitingForTrigger' &&
           outcome.orderId === undefined,
       )
     ) {
@@ -7849,9 +7821,6 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     try {
-      const previousOrderIds = new Set(
-        params.previousOrders.map((order) => order.oid.toString()),
-      );
       const appearedOrders = (
         await this.#fetchOpenOrders({ dexName: params.dexName })
       ).filter(
@@ -7859,14 +7828,14 @@ export class HyperLiquidProvider implements PerpsProvider {
           order.coin === params.symbol &&
           order.reduceOnly &&
           order.isTrigger &&
-          !previousOrderIds.has(order.oid.toString()),
+          !params.previousOrderIds.has(order.oid.toString()),
       );
       const claimedOrderIds = new Set<number>();
 
       return params.outcomes.map((outcome, index) => {
         if (
           outcome.orderId !== undefined ||
-          (outcome.state !== 'waitingForTrigger' && outcome.state !== 'unknown')
+          outcome.state !== 'waitingForTrigger'
         ) {
           return outcome;
         }
@@ -9093,6 +9062,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
       // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
       let cancelRequests: ExchangeCancelRequest[] = [];
+      const orderIdsBeforePlacement = new Set<string>();
       const restorablePositionTpslOrders: RestorableTpslOrder[] = [];
       const restorableStandaloneTpslOrders: RestorableTpslOrder[] = [];
 
@@ -9198,6 +9168,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           user: userAddress,
           dex: dexName ?? undefined,
         });
+        openOrders.forEach((order) =>
+          orderIdsBeforePlacement.add(order.oid.toString()),
+        );
 
         // Orders that belong to a pending parent order (normalTpsl children) are
         // also listed at the top level, so collect their IDs to exclude them:
@@ -9233,6 +9206,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.debugLogger.log(
           'Using WebSocket cache for TP/SL orders lookup',
           { cachedOrdersCount: cachedOrders.length },
+        );
+        cachedOrders.forEach((order) =>
+          orderIdsBeforePlacement.add(order.orderId),
         );
 
         // Filter using normalized Order type properties, matching the REST fallback criteria:
@@ -9359,8 +9335,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
 
           try {
-            const openOrdersBeforeRestoration =
-              await this.#captureTpslOpenOrders(dexName);
             const result = await exchangeClient.order({
               orders: entries.map((entry) => entry.order),
               grouping: protection.grouping,
@@ -9374,7 +9348,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
               outcomes: rawOutcomes,
               orders: entries.map((entry) => entry.order),
-              previousOrders: openOrdersBeforeRestoration,
+              previousOrderIds: new Set([
+                ...orderIdsBeforePlacement,
+                ...Array.from(cancelledOrderIds, String),
+              ]),
               dexName,
               symbol,
             });
@@ -9510,8 +9487,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       let result: Awaited<ReturnType<ExchangeClient['order']>>;
-      const openOrdersBeforePlacement =
-        await this.#captureTpslOpenOrders(dexName);
       try {
         result = await exchangeClient.order({
           orders,
@@ -9554,15 +9529,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         {
           outcomes: initialPlacementOutcomes,
           orders,
-          previousOrders: openOrdersBeforePlacement,
+          previousOrderIds: new Set([
+            ...orderIdsBeforePlacement,
+            ...Array.from(confirmedCancelledOldOrderIds, String),
+          ]),
           dexName,
           symbol,
         },
       );
       const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
         (outcome.state === 'resting' ||
-          outcome.state === 'waitingForTrigger' ||
-          outcome.state === 'unknown') &&
+          outcome.state === 'waitingForTrigger') &&
         outcome.orderId
           ? [outcome.orderId]
           : [],
@@ -9570,14 +9547,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
         outcome.state === 'filled' && outcome.orderId ? [outcome.orderId] : [],
       );
-      const hasUnresolvedPlacement =
-        placementStatuses.length !== orders.length ||
-        placementOutcomes.some(
-          (outcome) =>
-            (outcome.state === 'waitingForTrigger' ||
-              outcome.state === 'unknown') &&
-            outcome.orderId === undefined,
-        );
+      const hasUnresolvedWaitingTrigger = placementOutcomes.some(
+        (outcome) =>
+          outcome.state === 'waitingForTrigger' &&
+          outcome.orderId === undefined,
+      );
       const remainingReplacementIds = await this.#cancelOrderRequests(
         exchangeClient,
         restingReplacementOrderIds.map((orderId) => ({
@@ -9589,7 +9563,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         ...filledReplacementOrderIds,
         ...remainingReplacementIds.map(String),
       ];
-      if (hasUnresolvedPlacement) {
+      if (hasUnresolvedWaitingTrigger) {
         return createProtectionLostResult(recoverableOrderIds);
       }
       if (recoverableOrderIds.length === 0) {

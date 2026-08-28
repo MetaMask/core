@@ -1612,7 +1612,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('accepts waitingForTrigger for a combined TP/SL placement', async () => {
-      const { exchangeClient } = useStrategyClients({
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([]);
+      const { exchangeClient, infoClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
             status: 'ok',
@@ -1632,6 +1633,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         takeProfitPrice: '3500',
         stopLossPrice: '2500',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
       });
 
       expect(result).toStrictEqual({
@@ -1639,6 +1641,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderId: 'TP/SL orders placed',
       });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();
     });
 
     it('accepts mixed resting and waitingForTrigger placement statuses', async () => {
@@ -1669,27 +1672,24 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('replaces existing protection when the trigger waits for activation', async () => {
-      const frontendOpenOrders = jest
-        .fn()
-        .mockResolvedValueOnce([
-          {
-            coin: 'ETH',
-            side: 'A',
-            limitPx: '3400',
-            sz: '0',
-            origSz: '0',
-            oid: 456,
-            timestamp: 1_700_000_000_000,
-            reduceOnly: true,
-            isTrigger: true,
-            isPositionTpsl: true,
-            triggerCondition: 'Price above 3400',
-            triggerPx: '3400',
-            orderType: 'Take Profit Limit',
-            children: [],
-          },
-        ])
-        .mockResolvedValueOnce([]);
+      const frontendOpenOrders = jest.fn().mockResolvedValueOnce([
+        {
+          coin: 'ETH',
+          side: 'A',
+          limitPx: '3400',
+          sz: '0',
+          origSz: '0',
+          oid: 456,
+          timestamp: 1_700_000_000_000,
+          reduceOnly: true,
+          isTrigger: true,
+          isPositionTpsl: true,
+          triggerCondition: 'Price above 3400',
+          triggerPx: '3400',
+          orderType: 'Take Profit Limit',
+          children: [],
+        },
+      ]);
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
@@ -1717,7 +1717,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('reconciles a waiting trigger before cleaning up a mixed failure', async () => {
       const frontendOpenOrders = jest
         .fn()
-        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
           {
@@ -1809,18 +1808,45 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
 
-    it('reports lost protection for an unknown placement status', async () => {
+    it.each([
+      ['an unknown placement status', ['futureTriggerStatus']],
+      ['an incomplete placement response', []],
+    ])('restores old protection after %s', async (_label, statuses) => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses },
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ resting: { oid: 902 } }] },
+          },
+        });
       const { exchangeClient } = useStrategyClients({
-        exchange: {
-          order: jest.fn().mockResolvedValue({
-            status: 'ok',
-            response: {
-              data: { statuses: ['futureTriggerStatus'] },
-            },
-          }),
-        },
+        exchange: { order },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              side: 'A',
+              limitPx: '2450',
+              sz: '0',
+              origSz: '0',
+              oid: 456,
+              timestamp: 1_700_000_000_000,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              triggerCondition: 'Price below 2450',
+              triggerPx: '2450',
+              orderType: 'Stop Market',
+              children: [],
+            },
+          ]),
         },
       });
 
@@ -1832,10 +1858,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result).toStrictEqual({
         success: false,
-        error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
-        childOrderIds: [],
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
       });
-      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 456 }],
+      });
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0]).toMatchObject({
+        grouping: 'positionTpsl',
+        orders: [expect.objectContaining({ p: '2450', s: '0' })],
+      });
     });
 
     it('cancels old protection before placing partial TP/SL', async () => {
