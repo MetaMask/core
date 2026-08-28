@@ -17,6 +17,7 @@ import type {
 } from './constants/perpsConfig.js';
 import type { PerpsControllerState } from './PerpsController.js';
 import type {
+  OrderDirection,
   OrderType,
   PerpsSelectedPaymentToken,
   SortDirection,
@@ -149,6 +150,7 @@ type PendingTradeConfiguration = {
   limitPrice?: string;
   orderType?: OrderType;
   reduceOnly?: boolean;
+  direction?: OrderDirection;
   selectedPaymentToken?: PerpsSelectedPaymentToken | null;
 };
 

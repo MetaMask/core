@@ -347,6 +347,7 @@ describe('PerpsController selectors', () => {
                 limitPrice: '45000',
                 orderType: 'limit',
                 reduceOnly: true,
+                direction: 'short',
                 timestamp: now,
               },
             },
@@ -365,6 +366,7 @@ describe('PerpsController selectors', () => {
         limitPrice: '45000',
         orderType: 'limit',
         reduceOnly: true,
+        direction: 'short',
       });
     });
 
