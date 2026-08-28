@@ -411,7 +411,7 @@ describe('TradingService', () => {
       );
     });
 
-    it('tracks accepted Scale size and weighted average price', async () => {
+    it('tracks accepted Scale size and weighted limit price separately from execution price', async () => {
       const orderParams: OrderParams = {
         symbol: 'ETH',
         isBuy: true,
@@ -425,8 +425,9 @@ describe('TradingService', () => {
       mockProvider.placeOrder.mockResolvedValue({
         success: true,
         orderId: 'scale:group',
-        submittedSize: '0.6667',
-        averagePrice: '2499.9250037498123',
+        submittedSize: '1',
+        acceptedSize: '0.6667',
+        weightedAverageLimitPrice: '2499.9250037498123',
       });
 
       await tradingService.placeOrder({
@@ -440,12 +441,52 @@ describe('TradingService', () => {
         PerpsAnalyticsEvent.TradeTransaction,
         expect.objectContaining({
           order_size: 0.6667,
-          asset_price: 2499.9250037498123,
+          asset_price: 3000,
+          limit_price: 2499.9250037498123,
         }),
       );
       const resultProperties =
         mockDeps.metrics.trackPerpsEvent.mock.calls[1][1];
       expect(resultProperties.order_value).toBeCloseTo(1666.7);
+    });
+
+    it('pairs filled Scale size with average execution price for order value', async () => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'scale:group',
+        submittedSize: '1',
+        acceptedSize: '0.8334',
+        filledSize: '0.15',
+        averagePrice: '2533.33333333333333333333',
+        weightedAverageLimitPrice: '2399.80801535877129829614',
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'ETH',
+          isBuy: true,
+          size: '1',
+          orderType: 'scale',
+          scaleMinPrice: '2000',
+          scaleMaxPrice: '3000',
+          scaleNumOrders: 6,
+          trackingData: { marketPrice: 3000 },
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const resultProperties =
+        mockDeps.metrics.trackPerpsEvent.mock.calls[2][1];
+      expect(resultProperties).toEqual(
+        expect.objectContaining({
+          order_size: 0.15,
+          asset_price: 2533.3333333333335,
+        }),
+      );
+      expect(resultProperties.limit_price).toBeCloseTo(2399.8080153587714);
+      expect(resultProperties.order_value).toBeCloseTo(380);
     });
 
     it('includes trade_with_token and mm_pay fields when trackingData has tradeWithToken and pay token/network', async () => {
@@ -3088,7 +3129,7 @@ describe('TradingService', () => {
     });
 
     describe('partial fill on open trade', () => {
-      it('emits an additional partially_filled trade event with order_size, amount_filled, and remaining_amount from the submitted size', async () => {
+      it('emits an additional partially_filled trade event with order_size, amount_filled, and remaining_amount from the accepted size', async () => {
         mockProvider.placeOrder.mockResolvedValue({
           success: true,
           orderId: 'order-1',
@@ -3127,6 +3168,45 @@ describe('TradingService', () => {
         expect(
           findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
         ).toBeDefined();
+      });
+
+      it('does not count rejected Scale rungs as remaining fill exposure', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'scale:group',
+          filledSize: '4',
+          submittedSize: '10',
+          acceptedSize: '6',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'scale',
+            scaleMinPrice: '49000',
+            scaleMaxPrice: '51000',
+            scaleNumOrders: 3,
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.TradeTransaction,
+            'partially_filled',
+          )?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            order_size: 6,
+            amount_filled: 4,
+            remaining_amount: 2,
+          }),
+        );
       });
 
       it('does not emit a partially_filled event on a complete fill of the normalized submitted size', async () => {

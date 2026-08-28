@@ -198,6 +198,7 @@ export type {
   TPSLTrackingData,
   OrderParams,
   OrderResult,
+  ScaleOrderChild,
   ChaseOrder,
   ChaseOrderMaxDistanceReached,
   ChaseOrderStatus,

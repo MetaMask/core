@@ -189,7 +189,10 @@ export class TradingService {
         ? PERPS_EVENT_VALUE.STATUS.EXECUTED
         : PERPS_EVENT_VALUE.STATUS.FAILED;
     const trackedOrderSize = parseFloat(
-      result?.filledSize ?? result?.submittedSize ?? params.size,
+      result?.filledSize ??
+        result?.acceptedSize ??
+        result?.submittedSize ??
+        params.size,
     );
 
     // Build base properties
@@ -220,8 +223,13 @@ export class TradingService {
     }
     // Trigger limit placements carry a real limit price too, so the companion
     // property must not go missing when order_type is stop_limit/take_profit_limit.
-    if (isLimitExecutionOrderType(params.orderType) && params.price) {
-      properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(params.price);
+    const limitPrice = result?.weightedAverageLimitPrice ?? params.price;
+    if (
+      limitPrice &&
+      (result?.weightedAverageLimitPrice ||
+        isLimitExecutionOrderType(params.orderType))
+    ) {
+      properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(limitPrice);
     }
     if (params.trackingData?.source) {
       properties[PERPS_EVENT_PROPERTY.SOURCE] = params.trackingData.source;
@@ -254,9 +262,13 @@ export class TradingService {
     const assetPrice = result?.averagePrice
       ? parseFloat(result.averagePrice)
       : params.trackingData?.marketPrice;
-    if (assetPrice && trackedOrderSize) {
+    let orderValuePrice = assetPrice;
+    if (!result?.averagePrice && result?.weightedAverageLimitPrice) {
+      orderValuePrice = parseFloat(result.weightedAverageLimitPrice);
+    }
+    if (orderValuePrice && trackedOrderSize) {
       properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
-        trackedOrderSize * assetPrice;
+        trackedOrderSize * orderValuePrice;
     }
 
     // Add success-specific properties
@@ -317,42 +329,43 @@ export class TradingService {
     // Emit an additional partially filled trade event when the fill is partial,
     // mirroring the close path so the fill's partiality is visible in analytics
     // rather than hidden behind a status=executed event. Classification is based
-    // on the provider's final submitted size (post precision rounding, USD
-    // recalculation, and $10-minimum retry), not the caller's pre-normalization
-    // params.size — the provider transforms the size before submission and a
+    // on the provider's accepted size, falling back to its final submitted size
+    // when no accepted-size distinction applies. This avoids counting rejected
+    // Scale rungs as unfilled exposure. Both values are post-normalization, so a
     // complete fill of the normalized size must not look partial. When the
-    // provider did not report a submitted size we do not classify (rather than
-    // guess from params.size). The partial event mirrors the close schema:
-    // order_size = submitted size, amount_filled = filled, remaining = the rest.
+    // provider reports neither value we do not classify rather than guess from
+    // params.size. The partial event mirrors the close schema: order_size =
+    // accepted size, amount_filled = filled, remaining = the rest.
     // Compare and subtract the decimal size strings with arbitrary-precision
     // math (BigNumber): routing them through parseFloat can introduce
     // binary-float artifacts that collapse distinct values (misclassifying the
     // fill) or leave e-17 dust in remaining_amount. Only convert to Number for
     // the emitted analytics values, after the exact decimal subtraction.
-    const submittedSize =
-      result?.submittedSize === undefined
+    const acceptedSizeString = result?.acceptedSize ?? result?.submittedSize;
+    const acceptedSize =
+      acceptedSizeString === undefined
         ? undefined
-        : new BigNumber(result.submittedSize);
+        : new BigNumber(acceptedSizeString);
     const filledSize =
       result?.filledSize === undefined
         ? undefined
         : new BigNumber(result.filledSize);
     if (
       result?.success === true &&
-      submittedSize !== undefined &&
+      acceptedSize !== undefined &&
       filledSize !== undefined &&
-      submittedSize.isFinite() &&
+      acceptedSize.isFinite() &&
       filledSize.isFinite() &&
       filledSize.gt(0) &&
-      filledSize.lt(submittedSize)
+      filledSize.lt(acceptedSize)
     ) {
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
         ...properties,
         [PERPS_EVENT_PROPERTY.STATUS]:
           PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
-        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: acceptedSize.toNumber(),
         [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize.toNumber(),
-        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: acceptedSize
           .minus(filledSize)
           .toNumber(),
       });
