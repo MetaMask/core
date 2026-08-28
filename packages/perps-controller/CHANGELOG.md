@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prevent transient HyperLiquid WebSocket disconnects from failing the first TP/SL update by checking builder-fee approval over HTTP ([#9997](https://github.com/MetaMask/core/pull/9997))
 - Stop reporting `TPSL_UPDATE_FAILED` from `updatePositionTPSL` when HyperLiquid accepts a trigger with `waitingForTrigger`; accepted triggers without response order IDs are reconciled before mixed-failure cleanup ([#9995](https://github.com/MetaMask/core/pull/9995))
 
 ## [13.1.0]
