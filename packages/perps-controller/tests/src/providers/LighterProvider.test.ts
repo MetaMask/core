@@ -1267,10 +1267,12 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
-    it('rejects malformed user_stats numbers without emitting a partial account state', async () => {
+    it('drops malformed user_stats numbers without throwing or emitting a partial account state', async () => {
+      const infra = createMockInfrastructure();
       const { provider } = buildProvider({
         webSocketCtor: fakeCtor,
         registeredKey: 'a'.repeat(80),
+        platformDependencies: infra,
       });
       const accountCallback = jest.fn();
       const unsubscribe = provider.subscribeToAccount({
@@ -1296,8 +1298,14 @@ describe('LighterProvider', () => {
             buying_power: '0',
           },
         }),
-      ).toThrow('Invalid Lighter venue data');
+      ).not.toThrow();
       expect(accountCallback).not.toHaveBeenCalled();
+      expect(infra.debugLogger.log).toHaveBeenCalledWith(
+        '[LighterProvider] dropped malformed WebSocket frame',
+        expect.objectContaining({
+          error: expect.stringContaining('Invalid Lighter venue data'),
+        }),
+      );
 
       unsubscribe();
       await provider.disconnect();

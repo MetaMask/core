@@ -7419,16 +7419,27 @@ export class LighterProvider implements PerpsProvider {
     };
 
     ws.onmessage = (event: { data: unknown }): void => {
-      // Re-run the live binding first: an EXTERNAL account switch that no
-      // provider call has observed yet must tear this socket down (the
-      // rebind replaces it) before any frame routes into current UI.
-      this.#ensureSessionBinding();
-      // Frames from a socket that was replaced (account rebind, reconnect)
-      // must never reach the router — they carry the previous session's data.
-      if (this.#priceWs !== ws) {
-        return;
+      try {
+        // Re-run the live binding first: an EXTERNAL account switch that no
+        // provider call has observed yet must tear this socket down (the
+        // rebind replaces it) before any frame routes into current UI.
+        this.#ensureSessionBinding();
+        // Frames from a socket that was replaced (account rebind, reconnect)
+        // must never reach the router — they carry the previous session's data.
+        if (this.#priceWs !== ws) {
+          return;
+        }
+        this.#handleWsMessage(String(event.data));
+      } catch (error) {
+        // WebSocket callbacks run on the host event loop. Venue-data
+        // integrity failures (and any other malformed frame failure) must
+        // drop the whole frame rather than throw globally or emit partial
+        // account/position state.
+        this.#deps.debugLogger.log(
+          '[LighterProvider] dropped malformed WebSocket frame',
+          { error: String(error) },
+        );
       }
-      this.#handleWsMessage(String(event.data));
     };
 
     ws.onclose = (): void => {

@@ -593,6 +593,7 @@ export type PerpsControllerCalculateMaintenanceMarginAction = {
  * Get maximum leverage allowed for an asset
  *
  * @param asset - The asset identifier.
+ * @param providerId - Optional provider route for aggregated markets.
  * @returns A promise that resolves to the numeric result.
  */
 export type PerpsControllerGetMaxLeverageAction = {
