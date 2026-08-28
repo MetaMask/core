@@ -15,6 +15,7 @@ import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
@@ -1863,9 +1864,27 @@ export class KycController extends BaseController<
     const jwtToken = MOCK_JWT_TOKEN;
 
     // Establish a per-session X25519 keypair used to seal both secrets. The
-    // private half stays on the device; each encryption schema from session
-    // creation supplies the matching server public key.
+    // private half stays on the device; the public half is registered on the
+    // session so the server can open later authorizations. Each encryption
+    // schema from session creation supplies the matching server public key.
     const sessionClientPrivateKey = x25519.utils.randomSecretKey();
+    const sessionClientPublicKey = toBase64Url(
+      x25519.getPublicKey(sessionClientPrivateKey),
+    );
+    // Residence is the ISO 3166-1 alpha-3 country already resolved for
+    // disclaimers / KYC-required; fetch it if this sub-flow started without
+    // that earlier step.
+    const residenceCountry =
+      this.state.geoCountry ??
+      (await this.messenger.call('KycService:getGeoCountry'));
+    if (this.#generation !== generation) {
+      return null;
+    }
+    if (residenceCountry !== this.state.geoCountry) {
+      this.#updateIfCurrent(generation, (state) => {
+        state.geoCountry = residenceCountry;
+      });
+    }
 
     const {
       sessionId,
@@ -1873,6 +1892,8 @@ export class KycController extends BaseController<
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
       jwtToken,
+      sessionClientPublicKey,
+      residenceCountry,
       ...this.#buildUkycSessionVendorFields(),
     });
     if (this.#generation !== generation) {

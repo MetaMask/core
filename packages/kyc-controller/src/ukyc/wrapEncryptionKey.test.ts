@@ -9,8 +9,8 @@ const DATA_ENCRYPTION_KEY = new Uint8Array(32).fill(7);
 /**
  * Reverses {@link wrapEncryptionKey} from the server's perspective: reads the
  * client public key from the first 32 bytes of `data` and opens the NaCl box
- * with the server private key. This is the only information the session server
- * has after wrapping-key registration was removed.
+ * with the server private key. The client also registers this public key on
+ * `createUkycSession`.
  *
  * @param serverPrivateKey - The server's X25519 private key.
  * @param data - The base64url `clientPublicKey || ciphertext+tag`.

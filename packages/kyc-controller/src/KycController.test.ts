@@ -5,13 +5,14 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToString } from '@metamask/utils';
+import { areUint8ArraysEqual, bytesToString } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { x25519 } from '@noble/curves/ed25519';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
   KycController,
@@ -1549,62 +1550,127 @@ describe('KycController', () => {
     });
 
     it('runs the full sub-flow and completes', async () => {
-      await withController(async ({ controller, handlers, launcher }) => {
-        launcher.launch.mockImplementation(
-          async ({ onStatusChange, onTokenExpiration }) => {
-            onStatusChange?.('idle', 'InProgress');
-            onStatusChange?.('InProgress', 'Completed');
-            await onTokenExpiration();
-            return { ok: true };
-          },
-        );
+      await withController(
+        { options: { state: { geoCountry: 'USA' } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async ({ onStatusChange, onTokenExpiration }) => {
+              onStatusChange?.('idle', 'InProgress');
+              onStatusChange?.('InProgress', 'Completed');
+              await onTokenExpiration();
+              return { ok: true };
+            },
+          );
 
-        const result = await controller.startSumSub({
-          locale: 'fr',
-          debug: true,
-        });
+          const result = await controller.startSumSub({
+            locale: 'fr',
+            debug: true,
+          });
 
-        expect(result).toStrictEqual({ ok: true });
-        expect(controller.state.sumsub.status).toBe('complete');
-        expect(controller.state.sumsub.applicantAccessToken).toBe('aat');
-        // Session creation returns encryption schemas; wrapping happens on
-        // the client and both secrets are posted via authorizations.
-        expect(handlers.createUkycSession).toHaveBeenCalledWith(
-          expect.objectContaining({
-            jwtToken: 'mock-jwt-token',
-            vendorMetadata: expect.objectContaining({
-              moonPayAccessToken: null,
-              moonPayUserId: null,
+          expect(result).toStrictEqual({ ok: true });
+          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.sumsub.applicantAccessToken).toBe('aat');
+          // Session creation returns encryption schemas; wrapping happens on
+          // the client and both secrets are posted via authorizations.
+          expect(handlers.createUkycSession).toHaveBeenCalledWith(
+            expect.objectContaining({
+              jwtToken: 'mock-jwt-token',
+              sessionClientPublicKey:
+                expect.stringMatching(/^[A-Za-z0-9_-]+$/u),
+              residenceCountry: 'USA',
+              vendorMetadata: expect.objectContaining({
+                moonPayAccessToken: null,
+                moonPayUserId: null,
+              }),
             }),
+          );
+          const { sessionClientPublicKey } = handlers.createUkycSession.mock
+            .calls[0][0] as {
+            sessionClientPublicKey: string;
+          };
+          const sessionClientPublicKeyBytes = base64UrlToBytes(
+            sessionClientPublicKey,
+          );
+          expect(sessionClientPublicKeyBytes).toHaveLength(32);
+          expect(
+            areUint8ArraysEqual(
+              x25519.getPublicKey(mockWrapEncryptionKey.mock.calls[0][0]),
+              sessionClientPublicKeyBytes,
+            ),
+          ).toBe(true);
+          expect(
+            toBase64Url(
+              x25519.getPublicKey(mockWrapEncryptionKey.mock.calls[1][0]),
+            ),
+          ).toBe(sessionClientPublicKey);
+          expect(
+            handlers.createUkycSession.mock.calls[0][0],
+          ).not.toHaveProperty('wrappedEncryptionKey');
+          expect(
+            handlers.createUkycSession.mock.calls[0][0],
+          ).not.toHaveProperty('ukycCapabilityToken');
+          expect(mockWrapEncryptionKey).toHaveBeenCalledTimes(2);
+          // First wrap is the 32-byte data_encryption_key; second is the
+          // encoded capability token (longer than a raw key).
+          expect(mockWrapEncryptionKey.mock.calls[0][1]).toBe('spk-x');
+          expect(mockWrapEncryptionKey.mock.calls[0][2]).toHaveLength(32);
+          expect(mockWrapEncryptionKey.mock.calls[1][1]).toBe('spk-x');
+          expect(mockWrapEncryptionKey.mock.calls[1][2].length).toBeGreaterThan(
+            32,
+          );
+          // The capability token is wrapped as the UTF-8 bytes of the same
+          // compact header encoding previously sent as a plaintext field.
+          expect(bytesToString(mockWrapEncryptionKey.mock.calls[1][2])).toMatch(
+            /^[A-Za-z0-9\-_]+$/u,
+          );
+          expect(handlers.setAuthorizations).toHaveBeenCalledWith({
+            sessionId: 'sid',
+            wrappedEncryptionDataKey: { data: 'enc', nonce: 'nonce' },
+            wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
+          });
+          // onTokenExpiration re-fetches the applicant access token.
+          expect(handlers.createJourney).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('forwards the resolved geo country as residenceCountry', async () => {
+      await withController(
+        { options: { state: { geoCountry: 'FRA' } } },
+        async ({ controller, handlers }) => {
+          await controller.startSumSub();
+
+          expect(handlers.createUkycSession).toHaveBeenCalledWith(
+            expect.objectContaining({ residenceCountry: 'FRA' }),
+          );
+          expect(handlers.getGeoCountry).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not create a UKYC session when reset() runs while resolving residence country', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        let release: (country: string) => void = () => {
+          // Replaced synchronously by the promise executor below.
+        };
+        handlers.getGeoCountry.mockReturnValue(
+          new Promise((resolve) => {
+            release = resolve;
           }),
         );
-        expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
-          'wrappedEncryptionKey',
-        );
-        expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
-          'ukycCapabilityToken',
-        );
-        expect(mockWrapEncryptionKey).toHaveBeenCalledTimes(2);
-        // First wrap is the 32-byte data_encryption_key; second is the
-        // encoded capability token (longer than a raw key).
-        expect(mockWrapEncryptionKey.mock.calls[0][1]).toBe('spk-x');
-        expect(mockWrapEncryptionKey.mock.calls[0][2]).toHaveLength(32);
-        expect(mockWrapEncryptionKey.mock.calls[1][1]).toBe('spk-x');
-        expect(mockWrapEncryptionKey.mock.calls[1][2].length).toBeGreaterThan(
-          32,
-        );
-        // The capability token is wrapped as the UTF-8 bytes of the same
-        // compact header encoding previously sent as a plaintext field.
-        expect(bytesToString(mockWrapEncryptionKey.mock.calls[1][2])).toMatch(
-          /^[A-Za-z0-9\-_]+$/u,
-        );
-        expect(handlers.setAuthorizations).toHaveBeenCalledWith({
-          sessionId: 'sid',
-          wrappedEncryptionDataKey: { data: 'enc', nonce: 'nonce' },
-          wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
-        });
-        // onTokenExpiration re-fetches the applicant access token.
-        expect(handlers.createJourney).toHaveBeenCalledTimes(2);
+
+        const pending = controller.startSumSub();
+        while (handlers.getGeoCountry.mock.calls.length === 0) {
+          await Promise.resolve();
+        }
+        controller.reset();
+        release('USA');
+        const result = await pending;
+
+        expect(result).toStrictEqual({});
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('idle');
       });
     });
 
@@ -2927,7 +2993,10 @@ describe('KycController', () => {
             handlers.fetchSessionDisclaimers.mock.invocationCallOrder[0],
           );
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
-            expect.objectContaining({ vendor: 'iron' }),
+            expect.objectContaining({
+              vendor: 'iron',
+              residenceCountry: 'USA',
+            }),
           );
           expect(launcher.launch).toHaveBeenCalled();
           expect(controller.buildCheckFrameUrl()).toBeNull();
@@ -4364,7 +4433,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { activeVendor: 'iron', phase: 'submit' },
+            state: { activeVendor: 'iron', phase: 'submit', geoCountry: 'USA' },
           },
         },
         async ({ controller, handlers }) => {
@@ -4388,7 +4457,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { activeVendor: 'iron', phase: 'submit' },
+            state: { activeVendor: 'iron', phase: 'submit', geoCountry: 'USA' },
           },
         },
         async ({ controller, handlers }) => {
