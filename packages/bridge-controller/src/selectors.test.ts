@@ -2254,7 +2254,16 @@ describe('Bridge Selectors', () => {
           "24925.00683656",
         ]
       `);
-
+      expect(
+        recommendedQuotes.map(
+          (quote) => quote?.quote.priceData?.cost?.valueInCurrency,
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          "-4867.87052548",
+          "24925.00683656",
+        ]
+      `);
       expect(recommendedQuotes.map((quote) => quote?.quote.requestId))
         .toMatchInlineSnapshot(`
         [
