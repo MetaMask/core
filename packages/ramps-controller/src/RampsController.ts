@@ -51,7 +51,12 @@ import {
 } from './orderStatus.js';
 import { buildOwnershipMessage } from './ownership-message.js';
 import {
+  mergePaymentMethodsById,
+  pickPaymentMethod,
+} from './paymentMethodMerge.js';
+import {
   getProvidersServingAsset,
+  normalizeRampsAssetId,
   providerServesAsset,
 } from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
@@ -84,6 +89,7 @@ import type {
   RampsToken,
   RampsServiceActions,
   RampsOrder,
+  ProvidersResponse,
 } from './RampsService.js';
 import { RampsOrderStatus } from './RampsService.js';
 import type {
@@ -467,6 +473,30 @@ export type TransakState = {
  */
 export type NativeProvidersState = {
   transak: TransakState;
+};
+
+/**
+ * Response from {@link RampsController.getPaymentMethodsForContext}.
+ *
+ * Methods are request-eligible for the resolved provider set; they are not a
+ * guarantee that every amount will produce a quote (provider fiat limits still
+ * apply at quote time).
+ */
+export type PaymentMethodsForContextResponse = {
+  /**
+   * Deduped payment methods contributed by the resolved provider set.
+   */
+  methods: PaymentMethod[];
+  /**
+   * Suggested selection for this request only. Written to controller state only
+   * when `updateState` was true on the call.
+   */
+  selected: PaymentMethod | null;
+  /**
+   * Provider IDs whose methods were requested (after resolution / allowlist
+   * filtering).
+   */
+  providerIds: string[];
 };
 
 /**
@@ -974,6 +1004,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setSelectedToken',
   'getProviders',
   'getPaymentMethods',
+  'getPaymentMethodsForContext',
   'setSelectedPaymentMethod',
   'getQuotes',
   'addOrder',
@@ -1025,6 +1056,45 @@ const MESSENGER_EXPOSED_METHODS = [
 /**
  * Manages cryptocurrency on/off ramps functionality.
  */
+/**
+ * The state fields {@link contextStillMatches} reads, narrowed rather than
+ * taking `RampsControllerState`. Callers pass Immer's deep `WritableDraft`, and
+ * checking that against the full state type exceeds the type instantiation
+ * depth limit on declaration emit (TS2589), even though `tsc --noEmit` accepts
+ * it.
+ */
+type ContextGuardState = {
+  userRegion: { regionCode?: string } | null;
+  tokens: { selected: { assetId: string } | null };
+  providers: { selected: { id: string } | null };
+};
+
+/**
+ * Whether controller state still describes the context a payment-method
+ * request was issued for, so a completed request may write the Buy catalog.
+ *
+ * Compared at commit time rather than against a snapshot, so an older request
+ * that returns after the context moved on is dropped.
+ *
+ * @param state - Controller state at commit time.
+ * @param context - The context the request was issued for.
+ * @param context.region - Normalized region code.
+ * @param context.assetId - Canonicalized CAIP-19 asset id.
+ * @param context.providerId - Trimmed provider id, or an empty string.
+ * @returns Whether the write may proceed.
+ */
+function contextStillMatches(
+  state: ContextGuardState,
+  context: { region: string; assetId: string; providerId: string },
+): boolean {
+  return (
+    state.userRegion?.regionCode?.trim().toLowerCase() === context.region &&
+    normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
+      context.assetId &&
+    (state.providers.selected?.id.trim() ?? '') === context.providerId
+  );
+}
+
 export class RampsController extends BaseController<
   typeof controllerName,
   RampsControllerState,
@@ -1892,7 +1962,7 @@ export class RampsController extends BaseController<
       crypto?: string | string[];
       payments?: string | string[];
     },
-  ): Promise<{ providers: Provider[] }> {
+  ): Promise<ProvidersResponse> {
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -1903,7 +1973,7 @@ export class RampsController extends BaseController<
       options?.payments,
     ]);
 
-    const { providers } = await this.executeRequest(
+    const response = await this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call(
@@ -1922,6 +1992,7 @@ export class RampsController extends BaseController<
         isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
+    const { providers } = response;
 
     this.update((state) => {
       const userRegionCode = state.userRegion?.regionCode;
@@ -1931,7 +2002,7 @@ export class RampsController extends BaseController<
       }
     });
 
-    return { providers };
+    return response;
   }
 
   /**
@@ -2009,6 +2080,177 @@ export class RampsController extends BaseController<
     });
 
     return response;
+  }
+
+  /**
+   * Fetches payment methods for a quoting context without coupling callers to
+   * the Buy flow's globally selected provider/token catalog.
+   *
+   * Provider contribution mirrors {@link getQuotes}:
+   * - explicit `providers` (optionally filtered when
+   *   `restrictToKnownOrNativeProviders` is set)
+   * - auto-select / restrict path, including `moneyHeadlessAllProviders`
+   *   widening: flag off uses the restricted/native resolver; flag on uses
+   *   supporting providers, intersected with the flag allowlist when that
+   *   allowlist is non-empty (pick-survivor set for picker methods)
+   * - when those resolution flags and `providers` are omitted, uses only
+   *   `providers.selected` (UB2 selected-provider context)
+   *
+   * By default this is request-only: it does **not** mutate
+   * `paymentMethods.data` or `paymentMethods.selected`. Pass `updateState:
+   * true` only when the caller explicitly wants Buy-catalog write semantics
+   * (UB2). Headless / MM Pay selection stays TPC-owned. `updateState: true`
+   * throws when the resolved provider set holds more than one provider, because
+   * the write guards cannot tell two such requests apart.
+   *
+   * Methods are request-eligible for the resolved provider set; they are not
+   * guaranteed to produce a quote for every amount (provider fiat limits still
+   * apply at quote time).
+   *
+   * @param options - Context for the payment-method fetch.
+   * @param options.region - Region code. Defaults to `userRegion`.
+   * @param options.assetId - Required CAIP-19 quoting asset.
+   * @param options.providers - Explicit provider ids.
+   * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+   * @param options.preferredProviderIds - Preferred ids for auto-selection.
+   * @param options.restrictToKnownOrNativeProviders - Headless gating.
+   * @param options.updateState - When true, write `paymentMethods` state.
+   * @param options.preferPaymentMethodId - Preserve this id when still present.
+   * @param options.forceRefresh - Bypass request cache for provider fetches.
+   * @param options.ttl - Custom TTL for provider payment-method fetches.
+   * @returns Deduped methods, a request-only suggested selection, and the
+   *   provider ids that contributed.
+   */
+  async getPaymentMethodsForContext(options: {
+    region?: string;
+    assetId: string;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
+    updateState?: boolean;
+    preferPaymentMethodId?: string;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<PaymentMethodsForContextResponse> {
+    const regionToUse = options.region ?? this.#requireRegion();
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const assetId = options.assetId.trim();
+    if (assetId === '') {
+      throw new Error('assetId is required.');
+    }
+    const normalizedAssetContext = normalizeRampsAssetId(assetId);
+    const updateState = options.updateState === true;
+    const providerIdForState =
+      options.providers?.length === 1
+        ? options.providers[0].trim()
+        : (this.state.providers.selected?.id.trim() ?? '');
+
+    const providerIds = await this.#resolveProviderIdsForPaymentMethods({
+      assetId,
+      region: normalizedRegion,
+      providers: options.providers,
+      autoSelectProvider: options.autoSelectProvider,
+      preferredProviderIds: options.preferredProviderIds,
+      restrictToKnownOrNativeProviders:
+        options.restrictToKnownOrNativeProviders,
+    });
+
+    // A fan-out across several providers produces a merged catalog whose value
+    // depends on the provider set, but the write guards below only compare
+    // region, selected token, and selected provider. Two concurrent
+    // multi-provider requests share all three, so nothing distinguishes them
+    // and the slower one would silently overwrite the faster one.
+    if (updateState && providerIds.length > 1) {
+      throw new Error(
+        `getPaymentMethodsForContext cannot write paymentMethods state for ${providerIds.length} resolved providers. Use updateState: false, or request exactly one provider.`,
+      );
+    }
+
+    const writeContext = {
+      region: normalizedRegion,
+      assetId: normalizedAssetContext,
+      providerId: providerIdForState,
+    };
+
+    if (providerIds.length === 0) {
+      if (updateState) {
+        this.update((state) => {
+          if (contextStillMatches(state, writeContext)) {
+            state.paymentMethods.data = [];
+            state.paymentMethods.selected = null;
+          }
+        });
+      }
+      return { methods: [], selected: null, providerIds };
+    }
+
+    const settled = await Promise.allSettled(
+      providerIds.map(async (providerId) => {
+        const cacheKey = createCacheKey('getPaymentMethodsForContext', [
+          normalizedRegion,
+          assetId,
+          providerId,
+        ]);
+        return this.executeRequest(
+          cacheKey,
+          async () => {
+            return this.messenger.call('RampsService:getPaymentMethods', {
+              region: normalizedRegion,
+              assetId,
+              provider: providerId,
+            });
+          },
+          {
+            forceRefresh: options.forceRefresh,
+            ttl: options.ttl,
+            // Intentionally omit resourceType / isResultCurrent so this
+            // request-only path never drives Buy paymentMethods loading or
+            // selection state unless `updateState` is explicitly set below.
+          },
+        );
+      }),
+    );
+
+    const successfulLists: PaymentMethod[][] = [];
+    const failures: unknown[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        successfulLists.push(result.value.payments);
+      } else {
+        failures.push(result.reason);
+      }
+    }
+
+    if (successfulLists.length === 0) {
+      const firstFailure = failures[0];
+      throw firstFailure instanceof Error
+        ? firstFailure
+        : new Error('Failed to fetch payment methods for context.');
+    }
+
+    const methods = mergePaymentMethodsById(successfulLists);
+    let selected = pickPaymentMethod(methods, [
+      options.preferPaymentMethodId,
+      this.state.paymentMethods.selected?.id,
+    ]);
+
+    if (updateState) {
+      this.update((state) => {
+        if (contextStillMatches(state, writeContext)) {
+          // The stored selection outranks the caller's preference: the user may
+          // have picked a method while this request was in flight.
+          selected = pickPaymentMethod(methods, [
+            state.paymentMethods.selected?.id,
+            options.preferPaymentMethodId,
+          ]);
+          state.paymentMethods.data = methods;
+          state.paymentMethods.selected = selected;
+        }
+      });
+    }
+
+    return { methods, selected, providerIds };
   }
 
   /**
@@ -2541,6 +2783,89 @@ export class RampsController extends BaseController<
       return [];
     }
     return [supporting[0].id];
+  }
+
+  /**
+   * Resolves provider IDs that should contribute payment methods for a
+   * quoting context. Mirrors {@link getQuotes} provider-set selection, with
+   * one intentional difference on the widened path: when the all-providers
+   * flag allowlist is non-empty, returns supporting providers intersected
+   * with that allowlist (pick survivors for the picker). Does not mutate
+   * state.
+   *
+   * @param options - Resolution inputs aligned with `getQuotes`.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.providers - Explicit provider IDs, when provided.
+   * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+   * @param options.preferredProviderIds - Preferred provider IDs in order.
+   * @param options.restrictToKnownOrNativeProviders - Headless gating.
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForPaymentMethods({
+    assetId,
+    region,
+    providers,
+    autoSelectProvider,
+    preferredProviderIds,
+    restrictToKnownOrNativeProviders,
+  }: {
+    assetId: string;
+    region: string;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
+  }): Promise<string[]> {
+    const wantsAutoSelection =
+      !providers &&
+      (autoSelectProvider === true ||
+        restrictToKnownOrNativeProviders === true);
+    const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
+      wantsAutoSelection
+        ? this.#resolveAllProvidersFlag()
+        : { enabled: false, allowlist: undefined };
+    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
+
+    if (providers) {
+      return restrictToKnownOrNativeProviders
+        ? this.#filterProviderIdsBySupport({
+            providerIds: providers,
+            assetId,
+            region,
+          })
+        : providers;
+    }
+
+    if (widenToAllProviders) {
+      const { supporting } = await this.#getSupportingProvidersForRegion({
+        assetId,
+        region,
+      });
+      if (providerAllowlist && providerAllowlist.length > 0) {
+        const allowedProviderIds = new Set(
+          providerAllowlist.map(normalizeHeadlessProviderId),
+        );
+        return supporting
+          .filter((provider) =>
+            allowedProviderIds.has(normalizeHeadlessProviderId(provider.id)),
+          )
+          .map((provider) => provider.id);
+      }
+      return supporting.map((provider) => provider.id);
+    }
+
+    if (autoSelectProvider || restrictToKnownOrNativeProviders) {
+      return this.#resolveProviderIdsForQuote({
+        assetId,
+        region,
+        preferredProviderIds,
+        restrictToKnownOrNative: restrictToKnownOrNativeProviders,
+      });
+    }
+
+    const selectedId = this.state.providers.selected?.id;
+    return selectedId ? [selectedId] : [];
   }
 
   /**

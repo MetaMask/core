@@ -86,6 +86,19 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 };
 
 /**
+ * Get strategy capabilities through the active provider route used by order
+ * placement. The query waits for in-flight initialization and reports an
+ * explicit unavailable status when no provider route can answer reliably.
+ *
+ * @param params - Market and optional provider route.
+ * @returns Provider-owned order capabilities.
+ */
+export type PerpsControllerGetOrderCapabilitiesAction = {
+  type: `PerpsController:getOrderCapabilities`;
+  handler: PerpsController['getOrderCapabilities'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -118,6 +131,41 @@ export type PerpsControllerEditOrderAction = {
 export type PerpsControllerCancelOrderAction = {
   type: `PerpsController:cancelOrder`;
   handler: PerpsController['cancelOrder'];
+};
+
+/**
+ * Read venue-backed TWAP lifecycle records through the active provider.
+ * Providers without native TWAP history return an empty list.
+ *
+ * @returns Current and terminal TWAP schedules with slice fills.
+ */
+export type PerpsControllerGetTwapOrdersAction = {
+  type: `PerpsController:getTwapOrders`;
+  handler: PerpsController['getTwapOrders'];
+};
+
+/**
+ * Read the active provider's retained Chase lifecycle snapshots.
+ * Providers without an emulated Chase implementation return an empty list.
+ *
+ * @returns Current Chase session snapshots.
+ */
+export type PerpsControllerGetChaseOrdersAction = {
+  type: `PerpsController:getChaseOrders`;
+  handler: PerpsController['getChaseOrders'];
+};
+
+/**
+ * Stop Chase repricing for app backgrounding without cancelling the current
+ * resting children.
+ *
+ * @returns Chase snapshots after suspension.
+ * @throws If an aggregated provider cannot suspend every active venue. Other
+ * providers may already be suspended; callers can retry to reconcile them.
+ */
+export type PerpsControllerSuspendChaseOrdersAction = {
+  type: `PerpsController:suspendChaseOrders`;
+  handler: PerpsController['suspendChaseOrders'];
 };
 
 /**
@@ -493,6 +541,19 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
+ * Project the isolated position that would remain after a proposed order.
+ * Margin and liquidation availability are independent: a missing liquidation
+ * does not hide a valid margin projection. Cross-margin returns unsupported.
+ *
+ * @param params - Live position plus the proposed order.
+ * @returns Discriminated preview of the resulting position.
+ */
+export type PerpsControllerPreviewPositionModifyAction = {
+  type: `PerpsController:previewPositionModify`;
+  handler: PerpsController['previewPositionModify'];
+};
+
+/**
  * Calculate maintenance margin for a specific asset
  * Returns a percentage (e.g., 0.0125 for 1.25%)
  *
@@ -767,8 +828,9 @@ export type PerpsControllerSetLiveDataConfigAction = {
 };
 
 /**
- * Calculate trading fees for the active provider
- * Each provider implements its own fee structure
+ * Calculate trading fees through the active provider route.
+ * Each provider owns its fee policy. An explicit provider route overrides
+ * the active/default provider used by placement.
  *
  * @param params - The operation parameters.
  * @returns The fee calculation result for the trade.
@@ -929,6 +991,7 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.limitPrice - The limit price.
  * @param config.orderType - The order type.
  * @param config.reduceOnly - Whether the order may only reduce a position.
+ * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
@@ -1226,9 +1289,13 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
+  | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
+  | PerpsControllerGetTwapOrdersAction
+  | PerpsControllerGetChaseOrdersAction
+  | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction
@@ -1258,6 +1325,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAvailableDexsAction
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
+  | PerpsControllerPreviewPositionModifyAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction

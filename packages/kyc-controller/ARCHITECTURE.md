@@ -122,22 +122,28 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchDisclaimers`, `createSession`, `checkKycRequired`,
-`createVendorCustomer`, `submitConsents`, `fetchKycStatus`, `createUkycSession`,
-`createJourney`.
+`createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimers`, `submitSessionDisclaimers`,
+`fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
+`createJourney`, `getSessionStatus`.
 
 Endpoints:
 
-| Method                 | HTTP   | Endpoint                                 | Purpose                                                                 |
-| ---------------------- | ------ | ---------------------------------------- | ----------------------------------------------------------------------- |
-| `getGeoCountry`        | —      | (geolocation action)                     | Resolve alpha-3 country                                                 |
-| `fetchDisclaimers`     | `GET`  | `/vendors/{vendor}/disclaimers?country=` | Terms to accept (`vendor` defaults to `moonpay`)                        |
-| `createSession`        | `POST` | `/vendors/moonpay/sessions`              | Create MoonPay vendor session                                           |
-| `checkKycRequired`     | `POST` | `/vendors/{vendor}/kyc-required`         | Is KYC required? (normalizes `required` → `kycRequired`)                |
-| `createVendorCustomer` | `POST` | `/vendors/{vendor}/customers`            | Create or resume an empty-shell vendor customer                         |
-| `submitConsents`       | `POST` | `/consents`                              | Post T&C1 + T&C2 consents (204 No Content)                              |
-| `fetchKycStatus`       | `GET`  | `/kyc/status`                            | User-keyed simplified KYC status                                        |
-| `createUkycSession`    | `POST` | `/sessions`                              | Start SumSub sub-flow (wrapped key + read-only `ukyc_capability_token`) |
-| `createJourney`        | `POST` | `/sessions/{id}/journey`                 | Create verification journey → applicant token                           |
+| Method                     | HTTP   | Endpoint                                     | Purpose                                                                                |
+| -------------------------- | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `getGeoCountry`            | —      | (geolocation action)                         | Resolve alpha-3 country                                                                |
+| `fetchDisclaimers`         | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
+| `createSession`            | `POST` | `/vendors/moonpay/sessions`                  | Create MoonPay vendor session                                                          |
+| `checkKycRequired`         | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
+| `createVendorCustomer`     | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
+| `submitVendorDisclaimers`  | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor T&C signings (`disclaimerIds`)                                           |
+| `fetchSessionDisclaimers`  | `GET`  | `/sessions/{id}/disclaimers`                 | Session-scoped idOS + KYC-provider catalog                                             |
+| `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`                 | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
+| `fetchKycStatus`           | `GET`  | `/kyc/status`                                | User-keyed simplified KYC status                                                       |
+| `fetchIdosEnclaveJwks`     | `GET`  | `{idosEnclaveBaseUrl}/.well-known/jwks.json` | idOS enclave JWKS for `encryptionDataKey` attestation                                  |
+| `fetchIdosRelayJwks`       | `GET`  | `{idosRelayBaseUrl}/.well-known/jwks.json`   | idOS relay JWKS for `ukycCapabilityToken` attestation                                  |
+| `createUkycSession`        | `POST` | `/sessions`                                  | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
+| `setAuthorizations`        | `POST` | `/sessions/{id}/authorizations`              | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
+| `createJourney`            | `POST` | `/sessions/{id}/journey`                     | Create verification journey → applicant token                                          |
 
 ### 2.3 `crypto.ts`
 
@@ -200,8 +206,11 @@ classDiagram
 State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `termsAcceptedAt`, `acceptedDisclaimerIds`,
-  `termsAcceptedVendor`, `kycRequiredByProduct`, `lastCheckedAt`. These survive
-  restarts so the flow can skip already-accepted terms and reuse cached results.
+  `termsAcceptedVendor`, `sumsubTncAccepted`, `idosTncAccepted`,
+  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
+  can skip already-accepted terms and reuse cached results. Session-scoped
+  `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
+  only (`persist: false`) and are cleared on `reset()`.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
   the stored acceptance when it belongs to a different vendor, so one vendor's
   disclaimer ids are never submitted to another. The drop waits until the
@@ -262,14 +271,18 @@ stateDiagram-v2
 
 > **Non-MoonPay vendors use a consents path.** `initialize({ vendor: 'iron' })`
 > creates an empty-shell customer, loads vendor disclaimers, and — after terms
-> are accepted — posts consents and launches SumSub. MoonPay Check/Auth frames
-> are skipped; `phase` moves `terms → session → submit → done`. A SumSub
-> failure (thrown step or SDK close without completion) rewinds to `terms`
-> instead of forcing `done`. A terminal UKYC rejection after the SDK reported
-> `Completed` still finishes as `done` so `refreshKycStatus` can surface the
-> decision. `acceptTermsAndStartSession` requires
-> `sumsubTncSigned` and `idosTncSigned` (T&C2) for every vendor; omitted flags
-> fail the flow instead of defaulting to `true`.
+> are accepted — records vendor T&Cs (`POST /vendors/{vendor}/disclaimers`),
+> creates a UKYC session, records session-scoped idOS / KYC-provider
+> disclaimers, and launches SumSub. MoonPay Check/Auth frames are skipped;
+> `phase` moves `terms → session → submit → done`. A SumSub failure (thrown step
+> or SDK close without completion) rewinds to `terms` instead of forcing `done`.
+> A terminal UKYC rejection after the SDK reported `Completed` still finishes as
+> `done` so `refreshKycStatus` can surface the decision.
+> `acceptTermsAndStartSession` requires `sumsubTncSigned` and `idosTncSigned`
+> (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
+> `true`. Those flags are mapped onto the session catalog's `idOS` /
+> `kycProvider` document records; `credentialReusabilityConsentGiven` is
+> forwarded as well (defaults to `false`).
 
 > **`initialize` and `createVendorCustomer` never tear down an active flow.** If
 > `phase` is already one of the in-progress phases (`session`, `check`, `auth`,
@@ -364,8 +377,11 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, vendorMetadata, wrappedEncryptionKey, ukycCapabilityToken })
+        Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, residenceCountry, vendorMetadata })
         Svc->>API: POST /sessions
+        Note over Ctrl: verify encryptionDataKey vs idOS enclave JWKS,<br/>ukycCapabilityToken vs idOS relay JWKS;<br/>wrap data_encryption_key and ukyc_capability_token
+        Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })
+        Svc->>API: POST /sessions/{id}/authorizations
         Ctrl->>Svc: createJourney(sessionId)
         Svc->>API: POST /sessions/{id}/journey
         Ctrl->>Launcher: launch({ applicantAccessToken, onTokenExpiration, onStatusChange })
@@ -453,8 +469,8 @@ launcher.
 stateDiagram-v2
     [*] --> idle
     idle --> creatingSession : startSumSub()
-    creatingSession --> fetchingToken : createUkycSession() ok
-    creatingSession --> vendorProcessing : createUkycSession() kycStatus=approved, finalStatus=pending
+    creatingSession --> fetchingToken : setAuthorizations() ok
+    creatingSession --> vendorProcessing : setAuthorizations() kycStatus=approved, finalStatus=pending
     fetchingToken --> launching : createJourney() ok
     launching --> inProgress : onStatusChange (non-Completed)
     launching --> complete : onStatusChange = Completed
@@ -469,7 +485,7 @@ stateDiagram-v2
 > **Already processing on the vendor.** A user who already finished the journey
 > can return to a session the relay has approved (`kycStatus: approved`) while
 > the vendor is still finalizing its decision (`finalStatus: pending`). When
-> session creation reports this, the sub-flow stops at `vendorProcessing`
+> authorizations report this, the sub-flow stops at `vendorProcessing`
 > (setting `statusMessage`) instead of launching the SDK, so an already-approved
 > applicant is not asked to verify again.
 
@@ -510,7 +526,7 @@ graph LR
         C_ext["Allowed (delegated):<br/>KycService:*"]
     end
     subgraph SvcMsgr["KycServiceMessenger"]
-        S_own["Own actions:<br/>KycService: 6 methods"]
+        S_own["Own actions:<br/>KycService: messenger methods"]
         S_ext["Allowed (delegated):<br/>AuthenticationController:getBearerToken<br/>GeolocationController:getGeolocation"]
     end
 
@@ -541,7 +557,7 @@ graph TB
         direction TB
         subgraph engine["Engine wiring"]
             CInit["kyc-controller-init.ts<br/>new KycController({ messenger, state, sumsubLauncher })"]
-            SInit["kyc-service-init.ts<br/>new KycService({ env, messenger, baseUrl })"]
+            SInit["kyc-service-init.ts<br/>new KycService({ messenger, baseUrl, idosEnclaveBaseUrl, idosRelayBaseUrl })"]
             CMsgr["kyc-controller-messenger.ts<br/>delegates KycService:*"]
             SMsgr["kyc-service-messenger.ts<br/>delegates Auth + Geolocation"]
             Launcher["reactNativeSumSubLauncher.ts<br/>lazy-loads @sumsub/react-native-mobilesdk-module"]
@@ -586,7 +602,7 @@ graph TB
 - **`kyc-service-init.ts`** constructs `KycService` with an `env` derived from
   `isProduction()` and (currently) a dev `baseUrl` override. It does not inject
   a `fetch`; `KycService` defaults to the runtime's native `fetch`.
-- **`kyc-controller-messenger.ts`** delegates the six `KycService:*` actions to
+- **`kyc-controller-messenger.ts`** delegates `KycService:*` actions to
   the controller's messenger.
 - **`kyc-service-messenger.ts`** delegates
   `AuthenticationController:getBearerToken` and

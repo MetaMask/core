@@ -47,6 +47,7 @@ export type {
   PerpsControllerMessenger,
   PerpsControllerGetStateAction,
   PerpsControllerActions,
+  PerpsControllerChaseOrderMaxDistanceReachedEvent,
   PerpsControllerEvents,
   ProLayoutPreferences,
   ProOrdersSideFilter,
@@ -61,6 +62,7 @@ export type {
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
   PerpsControllerCalculateMaintenanceMarginAction,
+  PerpsControllerPreviewPositionModifyAction,
   PerpsControllerCancelOrderAction,
   PerpsControllerCancelOrdersAction,
   PerpsControllerClearDepositResultAction,
@@ -88,6 +90,8 @@ export type {
   PerpsControllerGetUserDataSnapshotAction,
   PerpsControllerGetCurrentNetworkAction,
   PerpsControllerGetFundingAction,
+  PerpsControllerGetChaseOrdersAction,
+  PerpsControllerGetTwapOrdersAction,
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
@@ -97,6 +101,7 @@ export type {
   PerpsControllerGetOpenOrdersAction,
   PerpsControllerGetOrderBookGroupingAction,
   PerpsControllerGetOrderBookPreferencesAction,
+  PerpsControllerGetOrderCapabilitiesAction,
   PerpsControllerGetOrderFillsAction,
   PerpsControllerGetOrdersAction,
   PerpsControllerGetPendingTradeConfigurationAction,
@@ -137,6 +142,7 @@ export type {
   PerpsControllerSetVisibleCandleCountAction,
   PerpsControllerStartEligibilityMonitoringAction,
   PerpsControllerStartMarketDataPreloadAction,
+  PerpsControllerSuspendChaseOrdersAction,
   PerpsControllerStopEligibilityMonitoringAction,
   PerpsControllerStopMarketDataPreloadAction,
   PerpsControllerSubscribeToAccountAction,
@@ -163,6 +169,7 @@ export type {
 
 // Provider interfaces and implementations
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+export { ChaseOrderSuspensionError } from './providers/AggregatedPerpsProvider.js';
 
 // Type definitions (explicit named exports)
 export {
@@ -192,6 +199,12 @@ export type {
   TPSLTrackingData,
   OrderParams,
   OrderResult,
+  ChaseOrder,
+  ChaseOrderMaxDistanceReached,
+  ChaseOrderStatus,
+  TwapOrder,
+  TwapOrderFill,
+  TwapOrderStatus,
   Position,
   AccountState,
   ClosePositionParams,
@@ -257,8 +270,24 @@ export type {
   SubscribeOrderBookParams,
   LiquidationPriceParams,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
+  PositionModifyPreviewSource,
+  PositionModifyPreviewKind,
+  PositionPreviewValue,
+  PositionModifyPreviewCurrent,
+  PositionModifyPreviewOpen,
+  PositionModifyPreviewFullClose,
+  PositionModifyPreviewUnsupported,
+  PositionModifyPreviewNone,
   FeeCalculationParams,
   FeeCalculationResult,
+  GetOrderCapabilitiesParams,
+  OrderCapabilitiesUnavailableReason,
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  RoutedOrderCapabilitiesUnavailableReason,
+  DirectProviderOrderCapabilities,
+  PerpsOrderCapabilities,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,
   PerpsSubscriptionFeeWaiverStatus,
@@ -470,6 +499,7 @@ export {
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
   CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
   MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
@@ -629,6 +659,14 @@ export {
   parseAssetName,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
 } from './utils/index.js';
+export {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+  buildMaintenanceSchedule,
+  estimateIsolatedLiquidationPrice,
+  estimateIsolatedLiquidationPriceAtTier,
+} from './utils/index.js';
+export type { HyperLiquidMarginTier } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type { FiatRangeConfig } from './utils/index.js';
 export {

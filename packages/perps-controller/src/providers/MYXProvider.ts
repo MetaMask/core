@@ -55,6 +55,8 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
@@ -925,6 +927,12 @@ export class MYXProvider implements PerpsProvider {
       feeRate: MYX_FEE_RATE,
       protocolFeeRate: MYX_PROTOCOL_FEE_RATE,
     };
+  }
+
+  async previewPositionModify(
+    _params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    return { status: 'unsupported', reason: 'provider' };
   }
 
   // ============================================================================

@@ -78,6 +78,8 @@ import type {
   CancelOrderResult,
   CancelOrdersParams,
   CancelOrdersResult,
+  ChaseOrder,
+  ChaseOrderMaxDistanceReached,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -92,6 +94,7 @@ import type {
   GetFundingParams,
   GetMarketDataWithPricesParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetPositionsParams,
@@ -99,14 +102,19 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
+  OrderCapabilitiesUnavailableReason,
+  OrderDirection,
   OrderFill,
   OrderParams,
   OrderResult,
   PerpsControllerConfig,
   PerpsMarketData,
+  PerpsOrderCapabilities,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -118,6 +126,7 @@ import type {
   SubscribePricesParams,
   SwitchProviderResult,
   ToggleTestnetResult,
+  TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   WithdrawParams,
@@ -158,6 +167,7 @@ import {
   shouldIncludeMarket,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
+import { isStrategyOrderType } from './utils/orderTypes.js';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
@@ -449,6 +459,7 @@ export type PerpsControllerState = {
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
           reduceOnly?: boolean; // Whether the order may only reduce a position
+          direction?: OrderDirection; // Long vs short
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -466,6 +477,7 @@ export type PerpsControllerState = {
           limitPrice?: string; // Limit price (for limit orders)
           orderType?: OrderType; // Market vs limit
           reduceOnly?: boolean; // Whether the order may only reduce a position
+          direction?: OrderDirection; // Long vs short
           timestamp: number; // When the config was saved (for expiration check)
         };
       };
@@ -830,12 +842,16 @@ const metadata: StateMetadata<PerpsControllerState> = {
   },
 };
 
-/**
- * PerpsController events
- */
+export type PerpsControllerChaseOrderMaxDistanceReachedEvent = {
+  type: 'PerpsController:chaseOrderMaxDistanceReached';
+  payload: [ChaseOrderMaxDistanceReached];
+};
+
+/** PerpsController events. */
 export type PerpsControllerEvents =
   | ControllerStateChangeEvent<'PerpsController', PerpsControllerState>
-  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>;
+  | ControllerStateChangedEvent<'PerpsController', PerpsControllerState>
+  | PerpsControllerChaseOrderMaxDistanceReachedEvent;
 
 /**
  * The action which can be used to retrieve the state of the
@@ -930,6 +946,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getBlockExplorerUrl',
   'getCachedMarketDataForActiveProvider',
   'getCachedUserDataForActiveProvider',
+  'getChaseOrders',
+  'getTwapOrders',
   'getUserDataSnapshot',
   'getCurrentNetwork',
   'getFunding',
@@ -942,6 +960,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOpenOrders',
   'getOrderBookGrouping',
   'getOrderBookPreferences',
+  'getOrderCapabilities',
   'getOrderFills',
   'getOrders',
   'getPendingTradeConfiguration',
@@ -962,6 +981,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markFirstOrderCompleted',
   'markTutorialCompleted',
   'placeOrder',
+  'previewPositionModify',
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
@@ -995,6 +1015,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToOrders',
   'subscribeToPositions',
   'subscribeToPrices',
+  'suspendChaseOrders',
   'switchProvider',
   'toggleTestnet',
   'toggleWatchlistMarket',
@@ -1028,6 +1049,10 @@ export class PerpsController extends BaseController<
   #initializationPromise: Promise<void> | null = null;
 
   #isReinitializing = false;
+
+  #reinitializationOperationPromise: Promise<void> | null = null;
+
+  #disconnectOperationPromise: Promise<void> | null = null;
 
   /** Tracks the async MYX dynamic import so performInitialization can await it. */
   #myxRegistrationPromise: Promise<void> | null = null;
@@ -1179,6 +1204,15 @@ export class PerpsController extends BaseController<
 
   readonly #rewardsIntegrationService: RewardsIntegrationService;
 
+  readonly #publishChaseOrderMaxDistanceReached = (
+    event: ChaseOrderMaxDistanceReached,
+  ): void => {
+    this.messenger.publish(
+      'PerpsController:chaseOrderMaxDistanceReached',
+      event,
+    );
+  };
+
   constructor({
     messenger,
     state = {},
@@ -1315,19 +1349,6 @@ export class PerpsController extends BaseController<
     ...args: (string | number | boolean | object | null | undefined)[]
   ): void {
     this.#options.infrastructure.debugLogger.log(...args);
-  }
-
-  /**
-   * Awaits the in-flight initialization promise if init is currently running.
-   * Called internally by #getActiveProviderWhenReady().
-   */
-  async #awaitInitializationIfInProgress(): Promise<void> {
-    if (
-      this.state.initializationState === InitializationState.Initializing &&
-      this.#initializationPromise
-    ) {
-      await this.#initializationPromise;
-    }
   }
 
   /**
@@ -1602,6 +1623,7 @@ export class PerpsController extends BaseController<
     }
     const { address } = evmAccount;
     const { isTestnet, hip3ConfigVersion } = this.state;
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const network = isTestnet ? 'testnet' : 'mainnet';
     const expectedDexes = this.#getStaticSnapshotDexes();
     if (!expectedDexes) {
@@ -1618,6 +1640,7 @@ export class PerpsController extends BaseController<
       }
 
       return (
+        this.#lifecycleGeneration === lifecycleGeneration &&
         this.state.activeProvider === 'hyperliquid' &&
         (!capturedActiveProvider ||
           this.activeProviderInstance === capturedActiveProvider) &&
@@ -1797,6 +1820,7 @@ export class PerpsController extends BaseController<
       subscriptionBuilderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
+      onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
     });
     this.#standaloneProviderIsTestnet = currentIsTestnet;
     this.#standaloneProviderHip3Version = currentHip3Version;
@@ -2104,6 +2128,30 @@ export class PerpsController extends BaseController<
    * @returns A promise that resolves when the operation completes.
    */
   async init(): Promise<void> {
+    while (true) {
+      const pendingDisconnect = this.#disconnectOperationPromise;
+      if (pendingDisconnect) {
+        await pendingDisconnect;
+        continue;
+      }
+
+      const pendingReinitialization = this.#reinitializationOperationPromise;
+      if (pendingReinitialization) {
+        await pendingReinitialization;
+        continue;
+      }
+
+      return this.#initWithoutDisconnectWait();
+    }
+  }
+
+  /**
+   * Initialize without waiting for disconnect. Reinitialization operations use
+   * this after they have claimed the controller lifecycle.
+   *
+   * @returns A promise that resolves when initialization finishes.
+   */
+  async #initWithoutDisconnectWait(): Promise<void> {
     if (!this.#handlersRegistered) {
       this.messenger.registerMethodActionHandlers(
         this,
@@ -2122,6 +2170,29 @@ export class PerpsController extends BaseController<
 
     this.#initializationPromise = this.#performInitialization();
     return this.#initializationPromise;
+  }
+
+  /**
+   * Track a network or provider reinitialization so disconnect can serialize
+   * behind the whole operation, including work before and after init().
+   *
+   * @returns A callback that releases the lifecycle operation.
+   */
+  #beginReinitialization(): () => void {
+    this.#isReinitializing = true;
+    let resolveOperation = (): void => undefined;
+    const operation = new Promise<void>((resolve) => {
+      resolveOperation = resolve;
+    });
+    this.#reinitializationOperationPromise = operation;
+
+    return (): void => {
+      this.#isReinitializing = false;
+      resolveOperation();
+      if (this.#reinitializationOperationPromise === operation) {
+        this.#reinitializationOperationPromise = null;
+      }
+    };
   }
 
   /**
@@ -2285,6 +2356,7 @@ export class PerpsController extends BaseController<
       subscriptionBuilderAddressMainnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.subscriptionBuilderAddressMainnet,
+      onChaseOrderMaxDistanceReached: this.#publishChaseOrderMaxDistanceReached,
     });
     this.providers.set('hyperliquid', hyperLiquidProvider);
 
@@ -2605,8 +2677,30 @@ export class PerpsController extends BaseController<
    * @returns The active provider once initialization completes.
    */
   async #getActiveProviderWhenReady(): Promise<PerpsProvider> {
-    await this.#awaitInitializationIfInProgress();
-    return this.getActiveProvider();
+    while (true) {
+      const pendingDisconnect = this.#disconnectOperationPromise;
+      if (pendingDisconnect) {
+        await pendingDisconnect;
+        continue;
+      }
+
+      const pendingReinitialization = this.#reinitializationOperationPromise;
+      if (pendingReinitialization) {
+        await pendingReinitialization;
+        continue;
+      }
+
+      const pendingInitialization = this.#initializationPromise;
+      if (
+        this.state.initializationState === InitializationState.Initializing &&
+        pendingInitialization
+      ) {
+        await pendingInitialization;
+        continue;
+      }
+
+      return this.getActiveProvider();
+    }
   }
 
   /**
@@ -2635,6 +2729,146 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Get strategy capabilities through the active provider route used by order
+   * placement. The query waits for in-flight initialization and reports an
+   * explicit unavailable status when no provider route can answer reliably.
+   *
+   * @param params - Market and optional provider route.
+   * @returns Provider-owned order capabilities.
+   */
+  async getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities> {
+    let activeProvider: PerpsProvider;
+    try {
+      activeProvider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      this.#debugLog('PerpsController: Order capabilities unavailable', {
+        error: ensureError(error, 'PerpsController.getOrderCapabilities')
+          .message,
+      });
+      return this.#getUnavailableOrderCapabilities(
+        'provider_unavailable',
+        params.providerId,
+      );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableOrderCapabilities(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getOrderCapabilities) {
+      return this.#getUnavailableOrderCapabilities(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    try {
+      const capabilities = await activeProvider.getOrderCapabilities(params);
+      if (
+        capabilities.status === 'unavailable' &&
+        capabilities.providerId === undefined &&
+        resolvedProviderId !== undefined
+      ) {
+        return { ...capabilities, providerId: resolvedProviderId };
+      }
+      return capabilities;
+    } catch (error) {
+      const safeError = ensureError(
+        error,
+        'PerpsController.getOrderCapabilities',
+      );
+      this.#debugLog('PerpsController: Order capabilities unavailable', {
+        error: safeError.message,
+      });
+      return this.#getUnavailableOrderCapabilities(
+        'provider_unavailable',
+        resolvedProviderId,
+      );
+    }
+  }
+
+  /**
+   * Build an unavailable capability response and omit unknown provider IDs.
+   *
+   * @param reason - Why capability discovery is unavailable.
+   * @param providerId - Requested or resolved direct provider identity.
+   * @returns Unavailable capability response.
+   */
+  #getUnavailableOrderCapabilities(
+    reason: OrderCapabilitiesUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsOrderCapabilities {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
+  }
+
+  /**
+   * Return the identity of a resolved direct provider when it is known.
+   * Routing providers do not have one provider identity for every operation.
+   *
+   * @param provider - Resolved provider.
+   * @returns Direct provider identity, if known.
+   */
+  #getDirectProviderId(provider: PerpsProvider): PerpsProviderType | undefined {
+    if (provider.routesOrdersByProviderId) {
+      return undefined;
+    }
+    return Array.from(this.providers.entries()).find(
+      ([, candidate]) => candidate === provider,
+    )?.[0];
+  }
+
+  /**
+   * Check whether a resolved direct provider conflicts with an explicit route.
+   * Aggregated mode owns its own per-operation routing.
+   *
+   * @param providerId - Explicit provider route, if any.
+   * @param provider - Provider resolved after any in-flight initialization.
+   * @returns Whether the route conflicts with the active provider mode.
+   */
+  #hasConflictingProviderRoute(
+    providerId: PerpsProviderType | undefined,
+    provider: PerpsProvider,
+  ): boolean {
+    return (
+      providerId !== undefined &&
+      !provider.routesOrdersByProviderId &&
+      providerId !== provider.protocolId
+    );
+  }
+
+  /**
+   * Resolve one routed order operation after any in-flight initialization.
+   *
+   * @param params - Routed operation context.
+   * @param params.orderType - Order type, when the operation carries one.
+   * @param params.providerId - Explicit provider route, when supplied.
+   * @returns The initialized provider that owns the operation.
+   */
+  async #resolveRoutedOrderProvider(params: {
+    orderType: OrderType | undefined;
+    providerId: PerpsProviderType | undefined;
+  }): Promise<PerpsProvider> {
+    const { orderType, providerId } = params;
+    const provider = await this.#getActiveProviderWhenReady();
+    if (this.#hasConflictingProviderRoute(providerId, provider)) {
+      throw new Error(
+        orderType !== undefined && isStrategyOrderType(orderType)
+          ? PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE
+          : PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+    }
+    return provider;
+  }
+
+  /**
    * Place a new order
    * Thin delegation to TradingService
    *
@@ -2642,7 +2876,10 @@ export class PerpsController extends BaseController<
    * @returns The order result with order ID and status.
    */
   async placeOrder(params: OrderParams): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({
@@ -2671,7 +2908,17 @@ export class PerpsController extends BaseController<
    * @returns The updated order result with order ID and status.
    */
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    if (isStrategyOrderType(params.newOrder.orderType)) {
+      return {
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
+      };
+    }
+
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.newOrder.orderType,
+      providerId: params.newOrder.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.editOrder({
@@ -2688,13 +2935,53 @@ export class PerpsController extends BaseController<
    * @returns The cancellation result with status.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
 
     return this.#tradingService.cancelOrder({
       provider,
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+  }
+
+  /**
+   * Read venue-backed TWAP lifecycle records through the active provider.
+   * Providers without native TWAP history return an empty list.
+   *
+   * @returns Current and terminal TWAP schedules with slice fills.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    return provider.getTwapOrders ? await provider.getTwapOrders() : [];
+  }
+
+  /**
+   * Read the active provider's retained Chase lifecycle snapshots.
+   * Providers without an emulated Chase implementation return an empty list.
+   *
+   * @returns Current Chase session snapshots.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    return provider.getChaseOrders ? await provider.getChaseOrders() : [];
+  }
+
+  /**
+   * Stop Chase repricing for app backgrounding without cancelling the current
+   * resting children.
+   *
+   * @returns Chase snapshots after suspension.
+   * @throws If an aggregated provider cannot suspend every active venue. Other
+   * providers may already be suspended; callers can retry to reconcile them.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const provider = await this.#getActiveProviderWhenReady();
+    return provider.suspendChaseOrders
+      ? await provider.suspendChaseOrders()
+      : [];
   }
 
   /**
@@ -2728,7 +3015,10 @@ export class PerpsController extends BaseController<
    * @returns The order result from the close position request.
    */
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.closePosition({
@@ -2773,7 +3063,10 @@ export class PerpsController extends BaseController<
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: undefined,
+      providerId: params.providerId,
+    });
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.updatePositionTPSL({
@@ -3691,6 +3984,8 @@ export class PerpsController extends BaseController<
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
 
+  #preloadStartRequested = false;
+
   #isPreloading = false;
 
   #marketPreloadQueued = false;
@@ -3698,6 +3993,8 @@ export class PerpsController extends BaseController<
   #isPreloadingUserData = false;
 
   #userPreloadQueued = false;
+
+  #lifecycleGeneration = 0;
 
   readonly #userSnapshotRequests = new Map<
     string,
@@ -3799,6 +4096,13 @@ export class PerpsController extends BaseController<
    * Watches for isTestnet and hip3ConfigVersion changes to re-preload.
    */
   startMarketDataPreload(): void {
+    this.#preloadStartRequested = true;
+    if (this.#disconnectOperationPromise) {
+      this.#debugLog(
+        'PerpsController: Disconnect in progress, deferring market data preload',
+      );
+      return;
+    }
     if (this.#preloadTimer) {
       this.#debugLog('PerpsController: Preload already started, skipping');
       return;
@@ -3924,6 +4228,7 @@ export class PerpsController extends BaseController<
    */
   stopMarketDataPreload(): void {
     this.#debugLog('PerpsController: Stopping market data preload');
+    this.#preloadStartRequested = false;
     if (this.#preloadTimer) {
       clearInterval(this.#preloadTimer);
       this.#preloadTimer = null;
@@ -3974,7 +4279,13 @@ export class PerpsController extends BaseController<
       activeProvider: this.state.activeProvider,
       isTestnet: this.state.isTestnet,
       hip3ConfigVersion: this.state.hip3ConfigVersion,
+      lifecycleGeneration: this.#lifecycleGeneration,
     };
+    const isCurrent = (): boolean =>
+      this.#lifecycleGeneration === preloadContext.lifecycleGeneration &&
+      this.state.activeProvider === preloadContext.activeProvider &&
+      this.state.isTestnet === preloadContext.isTestnet &&
+      this.state.hip3ConfigVersion === preloadContext.hip3ConfigVersion;
     const staticSnapshotDexes = this.#getStaticSnapshotDexes();
 
     const now = Date.now();
@@ -4013,11 +4324,7 @@ export class PerpsController extends BaseController<
         markets: data.length,
       });
 
-      if (
-        this.state.activeProvider !== preloadContext.activeProvider ||
-        this.state.isTestnet !== preloadContext.isTestnet ||
-        this.state.hip3ConfigVersion !== preloadContext.hip3ConfigVersion
-      ) {
+      if (!isCurrent()) {
         traceData = {
           success: false,
           error: 'Global snapshot preload context changed',
@@ -4053,6 +4360,13 @@ export class PerpsController extends BaseController<
         data: PerpsMarketData[];
         timestamp: number;
       }[] = [];
+      if (!isCurrent()) {
+        traceData = {
+          success: false,
+          error: 'Global snapshot preload context changed',
+        };
+        return;
+      }
       if (
         this.state.activeProvider === 'aggregated' &&
         this.activeProviderInstance
@@ -4170,6 +4484,7 @@ export class PerpsController extends BaseController<
 
     const userAddress = evmAccount.address;
     const { activeProvider, isTestnet, hip3ConfigVersion } = this.state;
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { activeProviderInstance } = this;
     const hyperliquidDexes = this.#getStaticSnapshotDexes();
     const isCurrent = (): boolean => {
@@ -4182,6 +4497,7 @@ export class PerpsController extends BaseController<
         return false;
       }
       return (
+        this.#lifecycleGeneration === lifecycleGeneration &&
         this.state.activeProvider === activeProvider &&
         this.activeProviderInstance === activeProviderInstance &&
         this.state.isTestnet === isTestnet &&
@@ -4250,6 +4566,15 @@ export class PerpsController extends BaseController<
           error?: string;
         }
       | undefined;
+    const staleContextError = 'User data preload context changed';
+    const discardStalePreload = (): boolean => {
+      if (isCurrent()) {
+        return false;
+      }
+      traceData = { success: false, error: staleContextError };
+      this.#debugLog('PerpsController: Discarding stale user data preload');
+      return true;
+    };
 
     try {
       this.#options.infrastructure.tracer.trace({
@@ -4266,6 +4591,9 @@ export class PerpsController extends BaseController<
 
       if (activeProvider === 'hyperliquid') {
         const snapshot = await this.getUserDataSnapshot();
+        if (discardStalePreload()) {
+          return;
+        }
         this.#debugLog('PerpsController: User data preloaded', {
           positionCount: snapshot.positions.length,
           orderCount: snapshot.orders.length,
@@ -4291,8 +4619,8 @@ export class PerpsController extends BaseController<
         this.getAccountState({ standalone: true, userAddress }),
       ]);
 
-      if (!isCurrent()) {
-        throw new Error('User data preload context changed');
+      if (discardStalePreload()) {
+        return;
       }
 
       if (activeProvider === 'aggregated' && activeProviderInstance) {
@@ -4333,6 +4661,9 @@ export class PerpsController extends BaseController<
           accountState.providerId ?? fallbackProviderId,
         ).accountState = accountState;
 
+        if (discardStalePreload()) {
+          return;
+        }
         this.update((state) => {
           for (const [pid, data] of byProvider) {
             const key = buildProviderCacheKey(pid, isTestnet);
@@ -4361,6 +4692,9 @@ export class PerpsController extends BaseController<
       } else {
         // Single provider — store directly under its key
         const ts = Date.now();
+        if (discardStalePreload()) {
+          return;
+        }
         this.update((state) => {
           state.cachedUserDataByProvider[providerNetworkKey] = {
             positions,
@@ -4398,6 +4732,9 @@ export class PerpsController extends BaseController<
         traceId,
       );
     } catch (error) {
+      if (discardStalePreload()) {
+        return;
+      }
       traceData = {
         success: false,
         error: ensureError(error, 'PerpsController.performUserDataPreload')
@@ -4490,6 +4827,26 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Project the isolated position that would remain after a proposed order.
+   * Margin and liquidation availability are independent: a missing liquidation
+   * does not hide a valid margin projection. Cross-margin returns unsupported.
+   *
+   * @param params - Live position plus the proposed order.
+   * @returns Discriminated preview of the resulting position.
+   */
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    const provider = this.getActiveProvider();
+    const context = this.#createServiceContext('previewPositionModify');
+    return this.#marketDataService.previewPositionModify({
+      provider,
+      params,
+      context,
+    });
+  }
+
+  /**
    * Calculate maintenance margin for a specific asset
    * Returns a percentage (e.g., 0.0125 for 1.25%)
    *
@@ -4529,7 +4886,10 @@ export class PerpsController extends BaseController<
   async validateOrder(
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const provider = this.getActiveProvider();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     const context = this.#createServiceContext('validateOrder');
     return this.#marketDataService.validateOrder({ provider, params, context });
   }
@@ -4543,7 +4903,10 @@ export class PerpsController extends BaseController<
   async validateClosePosition(
     params: ClosePositionParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    const provider = this.getActiveProvider();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     const context = this.#createServiceContext('validateClosePosition');
     return this.#marketDataService.validateClosePosition({
       provider,
@@ -4649,6 +5012,10 @@ export class PerpsController extends BaseController<
    * @returns The toggle result with success status and current network mode.
    */
   async toggleTestnet(): Promise<ToggleTestnetResult> {
+    while (this.#disconnectOperationPromise) {
+      await this.#disconnectOperationPromise;
+    }
+
     // Prevent concurrent reinitializations
     if (this.isCurrentlyReinitializing()) {
       this.#debugLog(
@@ -4664,12 +5031,15 @@ export class PerpsController extends BaseController<
       };
     }
 
-    this.#isReinitializing = true;
-
-    // Store previous isTestnet for rollback on failure
+    const completeReinitialization = this.#beginReinitialization();
     const previousIsTestnet = this.state.isTestnet;
 
     try {
+      const pendingInitialization = this.#initializationPromise;
+      if (pendingInitialization) {
+        await pendingInitialization;
+      }
+
       await this.#cleanupStandaloneProvider();
 
       const previousNetwork = previousIsTestnet ? 'testnet' : 'mainnet';
@@ -4689,7 +5059,7 @@ export class PerpsController extends BaseController<
       // Reset initialization state and reinitialize provider with new testnet setting
       this.isInitialized = false;
       this.#initializationPromise = null;
-      await this.init();
+      await this.#initWithoutDisconnectWait();
 
       // Check if initialization actually succeeded — performInitialization()
       // does not throw on failure, it sets state to Failed and resolves.
@@ -4719,7 +5089,7 @@ export class PerpsController extends BaseController<
         error: ensureError(error, 'PerpsController.toggleTestnet').message,
       };
     } finally {
-      this.#isReinitializing = false;
+      completeReinitialization();
 
       // Re-trigger preload now that reinit is complete and the
       // activeProviderInstance points to the correct network.
@@ -4747,22 +5117,8 @@ export class PerpsController extends BaseController<
   async switchProvider(
     providerId: PerpsActiveProviderMode,
   ): Promise<SwitchProviderResult> {
-    // No-op if already on this provider (regardless of init state)
-    if (this.state.activeProvider === providerId) {
-      return { success: true, providerId };
-    }
-
-    // Validate provider is available
-    // 'aggregated' is always valid, individual providers must exist in the map
-    const isValidProvider =
-      providerId === 'aggregated' || this.providers.has(providerId);
-
-    if (!isValidProvider) {
-      return {
-        success: false,
-        providerId: this.state.activeProvider,
-        error: `Provider ${providerId} not available`,
-      };
+    while (this.#disconnectOperationPromise) {
+      await this.#disconnectOperationPromise;
     }
 
     // Prevent concurrent switches
@@ -4774,12 +5130,55 @@ export class PerpsController extends BaseController<
       };
     }
 
-    this.#isReinitializing = true;
-
-    // Store previous provider for rollback on failure
-    const previousProvider = this.state.activeProvider;
+    const completeReinitialization = this.#beginReinitialization();
+    let previousProvider = this.state.activeProvider;
 
     try {
+      const pendingInitialization = this.#initializationPromise;
+      if (pendingInitialization) {
+        await pendingInitialization;
+      }
+
+      // A completed disconnect leaves no initialization promise to await. Rebuild
+      // the provider registry before same-provider detection or route validation
+      // so a successful switch always leaves a usable active provider.
+      const needsInitialization =
+        !this.isInitialized ||
+        this.state.initializationState !== InitializationState.Initialized;
+      if (needsInitialization) {
+        await this.#initWithoutDisconnectWait();
+        const initializationFailed =
+          !this.isInitialized ||
+          this.state.initializationState !== InitializationState.Initialized;
+        if (initializationFailed) {
+          throw new Error(
+            this.state.initializationError ?? 'Provider initialization failed',
+          );
+        }
+      }
+
+      // Initialization may select a fallback provider. Read the effective
+      // provider only after it settles so no-op detection and rollback both
+      // use the state this switch is actually replacing.
+      previousProvider = this.state.activeProvider;
+      if (previousProvider === providerId) {
+        return { success: true, providerId };
+      }
+
+      // Validate provider only after a pending initialization has rebuilt the
+      // registry. Otherwise a switch queued behind disconnect can observe the
+      // intentionally empty teardown state.
+      const isValidProvider =
+        providerId === 'aggregated' || this.providers.has(providerId);
+
+      if (!isValidProvider) {
+        return {
+          success: false,
+          providerId: this.state.activeProvider,
+          error: `Provider ${providerId} not available`,
+        };
+      }
+
       await this.#cleanupStandaloneProvider();
 
       this.#debugLog('PerpsController: Provider switch initiated', {
@@ -4789,8 +5188,7 @@ export class PerpsController extends BaseController<
       });
 
       // Provider disconnect is handled by performInitialization() during
-      // reinitialization. The disconnect() method skips provider teardown
-      // when isReinitializing is true to prevent double-disconnect.
+      // reinitialization.
 
       // Update state with new provider (market data cache preserved per-provider)
       this.update((state) => {
@@ -4802,7 +5200,7 @@ export class PerpsController extends BaseController<
       // Reset initialization state and reinitialize
       this.isInitialized = false;
       this.#initializationPromise = null;
-      await this.init();
+      await this.#initWithoutDisconnectWait();
 
       // Check if initialization actually succeeded — performInitialization()
       // does not throw on failure, it sets state to Failed and resolves.
@@ -4834,7 +5232,7 @@ export class PerpsController extends BaseController<
       try {
         this.isInitialized = false;
         this.#initializationPromise = null;
-        await this.init();
+        await this.#initWithoutDisconnectWait();
 
         this.#debugLog(
           'PerpsController: Rollback to previous provider succeeded',
@@ -4865,7 +5263,7 @@ export class PerpsController extends BaseController<
             : PERPS_ERROR_CODES.UNKNOWN_ERROR,
       };
     } finally {
-      this.#isReinitializing = false;
+      completeReinitialization();
 
       // Re-trigger preload now that reinit is complete.
       if (this.#preloadTimer) {
@@ -5242,8 +5640,9 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Calculate trading fees for the active provider
-   * Each provider implements its own fee structure
+   * Calculate trading fees through the active provider route.
+   * Each provider owns its fee policy. An explicit provider route overrides
+   * the active/default provider used by placement.
    *
    * @param params - The operation parameters.
    * @returns The fee calculation result for the trade.
@@ -5251,7 +5650,10 @@ export class PerpsController extends BaseController<
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    const provider = this.getActiveProvider();
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: params.orderType,
+      providerId: params.providerId,
+    });
     // Preview owns subscription hydration. The submit resolver remains a pure
     // cache read and can therefore never start a benefits request while an
     // order is being signed.
@@ -5297,6 +5699,44 @@ export class PerpsController extends BaseController<
    * Call this when navigating away from Perps screens to prevent battery drain
    */
   async disconnect(): Promise<void> {
+    while (this.#disconnectOperationPromise) {
+      // Each explicit disconnect claims a teardown after the operation already
+      // in flight. This lets a later disconnect close providers created by an
+      // init call that was queued behind the same earlier teardown.
+      this.#preloadStartRequested = false;
+      await this.#disconnectOperationPromise;
+    }
+
+    // A disconnect stops the current preload session. A later start call made
+    // while teardown is in flight sets this back to true and is resumed below.
+    this.#preloadStartRequested = false;
+
+    let resolveOperation = (): void => undefined;
+    const operation = new Promise<void>((resolve) => {
+      resolveOperation = resolve;
+    });
+    this.#disconnectOperationPromise = operation;
+
+    try {
+      await this.#performDisconnect();
+    } finally {
+      resolveOperation();
+      if (this.#disconnectOperationPromise === operation) {
+        this.#disconnectOperationPromise = null;
+      }
+      if (this.#preloadStartRequested) {
+        this.startMarketDataPreload();
+      }
+    }
+  }
+
+  /**
+   * Disconnect after this call has claimed the controller lifecycle.
+   *
+   * @returns A promise that resolves when teardown finishes.
+   */
+  async #performDisconnect(): Promise<void> {
+    this.#lifecycleGeneration += 1;
     this.#debugLog(
       'PerpsController: Disconnecting provider to cleanup subscriptions',
       {
@@ -5321,10 +5761,30 @@ export class PerpsController extends BaseController<
     this.#previousIsTestnet = null;
     this.#previousHip3ConfigVersion = null;
 
-    // Only disconnect the provider if we're initialized
-    if (this.isInitialized && !this.isCurrentlyReinitializing()) {
+    const pendingReinitialization = this.#reinitializationOperationPromise;
+    if (pendingReinitialization) {
+      await pendingReinitialization;
+    }
+
+    // Initialization owns provider creation. Let it finish before teardown so
+    // it cannot repopulate providers after this method clears the references.
+    const pendingInitialization = this.#initializationPromise;
+    if (pendingInitialization) {
       try {
-        const provider = this.getActiveProvider();
+        await pendingInitialization;
+      } catch (error) {
+        this.#logError(
+          ensureError(error, 'PerpsController.disconnect.initialization'),
+          this.#getErrorContext('disconnect', {
+            operation: 'awaitInitialization',
+          }),
+        );
+      }
+    }
+
+    const provider = this.activeProviderInstance;
+    if (provider) {
+      try {
         await provider.disconnect();
       } catch (error) {
         this.#logError(
@@ -5615,6 +6075,7 @@ export class PerpsController extends BaseController<
    * @param config.limitPrice - The limit price.
    * @param config.orderType - The order type.
    * @param config.reduceOnly - Whether the order may only reduce a position.
+   * @param config.direction - Long or short.
    * @param config.selectedPaymentToken - The selected payment token.
    */
   savePendingTradeConfiguration(
@@ -5627,6 +6088,7 @@ export class PerpsController extends BaseController<
       limitPrice?: string;
       orderType?: OrderType;
       reduceOnly?: boolean;
+      direction?: OrderDirection;
       /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
       selectedPaymentToken?: PerpsSelectedPaymentToken | null;
     },
@@ -5675,6 +6137,7 @@ export class PerpsController extends BaseController<
         limitPrice?: string;
         orderType?: OrderType;
         reduceOnly?: boolean;
+        direction?: OrderDirection;
         selectedPaymentToken?: PerpsSelectedPaymentToken | null;
       }
     | undefined {

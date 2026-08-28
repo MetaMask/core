@@ -208,6 +208,50 @@ export type RampsControllerGetPaymentMethodsAction = {
 };
 
 /**
+ * Fetches payment methods for a quoting context without coupling callers to
+ * the Buy flow's globally selected provider/token catalog.
+ *
+ * Provider contribution mirrors {@link getQuotes}:
+ * - explicit `providers` (optionally filtered when
+ * `restrictToKnownOrNativeProviders` is set)
+ * - auto-select / restrict path, including `moneyHeadlessAllProviders`
+ * widening: flag off uses the restricted/native resolver; flag on uses
+ * supporting providers, intersected with the flag allowlist when that
+ * allowlist is non-empty (pick-survivor set for picker methods)
+ * - when those resolution flags and `providers` are omitted, uses only
+ * `providers.selected` (UB2 selected-provider context)
+ *
+ * By default this is request-only: it does **not** mutate
+ * `paymentMethods.data` or `paymentMethods.selected`. Pass `updateState:
+ * true` only when the caller explicitly wants Buy-catalog write semantics
+ * (UB2). Headless / MM Pay selection stays TPC-owned. `updateState: true`
+ * throws when the resolved provider set holds more than one provider, because
+ * the write guards cannot tell two such requests apart.
+ *
+ * Methods are request-eligible for the resolved provider set; they are not
+ * guaranteed to produce a quote for every amount (provider fiat limits still
+ * apply at quote time).
+ *
+ * @param options - Context for the payment-method fetch.
+ * @param options.region - Region code. Defaults to `userRegion`.
+ * @param options.assetId - Required CAIP-19 quoting asset.
+ * @param options.providers - Explicit provider ids.
+ * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+ * @param options.preferredProviderIds - Preferred ids for auto-selection.
+ * @param options.restrictToKnownOrNativeProviders - Headless gating.
+ * @param options.updateState - When true, write `paymentMethods` state.
+ * @param options.preferPaymentMethodId - Preserve this id when still present.
+ * @param options.forceRefresh - Bypass request cache for provider fetches.
+ * @param options.ttl - Custom TTL for provider payment-method fetches.
+ * @returns Deduped methods, a request-only suggested selection, and the
+ * provider ids that contributed.
+ */
+export type RampsControllerGetPaymentMethodsForContextAction = {
+  type: `RampsController:getPaymentMethodsForContext`;
+  handler: RampsController['getPaymentMethodsForContext'];
+};
+
+/**
  * Sets the user's selected payment method.
  *
  * Accepts either a payment method ID (looked up from state) or a full
@@ -803,6 +847,7 @@ export type RampsControllerMethodActions =
   | RampsControllerSetSelectedTokenAction
   | RampsControllerGetProvidersAction
   | RampsControllerGetPaymentMethodsAction
+  | RampsControllerGetPaymentMethodsForContextAction
   | RampsControllerSetSelectedPaymentMethodAction
   | RampsControllerGetQuotesAction
   | RampsControllerAddOrderAction
