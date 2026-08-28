@@ -264,7 +264,7 @@ function logScanPlan(sources: ScanSources): void {
  * @param root - Resolved directory the positive pattern is rooted at.
  * @returns The exclusion patterns.
  */
-function tsSourceExclusions(root: string): string[] {
+function buildTsSourceExclusions(root: string): string[] {
   return [
     'node_modules/**',
     'dist/**',
@@ -283,14 +283,14 @@ function tsSourceExclusions(root: string): string[] {
  * Patterns excluded when reading published declaration files: dependencies
  * vendored inside a package's own `dist`.
  *
- * Deliberately narrower than {@link tsSourceExclusions}. A blanket `dist/**`
+ * Deliberately narrower than {@link buildTsSourceExclusions}. A blanket `dist/**`
  * exclusion would match the very `dist` segment these files live under and
  * silently drop every one of them.
  *
  * @param root - Resolved `node_modules/@metamask` directory.
  * @returns The exclusion patterns.
  */
-function declarationFileExclusions(root: string): string[] {
+function buildDeclarationFileExclusions(root: string): string[] {
   return [`!${root}/*/dist/**/node_modules/**`];
 }
 
@@ -363,7 +363,7 @@ async function scanSources(
     sourceFiles.push(
       ...addSourceFiles(project, [
         `${root}/**/*.ts`,
-        ...tsSourceExclusions(root),
+        ...buildTsSourceExclusions(root),
       ]),
     );
   }
@@ -373,7 +373,7 @@ async function scanSources(
     sourceFiles.push(
       ...addSourceFiles(project, [
         `${root}/*/src/**/*.ts`,
-        ...tsSourceExclusions(root),
+        ...buildTsSourceExclusions(root),
       ]),
     );
   }
@@ -383,7 +383,7 @@ async function scanSources(
     sourceFiles.push(
       ...addSourceFiles(project, [
         `${root}/*/dist/**/*.d.cts`,
-        ...declarationFileExclusions(root),
+        ...buildDeclarationFileExclusions(root),
       ]),
     );
   }
