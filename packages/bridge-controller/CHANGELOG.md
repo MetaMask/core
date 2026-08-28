@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
 
+### Fixed
+
+- Include sufficient-funds and normalized slippage properties in Unified SwapBridge quote metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
+
 ## [80.0.0]
 
 ### Added

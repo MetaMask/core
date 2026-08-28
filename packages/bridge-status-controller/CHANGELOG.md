@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve explicit slippage intent and normalized slippage limits in post-submission Unified SwapBridge metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
+
 ## [75.3.0]
 
 ### Changed

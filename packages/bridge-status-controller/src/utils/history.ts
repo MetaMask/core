@@ -195,6 +195,7 @@ export const getInitialHistoryItem = (
     quoteResponse,
     startTime,
     slippagePercentage,
+    customSlippage,
     initialDestAssetBalance,
     targetContractAddress,
     approvalTxId,
@@ -224,6 +225,7 @@ export const getInitialHistoryItem = (
     estimatedProcessingTimeInSeconds:
       quoteResponse.estimatedProcessingTimeInSeconds,
     slippagePercentage,
+    ...(customSlippage !== undefined && { customSlippage }),
     pricingData: {
       amountSent: quoteResponse?.sentAmount?.amount ?? '0',
       amountSentInUsd: quoteResponse?.sentAmount?.usd ?? undefined,
