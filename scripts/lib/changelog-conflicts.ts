@@ -327,10 +327,10 @@ export async function mergeChangelogs({
 
 /**
  * Find every conflicted `packages/*\/CHANGELOG.md` file, resolve as many as
- * possible via {@link mergeChangelogs}, write the merged result back to the
- * working tree, and stage it with `git add`. Files that can't be
- * automatically merged (e.g. a structurally invalid side) are left with
- * their conflict markers intact.
+ * possible via {@link mergeChangelogs}, and write the merged result back to
+ * the working tree (without staging it, so it can still be reviewed before
+ * committing). Files that can't be automatically merged (e.g. a
+ * structurally invalid side) are left with their conflict markers intact.
  *
  * @returns The set of files that were resolved and the set that were
  * skipped, along with the reason for each skip.
@@ -361,7 +361,6 @@ export async function resolveChangelogConflicts(): Promise<ConflictResolutionRes
         content,
         'utf8',
       );
-      await execa('git', ['add', changelogPath], { cwd: ROOT_WORKSPACE });
 
       resolved.push({ path: changelogPath, mergedEntryCount });
     } catch (error) {

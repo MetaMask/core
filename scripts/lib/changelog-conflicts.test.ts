@@ -516,7 +516,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   });
 
   describe('resolveChangelogConflicts', () => {
-    it('resolves each conflicted file and stages it with git add', async () => {
+    it('resolves each conflicted file', async () => {
       const changelogPath = 'packages/example/CHANGELOG.md';
       const oursContent = buildChangelog(
         `### Added
@@ -567,11 +567,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         expect.stringContaining(changelogPath),
         expect.stringContaining('Added theirs entry'),
         'utf8',
-      );
-      expect(execa).toHaveBeenCalledWith(
-        'git',
-        ['add', changelogPath],
-        expect.objectContaining({ cwd: expect.any(String) }),
       );
     });
 
