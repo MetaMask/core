@@ -86,6 +86,19 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 };
 
 /**
+ * Get strategy capabilities through the active provider route used by order
+ * placement. The query waits for in-flight initialization and reports an
+ * explicit unavailable status when no provider route can answer reliably.
+ *
+ * @param params - Market and optional provider route.
+ * @returns Provider-owned order capabilities.
+ */
+export type PerpsControllerGetOrderCapabilitiesAction = {
+  type: `PerpsController:getOrderCapabilities`;
+  handler: PerpsController['getOrderCapabilities'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -118,6 +131,17 @@ export type PerpsControllerEditOrderAction = {
 export type PerpsControllerCancelOrderAction = {
   type: `PerpsController:cancelOrder`;
   handler: PerpsController['cancelOrder'];
+};
+
+/**
+ * Read venue-backed TWAP lifecycle records through the active provider.
+ * Providers without native TWAP history return an empty list.
+ *
+ * @returns Current and terminal TWAP schedules with slice fills.
+ */
+export type PerpsControllerGetTwapOrdersAction = {
+  type: `PerpsController:getTwapOrders`;
+  handler: PerpsController['getTwapOrders'];
 };
 
 /**
@@ -791,8 +815,9 @@ export type PerpsControllerSetLiveDataConfigAction = {
 };
 
 /**
- * Calculate trading fees for the active provider
- * Each provider implements its own fee structure
+ * Calculate trading fees through the active provider route.
+ * Each provider owns its fee policy. An explicit provider route overrides
+ * the active/default provider used by placement.
  *
  * @param params - The operation parameters.
  * @returns The fee calculation result for the trade.
@@ -953,6 +978,7 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.limitPrice - The limit price.
  * @param config.orderType - The order type.
  * @param config.reduceOnly - Whether the order may only reduce a position.
+ * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
@@ -1250,9 +1276,11 @@ export type PerpsControllerMethodActions =
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
+  | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
+  | PerpsControllerGetTwapOrdersAction
   | PerpsControllerGetChaseOrdersAction
   | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction

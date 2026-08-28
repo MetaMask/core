@@ -28,7 +28,7 @@ export type Jwk = {
 /**
  * The verified `jwtChain` payload. `sessionServerPublicKeyX` attests the
  * server's X25519 public key so the client can confirm the value returned
- * out-of-band by `getWrappingKey` was not tampered with.
+ * out-of-band in an encryption schema was not tampered with.
  */
 export type JwtChainPayload = {
   sessionServerPublicKeyX: string;
@@ -66,7 +66,7 @@ function decodeJsonSegment<Type>(segment: string, label: string): Type {
  * `header.payload` input. Returns the decoded, verified payload.
  *
  * @param keys - The JWKS keys published by the Fractal encryption service.
- * @param jwtChain - The compact-serialized EdDSA JWT from `getWrappingKey`.
+ * @param jwtChain - The compact-serialized EdDSA JWT from an encryption schema.
  * @returns The verified JWT payload.
  */
 export function verifyJwtChain(keys: Jwk[], jwtChain: string): JwtChainPayload {

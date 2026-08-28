@@ -29,6 +29,7 @@ import type {
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
+  TwapOrder,
 } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
@@ -492,6 +493,7 @@ describe('PerpsController', () => {
     mockProvider.getMarkets.mockResolvedValue([]);
     mockProvider.getOpenOrders.mockResolvedValue([]);
     mockProvider.getFunding.mockResolvedValue([]);
+    mockProvider.getTwapOrders.mockResolvedValue([]);
     mockProvider.getOrderFills.mockResolvedValue([]);
     mockProvider.getOrders.mockResolvedValue([]);
     mockProvider.calculateLiquidationPrice.mockResolvedValue('0');
@@ -772,7 +774,28 @@ describe('PerpsController', () => {
     });
   });
 
-  describe('Chase lifecycle', () => {
+  describe('Strategy lifecycle', () => {
+    const twapOrder: TwapOrder = {
+      orderId: '987',
+      symbol: 'ETH',
+      side: 'buy',
+      size: '1',
+      executedSize: '0.4',
+      remainingSize: '0.6',
+      executedNotional: '1200',
+      averagePrice: '3000',
+      fillProgressBps: 4000,
+      timeProgressBps: 5000,
+      elapsedTimeMilliseconds: 300_000,
+      durationMinutes: 10,
+      randomize: true,
+      reduceOnly: false,
+      status: 'active',
+      startedAt: 1,
+      lastUpdated: 2,
+      fills: [],
+    };
+
     const chaseOrder = {
       handle: 'chase-1',
       symbol: 'ETH',
@@ -796,6 +819,14 @@ describe('PerpsController', () => {
       await expect(controller.getChaseOrders()).resolves.toStrictEqual([
         chaseOrder,
       ]);
+    });
+
+    it('reads TWAP lifecycle state from the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getTwapOrders.mockResolvedValue([twapOrder]);
+
+      expect(await controller.getTwapOrders()).toStrictEqual([twapOrder]);
     });
 
     it('suspends Chase loops through the active provider', async () => {

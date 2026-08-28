@@ -117,6 +117,23 @@ describe('hyperLiquidAdapter - advanced order types', () => {
 
       expect(result.triggerOrderType).toBeUndefined();
     });
+
+    it('tolerates runtime orders without an id or detailed type', () => {
+      const malformedOrder = buildFrontendOrder({
+        oid: undefined,
+        orderType: undefined,
+        limitPx: '',
+      } as unknown as Partial<FrontendOrder>);
+
+      const result = adaptOrderFromSDK(malformedOrder);
+
+      expect(result).toMatchObject({
+        orderId: '',
+        orderType: 'market',
+      });
+      expect(result.detailedOrderType).toBeUndefined();
+      expect(result.triggerOrderType).toBeUndefined();
+    });
   });
 
   describe('adaptOrderToSDK', () => {

@@ -1066,8 +1066,18 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.toggleTestnet();
 
       expect(result.success).toBe(true);
+      expect(mockClientService.disconnect).toHaveBeenCalledTimes(1);
       expect(mockClientService.setTestnetMode).toHaveBeenCalled();
       expect(mockWalletService.setTestnetMode).toHaveBeenCalled();
+      expect(mockClientService.initialize).toHaveBeenCalledTimes(1);
+      expect(
+        mockClientService.disconnect.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockClientService.setTestnetMode.mock.invocationCallOrder[0],
+      );
+      expect(
+        mockClientService.setTestnetMode.mock.invocationCallOrder[0],
+      ).toBeLessThan(mockClientService.initialize.mock.invocationCallOrder[0]);
     });
 
     it('toggleTestnet succeeds even when called concurrently with initialization', async () => {

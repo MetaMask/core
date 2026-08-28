@@ -4,7 +4,6 @@
 import {
   BridgeClientId,
   UnifiedSwapBridgeEventName,
-  mergeQuoteMetadata,
   StatusTypes,
   QuoteResponse as QuoteResponseV1,
   getNativeAssetForChainId,
@@ -110,13 +109,15 @@ const minimalIntentQuoteResponse = (
     },
     ...overrides,
   };
-  return mergeQuoteMetadata(quote as never, {
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
-  });
+  return {
+    ...quote,
+    ...{
+      sentAmount: { amount: '1', usd: '1' },
+      gasFee: { effective: { amount: '0', usd: '0' } },
+      toTokenAmount: { usd: '1' },
+    },
+  };
 };
-validateQuoteResponseV1(minimalIntentQuoteResponse());
 
 const minimalBridgeQuoteResponse = (
   accountAddress: string,
@@ -174,11 +175,14 @@ const minimalBridgeQuoteResponse = (
     },
     ...overrides,
   };
-  return mergeQuoteMetadata(quote as never, {
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
-  });
+  return {
+    ...quote,
+    ...{
+      sentAmount: { amount: '1', usd: '1' },
+      gasFee: { effective: { amount: '0', usd: '0' } },
+      toTokenAmount: { usd: '1' },
+    },
+  };
 };
 validateQuoteResponseV1(minimalBridgeQuoteResponse('0xAccount1'));
 
@@ -972,8 +976,8 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     // make startPolling return different tokens for the same tx
     startPollingSpy.mockReturnValueOnce('tok1').mockReturnValueOnce('tok2');
 
-    const quoteResponse = mergeQuoteMetadata(
-      {
+    const quoteResponse = {
+      ...{
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -981,12 +985,12 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         },
         estimatedProcessingTimeInSeconds: 1,
       },
-      {
+      ...{
         sentAmount: { amount: '0' },
         gasFee: { effective: { amount: '0' } },
         toTokenAmount: { usd: '0' },
       },
-    );
+    };
 
     // first time => starts polling tok1
     controller.startPollingForBridgeTxStatus({
@@ -1039,8 +1043,8 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       mockTxHistory,
     });
 
-    const quoteResponse = mergeQuoteMetadata(
-      {
+    const quoteResponse = {
+      ...{
         quote: {
           srcChainId: 1,
           destChainId: 10,
@@ -1049,12 +1053,12 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         },
         estimatedProcessingTimeInSeconds: 1,
       },
-      {
+      ...{
         sentAmount: { amount: '0' },
         gasFee: { effective: { amount: '0' } },
         toTokenAmount: { usd: '0' },
       },
-    );
+    };
 
     const statusResponse = {
       status: {
