@@ -1903,13 +1903,13 @@ export class KycController extends BaseController<
     // Verify each schema's jwtChain against the matching issuer JWKS, then
     // confirm the returned server public key matches the value attested inside
     // the verified JWT payload before trusting it for wrapping.
-    // `encryptionDataKey` is attested by Fractal; `ukycCapabilityToken` by the
+    // `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken` by the
     // idOS relay.
-    const [{ keys: fractalKeys }, { keys: idosRelayKeys }] = await Promise.all([
-      this.messenger.call('KycService:fetchJwks'),
+    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = await Promise.all([
+      this.messenger.call('KycService:fetchIdosEnclaveJwks'),
       this.messenger.call('KycService:fetchIdosRelayJwks'),
     ]);
-    this.#assertAttestedServerPublicKey(fractalKeys, encryptionDataKey);
+    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
     this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
 
     // Derive the data_encryption_key from the local_user_secret, mint a
@@ -1973,7 +1973,7 @@ export class KycController extends BaseController<
    *
    *  1. creates a UKYC session, receiving per-secret encryption schemas;
    *  2. verifies the `encryptionDataKey` schema's `jwtChain` against the
-   *     Fractal JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
+   *     idOS enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
    *     the idOS relay JWKS, then confirms each attested session server public
    *     key;
    *  3. derives the `data_encryption_key` from the wallet's UKYC
@@ -2534,7 +2534,7 @@ export class KycController extends BaseController<
    * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
    * a key that was swapped out-of-band after the chain was signed.
    *
-   * @param keys - The issuer JWKS used to verify the chain (Fractal for
+   * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
    * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
    * @param schema - The encryption schema returned by session creation.
    */

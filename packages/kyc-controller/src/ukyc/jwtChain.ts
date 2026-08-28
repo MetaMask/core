@@ -5,7 +5,7 @@ import { base64UrlToBytes } from '../encoding.js';
 
 /**
  * Verifies an encryption-schema `jwtChain` against the issuer's published JWKS
- * (Fractal for `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
+ * (idOS enclave for `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
  *
  * The signature check is done with `@noble/curves` (rather than WebCrypto
  * `subtle`) because not every MetaMask runtime exposes a `subtle`
