@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics ([#9982](https://github.com/MetaMask/core/pull/9982)).
+- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics. ([#9982](https://github.com/MetaMask/core/pull/9982))
 - Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
 
 ## [13.0.0]
