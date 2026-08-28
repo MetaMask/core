@@ -20,6 +20,7 @@ import {
   computeLighterMinOrderSize,
   fromLighterInteger,
   getLighterChainId,
+  getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
@@ -385,7 +386,7 @@ type LighterRecoveredDispatch = {
    * is NOT known and must never be reported as completed).
    */
   outcome: 'succeeded' | 'failed' | 'unknown';
-  /** What proved the outcome (e.g. 'tx-status:3', 'rest-advance'). */
+  /** What proved the outcome (e.g. 'tx-status:2', 'rest-advance'). */
   evidence: string;
 };
 
@@ -1021,7 +1022,7 @@ export class LighterProvider implements PerpsProvider {
   /** Live order-book level state per market (price → size). */
   readonly #orderBookState: Map<
     number,
-    { bids: Map<string, string>; asks: Map<string, string> }
+    { bids: Map<string, string>; asks: Map<string, string>; nonce: number }
   > = new Map();
 
   /** Candle subscribers keyed by `marketId:resolution`. */
@@ -1236,6 +1237,18 @@ export class LighterProvider implements PerpsProvider {
     // client, drop the cached session so the next call re-runs setup
     // instead of failing forever against a resolved-but-dead session.
     return {
+      createClient: async (params): Promise<LighterCreateClientResult> => {
+        try {
+          const result = await bridge.createClient(params);
+          if (result.error) {
+            this.#invalidateSignerSession();
+          }
+          return result;
+        } catch (error) {
+          this.#invalidateSignerSession();
+          throw error;
+        }
+      },
       execute: async <Result>(call: LighterWasmCall): Promise<Result> => {
         const lostClientPattern =
           /client is not created|WebView reloaded|signer not ready|executor not connected|timed out/iu;
@@ -1302,6 +1315,7 @@ export class LighterProvider implements PerpsProvider {
       if (this.#boundAddress !== null) {
         // All accounts deselected while a session existed: invalidate so
         // nothing in flight can still act for the old account.
+        this.#emitAccountBindingReset();
         this.#invalidateSessionState();
         this.#teardownStream();
       }
@@ -1331,11 +1345,31 @@ export class LighterProvider implements PerpsProvider {
     // #tpslUnsettled is NOT cleared: entries are keyed by
     // address+accountIndex+symbol, so B never consumes A's pending ids and
     // switching back to A retains its reconciliation obligation.
+    this.#emitAccountBindingReset();
     this.#teardownStream();
     this.#rebuildStreamForSubscribers();
     this.#deps.debugLogger.log(
       '[LighterProvider] session rebound to new wallet account',
     );
+  };
+
+  /** Clear subscriber-visible account data before a wallet rebind. */
+  readonly #emitAccountBindingReset = (): void => {
+    for (const subscriber of this.#accountSubscribers) {
+      try {
+        subscriber.callback(EMPTY_ACCOUNT_STATE);
+      } catch (error) {
+        this.#logSubscriberError('account', error);
+      }
+    }
+    for (const subscriber of this.#positionSubscribers) {
+      try {
+        subscriber.callback([]);
+      } catch (error) {
+        this.#logSubscriberError('positions', error);
+      }
+    }
+    this.#emitToOrderSubscribers([]);
   };
 
   /**
@@ -1896,14 +1930,16 @@ export class LighterProvider implements PerpsProvider {
             lookedUp.nonce === entry.nonce &&
             typeof lookedUp.status === 'number';
           if (matchesIdentity) {
+            const transactionOutcome = getLighterTransactionOutcome(
+              lookedUp.status,
+            );
             // A matching hash is not enough to prove the transaction's
             // outcome. Non-terminal statuses must retain the unresolved
             // entry so no acknowledgment can make the intent retryable
             // while the original transaction is still in flight.
             if (
-              lookedUp.status !== 3 &&
-              lookedUp.status !== 4 &&
-              lookedUp.status !== 5
+              transactionOutcome !== 'failed' &&
+              transactionOutcome !== 'executed'
             ) {
               remaining.push(entry);
               continue;
@@ -1918,14 +1954,18 @@ export class LighterProvider implements PerpsProvider {
             // succeeded (blocking until acknowledged); failed/rejected →
             // retry-safe FAILURE (recorded, non-blocking); anything else
             // still pending → keep blocking as unresolved.
-            if (lookedUp.status === 4 || lookedUp.status === 5) {
+            if (transactionOutcome === 'failed') {
               quarantine(
                 entry,
                 'failed',
                 `tx-status:${String(lookedUp.status)}`,
               );
-            } else if (lookedUp.status === 3) {
-              quarantine(entry, 'succeeded', 'tx-status:3');
+            } else {
+              quarantine(
+                entry,
+                'succeeded',
+                `tx-status:${String(lookedUp.status)}`,
+              );
             }
             continue;
           }
@@ -3431,10 +3471,10 @@ export class LighterProvider implements PerpsProvider {
       const provenNeverLanded =
         attempt.outcome === 'unknown' &&
         compactionNow > attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS;
-      // Accepted-but-terminal-FAILED cancels (venue status 4/5) landed
+      // Accepted-but-terminal-FAILED cancels (venue status 0) landed
       // without mutating the books: proven-resolved, compactable.
       const landedTerminalFailed =
-        attempt.terminalStatus === 4 || attempt.terminalStatus === 5;
+        getLighterTransactionOutcome(attempt.terminalStatus) === 'failed';
       return !(targetGone || provenNeverLanded || landedTerminalFailed);
     });
     // NO AUTOMATIC RESTORE: the venue exposes no atomic primitive that
@@ -3661,7 +3701,7 @@ export class LighterProvider implements PerpsProvider {
       if (lookedUp !== null) {
         // The exact signed hash exists at the venue. With a matching
         // identity (hash + account + api key slot + nonce):
-        //  - terminal FAILED/REJECTED status (4/5) resolves the attempt
+        //  - terminal FAILED status (0) resolves the attempt
         //    deterministically — the nonce was consumed but the books
         //    were never mutated (the machine re-acts on book state);
         //  - any other status with the books already reflecting the
@@ -3683,7 +3723,10 @@ export class LighterProvider implements PerpsProvider {
           );
           return 'unresolved';
         }
-        if (lookedUp.status === 4 || lookedUp.status === 5) {
+        const transactionOutcome = getLighterTransactionOutcome(
+          lookedUp.status,
+        );
+        if (transactionOutcome === 'failed') {
           // Record the terminal venue status durably (next persist):
           // compaction can then drop this attempt even though its target
           // may still be on the books.
@@ -3693,6 +3736,9 @@ export class LighterProvider implements PerpsProvider {
         if (satisfiedOnBooks(attempt, rawActive, rawInactive)) {
           continue;
         }
+        // Executed proves the transaction landed, but the order books may
+        // still lag. Keep the journal until the expected create/cancel state
+        // is visible.
         return 'unresolved';
       }
       // Venue-confirmed not-found: only never-landed once the signed
@@ -3983,15 +4029,13 @@ export class LighterProvider implements PerpsProvider {
     await this.#withVenueWriteLock(
       accountIndex,
       async (nextNonce, submit) => {
-        const seed = await this.#walletService.deriveKeySeedPlain(
-          this.#apiKeyIndex,
-        );
-        this.#assertSession(generation);
         const nonce = await nextNonce();
         this.#assertSession(generation);
-        const created = await bridge.execute<LighterCreateClientResult>({
-          function: '_createClient',
-          params: [seed, chainId, accountIndex, nonce, this.#apiKeyIndex],
+        const created = await bridge.createClient({
+          chainId,
+          accountIndex,
+          nonce,
+          apiKeyIndex: this.#apiKeyIndex,
         });
         if (created.error || !created.success) {
           throw new Error(
@@ -4004,8 +4048,8 @@ export class LighterProvider implements PerpsProvider {
         // per bridge, so every later write section re-establishes it
         // when another identity has since overwritten it.
         this.#signerIdentity = `${this.#clientService.network}:${accountIndex}:${this.#apiKeyIndex}`;
-        // The seed is deliberately NOT retained: re-establishment
-        // re-derives it under the bridge lease.
+        // Re-establishment passes only public session metadata. The client
+        // owns and restores the venue key inside the bridge.
         this.#signerRecreateParams = { chainId, accountIndex };
         bridgeClientOwners.set(this.#rawSignerBridge(), this.#signerIdentity);
 
@@ -4038,19 +4082,27 @@ export class LighterProvider implements PerpsProvider {
   readonly #isVenueKeyRegistered = async (
     accountIndex: number,
   ): Promise<boolean> => {
-    try {
-      const response = await this.#clientService.getApiKeys(
-        accountIndex,
-        this.#apiKeyIndex,
-      );
-      return response.apiKeys.some(
-        (key) =>
-          key.apiKeyIndex === this.#apiKeyIndex &&
-          key.publicKey === this.#venuePublicKey,
-      );
-    } catch {
+    const response = await this.#clientService.getApiKeys(
+      accountIndex,
+      this.#apiKeyIndex,
+    );
+    const configuredSlot = response.apiKeys.find(
+      (key) => key.apiKeyIndex === this.#apiKeyIndex,
+    );
+    if (!configuredSlot) {
       return false;
     }
+    const normalizeKey = (key: string | null): string =>
+      (key ?? '').replace(/^0x/u, '').toLowerCase();
+    if (
+      normalizeKey(configuredSlot.publicKey) ===
+      normalizeKey(this.#venuePublicKey)
+    ) {
+      return true;
+    }
+    throw new Error(
+      `Lighter API key slot ${String(this.#apiKeyIndex)} already contains a different key; automatic replacement is disabled because personal_sign output is not guaranteed to be byte-identical across signer implementations or devices`,
+    );
   };
 
   readonly #registerVenueKey = async (
@@ -4390,7 +4442,7 @@ export class LighterProvider implements PerpsProvider {
   /**
    * Re-create OUR venue client on the shared bridge after another
    * identity overwrote the singleton. MUST run while holding the bridge
-   * mutex. The wallet-derived seed is re-derived here — never retained.
+   * mutex. The bridge owns key generation and persistence.
    *
    * @param generation - The caller's captured session generation.
    * @param nonce - A fresh venue nonce for the client creation.
@@ -4406,22 +4458,12 @@ export class LighterProvider implements PerpsProvider {
         'Lighter signer client re-establishment attempted before setup',
       );
     }
-    const seed = await this.#walletService.deriveKeySeedPlain(
-      this.#apiKeyIndex,
-    );
     this.#assertSession(generation);
-    const recreated = await this.#getSignerBridge().execute<{
-      success?: boolean;
-      error?: string;
-    }>({
-      function: '_createClient',
-      params: [
-        seed,
-        recreateParams.chainId,
-        recreateParams.accountIndex,
-        nonce,
-        this.#apiKeyIndex,
-      ],
+    const recreated = await this.#getSignerBridge().createClient({
+      chainId: recreateParams.chainId,
+      accountIndex: recreateParams.accountIndex,
+      nonce,
+      apiKeyIndex: this.#apiKeyIndex,
     });
     if (recreated.error || !recreated.success) {
       throw new Error(
@@ -6294,6 +6336,25 @@ export class LighterProvider implements PerpsProvider {
     params?: GetOrderFillsParams,
     _options?: PerpsReadOptions,
   ): Promise<OrderFill[]> {
+    const selectedAddress = this.#walletService.getUserAddress().toLowerCase();
+    const requestedAddress =
+      params?.user?.toLowerCase() ??
+      params?.accountId?.split(':').at(-1)?.toLowerCase();
+    if (requestedAddress && requestedAddress !== selectedAddress) {
+      throw new Error(
+        'Lighter fill history can only query the selected wallet account',
+      );
+    }
+    if (params?.aggregateByTime) {
+      throw new Error('Lighter fill history does not support aggregateByTime');
+    }
+    if (
+      params?.startTime !== undefined &&
+      params.endTime !== undefined &&
+      params.startTime > params.endTime
+    ) {
+      throw new Error('Lighter fill history startTime must not exceed endTime');
+    }
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
@@ -6306,14 +6367,21 @@ export class LighterProvider implements PerpsProvider {
         params?.limit ?? 50,
       );
       this.#assertSession(generation);
-      return (response.trades ?? []).map((trade) =>
-        adaptFillFromLighterTrade(
-          trade,
-          this.#marketsById.get(trade.marketId)?.symbol ??
-            String(trade.marketId),
-          accountIndex,
-        ),
-      );
+      return (response.trades ?? [])
+        .map((trade) =>
+          adaptFillFromLighterTrade(
+            trade,
+            this.#marketsById.get(trade.marketId)?.symbol ??
+              String(trade.marketId),
+            accountIndex,
+          ),
+        )
+        .filter(
+          (fill) =>
+            (params?.startTime === undefined ||
+              fill.timestamp >= params.startTime) &&
+            (params?.endTime === undefined || fill.timestamp <= params.endTime),
+        );
     } catch (error) {
       if (this.#isUnsupportedCapabilityError(error)) {
         // Capability gates must surface, never degrade into empty state.
@@ -6327,7 +6395,14 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async getOrFetchFills(params?: GetOrFetchFillsParams): Promise<OrderFill[]> {
-    return await this.getOrderFills(params);
+    const fills = await this.getOrderFills(
+      params?.startTime === undefined
+        ? undefined
+        : { startTime: params.startTime },
+    );
+    return params?.symbol
+      ? fills.filter((fill) => fill.symbol === params.symbol)
+      : fills;
   }
 
   async getHistoricalPortfolio(
@@ -7576,10 +7651,31 @@ export class LighterProvider implements PerpsProvider {
     if (!Number.isFinite(marketId) || !message.orderBook) {
       return;
     }
+    const { nonce, beginNonce } = message.orderBook;
+    if (typeof nonce !== 'number' || !Number.isSafeInteger(nonce)) {
+      return;
+    }
     let state = this.#orderBookState.get(marketId);
-    if (!state || type.startsWith('subscribed')) {
-      state = { bids: new Map(), asks: new Map() };
+    if (type.startsWith('subscribed')) {
+      state = { bids: new Map(), asks: new Map(), nonce };
       this.#orderBookState.set(marketId, state);
+    } else if (
+      !state ||
+      typeof beginNonce !== 'number' ||
+      !Number.isSafeInteger(beginNonce) ||
+      beginNonce !== state.nonce
+    ) {
+      // A delta cannot be applied to an unknown or discontinuous base.
+      // Drop the local book and request a new subscribed snapshot.
+      this.#orderBookState.delete(marketId);
+      const channelName = `order_book/${marketId}`;
+      if (this.#priceWs?.readyState === 1) {
+        this.#priceWs.send(
+          JSON.stringify({ type: 'unsubscribe', channel: channelName }),
+        );
+        this.#sendSubscribe(channelName);
+      }
+      return;
     }
     for (const side of ['bids', 'asks'] as const) {
       for (const level of message.orderBook[side] ?? []) {
@@ -7599,6 +7695,7 @@ export class LighterProvider implements PerpsProvider {
         }
       }
     }
+    state.nonce = nonce;
     const subscribers = this.#orderBookSubscribers.get(marketId);
     if (!subscribers || subscribers.size === 0) {
       return;
@@ -8114,17 +8211,12 @@ export class LighterProvider implements PerpsProvider {
     ];
   };
 
-  getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
-    // A testnet-bound provider must never advertise the mainnet bridge,
-    // even when DepositService supplies its legacy `{ isTestnet: false }`
-    // hint. Lighter testnet settles on a venue-hosted devnet L1 (chain
-    // 123456) the wallet cannot reach, so fail closed and use the faucet.
-    // A mainnet provider still honors an explicit testnet request.
-    const isTestnet = this.#isTestnet || params?.isTestnet === true;
-    if (isTestnet) {
-      return [];
-    }
-    return this.#bridgeRoute(LIGHTER_BRIDGE_CONFIG.mainnet.minDepositUsdc);
+  getDepositRoutes(_params?: GetSupportedPathsParams): AssetRoute[] {
+    // DepositService currently builds an ERC-20 transfer, while Lighter
+    // requires approval plus a call to the bridge proxy's deposit method.
+    // Do not advertise a route until that provider-owned transaction builder
+    // exists and has integration coverage.
+    return [];
   }
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {

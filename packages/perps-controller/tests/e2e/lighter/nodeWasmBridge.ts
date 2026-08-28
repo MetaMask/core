@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { runInThisContext } from 'node:vm';
 
 import type {
+  LighterCreateClientResult,
   LighterSignerBridge,
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
@@ -25,6 +26,11 @@ type GoInstance = {
 };
 
 type GoRuntime = new () => GoInstance;
+
+type NodeWasmBridgeOptions = {
+  /** Client-owned seed retained only inside this signer adapter. */
+  clientSeed: string;
+};
 
 /**
  * Wait until a predicate holds or time out.
@@ -52,10 +58,12 @@ async function waitFor(
  *
  * @param wasmDir - Directory holding `main.wasm` + `wasm_exec.js`
  * (produced by build-wasm.sh).
+ * @param options - Client-owned signer configuration.
  * @returns A ready signer bridge.
  */
 export async function createNodeWasmBridge(
   wasmDir: string,
+  options: NodeWasmBridgeOptions,
 ): Promise<LighterSignerBridge> {
   const globals = globalThis as Record<string, unknown>;
 
@@ -87,22 +95,31 @@ export async function createNodeWasmBridge(
     'WASM signer globals',
   );
 
+  const execute = async <Result>(call: LighterWasmCall): Promise<Result> => {
+    const target = globals[call.function];
+    if (typeof target !== 'function') {
+      throw new Error(`WASM function not registered: ${call.function}`);
+    }
+    // Go side: fn(...params) returns a function; calling it returns a
+    // Promise resolving to the result object (or {error} on failure).
+    const curried = (target as (...args: unknown[]) => unknown)(...call.params);
+    return typeof curried === 'function'
+      ? await (curried as () => Promise<Result>)()
+      : await (curried as Promise<Result>);
+  };
+
   return {
-    async execute<Result>(call: LighterWasmCall): Promise<Result> {
-      const target = globals[call.function];
-      if (typeof target !== 'function') {
-        throw new Error(`WASM function not registered: ${call.function}`);
-      }
-      // Go side: fn(...params) returns a function; calling it returns a
-      // Promise resolving to the result object (or {error} on failure).
-      const curried = (target as (...args: unknown[]) => unknown)(
-        ...call.params,
-      );
-      const result =
-        typeof curried === 'function'
-          ? await (curried as () => Promise<Result>)()
-          : await (curried as Promise<Result>);
-      return result;
-    },
+    createClient: async (params) =>
+      execute<LighterCreateClientResult>({
+        function: '_createClient',
+        params: [
+          options.clientSeed,
+          params.chainId,
+          params.accountIndex,
+          params.nonce,
+          params.apiKeyIndex,
+        ],
+      }),
+    execute,
   };
 }

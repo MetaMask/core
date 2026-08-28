@@ -7,6 +7,7 @@ import {
 } from '../../../src/services/LighterClientService.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import type {
+  LighterCreateClientResult,
   LighterSignerBridge,
   LighterWasmCall,
   LighterWebSocketCtor,
@@ -148,6 +149,18 @@ function createMockBridge(): {
   const resetListeners: (() => void)[] = [];
   let signSequence = 0;
   const bridge: LighterSignerBridge = {
+    createClient: jest.fn(async (params) =>
+      bridge.execute<LighterCreateClientResult>({
+        function: '_createClient',
+        params: [
+          'client-owned-seed',
+          params.chainId,
+          params.accountIndex,
+          params.nonce,
+          params.apiKeyIndex,
+        ],
+      }),
+    ),
     onReset: (listener: () => void) => {
       resetListeners.push(listener);
       return () => undefined;
@@ -278,6 +291,7 @@ type MockClientInstance = {
   getDepositHistory: jest.Mock;
   getWithdrawHistory: jest.Mock;
   getTransferHistory: jest.Mock;
+  getTrades: jest.Mock;
   sendTx: jest.Mock;
 };
 
@@ -469,6 +483,7 @@ function buildProvider(
         },
       ],
     }),
+    getTrades: jest.fn().mockResolvedValue({ code: 200, trades: [] }),
     sendTx: jest.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
   };
   MockedClientService.mockImplementation(
@@ -481,7 +496,6 @@ function buildProvider(
     () =>
       ({
         getUserAddress: getUserAddressMock,
-        deriveKeySeedPlain: jest.fn().mockResolvedValue('ab'.repeat(32)),
         signPersonalMessage: jest
           .fn()
           .mockResolvedValue(`0x${'cd'.repeat(65)}`),
@@ -609,9 +623,15 @@ describe('LighterProvider', () => {
     });
 
     it('sets up the signer and registers the venue key when missing', async () => {
-      const { provider, clientInstance, calls } = buildProvider();
+      const { provider, clientInstance, calls, bridge } = buildProvider();
       const result = await provider.isReadyToTrade();
       expect(result.ready).toBe(true);
+      expect(bridge.createClient).toHaveBeenCalledWith({
+        chainId: 300,
+        accountIndex: 28,
+        nonce: 42,
+        apiKeyIndex: 7,
+      });
       const callNames = calls.map((call) => call.function);
       expect(callNames).toContain('_createClient');
       expect(callNames).toContain('_signChangePubKey');
@@ -656,6 +676,35 @@ describe('LighterProvider', () => {
       });
       const result = await provider.isReadyToTrade();
       expect(result.ready).toBe(true);
+      expect(calls.map((call) => call.function)).not.toContain(
+        '_signChangePubKey',
+      );
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when the venue-key lookup fails', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      clientInstance.getApiKeys.mockRejectedValue(new Error('temporary 503'));
+
+      const result = await provider.isReadyToTrade();
+
+      expect(result.ready).toBe(false);
+      expect(result.error).toContain('temporary 503');
+      expect(calls.map((call) => call.function)).not.toContain(
+        '_signChangePubKey',
+      );
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('refuses to replace a different key already registered in the configured slot', async () => {
+      const { provider, clientInstance, calls } = buildProvider({
+        registeredKey: 'ab'.repeat(40),
+      });
+
+      const result = await provider.isReadyToTrade();
+
+      expect(result.ready).toBe(false);
+      expect(result.error).toContain('automatic replacement is disabled');
       expect(calls.map((call) => call.function)).not.toContain(
         '_signChangePubKey',
       );
@@ -1463,12 +1512,21 @@ describe('LighterProvider', () => {
           ),
       );
       StreamFakeWebSocket.instances = [];
+      const accountCallback = jest.fn();
+      const positionsCallback = jest.fn();
+      const ordersCallback = jest.fn();
       const unsubscribePrices = provider.subscribeToPrices({
         symbols: [],
         callback: jest.fn(),
       });
       const unsubscribeAccount = provider.subscribeToAccount({
-        callback: jest.fn(),
+        callback: accountCallback,
+      });
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: positionsCallback,
+      });
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: ordersCallback,
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
       StreamFakeWebSocket.instances[0].open();
@@ -1478,8 +1536,20 @@ describe('LighterProvider', () => {
       );
 
       // Wallet switches accounts; any session-bound call triggers rebind.
+      accountCallback.mockClear();
+      positionsCallback.mockClear();
+      ordersCallback.mockClear();
       getUserAddressMock.mockReturnValue('0xbbbb');
       await provider.getAccountState();
+      expect(accountCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          totalBalance: '0',
+          spendableBalance: '0',
+          providerId: 'lighter',
+        }),
+      );
+      expect(positionsCallback).toHaveBeenCalledWith([]);
+      expect(ordersCallback).toHaveBeenCalledWith([]);
       await new Promise((resolve) => setTimeout(resolve, 0));
       const replacement =
         StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
@@ -1500,6 +1570,8 @@ describe('LighterProvider', () => {
 
       unsubscribePrices();
       unsubscribeAccount();
+      unsubscribePositions();
+      unsubscribeOrders();
     });
 
     it('cancels a queued write when the wallet switches accounts first', async () => {
@@ -2197,7 +2269,7 @@ describe('LighterProvider', () => {
       delayedCommit.set(txType, delayMs);
     };
     // One-shot FAILED execution: the sequencer consumes the nonce and the
-    // tx lands with terminal status 4 (failed), but NO book mutation
+    // tx lands with terminal status 0 (failed), but NO book mutation
     // happens; the caller's response is also lost.
     const failExecutionOnce = new Set<number>();
     const failExecutionOnceFor = (txType: number): void => {
@@ -2218,7 +2290,7 @@ describe('LighterProvider', () => {
     // delayed-commit (response-lost) path.
     const commitCreateBatch = (batch: StagedCreateBatch): void => {
       beginLag();
-      landedTxs.set(batch.txHash, { nonce: batch.nonce, status: 3 });
+      landedTxs.set(batch.txHash, { nonce: batch.nonce, status: 2 });
       batch.creates.forEach((create, createIndexInBatch) => {
         const orderIndex = nextIndex;
         nextIndex += 1;
@@ -2261,7 +2333,7 @@ describe('LighterProvider', () => {
     };
     const commitCancel = (staged: StagedCancel): void => {
       beginLag();
-      landedTxs.set(staged.txHash, { nonce: staged.nonce, status: 3 });
+      landedTxs.set(staged.txHash, { nonce: staged.nonce, status: 2 });
       const at = rawTriggers.findIndex(
         (entry) => String(entry.orderIndex) === String(staged.orderId),
       );
@@ -2328,7 +2400,7 @@ describe('LighterProvider', () => {
             venueNonce += 1;
             landedTxs.set(failedStaged.txHash, {
               nonce: failedStaged.nonce,
-              status: 4,
+              status: 0,
             });
           }
           throw new Error('transport failure with failed execution');
@@ -2390,7 +2462,7 @@ describe('LighterProvider', () => {
           // venue records EVERY landed tx by exact hash.
           const staged = takeStagedGeneric(txInfo);
           if (staged) {
-            landedTxs.set(staged.txHash, { nonce: staged.nonce, status: 3 });
+            landedTxs.set(staged.txHash, { nonce: staged.nonce, status: 2 });
           }
         }
         if (failAfterCommit.has(txType)) {
@@ -4275,7 +4347,7 @@ describe('LighterProvider', () => {
       const first = buildProvider({ platformDependencies: infra });
       const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
       venueA.seedTrigger('stop-loss', '80000');
-      // The sequencer consumes the nonce, records terminal status 4
+      // The sequencer consumes the nonce, records terminal status 0
       // (failed), mutates nothing, and the response is lost.
       venueA.failExecutionOnceFor(15);
       const crashed = await first.provider.updatePositionTPSL({
@@ -5144,7 +5216,7 @@ describe('LighterProvider', () => {
       // key slot: identity mismatch is ambiguity, never consumption.
       venue.landedTxs.set('dddd000000000001', {
         nonce: frozenNonce,
-        status: 3,
+        status: 2,
       });
       built.clientInstance.getTx.mockImplementation(async (hash: string) =>
         hash === 'dddd000000000001'
@@ -5154,7 +5226,7 @@ describe('LighterProvider', () => {
               accountIndex: 28,
               apiKeyIndex: 9,
               nonce: frozenNonce,
-              status: 3,
+              status: 2,
             }
           : null,
       );
@@ -8609,6 +8681,7 @@ describe('LighterProvider', () => {
           type: 'subscribed/order_book',
           channel: 'order_book:1',
           order_book: {
+            nonce: 10,
             bids: [
               { price: '90000', size: '0.5' },
               { price: '89990', size: '1.5' },
@@ -8676,6 +8749,7 @@ describe('LighterProvider', () => {
           type: 'subscribed/order_book',
           channel: 'order_book:1',
           order_book: {
+            nonce: 10,
             bids: [
               { price: '90000', size: '0.5' },
               { price: 'abc', size: '1' },
@@ -8705,6 +8779,54 @@ describe('LighterProvider', () => {
         }
       }
       expect(Number.isFinite(parseFloat(book.maxTotal))).toBe(true);
+      unsubscribe();
+    });
+
+    it('discards an order book after a nonce gap and requests a fresh snapshot', async () => {
+      const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
+      const callback = jest.fn();
+      const unsubscribe = provider.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'subscribed/order_book',
+          channel: 'order_book:1',
+          order_book: {
+            nonce: 10,
+            bids: [{ price: '90000', size: '1' }],
+            asks: [{ price: '90010', size: '1' }],
+          },
+        }),
+      });
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/order_book',
+          channel: 'order_book:1',
+          order_book: {
+            begin_nonce: 12,
+            nonce: 13,
+            bids: [{ price: '90000', size: '0' }],
+            asks: [{ price: '90020', size: '2' }],
+          },
+        }),
+      });
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({ type: 'unsubscribe', channel: 'order_book/1' }),
+      );
+      expect(socket.sent).toContainEqual(
+        JSON.stringify({ type: 'subscribe', channel: 'order_book/1' }),
+      );
       unsubscribe();
     });
 
@@ -9174,7 +9296,12 @@ describe('LighterProvider', () => {
       });
       // The frame itself is the first observer: it must be dropped, and
       // the rebind replaces the socket for account B.
-      expect(accountCallback).not.toHaveBeenCalled();
+      expect(accountCallback).toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: '0', providerId: 'lighter' }),
+      );
+      expect(accountCallback).not.toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: '9999' }),
+      );
       const socketB =
         StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
       expect(socketB).not.toBe(socketA);
@@ -9414,7 +9541,57 @@ describe('LighterProvider', () => {
       expect(updates[2].delta.usdc).toBe('10000.000000');
     });
 
-    it('exposes the venue bridge route on mainnet only; testnet advertises NO routes (unreachable devnet L1)', () => {
+    it('honors fill limit, time range, symbol, and selected-account contracts', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getTrades.mockResolvedValue({
+        code: 200,
+        trades: [
+          {
+            tradeId: 1,
+            type: 'trade',
+            marketId: 1,
+            size: '0.1',
+            price: '90000',
+            askId: 10,
+            bidId: 11,
+            askAccountId: 99,
+            bidAccountId: 28,
+            isMakerAsk: false,
+            timestamp: 1700000000000,
+          },
+        ],
+      });
+
+      expect(
+        await provider.getOrderFills({
+          startTime: 1699999999999,
+          endTime: 1700000000001,
+          limit: 7,
+        }),
+      ).toHaveLength(1);
+      expect(clientInstance.getTrades).toHaveBeenCalledWith(
+        28,
+        expect.any(String),
+        7,
+      );
+      expect(
+        await provider.getOrderFills({ startTime: 1700000000001 }),
+      ).toStrictEqual([]);
+      expect(await provider.getOrFetchFills({ symbol: 'ETH' })).toStrictEqual(
+        [],
+      );
+
+      await expect(
+        provider.getOrderFills({
+          user: '0x0000000000000000000000000000000000000001',
+        }),
+      ).rejects.toThrow('selected wallet');
+      await expect(
+        provider.getOrderFills({ aggregateByTime: true }),
+      ).rejects.toThrow('aggregateByTime');
+    });
+
+    it('suppresses deposits until the Lighter bridge call is implemented; withdrawals remain mainnet-only', () => {
       // Testnet settles on the venue-hosted devnet chain 123456 that the
       // wallet cannot reach: advertising it made mobile pay-with flows
       // build a deposit transaction on an unknown chain and fail the
@@ -9433,6 +9610,7 @@ describe('LighterProvider', () => {
       const { provider: mainnetProvider } = buildProvider({
         isTestnet: false,
       });
+      expect(mainnetProvider.getDepositRoutes()).toStrictEqual([]);
       const [mainnetRoute] = mainnetProvider.getWithdrawalRoutes();
       expect(mainnetRoute.chainId).toBe('eip155:1');
       expect(mainnetRoute.contractAddress).toBe(
@@ -9679,7 +9857,7 @@ describe('LighterProvider', () => {
           intent: `withdraw:${String(index)}`,
           txHash: `dead${String(index).padStart(8, '0')}`,
           outcome: 'failed',
-          evidence: 'tx-status:4',
+          evidence: 'tx-status:0',
         }));
         await infra.diskCache.setItem(
           'lighterNonceLedger:testnet:28:7',
@@ -9711,7 +9889,7 @@ describe('LighterProvider', () => {
             accountIndex: 28,
             apiKeyIndex: 7,
             nonce: 42,
-            status: 3,
+            status: 2,
           });
         } else {
           built.clientInstance.getNextNonce.mockResolvedValue({
@@ -9792,7 +9970,7 @@ describe('LighterProvider', () => {
       expect(pendingDoc.entries).toHaveLength(1);
       expect(pendingDoc.recovered).toHaveLength(0);
 
-      txStatus = 3;
+      txStatus = 2;
       const settledRetry = await built.provider.withdraw({ amount: '25' });
       expect(settledRetry.success).toBe(false);
       expect(settledRetry.error).toContain('actually completed');
@@ -9849,7 +10027,7 @@ describe('LighterProvider', () => {
               accountIndex: 28,
               apiKeyIndex: 7,
               nonce: hash === 'abab000000000042' ? 42 : 43,
-              status: 3,
+              status: 2,
             }
           : null,
       );
@@ -10121,7 +10299,7 @@ describe('LighterProvider', () => {
               intent: 'withdraw:9',
               txHash: 'beef',
               outcome: 'failed',
-              evidence: 'tx-status:4',
+              evidence: 'tx-status:0',
             },
           ],
         }),

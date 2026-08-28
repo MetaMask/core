@@ -1,10 +1,9 @@
 import {
-  buildLighterKeyDerivationMessage,
   computeLighterMinOrderSize,
   fromLighterInteger,
   getLighterChainId,
   getLighterHttpEndpoint,
-  LIGHTER_DEFAULT_API_KEY_INDEX,
+  getLighterTransactionOutcome,
   LIGHTER_ENDPOINTS,
   LIGHTER_MAINNET_CHAIN_ID,
   LIGHTER_TESTNET_CHAIN_ID,
@@ -57,30 +56,19 @@ describe('lighterConfig', () => {
       expect(LIGHTER_TX_TYPE_CREATE_ORDER).toBe(14);
       expect(LIGHTER_TX_TYPE_CANCEL_ORDER).toBe(15);
     });
-  });
 
-  describe('buildLighterKeyDerivationMessage', () => {
-    it('substitutes address, chain id and api key index', () => {
-      const message = buildLighterKeyDerivationMessage({
-        address: '0xABCDEF0000000000000000000000000000000001',
-        chainId: 300,
-        apiKeyIndex: LIGHTER_DEFAULT_API_KEY_INDEX,
-      });
-      expect(message).toContain(
-        'Address: 0xabcdef0000000000000000000000000000000001',
-      );
-      expect(message).toContain('Chain ID: 300');
-      expect(message).toContain(
-        `API key index: ${LIGHTER_DEFAULT_API_KEY_INDEX}`,
-      );
-      expect(message).toContain('Only sign this message for a trusted client!');
+    it.each([
+      [0, 'failed'],
+      [1, 'pending'],
+      [2, 'executed'],
+      [3, 'pending-final'],
+    ] as const)('maps documented transaction status %s', (status, outcome) => {
+      expect(getLighterTransactionOutcome(status)).toBe(outcome);
     });
 
-    it('is deterministic for identical inputs', () => {
-      const params = { address: '0xabc', chainId: 300, apiKeyIndex: 7 };
-      expect(buildLighterKeyDerivationMessage(params)).toBe(
-        buildLighterKeyDerivationMessage(params),
-      );
+    it('rejects undocumented transaction statuses', () => {
+      expect(getLighterTransactionOutcome(4)).toBeNull();
+      expect(getLighterTransactionOutcome('2')).toBeNull();
     });
   });
 

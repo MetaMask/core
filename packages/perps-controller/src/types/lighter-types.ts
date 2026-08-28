@@ -50,6 +50,14 @@ export type LighterWasmCall = {
   params: unknown[];
 };
 
+/** Public metadata needed to create or restore a client-owned venue signer. */
+export type LighterCreateClientParams = {
+  chainId: number;
+  accountIndex: number;
+  apiKeyIndex: number;
+  nonce: number;
+};
+
 /**
  * Transport-agnostic seam to the Lighter Go/WASM signer.
  *
@@ -59,6 +67,17 @@ export type LighterWasmCall = {
  * - Node (e2e): in-process `WebAssembly.instantiate` via Go's `wasm_exec.js`.
  */
 export type LighterSignerBridge = {
+  /**
+   * Create or restore the client-owned venue signer. The implementation owns
+   * key generation and persistence; Core never receives the seed or private
+   * key.
+   *
+   * @param params - Public venue/session metadata required by the signer.
+   */
+  createClient(
+    params: LighterCreateClientParams,
+  ): Promise<LighterCreateClientResult>;
+
   /**
    * Execute one WASM signer call and resolve with its result object.
    *
@@ -167,7 +186,7 @@ export type LighterAuthConfig = {
   apiKeyIndex?: number;
   /** L1 address owning the Lighter account. */
   l1Address?: string;
-  /** Headless personal_sign implementation (e2e / tooling). */
+  /** Headless personal_sign implementation for L1 ChangePubKey approval. */
   personalSigner?: LighterPersonalSigner;
 };
 
@@ -326,11 +345,11 @@ export type LighterNextNonceResponse = {
 export type LighterTxLookupResponse = {
   code: number;
   message?: string;
-  hash?: string;
-  accountIndex?: number;
-  apiKeyIndex?: number;
-  nonce?: number;
-  status?: number | string;
+  hash: string;
+  accountIndex: number;
+  apiKeyIndex: number;
+  nonce: number;
+  status: number;
 };
 
 /**
@@ -339,7 +358,7 @@ export type LighterTxLookupResponse = {
 export type LighterSendTxResponse = {
   code: number;
   message?: string;
-  txHash?: string;
+  txHash: string;
 };
 
 /**
@@ -431,6 +450,10 @@ export type LighterWsOrderBookMessage = {
   channel?: string;
   timestamp?: number;
   orderBook?: {
+    /** Last nonce represented by this snapshot or delta. */
+    nonce?: number;
+    /** Previous book nonce required before applying an update. */
+    beginNonce?: number;
     bids?: { price: string; size: string }[];
     asks?: { price: string; size: string }[];
   };

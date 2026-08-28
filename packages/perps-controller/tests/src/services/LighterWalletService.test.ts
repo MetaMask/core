@@ -1,4 +1,3 @@
-import { buildLighterKeyDerivationMessage } from '../../../src/constants/lighterConfig.js';
 import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import {
@@ -33,44 +32,6 @@ describe('LighterWalletService', () => {
       const signature = await service.signPersonalMessage('hello');
       expect(signature).toBe(FIXED_SIGNATURE);
       expect(signer).toHaveBeenCalledWith('hello');
-    });
-
-    it('derives a deterministic 32-byte seed from the signature', async () => {
-      const { service } = buildService();
-      const seed1 = await service.deriveKeySeed(7);
-      const seed2 = await service.deriveKeySeed(7);
-      expect(seed1).toBe(seed2);
-      expect(seed1).toMatch(/^0x[0-9a-f]{64}$/u);
-    });
-
-    it('binds the seed to the derivation message contents', async () => {
-      const { service, signer } = buildService();
-      await service.deriveKeySeed(7);
-      expect(signer).toHaveBeenCalledWith(
-        buildLighterKeyDerivationMessage({
-          address: HEADLESS_ADDRESS,
-          chainId: 300,
-          apiKeyIndex: 7,
-        }),
-      );
-    });
-
-    it('derives different seeds for different signatures', async () => {
-      const { service: serviceA } = buildService(
-        jest.fn().mockResolvedValue(`0x${'11'.repeat(65)}`),
-      );
-      const { service: serviceB } = buildService(
-        jest.fn().mockResolvedValue(`0x${'22'.repeat(65)}`),
-      );
-      expect(await serviceA.deriveKeySeed(7)).not.toBe(
-        await serviceB.deriveKeySeed(7),
-      );
-    });
-
-    it('strips the 0x prefix for the plain seed variant', async () => {
-      const { service } = buildService();
-      const plain = await service.deriveKeySeedPlain(7);
-      expect(plain).toMatch(/^[0-9a-f]{64}$/u);
     });
 
     it('exposes and toggles testnet mode', () => {

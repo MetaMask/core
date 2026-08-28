@@ -638,12 +638,25 @@ describe('lighterAdapter', () => {
       ).toBeUndefined();
     });
 
-    it('normalizes canceled statuses', () => {
-      const adapted = adaptOrderFromLighter(
-        { ...order, status: 'canceled-post-only' },
-        'BTC',
+    it.each([
+      'canceled',
+      'cancelled',
+      'canceled-post-only',
+      'canceled-reduce-only',
+      'canceled-position-not-allowed',
+      'canceled-margin-not-allowed',
+      'canceled-too-much-slippage',
+      'canceled-not-enough-liquidity',
+      'canceled-self-trade',
+      'canceled-expired',
+      'canceled-oco',
+      'canceled-child',
+      'canceled-liquidation',
+      'canceled-invalid-balance',
+    ])('normalizes terminal status %s', (status) => {
+      expect(adaptOrderFromLighter({ ...order, status }, 'BTC').status).toBe(
+        'canceled',
       );
-      expect(adapted.status).toBe('canceled');
     });
 
     it('normalizes filled status', () => {
@@ -652,6 +665,12 @@ describe('lighterAdapter', () => {
         'BTC',
       );
       expect(adapted.status).toBe('filled');
+    });
+
+    it('fails closed for an unknown order status', () => {
+      expect(() =>
+        adaptOrderFromLighter({ ...order, status: 'venue-added-state' }, 'BTC'),
+      ).toThrow('Invalid Lighter venue data');
     });
   });
 });

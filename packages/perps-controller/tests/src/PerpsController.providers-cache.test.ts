@@ -860,7 +860,10 @@ describe('PerpsController', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must
       // forward it (the shared platform surface stays venue-agnostic).
-      const mockBridge = { execute: jest.fn() };
+      const mockBridge = {
+        createClient: jest.fn(),
+        execute: jest.fn(),
+      };
       const mockLighterInstance = createMockHyperLiquidProvider();
       const MockLighterConstructor = jest.fn(() => mockLighterInstance);
       controller = new TestablePerpsController({

@@ -529,9 +529,15 @@ function adaptOrderStatus(status: string): Order['status'] {
     case 'canceled-not-enough-liquidity':
     case 'canceled-self-trade':
     case 'canceled-expired':
+    case 'canceled-oco':
+    case 'canceled-child':
+    case 'canceled-liquidation':
+    case 'canceled-invalid-balance':
       return 'canceled';
     default:
-      return 'open';
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} unknown order status '${status}'`,
+      );
   }
 }
 

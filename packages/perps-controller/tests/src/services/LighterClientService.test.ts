@@ -94,6 +94,7 @@ describe('LighterClientService', () => {
           account_index: 28,
           api_key_index: 7,
           nonce: 42,
+          status: 2,
         }),
       );
       const service = buildService();
@@ -131,6 +132,23 @@ describe('LighterClientService', () => {
       await expect(service.getTx('aabbccdd')).rejects.toThrow('rate limited');
       fetchMock.mockRejectedValue(new Error('socket hang up'));
       await expect(service.getTx('aabbccdd')).rejects.toThrow('socket hang up');
+    });
+
+    it('rejects malformed successful transaction payloads', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          hash: 'aabbccdd',
+          account_index: 28,
+          api_key_index: 7,
+          nonce: '42',
+          status: 2,
+        }),
+      );
+
+      await expect(buildService().getTx('aabbccdd')).rejects.toThrow(
+        'invalid response',
+      );
     });
   });
 
@@ -221,6 +239,38 @@ describe('LighterClientService', () => {
       );
     });
 
+    it('rejects malformed successful nonce, account, market, and order payloads', async () => {
+      const service = buildService();
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, nonce: '5' }),
+      );
+      await expect(service.getNextNonce(28, 7)).rejects.toThrow(
+        'invalid response',
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, accounts: [{}] }),
+      );
+      await expect(service.getAccountByIndex(28)).rejects.toThrow(
+        'invalid response',
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, order_books: [{}] }),
+      );
+      await expect(service.getOrderBooks(true)).rejects.toThrow(
+        'invalid response',
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, orders: [{}] }),
+      );
+      await expect(
+        service.getActiveOrders(28, 'auth-token-value'),
+      ).rejects.toThrow('invalid response');
+    });
+
     it('passes the auth token as authorization header for active orders', async () => {
       fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, orders: [] }));
       const service = buildService();
@@ -246,8 +296,15 @@ describe('LighterClientService', () => {
             {
               symbol: 'BTC',
               market_id: 1,
+              market_type: 'perp',
+              status: 'active',
+              taker_fee: '0.0000',
+              maker_fee: '0.0000',
               min_base_amount: '0.00020',
+              min_quote_amount: '10.000000',
               supported_size_decimals: 5,
+              supported_price_decimals: 1,
+              supported_quote_decimals: 6,
             },
           ],
         }),

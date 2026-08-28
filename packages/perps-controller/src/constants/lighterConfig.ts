@@ -118,6 +118,44 @@ export const LIGHTER_TX_TYPE_CREATE_ORDER = 14;
 export const LIGHTER_TX_TYPE_CANCEL_ORDER = 15;
 export const LIGHTER_TX_TYPE_CANCEL_ALL_ORDERS = 16;
 
+/** Documented Lighter transaction status values. */
+export const LIGHTER_TRANSACTION_STATUS = {
+  Failed: 0,
+  Pending: 1,
+  Executed: 2,
+  PendingFinal: 3,
+} as const;
+
+export type LighterTransactionOutcome =
+  | 'failed'
+  | 'pending'
+  | 'executed'
+  | 'pending-final';
+
+/**
+ * Decode the venue transaction status without treating undocumented values
+ * as terminal.
+ *
+ * @param status - Raw status from the transaction endpoint.
+ * @returns The documented outcome, or null for an unknown value.
+ */
+export function getLighterTransactionOutcome(
+  status: unknown,
+): LighterTransactionOutcome | null {
+  switch (status) {
+    case LIGHTER_TRANSACTION_STATUS.Failed:
+      return 'failed';
+    case LIGHTER_TRANSACTION_STATUS.Pending:
+      return 'pending';
+    case LIGHTER_TRANSACTION_STATUS.Executed:
+      return 'executed';
+    case LIGHTER_TRANSACTION_STATUS.PendingFinal:
+      return 'pending-final';
+    default:
+      return null;
+  }
+}
+
 // ============================================================================
 // Order enums (wire values expected by `_signCreateOrder`)
 // ============================================================================
@@ -151,44 +189,6 @@ export const LIGHTER_NO_TRIGGER_PRICE = 0;
 // ============================================================================
 // Signer / key derivation
 // ============================================================================
-
-/**
- * Fixed EIP-191 message signed by the user's L1 account to derive the
- * Lighter venue key seed. The signature (deterministic per RFC 6979) is
- * hashed into the seed, so the same wallet always derives the same venue
- * key — recoverable across devices and compatible with hardware wallets.
- *
- * `{address}`, `{chainId}` and `{apiKeyIndex}` are substituted before
- * signing so a seed is bound to one account, network and key slot.
- */
-export const LIGHTER_KEY_DERIVATION_MESSAGE_TEMPLATE =
-  'MetaMask Perps: derive Lighter API key\n' +
-  'Address: {address}\n' +
-  'Chain ID: {chainId}\n' +
-  'API key index: {apiKeyIndex}\n' +
-  'Only sign this message for a trusted client!';
-
-/**
- * Build the key-derivation message for an account/network/key-slot triple.
- *
- * @param params - Substitution values.
- * @param params.address - L1 address owning the Lighter account.
- * @param params.chainId - zkLighter chain id (binds testnet/mainnet).
- * @param params.apiKeyIndex - API key slot being derived.
- * @returns The message to personal_sign.
- */
-export function buildLighterKeyDerivationMessage(params: {
-  address: string;
-  chainId: number;
-  apiKeyIndex: number;
-}): string {
-  return LIGHTER_KEY_DERIVATION_MESSAGE_TEMPLATE.replace(
-    '{address}',
-    params.address.toLowerCase(),
-  )
-    .replace('{chainId}', String(params.chainId))
-    .replace('{apiKeyIndex}', String(params.apiKeyIndex));
-}
 
 /**
  * Default API key slot used by the MetaMask integration.

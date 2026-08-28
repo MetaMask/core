@@ -398,7 +398,7 @@ export type PerpsRecoveredDispatch = {
   intent: string;
   txHash: string | null;
   outcome: 'succeeded' | 'failed' | 'unknown';
-  /** How the outcome was determined (e.g. `tx-status:3`, `rest-advance`). */
+  /** How the outcome was determined (e.g. `tx-status:2`, `rest-advance`). */
   evidence: string;
 };
 
@@ -1098,8 +1098,13 @@ export type LighterCredentials = {
   /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
   apiKeyIndex?: number;
   /**
-   * Transport for the Lighter Go/WASM signer, provided by the client
-   * (mobile: off-screen WebView bridge; headless: in-process WASM).
+   * Client-owned Lighter signer. The client creates and persists the venue
+   * key behind this bridge; Core receives only signing results and public
+   * registration data, matching the injected-wallet boundary used by
+   * HyperLiquid.
+   *
+   * Mobile uses an off-screen WebView bridge; headless clients may use an
+   * in-process WASM bridge.
    * Optional — without it the Lighter provider is read-only. Lives on the
    * Lighter credentials bag, not PerpsPlatformDependencies, so the shared
    * platform surface stays venue-agnostic.

@@ -2,9 +2,8 @@
  * Lighter Client Service
  *
  * Thin REST client for the zkLighter API. No SDK dependency — endpoints are
- * called with the platform `fetch` global. Response shapes are validated
- * minimally (code field) and returned as typed payloads for the adapter
- * layer.
+ * called with the platform `fetch` global. Each successful endpoint response
+ * is decoded before it reaches provider signing or trading logic.
  *
  * Endpoints used (https://apidocs.lighter.xyz):
  * - GET  /api/v1/orderBooks           market metadata
@@ -16,6 +15,19 @@
  * - GET  /api/v1/accountActiveOrders  open orders (auth token header)
  * - POST /api/v1/sendTx               submit signed L2 transaction
  */
+
+import type { Struct } from '@metamask/superstruct';
+import {
+  array,
+  assert,
+  boolean,
+  define,
+  optional,
+  record,
+  string,
+  type,
+  union,
+} from '@metamask/superstruct';
 
 import {
   getLighterHttpEndpoint,
@@ -48,6 +60,270 @@ import type {
  * Duration market metadata stays cached before a refetch.
  */
 const MARKETS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const FiniteNumberStruct = define<number>('finite number', (value) =>
+  typeof value === 'number' ? Number.isFinite(value) : false,
+);
+const SafeIntegerStruct = define<number>('safe integer', (value) =>
+  typeof value === 'number' ? Number.isSafeInteger(value) : false,
+);
+const NonNegativeIntegerStruct = define<number>(
+  'non-negative safe integer',
+  (value) =>
+    typeof value === 'number'
+      ? Number.isSafeInteger(value) && value >= 0
+      : false,
+);
+const BaseResponseStruct = type({
+  code: SafeIntegerStruct,
+  message: optional(string()),
+});
+const PositionStruct = type({
+  marketId: NonNegativeIntegerStruct,
+  symbol: string(),
+  initialMarginFraction: string(),
+  openOrderCount: NonNegativeIntegerStruct,
+  sign: SafeIntegerStruct,
+  position: string(),
+  avgEntryPrice: string(),
+  positionValue: string(),
+  unrealizedPnl: string(),
+  realizedPnl: string(),
+  liquidationPrice: string(),
+  marginMode: optional(SafeIntegerStruct),
+});
+const AccountStruct = type({
+  code: SafeIntegerStruct,
+  accountType: SafeIntegerStruct,
+  index: NonNegativeIntegerStruct,
+  l1Address: string(),
+  cancelAllTime: NonNegativeIntegerStruct,
+  totalOrderCount: NonNegativeIntegerStruct,
+  pendingOrderCount: NonNegativeIntegerStruct,
+  status: SafeIntegerStruct,
+  collateral: string(),
+  availableBalance: string(),
+  positions: optional(array(PositionStruct)),
+});
+const MarketStruct = type({
+  symbol: string(),
+  marketId: NonNegativeIntegerStruct,
+  marketType: string(),
+  status: string(),
+  takerFee: string(),
+  makerFee: string(),
+  minBaseAmount: string(),
+  minQuoteAmount: string(),
+  supportedSizeDecimals: NonNegativeIntegerStruct,
+  supportedPriceDecimals: NonNegativeIntegerStruct,
+  supportedQuoteDecimals: NonNegativeIntegerStruct,
+});
+const MarketDetailStruct = type({
+  ...MarketStruct.schema,
+  lastTradePrice: FiniteNumberStruct,
+  defaultInitialMarginFraction: optional(FiniteNumberStruct),
+  minInitialMarginFraction: optional(FiniteNumberStruct),
+  maintenanceMarginFraction: optional(FiniteNumberStruct),
+  dailyTradesCount: FiniteNumberStruct,
+  dailyBaseTokenVolume: FiniteNumberStruct,
+  dailyQuoteTokenVolume: FiniteNumberStruct,
+  dailyPriceLow: FiniteNumberStruct,
+  dailyPriceHigh: FiniteNumberStruct,
+  dailyPriceChange: FiniteNumberStruct,
+  openInterest: FiniteNumberStruct,
+  dailyChart: record(string(), FiniteNumberStruct),
+});
+const OrderStruct = type({
+  orderIndex: NonNegativeIntegerStruct,
+  clientOrderIndex: NonNegativeIntegerStruct,
+  marketIndex: NonNegativeIntegerStruct,
+  ownerAccountIndex: NonNegativeIntegerStruct,
+  initialBaseAmount: string(),
+  remainingBaseAmount: string(),
+  price: string(),
+  isAsk: boolean(),
+  type: string(),
+  timeInForce: string(),
+  reduceOnly: union([FiniteNumberStruct, boolean()]),
+  status: string(),
+  orderExpiry: SafeIntegerStruct,
+  timestamp: NonNegativeIntegerStruct,
+  triggerPrice: optional(string()),
+  orderId: optional(string()),
+  parentOrderIndex: optional(NonNegativeIntegerStruct),
+  parentOrderId: optional(string()),
+  toCancelOrderId0: optional(string()),
+  toTriggerOrderId0: optional(string()),
+  toTriggerOrderId1: optional(string()),
+});
+const TradeStruct = type({
+  tradeId: NonNegativeIntegerStruct,
+  type: string(),
+  marketId: NonNegativeIntegerStruct,
+  size: string(),
+  price: string(),
+  askId: NonNegativeIntegerStruct,
+  bidId: NonNegativeIntegerStruct,
+  askAccountId: NonNegativeIntegerStruct,
+  bidAccountId: NonNegativeIntegerStruct,
+  isMakerAsk: optional(boolean()),
+  timestamp: NonNegativeIntegerStruct,
+});
+
+const ResponseStructs = {
+  orderBooks: type({
+    ...BaseResponseStruct.schema,
+    orderBooks: array(MarketStruct),
+  }),
+  orderBookDetails: type({
+    ...BaseResponseStruct.schema,
+    orderBookDetails: array(MarketDetailStruct),
+  }),
+  account: type({
+    ...BaseResponseStruct.schema,
+    accounts: array(AccountStruct),
+  }),
+  accountsByAddress: type({
+    ...BaseResponseStruct.schema,
+    l1Address: string(),
+    subAccounts: array(AccountStruct),
+  }),
+  apiKeys: type({
+    ...BaseResponseStruct.schema,
+    apiKeys: array(
+      type({
+        accountIndex: NonNegativeIntegerStruct,
+        apiKeyIndex: NonNegativeIntegerStruct,
+        nonce: NonNegativeIntegerStruct,
+        publicKey: string(),
+      }),
+    ),
+  }),
+  nextNonce: type({
+    ...BaseResponseStruct.schema,
+    nonce: NonNegativeIntegerStruct,
+  }),
+  transaction: type({
+    ...BaseResponseStruct.schema,
+    hash: string(),
+    accountIndex: NonNegativeIntegerStruct,
+    apiKeyIndex: NonNegativeIntegerStruct,
+    nonce: NonNegativeIntegerStruct,
+    status: SafeIntegerStruct,
+  }),
+  sendTransaction: type({
+    ...BaseResponseStruct.schema,
+    txHash: string(),
+  }),
+  activeOrders: type({
+    ...BaseResponseStruct.schema,
+    orders: array(OrderStruct),
+  }),
+  inactiveOrders: type({
+    ...BaseResponseStruct.schema,
+    nextCursor: optional(string()),
+    orders: array(OrderStruct),
+  }),
+  deposits: type({
+    ...BaseResponseStruct.schema,
+    deposits: array(
+      type({
+        id: string(),
+        assetId: NonNegativeIntegerStruct,
+        amount: string(),
+        timestamp: NonNegativeIntegerStruct,
+        status: string(),
+        l1TxHash: string(),
+      }),
+    ),
+    cursor: optional(string()),
+  }),
+  withdrawals: type({
+    ...BaseResponseStruct.schema,
+    withdraws: array(
+      type({
+        id: string(),
+        assetId: NonNegativeIntegerStruct,
+        amount: string(),
+        timestamp: NonNegativeIntegerStruct,
+        status: string(),
+        type: string(),
+        l1TxHash: string(),
+      }),
+    ),
+    cursor: optional(string()),
+  }),
+  transfers: type({
+    ...BaseResponseStruct.schema,
+    transfers: array(
+      type({
+        id: string(),
+        assetId: NonNegativeIntegerStruct,
+        amount: string(),
+        fee: string(),
+        timestamp: NonNegativeIntegerStruct,
+        type: string(),
+        fromL1Address: string(),
+        toL1Address: string(),
+        fromAccountIndex: NonNegativeIntegerStruct,
+        toAccountIndex: NonNegativeIntegerStruct,
+        txHash: string(),
+      }),
+    ),
+    cursor: optional(string()),
+  }),
+  trades: type({
+    ...BaseResponseStruct.schema,
+    trades: optional(array(TradeStruct)),
+  }),
+  fundings: type({
+    ...BaseResponseStruct.schema,
+    positionFundings: optional(
+      array(
+        type({
+          timestamp: NonNegativeIntegerStruct,
+          marketId: NonNegativeIntegerStruct,
+          fundingId: NonNegativeIntegerStruct,
+          change: string(),
+          rate: string(),
+          positionSize: string(),
+          positionSide: string(),
+        }),
+      ),
+    ),
+  }),
+  pnl: type({
+    ...BaseResponseStruct.schema,
+    resolution: optional(string()),
+    pnl: optional(
+      array(
+        type({
+          timestamp: NonNegativeIntegerStruct,
+          tradePnl: FiniteNumberStruct,
+          inflow: FiniteNumberStruct,
+          outflow: FiniteNumberStruct,
+          volume: FiniteNumberStruct,
+        }),
+      ),
+    ),
+  }),
+  candles: type({
+    ...BaseResponseStruct.schema,
+    r: optional(string()),
+    c: optional(
+      array(
+        type({
+          t: NonNegativeIntegerStruct,
+          o: FiniteNumberStruct,
+          h: FiniteNumberStruct,
+          l: FiniteNumberStruct,
+          c: FiniteNumberStruct,
+          v: FiniteNumberStruct,
+        }),
+      ),
+    ),
+  }),
+} as const;
 
 /**
  * Convert a snake_case wire key to camelCase.
@@ -138,8 +414,10 @@ export class LighterClientService {
       return this.#marketsCache;
     }
 
-    const response =
-      await this.#get<LighterOrderBooksResponse>('/api/v1/orderBooks');
+    const response = await this.#get<LighterOrderBooksResponse>(
+      '/api/v1/orderBooks',
+      ResponseStructs.orderBooks,
+    );
     this.#marketsCache = response.orderBooks;
     this.#marketsCacheTime = now;
     return response.orderBooks;
@@ -153,6 +431,7 @@ export class LighterClientService {
   async getOrderBookDetails(): Promise<LighterOrderBookDetailsResponse> {
     return await this.#get<LighterOrderBookDetailsResponse>(
       '/api/v1/orderBookDetails',
+      ResponseStructs.orderBookDetails,
     );
   }
 
@@ -167,6 +446,7 @@ export class LighterClientService {
   ): Promise<LighterAccountResponse> {
     return await this.#get<LighterAccountResponse>(
       `/api/v1/account?by=index&value=${accountIndex}`,
+      ResponseStructs.account,
     );
   }
 
@@ -181,6 +461,7 @@ export class LighterClientService {
   ): Promise<LighterAccountsByL1AddressResponse> {
     return await this.#get<LighterAccountsByL1AddressResponse>(
       `/api/v1/accountsByL1Address?l1_address=${l1Address}`,
+      ResponseStructs.accountsByAddress,
     );
   }
 
@@ -197,6 +478,7 @@ export class LighterClientService {
   ): Promise<LighterApiKeysResponse> {
     return await this.#get<LighterApiKeysResponse>(
       `/api/v1/apikeys?account_index=${accountIndex}&api_key_index=${apiKeyIndex}`,
+      ResponseStructs.apiKeys,
     );
   }
 
@@ -213,6 +495,7 @@ export class LighterClientService {
   ): Promise<LighterNextNonceResponse> {
     return await this.#get<LighterNextNonceResponse>(
       `/api/v1/nextNonce?account_index=${accountIndex}&api_key_index=${apiKeyIndex}`,
+      ResponseStructs.nextNonce,
     );
   }
 
@@ -233,6 +516,7 @@ export class LighterClientService {
     try {
       return await this.#get<LighterTxLookupResponse>(
         `/api/v1/tx?by=hash&value=${encodeURIComponent(txHash)}`,
+        ResponseStructs.transaction,
       );
     } catch (error) {
       if (error instanceof LighterApiError && error.code === 21500) {
@@ -257,6 +541,7 @@ export class LighterClientService {
   ): Promise<LighterActiveOrdersResponse> {
     return await this.#get<LighterActiveOrdersResponse>(
       `/api/v1/accountActiveOrders?account_index=${accountIndex}&market_id=${marketId}`,
+      ResponseStructs.activeOrders,
       { authorization: authToken },
     );
   }
@@ -284,6 +569,7 @@ export class LighterClientService {
       `/api/v1/accountInactiveOrders?account_index=${accountIndex}&limit=${limit}${
         cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`
       }${marketId === undefined ? '' : `&market_id=${marketId}`}`,
+      ResponseStructs.inactiveOrders,
       { authorization: authToken },
     );
   }
@@ -304,6 +590,7 @@ export class LighterClientService {
   ): Promise<LighterDepositHistoryResponse> {
     return await this.#get<LighterDepositHistoryResponse>(
       `/api/v1/deposit/history?account_index=${accountIndex}&l1_address=${l1Address}`,
+      ResponseStructs.deposits,
       { authorization: authToken },
     );
   }
@@ -321,6 +608,7 @@ export class LighterClientService {
   ): Promise<LighterWithdrawHistoryResponse> {
     return await this.#get<LighterWithdrawHistoryResponse>(
       `/api/v1/withdraw/history?account_index=${accountIndex}`,
+      ResponseStructs.withdrawals,
       { authorization: authToken },
     );
   }
@@ -338,6 +626,7 @@ export class LighterClientService {
   ): Promise<LighterTransferHistoryResponse> {
     return await this.#get<LighterTransferHistoryResponse>(
       `/api/v1/transfer/history?account_index=${accountIndex}`,
+      ResponseStructs.transfers,
       { authorization: authToken },
     );
   }
@@ -357,6 +646,7 @@ export class LighterClientService {
   ): Promise<LighterTradesResponse> {
     return await this.#get<LighterTradesResponse>(
       `/api/v1/trades?sort_by=timestamp&limit=${limit}&account_index=${accountIndex}&market_type=perp`,
+      ResponseStructs.trades,
       { authorization: authToken },
     );
   }
@@ -376,6 +666,7 @@ export class LighterClientService {
   ): Promise<LighterPositionFundingsResponse> {
     return await this.#get<LighterPositionFundingsResponse>(
       `/api/v1/positionFunding?account_index=${accountIndex}&market_id=255&limit=${limit}&sort_by=timestamp&side=all`,
+      ResponseStructs.fundings,
       { authorization: authToken },
     );
   }
@@ -399,6 +690,7 @@ export class LighterClientService {
   ): Promise<LighterPnlResponse> {
     return await this.#get<LighterPnlResponse>(
       `/api/v1/pnl?by=index&value=${accountIndex}&resolution=1d&count_back=${countBack}&start_timestamp=${startTimestamp}&end_timestamp=${endTimestamp}`,
+      ResponseStructs.pnl,
       { authorization: authToken },
     );
   }
@@ -422,6 +714,7 @@ export class LighterClientService {
   ): Promise<LighterCandlesResponse> {
     return await this.#get<LighterCandlesResponse>(
       `/api/v1/candles?market_id=${marketId}&resolution=${resolution}&start_timestamp=${startTimestamp}&end_timestamp=${endTimestamp}&count_back=${countBack}`,
+      ResponseStructs.candles,
     );
   }
 
@@ -445,20 +738,27 @@ export class LighterClientService {
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body: body.toString(),
       },
+      ResponseStructs.sendTransaction,
     );
     return response;
   }
 
   readonly #get = async <Result extends { code: number; message?: string }>(
     path: string,
+    responseStruct: Struct<Result, unknown>,
     headers?: Record<string, string>,
   ): Promise<Result> => {
-    return await this.#request<Result>(path, { method: 'GET', headers });
+    return await this.#request<Result>(
+      path,
+      { method: 'GET', headers },
+      responseStruct,
+    );
   };
 
   readonly #request = async <Result extends { code: number; message?: string }>(
     path: string,
     init: { method: string; headers?: Record<string, string>; body?: string },
+    responseStruct: Struct<Result, unknown>,
   ): Promise<Result> => {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
@@ -475,7 +775,8 @@ export class LighterClientService {
         signal: controller.signal,
       });
 
-      const payload = convertKeysToCamelCase(await response.json()) as Result;
+      const payload: unknown = convertKeysToCamelCase(await response.json());
+      assert(payload, BaseResponseStruct);
 
       // Lighter returns HTTP 200 with an application-level error code, and
       // 4xx/5xx with `{code, message}` bodies — treat both uniformly.
@@ -485,7 +786,15 @@ export class LighterClientService {
           payload.code ?? response.status,
         );
       }
-
+      try {
+        assert(payload, responseStruct);
+      } catch (error) {
+        throw new LighterApiError(
+          `Lighter API invalid response for ${path}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
       return payload;
     } catch (error) {
       if (error instanceof LighterApiError) {

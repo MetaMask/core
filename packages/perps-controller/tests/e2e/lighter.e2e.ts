@@ -8,9 +8,10 @@
  *   yarn workspace @metamask/perps-controller exec tsx tests/e2e/lighter.e2e.ts \
  *     --phase=sign-only|register|order-lifecycle|controller [--out=DIR] [--market=SOL]
  *
- * Optional flags:
- *   --eth-key=0x…        L1 private key (default: lighter-python's PUBLIC
- *                        dummy testnet key — accountIndex 28, funded).
+ * Credentials:
+ *   LIGHTER_E2E_ETH_KEY  L1 private key, supplied through the environment.
+ *   --use-dummy-eth-key  Explicitly use lighter-python's PUBLIC dummy
+ *                        testnet key (accountIndex 28; never use for funds).
  *   --account-index=N    Lighter account index (default 28).
  *   --api-key-index=N    API key slot (default 7).
  *   --wasm-dir=DIR       Cache dir from build-wasm.sh (default
@@ -20,12 +21,12 @@
  * process.exitCode = 1 on failure (advanced-orders e2e conventions).
  */
 
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import {
-  buildLighterKeyDerivationMessage,
   computeLighterMinOrderSize,
   LIGHTER_TESTNET_CHAIN_ID,
 } from '../../src/constants/lighterConfig.js';
@@ -34,11 +35,10 @@ import {
   convertKeysToCamelCase,
   LighterClientService,
 } from '../../src/services/LighterClientService.js';
-import { LighterWalletService } from '../../src/services/LighterWalletService.js';
 import type { PerpsPlatformDependencies } from '../../src/types/index.js';
 import type {
   LighterCreateAuthTokenResult,
-  LighterCreateClientResult,
+  LighterSignerBridge,
   LighterTxResult,
 } from '../../src/types/lighter-types.js';
 import { createNodeWasmBridge } from './lighter/nodeWasmBridge.js';
@@ -74,11 +74,45 @@ const MARKET = args.get('market') ?? 'SOL';
 const WASM_DIR = resolve(
   args.get('wasm-dir') ?? join(REPO_ROOT, 'temp', 'lighter-wasm'),
 );
-const ETH_KEY = (args.get('eth-key') ?? DEFAULT_DUMMY_ETH_KEY) as `0x${string}`;
+if (args.has('eth-key')) {
+  throw new Error(
+    'Do not pass private keys through --eth-key; use LIGHTER_E2E_ETH_KEY',
+  );
+}
+const useDummyEthKey = args.get('use-dummy-eth-key') === 'true';
+// This executable intentionally reads its dedicated credential variable.
+// eslint-disable-next-line n/no-process-env
+const configuredEthKey = process.env.LIGHTER_E2E_ETH_KEY;
+if (configuredEthKey && useDummyEthKey) {
+  throw new Error(
+    'Choose either LIGHTER_E2E_ETH_KEY or --use-dummy-eth-key, not both',
+  );
+}
+if (!configuredEthKey && !useDummyEthKey) {
+  throw new Error(
+    'Lighter e2e credentials missing: set LIGHTER_E2E_ETH_KEY or explicitly pass --use-dummy-eth-key',
+  );
+}
+const ETH_KEY = (configuredEthKey ?? DEFAULT_DUMMY_ETH_KEY) as `0x${string}`;
+const LIGHTER_CLIENT_SEED = createHash('sha256')
+  .update('MetaMask Lighter e2e client key')
+  .update(ETH_KEY)
+  .digest('hex');
 const ACCOUNT_INDEX = Number(args.get('account-index') ?? 28);
 const API_KEY_INDEX = Number(args.get('api-key-index') ?? 7);
 
 const viemAccount = privateKeyToAccount(ETH_KEY);
+
+/**
+ * Create the client-owned signer bridge used by this e2e process.
+ *
+ * @returns The ready signer bridge.
+ */
+async function createE2eSignerBridge(): Promise<LighterSignerBridge> {
+  return await createNodeWasmBridge(WASM_DIR, {
+    clientSeed: LIGHTER_CLIENT_SEED,
+  });
+}
 
 /**
  * Minimal faithful PerpsPlatformDependencies (mirrors the mm-harness core
@@ -197,53 +231,25 @@ async function poll<Value>(
 // ============================================================================
 
 /**
- * Offline signer validation: WASM loads in Node, key derivation is
- * deterministic, ChangePubKey plaintext matches the documented template,
- * auth token and order signatures are produced. No account mutation.
+ * Offline signer validation: WASM loads in Node, the client-injected key is
+ * stable, and auth/order signatures are produced. No account mutation.
  *
  * @param result - Phase result accumulator.
  */
 async function phaseSignOnly(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   check(result, 'wasm loads in node', true);
-
-  const wallet = new LighterWalletService(buildInfrastructure(), {
-    isTestnet: true,
-    personalSigner,
-    l1Address: viemAccount.address,
-  });
-
-  const seedA = await wallet.deriveKeySeedPlain(API_KEY_INDEX);
-  const seedB = await wallet.deriveKeySeedPlain(API_KEY_INDEX);
-  check(
-    result,
-    'seed derivation deterministic (64 hex chars)',
-    seedA === seedB && /^[0-9a-f]{64}$/u.test(seedA),
-  );
-  check(
-    result,
-    'derivation message binds address/chain/slot',
-    buildLighterKeyDerivationMessage({
-      address: viemAccount.address,
-      chainId: LIGHTER_TESTNET_CHAIN_ID,
-      apiKeyIndex: API_KEY_INDEX,
-    }).includes(viemAccount.address.toLowerCase()),
-  );
 
   const client = new LighterClientService(buildInfrastructure(), {
     isTestnet: true,
   });
   const { nonce } = await client.getNextNonce(ACCOUNT_INDEX, API_KEY_INDEX);
 
-  const created = await bridge.execute<LighterCreateClientResult>({
-    function: '_createClient',
-    params: [
-      seedA,
-      LIGHTER_TESTNET_CHAIN_ID,
-      ACCOUNT_INDEX,
-      nonce,
-      API_KEY_INDEX,
-    ],
+  const created = await bridge.createClient({
+    chainId: LIGHTER_TESTNET_CHAIN_ID,
+    accountIndex: ACCOUNT_INDEX,
+    nonce,
+    apiKeyIndex: API_KEY_INDEX,
   });
   check(
     result,
@@ -330,7 +336,7 @@ async function phaseSignOnly(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseRegister(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -353,26 +359,16 @@ async function phaseRegister(result: PhaseResult): Promise<void> {
   );
 
   // Independent read-back: the registered pubkey at our slot must equal the
-  // deterministically derived one.
-  const wallet = new LighterWalletService(buildInfrastructure(), {
-    isTestnet: true,
-    personalSigner,
-    l1Address: viemAccount.address,
-  });
-  const seed = await wallet.deriveKeySeedPlain(API_KEY_INDEX);
+  // client-injected signer key.
   const client = new LighterClientService(buildInfrastructure(), {
     isTestnet: true,
   });
   const { nonce } = await client.getNextNonce(ACCOUNT_INDEX, API_KEY_INDEX);
-  const created = await bridge.execute<LighterCreateClientResult>({
-    function: '_createClient',
-    params: [
-      seed,
-      LIGHTER_TESTNET_CHAIN_ID,
-      ACCOUNT_INDEX,
-      nonce,
-      API_KEY_INDEX,
-    ],
+  const created = await bridge.createClient({
+    chainId: LIGHTER_TESTNET_CHAIN_ID,
+    accountIndex: ACCOUNT_INDEX,
+    nonce,
+    apiKeyIndex: API_KEY_INDEX,
   });
 
   const keys = await poll(
@@ -406,7 +402,7 @@ async function phaseRegister(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseOrderLifecycle(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -792,7 +788,7 @@ async function phasePositionsStream(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseOrdersStream(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -963,7 +959,7 @@ async function phaseCandles(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseClosePosition(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -1178,7 +1174,7 @@ async function phaseCandlesStream(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseEditOrder(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -1292,26 +1288,16 @@ async function phaseEditOrder(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseWithdrawSign(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
-  const wallet = new LighterWalletService(buildInfrastructure(), {
-    isTestnet: true,
-    personalSigner,
-    l1Address: viemAccount.address,
-  });
-  const seed = await wallet.deriveKeySeedPlain(API_KEY_INDEX);
+  const bridge = await createE2eSignerBridge();
   const client = new LighterClientService(buildInfrastructure(), {
     isTestnet: true,
   });
   const { nonce } = await client.getNextNonce(ACCOUNT_INDEX, API_KEY_INDEX);
-  const created = await bridge.execute<LighterCreateClientResult>({
-    function: '_createClient',
-    params: [
-      seed,
-      LIGHTER_TESTNET_CHAIN_ID,
-      ACCOUNT_INDEX,
-      nonce,
-      API_KEY_INDEX,
-    ],
+  const created = await bridge.createClient({
+    chainId: LIGHTER_TESTNET_CHAIN_ID,
+    accountIndex: ACCOUNT_INDEX,
+    nonce,
+    apiKeyIndex: API_KEY_INDEX,
   });
   check(
     result,
@@ -1407,7 +1393,7 @@ async function phaseMainnetReads(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseHistoryReads(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -1458,7 +1444,7 @@ async function phaseHistoryReads(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseParityHistory(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -1635,7 +1621,7 @@ async function phaseConnectionState(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseTpsl(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),
@@ -1891,7 +1877,7 @@ async function phaseTpsl(result: PhaseResult): Promise<void> {
  * @param result - Phase result accumulator.
  */
 async function phaseMarginLeverage(result: PhaseResult): Promise<void> {
-  const bridge = await createNodeWasmBridge(WASM_DIR);
+  const bridge = await createE2eSignerBridge();
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: buildInfrastructure(),

@@ -494,8 +494,6 @@ export {
   LIGHTER_ENDPOINTS,
   getLighterHttpEndpoint,
   LIGHTER_DEFAULT_API_KEY_INDEX,
-  LIGHTER_KEY_DERIVATION_MESSAGE_TEMPLATE,
-  buildLighterKeyDerivationMessage,
   LIGHTER_HTTP_TIMEOUT_MS,
   LIGHTER_PRICE_POLLING_INTERVAL_MS,
   LIGHTER_MAX_LEVERAGE,
@@ -505,6 +503,7 @@ export {
 } from './constants/index.js';
 export type {
   LighterNetwork,
+  LighterCreateClientParams,
   LighterSignerBridge,
   LighterWebSocketCtor,
   LighterWebSocketLike,
