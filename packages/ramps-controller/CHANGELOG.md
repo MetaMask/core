@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `clientProduct` and `clientVersion` constructor options on `RampsService` and `TransakService`, sent on every on-ramp API fetch as `clientProduct` / `clientVersion` query params so the API can evaluate version-gated feature flags per client. Identity travels in the URL (not headers) because the on-ramp CDN cache key is the URL. Also exports the `RampsClientIdentity` type, the `addRampsClientIdentityParams` helper, and the param name constants. ([#9983](https://github.com/MetaMask/core/pull/9983))
+
 ## [20.1.0]
 
 ### Added
