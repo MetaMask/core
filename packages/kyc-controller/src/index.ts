@@ -64,7 +64,7 @@ export type {
   KycServiceCreateJourneyAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
-  KycServiceFetchDisclaimersAction,
+  KycServiceFetchVendorDisclaimersAction,
   KycServiceFetchIdosEnclaveJwksAction,
   KycServiceFetchIdosRelayJwksAction,
   KycServiceFetchKycStatusAction,

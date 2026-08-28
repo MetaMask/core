@@ -986,7 +986,7 @@ export class KycController extends BaseController<
         });
       }
       const disclaimers = await this.messenger.call(
-        'KycService:fetchDisclaimers',
+        'KycService:fetchVendorDisclaimers',
         {
           vendor: this.state.activeVendor,
           country,

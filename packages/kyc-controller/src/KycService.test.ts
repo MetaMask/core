@@ -31,7 +31,7 @@ describe('KycService', () => {
         .reply(200, disclaimers);
       const { service } = getService({ omitFetch: true });
 
-      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
+      expect(await service.fetchVendorDisclaimers({ country: 'USA' })).toStrictEqual(
         disclaimers,
       );
     });
@@ -102,7 +102,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchDisclaimers', () => {
+  describe('fetchVendorDisclaimers', () => {
     it('returns the disclaimers for a country', async () => {
       const disclaimers = [
         { id: '1', display_name: 'Terms', url: 'https://t' },
@@ -113,7 +113,7 @@ describe('KycService', () => {
         .reply(200, disclaimers);
       const { service } = getService();
 
-      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
+      expect(await service.fetchVendorDisclaimers({ country: 'USA' })).toStrictEqual(
         disclaimers,
       );
     });
@@ -126,14 +126,14 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
+        service.fetchVendorDisclaimers({ country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
     it('throws when no bearer token is available', async () => {
       const { service } = getService({ bearerToken: '' });
       await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
+        service.fetchVendorDisclaimers({ country: 'USA' }),
       ).rejects.toThrow(/Unable to obtain an authentication bearer token/u);
     });
 
@@ -145,7 +145,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimers({ country: 'USA' }),
+        service.fetchVendorDisclaimers({ country: 'USA' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
@@ -672,7 +672,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchDisclaimers for a non-MoonPay vendor', () => {
+  describe('fetchVendorDisclaimers for a non-MoonPay vendor', () => {
     it('returns Iron disclaimers for a country', async () => {
       const disclaimers = [
         { id: '1', display_name: 'Iron Terms', url: 'https://t' },
@@ -684,7 +684,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchDisclaimers({ vendor: 'iron', country: 'USA' }),
+        await service.fetchVendorDisclaimers({ vendor: 'iron', country: 'USA' }),
       ).toStrictEqual(disclaimers);
     });
 
@@ -696,7 +696,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimers({ vendor: 'iron', country: 'USA' }),
+        service.fetchVendorDisclaimers({ vendor: 'iron', country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
   });
@@ -983,7 +983,7 @@ describe('KycService', () => {
         .reply(200, disclaimers);
       const { service } = getService({ baseUrl: customUrl });
 
-      expect(await service.fetchDisclaimers({ country: 'USA' })).toStrictEqual(
+      expect(await service.fetchVendorDisclaimers({ country: 'USA' })).toStrictEqual(
         disclaimers,
       );
     });
@@ -1004,7 +1004,7 @@ describe('KycService', () => {
       const { rootMessenger } = getService();
 
       expect(
-        await rootMessenger.call('KycService:fetchDisclaimers', {
+        await rootMessenger.call('KycService:fetchVendorDisclaimers', {
           country: 'USA',
         }),
       ).toStrictEqual([]);

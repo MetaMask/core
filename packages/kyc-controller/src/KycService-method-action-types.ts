@@ -26,9 +26,9 @@ export type KycServiceGetGeoCountryAction = {
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
-export type KycServiceFetchDisclaimersAction = {
-  type: `KycService:fetchDisclaimers`;
-  handler: KycService['fetchDisclaimers'];
+export type KycServiceFetchVendorDisclaimersAction = {
+  type: `KycService:fetchVendorDisclaimers`;
+  handler: KycService['fetchVendorDisclaimers'];
 };
 
 /**
@@ -90,7 +90,7 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 /**
  * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
  * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
- * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+ * session; vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.
  * @param params.sessionId - The UKYC session id.
@@ -218,7 +218,7 @@ export type KycServiceGetSessionStatusAction = {
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
-  | KycServiceFetchDisclaimersAction
+  | KycServiceFetchVendorDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction

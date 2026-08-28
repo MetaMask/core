@@ -121,7 +121,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`getGeoCountry`, `fetchDisclaimers`, `createSession`, `checkKycRequired`,
+`getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimers`, `submitSessionDisclaimers`,
 `fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
 `createJourney`, `getSessionStatus`.
@@ -131,7 +131,7 @@ Endpoints:
 | Method                     | HTTP   | Endpoint                                     | Purpose                                                                                |
 | -------------------------- | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `getGeoCountry`            | —      | (geolocation action)                         | Resolve alpha-3 country                                                                |
-| `fetchDisclaimers`         | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
+| `fetchVendorDisclaimers`         | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
 | `createSession`            | `POST` | `/vendors/moonpay/sessions`                  | Create MoonPay vendor session                                                          |
 | `checkKycRequired`         | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
 | `createVendorCustomer`     | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
@@ -342,7 +342,7 @@ sequenceDiagram
     Ctrl->>Svc: getGeoCountry()
     Svc->>Geo: getGeolocation()
     Note over Svc: map alpha-2 → alpha-3 locally
-    Ctrl->>Svc: fetchDisclaimers({ country })
+    Ctrl->>Svc: fetchVendorDisclaimers({ country })
     Svc->>API: GET /disclaimers
     Ctrl-->>UI: phase = terms (+ disclaimers)
 
