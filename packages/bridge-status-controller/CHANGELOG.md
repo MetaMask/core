@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [75.4.0]
 
+### Added
+
+- Preserve explicit slippage intent and normalized slippage limits in post-submission Unified SwapBridge metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^80.0.0` to `^80.1.0` ([#10002](https://github.com/MetaMask/core/pull/10002))
-
-### Fixed
-
-- Preserve explicit slippage intent and normalized slippage limits in post-submission Unified SwapBridge metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
 
 ## [75.3.0]
 
