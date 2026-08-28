@@ -6021,7 +6021,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const rawStatuses = result.response?.data?.statuses;
     const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
-    const outcomes = statuses.slice(0, count).map(parseScaleBulkOrderStatus);
+    const outcomes = Array.from({ length: count }, (_unused, index) =>
+      parseScaleBulkOrderStatus(statuses[index]),
+    );
     const acceptedCount = outcomes.filter(
       (outcome) => outcome?.kind === 'accepted',
     ).length;
@@ -6045,6 +6047,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       rung.outcome.state === 'waitingForTrigger'
         ? [rung.clientOrderId]
         : [],
+    );
+    const cleanupClientOrderIds = outcomes.flatMap((outcome, index) =>
+      outcome?.kind === 'error' || outcome?.state === 'resting'
+        ? []
+        : [clientOrderIds[index]],
     );
     const acceptedChildren: ScaleOrderChild[] = acceptedRungs.map(
       ({ outcome }) =>
@@ -6098,7 +6105,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       orderId: groupId,
       ...acceptedResult,
     });
-    const cancelAcceptedOrders = async (): Promise<{
+    const cancelNonRejectedOrders = async (): Promise<{
       orderIds: string[];
       clientOrderIds: Hex[];
     }> => {
@@ -6112,7 +6119,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         ),
         this.#cancelOrderCloidRequests(
           exchangeClient,
-          waitingClientOrderIds.map((clientOrderId) => ({
+          cleanupClientOrderIds.map((clientOrderId) => ({
             asset: assetId,
             cloid: clientOrderId,
           })),
@@ -6125,7 +6132,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     };
 
     if (generation !== this.#strategyGeneration) {
-      const remaining = await cancelAcceptedOrders();
+      const remaining = await cancelNonRejectedOrders();
       if (
         remaining.orderIds.length > 0 ||
         remaining.clientOrderIds.length > 0
@@ -6180,7 +6187,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
         return buildAcceptedResult();
       }
-      const remaining = await cancelAcceptedOrders();
+      const remaining = await cancelNonRejectedOrders();
       if (
         remaining.orderIds.length > 0 ||
         remaining.clientOrderIds.length > 0

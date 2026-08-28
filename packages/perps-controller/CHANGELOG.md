@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve every accepted HyperLiquid Scale rung after a partial batch rejection, including `waitingForFill` and `waitingForTrigger` statuses and responses wrapped in `ApiRequestError`; keep `childOrderIds` limited to resting orders, expose each accepted status through `acceptedChildren`, distinguish `acceptedSize` from the full `submittedSize`, and report `weightedAverageLimitPrice` separately from the fill-weighted `averagePrice` ([#9989](https://github.com/MetaMask/core/pull/9989))
+- Preserve every accepted HyperLiquid Scale rung after a partial batch rejection, including `waitingForFill` and `waitingForTrigger` statuses and responses wrapped in `ApiRequestError`; cancel unclassified rungs by client order ID before returning failure; keep `childOrderIds` limited to resting orders; expose each accepted status through `acceptedChildren`; distinguish `acceptedSize` from the full `submittedSize`; and report `weightedAverageLimitPrice` separately from the fill-weighted `averagePrice` ([#9989](https://github.com/MetaMask/core/pull/9989))
 
 ## [13.1.0]
 
