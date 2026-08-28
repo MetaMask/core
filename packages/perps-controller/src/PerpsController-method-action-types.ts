@@ -991,6 +991,7 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.limitPrice - The limit price.
  * @param config.orderType - The order type.
  * @param config.reduceOnly - Whether the order may only reduce a position.
+ * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
