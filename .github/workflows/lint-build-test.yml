@@ -78,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         node-version: [24.x]
         script:
@@ -152,6 +153,7 @@ jobs:
     if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         node-version: [24.x]
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
@@ -273,6 +275,7 @@ jobs:
     if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
@@ -299,6 +302,7 @@ jobs:
     if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
