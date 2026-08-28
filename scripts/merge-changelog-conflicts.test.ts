@@ -26,7 +26,7 @@ describe('merge-changelog-conflicts', () => {
     await main();
 
     expect(console.log).toHaveBeenCalledWith(
-      'No conflicted CHANGELOG.md files found.',
+      'No CHANGELOG.md files with conflicts found.',
     );
     expect(process.exitCode).toBe(0);
   });
