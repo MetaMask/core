@@ -5,10 +5,12 @@ import type {
   LighterOrderBookDetail,
   LighterOrderBookMeta,
   LighterSubAccount,
+  LighterWsUserStats,
 } from '../../../src/types/lighter-types.js';
 import {
   adaptFillFromLighterTrade,
   adaptAccountStateFromLighter,
+  adaptAccountStateFromLighterUserStats,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
   adaptOrderFromLighter,
@@ -255,6 +257,48 @@ describe('lighterAdapter', () => {
       });
       expect(state.unrealizedPnl).toBe('0');
       expect(state.totalBalance).toBe('10000');
+    });
+
+    it.each([
+      ['collateral', { collateral: '10000USD' }],
+      ['available balance', { availableBalance: '8000oops' }],
+      [
+        'position unrealized PnL',
+        {
+          positions: [{ ...account.positions?.[0], unrealizedPnl: '500oops' }],
+        },
+      ],
+    ])(
+      'rejects malformed REST %s instead of prefix-parsing it',
+      (_label, overrides) => {
+        expect(() =>
+          adaptAccountStateFromLighter({
+            ...account,
+            ...overrides,
+          } as LighterSubAccount),
+        ).toThrow('Invalid Lighter venue data');
+      },
+    );
+  });
+
+  describe('adaptAccountStateFromLighterUserStats', () => {
+    const stats: LighterWsUserStats = {
+      collateral: '10000',
+      portfolioValue: '11000',
+      leverage: '2',
+      availableBalance: '6000',
+      marginUsage: '40',
+      buyingPower: '0',
+    };
+
+    it.each([
+      ['collateral', { collateral: '10000USD' }],
+      ['available balance', { availableBalance: '6000oops' }],
+      ['portfolio value', { portfolioValue: '11000oops' }],
+    ])('rejects malformed WebSocket %s', (_label, overrides) => {
+      expect(() =>
+        adaptAccountStateFromLighterUserStats({ ...stats, ...overrides }),
+      ).toThrow('Invalid Lighter venue data');
     });
   });
 

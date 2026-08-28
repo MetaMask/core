@@ -32,6 +32,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  PerpsProviderType,
   TerminalAssetMetadata,
 } from '../types/index.js';
 import type { CandleData } from '../types/perps-types.js';
@@ -714,7 +715,7 @@ export class MarketDataService {
    * Get available markets
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
    * When `useTerminalApi` is true, attempts the Terminal API first; on failure or empty
-   * response, falls back silently to the HyperLiquid provider path.
+   * response, falls back silently to the provider path.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
@@ -738,9 +739,7 @@ export class MarketDataService {
     // would hand the UI the wrong venue's trading rules — found on
     // device as a Lighter order form defaulting below the venue floor.
     const useTerminalApi =
-      params?.useTerminalApi &&
-      (provider.protocolId === 'hyperliquid' ||
-        provider.protocolId === 'aggregated');
+      params?.useTerminalApi && provider.protocolId === 'hyperliquid';
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -898,7 +897,10 @@ export class MarketDataService {
   }): Promise<PerpsMarketData[]> {
     const { provider, params, context } = options;
     const { globalSnapshot } = context;
-    const useTerminalApi = params?.useTerminalApi;
+    // Legacy Terminal metadata is HyperLiquid-specific. Aggregated and
+    // direct non-HyperLiquid results must retain their own venue metadata.
+    const useTerminalApi =
+      params?.useTerminalApi && provider.protocolId === 'hyperliquid';
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -1253,18 +1255,22 @@ export class MarketDataService {
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.asset - The asset identifier.
+   * @param options.providerId - Optional route for an aggregated provider.
    * @param options.context - The service context for dependencies.
    * @returns The result of the operation.
    */
   async getMaxLeverage(options: {
     provider: PerpsProvider;
     asset: string;
+    providerId?: PerpsProviderType;
     context: ServiceContext;
   }): Promise<number> {
-    const { provider, asset } = options;
+    const { provider, asset, providerId } = options;
 
     try {
-      return await provider.getMaxLeverage(asset);
+      return providerId === undefined
+        ? await provider.getMaxLeverage(asset)
+        : await provider.getMaxLeverage(asset, providerId);
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.getMaxLeverage'),

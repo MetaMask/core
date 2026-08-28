@@ -781,6 +781,20 @@ describe('MarketDataService', () => {
       expect(mockProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
     });
 
+    it('forwards an explicit provider route', async () => {
+      mockProvider.getMaxLeverage.mockResolvedValue(17);
+
+      const result = await marketDataService.getMaxLeverage({
+        provider: mockProvider,
+        asset: 'BTC',
+        providerId: 'myx',
+        context: mockContext,
+      });
+
+      expect(result).toBe(17);
+      expect(mockProvider.getMaxLeverage).toHaveBeenCalledWith('BTC', 'myx');
+    });
+
     it('handles max leverage errors', async () => {
       const mockError = new Error('Asset not found');
       mockProvider.getMaxLeverage.mockRejectedValue(mockError);
@@ -1376,6 +1390,40 @@ describe('MarketDataService', () => {
         expect(lighterProvider.getMarkets).toHaveBeenCalled();
       });
 
+      it('preserves aggregated provider markets instead of replacing them with HyperLiquid-only Terminal data', async () => {
+        const providerMarkets: MarketInfo[] = [
+          {
+            name: 'BTC',
+            szDecimals: 5,
+            maxLeverage: 50,
+            marginTableId: 0,
+            providerId: 'hyperliquid',
+          },
+          {
+            name: 'ETH',
+            szDecimals: 4,
+            maxLeverage: 25,
+            marginTableId: 0,
+            providerId: 'lighter',
+          },
+        ];
+        const aggregatedProvider = {
+          ...mockProvider,
+          protocolId: 'aggregated',
+          getMarkets: jest.fn().mockResolvedValue(providerMarkets),
+        };
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: aggregatedProvider as unknown as typeof mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(aggregatedProvider.getMarkets).toHaveBeenCalled();
+      });
+
       it('falls back to provider when symbol filter yields no terminal matches', async () => {
         mockTerminalService.fetchMarkets.mockResolvedValue({
           markets: terminalMarkets,
@@ -1788,6 +1836,39 @@ describe('MarketDataService', () => {
 
         expect(result[0]?.name).toBe('BTC');
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('does not enrich aggregated market data with HyperLiquid-only Terminal metadata', async () => {
+        const aggregatedMarketData: PerpsMarketData[] = [
+          ...providerMarketData,
+          {
+            symbol: 'SOL',
+            name: 'SOL',
+            maxLeverage: '20x',
+            price: '$100.00',
+            change24h: '+$1.00',
+            change24hPercent: '+1.00%',
+            volume: '$500000',
+            providerId: 'lighter',
+          },
+        ];
+        const aggregatedProvider = {
+          ...mockProvider,
+          protocolId: 'aggregated',
+          getMarketDataWithPrices: jest
+            .fn()
+            .mockResolvedValue(aggregatedMarketData),
+        };
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: aggregatedProvider as unknown as typeof mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result).toEqual(aggregatedMarketData);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(aggregatedProvider.getMarketDataWithPrices).toHaveBeenCalled();
       });
 
       it('merges listedAt from terminal metadata onto market data', async () => {

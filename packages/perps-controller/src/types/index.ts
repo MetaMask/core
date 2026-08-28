@@ -1405,11 +1405,15 @@ export type LiquidationPriceParams = {
   positionSize?: number; // Optional: for more accurate calculations
   marginType?: 'isolated' | 'cross'; // Optional: defaults to isolated
   asset?: string; // Optional: for asset-specific maintenance margins
+  /** Provider that owns the position when calculations are aggregated. */
+  providerId?: PerpsProviderType;
 };
 
 export type MaintenanceMarginParams = {
   asset: string;
   positionSize?: number; // Optional: for tiered margin systems
+  /** Provider that owns the position when calculations are aggregated. */
+  providerId?: PerpsProviderType;
 };
 
 /**
@@ -1812,7 +1816,10 @@ export type PerpsProvider = {
   // Protocol-specific calculations
   calculateLiquidationPrice(params: LiquidationPriceParams): Promise<string>;
   calculateMaintenanceMargin(params: MaintenanceMarginParams): Promise<number>;
-  getMaxLeverage(asset: string): Promise<number>;
+  getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number>;
   calculateFees(params: FeeCalculationParams): Promise<FeeCalculationResult>;
 
   // Live data subscriptions → Direct UI (NO Redux, maximum speed)

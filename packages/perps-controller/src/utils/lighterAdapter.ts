@@ -43,6 +43,25 @@ import type {
 } from '../types/lighter-types.js';
 
 /**
+ * Parse an account-state number at the untrusted venue boundary. Account
+ * balances feed trading availability and must never accept prefix parses or
+ * propagate NaN/Infinity into canonical state.
+ *
+ * @param value - Raw venue decimal string.
+ * @param field - Field identity for the integrity error.
+ * @returns A finite, fully parsed number.
+ */
+function parseStrictAccountDecimal(value: string, field: string): number {
+  const parsed = parseLighterStrictDecimal(value);
+  if (parsed === null || !Number.isFinite(parsed)) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} ${field} '${String(value)}'`,
+    );
+  }
+  return parsed;
+}
+
+/**
  * Format a price change value with sign prefix.
  *
  * @param change - The price change value to format.
@@ -189,9 +208,18 @@ export function adaptPriceUpdateFromLighterWsStat(
 export function adaptAccountStateFromLighterUserStats(
   stats: LighterWsUserStats,
 ): AccountState {
-  const collateral = parseFloat(stats.collateral || '0');
-  const available = parseFloat(stats.availableBalance || '0');
-  const portfolioValue = parseFloat(stats.portfolioValue || '0');
+  const collateral = parseStrictAccountDecimal(
+    stats.collateral,
+    'WebSocket collateral',
+  );
+  const available = parseStrictAccountDecimal(
+    stats.availableBalance,
+    'WebSocket available balance',
+  );
+  const portfolioValue = parseStrictAccountDecimal(
+    stats.portfolioValue,
+    'WebSocket portfolio value',
+  );
   return {
     totalBalance: String(portfolioValue),
     spendableBalance: String(available),
@@ -440,11 +468,22 @@ export function adaptPositionFromLighter(
 export function adaptAccountStateFromLighter(
   account: LighterSubAccount,
 ): AccountState {
-  const collateral = parseFloat(account.collateral || '0');
-  const available = parseFloat(account.availableBalance || '0');
+  const collateral = parseStrictAccountDecimal(
+    account.collateral,
+    'REST collateral',
+  );
+  const available = parseStrictAccountDecimal(
+    account.availableBalance,
+    'REST available balance',
+  );
   const positions = account.positions ?? [];
   const unrealizedPnl = positions.reduce(
-    (sum, position) => sum + parseFloat(position.unrealizedPnl || '0'),
+    (sum, position) =>
+      sum +
+      parseStrictAccountDecimal(
+        position.unrealizedPnl,
+        `REST unrealized PnL for ${position.symbol}`,
+      ),
     0,
   );
   const marginUsed = Math.max(collateral - available, 0);

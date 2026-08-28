@@ -482,6 +482,10 @@ type TpslManualRecovery = {
  * transaction hash is declared never-landed.
  */
 const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
+/** Maximum durable recovered-dispatch outcomes retained per nonce ledger. */
+const LIGHTER_RECOVERED_DISPATCH_LIMIT = 32;
+/** Maximum durable TP/SL manual-recovery obligations retained per network. */
+const LIGHTER_TPSL_MANUAL_RECOVERY_LIMIT = 64;
 
 /**
  * Extract the signed txHash and ExpiredAt from a bridge signing result,
@@ -1583,14 +1587,14 @@ export class LighterProvider implements PerpsProvider {
           );
         })
       ) {
-        // STRICT bounded validation of the recovered list; malformed
-        // rows are dropped (they are observability records, never nonce
-        // state), and the list is capped.
-        const recoveredRaw = Array.isArray(parsed.recovered)
-          ? parsed.recovered
-          : [];
-        const recovered = recoveredRaw
-          .filter((row): row is LighterRecoveredDispatch => {
+        // v4 recovered outcomes are safety state: silently dropping a
+        // malformed or overflow row could make a completed/unknown
+        // financial intent retryable. Older schemas predate the list.
+        const recoveredRaw = parsed.version === 4 ? parsed.recovered : [];
+        if (
+          !Array.isArray(recoveredRaw) ||
+          recoveredRaw.length > LIGHTER_RECOVERED_DISPATCH_LIMIT ||
+          !recoveredRaw.every((row): row is LighterRecoveredDispatch => {
             if (typeof row !== 'object' || row === null) {
               return false;
             }
@@ -1610,7 +1614,10 @@ export class LighterProvider implements PerpsProvider {
               typeof candidate.evidence === 'string'
             );
           })
-          .slice(0, 32);
+        ) {
+          throw new Error('Malformed recovered-dispatch safety state');
+        }
+        const recovered = recoveredRaw;
         return {
           consumedFloor,
           entries: (
@@ -1689,6 +1696,45 @@ export class LighterProvider implements PerpsProvider {
     await withProcessMutex(this.#nonceLedgerKey(accountIndex), operation);
 
   /**
+   * Append a recovered dispatch without ever sacrificing a blocking
+   * succeeded/unknown outcome to bounded storage. Retry-safe failures may
+   * be omitted at capacity; a blocking outcome may replace one such row.
+   * If every retained row is already blocking, fail before persistence so
+   * the original unresolved ledger entry remains authoritative.
+   *
+   * @param doc - Mutable nonce ledger document held under its mutex.
+   * @param outcome - Recovered dispatch to retain when safety requires it.
+   */
+  readonly #appendRecoveredDispatch = (
+    doc: LighterNonceLedgerDoc,
+    outcome: LighterRecoveredDispatch,
+  ): void => {
+    if (
+      doc.recovered.some(
+        (candidate) => candidate.recoveryId === outcome.recoveryId,
+      )
+    ) {
+      return;
+    }
+    if (doc.recovered.length < LIGHTER_RECOVERED_DISPATCH_LIMIT) {
+      doc.recovered.push(outcome);
+      return;
+    }
+    if (outcome.outcome === 'failed') {
+      return;
+    }
+    const failedIndex = doc.recovered.findIndex(
+      (candidate) => candidate.outcome === 'failed',
+    );
+    if (failedIndex < 0) {
+      throw new Error(
+        'Lighter recovered-dispatch ledger is full of unresolved blocking outcomes; refusing to discard the current dispatch',
+      );
+    }
+    doc.recovered.splice(failedIndex, 1, outcome);
+  };
+
+  /**
    * ATOMIC post-dispatch entry transition, decided by the session fence
    * BEFORE any ledger mutation: fence passed → the entry is consumed and
    * removed (watermark advances); fence failed → the entry converts to a
@@ -1723,21 +1769,14 @@ export class LighterProvider implements PerpsProvider {
       doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
       if (fenceFailed && entry.owner === null) {
         const recoveryId = `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`;
-        if (
-          !doc.recovered.some((outcome) => outcome.recoveryId === recoveryId)
-        ) {
-          doc.recovered = [
-            ...doc.recovered,
-            {
-              recoveryId,
-              kind: entry.kind,
-              intent: entry.intent,
-              txHash: entry.txHash,
-              outcome: 'succeeded' as const,
-              evidence: 'post-dispatch-session-cancelled',
-            },
-          ].slice(0, 32);
-        }
+        this.#appendRecoveredDispatch(doc, {
+          recoveryId,
+          kind: entry.kind,
+          intent: entry.intent,
+          txHash: entry.txHash,
+          outcome: 'succeeded',
+          evidence: 'post-dispatch-session-cancelled',
+        });
       }
       await this.#writeNonceLedger(accountIndex, doc);
     });
@@ -1810,7 +1849,7 @@ export class LighterProvider implements PerpsProvider {
       if (entry.owner !== null) {
         return;
       }
-      doc.recovered.push({
+      this.#appendRecoveredDispatch(doc, {
         recoveryId: `${String(entry.nonce)}:${entry.txHash ?? 'nohash'}`,
         kind: entry.kind,
         intent: entry.intent,
@@ -2463,16 +2502,24 @@ export class LighterProvider implements PerpsProvider {
   readonly #writeTpslManualRecovery = async (
     doc: TpslManualRecovery,
   ): Promise<void> => {
-    await this.#deps.diskCache.setItem(
-      this.#tpslManualKey(doc.settlementKey),
-      JSON.stringify({ version: 1, ...doc }),
-    );
     await withStorageMutex(this.#tpslManualIndexKey(), async () => {
       const index = await this.#readTpslManualIndex();
+      if (
+        !index.includes(doc.settlementKey) &&
+        index.length >= LIGHTER_TPSL_MANUAL_RECOVERY_LIMIT
+      ) {
+        throw new Error(
+          'Lighter TP/SL manual-recovery index is full; refusing to hide a new recovery obligation',
+        );
+      }
+      await this.#deps.diskCache.setItem(
+        this.#tpslManualKey(doc.settlementKey),
+        JSON.stringify({ version: 1, ...doc }),
+      );
       if (!index.includes(doc.settlementKey)) {
         await this.#deps.diskCache.setItem(
           this.#tpslManualIndexKey(),
-          JSON.stringify([...index, doc.settlementKey].slice(0, 64)),
+          JSON.stringify([...index, doc.settlementKey]),
         );
       }
     });
@@ -2539,9 +2586,9 @@ export class LighterProvider implements PerpsProvider {
   readonly #clearTpslManualRecovery = async (
     settlementKey: string,
   ): Promise<void> => {
-    await this.#deps.diskCache.removeItem(this.#tpslManualKey(settlementKey));
     await withStorageMutex(this.#tpslManualIndexKey(), async () => {
       const index = await this.#readTpslManualIndex();
+      await this.#deps.diskCache.removeItem(this.#tpslManualKey(settlementKey));
       if (index.includes(settlementKey)) {
         await this.#deps.diskCache.setItem(
           this.#tpslManualIndexKey(),
@@ -4592,8 +4639,12 @@ export class LighterProvider implements PerpsProvider {
       }
       return adaptAccountStateFromLighter(account);
     } catch (caughtError) {
-      if (this.#isUnsupportedCapabilityError(caughtError)) {
-        // Capability gates must surface, never degrade into empty state.
+      if (
+        this.#isUnsupportedCapabilityError(caughtError) ||
+        this.#isDataIntegrityError(caughtError)
+      ) {
+        // Capability gates and venue-data integrity failures must surface,
+        // never degrade into empty state that can preserve stale views.
         throw caughtError;
       }
       const wrappedError = ensureError(
@@ -4952,14 +5003,13 @@ export class LighterProvider implements PerpsProvider {
       const sizeInt = toSignerWireInteger(size, market.supportedSizeDecimals);
 
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
-      // The app manages ISOLATED positions only (there is no cross-margin
-      // management UI, and small cross positions report no liquidation
-      // price), so a flat market opens isolated. The venue refuses
-      // changing the mode of a market with an open position, so an
-      // existing position keeps whatever mode it already has.
+      // Margin mode is sent only with an explicit leverage update. An
+      // omitted leverage leaves both leverage and margin mode unchanged;
+      // an explicit update preserves an existing position's venue mode and
+      // uses isolated only for a flat market.
       const leverageMarginMode =
         leverageImfHundredths === null
-          ? LIGHTER_MARGIN_MODE_ISOLATED
+          ? null
           : await this.#resolveMarginModeForSymbol(params.symbol);
 
       // Intent validated — only now do signer and account setup run.
@@ -4978,7 +5028,7 @@ export class LighterProvider implements PerpsProvider {
       const result = await this.#withVenueWriteLock(
         accountIndex,
         async (nextNonce, submit) => {
-          if (leverageImfHundredths !== null) {
+          if (leverageImfHundredths !== null && leverageMarginMode !== null) {
             const signedLeverage =
               await this.#getSignerBridge().execute<LighterTxResult>({
                 function: '_signUpdateLeverage',
@@ -5433,6 +5483,8 @@ export class LighterProvider implements PerpsProvider {
       let createdIdsNeedingFinalCheck: number[] = [];
       let groupedOrderCount = 0;
       let groupedType = 0;
+      let preflightPositionWireSize: number | null = null;
+      let preflightPositionSign: 1 | -1 | null = null;
       if (wantsReplacement) {
         // getPositions does not validate venue sizes; a non-finite or
         // sub-tick size must abort here, not after the cancels.
@@ -5449,6 +5501,8 @@ export class LighterProvider implements PerpsProvider {
           coverSize,
           market.supportedSizeDecimals,
         );
+        preflightPositionWireSize = sizeInt;
+        preflightPositionSign = isLong ? 1 : -1;
         // Closing side is opposite the position; trigger market orders
         // execute at a protection price 5% beyond the trigger in the taker
         // direction.
@@ -5816,6 +5870,46 @@ export class LighterProvider implements PerpsProvider {
           // the position is never left naked. The temporary overlap is
           // safe — both sets are reduce-only and clamp to the position.
           if (wantsReplacement && groupedPayload !== null) {
+            // The public preflight position read occurred before signer
+            // setup and write serialization. Re-read the raw venue position
+            // inside the held transition immediately before any create or
+            // cancel signature: an intervening fill or side flip would make
+            // the captured cover payload under-sized or wrong-sided.
+            this.#assertSession(generationAtIntent);
+            const liveAccount =
+              await this.#clientService.getAccountByIndex(accountIndex);
+            this.#assertSession(generationAtIntent);
+            const livePosition = liveAccount.accounts[0]?.positions?.find(
+              (entry) => entry.symbol === params.symbol,
+            );
+            const liveMagnitude = livePosition
+              ? parseStrictDecimal(livePosition.position)
+              : null;
+            let liveWireSize: number | null = null;
+            if (
+              liveMagnitude !== null &&
+              Number.isFinite(liveMagnitude) &&
+              liveMagnitude > 0 &&
+              (livePosition?.sign === 1 || livePosition?.sign === -1)
+            ) {
+              try {
+                liveWireSize = toSignerWireInteger(
+                  liveMagnitude,
+                  market.supportedSizeDecimals,
+                );
+              } catch {
+                liveWireSize = null;
+              }
+            }
+            if (
+              liveWireSize === null ||
+              liveWireSize !== preflightPositionWireSize ||
+              livePosition?.sign !== preflightPositionSign
+            ) {
+              throw new Error(
+                `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
+              );
+            }
             const payload = groupedPayload;
             const isSingleTrigger = groupedOrderCount === 1;
             const createNonce = await nextNonce();
@@ -6802,12 +6896,14 @@ export class LighterProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    // ISOLATED preview: the app opens Lighter positions with isolated
-    // margin by default, so the standard per-position formula applies —
-    // with the venue's own per-market maintenance fraction rather than a
-    // constant approximation. Live positions still carry the venue's own
-    // liquidationPrice (authoritative; cross positions opened elsewhere
-    // may legitimately have none).
+    // Cross liquidation is account-wide and cannot be derived truthfully
+    // from this per-position input. Live positions carry the venue's
+    // authoritative liquidationPrice; previews support isolated only.
+    if (params.marginType === 'cross') {
+      throw new Error(
+        'Lighter cross-margin liquidation previews require account-wide collateral and position inputs that are unavailable',
+      );
+    }
     const { entryPrice, leverage, direction } = params;
     if (
       !isFinite(entryPrice) ||
@@ -7696,8 +7792,9 @@ export class LighterProvider implements PerpsProvider {
         });
       });
     };
-    poll();
     this.#pricePollTimer = setInterval(poll, LIGHTER_PRICE_POLLING_INTERVAL_MS);
+    this.#setConnectionState(WebSocketConnectionState.Connected);
+    poll();
   };
 
   /**
@@ -7936,7 +8033,9 @@ export class LighterProvider implements PerpsProvider {
     // REST-polling transport has no socket to report on; treat an active
     // poll loop as connected so callers don't tear down live subscriptions.
     if (!this.#webSocketCtor) {
-      return WebSocketConnectionState.Connected;
+      return this.#pricePollTimer
+        ? WebSocketConnectionState.Connected
+        : WebSocketConnectionState.Disconnected;
     }
     return this.#connectionState;
   }

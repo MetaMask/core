@@ -798,17 +798,23 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    return this.#getDefaultProvider().calculateLiquidationPrice(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateLiquidationPrice(params);
   }
 
   async calculateMaintenanceMargin(
     params: MaintenanceMarginParams,
   ): Promise<number> {
-    return this.#getDefaultProvider().calculateMaintenanceMargin(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateMaintenanceMargin(params);
   }
 
-  async getMaxLeverage(asset: string): Promise<number> {
-    return this.#getDefaultProvider().getMaxLeverage(asset);
+  async getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number> {
+    const [, provider] = this.#getProviderOrDefault(providerId);
+    return provider.getMaxLeverage(asset);
   }
 
   async calculateFees(

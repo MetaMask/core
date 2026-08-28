@@ -1156,10 +1156,37 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateLiquidationPrice).toHaveBeenCalled();
     });
 
+    it('routes calculateLiquidationPrice to the selected position provider', async () => {
+      mockMYXProvider.calculateLiquidationPrice.mockResolvedValue('12345');
+
+      const result = await aggregatedProvider.calculateLiquidationPrice({
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        providerId: 'myx',
+      });
+
+      expect(result).toBe('12345');
+      expect(mockMYXProvider.calculateLiquidationPrice).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'myx' }),
+      );
+      expect(mockHLProvider.calculateLiquidationPrice).not.toHaveBeenCalled();
+    });
+
     it('delegates getMaxLeverage to default provider', async () => {
       await aggregatedProvider.getMaxLeverage('BTC');
 
       expect(mockHLProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
+    });
+
+    it('routes getMaxLeverage to the selected market provider', async () => {
+      mockMYXProvider.getMaxLeverage.mockResolvedValue(17);
+
+      const result = await aggregatedProvider.getMaxLeverage('BTC', 'myx');
+
+      expect(result).toBe(17);
+      expect(mockMYXProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
+      expect(mockHLProvider.getMaxLeverage).not.toHaveBeenCalled();
     });
 
     it('delegates calculateMaintenanceMargin to default provider', async () => {
@@ -1172,6 +1199,22 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toBe(0.05);
       expect(mockHLProvider.calculateMaintenanceMargin).toHaveBeenCalled();
+    });
+
+    it('routes calculateMaintenanceMargin to the selected position provider', async () => {
+      mockMYXProvider.calculateMaintenanceMargin.mockResolvedValue(0.012);
+
+      const result = await aggregatedProvider.calculateMaintenanceMargin({
+        asset: 'BTC',
+        positionSize: 1,
+        providerId: 'myx',
+      });
+
+      expect(result).toBe(0.012);
+      expect(mockMYXProvider.calculateMaintenanceMargin).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'myx' }),
+      );
+      expect(mockHLProvider.calculateMaintenanceMargin).not.toHaveBeenCalled();
     });
 
     it('delegates calculateFees to default provider', async () => {

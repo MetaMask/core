@@ -711,6 +711,18 @@ describe('LighterProvider', () => {
       expect(state.totalBalance).toBe('0');
     });
 
+    it('surfaces malformed REST account numbers instead of degrading to empty state', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, collateral: '10000USD' }],
+      });
+
+      await expect(provider.getAccountState()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
     it('returns open orders through the auth-token path', async () => {
       const { provider, clientInstance } = buildProvider();
       await provider.initialize();
@@ -765,6 +777,22 @@ describe('LighterProvider', () => {
         14,
         expect.stringContaining('"createOrder":true'),
       );
+    });
+
+    it('does not claim or send an isolated-margin update when leverage is omitted', async () => {
+      const { provider, calls } = buildProvider();
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(
+        calls.filter((call) => call.function === '_signUpdateLeverage'),
+      ).toHaveLength(0);
     });
 
     it('rejects sizes below the market minimum instead of silently bumping', async () => {
@@ -1239,6 +1267,42 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('rejects malformed user_stats numbers without emitting a partial account state', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: 'a'.repeat(80),
+      });
+      const accountCallback = jest.fn();
+      const unsubscribe = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      accountCallback.mockClear();
+
+      expect(() =>
+        socket.receive({
+          type: 'update/user_stats',
+          channel: 'user_stats:28',
+          stats: {
+            collateral: '10000USD',
+            portfolio_value: '11000',
+            leverage: '2',
+            available_balance: '6000',
+            margin_usage: '40',
+            buying_power: '0',
+          },
+        }),
+      ).toThrow('Invalid Lighter venue data');
+      expect(accountCallback).not.toHaveBeenCalled();
+
+      unsubscribe();
+      await provider.disconnect();
+    });
+
     it('tears down the socket when the last subscriber unsubscribes', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeCtor });
       const unsubscribe = provider.subscribeToPrices({
@@ -1296,11 +1360,13 @@ describe('LighterProvider', () => {
         const { provider, clientInstance } = buildProvider({
           webSocketCtor: null,
         });
+        expect(provider.getWebSocketConnectionState()).toBe('disconnected');
         const callback = jest.fn();
         const unsubscribe = provider.subscribeToPrices({
           symbols: [],
           callback,
         });
+        expect(provider.getWebSocketConnectionState()).toBe('connected');
         await Promise.resolve();
         await Promise.resolve();
         expect(callback).toHaveBeenCalledWith([
@@ -1313,12 +1379,14 @@ describe('LighterProvider', () => {
         ).toBeGreaterThanOrEqual(3);
 
         unsubscribe();
+        expect(provider.getWebSocketConnectionState()).toBe('disconnected');
         const callsAfter = clientInstance.getOrderBookDetails.mock.calls.length;
         await jest.advanceTimersByTimeAsync(20_000);
         expect(clientInstance.getOrderBookDetails.mock.calls).toHaveLength(
           callsAfter,
         );
         await provider.disconnect();
+        expect(provider.getWebSocketConnectionState()).toBe('disconnected');
       } finally {
         jest.useRealTimers();
       }
@@ -7010,6 +7078,186 @@ describe('LighterProvider', () => {
       expect(calls).toHaveLength(0);
     });
 
+    it.each([
+      ['increases', { position: '0.2', sign: 1 }],
+      ['flips side', { position: '0.1', sign: -1 }],
+    ])(
+      'aborts with zero create/cancel signatures when the position %s before TP/SL signing',
+      async (_label, livePosition) => {
+        const { provider, calls, clientInstance, bridge } = buildProvider();
+        const venue = setupTriggerVenue(clientInstance, bridge);
+        venue.seedTrigger('stop-loss', '80000');
+        let accountReads = 0;
+        clientInstance.getAccountByIndex.mockImplementation(async () => {
+          accountReads += 1;
+          return {
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: [
+                  {
+                    ...ACCOUNT.positions[0],
+                    ...(accountReads >= 3 ? livePosition : {}),
+                  },
+                ],
+              },
+            ],
+          };
+        });
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('position changed before TP/SL signing');
+        expect(
+          calls.filter(
+            (call) =>
+              call.function === '_signCreateOrder' ||
+              call.function === '_signCreateGroupedOrders' ||
+              call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(0);
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(venue.rawTriggers[0].triggerPrice).toBe('80000');
+      },
+    );
+
+    it('fails closed without writing an undiscoverable live manual recovery when the index already has 64 keys', async () => {
+      const infra = createMockInfrastructure();
+      const fullIndex = Array.from(
+        { length: 64 },
+        (_, index) => `0xother:${String(index)}:7:ETH`,
+      );
+      await infra.diskCache.setItem(
+        'lighterTpslManualIndex:testnet',
+        JSON.stringify(fullIndex),
+      );
+      const built = buildProvider({ platformDependencies: infra });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      let readsSeen = 0;
+      const realActive =
+        built.clientInstance.getActiveOrders.getMockImplementation() as () => Promise<unknown>;
+      built.clientInstance.getActiveOrders.mockImplementation(async () => {
+        readsSeen += 1;
+        if (readsSeen === 3) {
+          const at = venue.rawTriggers.findIndex(
+            (row) => row.triggerPrice === '85000',
+          );
+          if (at >= 0) {
+            const [row] = venue.rawTriggers.splice(at, 1);
+            venue.rawInactive.push({ ...row, status: 'canceled' });
+          }
+        }
+        return await realActive();
+      });
+
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('manual-recovery index is full');
+      expect(
+        JSON.parse(
+          (await infra.diskCache.getItem(
+            'lighterTpslManualIndex:testnet',
+          )) as string,
+        ),
+      ).toHaveLength(64);
+      expect(
+        await infra.diskCache.getItem(
+          `lighterTpslManual:testnet:${settlementKey}`,
+        ),
+      ).toBeNull();
+      expect(
+        JSON.parse(
+          (await infra.diskCache.getItem(
+            'lighterTpslJournalIndex:testnet',
+          )) as string,
+        ),
+      ).toContain(settlementKey);
+    });
+
+    it('retains a startup journal when the 65th manual recovery cannot be indexed', async () => {
+      const infra = createMockInfrastructure();
+      const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+      await infra.diskCache.setItem(
+        'lighterTpslManualIndex:testnet',
+        JSON.stringify(
+          Array.from(
+            { length: 64 },
+            (_, index) => `0xother:${String(index)}:7:ETH`,
+          ),
+        ),
+      );
+      await infra.diskCache.setItem(
+        'lighterTpslJournalIndex:testnet',
+        JSON.stringify([settlementKey]),
+      );
+      await infra.diskCache.setItem(
+        `lighterTpslJournal:testnet:${settlementKey}`,
+        JSON.stringify({
+          version: 2,
+          recordedAt: 5,
+          operationId: 'op-v2-full-index',
+          createdAt: 5,
+          apiKeyIndex: 7,
+          intent: 'replace',
+          phase: 'creating',
+          priorTriggers: [],
+          attempts: [],
+        }),
+      );
+      const built = buildProvider({ platformDependencies: infra });
+      setupTriggerVenue(built.clientInstance, built.bridge);
+
+      await built.provider.getOpenOrders();
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const recoveryFailure = (
+          infra.debugLogger.log as jest.Mock
+        ).mock.calls.some(
+          ([message, context]: [string, { error?: string }]) =>
+            message.includes('journal entry recovery failed') &&
+            context.error?.includes('manual-recovery index is full'),
+        );
+        if (recoveryFailure) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+
+      expect(infra.debugLogger.log).toHaveBeenCalledWith(
+        expect.stringContaining('journal entry recovery failed'),
+        expect.objectContaining({
+          settlementKey,
+          error: expect.stringContaining('manual-recovery index is full'),
+        }),
+      );
+      expect(
+        await infra.diskCache.getItem(
+          `lighterTpslManual:testnet:${settlementKey}`,
+        ),
+      ).toBeNull();
+      expect(
+        JSON.parse(
+          (await infra.diskCache.getItem(
+            'lighterTpslJournalIndex:testnet',
+          )) as string,
+        ),
+      ).toContain(settlementKey);
+      expect(
+        await infra.diskCache.getItem(
+          `lighterTpslJournal:testnet:${settlementKey}`,
+        ),
+      ).not.toBeNull();
+    });
+
     it('degenerate randomness aborts TP/SL replacement before any cancellation', async () => {
       const { provider, calls } = buildProvider();
       // The bounded allocator throws after 100 attempts per id; that
@@ -9254,8 +9502,9 @@ describe('LighterProvider', () => {
       expect(
         await provider.calculateMaintenanceMargin({} as never),
       ).toBeCloseTo(1 / (2 * 50));
-      // The liquidation preview uses the ISOLATED formula (positions open
-      // isolated by default) with the venue's own maintenance fraction:
+      // The liquidation preview uses the ISOLATED formula when the caller
+      // requests (or omits) that supported mode, with the venue's own
+      // maintenance fraction:
       // BTC fixture maintenance 120 hundredths of a percent -> 1.2%.
       // long: 100 - (0.1 - 0.012)*100/(1 - 0.012) = 91.0931...
       expect(
@@ -9298,6 +9547,15 @@ describe('LighterProvider', () => {
           direction: 'long',
         }),
       ).toBe('0.00');
+      await expect(
+        provider.calculateLiquidationPrice({
+          entryPrice: 100,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          asset: 'BTC',
+        }),
+      ).rejects.toThrow('cross-margin liquidation previews');
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       // Fee rates come from the venue's per-market metadata (currently 0).
       const fees = await provider.calculateFees({
@@ -9372,6 +9630,106 @@ describe('LighterProvider', () => {
       const after = await built.provider.withdraw({ amount: '25' });
       expect(after.success).toBe(true);
     });
+
+    it('rejects malformed version-4 recovered-dispatch rows instead of dropping them', async () => {
+      const infra = createMockInfrastructure();
+      await infra.diskCache.setItem(
+        'lighterNonceLedger:testnet:28:7',
+        JSON.stringify({
+          version: 4,
+          consumedFloor: 0,
+          entries: [],
+          recovered: [
+            {
+              recoveryId: '42:beef',
+              kind: 13,
+              intent: 'withdraw:25',
+              txHash: 'beef',
+              outcome: 'succeeded',
+              // Missing evidence makes the v4 safety document malformed.
+            },
+          ],
+        }),
+      );
+      const built = buildProvider({ platformDependencies: infra });
+
+      await expect(built.provider.getRecoveredDispatches()).rejects.toThrow(
+        'corrupt',
+      );
+    });
+
+    it.each([
+      ['succeeded', 'abab000000000042'],
+      ['unknown', null],
+    ] as const)(
+      'preserves a blocking %s outcome when 32 non-blocking failures already fill the ledger',
+      async (expectedOutcome, txHash) => {
+        const infra = createMockInfrastructure();
+        const failedOutcomes = Array.from({ length: 32 }, (_, index) => ({
+          recoveryId: `${String(index)}:failed`,
+          kind: 13,
+          intent: `withdraw:${String(index)}`,
+          txHash: `dead${String(index).padStart(8, '0')}`,
+          outcome: 'failed',
+          evidence: 'tx-status:4',
+        }));
+        await infra.diskCache.setItem(
+          'lighterNonceLedger:testnet:28:7',
+          JSON.stringify({
+            version: 4,
+            consumedFloor: 0,
+            entries: [
+              {
+                nonce: 42,
+                txHash,
+                expiresAt: 9_999_999_999_999,
+                kind: 13,
+                intent: 'withdraw:25',
+                owner: null,
+              },
+            ],
+            recovered: failedOutcomes,
+          }),
+        );
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        if (expectedOutcome === 'succeeded') {
+          built.clientInstance.getTx.mockResolvedValue({
+            code: 200,
+            hash: txHash,
+            accountIndex: 28,
+            apiKeyIndex: 7,
+            nonce: 42,
+            status: 3,
+          });
+        } else {
+          built.clientInstance.getNextNonce.mockResolvedValue({
+            code: 200,
+            nonce: 43,
+          });
+        }
+
+        const firstRetry = await built.provider.withdraw({ amount: '25' });
+        expect(firstRetry.success).toBe(false);
+        const recovered = await built.provider.getRecoveredDispatches();
+        expect(recovered).toHaveLength(32);
+        expect(recovered.some((row) => row.outcome === expectedOutcome)).toBe(
+          true,
+        );
+        // The blocking row must survive the disk round-trip, not merely the
+        // in-memory resolve pass.
+        const secondRetry = await built.provider.withdraw({ amount: '25' });
+        expect(secondRetry.success).toBe(false);
+        expect(secondRetry.error).toContain(
+          expectedOutcome === 'succeeded'
+            ? 'actually completed'
+            : 'UNKNOWN outcome',
+        );
+      },
+    );
 
     it('keeps an exact-hash pending transaction unresolved until it reaches a terminal status', async () => {
       const registeredKey = '9c'.repeat(40);
