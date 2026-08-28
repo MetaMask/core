@@ -826,7 +826,7 @@ export class TransakService {
         method: 'GET',
         headers: {
           Accept: 'application/json',
-            },
+        },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(
@@ -1311,7 +1311,7 @@ export class TransakService {
         method: 'GET',
         headers: {
           Accept: 'application/json',
-            },
+        },
       });
       if (!fetchResponse.ok) {
         throw new HttpError(
