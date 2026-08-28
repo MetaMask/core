@@ -19,7 +19,7 @@ export async function main(): Promise<void> {
   const { resolved, skipped } = await resolveChangelogConflicts();
 
   if (resolved.length === 0 && skipped.length === 0) {
-    console.log('No conflicted CHANGELOG.md files found.');
+    console.log('No CHANGELOG.md files with conflicts found.');
     return;
   }
 
