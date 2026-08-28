@@ -1611,6 +1611,265 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.order.mock.calls[0][0].orders).toHaveLength(2);
     });
 
+    it('accepts waitingForTrigger for a combined TP/SL placement', async () => {
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([]);
+      const { exchangeClient, infoClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: ['waitingForTrigger', 'waitingForTrigger'],
+              },
+            },
+          }),
+        },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
+      });
+
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: 'TP/SL orders placed',
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();
+    });
+
+    it('accepts mixed resting and waitingForTrigger placement statuses', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [{ resting: { oid: 123 } }, 'waitingForTrigger'],
+              },
+            },
+          }),
+        },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it('replaces existing protection when the trigger waits for activation', async () => {
+      const frontendOpenOrders = jest.fn().mockResolvedValueOnce([
+        {
+          coin: 'ETH',
+          side: 'A',
+          limitPx: '3400',
+          sz: '0',
+          origSz: '0',
+          oid: 456,
+          timestamp: 1_700_000_000_000,
+          reduceOnly: true,
+          isTrigger: true,
+          isPositionTpsl: true,
+          triggerCondition: 'Price above 3400',
+          triggerPx: '3400',
+          orderType: 'Take Profit Limit',
+          children: [],
+        },
+      ]);
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: { statuses: ['waitingForTrigger'] },
+            },
+          }),
+        },
+        info: { frontendOpenOrders },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 456 }],
+      });
+    });
+
+    it('reconciles a waiting trigger before cleaning up a mixed failure', async () => {
+      const frontendOpenOrders = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            coin: 'ETH',
+            side: 'A',
+            limitPx: '3500',
+            sz: '0.4',
+            origSz: '0.4',
+            oid: 901,
+            timestamp: 1_700_000_000_000,
+            reduceOnly: true,
+            isTrigger: true,
+            isPositionTpsl: false,
+            triggerCondition: 'Price above 3500',
+            triggerPx: '3500',
+            orderType: 'Take Profit Limit',
+            children: [],
+          },
+        ]);
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  'waitingForTrigger',
+                  { error: 'Rejected stop loss' },
+                ],
+              },
+            },
+          }),
+        },
+        info: { frontendOpenOrders },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        takeProfitSize: '0.4',
+        stopLossPrice: '2500',
+        stopLossSize: '0.6',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 901 }],
+      });
+    });
+
+    it('reports lost protection when a waiting trigger cannot be reconciled after a mixed failure', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  'waitingForTrigger',
+                  { error: 'Rejected stop loss' },
+                ],
+              },
+            },
+          }),
+        },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        takeProfitSize: '0.4',
+        stopLossPrice: '2500',
+        stopLossSize: '0.6',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        childOrderIds: [],
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['an unknown placement status', ['futureTriggerStatus']],
+      ['an incomplete placement response', []],
+    ])('restores old protection after %s', async (_label, statuses) => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses },
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ resting: { oid: 902 } }] },
+          },
+        });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: {
+          frontendOpenOrders: jest.fn().mockResolvedValue([
+            {
+              coin: 'ETH',
+              side: 'A',
+              limitPx: '2450',
+              sz: '0',
+              origSz: '0',
+              oid: 456,
+              timestamp: 1_700_000_000_000,
+              reduceOnly: true,
+              isTrigger: true,
+              isPositionTpsl: true,
+              triggerCondition: 'Price below 2450',
+              triggerPx: '2450',
+              orderType: 'Stop Market',
+              children: [],
+            },
+          ]),
+        },
+      });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 456 }],
+      });
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(order.mock.calls[1][0]).toMatchObject({
+        grouping: 'positionTpsl',
+        orders: [expect.objectContaining({ p: '2450', s: '0' })],
+      });
+    });
+
     it('cancels old protection before placing partial TP/SL', async () => {
       const { exchangeClient } = useStrategyClients({
         info: {
