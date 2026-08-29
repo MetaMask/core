@@ -730,6 +730,32 @@ describe('MarketDataService', () => {
     });
   });
 
+  describe('previewPositionModify', () => {
+    it('delegates to the provider', async () => {
+      const params = {
+        position: createMockPosition({
+          leverage: { type: 'isolated' as const, value: 5 },
+        }),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '50000',
+        leverage: 10,
+      };
+      mockProvider.previewPositionModify.mockResolvedValue({
+        status: 'none',
+      });
+
+      const result = await marketDataService.previewPositionModify({
+        provider: mockProvider,
+        params,
+        context: mockContext,
+      });
+
+      expect(result).toEqual({ status: 'none' });
+      expect(mockProvider.previewPositionModify).toHaveBeenCalledWith(params);
+    });
+  });
+
   describe('calculateMaintenanceMargin', () => {
     it('calculates maintenance margin successfully', async () => {
       const params = {

@@ -137,6 +137,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),

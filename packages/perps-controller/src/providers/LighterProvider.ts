@@ -100,6 +100,8 @@ import type {
   PerpsProvider,
   PerpsReadOptions,
   Position,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   RawLedgerUpdate,
   ReadyToTradeResult,
   SubscribeAccountParams,
@@ -7269,6 +7271,12 @@ export class LighterProvider implements PerpsProvider {
       protocolFeeRate: feeRate,
       metamaskFeeRate: 0,
     };
+  }
+
+  async previewPositionModify(
+    _params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    return { status: 'unsupported', reason: 'provider' };
   }
 
   // ============================================================================

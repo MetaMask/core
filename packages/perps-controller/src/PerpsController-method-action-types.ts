@@ -578,6 +578,19 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
+ * Project the isolated position that would remain after a proposed order.
+ * Margin and liquidation availability are independent: a missing liquidation
+ * does not hide a valid margin projection. Cross-margin returns unsupported.
+ *
+ * @param params - Live position plus the proposed order.
+ * @returns Discriminated preview of the resulting position.
+ */
+export type PerpsControllerPreviewPositionModifyAction = {
+  type: `PerpsController:previewPositionModify`;
+  handler: PerpsController['previewPositionModify'];
+};
+
+/**
  * Calculate maintenance margin for a specific asset
  * Returns a percentage (e.g., 0.0125 for 1.25%)
  *
@@ -1353,6 +1366,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAvailableDexsAction
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
+  | PerpsControllerPreviewPositionModifyAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction

@@ -9821,6 +9821,10 @@ describe('LighterProvider', () => {
       });
       expect(fees.protocolFeeRate).toBe(parseFloat(BTC_MARKET.takerFee));
       expect(fees.feeAmount).toBe(100 * parseFloat(BTC_MARKET.takerFee));
+      expect(await provider.previewPositionModify({} as never)).toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
     });
 
     it('returns immediate empty snapshots from subscriptions', async () => {
