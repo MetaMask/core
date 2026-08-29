@@ -1359,6 +1359,123 @@ export type LiquidationPriceParams = {
   asset?: string; // Optional: for asset-specific maintenance margins
 };
 
+/**
+ * Live position fields required to project a modify. Clients may pass a full
+ * {@link Position}; extra fields are ignored.
+ */
+export type PositionModifyPreviewSource = Pick<
+  Position,
+  | 'symbol'
+  | 'size'
+  | 'marginUsed'
+  | 'liquidationPrice'
+  | 'entryPrice'
+  | 'leverage'
+  | 'positionValue'
+  | 'maxLeverage'
+  | 'providerId'
+>;
+
+/**
+ * Proposed order plus the live position it would modify.
+ *
+ * Isolated-margin previews apply `leverage` to the *whole* resulting
+ * position, matching `updateLeverage` before placement. Cross-margin
+ * positions are not projected.
+ */
+export type PositionModifyPreviewParams = {
+  position: PositionModifyPreviewSource;
+  /** Proposed order direction. */
+  direction: 'long' | 'short';
+  /** Proposed order size in token units. */
+  size: string;
+  /**
+   * Expected fill price for a marketable order, or the resting limit price.
+   * Increases and flips require a positive price; a reduce does not.
+   * Scale, TWAP, and chase orders should pass the expected fill size and price;
+   * this preview models a single fill.
+   */
+  price: string;
+  /**
+   * Isolated leverage the provider will set on the asset before placing.
+   * Applied to the entire resulting position, not only the added size.
+   */
+  leverage: number;
+  reduceOnly?: boolean;
+  /**
+   * Estimated trading fees in USD. Deducted from isolated margin on
+   * increases and flips. Omit or pass 0 when unknown.
+   */
+  feeAmountUsd?: number;
+  /**
+   * Explicit venue route. Aggregated providers use this, then
+   * `position.providerId`, then the default provider.
+   */
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Independently available numeric projection. Margin can be known when
+ * liquidation cannot (missing maintenance-tier data, or no liquidation risk).
+ */
+export type PositionPreviewValue =
+  | { available: true; value: number }
+  | { available: false };
+
+export type PositionModifyPreviewKind = 'increase' | 'decrease' | 'flip';
+
+export type PositionModifyPreviewCurrent = {
+  margin: PositionPreviewValue;
+  liquidationPrice: PositionPreviewValue;
+};
+
+export type PositionModifyPreviewOpen = {
+  status: 'open';
+  kind: PositionModifyPreviewKind;
+  current: PositionModifyPreviewCurrent;
+  resulting: {
+    direction: 'long' | 'short';
+    /** Resulting token size; always > 0 for `open`. */
+    size: number;
+    entryPrice: number;
+    /**
+     * Isolated leverage from mark notional / remaining margin, matching
+     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     */
+    leverage: number;
+    margin: PositionPreviewValue;
+    liquidationPrice: PositionPreviewValue;
+  };
+};
+
+export type PositionModifyPreviewFullClose = {
+  status: 'full_close';
+  current: PositionModifyPreviewCurrent;
+  /** Direction of the position being closed. */
+  resultingDirection: 'long' | 'short';
+};
+
+export type PositionModifyPreviewUnsupported = {
+  status: 'unsupported';
+  reason: 'cross_margin' | 'provider';
+};
+
+export type PositionModifyPreviewNone = {
+  status: 'none';
+};
+
+/**
+ * Read-only post-trade position projection.
+ *
+ * Discriminated on `status` so a non-modifying result cannot carry a
+ * flip/full-close kind, and a full close cannot report a remaining size.
+ */
+export type PositionModifyPreviewResult =
+  | PositionModifyPreviewNone
+  | PositionModifyPreviewUnsupported
+  | PositionModifyPreviewFullClose
+  | PositionModifyPreviewOpen;
+
 export type MaintenanceMarginParams = {
   asset: string;
   positionSize?: number; // Optional: for tiered margin systems
@@ -1760,6 +1877,15 @@ export type PerpsProvider = {
   calculateMaintenanceMargin(params: MaintenanceMarginParams): Promise<number>;
   getMaxLeverage(asset: string): Promise<number>;
   calculateFees(params: FeeCalculationParams): Promise<FeeCalculationResult>;
+  /**
+   * Read-only projection of the position that would remain after the proposed
+   * order. Isolated-margin venues apply selected leverage to the whole
+   * resulting position and use the maintenance tier at liquidation notional.
+   * Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`.
+   */
+  previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult>;
 
   // Live data subscriptions → Direct UI (NO Redux, maximum speed)
   subscribeToPrices(params: SubscribePricesParams): () => void;

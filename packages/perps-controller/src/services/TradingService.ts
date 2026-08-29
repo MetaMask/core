@@ -359,7 +359,7 @@ export class TradingService {
       filledSize.gt(0) &&
       filledSize.lt(acceptedSize)
     ) {
-      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
+      const partialProperties: PerpsAnalyticsProperties = {
         ...properties,
         [PERPS_EVENT_PROPERTY.STATUS]:
           PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
@@ -368,7 +368,20 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: acceptedSize
           .minus(filledSize)
           .toNumber(),
-      });
+      };
+      if (result.weightedAverageLimitPrice !== undefined) {
+        const acceptedOrderValue = acceptedSize.times(
+          result.weightedAverageLimitPrice,
+        );
+        if (acceptedOrderValue.isFinite()) {
+          partialProperties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
+            acceptedOrderValue.toNumber();
+        }
+      }
+      this.#deps.metrics.trackPerpsEvent(
+        PerpsAnalyticsEvent.TradeTransaction,
+        partialProperties,
+      );
     }
 
     this.#deps.metrics.trackPerpsEvent(

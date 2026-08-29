@@ -10,6 +10,7 @@ import type {
   Order,
   ChaseOrder,
   TwapOrder,
+  FeeCalculationParams,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
@@ -100,6 +101,7 @@ const createMockProvider = (
     calculateMaintenanceMargin: jest.fn().mockResolvedValue(0.05),
     getMaxLeverage: jest.fn().mockResolvedValue(50),
     calculateFees: jest.fn().mockResolvedValue({ feeRate: 0.001 }),
+    previewPositionModify: jest.fn().mockResolvedValue({ status: 'none' }),
 
     // Subscriptions
     subscribeToPrices: jest.fn().mockReturnValue(() => undefined),
@@ -1102,6 +1104,98 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toEqual({ feeRate: 0.001 });
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
+    });
+
+    it('delegates previewPositionModify to default provider', async () => {
+      mockHLProvider.previewPositionModify.mockResolvedValue({
+        status: 'none',
+      });
+
+      const params = {
+        position: createMockPosition('BTC', '1'),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '50000',
+        leverage: 10,
+      };
+
+      await aggregatedProvider.previewPositionModify(params);
+
+      expect(mockHLProvider.previewPositionModify).toHaveBeenCalledWith(params);
+    });
+
+    it('routes previewPositionModify to an explicit provider', async () => {
+      mockMYXProvider.previewPositionModify.mockResolvedValue({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+
+      const params = {
+        position: createMockPosition('RHEA', '1'),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '1',
+        leverage: 5,
+        providerId: 'myx' as const,
+      };
+
+      await expect(
+        aggregatedProvider.previewPositionModify(params),
+      ).resolves.toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+      expect(mockMYXProvider.previewPositionModify).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('routes previewPositionModify from position.providerId', async () => {
+      mockMYXProvider.previewPositionModify.mockResolvedValue({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+
+      const params = {
+        position: {
+          ...createMockPosition('RHEA', '1'),
+          providerId: 'myx' as const,
+        },
+        direction: 'long' as const,
+        size: '0.1',
+        price: '1',
+        leverage: 5,
+      };
+
+      await expect(
+        aggregatedProvider.previewPositionModify(params),
+      ).resolves.toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+      expect(mockMYXProvider.previewPositionModify).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unregistered previewPositionModify route', async () => {
+      aggregatedProvider.removeProvider('myx');
+
+      await expect(
+        aggregatedProvider.previewPositionModify({
+          position: createMockPosition('BTC', '1'),
+          direction: 'long',
+          size: '0.1',
+          price: '50000',
+          leverage: 10,
+          providerId: 'myx',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+      expect(mockMYXProvider.previewPositionModify).not.toHaveBeenCalled();
     });
 
     it('accepts an ordinary fee request held as the routed parameter type', async () => {

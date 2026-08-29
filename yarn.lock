@@ -6019,6 +6019,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
     lodash: "npm:^4.17.21"
+    nock: "npm:^13.3.1"
     p-limit: "npm:^3.1.0"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
@@ -8672,7 +8673,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ramps-controller@npm:^20.0.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
+"@metamask/ramps-controller@npm:^20.2.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
@@ -9394,7 +9395,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^36.0.0"
-    "@metamask/ramps-controller": "npm:^20.0.0"
+    "@metamask/ramps-controller": "npm:^20.2.0"
     "@metamask/remote-feature-flag-controller": "npm:^6.1.0"
     "@metamask/sentinel-api-service": "npm:^1.0.1"
     "@metamask/transaction-controller": "npm:^69.6.1"

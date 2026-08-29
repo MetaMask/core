@@ -10,7 +10,10 @@ import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
-const MOCK_FRACTAL_URL = 'https://fractal.dev-api.cx.metamask.io';
+const MOCK_IDOS_ENCLAVE_URL = 'https://idos-enclave.dev-api.cx.metamask.io';
+const MOCK_IDOS_RELAY_URL = 'https://idos-relay.dev-api.cx.metamask.io';
+const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
+const RESIDENCE_COUNTRY = 'USA';
 
 describe('KycService', () => {
   afterEach(() => {
@@ -238,34 +241,69 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchJwks', () => {
-    it('fetches the JWKS from the Fractal well-known path', async () => {
+  describe('fetchIdosEnclaveJwks', () => {
+    it('fetches the JWKS from the idOS enclave well-known path', async () => {
       const response = {
         keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
       };
-      nock(MOCK_FRACTAL_URL).get('/.well-known/jwks.json').reply(200, response);
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
       const { service } = getService();
 
-      expect(await service.fetchJwks()).toStrictEqual(response);
+      expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
     });
 
-    it('throws when no Fractal base URL is configured', async () => {
+    it('throws when no idOS enclave base URL is configured', async () => {
       // Omit the option entirely so the constructor falls back to ''.
-      const { service } = getService({ fractalEncryptionBaseUrl: null });
+      const { service } = getService({ idosEnclaveBaseUrl: null });
 
-      await expect(service.fetchJwks()).rejects.toThrow(
-        /fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify encryption schemas/u,
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema/u,
       );
     });
 
     it('throws on a malformed response', async () => {
-      nock(MOCK_FRACTAL_URL)
+      nock(MOCK_IDOS_ENCLAVE_URL)
         .get('/.well-known/jwks.json')
         .reply(200, { keys: [{ kty: 'OKP' }] });
       const { service } = getService();
 
-      await expect(service.fetchJwks()).rejects.toThrow(
-        /Malformed response received from JWKS API/u,
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /Malformed response received from idOS enclave JWKS API/u,
+      );
+    });
+  });
+
+  describe('fetchIdosRelayJwks', () => {
+    it('fetches the JWKS from the idOS relay well-known path', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'r1' }],
+      };
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+    });
+
+    it('throws when no idOS relay base URL is configured', async () => {
+      const { service } = getService({ idosRelayBaseUrl: null });
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema/u,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [{ kty: 'OKP' }] });
+      const { service } = getService();
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /Malformed response received from idOS relay JWKS API/u,
       );
     });
   });
@@ -291,6 +329,8 @@ describe('KycService', () => {
           (body: Record<string, unknown>) =>
             body.jwtToken === 'jwt' &&
             body.vendorId === 'moonpay' &&
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             body.wrappedEncryptionKey === undefined &&
             body.ukycCapabilityToken === undefined,
         )
@@ -300,6 +340,8 @@ describe('KycService', () => {
       expect(
         await service.createUkycSession({
           jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
         }),
       ).toStrictEqual(response);
@@ -312,6 +354,8 @@ describe('KycService', () => {
       await expect(
         service.createUkycSession({
           jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
@@ -878,6 +922,8 @@ describe('KycService', () => {
         .post('/sessions', (body) => {
           return (
             body.vendorId === 'moonpay' &&
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             body.vendorMetadata?.moonPayAccessToken === 'tok' &&
             body.wrappedEncryptionKey === undefined &&
             body.ukycCapabilityToken === undefined
@@ -889,6 +935,8 @@ describe('KycService', () => {
       expect(
         await service.createUkycSession({
           jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { moonPayAccessToken: 'tok' },
         }),
       ).toStrictEqual(response);
@@ -904,6 +952,8 @@ describe('KycService', () => {
         .post('/sessions', (body) => {
           return (
             body.vendorId === 'iron' &&
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
+            body.residenceCountry === RESIDENCE_COUNTRY &&
             JSON.stringify(body.vendorMetadata) === '{}'
           );
         })
@@ -913,6 +963,8 @@ describe('KycService', () => {
       expect(
         await service.createUkycSession({
           jwtToken: 'jwt',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'iron',
         }),
       ).toStrictEqual(response);
@@ -974,8 +1026,10 @@ type RootMessenger = Messenger<
  * @param args.geolocation - The location the geolocation handler returns.
  * @param args.defaultPolicy - When true, omit `policyOptions` to use defaults.
  * @param args.baseUrl - Base URL of the KYC API.
- * @param args.fractalEncryptionBaseUrl - Fractal base URL; `null` omits the
+ * @param args.idosEnclaveBaseUrl - idOS enclave base URL; `null` omits the
  * option so the service falls back to an empty string.
+ * @param args.idosRelayBaseUrl - idOS relay base URL; `null` omits the option
+ * so the service falls back to an empty string.
  * @param args.omitFetch - When true, omit the `fetch` option so the service
  * falls back to the runtime's native `fetch`.
  * @returns The service, root messenger, and service messenger.
@@ -986,8 +1040,10 @@ function getService({
   defaultPolicy = false,
   baseUrl = MOCK_API_URL,
   // `null` means "omit the option entirely" (exercises the constructor's
-  // `?? ''` fallback); omitting the field defaults to the mock Fractal URL.
-  fractalEncryptionBaseUrl = MOCK_FRACTAL_URL,
+  // `?? ''` fallback); omitting the field defaults to the mock idOS enclave URL.
+  idosEnclaveBaseUrl = MOCK_IDOS_ENCLAVE_URL,
+  // Same `null` omission convention as `idosEnclaveBaseUrl`.
+  idosRelayBaseUrl = MOCK_IDOS_RELAY_URL,
   // When true, omit the `fetch` option so the service falls back to the
   // runtime's native `fetch` (which nock intercepts).
   omitFetch = false,
@@ -996,7 +1052,8 @@ function getService({
   geolocation?: string | null;
   defaultPolicy?: boolean;
   baseUrl?: string;
-  fractalEncryptionBaseUrl?: string | null;
+  idosEnclaveBaseUrl?: string | null;
+  idosRelayBaseUrl?: string | null;
   omitFetch?: boolean;
 } = {}): {
   service: KycService;
@@ -1031,7 +1088,8 @@ function getService({
     ...(omitFetch ? {} : { fetch }),
     messenger,
     baseUrl,
-    ...(fractalEncryptionBaseUrl === null ? {} : { fractalEncryptionBaseUrl }),
+    ...(idosEnclaveBaseUrl === null ? {} : { idosEnclaveBaseUrl }),
+    ...(idosRelayBaseUrl === null ? {} : { idosRelayBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
 

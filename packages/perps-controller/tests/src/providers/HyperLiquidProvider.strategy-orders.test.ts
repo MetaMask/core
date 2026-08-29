@@ -3446,38 +3446,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('finishes cancellation when a waiting child gains an order ID', async () => {
-      const cancelResponse = {
-        status: 'ok' as const,
+    it('cleans a waiting child instead of registering it for later recovery', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
         response: {
-          type: 'cancel' as const,
           data: {
             statuses: [
-              {
-                error: 'Order was never placed, already canceled, or filled.',
-              },
+              'waitingForFill',
+              { error: 'Insufficient margin' },
+              { error: 'Insufficient margin' },
             ],
           },
         },
-      };
+      });
       const { exchangeClient } = useStrategyClients({
-        exchange: {
-          order: jest.fn().mockResolvedValue({
-            status: 'ok',
-            response: {
-              data: {
-                statuses: [
-                  'waitingForFill',
-                  { error: 'Insufficient margin' },
-                  { error: 'Insufficient margin' },
-                ],
-              },
-            },
-          }),
-          cancel: jest
-            .fn()
-            .mockRejectedValue(new TestApiRequestError(cancelResponse)),
-        },
+        exchange: { order },
       });
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -3486,42 +3469,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
       } satisfies OrderParams);
-      if (!placed.orderId) {
-        throw new Error('Expected a Scale group handle');
-      }
 
-      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
-        {
-          orderId: '44',
-          symbol: 'ETH',
-          side: 'buy',
-          orderType: 'limit',
-          size: '0.3334',
-          originalSize: '0.3334',
-          price: '2000',
-          filledSize: '0',
-          remainingSize: '0.3334',
-          status: 'open',
-          timestamp: 1_700_000_000_000,
-          strategyGroupId: placed.orderId,
-        },
-      ]);
-      await provider.getOpenOrders();
-
-      const cancelled = await provider.cancelOrder({
-        orderId: placed.orderId,
-        symbol: 'ETH',
-        orderType: 'scale',
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
       });
-
-      expect(cancelled).toStrictEqual({
-        success: true,
-        orderId: placed.orderId,
+      expect(placed.orderId).toBeUndefined();
+      const submittedOrders = order.mock.calls[0][0].orders;
+      expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+        cancels: [{ asset: 1, cloid: submittedOrders[0].c }],
       });
-      expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [{ a: 1, o: 44 }],
-      });
-      expect(exchangeClient.cancelByCloid).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
 
     it('adds later Scale rungs to a partially recovered group', async () => {
@@ -5137,7 +5095,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ];
 
     it.each(['resolved', 'thrown'] as const)(
-      'classifies every accepted status in a mixed %s response',
+      'rejects and cleans every accepted status in a mixed %s response containing waiting children',
       async (responseKind) => {
         const response = {
           status: 'ok' as const,
@@ -5170,8 +5128,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
         } satisfies OrderParams);
 
         expect(placed).toMatchObject({
-          success: true,
-          childOrderIds: ['11'],
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_REJECTED,
+          childOrderIds: [],
           acceptedChildren: [
             { orderId: '11', state: 'resting' },
             { state: 'waitingForFill' },
@@ -5185,14 +5144,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           averagePrice: '2533.33333333333333333333',
           weightedAverageLimitPrice: '2399.80801535877129829614',
         });
-
-        const cancelled = await provider.cancelOrder({
-          orderId: placed.orderId,
-          symbol: 'ETH',
-          orderType: 'scale',
-        });
-
-        expect(cancelled.success).toBe(true);
+        expect(placed.orderId).toBeUndefined();
         expect(exchangeClient.cancel).toHaveBeenCalledWith({
           cancels: [{ a: 1, o: 11 }],
         });
@@ -5200,13 +5152,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
           cancels: [
             { asset: 1, cloid: submittedOrders[1].c },
+            { asset: 1, cloid: submittedOrders[2].c },
             { asset: 1, cloid: submittedOrders[3].c },
+            { asset: 1, cloid: submittedOrders[4].c },
           ],
         });
       },
     );
 
-    it('finishes waiting-child cancellation when the SDK throws already-gone statuses', async () => {
+    it('treats already-gone waiting-child cleanup as complete', async () => {
       const response = {
         status: 'ok' as const,
         response: {
@@ -5250,17 +5204,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
       } satisfies OrderParams);
-      const cancelled = await provider.cancelOrder({
-        orderId: placed.orderId,
-        symbol: 'ETH',
-        orderType: 'scale',
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        childOrderIds: [],
       });
-
-      expect(cancelled).toMatchObject({
-        success: true,
-        orderId: placed.orderId,
-      });
+      expect(placed.orderId).toBeUndefined();
       expect(exchangeClient.cancelByCloid).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects an all-waiting Scale batch and cleans every rung by CLOID', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          data: {
+            statuses: ['waitingForFill', 'waitingForTrigger', 'waitingForFill'],
+          },
+        },
+      });
+      const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        childOrderIds: [],
+      });
+      expect(placed.orderId).toBeUndefined();
+      const submittedOrders = order.mock.calls[0][0].orders;
+      expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+        cancels: submittedOrders.map((submittedOrder) => ({
+          asset: 1,
+          cloid: submittedOrder.c,
+        })),
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
 
     it.each([

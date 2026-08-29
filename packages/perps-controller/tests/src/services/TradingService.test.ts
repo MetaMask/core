@@ -450,7 +450,7 @@ describe('TradingService', () => {
       expect(resultProperties.order_value).toBeCloseTo(1666.7);
     });
 
-    it('pairs filled Scale size with average execution price for order value', async () => {
+    it('keeps mixed Scale executed and partial analytics on separate size and notional meanings', async () => {
       mockProvider.placeOrder.mockResolvedValue({
         success: true,
         orderId: 'scale:group',
@@ -487,6 +487,17 @@ describe('TradingService', () => {
       );
       expect(resultProperties.limit_price).toBeCloseTo(2399.8080153587714);
       expect(resultProperties.order_value).toBeCloseTo(380);
+
+      const partialProperties =
+        mockDeps.metrics.trackPerpsEvent.mock.calls[1][1];
+      expect(partialProperties).toEqual(
+        expect.objectContaining({
+          order_size: 0.8334,
+          amount_filled: 0.15,
+          remaining_amount: 0.6834,
+        }),
+      );
+      expect(partialProperties.order_value).toBeCloseTo(2000);
     });
 
     it('includes trade_with_token and mm_pay fields when trackingData has tradeWithToken and pay token/network', async () => {

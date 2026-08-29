@@ -102,6 +102,8 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
@@ -979,6 +981,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markFirstOrderCompleted',
   'markTutorialCompleted',
   'placeOrder',
+  'previewPositionModify',
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
@@ -4817,6 +4820,26 @@ export class PerpsController extends BaseController<
     const provider = this.getActiveProvider();
     const context = this.#createServiceContext('calculateLiquidationPrice');
     return this.#marketDataService.calculateLiquidationPrice({
+      provider,
+      params,
+      context,
+    });
+  }
+
+  /**
+   * Project the isolated position that would remain after a proposed order.
+   * Margin and liquidation availability are independent: a missing liquidation
+   * does not hide a valid margin projection. Cross-margin returns unsupported.
+   *
+   * @param params - Live position plus the proposed order.
+   * @returns Discriminated preview of the resulting position.
+   */
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    const provider = this.getActiveProvider();
+    const context = this.#createServiceContext('previewPositionModify');
+    return this.#marketDataService.previewPositionModify({
       provider,
       params,
       context,

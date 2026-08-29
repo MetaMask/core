@@ -7,15 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve accepted HyperLiquid Scale orders when part of a batch is rejected ([#9989](https://github.com/MetaMask/core/pull/9989))
+
+## [14.0.0]
+
 ### Added
 
-- Add typed Scale analytics property, interaction, and setting constants ([#9989](https://github.com/MetaMask/core/pull/9989))
+- **BREAKING:** Add `PerpsController.previewPositionModify` and `PerpsProvider.previewPositionModify` so clients can read an isolated-margin post-trade projection without placing an order ([#9968](https://github.com/MetaMask/core/pull/9968))
+  - Mobile supplies the live position and proposed order; the HyperLiquid provider fetches the asset's margin table and applies selected leverage to the whole resulting position (matching `updateLeverage` before placement).
+  - The result is a discriminated union (`none` / `unsupported` / `full_close` / `open`) so a non-modifying preview cannot carry a flip kind and a full close cannot report remaining size. Margin and liquidation availability are independent: a missing live liquidation or missing multi-tier table withholds only liquidation.
+  - Isolated increases, leverage changes (up or down), reductions, flips, and full closes are projected for both longs and shorts. `price` is the expected fill or resting limit; the preview does not distinguish order types. Same-direction `reduceOnly` and increases/flips without a positive price return `{ status: 'none' }`. `resulting.leverage` is mark notional / remaining isolated margin. Liquidation uses the projected mark (not average entry) because isolated `marginUsed` is mark-based equity. A missing margin-table identity withholds liquidation rather than inventing a single-tier schedule. Aggregated providers route by `providerId` / `position.providerId`. Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`. MYX returns `{ status: 'unsupported', reason: 'provider' }`.
+  - Consumers that implement `PerpsProvider` must add `previewPositionModify`. Clients should use `resulting.direction` (not the order direction) when validating TP/SL against the projected liquidation.
 
 ### Fixed
 
 - Prevent transient HyperLiquid WebSocket disconnects from failing the first TP/SL update by checking builder-fee approval over HTTP ([#9997](https://github.com/MetaMask/core/pull/9997))
 - Stop reporting `TPSL_UPDATE_FAILED` from `updatePositionTPSL` when HyperLiquid accepts a trigger with `waitingForTrigger`; accepted triggers without response order IDs are reconciled before mixed-failure cleanup ([#9995](https://github.com/MetaMask/core/pull/9995))
-- Preserve every accepted HyperLiquid Scale rung after a partial batch rejection, including `waitingForFill` and `waitingForTrigger` statuses and responses wrapped in `ApiRequestError`; cancel unclassified rungs by client order ID before returning failure; keep `childOrderIds` limited to resting orders; expose each accepted status through `acceptedChildren`; distinguish `acceptedSize` from the full `submittedSize`; and report `weightedAverageLimitPrice` separately from the fill-weighted `averagePrice` ([#9989](https://github.com/MetaMask/core/pull/9989))
 
 ## [13.1.0]
 
@@ -25,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics ([#9982](https://github.com/MetaMask/core/pull/9982)).
+- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics. ([#9982](https://github.com/MetaMask/core/pull/9982))
 - Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
 
 ## [13.0.0]
@@ -110,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
   - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id. Its documentation says so; the individual exchange ids are in `childOrderIds`.
   - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally varying each suborder's size by up to ±20% with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to the pinned SDK's 5–1440-minute range.
-  - `scale` fans out `OrderParams.scaleNumOrders` limit orders on an inclusive price ladder between `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, submitted as a single batch. Sizes are split in whole units of the asset's size grid, so the rungs sum to exactly the submitted size. The batch is not atomic. The venue can accept some rungs and reject others, so `OrderResult.submittedSize` reports the full normalized batch while `acceptedSize`, `acceptedChildren`, and `weightedAverageLimitPrice` describe the accepted rungs. `childOrderIds` remains limited to resting, cancellable orders, and `averagePrice` describes fills only.
+  - `scale` fans out `OrderParams.scaleNumOrders` limit orders on an inclusive price ladder between `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, submitted as a single batch. Sizes are split in whole units of the asset's size grid, so the rungs sum to exactly the submitted size. The batch is not atomic — the venue can rest some rungs and reject others — so `OrderResult.submittedSize` reports only the rungs that actually rested.
   - The venue applies its minimum order value to what it receives, not to the strategy total: a `scale` ladder's notional must leave every submitted rung above the per-order minimum, and a `twap`'s total must clear the venue's own minimum TWAP size (`HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd`). Both are rejected locally rather than by the exchange. The ladder check needs the asset's size grid, so it runs during placement — before anything is signed — rather than in `validateOrder`, which cannot see the grid and could only guess.
   - A `chase` verifies its order is still live whenever its own price stops showing on the book, so an order that fills without the loop noticing ends the session and releases its concurrency slot instead of holding both until the window closes.
   - A `chase` interrupted by `disconnect` resolves as a failure with `ORDER_CHASE_ABANDONED` rather than a success, because no strategy is running behind it. Interrupted anywhere before its submission it signs nothing at all. Interrupted while that submission is in flight — the one window it cannot check ahead of — it tries to take the order back before returning, through the client it signed with rather than one asked for after the teardown, so an account switch cannot strand it. That attempt is best-effort: the venue can refuse the cancel, and the transport underneath the client may already be closing. When it does not take, the order is reported in `OrderResult.childOrderIds`, where the ordinary single-order cancel can still reach it for as long as the provider signs as the account that placed it.
@@ -809,7 +818,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...@metamask/perps-controller@14.0.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.0.0...@metamask/perps-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...@metamask/perps-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...@metamask/perps-controller@12.2.0

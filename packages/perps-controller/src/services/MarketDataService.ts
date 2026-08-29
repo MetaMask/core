@@ -25,6 +25,8 @@ import type {
   GetAvailableDexsParams,
   LiquidationPriceParams,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   FeeCalculationParams,
   FeeCalculationResult,
   OrderParams,
@@ -1200,6 +1202,38 @@ export class MarketDataService {
         {
           context: {
             name: 'MarketDataService.calculateLiquidationPrice',
+            data: { params },
+          },
+        },
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Project the position that would remain after a proposed order.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - Live position plus the proposed order.
+   * @param options.context - The service context for dependencies.
+   * @returns Discriminated preview of the resulting position.
+   */
+  async previewPositionModify(options: {
+    provider: PerpsProvider;
+    params: PositionModifyPreviewParams;
+    context: ServiceContext;
+  }): Promise<PositionModifyPreviewResult> {
+    const { provider, params } = options;
+
+    try {
+      return await provider.previewPositionModify(params);
+    } catch (error) {
+      this.#deps.logger.error(
+        ensureError(error, 'MarketDataService.previewPositionModify'),
+        {
+          context: {
+            name: 'MarketDataService.previewPositionModify',
             data: { params },
           },
         },

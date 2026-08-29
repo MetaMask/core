@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
+  PaymentMethodsForContextResponse,
   UserRegion,
   ResourceState,
   TransakState,
@@ -25,6 +26,7 @@ export type {
   RampsControllerSetSelectedTokenAction,
   RampsControllerGetProvidersAction,
   RampsControllerGetPaymentMethodsAction,
+  RampsControllerGetPaymentMethodsForContextAction,
   RampsControllerSetSelectedPaymentMethodAction,
   RampsControllerGetQuotesAction,
   RampsControllerAddOrderAction,
@@ -114,6 +116,12 @@ export {
   RAMPS_SDK_VERSION,
   getDefaultRedirectCallbackUrl,
 } from './RampsService.js';
+export type { RampsClientIdentity } from './client-identity.js';
+export {
+  addRampsClientIdentityParams,
+  RAMPS_CLIENT_PRODUCT_PARAM,
+  RAMPS_CLIENT_VERSION_PARAM,
+} from './client-identity.js';
 export type {
   RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
@@ -153,6 +161,7 @@ export {
   isHeadlessAllProvidersEnabled,
 } from './featureFlags.js';
 export {
+  normalizeRampsAssetId,
   providerServesAsset,
   getProvidersServingAsset,
   regionHasProviderForAsset,
