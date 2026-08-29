@@ -767,6 +767,16 @@ describe('LighterProvider', () => {
       expect(data).toHaveLength(1);
       expect(data[0].symbol).toBe('BTC');
     });
+
+    it('surfaces malformed successful order-book details instead of reporting no market data', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBookDetails.mockRejectedValue(
+        new Error('Invalid Lighter venue data: malformed order-book details'),
+      );
+      await expect(provider.getMarketDataWithPrices()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
   });
 
   describe('account reads', () => {
@@ -1636,6 +1646,38 @@ describe('LighterProvider', () => {
   });
 
   describe('session binding', () => {
+    it('re-arms one signer reset listener after wallet deselection and reselection', async () => {
+      const {
+        provider,
+        calls,
+        fireReset,
+        getUserAddressMock,
+        resetListenerCount,
+      } = buildProvider({ registeredKey: '9c'.repeat(40) });
+      expect((await provider.isReadyToTrade()).ready).toBe(true);
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(1);
+
+      getUserAddressMock.mockImplementation(() => {
+        throw new Error('no selected wallet account');
+      });
+      await provider.getAccountState();
+      expect(resetListenerCount()).toBe(0);
+
+      getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+      await provider.getAccountState();
+      expect(resetListenerCount()).toBe(1);
+      fireReset();
+
+      expect((await provider.isReadyToTrade()).ready).toBe(true);
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(2);
+      await provider.disconnect();
+      expect(resetListenerCount()).toBe(0);
+    });
+
     it('replaces the signer reset listener on account rebind and removes it on disconnect', async () => {
       const {
         provider,

@@ -1079,7 +1079,7 @@ export class LighterProvider implements PerpsProvider {
     this.#isTestnet = options.isTestnet ?? true;
     this.#messenger = options.messenger ?? null;
     this.#signerBridge = options.signerBridge ?? null;
-    this.#replaceSignerResetListener();
+    this.#ensureSignerResetListener();
     const globalWebSocket = Reflect.get(globalThis, 'WebSocket') as
       | LighterWebSocketCtor
       | undefined;
@@ -1308,6 +1308,14 @@ export class LighterProvider implements PerpsProvider {
   /** Replace this provider's listener on the client-owned signer bridge. */
   readonly #replaceSignerResetListener = (): void => {
     this.#removeSignerResetListener();
+    this.#ensureSignerResetListener();
+  };
+
+  /** Install the reset listener when the current binding has none. */
+  readonly #ensureSignerResetListener = (): void => {
+    if (this.#signerResetUnsubscribe) {
+      return;
+    }
     this.#signerResetUnsubscribe =
       this.#signerBridge?.onReset?.(() => this.#invalidateSignerSession()) ??
       null;
@@ -1367,6 +1375,7 @@ export class LighterProvider implements PerpsProvider {
     const hadPreviousBinding = this.#boundAddress !== null;
     this.#boundAddress = address;
     if (!hadPreviousBinding) {
+      this.#ensureSignerResetListener();
       // First binding (or first after a deselection): surviving
       // subscribers may be sitting on an empty channel set.
       if (this.#hasAnySubscriber() && this.#wsWantedChannels.size === 0) {
@@ -4645,6 +4654,12 @@ export class LighterProvider implements PerpsProvider {
           ...this.#getErrorContext('getMarketDataWithPrices'),
         },
       );
+      if (
+        this.#isUnsupportedCapabilityError(caughtError) ||
+        this.#isDataIntegrityError(caughtError)
+      ) {
+        throw caughtError;
+      }
       return [];
     }
   }
