@@ -712,12 +712,90 @@ describe('LighterProvider', () => {
       socket.open();
 
       expect(resetListenerCount()).toBe(0);
+      expect(socket.readyState).toBe(3);
       expect(provider.getWebSocketConnectionState()).toBe('disconnected');
       expect(socket.sent).toStrictEqual([]);
       expect(callback).not.toHaveBeenCalled();
       expect(
         calls.filter((call) => call.function === '_createClient'),
       ).toHaveLength(0);
+    });
+
+    it('does not repopulate the market cache when initialization resolves after disconnect', async () => {
+      const { provider, clientInstance } = buildProvider();
+      let resolveMarkets: (value: unknown) => void = () => undefined;
+      let signalMarketRead: () => void = () => undefined;
+      const marketReadStarted = new Promise<void>((resolve) => {
+        signalMarketRead = resolve;
+      });
+      clientInstance.getOrderBooks.mockImplementationOnce(() => {
+        signalMarketRead();
+        return new Promise((resolve) => {
+          resolveMarkets = resolve;
+        });
+      });
+      const pendingInitialize = provider.initialize();
+      await marketReadStarted;
+      await provider.disconnect();
+
+      resolveMarkets([BTC_MARKET]);
+      expect(await pendingInitialize).toStrictEqual({
+        success: false,
+        error: 'Lighter provider is disconnected',
+      });
+      expect(
+        await provider.fetchHistoricalCandles({
+          symbol: 'BTC',
+          interval: '1h',
+        }),
+      ).toStrictEqual({ symbol: 'BTC', interval: '1h', candles: [] });
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(2);
+      expect(clientInstance.getCandles).not.toHaveBeenCalled();
+    });
+
+    it('does not repopulate margin metadata when a fetch resolves after disconnect', async () => {
+      const { provider, clientInstance } = buildProvider();
+      let resolveMargins: (value: unknown) => void = () => undefined;
+      let signalMarginRead: () => void = () => undefined;
+      const marginReadStarted = new Promise<void>((resolve) => {
+        signalMarginRead = resolve;
+      });
+      clientInstance.getOrderBookDetails
+        .mockImplementationOnce(() => {
+          signalMarginRead();
+          return new Promise((resolve) => {
+            resolveMargins = resolve;
+          });
+        })
+        .mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              symbol: 'BTC',
+              lastTradePrice: 100000,
+              minInitialMarginFraction: 400,
+              maintenanceMarginFraction: 240,
+            },
+          ],
+        });
+      const pendingLeverage = provider.getMaxLeverage('BTC');
+      await marginReadStarted;
+      await provider.disconnect();
+
+      resolveMargins({
+        code: 200,
+        orderBookDetails: [
+          {
+            symbol: 'BTC',
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 400,
+            maintenanceMarginFraction: 240,
+          },
+        ],
+      });
+      expect(await pendingLeverage).toBe(50);
+      expect(await provider.getMaxLeverage('BTC')).toBe(50);
+      expect(clientInstance.getOrderBookDetails).toHaveBeenCalledTimes(2);
     });
 
     it('does not revive candle state or callbacks when history resolves after disconnect', async () => {

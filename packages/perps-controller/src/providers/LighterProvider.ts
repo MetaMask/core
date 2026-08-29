@@ -7639,6 +7639,11 @@ export class LighterProvider implements PerpsProvider {
 
     ws.onopen = (): void => {
       if (this.#isDisconnected) {
+        try {
+          ws.close();
+        } catch {
+          // The transport may already have closed during disconnect.
+        }
         return;
       }
       // Observe any external switch first, then drop if this socket was
