@@ -31,6 +31,7 @@ import {
 
 import {
   getLighterHttpEndpoint,
+  LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_HTTP_TIMEOUT_MS,
 } from '../constants/lighterConfig.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
@@ -52,6 +53,7 @@ import type {
   LighterPositionFundingsResponse,
   LighterSendTxResponse,
   LighterTradesResponse,
+  LighterTradesQuery,
   LighterTransferHistoryResponse,
   LighterWithdrawHistoryResponse,
 } from '../types/lighter-types.js';
@@ -74,6 +76,22 @@ const NonNegativeIntegerStruct = define<number>(
       ? Number.isSafeInteger(value) && value >= 0
       : false,
 );
+const StrictDecimalStringStruct = define<string>(
+  'finite decimal string',
+  (value) => {
+    if (
+      typeof value !== 'string' ||
+      !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u.test(value.trim())
+    ) {
+      return false;
+    }
+    return Number.isFinite(Number(value));
+  },
+);
+const FinancialNumberStruct = union([
+  FiniteNumberStruct,
+  StrictDecimalStringStruct,
+]);
 const BaseResponseStruct = type({
   code: SafeIntegerStruct,
   message: optional(string()),
@@ -81,15 +99,15 @@ const BaseResponseStruct = type({
 const PositionStruct = type({
   marketId: NonNegativeIntegerStruct,
   symbol: string(),
-  initialMarginFraction: string(),
+  initialMarginFraction: StrictDecimalStringStruct,
   openOrderCount: NonNegativeIntegerStruct,
   sign: SafeIntegerStruct,
-  position: string(),
-  avgEntryPrice: string(),
-  positionValue: string(),
-  unrealizedPnl: string(),
-  realizedPnl: string(),
-  liquidationPrice: string(),
+  position: StrictDecimalStringStruct,
+  avgEntryPrice: StrictDecimalStringStruct,
+  positionValue: StrictDecimalStringStruct,
+  unrealizedPnl: StrictDecimalStringStruct,
+  realizedPnl: StrictDecimalStringStruct,
+  liquidationPrice: StrictDecimalStringStruct,
   marginMode: optional(SafeIntegerStruct),
 });
 const AccountStruct = type({
@@ -101,8 +119,8 @@ const AccountStruct = type({
   totalOrderCount: NonNegativeIntegerStruct,
   pendingOrderCount: NonNegativeIntegerStruct,
   status: SafeIntegerStruct,
-  collateral: string(),
-  availableBalance: string(),
+  collateral: StrictDecimalStringStruct,
+  availableBalance: StrictDecimalStringStruct,
   positions: optional(array(PositionStruct)),
 });
 const MarketStruct = type({
@@ -110,10 +128,10 @@ const MarketStruct = type({
   marketId: NonNegativeIntegerStruct,
   marketType: string(),
   status: string(),
-  takerFee: string(),
-  makerFee: string(),
-  minBaseAmount: string(),
-  minQuoteAmount: string(),
+  takerFee: StrictDecimalStringStruct,
+  makerFee: StrictDecimalStringStruct,
+  minBaseAmount: StrictDecimalStringStruct,
+  minQuoteAmount: StrictDecimalStringStruct,
   supportedSizeDecimals: NonNegativeIntegerStruct,
   supportedPriceDecimals: NonNegativeIntegerStruct,
   supportedQuoteDecimals: NonNegativeIntegerStruct,
@@ -138,9 +156,9 @@ const OrderStruct = type({
   clientOrderIndex: NonNegativeIntegerStruct,
   marketIndex: NonNegativeIntegerStruct,
   ownerAccountIndex: NonNegativeIntegerStruct,
-  initialBaseAmount: string(),
-  remainingBaseAmount: string(),
-  price: string(),
+  initialBaseAmount: StrictDecimalStringStruct,
+  remainingBaseAmount: StrictDecimalStringStruct,
+  price: StrictDecimalStringStruct,
   isAsk: boolean(),
   type: string(),
   timeInForce: string(),
@@ -148,7 +166,7 @@ const OrderStruct = type({
   status: string(),
   orderExpiry: SafeIntegerStruct,
   timestamp: NonNegativeIntegerStruct,
-  triggerPrice: optional(string()),
+  triggerPrice: optional(StrictDecimalStringStruct),
   orderId: optional(string()),
   parentOrderIndex: optional(NonNegativeIntegerStruct),
   parentOrderId: optional(string()),
@@ -160,14 +178,23 @@ const TradeStruct = type({
   tradeId: NonNegativeIntegerStruct,
   type: string(),
   marketId: NonNegativeIntegerStruct,
-  size: string(),
-  price: string(),
+  size: StrictDecimalStringStruct,
+  price: StrictDecimalStringStruct,
   askId: NonNegativeIntegerStruct,
   bidId: NonNegativeIntegerStruct,
   askAccountId: NonNegativeIntegerStruct,
   bidAccountId: NonNegativeIntegerStruct,
   isMakerAsk: optional(boolean()),
   timestamp: NonNegativeIntegerStruct,
+  usdAmount: optional(StrictDecimalStringStruct),
+  askAccountPnl: StrictDecimalStringStruct,
+  bidAccountPnl: StrictDecimalStringStruct,
+  takerFee: optional(FinancialNumberStruct),
+  makerFee: optional(FinancialNumberStruct),
+  takerPositionSizeBefore: optional(StrictDecimalStringStruct),
+  makerPositionSizeBefore: optional(StrictDecimalStringStruct),
+  takerPositionSignChanged: optional(boolean()),
+  makerPositionSignChanged: optional(boolean()),
 });
 
 const ResponseStructs = {
@@ -230,7 +257,7 @@ const ResponseStructs = {
       type({
         id: string(),
         assetId: NonNegativeIntegerStruct,
-        amount: string(),
+        amount: StrictDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
         status: string(),
         l1TxHash: string(),
@@ -244,7 +271,7 @@ const ResponseStructs = {
       type({
         id: string(),
         assetId: NonNegativeIntegerStruct,
-        amount: string(),
+        amount: StrictDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
         status: string(),
         type: string(),
@@ -259,8 +286,8 @@ const ResponseStructs = {
       type({
         id: string(),
         assetId: NonNegativeIntegerStruct,
-        amount: string(),
-        fee: string(),
+        amount: StrictDecimalStringStruct,
+        fee: StrictDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
         type: string(),
         fromL1Address: string(),
@@ -274,7 +301,8 @@ const ResponseStructs = {
   }),
   trades: type({
     ...BaseResponseStruct.schema,
-    trades: optional(array(TradeStruct)),
+    nextCursor: optional(string()),
+    trades: array(TradeStruct),
   }),
   fundings: type({
     ...BaseResponseStruct.schema,
@@ -284,9 +312,9 @@ const ResponseStructs = {
           timestamp: NonNegativeIntegerStruct,
           marketId: NonNegativeIntegerStruct,
           fundingId: NonNegativeIntegerStruct,
-          change: string(),
-          rate: string(),
-          positionSize: string(),
+          change: StrictDecimalStringStruct,
+          rate: StrictDecimalStringStruct,
+          positionSize: StrictDecimalStringStruct,
           positionSide: string(),
         }),
       ),
@@ -552,7 +580,7 @@ export class LighterClientService {
    *
    * @param accountIndex - The Lighter account index.
    * @param authToken - Auth token minted by the signer.
-   * @param limit - Max entries (1-100).
+   * @param limit - Maximum entries per page.
    * @param cursor - Pagination cursor from a previous page's `nextCursor`.
    * @param marketId - Optional market filter (official `market_id` query
    * param) — sharply bounds history scans to one symbol.
@@ -636,16 +664,21 @@ export class LighterClientService {
    *
    * @param accountIndex - The Lighter account index.
    * @param authToken - Auth token minted by the signer.
-   * @param limit - Max entries (1-100).
+   * @param query - Pagination, range, and market filters.
    * @returns Trades payload (newest first).
    */
   async getTrades(
     accountIndex: number,
     authToken: string,
-    limit = 50,
+    query: LighterTradesQuery,
   ): Promise<LighterTradesResponse> {
+    const { limit, cursor, from, marketId } = query;
     return await this.#get<LighterTradesResponse>(
-      `/api/v1/trades?sort_by=timestamp&limit=${limit}&account_index=${accountIndex}&market_type=perp`,
+      `/api/v1/trades?sort_by=timestamp&sort_dir=desc&limit=${limit}&account_index=${accountIndex}&market_type=perp${
+        cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`
+      }${from === undefined ? '' : `&from=${from}`}${
+        marketId === undefined ? '' : `&market_id=${marketId}`
+      }`,
       ResponseStructs.trades,
       { authorization: authToken },
     );
@@ -790,7 +823,7 @@ export class LighterClientService {
         assert(payload, responseStruct);
       } catch (error) {
         throw new LighterApiError(
-          `Lighter API invalid response for ${path}: ${
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} response for ${path}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );

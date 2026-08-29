@@ -15,10 +15,22 @@ import { join } from 'node:path';
 import { runInThisContext } from 'node:vm';
 
 import type {
+  LighterCreateClientParams,
   LighterCreateClientResult,
   LighterSignerBridge,
+  LighterSignerOperation,
+  LighterSignerResult,
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
+
+type WasmInvocation = {
+  function: string;
+  params: unknown[];
+};
+
+type RawCreateClientResult = LighterCreateClientResult & {
+  prv?: string;
+};
 
 type GoInstance = {
   importObject: WebAssembly.Imports;
@@ -95,7 +107,7 @@ export async function createNodeWasmBridge(
     'WASM signer globals',
   );
 
-  const execute = async <Result>(call: LighterWasmCall): Promise<Result> => {
+  const invoke = async <Result>(call: WasmInvocation): Promise<Result> => {
     const target = globals[call.function];
     if (typeof target !== 'function') {
       throw new Error(`WASM function not registered: ${call.function}`);
@@ -108,9 +120,16 @@ export async function createNodeWasmBridge(
       : await (curried as Promise<Result>);
   };
 
+  const execute = async <Operation extends LighterSignerOperation>(
+    call: LighterWasmCall<Operation>,
+  ): Promise<LighterSignerResult<Operation>> =>
+    await invoke<LighterSignerResult<Operation>>(call);
+
   return {
-    createClient: async (params) =>
-      execute<LighterCreateClientResult>({
+    createClient: async (
+      params: LighterCreateClientParams,
+    ): Promise<LighterCreateClientResult> => {
+      const created = await invoke<RawCreateClientResult>({
         function: '_createClient',
         params: [
           options.clientSeed,
@@ -119,7 +138,15 @@ export async function createNodeWasmBridge(
           params.nonce,
           params.apiKeyIndex,
         ],
-      }),
+      });
+      return {
+        success: created.success,
+        pk: created.pk,
+        pubKeySuccess: created.pubKeySuccess,
+        body: created.body,
+        ...(created.error === undefined ? {} : { error: created.error }),
+      };
+    },
     execute,
   };
 }

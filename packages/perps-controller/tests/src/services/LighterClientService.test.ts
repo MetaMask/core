@@ -147,7 +147,7 @@ describe('LighterClientService', () => {
       );
 
       await expect(buildService().getTx('aabbccdd')).rejects.toThrow(
-        'invalid response',
+        'Invalid Lighter venue data',
       );
     });
   });
@@ -161,6 +161,55 @@ describe('LighterClientService', () => {
         'https://testnet.zklighter.elliot.ai/api/v1/accountInactiveOrders?account_index=28&limit=100&cursor=abc%2Fdef&market_id=2',
         expect.objectContaining({ method: 'GET' }),
       );
+    });
+  });
+
+  describe('getTrades', () => {
+    it('encodes cursor, from, and market filters', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 200, next_cursor: 'next', trades: [] }),
+      );
+      const service = buildService();
+      await service.getTrades(28, 'auth-token', {
+        limit: 100,
+        cursor: 'abc/def',
+        from: 42,
+        marketId: 3,
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'limit=100&account_index=28&market_type=perp&cursor=abc%2Fdef&from=42&market_id=3',
+        ),
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+
+    it('rejects malformed financial fields in a successful trade payload', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [
+            {
+              trade_id: 1,
+              type: 'trade',
+              market_id: 1,
+              size: '1oops',
+              price: '90000',
+              ask_id: 10,
+              bid_id: 11,
+              ask_account_id: 28,
+              bid_account_id: 99,
+              timestamp: 1700000000000,
+              ask_account_pnl: '0',
+              bid_account_pnl: '0',
+            },
+          ],
+        }),
+      );
+
+      await expect(
+        buildService().getTrades(28, 'auth-token', { limit: 50 }),
+      ).rejects.toThrow('Invalid Lighter venue data');
     });
   });
 
@@ -246,21 +295,21 @@ describe('LighterClientService', () => {
         mockJsonResponse({ code: 200, nonce: '5' }),
       );
       await expect(service.getNextNonce(28, 7)).rejects.toThrow(
-        'invalid response',
+        'Invalid Lighter venue data',
       );
 
       fetchMock.mockResolvedValueOnce(
         mockJsonResponse({ code: 200, accounts: [{}] }),
       );
       await expect(service.getAccountByIndex(28)).rejects.toThrow(
-        'invalid response',
+        'Invalid Lighter venue data',
       );
 
       fetchMock.mockResolvedValueOnce(
         mockJsonResponse({ code: 200, order_books: [{}] }),
       );
       await expect(service.getOrderBooks(true)).rejects.toThrow(
-        'invalid response',
+        'Invalid Lighter venue data',
       );
 
       fetchMock.mockResolvedValueOnce(
@@ -268,7 +317,7 @@ describe('LighterClientService', () => {
       );
       await expect(
         service.getActiveOrders(28, 'auth-token-value'),
-      ).rejects.toThrow('invalid response');
+      ).rejects.toThrow('Invalid Lighter venue data');
     });
 
     it('passes the auth token as authorization header for active orders', async () => {

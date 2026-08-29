@@ -36,11 +36,7 @@ import {
   LighterClientService,
 } from '../../src/services/LighterClientService.js';
 import type { PerpsPlatformDependencies } from '../../src/types/index.js';
-import type {
-  LighterCreateAuthTokenResult,
-  LighterSignerBridge,
-  LighterTxResult,
-} from '../../src/types/lighter-types.js';
+import type { LighterSignerBridge } from '../../src/types/lighter-types.js';
 import { createNodeWasmBridge } from './lighter/nodeWasmBridge.js';
 
 // lighter-python's public dummy testnet key (examples/system_setup.py) —
@@ -267,7 +263,7 @@ async function phaseSignOnly(result: PhaseResult): Promise<void> {
   );
   result.venuePublicKey = created.pk;
 
-  const token = await bridge.execute<LighterCreateAuthTokenResult>({
+  const token = await bridge.execute({
     function: '_createAuthToken',
     params: [ACCOUNT_INDEX, API_KEY_INDEX],
   });
@@ -280,7 +276,7 @@ async function phaseSignOnly(result: PhaseResult): Promise<void> {
     token.error,
   );
 
-  const signed = await bridge.execute<LighterTxResult>({
+  const signed = await bridge.execute({
     function: '_signCreateOrder',
     params: [
       ACCOUNT_INDEX,
@@ -1306,7 +1302,7 @@ async function phaseWithdrawSign(result: PhaseResult): Promise<void> {
     created.error,
   );
 
-  const signed = await bridge.execute<LighterTxResult>({
+  const signed = await bridge.execute({
     function: '_signWithdraw',
     params: [ACCOUNT_INDEX, 1, 0, '1000000', nonce],
   });
@@ -1911,7 +1907,7 @@ async function phaseMarginLeverage(result: PhaseResult): Promise<void> {
     marginMode: number,
   ): Promise<void> => {
     const { nonce } = await client.getNextNonce(ACCOUNT_INDEX, API_KEY_INDEX);
-    const signed = await bridge.execute<LighterTxResult>({
+    const signed = await bridge.execute({
       function: '_signUpdateLeverage',
       params: [ACCOUNT_INDEX, meta.marketId, imfHundredths, marginMode, nonce],
     });

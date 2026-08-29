@@ -124,12 +124,14 @@ import type {
   LighterApiOrder,
   LighterAuthConfig,
   LighterTxLookupResponse,
-  LighterCreateAuthTokenResult,
   LighterCreateClientResult,
+  LighterCreateOrderWireParams,
+  LighterGroupedOrderWireParams,
   LighterOrderBookMeta,
-  LighterSignChangePubKeyResult,
   LighterSendTxResponse,
   LighterSignerBridge,
+  LighterSignerOperation,
+  LighterSignerResult,
   LighterWasmCall,
   LighterTxResult,
   LighterWebSocketCtor,
@@ -154,6 +156,10 @@ import {
   adaptPriceUpdateFromLighter,
   adaptPriceUpdateFromLighterWsStat,
 } from '../utils/lighterAdapter.js';
+
+type LighterFillQuery = GetOrderFillsParams & {
+  symbol?: string;
+};
 
 // ============================================================================
 // Constants
@@ -224,6 +230,15 @@ const snapToLighterSizeGrid = (
     return size;
   }
 };
+
+/**
+ * Whether Lighter applies its documented maker-only order minimums.
+ *
+ * @param params - Order intent to classify.
+ * @returns Whether the order rests as a maker order.
+ */
+const isLighterMakerOrder = (params: OrderParams): boolean =>
+  params.orderType === 'limit' && params.timeInForce !== 'IOC';
 
 /**
  * Parse a candle field without JavaScript's null/boolean/blank coercions.
@@ -1249,11 +1264,13 @@ export class LighterProvider implements PerpsProvider {
           throw error;
         }
       },
-      execute: async <Result>(call: LighterWasmCall): Promise<Result> => {
+      execute: async <Operation extends LighterSignerOperation>(
+        call: LighterWasmCall<Operation>,
+      ): Promise<LighterSignerResult<Operation>> => {
         const lostClientPattern =
           /client is not created|WebView reloaded|signer not ready|executor not connected|timed out/iu;
         try {
-          const result = await bridge.execute<Result>(call);
+          const result = await bridge.execute(call);
           const error = (result as { error?: string } | null)?.error;
           if (error && lostClientPattern.test(error)) {
             this.#invalidateSignerSession();
@@ -3311,11 +3328,10 @@ export class LighterProvider implements PerpsProvider {
         journalEntry.phase = 'cancelling';
       }
       const cancelNonce = await nextNonce();
-      const signedCancel =
-        await this.#getSignerBridge().execute<LighterTxResult>({
-          function: '_signCancelOrder',
-          params: [accountIndex, market.marketId, orderId, cancelNonce],
-        });
+      const signedCancel = await this.#getSignerBridge().execute({
+        function: '_signCancelOrder',
+        params: [accountIndex, market.marketId, orderId, cancelNonce],
+      });
       if (signedCancel.error) {
         throw new Error(
           `Failed to cancel trigger order ${orderId}: ${signedCancel.error}`,
@@ -4053,10 +4069,9 @@ export class LighterProvider implements PerpsProvider {
         this.#signerRecreateParams = { chainId, accountIndex };
         bridgeClientOwners.set(this.#rawSignerBridge(), this.#signerIdentity);
 
-        // Register the venue key when the slot does not hold it yet. Only
-        // the plaintext body leaves this scope — `created.prv` (the venue
-        // private key) must stay inside the signer bridge boundary and
-        // never be logged.
+        // Register the venue key when the slot does not hold it yet. The
+        // bridge returns only public registration data; the client-owned
+        // venue private key never crosses into Core.
         const registered = await this.#isVenueKeyRegistered(accountIndex);
         this.#assertSession(generation);
         if (!registered) {
@@ -4132,7 +4147,7 @@ export class LighterProvider implements PerpsProvider {
     this.#assertSession(generation);
     const nonce = await nextNonce();
     this.#assertSession(generation);
-    const signed = await bridge.execute<LighterSignChangePubKeyResult>({
+    const signed = await bridge.execute({
       function: '_signChangePubKey',
       params: [accountIndex, l1Signature, nonce, this.#apiKeyIndex],
     });
@@ -4505,12 +4520,10 @@ export class LighterProvider implements PerpsProvider {
           this.#assertSession(generation);
           await this.#reestablishSignerClient(generation, nonceResponse.nonce);
         }
-        return await this.#getSignerBridge().execute<LighterCreateAuthTokenResult>(
-          {
-            function: '_createAuthToken',
-            params: [accountIndex, this.#apiKeyIndex],
-          },
-        );
+        return await this.#getSignerBridge().execute({
+          function: '_createAuthToken',
+          params: [accountIndex, this.#apiKeyIndex],
+        });
       },
     );
     if (token.error || !token.token) {
@@ -4736,7 +4749,10 @@ export class LighterProvider implements PerpsProvider {
     try {
       return await this.#readOpenOrdersStrict();
     } catch (caughtError) {
-      if (this.#isUnsupportedCapabilityError(caughtError)) {
+      if (
+        this.#isUnsupportedCapabilityError(caughtError) ||
+        this.#isDataIntegrityError(caughtError)
+      ) {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
@@ -4784,7 +4800,10 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       return [...open, ...historical];
     } catch (caughtError) {
-      if (this.#isUnsupportedCapabilityError(caughtError)) {
+      if (
+        this.#isUnsupportedCapabilityError(caughtError) ||
+        this.#isDataIntegrityError(caughtError)
+      ) {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
@@ -5017,8 +5036,10 @@ export class LighterProvider implements PerpsProvider {
       if (!(requestedSize > 0)) {
         return { success: false, error: 'Order size must be positive' };
       }
-      const minSize = computeLighterMinOrderSize(market, referencePrice);
-      if (requestedSize < minSize) {
+      const minSize = isLighterMakerOrder(params)
+        ? computeLighterMinOrderSize(market, referencePrice)
+        : 0;
+      if (minSize > 0 && requestedSize < minSize) {
         // Only a LIVE-VERIFIED full close may be bumped to the venue
         // minimum: reduce-only execution clamps to the position, so no
         // extra exposure results and dust positions stay closable. The
@@ -5034,7 +5055,8 @@ export class LighterProvider implements PerpsProvider {
           };
         }
       }
-      const size = Math.max(requestedSize, minSize);
+      const size =
+        minSize > 0 ? Math.max(requestedSize, minSize) : requestedSize;
 
       // Wire-format integerization runs BEFORE signer setup: overflow and
       // sub-tick rejections throw here, still with zero bridge calls.
@@ -5071,19 +5093,18 @@ export class LighterProvider implements PerpsProvider {
         accountIndex,
         async (nextNonce, submit) => {
           if (leverageImfHundredths !== null && leverageMarginMode !== null) {
-            const signedLeverage =
-              await this.#getSignerBridge().execute<LighterTxResult>({
-                function: '_signUpdateLeverage',
-                // Contract: [accountIndex, marketId, imfHundredths,
-                // marginMode, nonce] — exactly five params.
-                params: [
-                  accountIndex,
-                  market.marketId,
-                  leverageImfHundredths,
-                  leverageMarginMode,
-                  await nextNonce(),
-                ],
-              });
+            const signedLeverage = await this.#getSignerBridge().execute({
+              function: '_signUpdateLeverage',
+              // Contract: [accountIndex, marketId, imfHundredths,
+              // marginMode, nonce] — exactly five params.
+              params: [
+                accountIndex,
+                market.marketId,
+                leverageImfHundredths,
+                leverageMarginMode,
+                await nextNonce(),
+              ],
+            });
             if (signedLeverage.error) {
               throw new Error(
                 `Lighter leverage update failed: ${signedLeverage.error}`,
@@ -5100,33 +5121,31 @@ export class LighterProvider implements PerpsProvider {
             );
             leverageCommitted = true;
           }
-          const signed = await this.#getSignerBridge().execute<LighterTxResult>(
-            {
-              function: '_signCreateOrder',
-              params: [
-                accountIndex,
-                market.marketId,
-                clientOrderIndex,
-                String(sizeInt),
-                String(priceInt),
-                params.isBuy ? 0 : 1,
-                params.orderType === 'limit'
-                  ? LIGHTER_ORDER_TYPE_LIMIT
-                  : LIGHTER_ORDER_TYPE_MARKET,
-                params.orderType === 'limit' && params.timeInForce !== 'IOC'
-                  ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
-                  : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
-                params.reduceOnly ? 1 : 0,
-                String(LIGHTER_NO_TRIGGER_PRICE),
-                // GTT orders auto-expire in 28 days (signer sentinel -1);
-                // IOC orders must carry a zero expiry.
-                params.orderType === 'limit' && params.timeInForce !== 'IOC'
-                  ? LIGHTER_ORDER_EXPIRY_NONE
-                  : 0,
-                await nextNonce(),
-              ],
-            },
-          );
+          const signed = await this.#getSignerBridge().execute({
+            function: '_signCreateOrder',
+            params: [
+              accountIndex,
+              market.marketId,
+              clientOrderIndex,
+              String(sizeInt),
+              String(priceInt),
+              params.isBuy ? 0 : 1,
+              params.orderType === 'limit'
+                ? LIGHTER_ORDER_TYPE_LIMIT
+                : LIGHTER_ORDER_TYPE_MARKET,
+              params.orderType === 'limit' && params.timeInForce !== 'IOC'
+                ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
+                : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+              params.reduceOnly ? 1 : 0,
+              String(LIGHTER_NO_TRIGGER_PRICE),
+              // GTT orders auto-expire in 28 days (signer sentinel -1);
+              // IOC orders must carry a zero expiry.
+              params.orderType === 'limit' && params.timeInForce !== 'IOC'
+                ? LIGHTER_ORDER_EXPIRY_NONE
+                : 0,
+              await nextNonce(),
+            ],
+          });
           if (signed.error) {
             throw new Error(`Lighter order signing failed: ${signed.error}`);
           }
@@ -5202,12 +5221,10 @@ export class LighterProvider implements PerpsProvider {
       await this.#withVenueNonce(
         accountIndex,
         async (nonce, submit) => {
-          const signed = await this.#getSignerBridge().execute<LighterTxResult>(
-            {
-              function: '_signCancelOrder',
-              params: [accountIndex, market.marketId, params.orderId, nonce],
-            },
-          );
+          const signed = await this.#getSignerBridge().execute({
+            function: '_signCancelOrder',
+            params: [accountIndex, market.marketId, params.orderId, nonce],
+          });
           if (signed.error) {
             throw new Error(`Lighter cancel signing failed: ${signed.error}`);
           }
@@ -5520,11 +5537,10 @@ export class LighterProvider implements PerpsProvider {
       // while the existing protection is still in place.
       const wantsReplacement =
         Boolean(params.takeProfitPrice) || Boolean(params.stopLossPrice);
-      let groupedPayload: (string | number)[] | null = null;
+      let singleOrderPayload: LighterCreateOrderWireParams | null = null;
+      let groupedOrderPayload: LighterGroupedOrderWireParams | null = null;
       let createdClientIds: number[] = [];
       let createdIdsNeedingFinalCheck: number[] = [];
-      let groupedOrderCount = 0;
-      let groupedType = 0;
       let preflightPositionWireSize: number | null = null;
       let preflightPositionSign: 1 | -1 | null = null;
       if (wantsReplacement) {
@@ -5604,23 +5620,39 @@ export class LighterProvider implements PerpsProvider {
         // CreateGroupedOrders only accepts grouping types 1/2/3 and OCO
         // requires two siblings, so a SINGLE TP or SL must be an ordinary
         // CreateOrder trigger; grouped OCO is reserved for both together.
-        groupedPayload = validatedOrders.flatMap((entry, index) => [
-          market.marketId,
-          clientOrderIds[index],
-          String(sizeInt),
-          String(entry.execInt),
-          isAsk,
-          entry.orderType,
-          LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
-          1,
-          String(entry.triggerInt),
-          // Trigger orders rest until fired: the signer expands the -1
-          // sentinel to the 28-day default expiry.
-          LIGHTER_ORDER_EXPIRY_NONE,
-        ]);
-        groupedOrderCount = validatedOrders.length;
-        groupedType =
-          groupedOrderCount === 2 ? LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER : 0;
+        const wireOrders = validatedOrders.map(
+          (entry, index): LighterCreateOrderWireParams => {
+            const clientOrderIndex = clientOrderIds[index];
+            if (clientOrderIndex === undefined) {
+              throw new Error(
+                'Lighter TP/SL preflight did not allocate a client order id',
+              );
+            }
+            return [
+              market.marketId,
+              clientOrderIndex,
+              String(sizeInt),
+              String(entry.execInt),
+              isAsk,
+              entry.orderType,
+              LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+              1,
+              String(entry.triggerInt),
+              // Trigger orders rest until fired: the signer expands the -1
+              // sentinel to the 28-day default expiry.
+              LIGHTER_ORDER_EXPIRY_NONE,
+            ];
+          },
+        );
+        const [first, second] = wireOrders;
+        if (first === undefined) {
+          throw new Error('Lighter TP/SL preflight produced no trigger order');
+        }
+        if (second === undefined) {
+          singleOrderPayload = first;
+        } else {
+          groupedOrderPayload = [...first, ...second];
+        }
       }
 
       // Re-fence BEFORE signer setup: the preflight awaited public reads
@@ -5869,11 +5901,10 @@ export class LighterProvider implements PerpsProvider {
               journal.phase = 'cancelling';
             }
             const cancelNonce = await nextNonce();
-            const signedCancel =
-              await this.#getSignerBridge().execute<LighterTxResult>({
-                function: '_signCancelOrder',
-                params: [accountIndex, market.marketId, orderId, cancelNonce],
-              });
+            const signedCancel = await this.#getSignerBridge().execute({
+              function: '_signCancelOrder',
+              params: [accountIndex, market.marketId, orderId, cancelNonce],
+            });
             if (signedCancel.error) {
               throw new Error(
                 `Failed to cancel trigger order ${orderId}: ${signedCancel.error}`,
@@ -5911,7 +5942,10 @@ export class LighterProvider implements PerpsProvider {
           // new protection fails, the old triggers were never touched and
           // the position is never left naked. The temporary overlap is
           // safe — both sets are reduce-only and clamp to the position.
-          if (wantsReplacement && groupedPayload !== null) {
+          if (
+            wantsReplacement &&
+            (singleOrderPayload !== null || groupedOrderPayload !== null)
+          ) {
             // The public preflight position read occurred before signer
             // setup and write serialization. Re-read the raw venue position
             // inside the held transition immediately before any create or
@@ -5952,29 +5986,32 @@ export class LighterProvider implements PerpsProvider {
                 `Lighter position changed before TP/SL signing for ${params.symbol}; refresh and retry protection against the current position`,
               );
             }
-            const payload = groupedPayload;
-            const isSingleTrigger = groupedOrderCount === 1;
             const createNonce = await nextNonce();
             // A lone trigger is an ordinary CreateOrder (same wire
             // layout); only a TP+SL pair uses the grouped OCO transaction.
-            const signed =
-              await this.#getSignerBridge().execute<LighterTxResult>(
-                isSingleTrigger
-                  ? {
-                      function: '_signCreateOrder',
-                      params: [accountIndex, ...payload, createNonce],
-                    }
-                  : {
-                      function: '_signCreateGroupedOrders',
-                      params: [
-                        accountIndex,
-                        groupedType,
-                        groupedOrderCount,
-                        ...payload,
-                        createNonce,
-                      ],
-                    },
-              );
+            let signed: LighterTxResult;
+            let isSingleTrigger = false;
+            if (singleOrderPayload === null) {
+              if (groupedOrderPayload === null) {
+                throw new Error('Lighter TP/SL preflight payload is missing');
+              }
+              signed = await this.#getSignerBridge().execute({
+                function: '_signCreateGroupedOrders',
+                params: [
+                  accountIndex,
+                  LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
+                  2,
+                  ...groupedOrderPayload,
+                  createNonce,
+                ],
+              });
+            } else {
+              isSingleTrigger = true;
+              signed = await this.#getSignerBridge().execute({
+                function: '_signCreateOrder',
+                params: [accountIndex, ...singleOrderPayload, createNonce],
+              });
+            }
             if (signed.error) {
               throw new Error(signed.error);
             }
@@ -6222,18 +6259,16 @@ export class LighterProvider implements PerpsProvider {
       await this.#withVenueNonce(
         accountIndex,
         async (nonce, submit) => {
-          const signed = await this.#getSignerBridge().execute<LighterTxResult>(
-            {
-              function: '_signUpdateMargin',
-              params: [
-                accountIndex,
-                market.marketId,
-                marginAmountInt,
-                amount > 0 ? 1 : 0,
-                nonce,
-              ],
-            },
-          );
+          const signed = await this.#getSignerBridge().execute({
+            function: '_signUpdateMargin',
+            params: [
+              accountIndex,
+              market.marketId,
+              marginAmountInt,
+              amount > 0 ? 1 : 0,
+              nonce,
+            ],
+          });
           if (signed.error) {
             throw new Error(signed.error);
           }
@@ -6290,18 +6325,16 @@ export class LighterProvider implements PerpsProvider {
       const result = await this.#withVenueNonce(
         accountIndex,
         async (nonce, submit) => {
-          const signed = await this.#getSignerBridge().execute<LighterTxResult>(
-            {
-              function: '_signWithdraw',
-              params: [
-                accountIndex,
-                LIGHTER_USDC_ASSET_INDEX,
-                0,
-                assetAmount,
-                nonce,
-              ],
-            },
-          );
+          const signed = await this.#getSignerBridge().execute({
+            function: '_signWithdraw',
+            params: [
+              accountIndex,
+              LIGHTER_USDC_ASSET_INDEX,
+              0,
+              assetAmount,
+              nonce,
+            ],
+          });
           if (signed.error) {
             throw new Error(signed.error);
           }
@@ -6336,6 +6369,12 @@ export class LighterProvider implements PerpsProvider {
     params?: GetOrderFillsParams,
     _options?: PerpsReadOptions,
   ): Promise<OrderFill[]> {
+    return await this.#getOrderFillsForQuery(params);
+  }
+
+  readonly #getOrderFillsForQuery = async (
+    params?: LighterFillQuery,
+  ): Promise<OrderFill[]> => {
     const selectedAddress = this.#walletService.getUserAddress().toLowerCase();
     const requestedAddress =
       params?.user?.toLowerCase() ??
@@ -6360,30 +6399,68 @@ export class LighterProvider implements PerpsProvider {
       const generation = this.#sessionGeneration;
       const accountIndex = await this.#ensureAccountIndex();
       const token = await this.#getAuthToken();
-      await this.#ensureMarkets();
-      const response = await this.#clientService.getTrades(
-        accountIndex,
-        token,
-        params?.limit ?? 50,
-      );
-      this.#assertSession(generation);
-      return (response.trades ?? [])
-        .map((trade) =>
-          adaptFillFromLighterTrade(
+      const markets = await this.#ensureMarkets();
+      const requestedLimit = Math.min(Math.max(params?.limit ?? 50, 1), 100);
+      const marketId = params?.symbol
+        ? markets.get(params.symbol)?.marketId
+        : undefined;
+      if (params?.symbol && marketId === undefined) {
+        return [];
+      }
+      const needsPaging =
+        params?.startTime !== undefined ||
+        params?.endTime !== undefined ||
+        params?.symbol !== undefined;
+      const pageLimit = needsPaging ? 100 : requestedLimit;
+      const fills: OrderFill[] = [];
+      let cursor: string | undefined;
+      let reachedStartBoundary = false;
+      for (let page = 0; page < 100; page += 1) {
+        const { trades, nextCursor } = await this.#clientService.getTrades(
+          accountIndex,
+          token,
+          { limit: pageLimit, cursor, marketId },
+        );
+        this.#assertSession(generation);
+        for (const trade of trades) {
+          const fill = adaptFillFromLighterTrade(
             trade,
             this.#marketsById.get(trade.marketId)?.symbol ??
               String(trade.marketId),
             accountIndex,
-          ),
-        )
-        .filter(
-          (fill) =>
+          );
+          if (
             (params?.startTime === undefined ||
               fill.timestamp >= params.startTime) &&
-            (params?.endTime === undefined || fill.timestamp <= params.endTime),
-        );
+            (params?.endTime === undefined || fill.timestamp <= params.endTime)
+          ) {
+            fills.push(fill);
+          }
+          if (
+            params?.startTime !== undefined &&
+            fill.timestamp <= params.startTime
+          ) {
+            reachedStartBoundary = true;
+          }
+        }
+        cursor = nextCursor;
+        if (
+          fills.length >= requestedLimit ||
+          cursor === undefined ||
+          trades.length === 0 ||
+          reachedStartBoundary
+        ) {
+          return fills.slice(0, requestedLimit);
+        }
+      }
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} fill history pagination did not reach the requested boundary`,
+      );
     } catch (error) {
-      if (this.#isUnsupportedCapabilityError(error)) {
+      if (
+        this.#isUnsupportedCapabilityError(error) ||
+        this.#isDataIntegrityError(error)
+      ) {
         // Capability gates must surface, never degrade into empty state.
         throw error;
       }
@@ -6392,17 +6469,10 @@ export class LighterProvider implements PerpsProvider {
       });
       return [];
     }
-  }
+  };
 
   async getOrFetchFills(params?: GetOrFetchFillsParams): Promise<OrderFill[]> {
-    const fills = await this.getOrderFills(
-      params?.startTime === undefined
-        ? undefined
-        : { startTime: params.startTime },
-    );
-    return params?.symbol
-      ? fills.filter((fill) => fill.symbol === params.symbol)
-      : fills;
+    return await this.#getOrderFillsForQuery(params);
   }
 
   async getHistoricalPortfolio(
@@ -6745,8 +6815,10 @@ export class LighterProvider implements PerpsProvider {
               usdAmount / referencePrice,
               market.supportedSizeDecimals,
             );
-      const minSize = computeLighterMinOrderSize(market, referencePrice);
-      if (requestedSize < minSize) {
+      const minSize = isLighterMakerOrder(params)
+        ? computeLighterMinOrderSize(market, referencePrice)
+        : 0;
+      if (minSize > 0 && requestedSize < minSize) {
         // EXACTLY the placement rule: only reduce-only orders may bump to
         // the venue minimum, and only when the live position verifies a
         // full close; isFullClose remains an untrusted hint. The live read
@@ -6911,13 +6983,6 @@ export class LighterProvider implements PerpsProvider {
               market.supportedSizeDecimals,
             )
           : parseFloat(params.size ?? String(held));
-      const minSize = computeLighterMinOrderSize(market, referencePrice);
-      if (requestedSize < minSize && !(requestedSize >= held * (1 - 1e-9))) {
-        return {
-          isValid: false,
-          error: `Order size ${requestedSize} is below the Lighter minimum of ${minSize} ${params.symbol}`,
-        };
-      }
       // Wire-format parity with the placement path closePosition uses:
       // the EXECUTION price is what gets integerized and signed.
       try {
@@ -7613,9 +7678,9 @@ export class LighterProvider implements PerpsProvider {
     }
     if (type.includes('account_all_orders') && message.orders) {
       const isSnapshot = type.startsWith('subscribed');
-      if (isSnapshot) {
-        this.#wsOrders.clear();
-      }
+      const nextOrders = isSnapshot
+        ? new Map<string, Order>()
+        : new Map(this.#wsOrders);
       for (const marketOrders of Object.values(message.orders)) {
         for (const order of marketOrders) {
           const adapted = adaptOrderFromLighter(
@@ -7626,11 +7691,15 @@ export class LighterProvider implements PerpsProvider {
           const isOpen =
             adapted.status === 'queued' || adapted.status === 'open';
           if (isOpen) {
-            this.#wsOrders.set(adapted.orderId, adapted);
+            nextOrders.set(adapted.orderId, adapted);
           } else {
-            this.#wsOrders.delete(adapted.orderId);
+            nextOrders.delete(adapted.orderId);
           }
         }
+      }
+      this.#wsOrders.clear();
+      for (const [orderId, order] of nextOrders) {
+        this.#wsOrders.set(orderId, order);
       }
       this.#emitToOrderSubscribers([...this.#wsOrders.values()]);
     }

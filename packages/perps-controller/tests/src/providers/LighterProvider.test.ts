@@ -7,8 +7,9 @@ import {
 } from '../../../src/services/LighterClientService.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
 import type {
-  LighterCreateClientResult,
   LighterSignerBridge,
+  LighterSignerOperation,
+  LighterSignerResult,
   LighterWasmCall,
   LighterWebSocketCtor,
   LighterWebSocketLike,
@@ -150,10 +151,9 @@ function createMockBridge(): {
   let signSequence = 0;
   const bridge: LighterSignerBridge = {
     createClient: jest.fn(async (params) =>
-      bridge.execute<LighterCreateClientResult>({
+      bridge.execute({
         function: '_createClient',
         params: [
-          'client-owned-seed',
           params.chainId,
           params.accountIndex,
           params.nonce,
@@ -165,110 +165,113 @@ function createMockBridge(): {
       resetListeners.push(listener);
       return () => undefined;
     },
-    execute: jest.fn(async <Result>(call: LighterWasmCall): Promise<Result> => {
-      calls.push(call);
-      switch (call.function) {
-        case '_createClient':
-          return {
-            success: true,
-            pk: '9c'.repeat(40),
-            prv: '11'.repeat(40),
-            pubKeySuccess: true,
-            body: 'Register Lighter Account\n\npubkey: 0x9c...\nOnly sign this message for a trusted client!',
-          } as Result;
-        case '_signChangePubKey': {
-          signSequence += 1;
-          return {
-            txInfo: JSON.stringify({
-              changePubKey: true,
-              Nonce: Number((call.params as (string | number)[])[2]),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: `dddd${String(signSequence).padStart(12, '0')}`,
-          } as Result;
+    execute: jest.fn(
+      async <Operation extends LighterSignerOperation>(
+        call: LighterWasmCall<Operation>,
+      ): Promise<LighterSignerResult<Operation>> => {
+        calls.push(call);
+        switch (call.function) {
+          case '_createClient':
+            return {
+              success: true,
+              pk: '9c'.repeat(40),
+              pubKeySuccess: true,
+              body: 'Register Lighter Account\n\npubkey: 0x9c...\nOnly sign this message for a trusted client!',
+            } as LighterSignerResult<Operation>;
+          case '_signChangePubKey': {
+            signSequence += 1;
+            return {
+              txInfo: JSON.stringify({
+                changePubKey: true,
+                Nonce: Number((call.params as (string | number)[])[2]),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: `dddd${String(signSequence).padStart(12, '0')}`,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_signCreateOrder': {
+            signSequence += 1;
+            // FAITHFUL to the pinned WASM contract (web-wasm
+            // light_client.go): the signing RESULT carries {txHash, txInfo}
+            // and txInfo is the marshaled wire payload — it contains Nonce
+            // and ExpiredAt but NEVER the hash.
+            const createHash = `aaaa${String(signSequence).padStart(12, '0')}`;
+            return {
+              txInfo: JSON.stringify({
+                createOrder: true,
+                Nonce: Number((call.params as (string | number)[]).at(-1)),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: createHash,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_signCancelOrder': {
+            signSequence += 1;
+            const cancelHash = `bbbb${String(signSequence).padStart(12, '0')}`;
+            return {
+              txInfo: JSON.stringify({
+                cancelOrder: true,
+                Nonce: Number((call.params as (string | number)[]).at(-1)),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: cancelHash,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_signUpdateLeverage': {
+            signSequence += 1;
+            return {
+              txInfo: JSON.stringify({
+                updateLeverage: true,
+                Nonce: Number((call.params as (string | number)[]).at(-1)),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: `eeee${String(signSequence).padStart(12, '0')}`,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_signCreateGroupedOrders': {
+            signSequence += 1;
+            const groupedHash = `cccc${String(signSequence).padStart(12, '0')}`;
+            return {
+              txInfo: JSON.stringify({
+                createGroupedOrders: true,
+                Nonce: Number((call.params as (string | number)[]).at(-1)),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: groupedHash,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_signUpdateMargin': {
+            signSequence += 1;
+            return {
+              txInfo: JSON.stringify({
+                updateMargin: true,
+                Nonce: Number((call.params as (string | number)[]).at(-1)),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: `ffff${String(signSequence).padStart(12, '0')}`,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_signWithdraw': {
+            signSequence += 1;
+            return {
+              txInfo: JSON.stringify({
+                withdraw: true,
+                Nonce: Number((call.params as (string | number)[]).at(-1)),
+                ExpiredAt: Date.now() + 599_000,
+              }),
+              txHash: `abab${String(signSequence).padStart(12, '0')}`,
+            } as LighterSignerResult<Operation>;
+          }
+          case '_createAuthToken':
+            return {
+              token: 'auth-token',
+              deadline: Math.floor(Date.now() / 1000) + 600,
+            } as LighterSignerResult<Operation>;
+          default:
+            throw new Error(`Unexpected WASM call: ${call.function}`);
         }
-        case '_signCreateOrder': {
-          signSequence += 1;
-          // FAITHFUL to the pinned WASM contract (web-wasm
-          // light_client.go): the signing RESULT carries {txHash, txInfo}
-          // and txInfo is the marshaled wire payload — it contains Nonce
-          // and ExpiredAt but NEVER the hash.
-          const createHash = `aaaa${String(signSequence).padStart(12, '0')}`;
-          return {
-            txInfo: JSON.stringify({
-              createOrder: true,
-              Nonce: Number((call.params as (string | number)[]).at(-1)),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: createHash,
-          } as Result;
-        }
-        case '_signCancelOrder': {
-          signSequence += 1;
-          const cancelHash = `bbbb${String(signSequence).padStart(12, '0')}`;
-          return {
-            txInfo: JSON.stringify({
-              cancelOrder: true,
-              Nonce: Number((call.params as (string | number)[]).at(-1)),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: cancelHash,
-          } as Result;
-        }
-        case '_signUpdateLeverage': {
-          signSequence += 1;
-          return {
-            txInfo: JSON.stringify({
-              updateLeverage: true,
-              Nonce: Number((call.params as (string | number)[]).at(-1)),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: `eeee${String(signSequence).padStart(12, '0')}`,
-          } as Result;
-        }
-        case '_signCreateGroupedOrders': {
-          signSequence += 1;
-          const groupedHash = `cccc${String(signSequence).padStart(12, '0')}`;
-          return {
-            txInfo: JSON.stringify({
-              createGroupedOrders: true,
-              Nonce: Number((call.params as (string | number)[]).at(-1)),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: groupedHash,
-          } as Result;
-        }
-        case '_signUpdateMargin': {
-          signSequence += 1;
-          return {
-            txInfo: JSON.stringify({
-              updateMargin: true,
-              Nonce: Number((call.params as (string | number)[]).at(-1)),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: `ffff${String(signSequence).padStart(12, '0')}`,
-          } as Result;
-        }
-        case '_signWithdraw': {
-          signSequence += 1;
-          return {
-            txInfo: JSON.stringify({
-              withdraw: true,
-              Nonce: Number((call.params as (string | number)[]).at(-1)),
-              ExpiredAt: Date.now() + 599_000,
-            }),
-            txHash: `abab${String(signSequence).padStart(12, '0')}`,
-          } as Result;
-        }
-        case '_createAuthToken':
-          return {
-            token: 'auth-token',
-            deadline: Math.floor(Date.now() / 1000) + 600,
-          } as Result;
-        default:
-          throw new Error(`Unexpected WASM call: ${call.function}`);
-      }
-    }),
+      },
+    ),
   };
   return {
     bridge,
@@ -788,6 +791,35 @@ describe('LighterProvider', () => {
       );
     });
 
+    it('surfaces malformed REST order state instead of returning an empty list', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getActiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [
+          {
+            orderIndex: 555,
+            clientOrderIndex: 1,
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.001',
+            remainingBaseAmount: '0.001',
+            price: '90000',
+            isAsk: false,
+            type: 'limit',
+            timeInForce: 'good-till-time',
+            reduceOnly: 0,
+            status: 'venue-added-state',
+            orderExpiry: 0,
+            timestamp: 1700000000000,
+          },
+        ],
+      });
+
+      await expect(provider.getOpenOrders()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
     it('builds a CAIP account id from the L1 address', async () => {
       const { provider } = buildProvider();
       expect(await provider.getCurrentAccountId()).toBe(
@@ -918,9 +950,7 @@ describe('LighterProvider', () => {
       expect(withTpsl.error).toContain('updatePositionTPSL');
     });
 
-    it('rejects an isFullClose claim that live positions do not verify', async () => {
-      // Fixture position is 0.1 BTC; a 0.00001 "full close" is a lie a bump
-      // would turn into an over-close.
+    it('allows a below-maker-minimum market partial close without bumping it', async () => {
       const { provider, calls } = buildProvider();
       const result = await provider.placeOrder({
         symbol: 'BTC',
@@ -931,14 +961,13 @@ describe('LighterProvider', () => {
         isFullClose: true,
         currentPrice: 90000,
       });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('below the Lighter minimum');
+      expect(result.success).toBe(true);
       expect(
-        calls.find((call) => call.function === '_signCreateOrder'),
-      ).toBeUndefined();
+        calls.find((call) => call.function === '_signCreateOrder')?.params[3],
+      ).toBe('1');
     });
 
-    it('bumps a live-verified dust full close to the venue minimum', async () => {
+    it('does not apply maker minimums to a dust market full close', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       // The live position IS the dust amount being closed.
       clientInstance.getAccountByIndex.mockResolvedValue({
@@ -963,8 +992,7 @@ describe('LighterProvider', () => {
       const orderCall = calls.find(
         (call) => call.function === '_signCreateOrder',
       );
-      // Bumped to the venue minimum; reduce-only clamps execution.
-      expect(orderCall?.params[3]).toBe('20');
+      expect(orderCall?.params[3]).toBe('1');
     });
 
     it('rejects unknown markets', async () => {
@@ -1313,6 +1341,62 @@ describe('LighterProvider', () => {
       ]);
       unsubscribeAccount();
       unsubscribePositions();
+      await provider.disconnect();
+    });
+
+    it('keeps the previous orders snapshot when a new snapshot is malformed', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: 'a'.repeat(80),
+      });
+      const callback = jest.fn();
+      const unsubscribe = provider.subscribeToOrders({ callback });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      const validOrder = {
+        order_index: 555,
+        client_order_index: 1,
+        market_index: 1,
+        owner_account_index: 28,
+        initial_base_amount: '0.001',
+        remaining_base_amount: '0.001',
+        price: '90000',
+        is_ask: false,
+        type: 'limit',
+        time_in_force: 'good-till-time',
+        reduce_only: 0,
+        status: 'open',
+        order_expiry: 0,
+        timestamp: 1700000000000,
+      };
+      socket.receive({
+        type: 'subscribed/account_all_orders',
+        channel: 'account_all_orders:28',
+        orders: { '1': [validOrder] },
+      });
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ orderId: '555' }),
+      ]);
+      callback.mockClear();
+
+      socket.receive({
+        type: 'subscribed/account_all_orders',
+        channel: 'account_all_orders:28',
+        orders: {
+          '1': [{ ...validOrder, status: 'venue-added-state' }],
+        },
+      });
+      expect(callback).not.toHaveBeenCalled();
+
+      const late = jest.fn();
+      const unsubscribeLate = provider.subscribeToOrders({ callback: late });
+      expect(late).toHaveBeenCalledWith([
+        expect.objectContaining({ orderId: '555' }),
+      ]);
+      unsubscribeLate();
+      unsubscribe();
       await provider.disconnect();
     });
 
@@ -1680,7 +1764,7 @@ describe('LighterProvider', () => {
       // Exactly two creates, and the LAST client created belongs to B — B
       // is the actual signer left in the bridge.
       expect(createCalls).toHaveLength(2);
-      expect(createCalls[1].params[2]).toBe(900);
+      expect(createCalls[1].params[1]).toBe(900);
       // A never registered or submitted anything.
       expect(clientInstance.sendTx).not.toHaveBeenCalled();
     });
@@ -5750,7 +5834,7 @@ describe('LighterProvider', () => {
       const mismatches: string[] = [];
       for (const call of sharedCalls) {
         if (call.function === '_createClient') {
-          currentOwner = Number((call.params as (string | number)[])[2]);
+          currentOwner = Number((call.params as (string | number)[])[1]);
         }
         if (call.function === '_signCreateOrder') {
           const signer = Number((call.params as (string | number)[])[0]);
@@ -7991,12 +8075,8 @@ describe('LighterProvider', () => {
   });
 
   describe('round-8 market validation parity', () => {
-    it('sizes market validateOrder at the FRESH venue price, ignoring the caller price', async () => {
+    it('does not apply maker-only minimums to market orders', async () => {
       const { provider, clientInstance, calls } = buildProvider();
-      // Fresh venue price 40,000: min size = max(0.0002 base, $10/40,000 =
-      // 0.00025) = 0.00025. The caller's Infinity price would give min size
-      // 0.0002 (quote minimum vanishes), so 0.0002 discriminates: caller
-      // price approves, fresh price rejects.
       clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
         orderBookDetails: [{ symbol: 'BTC', lastTradePrice: 40000 }],
@@ -8009,14 +8089,12 @@ describe('LighterProvider', () => {
         price: 'Infinity',
       };
       const validation = await provider.validateOrder(request);
-      expect(validation.isValid).toBe(false);
-      expect(validation.error).toContain('below the Lighter minimum');
+      expect(validation.isValid).toBe(true);
       const placement = await provider.placeOrder(request);
-      expect(placement.success).toBe(false);
-      expect(placement.error).toContain('below the Lighter minimum');
+      expect(placement.success).toBe(true);
       expect(
         calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(0);
+      ).toHaveLength(1);
     });
 
     it('rejects a non-finite or non-positive price snapshot before drift math, in validation and execution', async () => {
@@ -8316,7 +8394,7 @@ describe('LighterProvider', () => {
       ],
     });
 
-    it('a deliberate 99% partial dust close is rejected, never bumped to 100%', async () => {
+    it('a deliberate 99% partial dust close reaches market signing without a maker-minimum bump', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue(
         dustPosition('0.0001'),
@@ -8329,14 +8407,13 @@ describe('LighterProvider', () => {
         reduceOnly: true,
         currentPrice: 90000,
       });
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('below the Lighter minimum');
+      expect(result.success).toBe(true);
       expect(
-        calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(0);
+        calls.find((call) => call.function === '_signCreateOrder')?.params[3],
+      ).toBe('10');
     });
 
-    it('an exact-size dust close still bumps to the venue minimum', async () => {
+    it('an exact-size dust market close is not bumped to the maker minimum', async () => {
       const { provider, calls, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue(
         dustPosition('0.0001'),
@@ -8353,10 +8430,10 @@ describe('LighterProvider', () => {
       const orderCall = calls.find(
         (call) => call.function === '_signCreateOrder',
       );
-      expect(orderCall?.params[3]).toBe('20');
+      expect(orderCall?.params[3]).toBe('10');
     });
 
-    it('validateOrder matches placement: an isFullClose lie without reduceOnly is invalid', async () => {
+    it('validateOrder does not apply maker minimums to market opens', async () => {
       const { provider } = buildProvider();
       const result = await provider.validateOrder({
         symbol: 'BTC',
@@ -8366,8 +8443,7 @@ describe('LighterProvider', () => {
         isFullClose: true,
         currentPrice: 90000,
       });
-      expect(result.isValid).toBe(false);
-      expect(result.error).toContain('below the Lighter minimum');
+      expect(result).toStrictEqual({ isValid: true });
     });
 
     it('validateOrder approves a live-verified reduce-only full close like placement', async () => {
@@ -8430,20 +8506,19 @@ describe('LighterProvider', () => {
         ],
       };
       clientInstance.getAccountByIndex.mockResolvedValue(dust);
-      // Explicit below-min PARTIAL: both validator and execution reject.
+      // Maker minimums do not apply to a market partial close.
       const partialValidation = await provider.validateClosePosition({
         symbol: 'BTC',
         size: '0.000099',
         currentPrice: 90000,
       });
-      expect(partialValidation.isValid).toBe(false);
-      expect(partialValidation.error).toContain('below the Lighter minimum');
+      expect(partialValidation.isValid).toBe(true);
       const partialExecution = await provider.closePosition({
         symbol: 'BTC',
         size: '0.000099',
         currentPrice: 90000,
       });
-      expect(partialExecution.success).toBe(false);
+      expect(partialExecution.success).toBe(true);
       // Exact dust full close: both approve.
       expect(
         (
@@ -8475,7 +8550,7 @@ describe('LighterProvider', () => {
       }
     });
 
-    it('sizes market close validation at the FRESH venue price, not a stale snapshot', async () => {
+    it('uses the fresh venue price for a market close without applying maker minimums', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue({
         code: 200,
@@ -8486,25 +8561,18 @@ describe('LighterProvider', () => {
           },
         ],
       });
-      // Discriminating stale price: at the caller's HIGH snapshot of
-      // 1,000,000 the close of 0.00005 BTC = $50, which stale-price
-      // validation would APPROVE. At the fresh venue price of 100,000 it is
-      // $5 — below the $10 minimum — so fresh-price validation rejects.
       const result = await provider.validateClosePosition({
         symbol: 'BTC',
         size: '0.00005',
         currentPrice: 1_000_000,
       });
-      expect(result.isValid).toBe(false);
-      expect(result.error).toContain('below the Lighter minimum');
-      // Execution parity: the same request fails the same way.
+      expect(result.isValid).toBe(true);
       const execution = await provider.closePosition({
         symbol: 'BTC',
         size: '0.00005',
         currentPrice: 1_000_000,
       });
-      expect(execution.success).toBe(false);
-      expect(execution.error).toContain('below the Lighter minimum');
+      expect(execution.success).toBe(true);
     });
 
     it('fails market close validation closed when the fresh venue price is missing or zero', async () => {
@@ -9543,24 +9611,26 @@ describe('LighterProvider', () => {
 
     it('honors fill limit, time range, symbol, and selected-account contracts', async () => {
       const { provider, clientInstance } = buildProvider();
-      clientInstance.getTrades.mockResolvedValue({
-        code: 200,
-        trades: [
-          {
-            tradeId: 1,
-            type: 'trade',
-            marketId: 1,
-            size: '0.1',
-            price: '90000',
-            askId: 10,
-            bidId: 11,
-            askAccountId: 99,
-            bidAccountId: 28,
-            isMakerAsk: false,
-            timestamp: 1700000000000,
-          },
-        ],
-      });
+      const matchingTrade = {
+        tradeId: 1,
+        type: 'trade',
+        marketId: 1,
+        size: '0.1',
+        price: '90000',
+        askId: 10,
+        bidId: 11,
+        askAccountId: 99,
+        bidAccountId: 28,
+        isMakerAsk: false,
+        timestamp: 1700000000000,
+      };
+      clientInstance.getTrades
+        .mockResolvedValueOnce({
+          code: 200,
+          nextCursor: 'page-2',
+          trades: [{ ...matchingTrade, tradeId: 2, timestamp: 1700000001000 }],
+        })
+        .mockResolvedValue({ code: 200, trades: [matchingTrade] });
 
       expect(
         await provider.getOrderFills({
@@ -9572,7 +9642,7 @@ describe('LighterProvider', () => {
       expect(clientInstance.getTrades).toHaveBeenCalledWith(
         28,
         expect.any(String),
-        7,
+        { limit: 100, cursor: 'page-2', marketId: undefined },
       );
       expect(
         await provider.getOrderFills({ startTime: 1700000000001 }),
@@ -10269,7 +10339,7 @@ describe('LighterProvider', () => {
       let currentOwner: number | null = null;
       for (const call of first.calls) {
         if (call.function === '_createClient') {
-          currentOwner = Number((call.params as (string | number)[])[2]);
+          currentOwner = Number((call.params as (string | number)[])[1]);
         }
         if (call.function === '_createAuthToken') {
           const minter = Number((call.params as (string | number)[])[0]);

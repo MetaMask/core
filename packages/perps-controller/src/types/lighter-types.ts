@@ -43,12 +43,148 @@ export type LighterEndpoints = {
  * bridge (`{ function, params }`), so a WebView-backed bridge on mobile and
  * an in-process WASM bridge in Node are interchangeable implementations.
  */
-export type LighterWasmCall = {
-  /** Global function name registered by the WASM module (e.g. `_createClient`). */
-  function: string;
-  /** Positional arguments forwarded verbatim to the WASM function. */
-  params: unknown[];
+export type LighterCreateOrderWireParams = [
+  marketId: number,
+  clientOrderIndex: number,
+  baseAmount: string,
+  price: string,
+  isAsk: number,
+  orderType: number,
+  timeInForce: number,
+  reduceOnly: number,
+  triggerPrice: string,
+  orderExpiry: number,
+];
+
+export type LighterGroupedOrderWireParams = [
+  ...first: LighterCreateOrderWireParams,
+  ...second: LighterCreateOrderWireParams,
+];
+
+export type LighterCreateClientWireParams = [
+  chainId: number,
+  accountIndex: number,
+  nonce: number,
+  apiKeyIndex: number,
+];
+
+export type LighterSignChangePubKeyWireParams = [
+  accountIndex: number,
+  l1Signature: string,
+  nonce: number,
+  apiKeyIndex: number,
+];
+
+export type LighterSignCreateOrderWireParams = [
+  accountIndex: number,
+  ...order: LighterCreateOrderWireParams,
+  nonce: number,
+];
+
+export type LighterSignCreateGroupedOrdersWireParams = [
+  accountIndex: number,
+  groupingType: number,
+  orderCount: 2,
+  ...orders: LighterGroupedOrderWireParams,
+  nonce: number,
+];
+
+export type LighterSignCancelOrderWireParams = [
+  accountIndex: number,
+  marketId: number,
+  orderId: string,
+  nonce: number,
+];
+
+export type LighterSignUpdateLeverageWireParams = [
+  accountIndex: number,
+  marketId: number,
+  leverageImfHundredths: number,
+  marginMode: number,
+  nonce: number,
+];
+
+export type LighterSignUpdateMarginWireParams = [
+  accountIndex: number,
+  marketId: number,
+  amount: number,
+  direction: number,
+  nonce: number,
+];
+
+export type LighterSignWithdrawWireParams = [
+  accountIndex: number,
+  assetIndex: number,
+  routeType: number,
+  amount: string,
+  nonce: number,
+];
+
+export type LighterCreateAuthTokenWireParams = [
+  accountIndex: number,
+  apiKeyIndex: number,
+];
+
+export type LighterSignerOperationDefinition<
+  Params extends unknown[],
+  Result,
+> = {
+  params: Params;
+  result: Result;
 };
+
+export type LighterSignerOperationMap = {
+  _createClient: LighterSignerOperationDefinition<
+    LighterCreateClientWireParams,
+    LighterCreateClientResult
+  >;
+  _signChangePubKey: LighterSignerOperationDefinition<
+    LighterSignChangePubKeyWireParams,
+    LighterSignChangePubKeyResult
+  >;
+  _signCreateOrder: LighterSignerOperationDefinition<
+    LighterSignCreateOrderWireParams,
+    LighterTxResult
+  >;
+  _signCreateGroupedOrders: LighterSignerOperationDefinition<
+    LighterSignCreateGroupedOrdersWireParams,
+    LighterTxResult
+  >;
+  _signCancelOrder: LighterSignerOperationDefinition<
+    LighterSignCancelOrderWireParams,
+    LighterTxResult
+  >;
+  _signUpdateLeverage: LighterSignerOperationDefinition<
+    LighterSignUpdateLeverageWireParams,
+    LighterTxResult
+  >;
+  _signUpdateMargin: LighterSignerOperationDefinition<
+    LighterSignUpdateMarginWireParams,
+    LighterTxResult
+  >;
+  _signWithdraw: LighterSignerOperationDefinition<
+    LighterSignWithdrawWireParams,
+    LighterTxResult
+  >;
+  _createAuthToken: LighterSignerOperationDefinition<
+    LighterCreateAuthTokenWireParams,
+    LighterCreateAuthTokenResult
+  >;
+};
+
+export type LighterSignerOperation = keyof LighterSignerOperationMap;
+
+export type LighterWasmCall<
+  Operation extends LighterSignerOperation = LighterSignerOperation,
+> = Operation extends LighterSignerOperation
+  ? {
+      function: Operation;
+      params: LighterSignerOperationMap[Operation]['params'];
+    }
+  : never;
+
+export type LighterSignerResult<Operation extends LighterSignerOperation> =
+  LighterSignerOperationMap[Operation]['result'];
 
 /** Public metadata needed to create or restore a client-owned venue signer. */
 export type LighterCreateClientParams = {
@@ -83,7 +219,9 @@ export type LighterSignerBridge = {
    *
    * @param call - The function name and positional params to invoke.
    */
-  execute<Result>(call: LighterWasmCall): Promise<Result>;
+  execute<Operation extends LighterSignerOperation>(
+    call: LighterWasmCall<Operation>,
+  ): Promise<LighterSignerResult<Operation>>;
 
   /**
    * Optional subscription to bridge resets (WebView reload / process
@@ -113,12 +251,6 @@ export type LighterCreateClientResult = {
   success: boolean;
   /** Venue public key, hex (80 chars / 40 bytes, Schnorr over ECgFp5). */
   pk: string;
-  /**
-   * Venue private key, hex. Present only when the signer host runs
-   * in-process (headless Node); the mobile WebView redacts it before the
-   * result crosses the bridge. Never persist, forward, or log it.
-   */
-  prv?: string;
   pubKeySuccess: boolean;
   /**
    * ChangePubKey plaintext body to be signed with EIP-191 `personal_sign`
@@ -549,7 +681,16 @@ export type LighterRestTrade = {
 export type LighterTradesResponse = {
   code: number;
   message?: string;
-  trades?: LighterRestTrade[];
+  nextCursor?: string;
+  trades: LighterRestTrade[];
+};
+
+/** Query parameters supported by the Lighter trades endpoint. */
+export type LighterTradesQuery = {
+  limit: number;
+  cursor?: string;
+  from?: number;
+  marketId?: number;
 };
 
 /**
