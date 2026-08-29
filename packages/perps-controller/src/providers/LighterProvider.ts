@@ -170,6 +170,8 @@ type LighterOrderBookState = {
   nonce: number;
 };
 
+const NOOP_UNSUBSCRIBE = (): void => undefined;
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -1149,6 +1151,9 @@ export class LighterProvider implements PerpsProvider {
   async initialize(): Promise<InitializeResult> {
     try {
       const markets = await this.#clientService.getOrderBooks(true);
+      if (this.#isDisconnected) {
+        return { success: false, error: 'Lighter provider is disconnected' };
+      }
       this.#marketsBySymbol = new Map(
         markets.map((market) => [market.symbol, market]),
       );
@@ -7298,6 +7303,9 @@ export class LighterProvider implements PerpsProvider {
       this.#marginRefreshInFlight = (async (): Promise<void> => {
         try {
           const details = await this.#clientService.getOrderBookDetails();
+          if (this.#isDisconnected) {
+            return;
+          }
           // Atomic replacement: set()-ing into the old map would let a
           // symbol REMOVED from fresh metadata keep its stale cap forever.
           // The timestamp only advances on success.
@@ -7382,6 +7390,9 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   subscribeToPrices(params: SubscribePricesParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#priceSubscribers.add(params);
     if (this.#lastPriceBySymbol.size > 0) {
       this.#deliverPrices(params, [...this.#lastPriceBySymbol.values()]);
@@ -7395,6 +7406,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#oiCapSubscribers.add(params);
     this.#requestChannel('market_stats/all');
     this.#ensureStream();
@@ -7405,6 +7419,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   subscribeToAccount(params: SubscribeAccountParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#accountSubscribers.add(params);
     this.#ensureAccountChannels();
     return () => {
@@ -7414,6 +7431,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   subscribeToPositions(params: SubscribePositionsParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#positionSubscribers.add(params);
     if (this.#wsPositions.size > 0) {
       params.callback([...this.#wsPositions.values()]);
@@ -7426,6 +7446,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   subscribeToOrders(params: SubscribeOrdersParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#orderSubscribers.add(params);
     if (this.#wsOrders.size > 0) {
       params.callback([...this.#wsOrders.values()]);
@@ -7438,6 +7461,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   subscribeToOrderFills(params: SubscribeOrderFillsParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#fillSubscribers.add(params);
     this.#ensureAccountChannels();
     return () => {
@@ -8075,6 +8101,9 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #emitToOrderSubscribers = (orders: Order[]): void => {
+    if (this.#isDisconnected) {
+      return;
+    }
     for (const subscriber of this.#orderSubscribers) {
       try {
         subscriber.callback(orders);
@@ -8092,7 +8121,7 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #startPricePolling = (): void => {
-    if (this.#pricePollTimer) {
+    if (this.#isDisconnected || this.#pricePollTimer) {
       return;
     }
     const poll = (): void => {
@@ -8115,6 +8144,9 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     const response = await this.#clientService.getOrderBookDetails();
+    if (this.#isDisconnected) {
+      return;
+    }
     const timestamp = Date.now();
     const updates = (response.orderBookDetails ?? []).map((detail) =>
       adaptPriceUpdateFromLighter(detail, timestamp),
@@ -8132,7 +8164,7 @@ export class LighterProvider implements PerpsProvider {
     updates: PriceUpdate[],
     transport: string,
   ): void => {
-    if (updates.length === 0) {
+    if (this.#isDisconnected || updates.length === 0) {
       return;
     }
     for (const update of updates) {
@@ -8151,6 +8183,9 @@ export class LighterProvider implements PerpsProvider {
     subscriber: SubscribePricesParams,
     updates: PriceUpdate[],
   ): void => {
+    if (this.#isDisconnected) {
+      return;
+    }
     const filtered =
       subscriber.symbols.length > 0
         ? updates.filter((update) => subscriber.symbols.includes(update.symbol))
@@ -8202,6 +8237,9 @@ export class LighterProvider implements PerpsProvider {
   };
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     let released = false;
     let seriesKey: string | null = null;
     const resolution = LIGHTER_SUPPORTED_RESOLUTIONS.has(params.interval)
@@ -8210,7 +8248,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureMarkets()
       .then(async (markets) => {
         const market = markets.get(params.symbol);
-        if (!market || released) {
+        if (this.#isDisconnected || !market || released) {
           return undefined;
         }
         seriesKey = `${market.marketId}:${resolution}`;
@@ -8221,7 +8259,7 @@ export class LighterProvider implements PerpsProvider {
           interval: params.interval,
           limit: 120,
         });
-        if (released) {
+        if (this.#isDisconnected || released) {
           return undefined;
         }
         const series = new Map<number, CandleStick>();
@@ -8304,12 +8342,15 @@ export class LighterProvider implements PerpsProvider {
   };
 
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     let released = false;
     let marketId: number | null = null;
     this.#ensureMarkets()
       .then((markets) => {
         const market = markets.get(params.symbol);
-        if (!market || released) {
+        if (this.#isDisconnected || !market || released) {
           return undefined;
         }
         marketId = market.marketId;
@@ -8324,7 +8365,9 @@ export class LighterProvider implements PerpsProvider {
         return undefined;
       })
       .catch((error: unknown) => {
-        params.onError?.(ensureError(error));
+        if (!this.#isDisconnected && !released) {
+          params.onError?.(ensureError(error));
+        }
       });
     return () => {
       released = true;
@@ -8356,6 +8399,9 @@ export class LighterProvider implements PerpsProvider {
       reconnectionAttempt: number,
     ) => void,
   ): () => void {
+    if (this.#isDisconnected) {
+      return NOOP_UNSUBSCRIBE;
+    }
     this.#connectionListeners.add(listener);
     listener(this.getWebSocketConnectionState(), this.#wsReconnectAttempts);
     return (): void => {

@@ -292,6 +292,7 @@ function createMockBridge(): MockBridgeBundle {
 
 type MockClientInstance = {
   network: string;
+  getCandles: jest.Mock;
   getOrderBooks: jest.Mock;
   getOrderBookDetails: jest.Mock;
   getAccountsByL1Address: jest.Mock;
@@ -717,6 +718,119 @@ describe('LighterProvider', () => {
       expect(
         calls.filter((call) => call.function === '_createClient'),
       ).toHaveLength(0);
+    });
+
+    it('does not revive candle state or callbacks when history resolves after disconnect', async () => {
+      StreamFakeWebSocket.instances = [];
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+      });
+      let resolveCandles: (value: unknown) => void = () => undefined;
+      let signalCandleRead: () => void = () => undefined;
+      const candleReadStarted = new Promise<void>((resolve) => {
+        signalCandleRead = resolve;
+      });
+      clientInstance.getCandles
+        .mockImplementationOnce(() => {
+          signalCandleRead();
+          return new Promise((resolve) => {
+            resolveCandles = resolve;
+          });
+        })
+        .mockResolvedValue({ code: 200, c: [] });
+      const callback = jest.fn();
+      provider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h',
+        callback,
+      });
+      await candleReadStarted;
+      await provider.disconnect();
+
+      resolveCandles({
+        code: 200,
+        c: [{ t: 1000, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }],
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(callback).not.toHaveBeenCalled();
+      expect(StreamFakeWebSocket.instances).toHaveLength(0);
+      const lateCallback = jest.fn();
+      provider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h',
+        callback: lateCallback,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      expect(lateCallback).not.toHaveBeenCalled();
+      expect(clientInstance.getCandles).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not resume delayed order-book subscription setup after disconnect', async () => {
+      StreamFakeWebSocket.instances = [];
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+      });
+      let rejectMarkets: (error: Error) => void = () => undefined;
+      let signalMarketRead: () => void = () => undefined;
+      const marketReadStarted = new Promise<void>((resolve) => {
+        signalMarketRead = resolve;
+      });
+      clientInstance.getOrderBooks.mockImplementationOnce(() => {
+        signalMarketRead();
+        return new Promise((_resolve, reject) => {
+          rejectMarkets = reject;
+        });
+      });
+      const callback = jest.fn();
+      const onError = jest.fn();
+      provider.subscribeToOrderBook({ symbol: 'BTC', callback, onError });
+      await marketReadStarted;
+      await provider.disconnect();
+
+      rejectMarkets(new Error('late market lookup failure'));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(callback).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(StreamFakeWebSocket.instances).toHaveLength(0);
+    });
+
+    it('does not repopulate price replay state when a poll resolves after disconnect', async () => {
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: null,
+      });
+      let resolvePrices: (value: unknown) => void = () => undefined;
+      let signalPriceRead: () => void = () => undefined;
+      const priceReadStarted = new Promise<void>((resolve) => {
+        signalPriceRead = resolve;
+      });
+      clientInstance.getOrderBookDetails.mockImplementationOnce(() => {
+        signalPriceRead();
+        return new Promise((resolve) => {
+          resolvePrices = resolve;
+        });
+      });
+      const callback = jest.fn();
+      provider.subscribeToPrices({ symbols: [], callback });
+      await priceReadStarted;
+      await provider.disconnect();
+
+      resolvePrices({
+        code: 200,
+        orderBookDetails: [{ ...BTC_MARKET, lastTradePrice: 12345 }],
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(callback).not.toHaveBeenCalled();
+      const lateCallback = jest.fn();
+      provider.subscribeToPrices({ symbols: [], callback: lateCallback });
+      expect(lateCallback).not.toHaveBeenCalled();
+      expect(provider.getWebSocketConnectionState()).toBe('disconnected');
+      expect(clientInstance.getOrderBookDetails).toHaveBeenCalledTimes(1);
     });
 
     it('refuses toggleTestnet', async () => {
