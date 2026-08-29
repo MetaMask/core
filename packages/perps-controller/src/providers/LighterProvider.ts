@@ -10,7 +10,8 @@
  * - Venue-specific key (Schnorr over ECgFp5) registered per API-key slot via
  *   a ChangePubKey L2 transaction carrying an EIP-191 personal_sign L1Sig.
  * - Order prices/sizes are integers scaled by per-market decimals.
- * - REST + polling in the POC; WebSocket streams deferred.
+ * - REST reads plus WebSocket market, account, position, order, fill,
+ *   order-book, and candle streams, with price polling as a fallback.
  */
 
 import type { CaipAccountId } from '@metamask/utils';
@@ -161,6 +162,12 @@ import {
 
 type LighterFillQuery = GetOrderFillsParams & {
   symbol?: string;
+};
+
+type LighterOrderBookState = {
+  bids: Map<string, string>;
+  asks: Map<string, string>;
+  nonce: number;
 };
 
 // ============================================================================
@@ -944,6 +951,8 @@ export class LighterProvider implements PerpsProvider {
 
   readonly #signerBridge: LighterSignerBridge | null;
 
+  #signerResetUnsubscribe: (() => void) | null = null;
+
   readonly #isTestnet: boolean;
 
   readonly #apiKeyIndex: number;
@@ -1037,10 +1046,7 @@ export class LighterProvider implements PerpsProvider {
     new Map();
 
   /** Live order-book level state per market (price → size). */
-  readonly #orderBookState: Map<
-    number,
-    { bids: Map<string, string>; asks: Map<string, string>; nonce: number }
-  > = new Map();
+  readonly #orderBookState: Map<number, LighterOrderBookState> = new Map();
 
   /** Candle subscribers keyed by `marketId:resolution`. */
   readonly #candleSubscribers: Map<string, Set<SubscribeCandlesParams>> =
@@ -1073,9 +1079,7 @@ export class LighterProvider implements PerpsProvider {
     this.#isTestnet = options.isTestnet ?? true;
     this.#messenger = options.messenger ?? null;
     this.#signerBridge = options.signerBridge ?? null;
-    // Learn about bridge resets proactively (e.g. the mobile WebView
-    // reloading) instead of from the next failed trading call.
-    this.#signerBridge?.onReset?.(() => this.#invalidateSignerSession());
+    this.#replaceSignerResetListener();
     const globalWebSocket = Reflect.get(globalThis, 'WebSocket') as
       | LighterWebSocketCtor
       | undefined;
@@ -1170,6 +1174,7 @@ export class LighterProvider implements PerpsProvider {
     // session: an in-flight write paused inside the lock must fail its
     // fences instead of submitting after the provider was torn down.
     this.#invalidateSessionState();
+    this.#removeSignerResetListener();
     this.#teardownStream();
     this.#priceSubscribers.clear();
     this.#oiCapSubscribers.clear();
@@ -1300,6 +1305,20 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
+  /** Replace this provider's listener on the client-owned signer bridge. */
+  readonly #replaceSignerResetListener = (): void => {
+    this.#removeSignerResetListener();
+    this.#signerResetUnsubscribe =
+      this.#signerBridge?.onReset?.(() => this.#invalidateSignerSession()) ??
+      null;
+  };
+
+  /** Remove this provider's listener when its session is retired. */
+  readonly #removeSignerResetListener = (): void => {
+    this.#signerResetUnsubscribe?.();
+    this.#signerResetUnsubscribe = null;
+  };
+
   /**
    * Drop ALL bridge-client ownership material for this provider: the
    * identity, the recreate params, and — when WE are the recorded owner
@@ -1336,6 +1355,7 @@ export class LighterProvider implements PerpsProvider {
         // nothing in flight can still act for the old account.
         this.#emitAccountBindingReset();
         this.#invalidateSessionState();
+        this.#removeSignerResetListener();
         this.#teardownStream();
       }
       // The caller's own address resolution surfaces the error.
@@ -1361,6 +1381,7 @@ export class LighterProvider implements PerpsProvider {
     this.#accountIndex = null;
     this.#signerReadyPromise = null;
     this.#authToken = null;
+    this.#replaceSignerResetListener();
     // #tpslUnsettled is NOT cleared: entries are keyed by
     // address+accountIndex+symbol, so B never consumes A's pending ids and
     // switching back to A retains its reconciliation obligation.
@@ -4572,20 +4593,15 @@ export class LighterProvider implements PerpsProvider {
           if (margins?.minInitial && margins.minInitial > 0) {
             adapted.maxLeverage = Math.floor(10_000 / margins.minInitial);
           }
-          // The venue floor is the SAME base size placement enforces:
-          // max(minBase, minQuote/price) rounded UP to the size grid —
-          // grid rounding matters (ETH: $10/price = 0.005222 rounds up
-          // to 0.0053 ETH ≈ $10.15), so a flat quote-minimum default
-          // lands one grid tick below the floor. Report that binding
-          // base size in USD, rounded UP to whole cents.
+          // minBaseAmount and minQuoteAmount are maker-only. Market and
+          // IOC orders can use one base-size tick, so the public universal
+          // minimum must report that tick rather than the maker floor.
+          delete adapted.minimumOrderSize;
           if (margins?.lastTradePrice && margins.lastTradePrice > 0) {
-            const minBaseSize = computeLighterMinOrderSize(
-              market,
-              margins.lastTradePrice,
-            );
-            const bindingUsd = minBaseSize * margins.lastTradePrice;
-            if (Number.isFinite(bindingUsd) && bindingUsd > 0) {
-              adapted.minimumOrderSize = Math.ceil(bindingUsd * 100) / 100;
+            const oneTickUsd =
+              margins.lastTradePrice / 10 ** market.supportedSizeDecimals;
+            if (Number.isFinite(oneTickUsd) && oneTickUsd > 0) {
+              adapted.minimumOrderSize = oneTickUsd;
             }
           }
           return adapted;
@@ -4599,6 +4615,12 @@ export class LighterProvider implements PerpsProvider {
         error: String(wrappedError),
         ...this.#getErrorContext('getMarkets'),
       });
+      if (
+        this.#isUnsupportedCapabilityError(caughtError) ||
+        this.#isDataIntegrityError(caughtError)
+      ) {
+        throw caughtError;
+      }
       return [];
     }
   }
@@ -5037,6 +5059,21 @@ export class LighterProvider implements PerpsProvider {
       }
       if (!(requestedSize > 0)) {
         return { success: false, error: 'Order size must be positive' };
+      }
+      if (params.usdAmount === undefined) {
+        const requestedSizeInt = toSignerWireInteger(
+          requestedSize,
+          market.supportedSizeDecimals,
+        );
+        if (
+          fromLighterInteger(requestedSizeInt, market.supportedSizeDecimals) !==
+          requestedSize
+        ) {
+          return {
+            success: false,
+            error: `Order size ${params.size} does not align with the Lighter size grid`,
+          };
+        }
       }
       const minSize = isLighterMakerOrder(params)
         ? computeLighterMinOrderSize(market, referencePrice)
@@ -6440,7 +6477,7 @@ export class LighterProvider implements PerpsProvider {
           }
           if (
             params?.startTime !== undefined &&
-            fill.timestamp <= params.startTime
+            fill.timestamp < params.startTime
           ) {
             reachedStartBoundary = true;
           }
@@ -6459,17 +6496,10 @@ export class LighterProvider implements PerpsProvider {
         `${LIGHTER_DATA_INTEGRITY_PREFIX} fill history pagination did not reach the requested boundary`,
       );
     } catch (error) {
-      if (
-        this.#isUnsupportedCapabilityError(error) ||
-        this.#isDataIntegrityError(error)
-      ) {
-        // Capability gates must surface, never degrade into empty state.
-        throw error;
-      }
       this.#deps.debugLogger.log('[LighterProvider] getOrderFills failed', {
         error: String(error),
       });
-      return [];
+      throw error;
     }
   };
 
@@ -6817,6 +6847,30 @@ export class LighterProvider implements PerpsProvider {
               usdAmount / referencePrice,
               market.supportedSizeDecimals,
             );
+      if (usdAmount === undefined) {
+        try {
+          const requestedSizeInt = toSignerWireInteger(
+            requestedSize,
+            market.supportedSizeDecimals,
+          );
+          if (
+            fromLighterInteger(
+              requestedSizeInt,
+              market.supportedSizeDecimals,
+            ) !== requestedSize
+          ) {
+            return {
+              isValid: false,
+              error: `Order size ${params.size} does not align with the Lighter size grid`,
+            };
+          }
+        } catch (error) {
+          return {
+            isValid: false,
+            error: ensureError(error, 'LighterProvider.validateOrder').message,
+          };
+        }
+      }
       const minSize = isLighterMakerOrder(params)
         ? computeLighterMinOrderSize(market, referencePrice)
         : 0;
@@ -6985,10 +7039,25 @@ export class LighterProvider implements PerpsProvider {
               market.supportedSizeDecimals,
             )
           : parseFloat(params.size ?? String(held));
+      const hasExplicitSize =
+        params.usdAmount === undefined && params.size !== undefined;
       // Wire-format parity with the placement path closePosition uses:
       // the EXECUTION price is what gets integerized and signed.
       try {
-        toSignerWireInteger(requestedSize, market.supportedSizeDecimals);
+        const requestedSizeInt = toSignerWireInteger(
+          requestedSize,
+          market.supportedSizeDecimals,
+        );
+        if (
+          hasExplicitSize &&
+          fromLighterInteger(requestedSizeInt, market.supportedSizeDecimals) !==
+            requestedSize
+        ) {
+          return {
+            isValid: false,
+            error: `Order size ${params.size} does not align with the Lighter size grid`,
+          };
+        }
         toSignerWirePriceInteger(executionPrice, market.supportedPriceDecimals);
       } catch (error) {
         return {
@@ -7280,8 +7349,8 @@ export class LighterProvider implements PerpsProvider {
   }
 
   // ============================================================================
-  // Subscriptions (POC: REST polling stands in for a WS feed; prices are live,
-  // the remaining channels emit empty snapshots)
+  // Live subscriptions over Lighter WebSocket channels, with REST polling
+  // only as the price-stream fallback when no WebSocket transport exists.
   // ============================================================================
 
   subscribeToPrices(params: SubscribePricesParams): () => void {
@@ -7357,8 +7426,8 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Resolve the Lighter account index and request the account-scoped
-   * channels; without a Lighter account the account-ish subscribers get one
-   * empty emission (graceful degradation, matching REST reads).
+   * channels. Without a Lighter account, account-scoped subscribers receive
+   * one empty emission unless the failure is a capability refusal.
    */
   readonly #ensureAccountChannels = (): void => {
     if (this.#accountChannelsPromise) {
@@ -7648,19 +7717,23 @@ export class LighterProvider implements PerpsProvider {
     }
     if (type.includes('account_all_positions') && message.positions) {
       const isSnapshot = type.startsWith('subscribed');
-      if (isSnapshot) {
-        this.#wsPositions.clear();
-      }
+      const nextPositions = isSnapshot
+        ? new Map<number, Position>()
+        : new Map(this.#wsPositions);
       for (const [marketId, position] of Object.entries(message.positions)) {
         const adapted = adaptPositionFromLighter(
           position,
           this.#maxLeverageForMarketId(position.marketId),
         );
         if (parseFloat(adapted.size) === 0) {
-          this.#wsPositions.delete(Number(marketId));
+          nextPositions.delete(Number(marketId));
         } else {
-          this.#wsPositions.set(Number(marketId), adapted);
+          nextPositions.set(Number(marketId), adapted);
         }
+      }
+      this.#wsPositions.clear();
+      for (const [marketId, position] of nextPositions) {
+        this.#wsPositions.set(marketId, position);
       }
       const positions = [...this.#wsPositions.values()];
       for (const subscriber of this.#positionSubscribers) {
@@ -7732,15 +7805,15 @@ export class LighterProvider implements PerpsProvider {
     if (typeof nonce !== 'number' || !Number.isSafeInteger(nonce)) {
       return;
     }
-    let state = this.#orderBookState.get(marketId);
+    const currentState = this.#orderBookState.get(marketId);
+    let nextState: LighterOrderBookState;
     if (type.startsWith('subscribed')) {
-      state = { bids: new Map(), asks: new Map(), nonce };
-      this.#orderBookState.set(marketId, state);
+      nextState = { bids: new Map(), asks: new Map(), nonce };
     } else if (
-      !state ||
+      !currentState ||
       typeof beginNonce !== 'number' ||
       !Number.isSafeInteger(beginNonce) ||
-      beginNonce !== state.nonce
+      beginNonce !== currentState.nonce
     ) {
       // A delta cannot be applied to an unknown or discontinuous base.
       // Drop the local book and request a new subscribed snapshot.
@@ -7753,26 +7826,38 @@ export class LighterProvider implements PerpsProvider {
         this.#sendSubscribe(channelName);
       }
       return;
+    } else {
+      nextState = {
+        bids: new Map(currentState.bids),
+        asks: new Map(currentState.asks),
+        nonce: currentState.nonce,
+      };
     }
     for (const side of ['bids', 'asks'] as const) {
       for (const level of message.orderBook[side] ?? []) {
-        // Boundary guard: the payload is cast, not validated — a level
-        // with a malformed price or size would flow into the
-        // cumulative-total math below as NaN and reach the depth chart
-        // as an invalid SVG coordinate.
-        const price = parseFloat(level?.price);
-        const size = parseFloat(level?.size);
-        if (!Number.isFinite(price) || !Number.isFinite(size)) {
-          continue;
+        const price = parseStrictDecimal(level?.price);
+        const size = parseStrictDecimal(level?.size);
+        if (
+          price === null ||
+          !Number.isFinite(price) ||
+          price <= 0 ||
+          size === null ||
+          !Number.isFinite(size) ||
+          size < 0
+        ) {
+          throw new Error(
+            `${LIGHTER_DATA_INTEGRITY_PREFIX} malformed order-book level`,
+          );
         }
         if (size === 0) {
-          state[side].delete(level.price);
+          nextState[side].delete(level.price);
         } else {
-          state[side].set(level.price, level.size);
+          nextState[side].set(level.price, level.size);
         }
       }
     }
-    state.nonce = nonce;
+    nextState.nonce = nonce;
+    this.#orderBookState.set(marketId, nextState);
     const subscribers = this.#orderBookSubscribers.get(marketId);
     if (!subscribers || subscribers.size === 0) {
       return;
@@ -7787,8 +7872,8 @@ export class LighterProvider implements PerpsProvider {
       let cumulativeSize = 0;
       let cumulativeNotional = 0;
       return entries.map(([price, size]) => {
-        const sizeNum = parseFloat(size);
-        const notional = parseFloat(price) * sizeNum;
+        const sizeNum = Number(size);
+        const notional = Number(price) * sizeNum;
         cumulativeSize += sizeNum;
         cumulativeNotional += notional;
         return {
@@ -7803,21 +7888,21 @@ export class LighterProvider implements PerpsProvider {
     for (const subscriber of subscribers) {
       const levels = subscriber.levels ?? 10;
       const bids = toContractLevels(
-        [...state.bids.entries()]
-          .sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]))
+        [...nextState.bids.entries()]
+          .sort((a, b) => Number(b[0]) - Number(a[0]))
           .slice(0, levels),
       );
       const asks = toContractLevels(
-        [...state.asks.entries()]
-          .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+        [...nextState.asks.entries()]
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
           .slice(0, levels),
       );
-      const bestBid = parseFloat(bids[0]?.price ?? '0');
-      const bestAsk = parseFloat(asks[0]?.price ?? '0');
+      const bestBid = Number(bids[0]?.price ?? '0');
+      const bestAsk = Number(asks[0]?.price ?? '0');
       const mid = bestBid > 0 && bestAsk > 0 ? (bestBid + bestAsk) / 2 : 0;
       const maxTotal = Math.max(
-        parseFloat(bids[bids.length - 1]?.total ?? '0'),
-        parseFloat(asks[asks.length - 1]?.total ?? '0'),
+        Number(bids[bids.length - 1]?.total ?? '0'),
+        Number(asks[asks.length - 1]?.total ?? '0'),
       );
       const book: OrderBookData = {
         bids,

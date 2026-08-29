@@ -136,18 +136,23 @@ const ACCOUNT = {
   ],
 };
 
+type MockBridgeBundle = {
+  bridge: LighterSignerBridge;
+  calls: LighterWasmCall[];
+  fireReset: () => void;
+  resetListenerCount: () => number;
+  resetUnsubscribe: jest.Mock;
+};
+
 /**
  * WASM bridge double: replays canned results per function name.
  *
  * @returns Bridge plus the recorded calls.
  */
-function createMockBridge(): {
-  bridge: LighterSignerBridge;
-  calls: LighterWasmCall[];
-  fireReset: () => void;
-} {
+function createMockBridge(): MockBridgeBundle {
   const calls: LighterWasmCall[] = [];
-  const resetListeners: (() => void)[] = [];
+  const resetListeners = new Set<() => void>();
+  const resetUnsubscribe = jest.fn();
   let signSequence = 0;
   const bridge: LighterSignerBridge = {
     createClient: jest.fn(async (params) =>
@@ -162,8 +167,11 @@ function createMockBridge(): {
       }),
     ),
     onReset: (listener: () => void) => {
-      resetListeners.push(listener);
-      return () => undefined;
+      resetListeners.add(listener);
+      return () => {
+        resetUnsubscribe();
+        resetListeners.delete(listener);
+      };
     },
     execute: jest.fn(
       async <Operation extends LighterSignerOperation>(
@@ -277,6 +285,8 @@ function createMockBridge(): {
     bridge,
     calls,
     fireReset: () => resetListeners.forEach((listener) => listener()),
+    resetListenerCount: () => resetListeners.size,
+    resetUnsubscribe,
   };
 }
 
@@ -296,6 +306,17 @@ type MockClientInstance = {
   getTransferHistory: jest.Mock;
   getTrades: jest.Mock;
   sendTx: jest.Mock;
+};
+
+type BuiltProvider = {
+  provider: LighterProvider;
+  clientInstance: MockClientInstance;
+  bridge: LighterSignerBridge;
+  calls: LighterWasmCall[];
+  getUserAddressMock: jest.Mock;
+  fireReset: () => void;
+  resetListenerCount: () => number;
+  resetUnsubscribe: jest.Mock;
 };
 
 /**
@@ -328,16 +349,9 @@ function buildProvider(
     /** API key slot (nonce namespace); defaults to 7. */
     apiKeyIndex?: number;
     /** Share ANOTHER provider's bridge OBJECT (singleton-client model). */
-    sharedBridge?: ReturnType<typeof createMockBridge>;
+    sharedBridge?: MockBridgeBundle;
   } = {},
-): {
-  provider: LighterProvider;
-  clientInstance: MockClientInstance;
-  bridge: LighterSignerBridge;
-  calls: LighterWasmCall[];
-  getUserAddressMock: jest.Mock;
-  fireReset: () => void;
-} {
+): BuiltProvider {
   const {
     withBridge = true,
     registeredKey,
@@ -506,7 +520,9 @@ function buildProvider(
       }) as unknown as LighterWalletService,
   );
 
-  const { bridge, calls, fireReset } = sharedBridge ?? createMockBridge();
+  const bridgeBundle = sharedBridge ?? createMockBridge();
+  const { bridge, calls, fireReset, resetListenerCount, resetUnsubscribe } =
+    bridgeBundle;
   const provider = new LighterProvider({
     isTestnet,
     platformDependencies,
@@ -528,6 +544,8 @@ function buildProvider(
     calls,
     getUserAddressMock,
     fireReset,
+    resetListenerCount,
+    resetUnsubscribe,
   };
 }
 
@@ -597,10 +615,14 @@ describe('LighterProvider', () => {
     });
 
     it('disconnects cleanly', async () => {
-      const { provider } = buildProvider();
+      const { provider, resetListenerCount, resetUnsubscribe } =
+        buildProvider();
+      expect(resetListenerCount()).toBe(1);
       expect(await provider.disconnect()).toStrictEqual({
         success: true,
       });
+      expect(resetUnsubscribe).toHaveBeenCalledTimes(1);
+      expect(resetListenerCount()).toBe(0);
     });
 
     it('refuses toggleTestnet', async () => {
@@ -727,6 +749,16 @@ describe('LighterProvider', () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBooks.mockRejectedValue(new Error('down'));
       expect(await provider.getMarkets()).toStrictEqual([]);
+    });
+
+    it('surfaces malformed venue market data instead of reporting no markets', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockRejectedValue(
+        new Error('Invalid Lighter venue data: malformed market'),
+      );
+      await expect(provider.getMarkets()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
     });
 
     it('returns adapted market data with prices', async () => {
@@ -1344,6 +1376,75 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('applies position snapshots and deltas transactionally', async () => {
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: 'a'.repeat(80),
+      });
+      const callback = jest.fn();
+      const unsubscribe = provider.subscribeToPositions({ callback });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+      const position = {
+        market_id: 1,
+        symbol: 'BTC',
+        initial_margin_fraction: '5.00',
+        open_order_count: 0,
+        sign: 1,
+        position: '0.5',
+        avg_entry_price: '60000',
+        position_value: '30000',
+        unrealized_pnl: '100',
+        realized_pnl: '0',
+        liquidation_price: '40000',
+      };
+      socket.receive({
+        type: 'subscribed/account_all_positions',
+        positions: { '1': position },
+      });
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ symbol: 'BTC', size: '0.5' }),
+      ]);
+      callback.mockClear();
+
+      socket.receive({
+        type: 'subscribed/account_all_positions',
+        positions: {
+          '2': { ...position, market_id: 2, symbol: 'SOL', position: '1' },
+          '3': {
+            ...position,
+            market_id: 3,
+            symbol: 'ETH',
+            position: '0.2oops',
+          },
+        },
+      });
+      expect(callback).not.toHaveBeenCalled();
+
+      socket.receive({
+        type: 'update/account_all_positions',
+        positions: {
+          '2': { ...position, market_id: 2, symbol: 'SOL', position: '1' },
+        },
+      });
+      expect(callback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ symbol: 'BTC', size: '0.5' }),
+        expect.objectContaining({ symbol: 'SOL', size: '1' }),
+      ]);
+
+      const late = jest.fn();
+      const unsubscribeLate = provider.subscribeToPositions({ callback: late });
+      expect(late).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', size: '0.5' }),
+        expect.objectContaining({ symbol: 'SOL', size: '1' }),
+      ]);
+      unsubscribeLate();
+      unsubscribe();
+      await provider.disconnect();
+    });
+
     it('keeps the previous orders snapshot when a new snapshot is malformed', async () => {
       const { provider } = buildProvider({
         webSocketCtor: fakeCtor,
@@ -1535,6 +1636,26 @@ describe('LighterProvider', () => {
   });
 
   describe('session binding', () => {
+    it('replaces the signer reset listener on account rebind and removes it on disconnect', async () => {
+      const {
+        provider,
+        getUserAddressMock,
+        resetListenerCount,
+        resetUnsubscribe,
+      } = buildProvider();
+      expect(resetListenerCount()).toBe(1);
+      await provider.getAccountState();
+      getUserAddressMock.mockReturnValue(
+        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      );
+      await provider.getAccountState().catch(() => undefined);
+      expect(resetUnsubscribe).toHaveBeenCalledTimes(1);
+      expect(resetListenerCount()).toBe(1);
+      await provider.disconnect();
+      expect(resetUnsubscribe).toHaveBeenCalledTimes(2);
+      expect(resetListenerCount()).toBe(0);
+    });
+
     it('does not let a stale account lookup poison the session after an account switch', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         configuredAccountIndex: null,
@@ -8075,6 +8196,32 @@ describe('LighterProvider', () => {
   });
 
   describe('round-8 market validation parity', () => {
+    it.each([
+      ['limit', undefined],
+      ['market', undefined],
+      ['limit', 'IOC'],
+    ] as const)(
+      'rejects an explicit off-grid %s order before signer setup (timeInForce %s)',
+      async (orderType, timeInForce) => {
+        const { provider, calls } = buildProvider();
+        const request = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.000201',
+          orderType,
+          ...(orderType === 'limit' ? { price: '100000' } : {}),
+          ...(timeInForce ? { timeInForce } : {}),
+        };
+        const validation = await provider.validateOrder(request);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain('size grid');
+        const placement = await provider.placeOrder(request);
+        expect(placement.success).toBe(false);
+        expect(placement.error).toContain('size grid');
+        expect(calls).toHaveLength(0);
+      },
+    );
+
     it('does not apply maker-only minimums to market orders', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       clientInstance.getOrderBookDetails.mockResolvedValue({
@@ -8394,7 +8541,7 @@ describe('LighterProvider', () => {
       ],
     });
 
-    it('a deliberate 99% partial dust close reaches market signing without a maker-minimum bump', async () => {
+    it('rejects an off-grid partial dust close instead of rounding it up', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue(
         dustPosition('0.0001'),
@@ -8407,10 +8554,9 @@ describe('LighterProvider', () => {
         reduceOnly: true,
         currentPrice: 90000,
       });
-      expect(result.success).toBe(true);
-      expect(
-        calls.find((call) => call.function === '_signCreateOrder')?.params[3],
-      ).toBe('10');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('size grid');
+      expect(calls).toHaveLength(0);
     });
 
     it('an exact-size dust market close is not bumped to the maker minimum', async () => {
@@ -8506,19 +8652,22 @@ describe('LighterProvider', () => {
         ],
       };
       clientInstance.getAccountByIndex.mockResolvedValue(dust);
-      // Maker minimums do not apply to a market partial close.
+      // Maker minimums do not apply to a market partial close, but explicit
+      // sizes must still land exactly on the base-size grid.
       const partialValidation = await provider.validateClosePosition({
         symbol: 'BTC',
         size: '0.000099',
         currentPrice: 90000,
       });
-      expect(partialValidation.isValid).toBe(true);
+      expect(partialValidation.isValid).toBe(false);
+      expect(partialValidation.error).toContain('size grid');
       const partialExecution = await provider.closePosition({
         symbol: 'BTC',
         size: '0.000099',
         currentPrice: 90000,
       });
-      expect(partialExecution.success).toBe(true);
+      expect(partialExecution.success).toBe(false);
+      expect(partialExecution.error).toContain('size grid');
       // Exact dust full close: both approve.
       expect(
         (
@@ -8796,10 +8945,7 @@ describe('LighterProvider', () => {
       unsubscribe();
     });
 
-    it('drops malformed order book levels at the WS boundary instead of poisoning cumulative totals', async () => {
-      // The WS payload is cast, not validated: a level with a malformed
-      // price or size would flow into the cumulative-total math as NaN and
-      // reach the depth chart as an invalid SVG coordinate.
+    it('rejects a malformed order book frame without emitting or poisoning its cached nonce', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
       const bookCallback = jest.fn();
       const unsubscribe = provider.subscribeToOrderBook({
@@ -8818,35 +8964,44 @@ describe('LighterProvider', () => {
           channel: 'order_book:1',
           order_book: {
             nonce: 10,
-            bids: [
-              { price: '90000', size: '0.5' },
-              { price: 'abc', size: '1' },
-              { size: '2' },
-              { price: '89990', size: 'oops' },
-            ],
-            asks: [{ price: '90010', size: '0.4' }, { price: '90020' }],
+            bids: [{ price: '90000', size: '0.5' }],
+            asks: [{ price: '90010', size: '0.4' }],
           },
         }),
       });
-      expect(bookCallback).toHaveBeenCalled();
-      const book =
-        bookCallback.mock.calls[bookCallback.mock.calls.length - 1][0];
-      expect(book.bids).toHaveLength(1);
-      expect(book.asks).toHaveLength(1);
-      for (const side of [book.bids, book.asks]) {
-        for (const level of side) {
-          for (const field of [
-            'price',
-            'size',
-            'total',
-            'notional',
-            'totalNotional',
-          ]) {
-            expect(Number.isFinite(parseFloat(level[field]))).toBe(true);
-          }
-        }
-      }
-      expect(Number.isFinite(parseFloat(book.maxTotal))).toBe(true);
+      bookCallback.mockClear();
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/order_book',
+          channel: 'order_book:1',
+          order_book: {
+            begin_nonce: 10,
+            nonce: 11,
+            bids: [{ price: '89990', size: '12.5oops' }],
+            asks: [],
+          },
+        }),
+      });
+      expect(bookCallback).not.toHaveBeenCalled();
+
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/order_book',
+          channel: 'order_book:1',
+          order_book: {
+            begin_nonce: 10,
+            nonce: 12,
+            bids: [{ price: '89990', size: '1.5' }],
+            asks: [],
+          },
+        }),
+      });
+      expect(bookCallback).toHaveBeenCalledTimes(1);
+      const book = bookCallback.mock.calls[0][0];
+      expect(book.bids).toStrictEqual([
+        expect.objectContaining({ price: '90000', size: '0.5' }),
+        expect.objectContaining({ price: '89990', size: '1.5' }),
+      ]);
       unsubscribe();
     });
 
@@ -9659,6 +9814,46 @@ describe('LighterProvider', () => {
       await expect(
         provider.getOrderFills({ aggregateByTime: true }),
       ).rejects.toThrow('aggregateByTime');
+    });
+
+    it('continues fill pagination across pages sharing the start-time boundary', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const boundaryTrade = {
+        tradeId: 1,
+        type: 'trade',
+        marketId: 1,
+        size: '0.1',
+        price: '90000',
+        askId: 10,
+        bidId: 11,
+        askAccountId: 99,
+        bidAccountId: 28,
+        isMakerAsk: false,
+        timestamp: 1700000000000,
+      };
+      clientInstance.getTrades
+        .mockResolvedValueOnce({
+          code: 200,
+          nextCursor: 'same-timestamp',
+          trades: [boundaryTrade],
+        })
+        .mockResolvedValueOnce({
+          code: 200,
+          trades: [{ ...boundaryTrade, tradeId: 2 }],
+        });
+
+      const fills = await provider.getOrderFills({
+        startTime: boundaryTrade.timestamp,
+      });
+      expect(fills.map((fill) => fill.orderId)).toStrictEqual(['11', '11']);
+      expect(clientInstance.getTrades).toHaveBeenCalledTimes(2);
+    });
+
+    it('surfaces fill-history transport and authentication failures', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getTrades.mockRejectedValue(new Error('auth expired'));
+      await expect(provider.getOrderFills()).rejects.toThrow('auth expired');
+      await expect(provider.getOrFetchFills()).rejects.toThrow('auth expired');
     });
 
     it('suppresses deposits until the Lighter bridge call is implemented; withdrawals remain mainnet-only', () => {
@@ -10493,15 +10688,13 @@ describe('LighterProvider', () => {
     });
   });
   describe('per-market minimums (dynamic, venue-derived)', () => {
-    it('getMarkets reports the BINDING USD minimum: max(quote minimum, base minimum x last price), rounded up to cents', async () => {
+    it('getMarkets reports the universal one-tick USD minimum rather than the maker-only floor', async () => {
       const { provider } = buildProvider();
       const markets = await provider.getMarkets();
       const btc = markets.find((market) => market.name === 'BTC');
-      // Mock market: minBaseAmount x lastTradePrice(100000) vs minQuoteAmount —
-      // whichever binds must be reported, never the raw quote minimum alone.
-      // Binding base size: max(minBase 0.0002, $10/100000 = 0.0001)
-      // = 0.0002 BTC x $100000 = $20 (> the raw $10 quote minimum).
-      expect(btc?.minimumOrderSize).toBe(20);
+      // Lighter's base/quote floors are maker-only. Market and IOC orders
+      // may use one base-size tick: 0.00001 BTC x $100000 = $1.
+      expect(btc?.minimumOrderSize).toBe(1);
       expect(btc?.maxLeverage).toBe(50); // 10000 / minInitialMarginFraction(200)
     });
   });
