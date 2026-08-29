@@ -625,6 +625,100 @@ describe('LighterProvider', () => {
       expect(resetListenerCount()).toBe(0);
     });
 
+    it('does not rebind when a delayed account lookup resolves after disconnect', async () => {
+      const { provider, clientInstance, calls, resetListenerCount } =
+        buildProvider();
+      let resolveAccount: (value: unknown) => void = () => undefined;
+      let signalAccountLookup: () => void = () => undefined;
+      const accountLookupStarted = new Promise<void>((resolve) => {
+        signalAccountLookup = resolve;
+      });
+      clientInstance.getAccountByIndex
+        .mockImplementationOnce(() => {
+          signalAccountLookup();
+          return new Promise((resolve) => {
+            resolveAccount = resolve;
+          });
+        })
+        .mockResolvedValue({ code: 200, accounts: [ACCOUNT] });
+
+      provider.subscribeToAccount({ callback: jest.fn() });
+      await accountLookupStarted;
+      await provider.disconnect();
+      expect(resetListenerCount()).toBe(0);
+      resolveAccount({ code: 200, accounts: [ACCOUNT] });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(resetListenerCount()).toBe(0);
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(0);
+    });
+
+    it('does not recreate the signer when a delayed auth mint resolves after disconnect', async () => {
+      const { provider, bridge, calls, resetListenerCount } = buildProvider({
+        registeredKey: '9c'.repeat(40),
+      });
+      const realExecute = (
+        bridge.execute as jest.Mock
+      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      let releaseAuth: () => void = () => undefined;
+      let signalAuthMint: () => void = () => undefined;
+      const authMintStarted = new Promise<void>((resolve) => {
+        signalAuthMint = resolve;
+      });
+      let authPaused = false;
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_createAuthToken' && !authPaused) {
+            authPaused = true;
+            signalAuthMint();
+            await new Promise<void>((resolve) => {
+              releaseAuth = resolve;
+            });
+          }
+          return await realExecute(call);
+        },
+      );
+
+      provider.subscribeToOrders({ callback: jest.fn() });
+      await authMintStarted;
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(1);
+      await provider.disconnect();
+      releaseAuth();
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(resetListenerCount()).toBe(0);
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(1);
+    });
+
+    it('ignores a WebSocket open that arrives after disconnect', async () => {
+      StreamFakeWebSocket.instances = [];
+      const { provider, calls, resetListenerCount } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+      });
+      const callback = jest.fn();
+      provider.subscribeToPrices({ symbols: [], callback });
+      const socket = StreamFakeWebSocket.instances[0];
+      await provider.disconnect();
+
+      socket.open();
+
+      expect(resetListenerCount()).toBe(0);
+      expect(provider.getWebSocketConnectionState()).toBe('disconnected');
+      expect(socket.sent).toStrictEqual([]);
+      expect(callback).not.toHaveBeenCalled();
+      expect(
+        calls.filter((call) => call.function === '_createClient'),
+      ).toHaveLength(0);
+    });
+
     it('refuses toggleTestnet', async () => {
       const { provider } = buildProvider();
       const result = await provider.toggleTestnet();

@@ -970,6 +970,9 @@ export class LighterProvider implements PerpsProvider {
   /** L1 address the current venue session (index/signer/auth) is bound to. */
   #boundAddress: string | null = null;
 
+  /** Terminal lifecycle fence set by disconnect(). */
+  #isDisconnected = false;
+
   /**
    * Monotonic counter bumped on every session rebind. Async resolutions
    * capture it before awaiting and refuse to cache results from a stale
@@ -1173,6 +1176,7 @@ export class LighterProvider implements PerpsProvider {
     // A disconnect (provider switch, shutdown) invalidates the whole
     // session: an in-flight write paused inside the lock must fail its
     // fences instead of submitting after the provider was torn down.
+    this.#isDisconnected = true;
     this.#invalidateSessionState();
     this.#removeSignerResetListener();
     this.#teardownStream();
@@ -1313,7 +1317,7 @@ export class LighterProvider implements PerpsProvider {
 
   /** Install the reset listener when the current binding has none. */
   readonly #ensureSignerResetListener = (): void => {
-    if (this.#signerResetUnsubscribe) {
+    if (this.#isDisconnected || this.#signerResetUnsubscribe) {
       return;
     }
     this.#signerResetUnsubscribe =
@@ -1354,6 +1358,9 @@ export class LighterProvider implements PerpsProvider {
    * atomically or reads/writes would keep targeting the previous account.
    */
   readonly #ensureSessionBinding = (): void => {
+    if (this.#isDisconnected) {
+      return;
+    }
     let address: string;
     try {
       address = this.#walletService.getUserAddress().toLowerCase();
@@ -1429,7 +1436,7 @@ export class LighterProvider implements PerpsProvider {
    * subscribed to nothing.
    */
   readonly #rebuildStreamForSubscribers = (): void => {
-    if (!this.#hasAnySubscriber()) {
+    if (this.#isDisconnected || !this.#hasAnySubscriber()) {
       return;
     }
     if (this.#priceSubscribers.size > 0 || this.#oiCapSubscribers.size > 0) {
@@ -3987,6 +3994,11 @@ export class LighterProvider implements PerpsProvider {
    * @param generation - Generation captured when the work started.
    */
   readonly #assertSession = (generation: number): void => {
+    if (this.#isDisconnected) {
+      throw new Error(
+        'Operation cancelled: the Lighter provider was disconnected',
+      );
+    }
     if (generation !== this.#sessionGeneration) {
       throw new Error(
         'Operation cancelled: the wallet switched accounts (or the signer reset) while this operation was in flight',
@@ -4046,6 +4058,7 @@ export class LighterProvider implements PerpsProvider {
    */
   readonly #ensureSignerReady = async (): Promise<void> => {
     this.#ensureSessionBinding();
+    this.#assertSession(this.#sessionGeneration);
     if (this.#signerReadyPromise) {
       return await this.#signerReadyPromise;
     }
@@ -7445,6 +7458,9 @@ export class LighterProvider implements PerpsProvider {
    * one empty emission unless the failure is a capability refusal.
    */
   readonly #ensureAccountChannels = (): void => {
+    if (this.#isDisconnected) {
+      return;
+    }
     if (this.#accountChannelsPromise) {
       this.#ensureStream();
       return;
@@ -7546,6 +7562,9 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #requestChannel = (channel: string, auth?: string): void => {
+    if (this.#isDisconnected) {
+      return;
+    }
     if (this.#wsWantedChannels.has(channel)) {
       return;
     }
@@ -7572,7 +7591,7 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #ensureStream = (): void => {
-    if (this.#priceWs || this.#pricePollTimer) {
+    if (this.#isDisconnected || this.#priceWs || this.#pricePollTimer) {
       return;
     }
     if (this.#webSocketCtor) {
@@ -7583,7 +7602,7 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #connectWs = (): void => {
-    if (!this.#webSocketCtor) {
+    if (this.#isDisconnected || !this.#webSocketCtor) {
       return;
     }
     const url = getLighterWsEndpoint(this.#isTestnet ? 'testnet' : 'mainnet');
@@ -7593,6 +7612,9 @@ export class LighterProvider implements PerpsProvider {
     this.#setConnectionState(WebSocketConnectionState.Connecting);
 
     ws.onopen = (): void => {
+      if (this.#isDisconnected) {
+        return;
+      }
       // Observe any external switch first, then drop if this socket was
       // replaced (by that rebind or an earlier one).
       this.#ensureSessionBinding();
@@ -7652,6 +7674,9 @@ export class LighterProvider implements PerpsProvider {
 
     ws.onmessage = (event: { data: unknown }): void => {
       try {
+        if (this.#isDisconnected) {
+          return;
+        }
         // Re-run the live binding first: an EXTERNAL account switch that no
         // provider call has observed yet must tear this socket down (the
         // rebind replaces it) before any frame routes into current UI.
@@ -8339,6 +8364,9 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async reconnect(): Promise<void> {
+    if (this.#isDisconnected) {
+      return;
+    }
     const ws = this.#priceWs;
     if (ws) {
       // Detach first so the onclose handler's 5s backoff never races the
