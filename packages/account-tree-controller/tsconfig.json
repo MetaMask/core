@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../multichain-account-service"
+    },
+    {
+      "path": "../profile-sync-controller"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

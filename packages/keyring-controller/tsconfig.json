@@ -11,10 +11,7 @@
       "path": "../controller-utils"
     },
     {
-      "path": "../message-manager"
-    },
-    {
-      "path": "../preferences-controller"
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

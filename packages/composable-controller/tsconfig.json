@@ -5,22 +5,13 @@
   },
   "references": [
     {
-      "path": "../address-book-controller"
-    },
-    {
-      "path": "../assets-controllers"
-    },
-    {
       "path": "../base-controller"
     },
     {
-      "path": "../ens-controller"
+      "path": "../messenger"
     },
     {
-      "path": "../network-controller"
-    },
-    {
-      "path": "../preferences-controller"
+      "path": "../json-rpc-engine"
     }
   ],
   "include": ["../../types", "./src"]

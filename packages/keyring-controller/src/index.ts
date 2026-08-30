@@ -1,1 +1,41 @@
-export * from './KeyringController';
+export * from './KeyringController.js';
+export type {
+  KeyringControllerAddNewAccountAction,
+  KeyringControllerCreateNewVaultAndRestoreAction,
+  KeyringControllerCreateNewVaultAndKeychainAction,
+  KeyringControllerAddNewKeyringAction,
+  KeyringControllerIsUnlockedAction,
+  KeyringControllerGetAccountsAction,
+  KeyringControllerGetEncryptionPublicKeyAction,
+  KeyringControllerDecryptMessageAction,
+  KeyringControllerGetKeyringForAccountAction,
+  KeyringControllerGetKeyringsByTypeAction,
+  KeyringControllerPersistAllKeyringsAction,
+  KeyringControllerRemoveAccountAction,
+  KeyringControllerSignMessageAction,
+  KeyringControllerSignEip7702AuthorizationAction,
+  KeyringControllerSignPersonalMessageAction,
+  KeyringControllerSignTransactionAction,
+  KeyringControllerSignTypedMessageAction,
+  KeyringControllerPrepareUserOperationAction,
+  KeyringControllerPatchUserOperationAction,
+  KeyringControllerSignUserOperationAction,
+  KeyringControllerWithControllerAction,
+  KeyringControllerWithKeyringAction,
+  KeyringControllerWithKeyringUnsafeAction,
+  KeyringControllerWithKeyringV2Action,
+  KeyringControllerWithKeyringV2UnsafeAction,
+  KeyringControllerExportSeedPhraseAction,
+  KeyringControllerVerifyPasswordAction,
+  KeyringControllerExportAccountAction,
+  KeyringControllerImportAccountWithStrategyAction,
+  KeyringControllerSetLockedAction,
+  KeyringControllerChangePasswordAction,
+  KeyringControllerSubmitEncryptionKeyAction,
+  KeyringControllerExportEncryptionKeyAction,
+  KeyringControllerSubmitPasswordAction,
+  KeyringControllerGetAccountKeyringTypeAction,
+} from './KeyringController-method-action-types.js';
+export type * from './types.js';
+export * from './errors.js';
+export { KeyringControllerErrorMessage } from './constants.js';

@@ -1,16 +1,32 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
-  isValidHexAddress,
-  GANACHE_CHAIN_ID,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
-import { BN, stripHexPrefix } from 'ethereumjs-util';
+import {
+  hexToNumber,
+  KnownCaipNamespace,
+  remove0x,
+  toCaipChainId,
+} from '@metamask/utils';
+import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
-import type { Nft, NftMetadata } from './NftController';
-import type { Token } from './TokenRatesController';
+import type { Nft, NftMetadata } from './NftController.js';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/index.js';
+import type { AbstractTokenPricesService } from './token-prices-service/index.js';
+import type {
+  ContractExchangeRates,
+  ContractMarketData,
+} from './TokenRatesController.js';
+
+/**
+ * The maximum number of token addresses that should be sent to the Price API in
+ * a single request.
+ */
+export const TOKEN_PRICES_BATCH_SIZE = 30;
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -31,6 +47,8 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     'animation',
     'animationOriginal',
     'externalLink',
+    'tokenURI',
+    'chainId',
   ];
   const differentValues = keys.reduce((value, key) => {
     if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
@@ -39,6 +57,23 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     return value;
   }, 0);
   return differentValues > 0;
+}
+
+/**
+ * Checks whether the existing nft object has all the keys of the new incoming nft metadata object
+ *
+ * @param newNftMetadata - New nft metadata object
+ * @param nft - Existing nft object to compare with
+ * @returns Whether the existing nft object has all the new keys from the new Nft metadata object
+ */
+export function hasNewCollectionFields(
+  newNftMetadata: NftMetadata,
+  nft: Nft,
+): boolean {
+  const keysNewNftMetadata = Object.keys(newNftMetadata.collection ?? {});
+  const keysExistingNft = new Set(Object.keys(nft.collection ?? {}));
+
+  return keysNewNftMetadata.some((key) => !keysExistingNft.has(key));
 }
 
 const aggregatorNameByKey: Record<string, string> = {
@@ -100,54 +135,44 @@ export const formatIconUrlWithProxy = ({
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
-  return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
+  return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
 /**
- * Validates a ERC20 token to be added with EIP747.
- *
- * @param token - Token object to validate.
+ * Networks where token detection is supported - Values are in hex format
  */
-export function validateTokenToWatch(token: Token) {
-  const { address, symbol, decimals } = token;
-  if (!address || !symbol || typeof decimals === 'undefined') {
-    throw rpcErrors.invalidParams(
-      `Must specify address, symbol, and decimals.`,
-    );
-  }
-
-  if (typeof symbol !== 'string') {
-    throw rpcErrors.invalidParams(`Invalid symbol: not a string.`);
-  }
-
-  if (symbol.length > 11) {
-    throw rpcErrors.invalidParams(
-      `Invalid symbol "${symbol}": longer than 11 characters.`,
-    );
-  }
-  const numDecimals = parseInt(decimals as unknown as string, 10);
-  if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
-    throw rpcErrors.invalidParams(
-      `Invalid decimals "${decimals}": must be 0 <= 36.`,
-    );
-  }
-
-  if (!isValidHexAddress(address)) {
-    throw rpcErrors.invalidParams(`Invalid address "${address}".`);
-  }
+export enum SupportedTokenDetectionNetworks {
+  Mainnet = '0x1', // decimal: 1
+  Bsc = '0x38', // decimal: 56
+  Polygon = '0x89', // decimal: 137
+  Avax = '0xa86a', // decimal: 43114
+  Aurora = '0x4e454152', // decimal: 1313161554
+  LineaGoerli = '0xe704', // decimal: 59140
+  LineaMainnet = '0xe708', // decimal: 59144
+  Arbitrum = '0xa4b1', // decimal: 42161
+  Optimism = '0xa', // decimal: 10
+  Base = '0x2105', // decimal: 8453
+  Zksync = '0x144', // decimal: 324
+  Cronos = '0x19', // decimal: 25
+  Celo = '0xa4ec', // decimal: 42220
+  Gnosis = '0x64', // decimal: 100
+  Fantom = '0xfa', // decimal: 250
+  PolygonZkevm = '0x44d', // decimal: 1101
+  Moonbeam = '0x504', // decimal: 1284
+  Moonriver = '0x505', // decimal: 1285
+  Sei = '0x531', // decimal: 1329
+  MonadMainnet = '0x8f', // decimal: 143
+  Hyperevm = '0x3e7', // decimal: 999
+  Arc = '0x13b2', // decimal: 5042
+  Robinhood = '0x1237', // decimal: 4663
 }
 
 /**
- * Networks where token detection is supported - Values are in decimal format
+ * Networks where staked balance is supported - Values are in hex format
  */
-export enum SupportedTokenDetectionNetworks {
-  mainnet = '0x1', // decimal: 1
-  bsc = '0x38', // decimal: 56
-  polygon = '0x89', // decimal: 137
-  avax = '0xa86a', // decimal: 43114
-  aurora = '0x4e454152', // decimal: 1313161554
-  linea_goerli = '0xe704', // decimal: 59140
-  linea_mainnet = '0xe708', // decimal: 59144
+export enum SupportedStakedBalanceNetworks {
+  Mainnet = '0x1', // decimal: 1
+  Hoodi = '0x88bb0', // decimal: 560048
 }
 
 /**
@@ -168,9 +193,7 @@ export function isTokenDetectionSupportedForNetwork(chainId: Hex): boolean {
  * @returns Whether the current network supports tokenlists
  */
 export function isTokenListSupportedForNetwork(chainId: Hex): boolean {
-  return (
-    isTokenDetectionSupportedForNetwork(chainId) || chainId === GANACHE_CHAIN_ID
-  );
+  return isTokenDetectionSupportedForNetwork(chainId);
 }
 
 /**
@@ -197,10 +220,10 @@ export function removeIpfsProtocolPrefix(ipfsUrl: string) {
  * @returns IFPS content identifier (cid) and sub path as string.
  * @throws Will throw if the url passed is not ipfs.
  */
-export function getIpfsCIDv1AndPath(ipfsUrl: string): {
+export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   cid: string;
   path?: string;
-} {
+}> {
   const url = removeIpfsProtocolPrefix(ipfsUrl);
 
   // check if there is a path
@@ -225,14 +248,14 @@ export function getIpfsCIDv1AndPath(ipfsUrl: string): {
  * @param subdomainSupported - Boolean indicating whether the URL should be formatted with subdomains or not.
  * @returns A formatted URL, with the user's preferred IPFS gateway and format (subdomain or not), pointing to an asset hosted on IPFS.
  */
-export function getFormattedIpfsUrl(
+export async function getFormattedIpfsUrl(
   ipfsGateway: string,
   ipfsUrl: string,
   subdomainSupported: boolean,
-): string {
+): Promise<string> {
   const { host, protocol, origin } = new URL(addUrlProtocolPrefix(ipfsGateway));
   if (subdomainSupported) {
-    const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
+    const { cid, path } = await getIpfsCIDv1AndPath(ipfsUrl);
     return `${protocol}//${cid}.ipfs.${host}${path ?? ''}`;
   }
   const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
@@ -259,5 +282,203 @@ export function addUrlProtocolPrefix(urlString: string): string {
  * @returns A BN object.
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
-  return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
+  return new BN(remove0x(bigNumber.toHexString()), 'hex');
+}
+
+/**
+ * Partitions a list of values into groups that are at most `batchSize` in
+ * length.
+ *
+ * @param values - The list of values.
+ * @param args - The remaining arguments.
+ * @param args.batchSize - The desired maximum number of values per batch.
+ * @returns The list of batches.
+ */
+export function divideIntoBatches<Value>(
+  values: Value[],
+  { batchSize }: { batchSize: number },
+): Value[][] {
+  const batches = [];
+  for (let i = 0; i < values.length; i += batchSize) {
+    batches.push(values.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+/**
+ * Constructs a result from processing batches of the given values
+ * sequentially.
+ *
+ * @param args - The arguments to this function.
+ * @param args.values - A list of values to iterate over.
+ * @param args.batchSize - The maximum number of values in each batch.
+ * @param args.eachBatch - A function to call for each batch. This function is
+ * similar to the function that `Array.prototype.reduce` takes, in that it
+ * receives the object that is being built, each batch in the list of batches
+ * and the index, and should return an updated version of the object.
+ * @param args.initialResult - The initial value of the final data structure,
+ * i.e., the value that will be fed into the first call of `eachBatch`.
+ * @returns The built result.
+ */
+export async function reduceInBatchesSerially<Value, Result>({
+  values,
+  batchSize,
+  eachBatch,
+  initialResult,
+}: {
+  values: Value[];
+  batchSize: number;
+  eachBatch: (
+    workingResult: Partial<Result>,
+    batch: Value[],
+    index: number,
+  ) => Partial<Result> | Promise<Partial<Result>>;
+  initialResult: Partial<Result>;
+}): Promise<Result> {
+  const batches = divideIntoBatches(values, { batchSize });
+  let workingResult = initialResult;
+  for (const [index, batch] of batches.entries()) {
+    workingResult = await eachBatch(workingResult, batch, index);
+  }
+  // There's no way around this — we have to assume that in the end, the result
+  // matches the intended type.
+  const finalResult = workingResult as Result;
+  return finalResult;
+}
+
+type FetchTokenContractExchangeRatesArgs = {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+};
+
+/**
+ * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
+ *
+ * @param args - The arguments to function.
+ * @param args.tokenPricesService - An object in charge of retrieving token prices.
+ * @param args.nativeCurrency - The native currency to request price in.
+ * @param args.tokenAddresses - The list of contract addresses.
+ * @param args.chainId - The chainId of the tokens.
+ * @param args.includeMarketData - When true, returns full market data (price,
+ * percentage changes, market cap, etc.) per token instead of just the price.
+ * @returns The prices (or full market data) for the requested tokens.
+ */
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData: true },
+): Promise<ContractMarketData>;
+
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData?: false },
+): Promise<ContractExchangeRates>;
+
+export async function fetchTokenContractExchangeRates({
+  tokenPricesService,
+  nativeCurrency,
+  tokenAddresses,
+  chainId,
+  includeMarketData = false,
+}: FetchTokenContractExchangeRatesArgs & {
+  includeMarketData?: boolean;
+}): Promise<ContractExchangeRates | ContractMarketData> {
+  const isChainIdSupported =
+    tokenPricesService.validateChainIdSupported(chainId);
+  const isCurrencySupported =
+    tokenPricesService.validateCurrencySupported(nativeCurrency);
+
+  if (!isChainIdSupported || !isCurrencySupported) {
+    return {};
+  }
+
+  const tokenPricesByTokenAddress = await reduceInBatchesSerially<
+    Hex,
+    Record<Hex, EvmAssetWithMarketData>
+  >({
+    values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
+    batchSize: TOKEN_PRICES_BATCH_SIZE,
+    eachBatch: async (allTokenPricesByTokenAddress, batch) => {
+      const tokenPricesByTokenAddressForBatch = (
+        await tokenPricesService.fetchTokenPrices({
+          assets: batch.map((tokenAddress) => ({
+            chainId,
+            tokenAddress,
+          })),
+          currency: nativeCurrency,
+        })
+      ).reduce<Record<Hex, EvmAssetWithMarketData>>((acc, tokenPrice) => {
+        acc[tokenPrice.tokenAddress] = tokenPrice;
+        return acc;
+      }, {});
+
+      return {
+        ...allTokenPricesByTokenAddress,
+        ...tokenPricesByTokenAddressForBatch,
+      };
+    },
+    initialResult: {},
+  });
+
+  if (includeMarketData) {
+    return Object.entries(tokenPricesByTokenAddress).reduce<ContractMarketData>(
+      (obj, [tokenAddress, tokenPrice]) => {
+        if (tokenPrice) {
+          const checksummedAddress = toChecksumHexAddress(tokenAddress);
+          return {
+            ...obj,
+            [checksummedAddress]: {
+              ...tokenPrice,
+              tokenAddress: checksummedAddress,
+            },
+          };
+        }
+        return obj;
+      },
+      {},
+    );
+  }
+
+  return Object.entries(tokenPricesByTokenAddress).reduce(
+    (obj, [tokenAddress, tokenPrice]) => {
+      return {
+        ...obj,
+        [toChecksumHexAddress(tokenAddress)]: tokenPrice?.price,
+      };
+    },
+    {},
+  );
+}
+
+/**
+ * Function to search for a specific value in a given map and return the key
+ *
+ * @param map - map input to search value
+ * @param value - the value to search for
+ * @returns returns key that corresponds to the value
+ */
+export function getKeyByValue(map: Map<string, string>, value: string) {
+  for (const [key, val] of map.entries()) {
+    if (val === value) {
+      return key;
+    }
+  }
+  return null; // Return null if no match is found
+}
+
+/**
+ * Converts a hex chainId and account address to a CAIP account reference.
+ *
+ * @param chainId - The hex chain ID
+ * @param accountAddress - The account address
+ * @returns The CAIP account reference in format "namespace:reference:address"
+ */
+export function accountAddressToCaipReference(
+  chainId: Hex,
+  accountAddress: string,
+) {
+  const caipChainId = toCaipChainId(
+    KnownCaipNamespace.Eip155,
+    hexToNumber(chainId).toString(),
+  );
+  return `${caipChainId}:${accountAddress}`;
 }

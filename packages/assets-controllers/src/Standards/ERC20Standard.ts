@@ -1,13 +1,13 @@
+import { bytesToUtf8 } from '@ethereumjs/util';
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import { decodeSingle } from '@metamask/abi-utils';
 import { ERC20 } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { assertIsStrictHexString } from '@metamask/utils';
-import { toUtf8 } from 'ethereumjs-util';
-import type { BN } from 'ethereumjs-util';
+import { assertIsStrictHexString, hexToBytes } from '@metamask/utils';
+import type BN from 'bn.js';
 
-import { ethersBigNumberToBN } from '../assetsUtil';
+import { ethersBigNumberToBN } from '../assetsUtil.js';
 
 export class ERC20Standard {
   private readonly provider: Web3Provider;
@@ -40,9 +40,12 @@ export class ERC20Standard {
     try {
       const decimals = await contract.decimals();
       return decimals.toString();
-    } catch (err: any) {
+    } catch (err) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (
+        err instanceof Error &&
+        err.message.includes('call revert exception')
+      ) {
         throw new Error('Failed to parse token decimals');
       }
       throw err;
@@ -60,9 +63,12 @@ export class ERC20Standard {
     try {
       const name = await contract.name();
       return name.toString();
-    } catch (err: any) {
+    } catch (err) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (
+        err instanceof Error &&
+        err.message.includes('call revert exception')
+      ) {
         throw new Error('Failed to parse token name');
       }
       throw err;
@@ -92,7 +98,15 @@ export class ERC20Standard {
 
     // Parse as bytes - treat empty string as failure
     try {
-      const utf8 = toUtf8(result);
+      // Not done in bytesToUtf8 in ethereumjs/util.
+      const regexPreceedingAndTrailingZeroes = /^(00)+|(00)+$/gu;
+
+      const resultTrimmed = result?.replace(
+        regexPreceedingAndTrailingZeroes,
+        '',
+      );
+
+      const utf8 = bytesToUtf8(hexToBytes(resultTrimmed));
       if (utf8.length > 0) {
         return utf8;
       }
@@ -119,14 +133,11 @@ export class ERC20Standard {
     decimals: string | undefined;
     balance: BN | undefined;
   }> {
-    const [decimals, symbol] = await Promise.all([
+    const [decimals, symbol, balance] = await Promise.all([
       this.getTokenDecimals(address),
       this.getTokenSymbol(address),
+      userAddress ? this.getBalanceOf(address, userAddress) : undefined,
     ]);
-    let balance;
-    if (userAddress) {
-      balance = await this.getBalanceOf(address, userAddress);
-    }
     return {
       decimals,
       symbol,

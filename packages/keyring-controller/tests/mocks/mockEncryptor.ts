@@ -1,55 +1,141 @@
-const mockHex = '0xabcdef0123456789';
-export const mockKey = Buffer.alloc(32);
-let cacheVal: any;
+// Omitting jsdoc because mock is only internal and simple enough.
 
-export default class MockEncryptor {
-  async encrypt(password: string, dataObj: any) {
+import type {
+  DetailedDecryptResult,
+  DetailedEncryptionResult,
+  EncryptionResult,
+} from '@metamask/browser-passworder';
+import type { Json } from '@metamask/utils';
+import { isEqual } from 'lodash';
+
+import type { Encryptor } from '../../src/KeyringController.js';
+
+export const PASSWORD = 'password123';
+export const SALT = 'salt';
+export const MOCK_ENCRYPTION_KEY = JSON.stringify({
+  password: PASSWORD,
+  salt: SALT,
+});
+export const MOCK_KEY = Buffer.alloc(32);
+
+export const DECRYPTION_ERROR = 'Decryption failed.';
+
+function deriveKey(
+  password: string,
+  salt: string,
+): { password: string; salt: string } {
+  return {
+    password,
+    salt,
+  };
+}
+
+export default class MockEncryptor implements Encryptor<unknown> {
+  async encrypt(password: string, dataObj: Json): Promise<string> {
+    const salt = this.generateSalt();
+    const key = deriveKey(password, salt);
+    const result = await this.encryptWithKey(key, dataObj);
     return JSON.stringify({
-      ...this.encryptWithKey(password, dataObj),
-      salt: this.generateSalt(),
+      ...result,
+      salt,
     });
   }
 
-  async decrypt(_password: string, _text: string) {
-    return cacheVal || {};
+  async decrypt(password: string, text: string): Promise<Json> {
+    const payload = JSON.parse(text);
+    const key = deriveKey(password, payload.salt);
+    return await this.decryptWithKey(key, payload);
   }
 
-  async encryptWithKey(_key: string, dataObj: any) {
-    cacheVal = dataObj;
+  async encryptWithDetail(
+    password: string,
+    dataObj: Json,
+    salt?: string,
+  ): Promise<DetailedEncryptionResult> {
+    const _salt = salt ?? this.generateSalt();
+    const key = deriveKey(password, _salt);
+    const result = await this.encryptWithKey(key, dataObj);
     return {
-      data: mockHex,
-      iv: 'anIv',
+      vault: JSON.stringify({
+        ...result,
+        salt: _salt,
+      }),
+      exportedKeyString: JSON.stringify(key),
     };
   }
 
-  async encryptWithDetail(key: string, dataObj: any) {
+  async decryptWithDetail(
+    password: string,
+    text: string,
+  ): Promise<DetailedDecryptResult> {
+    const payload = JSON.parse(text);
+    const key = deriveKey(password, payload.salt);
     return {
-      vault: await this.encrypt(key, dataObj),
-      exportedKeyString: mockKey.toString('hex'),
+      vault: await this.decryptWithKey(key, payload),
+      salt: payload.salt,
+      exportedKeyString: JSON.stringify(key),
     };
   }
 
-  async decryptWithDetail(key: string, text: string) {
+  async encryptWithKey(key: unknown, dataObj: Json): Promise<EncryptionResult> {
+    const iv = generateIV();
     return {
-      vault: await this.decrypt(key, text),
-      salt: this.generateSalt(),
-      exportedKeyString: mockKey.toString('hex'),
+      data: JSON.stringify({
+        tag: { key, iv },
+        value: dataObj,
+      }),
+      iv,
     };
   }
 
-  async decryptWithKey(key: string, text: string) {
-    return this.decrypt(key, text);
+  async decryptWithKey(
+    key: unknown,
+    ciphertext: EncryptionResult,
+  ): Promise<Json> {
+    // This conditional assignment is required because sometimes the keyring
+    // controller passes in the parsed object instead of the string.
+    const ciphertextObj =
+      typeof ciphertext === 'string' ? JSON.parse(ciphertext) : ciphertext;
+    const data = JSON.parse(ciphertextObj.data);
+    if (!isEqual(data.tag, { key, iv: ciphertextObj.iv })) {
+      throw new Error(DECRYPTION_ERROR);
+    }
+    return data.value;
   }
 
-  async keyFromPassword(_password: string) {
-    return mockKey;
+  async keyFromPassword(_password: string, _salt: string): Promise<string> {
+    return JSON.parse(MOCK_ENCRYPTION_KEY);
   }
 
-  async importKey(_key: string) {
-    return {};
+  async importKey(key: string): Promise<string> {
+    return JSON.parse(key);
   }
 
-  generateSalt() {
-    return 'WHADDASALT!';
+  async exportKey(key: unknown): Promise<string> {
+    return JSON.stringify(key);
   }
+
+  async updateVault(_vault: string, _password: string): Promise<string> {
+    return _vault;
+  }
+
+  generateSalt(): string {
+    return SALT;
+  }
+
+  isVaultUpdated(_vault: string): boolean {
+    return true;
+  }
+
+  asEncryptor(): Encryptor {
+    // This mock is not using the right crypto types, but that's ok for the tests.
+    return this as unknown as Encryptor;
+  }
+}
+
+function generateIV(): string {
+  // Generate random salt.
+
+  // return crypto.randomUUID();
+  return 'iv'; // TODO some tests rely on fixed iv, but wouldn't it be better to generate random value here?
 }

@@ -1,0 +1,1586 @@
+/* eslint-disable jest/unbound-method */
+import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
+
+import type {
+  ChainId,
+  Caip19AssetId,
+  DataRequest,
+  Context,
+  AssetsControllerStateInternal,
+} from '../types.js';
+import {
+  SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
+  SnapsAssetsMigrationStage,
+} from '../utils/snaps-assets-migration.js';
+import type {
+  AccountsApiDataSourceOptions,
+  AccountsApiDataSourceAllowedActions,
+  AccountsApiDataSourceAllowedEvents,
+} from './AccountsApiDataSource.js';
+import {
+  AccountsApiDataSource,
+  filterResponseToKnownAssets,
+} from './AccountsApiDataSource.js';
+
+type AllActions = AccountsApiDataSourceAllowedActions;
+type AllEvents = AccountsApiDataSourceAllowedEvents;
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const CHAIN_MAINNET = 'eip155:1' as ChainId;
+const CHAIN_POLYGON = 'eip155:137' as ChainId;
+const CHAIN_ARBITRUM = 'eip155:42161' as ChainId;
+const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
+
+type MockApiClient = {
+  accounts: {
+    fetchV2SupportedNetworks: jest.Mock;
+    fetchV5MultiAccountBalances: jest.Mock;
+    fetchV6MultiAccountBalances: jest.Mock;
+  };
+};
+
+function createMockAccount(
+  overrides?: Partial<InternalAccount>,
+): InternalAccount {
+  return {
+    id: 'mock-account-id',
+    address: MOCK_ADDRESS,
+    options: {},
+    methods: [],
+    type: 'eip155:eoa',
+    scopes: ['eip155:0'],
+    metadata: {
+      name: 'Test Account',
+      keyring: { type: 'HD Key Tree' },
+      importTime: Date.now(),
+      lastSelected: Date.now(),
+    },
+    ...overrides,
+  } as InternalAccount;
+}
+
+function createMockApiClient(
+  supportedChains: number[] = [1, 137],
+  balances: V5BalanceItem[] = [],
+  unprocessedNetworks: string[] = [],
+  v6Balances: V6BalanceItem[] = [],
+): MockApiClient {
+  return {
+    accounts: {
+      fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+        fullSupport: supportedChains,
+        partialSupport: [],
+      }),
+      fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+        balances,
+        unprocessedNetworks,
+      }),
+      fetchV6MultiAccountBalances: jest.fn().mockResolvedValue({
+        balances: v6Balances,
+        unprocessedNetworks,
+        unprocessedIncludeAssetIds: [],
+      }),
+    },
+  };
+}
+
+function createMockV6BalanceItem(
+  accountId: string,
+  assetId: string,
+  balance: string,
+  object: 'token' | 'defi' = 'token',
+  type: 'native' | 'erc20' = 'erc20',
+): V6BalanceItem {
+  return { accountId, object, type, assetId, balance } as V6BalanceItem;
+}
+
+function createMockBalanceItem(
+  accountId: string,
+  assetId: string,
+  balance: string,
+): V5BalanceItem {
+  return { accountId, assetId, balance } as V5BalanceItem;
+}
+
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [CHAIN_MAINNET];
+  const accounts = overrides?.accounts ?? [createMockAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
+  return {
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
+    dataTypes: ['balance'],
+    ...rest,
+  };
+}
+
+function createMiddlewareContext(overrides?: Partial<Context>): Context {
+  return {
+    request: createDataRequest(),
+    response: {},
+    getAssetsState: jest.fn(),
+    ...overrides,
+  };
+}
+
+type SetupResult = {
+  controller: AccountsApiDataSource;
+  messenger: RootMessenger;
+  apiClient: MockApiClient;
+  assetsUpdateHandler: jest.Mock;
+  activeChainsUpdateHandler: jest.Mock;
+};
+
+async function setupController(
+  options: {
+    supportedChains?: number[];
+    balances?: V5BalanceItem[];
+    unprocessedNetworks?: string[];
+    fetchTimeoutMs?: number;
+    v6Balances?: V6BalanceItem[];
+    remoteFeatureFlags?: Record<string, unknown>;
+  } = {},
+): Promise<SetupResult> {
+  const {
+    supportedChains = [1, 137],
+    balances = [],
+    unprocessedNetworks = [],
+    fetchTimeoutMs,
+    v6Balances = [],
+    remoteFeatureFlags = {},
+  } = options;
+
+  const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+
+  const controllerMessenger = new Messenger<
+    'AccountsApiDataSource',
+    AllActions,
+    AllEvents,
+    RootMessenger
+  >({
+    namespace: 'AccountsApiDataSource',
+    parent: rootMessenger,
+  });
+
+  (
+    rootMessenger as unknown as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+    remoteFeatureFlags,
+    cacheTimestamp: 0,
+  }));
+
+  rootMessenger.delegate({
+    messenger: controllerMessenger,
+    actions: ['RemoteFeatureFlagController:getState'],
+    // eslint-disable-next-line no-restricted-syntax
+    events: ['RemoteFeatureFlagController:stateChange'],
+  });
+
+  const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+  const activeChainsUpdateHandler = jest.fn();
+
+  const apiClient = createMockApiClient(
+    supportedChains,
+    balances,
+    unprocessedNetworks,
+    v6Balances,
+  );
+
+  const controller = new AccountsApiDataSource({
+    messenger:
+      controllerMessenger as unknown as AccountsApiDataSourceOptions['messenger'],
+    queryApiClient:
+      apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
+    onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
+      activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+    ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
+  });
+
+  // Wait for async initialization
+  await new Promise(process.nextTick);
+
+  return {
+    controller,
+    messenger: rootMessenger,
+    apiClient,
+    assetsUpdateHandler,
+    activeChainsUpdateHandler,
+  };
+}
+
+describe('AccountsApiDataSource', () => {
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const activeTimers = new Set<ReturnType<typeof originalSetInterval>>();
+
+  beforeAll(() => {
+    global.setInterval = ((callback: () => void, ms: number) => {
+      const timer = originalSetInterval(callback, ms);
+      timer.unref();
+      activeTimers.add(timer);
+      return timer;
+    }) as typeof global.setInterval;
+
+    global.clearInterval = ((timer: ReturnType<typeof originalSetInterval>) => {
+      activeTimers.delete(timer);
+      return originalClearInterval(timer);
+    }) as typeof global.clearInterval;
+  });
+
+  afterAll(() => {
+    for (const timer of activeTimers) {
+      originalClearInterval(timer);
+    }
+    activeTimers.clear();
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('initializes with correct name', async () => {
+    const { controller } = await setupController();
+    expect(controller.getName()).toBe('AccountsApiDataSource');
+    controller.destroy();
+  });
+
+  it('fetches active chains on initialization', async () => {
+    const { controller, apiClient, activeChainsUpdateHandler } =
+      await setupController({ supportedChains: [1, 137, 42161] });
+
+    expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalled();
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET, CHAIN_POLYGON, CHAIN_ARBITRUM],
+      [],
+    );
+
+    controller.destroy();
+  });
+
+  it('refreshActiveChains re-fetches supported networks and updates activeChains', async () => {
+    const { controller, apiClient, activeChainsUpdateHandler } =
+      await setupController({ supportedChains: [1] });
+
+    activeChainsUpdateHandler.mockClear();
+    apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+    apiClient.accounts.fetchV2SupportedNetworks.mockResolvedValue({
+      fullSupport: [1, 137],
+      partialSupport: [],
+    });
+
+    await controller.refreshActiveChains();
+
+    expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET, CHAIN_POLYGON],
+      [CHAIN_MAINNET],
+    );
+    expect(await controller.getActiveChains()).toStrictEqual([
+      CHAIN_MAINNET,
+      CHAIN_POLYGON,
+    ]);
+
+    controller.destroy();
+  });
+
+  describe('RemoteFeatureFlagController:stateChange subscription', () => {
+    it('refreshes active chains when a migration stage changes', async () => {
+      const { controller, apiClient, messenger } = await setupController({
+        remoteFeatureFlags: {},
+      });
+
+      apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+              stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+            },
+          },
+          cacheTimestamp: 0,
+        },
+        [],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+        1,
+      );
+
+      controller.destroy();
+    });
+
+    it('does not refresh active chains when an unrelated flag changes', async () => {
+      const { controller, apiClient, messenger } = await setupController({
+        remoteFeatureFlags: {},
+      });
+
+      // Establish the baseline migration-stage signature.
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { remoteFeatureFlags: {}, cacheTimestamp: 0 },
+        [],
+      );
+      await new Promise(process.nextTick);
+      apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+
+      // An unrelated flag change keeps the migration-stage signature identical,
+      // so the selector-gated handler must not fire.
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { remoteFeatureFlags: { someUnrelatedFlag: true }, cacheTimestamp: 0 },
+        [],
+      );
+      await new Promise(process.nextTick);
+
+      expect(
+        apiClient.accounts.fetchV2SupportedNetworks,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+  });
+
+  it('exposes assetsMiddleware and getActiveChains on instance', async () => {
+    const { controller } = await setupController();
+
+    const middleware = controller.assetsMiddleware;
+    expect(middleware).toBeDefined();
+
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET, CHAIN_POLYGON]);
+
+    controller.destroy();
+  });
+
+  it('filters out migration networks from active chains when the migration FF is unset', async () => {
+    const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const { controller, activeChainsUpdateHandler } = await setupController({
+      supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+    });
+
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET],
+      [],
+    );
+
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET]);
+
+    controller.destroy();
+  });
+
+  it('filters out migration networks whose migration stage is Off', async () => {
+    const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const { controller, activeChainsUpdateHandler } = await setupController({
+      supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.Off,
+        },
+      },
+    });
+
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET],
+      [],
+    );
+
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET]);
+
+    controller.destroy();
+  });
+
+  it.each([
+    {
+      stageName: 'ReadAssetsControllerWithFallback',
+      stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+    },
+    {
+      stageName: 'ReadAssetsControllerWithoutFallback',
+      stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithoutFallback,
+    },
+    {
+      stageName: 'ReadAssetsControllerOnly',
+      stage: SnapsAssetsMigrationStage.ReadAssetsControllerOnly,
+    },
+  ])(
+    'surfaces a migration network as an active chain when its migration stage is $stageName',
+    async ({ stage }) => {
+      const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+      const { controller, activeChainsUpdateHandler } = await setupController({
+        supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+        remoteFeatureFlags: {
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: { stage },
+        },
+      });
+
+      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+        'AccountsApiDataSource',
+        [CHAIN_MAINNET, SOLANA_CHAIN_ID],
+        [],
+      );
+
+      const chains = await controller.getActiveChains();
+      expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
+
+      controller.destroy();
+    },
+  );
+
+  it('gates migration networks independently per namespace', async () => {
+    const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const STELLAR_CHAIN_ID = 'stellar:pubnet';
+    const { controller } = await setupController({
+      supportedChains: [
+        1,
+        SOLANA_CHAIN_ID as unknown as number,
+        STELLAR_CHAIN_ID as unknown as number,
+      ],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.Off,
+        },
+      },
+    });
+
+    // Solana is staged on, Stellar is Off — only Solana joins EVM chains.
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
+
+    controller.destroy();
+  });
+
+  it.each([
+    { input: 1, expected: 'eip155:1' },
+    { input: '137', expected: 'eip155:137' },
+    { input: 'eip155:42161', expected: 'eip155:42161' },
+  ])('converts chain ID $input to $expected', async ({ input, expected }) => {
+    const { controller, activeChainsUpdateHandler } = await setupController({
+      supportedChains: [input as number],
+    });
+
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [expected],
+      [],
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch returns error for unsupported chain', async () => {
+    const { controller } = await setupController({ supportedChains: [1] });
+
+    const request = createDataRequest({ chainIds: [CHAIN_POLYGON] });
+    const response = await controller.fetch(request);
+
+    expect(response.errors?.[CHAIN_POLYGON]).toBe(
+      'Chain not supported by Accounts API',
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch calls API with correct account IDs', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(createDataRequest());
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      undefined,
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(createDataRequest({ forceUpdate: true }));
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch processes balance response', async () => {
+    const balances = [
+      createMockBalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        'eip155:1/slip44:60',
+        '1000000000000000000',
+      ),
+    ];
+
+    const { controller } = await setupController({
+      balances,
+    });
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.assetsBalance?.['mock-account-id']).toHaveProperty(
+      'eip155:1/slip44:60',
+    );
+    expect(
+      response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
+        ?.amount,
+    ).toBe('1000000000000000000');
+
+    controller.destroy();
+  });
+
+  it('excludes staking contract asset IDs from v5 balance response', async () => {
+    const stakingAssetId =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+    const balances = [
+      createMockBalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        'eip155:1/slip44:60',
+        '1000000000000000000',
+      ),
+      createMockBalanceItem(`eip155:1:${MOCK_ADDRESS}`, stakingAssetId, '0'),
+    ];
+
+    const { controller } = await setupController({ balances });
+
+    const response = await controller.fetch(createDataRequest());
+    const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+    expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+    expect(
+      Object.keys(accountBalances).some((id) =>
+        id.toLowerCase().includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+      ),
+    ).toBe(false);
+
+    controller.destroy();
+  });
+
+  it('fetch marks unprocessed networks as errors', async () => {
+    const { controller } = await setupController({
+      unprocessedNetworks: ['eip155:1'],
+    });
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.errors?.[CHAIN_MAINNET]).toBe(
+      'Unprocessed by Accounts API',
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch handles API errors', async () => {
+    const { controller, apiClient } = await setupController();
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockRejectedValueOnce(
+      new Error('API Error'),
+    );
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.errors?.[CHAIN_MAINNET]).toContain('Fetch failed');
+
+    controller.destroy();
+  });
+
+  describe('assetsAccountsApiV6 feature flag', () => {
+    it('uses the v5 endpoint by default', async () => {
+      const { controller, apiClient } = await setupController();
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('uses the v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('uses the v5 endpoint when the assetsAccountsApiV6 remote flag is disabled', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: false } },
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('uses the v5 endpoint when the flag is a plain boolean instead of the JSON value shape', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('calls the v6 endpoint without extra params when enabled', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('reads the flag per fetch so it can revert to v5 at runtime', async () => {
+      const remoteFeatureFlags = {
+        assetsAccountsApiV6: { value: true },
+      };
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags,
+      });
+
+      await controller.fetch(createDataRequest());
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+
+      remoteFeatureFlags.assetsAccountsApiV6 = { value: false };
+      await controller.fetch(createDataRequest());
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+
+      controller.destroy();
+    });
+
+    it('processes v6 token balances grouped by account', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+        ],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(
+        response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
+          ?.amount,
+      ).toBe('1000000000000000000');
+
+      controller.destroy();
+    });
+
+    it('ignores v6 defi positions', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/erc20:0xdefi',
+            '500',
+            'defi',
+          ),
+        ],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+
+      const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+      expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+      expect(accountBalances).not.toHaveProperty('eip155:1/erc20:0xdefi');
+
+      controller.destroy();
+    });
+
+    it('excludes staking contract asset IDs from v6 balance response', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
+      const stakingAssetId =
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(accountId, stakingAssetId, '0'),
+        ],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+      const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
+
+      expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
+      expect(
+        Object.keys(accountBalances).some((id) =>
+          id
+            .toLowerCase()
+            .includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
+        ),
+      ).toBe(false);
+
+      controller.destroy();
+    });
+
+    it('marks v6 unprocessed networks as errors', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        unprocessedNetworks: ['eip155:1'],
+      });
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(response.errors?.[CHAIN_MAINNET]).toBe(
+        'Unprocessed by Accounts API',
+      );
+
+      controller.destroy();
+    });
+
+    it('handles v6 API errors', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      apiClient.accounts.fetchV6MultiAccountBalances.mockRejectedValueOnce(
+        new Error('API Error'),
+      );
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(response.errors?.[CHAIN_MAINNET]).toContain('Fetch failed');
+
+      controller.destroy();
+    });
+
+    it('does not pass includeAssetIds to v6 even when custom assets are present', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+      });
+
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
+
+      controller.destroy();
+    });
+  });
+
+  it('fetch marks every requested chain as errored when the call exceeds the configured timeout', async () => {
+    const { controller, apiClient } = await setupController({
+      fetchTimeoutMs: 10,
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    );
+
+    const response = await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+    );
+
+    expect(response.errors?.[CHAIN_MAINNET]).toContain('timed out');
+
+    controller.destroy();
+  });
+
+  it('fetch skips API when no valid account-chain combinations', async () => {
+    const { controller, apiClient } = await setupController();
+
+    const account = createMockAccount({ scopes: ['eip155:137'] });
+    const request = createDataRequest({
+      accountsWithSupportedChains: [{ account, supportedChains: [] }],
+      chainIds: [CHAIN_MAINNET],
+    });
+
+    await controller.fetch(request);
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+
+    controller.destroy();
+  });
+
+  it('middleware passes to next when no chains requested', async () => {
+    const { controller } = await setupController();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ chainIds: [] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
+  it('middleware merges balance response into context', async () => {
+    const balances = [
+      createMockBalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        'eip155:1/slip44:60',
+        '1000000000000000000',
+      ),
+    ];
+
+    const { controller } = await setupController({
+      balances,
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext();
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsBalance?.['mock-account-id']).toHaveProperty(
+      'eip155:1/slip44:60',
+    );
+
+    controller.destroy();
+  });
+
+  it('middleware skips Accounts API when balance is not requested', async () => {
+    const { controller, apiClient } = await setupController({
+      balances: [
+        createMockBalanceItem(
+          `eip155:1:${MOCK_ADDRESS}`,
+          'eip155:1/slip44:60',
+          '1',
+        ),
+      ],
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['price'] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
+  it('middleware removes handled chains from next request', async () => {
+    const { controller } = await setupController({ supportedChains: [1] });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          chainIds: [CHAIN_POLYGON],
+        }),
+      }),
+    );
+
+    controller.destroy();
+  });
+
+  it('subscribe performs initial fetch', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('subscribe polling fetch always bypasses the TanStack cache', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
+  it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
+    const { controller, assetsUpdateHandler, apiClient } =
+      await setupController();
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+      skipInitialFetch: true,
+    });
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+
+    controller.destroy();
+  });
+
+  it('subscribe does nothing when no chains', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+
+    controller.destroy();
+  });
+
+  it('subscribe update immediately fetches newly added chains', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    const fetchSpy = jest.spyOn(controller, 'fetch');
+
+    // Simulate a chain handoff (e.g. websocket coverage dropped for Polygon).
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ chainIds: [CHAIN_POLYGON] }),
+    );
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('subscribe update does not fetch when no chains are added', async () => {
+    const { controller, assetsUpdateHandler } = await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    // Removing a chain (or an account-only update) should not trigger a fetch.
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  describe('tokenDetectionEnabled', () => {
+    async function setupControllerWithDetection(
+      options: {
+        supportedChains?: number[];
+        balances?: V5BalanceItem[];
+        unprocessedNetworks?: string[];
+        tokenDetectionEnabled?: boolean;
+      } = {},
+    ): Promise<SetupResult> {
+      const {
+        supportedChains = [1, 137],
+        balances = [],
+        unprocessedNetworks = [],
+        tokenDetectionEnabled,
+      } = options;
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AllActions,
+        AllEvents
+      >({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      const controllerMessenger = new Messenger<
+        'AccountsApiDataSource',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'AccountsApiDataSource',
+        parent: rootMessenger,
+      });
+
+      (
+        rootMessenger as unknown as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+        remoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      }));
+
+      rootMessenger.delegate({
+        messenger: controllerMessenger,
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [],
+      });
+
+      const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+      const activeChainsUpdateHandler = jest.fn();
+
+      const apiClient = createMockApiClient(
+        supportedChains,
+        balances,
+        unprocessedNetworks,
+      );
+
+      const controllerOptions: AccountsApiDataSourceOptions = {
+        messenger:
+          controllerMessenger as unknown as AccountsApiDataSourceOptions['messenger'],
+        queryApiClient:
+          apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
+        onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
+          activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+      };
+
+      if (tokenDetectionEnabled !== undefined) {
+        controllerOptions.tokenDetectionEnabled = (): boolean =>
+          tokenDetectionEnabled;
+      }
+
+      const controller = new AccountsApiDataSource(controllerOptions);
+
+      // Wait for async initialization
+      await new Promise(process.nextTick);
+
+      return {
+        controller,
+        messenger: rootMessenger,
+        apiClient,
+        assetsUpdateHandler,
+        activeChainsUpdateHandler,
+      };
+    }
+
+    const KNOWN_ASSET =
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+    const UNKNOWN_ASSET =
+      'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7';
+    const ACCOUNT_ID = 'mock-account-id';
+
+    it('includes all tokens when tokenDetectionEnabled is true (default)', async () => {
+      const { controller, assetsUpdateHandler } =
+        await setupControllerWithDetection({
+          balances: [
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              KNOWN_ASSET,
+              '1000',
+            ),
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              UNKNOWN_ASSET,
+              '2000',
+            ),
+          ],
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {
+            [ACCOUNT_ID]: {
+              [KNOWN_ASSET]: { amount: '500' },
+            },
+          },
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      const response = assetsUpdateHandler.mock.calls[0][0];
+      // Both tokens should be included
+      expect(
+        Object.keys(response.assetsBalance?.[ACCOUNT_ID] ?? {}),
+      ).toHaveLength(2);
+
+      controller.destroy();
+    });
+
+    it('filters out unknown tokens when tokenDetectionEnabled is false', async () => {
+      const { controller, assetsUpdateHandler } =
+        await setupControllerWithDetection({
+          tokenDetectionEnabled: false,
+          balances: [
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              KNOWN_ASSET,
+              '1000',
+            ),
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              UNKNOWN_ASSET,
+              '2000',
+            ),
+          ],
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {
+            [ACCOUNT_ID]: {
+              [KNOWN_ASSET]: { amount: '500' },
+            },
+          },
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      const response = assetsUpdateHandler.mock.calls[0][0];
+      // Only the known token should be included
+      const accountBalances = response.assetsBalance?.[ACCOUNT_ID] ?? {};
+      expect(Object.keys(accountBalances)).toHaveLength(1);
+      expect(accountBalances[KNOWN_ASSET]).toStrictEqual({ amount: '1000' });
+      expect(accountBalances[UNKNOWN_ASSET]).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('returns empty balance when no tokens are known and tokenDetectionEnabled is false', async () => {
+      const { controller, assetsUpdateHandler } =
+        await setupControllerWithDetection({
+          tokenDetectionEnabled: false,
+          balances: [
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              UNKNOWN_ASSET,
+              '2000',
+            ),
+          ],
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {},
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      const response = assetsUpdateHandler.mock.calls[0][0];
+      // No balances should be returned
+      expect(response.assetsBalance).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('filters unknown tokens in middleware when tokenDetectionEnabled is false', async () => {
+      const { controller } = await setupControllerWithDetection({
+        tokenDetectionEnabled: false,
+        balances: [
+          createMockBalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            KNOWN_ASSET,
+            '1000',
+          ),
+          createMockBalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            UNKNOWN_ASSET,
+            '2000',
+          ),
+        ],
+      });
+
+      // Set up state accessor via subscribe (middleware uses the stored getAssetsState)
+      await controller.subscribe({
+        subscriptionId: 'sub-setup',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: jest.fn(),
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {
+            [ACCOUNT_ID]: {
+              [KNOWN_ASSET]: { amount: '500' },
+            },
+          },
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      const middleware = controller.assetsMiddleware;
+      const context = createMiddlewareContext();
+      const nextFn = jest.fn();
+
+      await middleware(context, nextFn);
+
+      // Verify only known asset is in the response
+      const accountBalances =
+        context.response.assetsBalance?.[ACCOUNT_ID] ?? {};
+      expect(accountBalances[KNOWN_ASSET as never]).toStrictEqual({
+        amount: '1000',
+      });
+      expect(accountBalances[UNKNOWN_ASSET as never]).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('middleware does not remove chains when tokenDetectionEnabled is false and filter removes all balance data (bootstrap for RPC)', async () => {
+      const { controller } = await setupControllerWithDetection({
+        tokenDetectionEnabled: false,
+        supportedChains: [1, 137],
+        balances: [
+          createMockBalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+          ),
+        ],
+      });
+
+      // Simulate new account: subscribe with empty state so #getAssetsState is set.
+      // Filter will then remove all API balance data (no assets in state).
+      await controller.subscribe({
+        subscriptionId: 'sub-setup',
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+        }),
+        isUpdate: false,
+        onAssetsUpdate: jest.fn(),
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {},
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      const nextFn = jest.fn().mockResolvedValue(undefined);
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+        }),
+      });
+
+      await controller.assetsMiddleware(context, nextFn);
+
+      // All chains must still be passed to next middleware so RPC can fetch native balances
+      expect(nextFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+          }),
+        }),
+      );
+
+      controller.destroy();
+    });
+  });
+});
+
+// =============================================================================
+// filterResponseToKnownAssets — standalone unit tests
+// =============================================================================
+
+describe('filterResponseToKnownAssets', () => {
+  const ACCOUNT_A = 'account-a';
+  const ACCOUNT_B = 'account-b';
+  const ASSET_1 = 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  const ASSET_2 = 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7';
+  const ASSET_3 = 'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F';
+
+  function buildState(
+    balances: Record<string, Record<string, { amount: string }>>,
+  ): AssetsControllerStateInternal {
+    return {
+      assetsInfo: {},
+      assetsBalance: balances,
+      assetsPrice: {},
+      customAssets: {},
+      assetPreferences: {},
+    };
+  }
+
+  it('returns response unchanged when assetsBalance is undefined', () => {
+    const response = { errors: { 'eip155:1': 'fail' } };
+    const state = buildState({});
+
+    expect(filterResponseToKnownAssets(response, state)).toStrictEqual(
+      response,
+    );
+  });
+
+  it('keeps only assets that exist in state', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: {
+          [ASSET_1]: { amount: '100' },
+          [ASSET_2]: { amount: '200' },
+        },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_1]: { amount: '50' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
+      [ASSET_1]: { amount: '100' },
+    });
+    expect(
+      result.assetsBalance?.[ACCOUNT_A]?.[ASSET_2 as never],
+    ).toBeUndefined();
+  });
+
+  it('drops accounts that have no balances in state', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
+        [ACCOUNT_B]: { [ASSET_2]: { amount: '200' } },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_1]: { amount: '10' } },
+      // ACCOUNT_B not in state
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance?.[ACCOUNT_A]).toBeDefined();
+    expect(result.assetsBalance?.[ACCOUNT_B]).toBeUndefined();
+  });
+
+  it('returns undefined assetsBalance when all assets are filtered out', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_3]: { amount: '10' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance).toBeUndefined();
+  });
+
+  it('preserves other response fields (errors, etc.)', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
+      },
+      errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_1]: { amount: '50' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.errors).toStrictEqual({
+      'eip155:137': 'Unprocessed by Accounts API',
+    });
+    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
+      [ASSET_1]: { amount: '100' },
+    });
+  });
+
+  it('handles multiple accounts with mixed known/unknown assets', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: {
+          [ASSET_1]: { amount: '100' },
+          [ASSET_2]: { amount: '200' },
+        },
+        [ACCOUNT_B]: {
+          [ASSET_2]: { amount: '300' },
+          [ASSET_3]: { amount: '400' },
+        },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_2]: { amount: '10' } },
+      [ACCOUNT_B]: { [ASSET_3]: { amount: '20' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
+      [ASSET_2]: { amount: '200' },
+    });
+    expect(result.assetsBalance?.[ACCOUNT_B]).toStrictEqual({
+      [ASSET_3]: { amount: '400' },
+    });
+  });
+});

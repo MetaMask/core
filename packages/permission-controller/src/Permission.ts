@@ -1,20 +1,17 @@
-import type {
-  ActionConstraint,
-  EventConstraint,
-} from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
+import type { ActionConstraint, EventConstraint } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { CaveatConstraint, Caveat } from './Caveat';
+import type { CaveatConstraint, Caveat } from './Caveat.js';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
   PermissionsRequest,
   SideEffectMessenger,
-} from './PermissionController';
-import type { SubjectType } from './SubjectMetadataController';
+} from './PermissionController.js';
+import type { SubjectType } from './SubjectMetadataController.js';
 
 /**
  * The origin of a subject.
@@ -45,7 +42,6 @@ export type PermissionConstraint = {
    */
   readonly '@context'?: NonEmptyArray<string>;
 
-  // TODO:TS4.4 Make optional
   /**
    * The caveats of the permission.
    *
@@ -92,7 +88,6 @@ export type ValidPermission<
   Name extends TargetName,
   AllowedCaveat extends CaveatConstraint,
 > = PermissionConstraint & {
-  // TODO:TS4.4 Make optional
   /**
    * The caveats of the permission.
    *
@@ -118,9 +113,9 @@ export type ValidPermission<
  */
 type ExtractArrayMembers<ArrayType> = ArrayType extends []
   ? never
-  : ArrayType extends any[] | readonly any[]
-  ? ArrayType[number]
-  : never;
+  : ArrayType extends unknown[] | readonly unknown[]
+    ? ArrayType[number]
+    : never;
 
 /**
  * A utility type for extracting the allowed caveat types for a particular
@@ -207,7 +202,7 @@ export type RequestedPermissions = Record<TargetName, RequestedPermission>;
  */
 type RestrictedMethodContext = Readonly<{
   origin: OriginString;
-  [key: string]: any;
+  [key: string]: unknown;
 }>;
 
 export type RestrictedMethodParameters = Json[] | Record<string, Json>;
@@ -261,7 +256,10 @@ export type RestrictedMethod<
   | AsyncRestrictedMethod<Params, Result>;
 
 export type ValidRestrictedMethod<
-  MethodImplementation extends RestrictedMethod<any, any>,
+  MethodImplementation extends RestrictedMethod<
+    RestrictedMethodParameters,
+    Json
+  >,
 > = MethodImplementation extends (args: infer Options) => Json | Promise<Json>
   ? Options extends RestrictedMethodOptions<RestrictedMethodParameters>
     ? MethodImplementation
@@ -316,7 +314,7 @@ export type SideEffectParams<
   Events extends EventConstraint,
 > = {
   requestData: PermissionsRequest;
-  messagingSystem: SideEffectMessenger<Actions, Events>;
+  messenger: SideEffectMessenger<Actions, Events>;
 };
 
 /**
@@ -398,12 +396,18 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * used, and the validator function (if specified) will be called on newly
    * constructed permissions.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   factory?: PermissionFactory<any, Record<string, unknown>>;
 
   /**
    * The validator function used to validate permissions of the associated type
-   * whenever they are mutated. The only way a permission can be legally mutated
-   * is when its caveats are modified by the permission controller.
+   * whenever they are granted or their caveat arrays are mutated.
+   *
+   * Permission validators are **not** invoked when a caveat is mutated, provided
+   * the caveat array has not changed. For this reason, permission validators
+   * **must not** be used to validate caveats. To validate caveats, use the
+   * corresponding caveat specification property.
    *
    * The validator should throw an appropriate JSON-RPC error if validation fails.
    */
@@ -415,7 +419,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    *
    * If the side-effect action fails, the permission that triggered it is revoked.
    */
-  sideEffect?: PermissionSideEffect<any, any>;
+  sideEffect?: PermissionSideEffect<ActionConstraint, EventConstraint>;
 
   /**
    * The Permission may be available to only a subset of the subject types. If so, specify the subject types as an array.
@@ -439,7 +443,9 @@ export type RestrictedMethodSpecificationConstraint =
      * The implementation of the restricted method that the permission
      * corresponds to.
      */
-    methodImplementation: RestrictedMethod<any, any>;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    methodImplementation: RestrictedMethod<any, Json>;
   };
 
 /**
@@ -457,7 +463,7 @@ export type EndowmentSpecificationConstraint =
      * permission is invoked, after which the host can apply the endowments to
      * the requesting subject in the intended manner.
      */
-    endowmentGetter: EndowmentGetter<any>;
+    endowmentGetter: EndowmentGetter<Json>;
   };
 
 /**
@@ -478,15 +484,19 @@ export type PermissionSpecificationConstraint =
  * Options for {@link PermissionSpecificationBuilder} functions.
  */
 type PermissionSpecificationBuilderOptions<
-  FactoryHooks extends Record<string, unknown>,
   MethodHooks extends Record<string, unknown>,
-  ValidatorHooks extends Record<string, unknown>,
+  SpecMessenger = unknown,
 > = {
   targetName?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
-  factoryHooks?: FactoryHooks;
   methodHooks?: MethodHooks;
-  validatorHooks?: ValidatorHooks;
+  /**
+   * A messenger scoped to this permission specification. The messenger is
+   * expected to have exactly the actions declared by the spec's `actionNames`
+   * delegated to it; {@link createRestrictedMethodMessenger} is the canonical
+   * way to construct it.
+   */
+  messenger?: SpecMessenger;
 };
 
 /**
@@ -497,35 +507,22 @@ type PermissionSpecificationBuilderOptions<
  */
 export type PermissionSpecificationBuilder<
   Type extends PermissionType,
-  Options extends PermissionSpecificationBuilderOptions<any, any, any>,
+  Options extends PermissionSpecificationBuilderOptions<
+    Record<string, unknown>
+  >,
   Specification extends PermissionSpecificationConstraint & {
     permissionType: Type;
   },
 > = (options: Options) => Specification;
 
-/**
- * A restricted method permission export object, containing the
- * {@link PermissionSpecificationBuilder} function and "hook name" objects.
- */
-export type PermissionSpecificationBuilderExportConstraint = {
-  targetName: string;
-  specificationBuilder: PermissionSpecificationBuilder<
-    PermissionType,
-    PermissionSpecificationBuilderOptions<any, any, any>,
-    PermissionSpecificationConstraint
-  >;
-  factoryHookNames?: Record<string, true>;
-  methodHookNames?: Record<string, true>;
-  validatorHookNames?: Record<string, true>;
-};
-
 type ValidRestrictedMethodSpecification<
   Specification extends RestrictedMethodSpecificationConstraint,
-> = Specification['methodImplementation'] extends ValidRestrictedMethod<
-  Specification['methodImplementation']
->
-  ? Specification
-  : never;
+> =
+  Specification['methodImplementation'] extends ValidRestrictedMethod<
+    Specification['methodImplementation']
+  >
+    ? Specification
+    : never;
 
 /**
  * Constraint for {@link PermissionSpecificationConstraint} objects that
@@ -539,10 +536,10 @@ export type ValidPermissionSpecification<
   ? Specification['permissionType'] extends PermissionType.Endowment
     ? Specification
     : Specification['permissionType'] extends PermissionType.RestrictedMethod
-    ? ValidRestrictedMethodSpecification<
-        Extract<Specification, RestrictedMethodSpecificationConstraint>
-      >
-    : never
+      ? ValidRestrictedMethodSpecification<
+          Extract<Specification, RestrictedMethodSpecificationConstraint>
+        >
+      : never
   : never;
 
 /**

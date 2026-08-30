@@ -1,286 +1,1390 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
-import { query } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/network-controller';
+import { Json } from '@metamask/utils';
+import { freeze } from 'immer';
 
-import { TransactionStatus } from '../types';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus } from '../types.js';
+import { rpcRequest } from '../utils/provider.js';
+import { PendingTransactionTracker } from './PendingTransactionTracker.js';
+import { TransactionPoller } from './TransactionPoller.js';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';
-const BLOCK_NUMBER_MOCK = '0x1';
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
+const NONCE_MOCK = '0x2';
+const BLOCK_NUMBER_MOCK = '0x123';
 
 const TRANSACTION_SUBMITTED_MOCK = {
   id: ID_MOCK,
   chainId: CHAIN_ID_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  hash: '0x1',
+  rawTx: '0x987',
   status: TransactionStatus.submitted,
-  txParams: {},
-};
-
-const TRANSACTION_CONFIRMED_MOCK = {
-  ...TRANSACTION_SUBMITTED_MOCK,
-  status: TransactionStatus.confirmed,
-};
+  txParams: {
+    nonce: NONCE_MOCK,
+  },
+} as unknown as TransactionMeta;
 
 const RECEIPT_MOCK = {
+  blockNumber: BLOCK_NUMBER_MOCK,
+  blockHash: '0x321',
   gasUsed: '0x123',
+  status: '0x1',
 };
+
+const REVERT_DATA_TRANSFER_EXCEEDS_BALANCE =
+  '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
 
 const BLOCK_MOCK = {
   baseFeePerGas: '0x456',
   timestamp: 123456,
 };
 
-jest.mock('@metamask/controller-utils', () => ({
-  query: jest.fn(),
-  safelyExecute: (fn: () => any) => fn(),
+jest.mock('./TransactionPoller');
+
+jest.mock('../utils/provider', () => ({
+  ...jest.requireActual('../utils/provider'),
+  rpcRequest: jest.fn(),
 }));
 
+/**
+ * Creates a mock block tracker instance.
+ *
+ * @returns The mock block tracker instance.
+ */
 function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
   return {
-    addListener: jest.fn(),
-  } as any;
+    on: jest.fn(),
+    removeListener: jest.fn(),
+  } as unknown as jest.Mocked<BlockTracker>;
+}
+
+/**
+ * Creates a mock transaction poller instance.
+ *
+ * @returns The mock transaction poller instance.
+ */
+function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
+  return {
+    start: jest.fn(),
+    stop: jest.fn(),
+    setPendingTransactions: jest.fn(),
+  } as unknown as jest.Mocked<TransactionPoller>;
+}
+
+/**
+ * Creates a mock messenger instance.
+ *
+ * @returns The mock messenger instance.
+ */
+function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
+  return {
+    call: jest.fn().mockImplementation((method: string) => {
+      if (method === 'NetworkController:getNetworkClientById') {
+        return {
+          configuration: { chainId: CHAIN_ID_MOCK },
+        };
+      }
+
+      if (method === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {},
+        };
+      }
+
+      return undefined;
+    }),
+  } as unknown as jest.Mocked<TransactionControllerMessenger>;
+}
+
+/**
+ * Mocks the feature flags for the given messenger.
+ *
+ * @param messenger - Messenger to mock the feature flags for.
+ * @param featureFlags - Feature flags to mock.
+ */
+function mockFeatureFlags(
+  messenger: jest.Mocked<TransactionControllerMessenger>,
+  featureFlags: Json,
+): void {
+  (messenger.call as jest.Mock).mockImplementation((method: string) => {
+    if (method === 'NetworkController:getNetworkClientById') {
+      return {
+        configuration: { chainId: CHAIN_ID_MOCK },
+      };
+    }
+
+    if (method === 'RemoteFeatureFlagController:getState') {
+      return {
+        remoteFeatureFlags: featureFlags,
+      };
+    }
+
+    return undefined;
+  });
 }
 
 describe('PendingTransactionTracker', () => {
-  const queryMock = jest.mocked(query);
+  const getTransactionReceiptMock = jest.fn();
+  const getTransactionByHashMock = jest.fn();
+  const getTransactionCountMock = jest.fn();
+  const getBlockByHashMock = jest.fn();
+  const estimateGasMock = jest.fn();
+
   let blockTracker: jest.Mocked<BlockTracker>;
-  let failTransaction: jest.Mock;
-  let options: any;
+  let pendingTransactionTracker: PendingTransactionTracker;
+  let transactionPoller: jest.Mocked<TransactionPoller>;
+  let messenger: jest.Mocked<TransactionControllerMessenger>;
+
+  let options: jest.Mocked<
+    ConstructorParameters<typeof PendingTransactionTracker>[0]
+  >;
+
+  /**
+   * Simulates a poll event.
+   *
+   * @param latestBlockNumber - The latest block number.
+   * @param transactionsOnCheck - The current transactions during the check.
+   */
+  async function onPoll(
+    latestBlockNumber?: string,
+    transactionsOnCheck?: TransactionMeta[],
+  ): Promise<void> {
+    options.getTransactions.mockReturnValue([
+      { ...TRANSACTION_SUBMITTED_MOCK },
+    ]);
+
+    pendingTransactionTracker.startIfPendingTransactions();
+
+    if (transactionsOnCheck) {
+      options.getTransactions.mockReturnValue(
+        freeze(transactionsOnCheck, true),
+      );
+    }
+
+    await transactionPoller.start.mock.calls[0][0](latestBlockNumber as string);
+  }
 
   beforeEach(() => {
     blockTracker = createBlockTrackerMock();
-    failTransaction = jest.fn();
+    transactionPoller = createTransactionPollerMock();
+    messenger = createMessengerMock();
+
+    jest.mocked(TransactionPoller).mockImplementation(() => transactionPoller);
+
+    jest.mocked(rpcRequest).mockImplementation(async ({ method, params }) => {
+      const args = Array.isArray(params) ? params : [];
+
+      switch (method) {
+        case 'eth_getTransactionReceipt':
+          return getTransactionReceiptMock(...args);
+        case 'eth_getTransactionByHash':
+          return getTransactionByHashMock(...args);
+        case 'eth_getTransactionCount':
+          return getTransactionCountMock(...args);
+        case 'eth_getBlockByHash':
+          return getBlockByHashMock(...args);
+        case 'eth_estimateGas':
+          return estimateGasMock(...args);
+        default:
+          return undefined;
+      }
+    });
+
+    estimateGasMock.mockReset();
+    estimateGasMock.mockResolvedValue('0x5208');
 
     options = {
       blockTracker,
-      failTransaction,
-      getChainId: () => CHAIN_ID_MOCK,
-      getEthQuery: () => ({}),
-      getTransactions: () => [],
+      getTransactions: jest.fn(),
+      getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
+      isTimeoutEnabled: jest.fn((_transactionMeta: TransactionMeta) => true),
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+      publishTransaction: jest.fn(),
+      messenger,
     };
   });
 
-  describe('with submitted transaction', () => {
-    it('updates transaction status to confirmed if transaction on chain with block number', async () => {
-      const transactionsListener = jest.fn();
-      const confirmedListener = jest.fn();
+  describe('on state change', () => {
+    it('adds listener if pending transactions', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+      options.getTransactions.mockReturnValue(
+        freeze([TRANSACTION_SUBMITTED_MOCK], true),
+      );
 
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.hub.addListener(`transaction-confirmed`, confirmedListener);
-      tracker.start();
+      pendingTransactionTracker.startIfPendingTransactions();
 
-      queryMock.mockResolvedValueOnce({ blockNumber: BLOCK_NUMBER_MOCK });
-
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
-
-      expect(transactionsListener).toHaveBeenCalledTimes(1);
-      expect(transactionsListener).toHaveBeenCalledWith([
-        TRANSACTION_CONFIRMED_MOCK,
-      ]);
-    });
-    it('updates transaction status to failed if transaction on chain with block number and a status of "0x0"', async () => {
-      const transactionsListener = jest.fn();
-
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
-
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.start();
-
-      queryMock
-        .mockResolvedValueOnce({ blockNumber: BLOCK_NUMBER_MOCK })
-        .mockResolvedValueOnce({ status: 0 });
-
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
-
-      expect(failTransaction).toHaveBeenCalledTimes(1);
-      expect(failTransaction).toHaveBeenCalledWith(
-        TRANSACTION_SUBMITTED_MOCK,
-        new Error('Transaction failed. The transaction was reversed'),
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+      expect(transactionPoller.start).toHaveBeenCalledWith(
+        expect.any(Function),
       );
     });
 
-    it('fails transaction if no transaction on chain and receipt has failed status', async () => {
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+    it('does nothing if listener already added', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
-      tracker.start();
-
-      queryMock
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce({ status: 0 });
-
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
-
-      expect(failTransaction).toHaveBeenCalledTimes(1);
-      expect(failTransaction).toHaveBeenCalledWith(
-        TRANSACTION_SUBMITTED_MOCK,
-        new Error(
-          'Transaction failed. The transaction was dropped or replaced by a new one',
-        ),
+      options.getTransactions.mockReturnValue(
+        freeze([TRANSACTION_SUBMITTED_MOCK], true),
       );
+
+      pendingTransactionTracker.startIfPendingTransactions();
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(0);
     });
 
-    it('does nothing if no transaction on chain and no receipt', async () => {
-      const transactionsListener = jest.fn();
+    it('removes listener if no pending transactions and running', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+      options.getTransactions.mockReturnValue(
+        freeze([TRANSACTION_SUBMITTED_MOCK], true),
+      );
 
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.start();
+      pendingTransactionTracker.startIfPendingTransactions();
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(0);
 
-      expect(failTransaction).toHaveBeenCalledTimes(0);
-      expect(transactionsListener).toHaveBeenCalledTimes(0);
+      options.getTransactions.mockReturnValue([]);
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing if listener already removed', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+
+      options.getTransactions.mockReturnValue(
+        freeze([TRANSACTION_SUBMITTED_MOCK], true),
+      );
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
+
+      options.getTransactions.mockReturnValue([]);
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(1);
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('with confirmed transaction', () => {
-    it('updates transaction fields if receipt', async () => {
-      const transactionsListener = jest.fn();
+  describe('on latest block', () => {
+    describe('checks status', () => {
+      describe('does nothing', () => {
+        it('if no pending transactions', async () => {
+          const listener = jest.fn();
 
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+          pendingTransactionTracker = new PendingTransactionTracker(options);
 
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.start();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
-      queryMock
-        .mockResolvedValueOnce(RECEIPT_MOCK)
-        .mockResolvedValueOnce(BLOCK_MOCK);
+          await onPoll(undefined, [
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              status: TransactionStatus.dropped,
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              networkClientId: 'other-network-client-id',
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              verifiedOnBlockchain: true,
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              isUserOperation: true,
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              isStateOnly: true,
+            },
+          ] as TransactionMeta[]);
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
 
-      expect(transactionsListener).toHaveBeenCalledTimes(1);
-      expect(transactionsListener).toHaveBeenCalledWith([
-        {
-          ...TRANSACTION_CONFIRMED_MOCK,
-          baseFeePerGas: BLOCK_MOCK.baseFeePerGas,
-          blockTimestamp: BLOCK_MOCK.timestamp,
-          txParams: {
-            gasUsed: RECEIPT_MOCK.gasUsed,
-          },
-          txReceipt: RECEIPT_MOCK,
-          verifiedOnBlockchain: true,
-        },
-      ]);
-    });
+        it('if no receipt', async () => {
+          const listener = jest.fn();
 
-    it('updates transaction fields if receipt but no block', async () => {
-      const transactionsListener = jest.fn();
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
+          });
 
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.start();
+          getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+          getTransactionCountMock.mockResolvedValueOnce('0x1');
 
-      queryMock
-        .mockResolvedValueOnce(RECEIPT_MOCK)
-        .mockResolvedValueOnce(undefined);
+          await onPoll();
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
 
-      expect(transactionsListener).toHaveBeenCalledTimes(1);
-      expect(transactionsListener).toHaveBeenCalledWith([
-        {
-          ...TRANSACTION_CONFIRMED_MOCK,
-          baseFeePerGas: undefined,
-          blockTimestamp: undefined,
-          txParams: {
-            gasUsed: RECEIPT_MOCK.gasUsed,
-          },
-          txReceipt: RECEIPT_MOCK,
-          verifiedOnBlockchain: true,
-        },
-      ]);
-    });
+        it('if receipt has no status', async () => {
+          const listener = jest.fn();
 
-    it('fails transaction if receipt has failed status', async () => {
-      const transactionsListener = jest.fn();
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
+          });
 
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.start();
+          getTransactionReceiptMock.mockResolvedValueOnce({
+            ...RECEIPT_MOCK,
+            status: null,
+          });
+          getTransactionCountMock.mockResolvedValueOnce('0x1');
 
-      queryMock
-        .mockResolvedValueOnce({ ...RECEIPT_MOCK, status: 0 })
-        .mockResolvedValueOnce(BLOCK_MOCK);
+          await onPoll();
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
 
-      expect(failTransaction).toHaveBeenCalledTimes(1);
-      expect(failTransaction).toHaveBeenCalledWith(
-        {
-          ...TRANSACTION_CONFIRMED_MOCK,
-          baseFeePerGas: BLOCK_MOCK.baseFeePerGas,
-          blockTimestamp: BLOCK_MOCK.timestamp,
-          txParams: {
-            gasUsed: RECEIPT_MOCK.gasUsed,
-          },
-          txReceipt: { ...RECEIPT_MOCK, status: 0 },
-          verifiedOnBlockchain: true,
-        },
-        new Error('Transaction failed. The transaction was reversed'),
-      );
-    });
+        it('if receipt has invalid status', async () => {
+          const listener = jest.fn();
 
-    it('does nothing if no receipt', async () => {
-      const transactionsListener = jest.fn();
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
+          });
 
-      const tracker = new PendingTransactionTracker({
-        ...options,
-        getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
-      tracker.hub.addListener('transactions', transactionsListener);
-      tracker.start();
+          getTransactionReceiptMock.mockResolvedValueOnce({
+            ...RECEIPT_MOCK,
+            status: '0x3',
+          });
+          getTransactionCountMock.mockResolvedValueOnce('0x1');
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+          await onPoll();
 
-      expect(failTransaction).toHaveBeenCalledTimes(0);
-      expect(transactionsListener).toHaveBeenCalledTimes(0);
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
+      });
+
+      describe('fires failed event', () => {
+        it('if no hash', async () => {
+          const listener = jest.fn();
+
+          const transactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            hash: undefined,
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaMock], true),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(
+            transactionMetaMock,
+            new Error(
+              'We had an error while submitting this transaction, please try again.',
+            ),
+          );
+        });
+
+        it('if no hash because beforeCheckPendingTransaction hook returns false', async () => {
+          const listener = jest.fn();
+
+          const transactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            hash: undefined,
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaMock], true),
+            hooks: {
+              beforeCheckPendingTransaction: (): Promise<boolean> =>
+                Promise.resolve(false),
+            },
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
+
+        it('if receipt has error status', async () => {
+          const listener = jest.fn();
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+
+          getTransactionReceiptMock.mockResolvedValueOnce({
+            ...RECEIPT_MOCK,
+            status: '0x0',
+          });
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          const [emittedTxMeta, emittedError] = listener.mock.calls[0];
+          expect(emittedTxMeta).toStrictEqual(TRANSACTION_SUBMITTED_MOCK);
+          expect(emittedError.name).toBe('OnChainFailureError');
+          expect(emittedError.message).toBe('Transaction failed on-chain');
+          expect(emittedError.revertReason).toBeUndefined();
+        });
+
+        it('with decoded revert reason when receipt has error status', async () => {
+          const listener = jest.fn();
+
+          const transactionMetaWithCall = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            txParams: {
+              ...TRANSACTION_SUBMITTED_MOCK.txParams,
+              from: `0x${'11'.repeat(20)}`,
+              to: `0x${'22'.repeat(20)}`,
+              data: '0xa9059cbb',
+            },
+          } as unknown as TransactionMeta;
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaWithCall], true),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+
+          getTransactionReceiptMock.mockResolvedValueOnce({
+            ...RECEIPT_MOCK,
+            status: '0x0',
+          });
+
+          estimateGasMock.mockRejectedValueOnce({
+            message: 'execution reverted',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          const [, emittedError] = listener.mock.calls[0];
+          expect(emittedError.name).toBe('OnChainFailureError');
+          expect(emittedError.message).toBe(
+            'Transaction failed on-chain: ERC20: transfer amount exceeds balance',
+          );
+          expect(emittedError.revert).toStrictEqual({
+            message: 'ERC20: transfer amount exceeds balance',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
+        });
+      });
+
+      describe('fires dropped event', () => {
+        it('if duplicate nonce', async () => {
+          const listener = jest.fn();
+
+          const confirmedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            id: `${ID_MOCK}2`,
+            status: TransactionStatus.confirmed,
+          } as unknown as TransactionMeta;
+
+          const submittedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze(
+                [confirmedTransactionMetaMock, submittedTransactionMetaMock],
+                true,
+              ),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(submittedTransactionMetaMock);
+        });
+
+        it('if nonce exceeded for 3 subsequent blocks', async () => {
+          const listener = jest.fn();
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([{ ...TRANSACTION_SUBMITTED_MOCK }], true),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+
+          for (let i = 0; i < 4; i++) {
+            expect(listener).toHaveBeenCalledTimes(0);
+
+            getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+            getTransactionCountMock.mockResolvedValueOnce('0x3');
+
+            await onPoll();
+          }
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(TRANSACTION_SUBMITTED_MOCK);
+        });
+
+        it('unless duplicate nonce on different chain', async () => {
+          const listener = jest.fn();
+
+          const confirmedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            id: `${ID_MOCK}2`,
+            chainId: '0x2',
+            status: TransactionStatus.confirmed,
+          } as unknown as TransactionMeta;
+
+          const submittedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] => [
+              confirmedTransactionMetaMock,
+              submittedTransactionMetaMock,
+            ],
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).not.toHaveBeenCalled();
+        });
+
+        it('unless no nonce', async () => {
+          const listener = jest.fn();
+
+          const confirmedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            id: `${ID_MOCK}2`,
+            status: TransactionStatus.confirmed,
+            txParams: {
+              ...TRANSACTION_SUBMITTED_MOCK.txParams,
+              nonce: undefined,
+            },
+          } as unknown as TransactionMeta;
+
+          const submittedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            txParams: {
+              ...TRANSACTION_SUBMITTED_MOCK.txParams,
+              nonce: undefined,
+            },
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] => [
+              confirmedTransactionMetaMock,
+              submittedTransactionMetaMock,
+            ],
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).not.toHaveBeenCalled();
+        });
+
+        it('unless incoming transaction', async () => {
+          const listener = jest.fn();
+
+          const confirmedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            id: `${ID_MOCK}2`,
+            status: TransactionStatus.confirmed,
+            isTransfer: false,
+          } as unknown as TransactionMeta;
+
+          const submittedTransactionMetaMock = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+          };
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] => [
+              confirmedTransactionMetaMock,
+              submittedTransactionMetaMock,
+            ],
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('fires confirmed event', () => {
+        it('if receipt has success status', async () => {
+          const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+
+          getTransactionReceiptMock.mockResolvedValueOnce(RECEIPT_MOCK);
+          getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              ...TRANSACTION_SUBMITTED_MOCK,
+              txParams: expect.objectContaining(
+                TRANSACTION_SUBMITTED_MOCK.txParams,
+              ),
+              baseFeePerGas: BLOCK_MOCK.baseFeePerGas,
+              blockTimestamp: BLOCK_MOCK.timestamp,
+              status: TransactionStatus.confirmed,
+              txReceipt: RECEIPT_MOCK,
+              verifiedOnBlockchain: true,
+            }),
+          );
+        });
+
+        it('if isIntentComplete is true', async () => {
+          const transaction = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            isIntentComplete: true,
+          };
+
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              ...TRANSACTION_SUBMITTED_MOCK,
+              txParams: expect.objectContaining(
+                TRANSACTION_SUBMITTED_MOCK.txParams,
+              ),
+              status: TransactionStatus.confirmed,
+            }),
+          );
+        });
+      });
+
+      describe('fires updated event', () => {
+        it('if receipt has success status', async () => {
+          const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
+
+          getTransactionReceiptMock.mockResolvedValueOnce(RECEIPT_MOCK);
+          getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              ...TRANSACTION_SUBMITTED_MOCK,
+              txParams: expect.objectContaining(
+                TRANSACTION_SUBMITTED_MOCK.txParams,
+              ),
+              baseFeePerGas: BLOCK_MOCK.baseFeePerGas,
+              blockTimestamp: BLOCK_MOCK.timestamp,
+              status: TransactionStatus.confirmed,
+              txReceipt: RECEIPT_MOCK,
+              verifiedOnBlockchain: true,
+            }),
+            'PendingTransactionTracker:#onTransactionConfirmed - Transaction confirmed',
+          );
+        });
+
+        it('if getTransactionReceipt fails', async () => {
+          const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValue(freeze([transaction], true));
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions,
+          });
+
+          const listener = jest.fn();
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
+
+          getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+          getTransactionReceiptMock.mockRejectedValueOnce(
+            new Error('TestError'),
+          );
+
+          await onPoll(BLOCK_NUMBER_MOCK);
+          getTransactions.mockReturnValue(
+            freeze(
+              [
+                {
+                  ...transaction,
+                  firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
+                },
+              ],
+              true,
+            ),
+          );
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          expect(listener).toHaveBeenCalledWith(
+            expect.objectContaining({
+              ...TRANSACTION_SUBMITTED_MOCK,
+              warning: {
+                error: 'TestError',
+                message: 'There was a problem loading this transaction.',
+              },
+            }),
+            'PendingTransactionTracker:#warnTransaction - Warning added',
+          );
+        });
+      });
     });
   });
 
-  it('does nothing if status not submitted or confirmed', async () => {
-    const transactionsListener = jest.fn();
+  describe('forceCheckTransaction', () => {
+    let tracker: PendingTransactionTracker;
+    let transactionMeta: TransactionMeta;
 
-    const tracker = new PendingTransactionTracker({
-      ...options,
-      getTransactions: () => [
-        { ...TRANSACTION_CONFIRMED_MOCK, status: TransactionStatus.failed },
-      ],
-    } as any);
+    beforeEach(() => {
+      tracker = new PendingTransactionTracker(options);
+      transactionMeta = {
+        ...TRANSACTION_SUBMITTED_MOCK,
+        hash: '0x123',
+      } as TransactionMeta;
+    });
 
-    tracker.hub.addListener('transactions', transactionsListener);
-    tracker.start();
+    it('should update transaction status to confirmed if receipt status is success', async () => {
+      getTransactionReceiptMock.mockResolvedValueOnce(RECEIPT_MOCK);
+      getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+      options.getTransactions.mockReturnValue([]);
 
-    await (blockTracker.addListener.mock.calls[0][1]() as any);
+      const listener = jest.fn();
+      tracker.hub.addListener('transaction-updated', listener);
 
-    expect(failTransaction).toHaveBeenCalledTimes(0);
-    expect(transactionsListener).toHaveBeenCalledTimes(0);
+      await tracker.forceCheckTransaction(transactionMeta);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...transactionMeta,
+          txParams: expect.objectContaining(transactionMeta.txParams),
+          status: TransactionStatus.confirmed,
+          txReceipt: RECEIPT_MOCK,
+          verifiedOnBlockchain: true,
+        }),
+        'PendingTransactionTracker:#onTransactionConfirmed - Transaction confirmed',
+      );
+    });
+
+    it('should fail transaction if receipt status is failure', async () => {
+      const receiptMock = { ...RECEIPT_MOCK, status: '0x0' };
+      getTransactionReceiptMock.mockResolvedValueOnce(receiptMock);
+      options.getTransactions.mockReturnValue([]);
+
+      const listener = jest.fn();
+      tracker.hub.addListener('transaction-failed', listener);
+
+      await tracker.forceCheckTransaction(transactionMeta);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      const [, emittedError] = listener.mock.calls[0];
+      expect(emittedError.name).toBe('OnChainFailureError');
+      expect(emittedError.message).toBe('Transaction failed on-chain');
+      expect(emittedError.revertReason).toBeUndefined();
+    });
+
+    it('should not change transaction status if receipt status is neither success nor failure', async () => {
+      const receiptMock = { ...RECEIPT_MOCK, status: '0x2' };
+      getTransactionReceiptMock.mockResolvedValueOnce(receiptMock);
+      options.getTransactions.mockReturnValue([]);
+
+      await tracker.forceCheckTransaction(transactionMeta);
+
+      expect(transactionMeta.status).toStrictEqual(TransactionStatus.submitted);
+      expect(transactionMeta.txReceipt).toBeUndefined();
+    });
+  });
+
+  describe('addTransactionToPoll', () => {
+    it('adds a transaction to poll and sets #transactionToForcePoll', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+
+      pendingTransactionTracker.addTransactionToPoll(
+        TRANSACTION_SUBMITTED_MOCK,
+      );
+
+      expect(transactionPoller.setPendingTransactions).toHaveBeenCalledWith([
+        TRANSACTION_SUBMITTED_MOCK,
+      ]);
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+    });
+
+    describe('emits confirm event and clean transactionToForcePoll', () => {
+      it('if receipt has success status', async () => {
+        const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+        const getTransactions = jest
+          .fn()
+          .mockReturnValue(freeze([transaction], true));
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions,
+        });
+
+        pendingTransactionTracker.addTransactionToPoll(
+          TRANSACTION_SUBMITTED_MOCK,
+        );
+
+        const listener = jest.fn();
+        pendingTransactionTracker.hub.addListener(
+          'transaction-confirmed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(RECEIPT_MOCK);
+        getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining(TRANSACTION_SUBMITTED_MOCK),
+        );
+      });
+    });
+  });
+
+  describe('timeout', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(0);
+
+      mockFeatureFlags(messenger, {
+        confirmations_transactions: {
+          timeoutAttempts: {
+            default: 3,
+          },
+          acceleratedPolling: {
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                blockTime: 12000,
+              },
+            },
+          },
+        },
+      });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    describe('does not timeout', () => {
+      it('if isTimeoutEnabled returns false', async () => {
+        const listener = jest.fn();
+        const isTimeoutEnabled = jest.fn().mockReturnValue(false);
+        const submittedTime = Date.now();
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+          isTimeoutEnabled,
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(20000); // Advance past blockTime
+
+        await onPoll();
+
+        expect(isTimeoutEnabled).toHaveBeenCalledWith(
+          expect.objectContaining(TRANSACTION_SUBMITTED_MOCK),
+        );
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+
+      it('if timeout threshold is undefined', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+
+        mockFeatureFlags(messenger, {});
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(20000); // Advance past blockTime
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+
+      it('if timeout threshold is zero', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+
+        mockFeatureFlags(messenger, {
+          confirmations_transactions: {
+            timeoutAttempts: {
+              default: 0,
+            },
+          },
+        });
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(20000); // Advance past blockTime
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+
+      it('if transaction nonce is greater than next nonce', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x1');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(20000); // Advance past blockTime
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+
+      it('if transaction has no hash', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+        const transactionWithoutHash = {
+          ...TRANSACTION_SUBMITTED_MOCK,
+          hash: undefined,
+          submittedTime,
+        };
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([transactionWithoutHash], true),
+          hooks: {
+            beforeCheckPendingTransaction: (): Promise<boolean> =>
+              Promise.resolve(false),
+          },
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+
+        jest.advanceTimersByTime(20000); // Advance past blockTime
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+
+      it('if transaction has no nonce', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+        const transactionWithoutNonce = {
+          ...TRANSACTION_SUBMITTED_MOCK,
+          txParams: {
+            ...TRANSACTION_SUBMITTED_MOCK.txParams,
+            nonce: undefined,
+          },
+          submittedTime,
+        };
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([transactionWithoutNonce], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+
+        jest.advanceTimersByTime(50000); // Advance past blockTime * threshold
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+
+      it('if transaction has no submittedTime', async () => {
+        const listener = jest.fn();
+        const transactionWithoutSubmittedTime = {
+          ...TRANSACTION_SUBMITTED_MOCK,
+          submittedTime: undefined,
+        };
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([transactionWithoutSubmittedTime], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(50000); // Advance past blockTime * threshold
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe('resets timeout counter', () => {
+      it('when transaction is found on network', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        // First check - transaction not found, advance time slightly
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(10000); // Advance 10 seconds
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+
+        // Second check - transaction found on network, this resets the timestamp
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce({ hash: '0x1' });
+
+        jest.advanceTimersByTime(10000); // Advance another 10 seconds
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+
+        // Third check - transaction not found again (timestamp should have been reset)
+        // Even though we advance by 30 seconds (10 + 10 + 10), since timestamp was reset
+        // the duration since last seen should only be 10 seconds, which is less than
+        // the timeout duration (blockTime=12000ms * threshold=3 = 36000ms)
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(10000); // Advance another 10 seconds
+
+        await onPoll();
+
+        // Should not fail because timestamp was reset
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    describe('fails transaction', () => {
+      it('when timeout threshold is reached', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        // First poll - transaction not found, time hasn't elapsed
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(10000); // Advance 10 seconds
+
+        await onPoll();
+        expect(listener).toHaveBeenCalledTimes(0);
+
+        // Second poll - still under timeout (threshold=3, blockTime=12000ms, timeout=36000ms)
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(20000); // Advance 20 more seconds (total: 30 seconds)
+
+        await onPoll();
+        expect(listener).toHaveBeenCalledTimes(0);
+
+        // Third poll - should fail as we exceed timeout threshold
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockResolvedValueOnce(null);
+
+        jest.advanceTimersByTime(10000); // Advance 10 more seconds (total: 40 seconds > 36 seconds)
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining(TRANSACTION_SUBMITTED_MOCK),
+          new Error('Transaction not found on network after timeout'),
+        );
+      });
+    });
+
+    describe('error handling', () => {
+      it('does not fail transaction if getTransactionByHash throws error', async () => {
+        const listener = jest.fn();
+        const submittedTime = Date.now();
+
+        pendingTransactionTracker = new PendingTransactionTracker({
+          ...options,
+          getTransactions: (): TransactionMeta[] =>
+            freeze([{ ...TRANSACTION_SUBMITTED_MOCK, submittedTime }], true),
+        });
+
+        pendingTransactionTracker.hub.addListener(
+          'transaction-failed',
+          listener,
+        );
+
+        getTransactionReceiptMock.mockResolvedValueOnce(undefined);
+        getTransactionCountMock.mockResolvedValueOnce('0x3');
+        getTransactionByHashMock.mockRejectedValueOnce(
+          new Error('Network error'),
+        );
+
+        jest.advanceTimersByTime(50000); // Advance past timeout threshold
+
+        await onPoll();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+      });
+    });
   });
 });

@@ -1,37 +1,41 @@
+import { remove0x } from '@metamask/utils';
 import { ParsedMessage } from '@spruceid/siwe-parser';
-import { isHexPrefixed } from 'ethereumjs-util';
 
-import { projectLogger, createModuleLogger } from './logger';
+import { projectLogger, createModuleLogger } from './logger.js';
 
 const log = createModuleLogger(projectLogger, 'detect-siwe');
 
 /**
  * This function strips the hex prefix from a string if it has one.
+ * If the input is not a string, return it unmodified.
  *
  * @param str - The string to check
  * @returns The string without the hex prefix
  */
-function stripHexPrefix(str: string) {
+function safeStripHexPrefix(str: string): string {
   if (typeof str !== 'string') {
     return str;
   }
-  return isHexPrefixed(str) ? str.slice(2) : str;
+  return remove0x(str);
 }
 
 /**
  * This function converts a hex string to text if it's not a 32 byte hex string.
  *
- * @param hex - The hex string to convert to text
+ * @param hexValue - The hex string to convert to text
  * @returns The text representation of the hex string
  */
-function msgHexToText(hex: string): string {
+function msgHexToText(hexValue: string): string {
   try {
-    const stripped = stripHexPrefix(hex);
+    const stripped = safeStripHexPrefix(hexValue);
+    // TODO: Use `@metamask/utils` version of this function to avoid Buffer
+    // usage here.
+    // eslint-disable-next-line no-restricted-globals
     const buff = Buffer.from(stripped, 'hex');
-    return buff.length === 32 ? hex : buff.toString('utf8');
-  } catch (e) {
-    log(e);
-    return hex;
+    return buff.length === 32 ? hexValue : buff.toString('utf8');
+  } catch (error) {
+    log(error);
+    return hexValue;
   }
 }
 
@@ -39,16 +43,23 @@ function msgHexToText(hex: string): string {
  * @type WrappedSIWERequest
  *
  * Sign-In With Ethereum (SIWE)(EIP-4361) message with request metadata
- * @property {string} from - Subject account address
- * @property {string} origin - The RFC 3986 originating authority of the signing request, including scheme
- * @property {ParsedMessage} siwe - The data parsed from the message
+ *
+ * @property from - Subject account address
+ * @property origin - The RFC 3986 originating authority of the signing request, including scheme
+ * @property siwe - The data parsed from the message
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface WrappedSIWERequest {
   from: string;
   origin: string;
   siwe: SIWEMessage;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface DomainParts {
   username?: string;
   hostname: string;
@@ -127,8 +138,8 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
     }
 
     return true;
-  } catch (e) {
-    log(e);
+  } catch (error) {
+    log(error);
     return false;
   }
 };
@@ -165,7 +176,7 @@ export const detectSIWE = (msgParams: { data: string }): SIWEMessage => {
       isSIWEMessage: true,
       parsedMessage,
     };
-  } catch (error) {
+  } catch {
     // ignore error, it's not a valid SIWE message
     return {
       isSIWEMessage: false,

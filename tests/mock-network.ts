@@ -1,8 +1,8 @@
 import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import nock from 'nock';
 
-import type { NetworkClientConfiguration } from '../packages/network-controller/src/types';
-import { NetworkClientType } from '../packages/network-controller/src/types';
+import type { NetworkClientConfiguration } from '../packages/network-controller/src/types.js';
+import { NetworkClientType } from '../packages/network-controller/src/types.js';
 
 /**
  * An object which instructs the MockedNetwork class which JSON-RPC request
@@ -29,9 +29,11 @@ import { NetworkClientType } from '../packages/network-controller/src/types';
  * when the promise is initiated but before it is resolved). You can pass an
  * function (optionally async) to do this.
  */
-type JsonRpcRequestMock = {
+export type JsonRpcRequestMock = {
   request: {
     method: string;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params?: any[];
   };
   delay?: number;
@@ -39,6 +41,8 @@ type JsonRpcRequestMock = {
   beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       response: ({ result: any } | { error: string }) & { httpStatus?: number };
     }
   | {
@@ -78,11 +82,13 @@ function getErrorMessage(error: unknown): string {
  * JSON-RPC requests that are sent to a network.
  */
 class MockedNetwork {
-  #networkClientConfiguration: NetworkClientConfiguration;
+  readonly #networkClientConfiguration: NetworkClientConfiguration;
 
-  #requestMocks: JsonRpcRequestMock[];
+  readonly #requestMocks: JsonRpcRequestMock[];
 
-  #nockScope: nock.Scope;
+  readonly #nockScope: nock.Scope;
+
+  readonly #rpcUrl: string;
 
   /**
    * Makes a new MockedNetwork.
@@ -107,12 +113,13 @@ class MockedNetwork {
         ? `https://${networkClientConfiguration.network}.infura.io`
         : networkClientConfiguration.rpcUrl;
     this.#nockScope = nock(rpcUrl);
+    this.#rpcUrl = rpcUrl;
   }
 
   /**
    * Mocks all of the requests that have been specified via the constructor.
    */
-  enable() {
+  enable(): void {
     for (const requestMock of this.#requestMocks) {
       this.#mockRpcCall(requestMock);
     }
@@ -126,22 +133,46 @@ class MockedNetwork {
    * @returns The resulting Nock scope.
    */
   #mockRpcCall(requestMock: JsonRpcRequestMock): nock.Scope {
-    // eth-query always passes `params`, so even if we don't supply this
-    // property, assume that the `body` contains it
     const { method, params = [], ...rest } = requestMock.request;
 
+    // RPC endpoints may end with a non-empty path segment, such as '/path'.
+    // Therefore, we handle Infura and custom RPCs differently:
+    // - For Infura, we expect the request path pattern to be '/v3/:projectId'.
+    // - For custom RPCs, we expect the request path pattern to match the exact path of the RPC URL.
     const url =
       this.#networkClientConfiguration.type === NetworkClientType.Infura
         ? `/v3/${this.#networkClientConfiguration.infuraProjectId}`
-        : '/';
+        : new RegExp(`^${new URL(this.#rpcUrl).pathname}$`, 'u');
 
-    let nockInterceptor = this.#nockScope.post(url, {
-      id: /\d*/u,
-      jsonrpc: '2.0',
-      method,
-      params,
-      ...rest,
-    });
+    let nockInterceptor = this.#nockScope.post(
+      url,
+      (requestBody: Record<string, unknown>) => {
+        if (
+          typeof requestBody !== 'object' ||
+          requestBody === null ||
+          !('jsonrpc' in requestBody) ||
+          !('method' in requestBody) ||
+          requestBody.jsonrpc !== '2.0' ||
+          requestBody.method !== method
+        ) {
+          return false;
+        }
+
+        if (
+          Object.entries(rest).some(([key, value]) => {
+            return JSON.stringify(requestBody[key]) !== JSON.stringify(value);
+          })
+        ) {
+          return false;
+        }
+
+        if (!('params' in requestBody) || requestBody.params === undefined) {
+          return params.length === 0;
+        }
+
+        return JSON.stringify(requestBody.params) === JSON.stringify(params);
+      },
+    );
 
     if (requestMock.delay !== undefined) {
       nockInterceptor = nockInterceptor.delay(requestMock.delay);
@@ -160,8 +191,12 @@ class MockedNetwork {
           : 200;
       newNockScope = nockInterceptor.reply(
         httpStatus,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (_uri: any, requestBody: JsonRpcRequest<any>) => {
           const baseResponse = { id: requestBody.id, jsonrpc: '2.0' as const };
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let completeResponse: JsonRpcResponse<any> | undefined;
 
           if ('response' in requestMock) {

@@ -3,10 +3,17 @@ import {
   ChainId,
   convertHexToDecimal,
   toHex,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
-import * as assetsUtil from './assetsUtil';
-import type { Nft, NftMetadata } from './NftController';
+import * as assetsUtil from './assetsUtil.js';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
+import type { Nft, NftMetadata } from './NftController.js';
+import { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/index.js';
+import type { AbstractTokenPricesService } from './token-prices-service/index.js';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -49,6 +56,30 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
+      const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
+      expect(different).toBe(true);
+    });
+
+    it('should resolve true if only tokenURI is different', () => {
+      const nftMetadata: NftMetadata = {
+        description: null,
+        favorite: false,
+        image: 'test',
+        name: null,
+        standard: 'ERC1155',
+        tokenURI: 'foo',
+      };
+      const nft: Nft = {
+        address: '0x1D03117e63c3A476a236a897147a1358579F2c45',
+        description: null,
+        favorite: false,
+        image: 'test',
+        name: null,
+        standard: 'ERC1155',
+        tokenId: '1',
+        tokenURI: 'bar',
+      };
+
       const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
       expect(different).toBe(true);
     });
@@ -124,124 +155,96 @@ describe('assetsUtil', () => {
         chainId: ChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${convertHexToDecimal(
+      const expectedValue = `https://static.cx.metamask.io/api/v1/tokenIcons/${convertHexToDecimal(
         ChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
   });
 
-  describe('validateTokenToWatch', () => {
-    it('should throw if undefined token atrributes', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: undefined,
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
+  describe('hasNewCollectionFields', () => {
+    let baseNftMetadata: NftMetadata;
+    let baseNft: Nft;
 
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0x1',
-          decimals: 0,
-          symbol: undefined,
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
+    beforeEach(() => {
+      baseNftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
 
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0x1',
-          decimals: undefined,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
+      baseNft = {
+        ...baseNftMetadata,
+        address: 'address',
+        tokenId: '123',
+      };
+    });
+    it('should return false if both objects do not have collection', () => {
+      const different = assetsUtil.hasNewCollectionFields(
+        baseNftMetadata,
+        baseNft,
+      );
+      expect(different).toBe(false);
     });
 
-    it('should throw if symbol is not a string', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: { foo: 'bar' },
-        } as any),
-      ).toThrow('Invalid symbol: not a string.');
+    it('should return false if existing object has collection and new nft metadata object does not', () => {
+      const different = assetsUtil.hasNewCollectionFields(baseNftMetadata, {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      });
+      expect(different).toBe(false);
     });
 
-    it('should throw if symbol is an empty string', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: '',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
+    it('should return false if both objects has the same keys', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
     });
 
-    it('should not throw if symbol is exactly 1 character long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'T',
-        } as any),
-      ).not.toThrow();
-    });
-
-    it('should not throw if symbol is exactly 11 characters long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKNTKNTKNTK',
-        } as any),
-      ).not.toThrow();
-    });
-
-    it('should throw if symbol is more than 11 characters long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKNTKNTKNTKN',
-        } as any),
-      ).toThrow('Invalid symbol "TKNTKNTKNTKN": longer than 11 characters.');
-    });
-
-    it('should throw if invalid decimals', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).not.toThrow();
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 38,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid decimals "38": must be 0 <= 36.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: -1,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid decimals "-1": must be 0 <= 36.');
-    });
-
-    it('should throw if invalid address', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9',
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid address "0xe9".');
+    it('should return true if new nft metadata object has keys that do not exist in the existing NFT', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          tokenCount: '5555',
+          ownerCount: '555',
+          contractDeployedAt: 'timestamp',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(true);
     });
   });
 
@@ -249,7 +252,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -257,7 +260,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as BSC', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.bsc,
+          assetsUtil.SupportedTokenDetectionNetworks.Bsc,
         ),
       ).toBe(true);
     });
@@ -265,7 +268,7 @@ describe('assetsUtil', () => {
     it('returns true for the Aurora network', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.aurora,
+          assetsUtil.SupportedTokenDetectionNetworks.Aurora,
         ),
       ).toBe(true);
     });
@@ -281,21 +284,21 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
 
-    it('returns true for ganache local network', () => {
+    it('returns false for ganache local network', () => {
       expect(assetsUtil.isTokenListSupportedForNetwork(GANACHE_CHAIN_ID)).toBe(
-        true,
+        false,
       );
     });
 
     it('returns true for custom network such as Polygon', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.polygon,
+          assetsUtil.SupportedTokenDetectionNetworks.Polygon,
         ),
       ).toBe(true);
     });
@@ -340,33 +343,33 @@ describe('assetsUtil', () => {
   });
 
   describe('getIpfsCIDv1AndPath', () => {
-    it('should return content identifier from default ipfs url format', () => {
+    it('should return content identifier from default ipfs url format', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return content identifier from alternative ipfs url format', () => {
+    it('should return content identifier from alternative ipfs url format', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return unchanged content identifier if already v1', () => {
+    it('should return unchanged content identifier if already v1', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return a path when url contains one', () => {
+    it('should return a path when url contains one', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: '/test/test/test' });
@@ -374,9 +377,9 @@ describe('assetsUtil', () => {
   });
 
   describe('getFormattedIpfsUrl', () => {
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           IFPS_GATEWAY,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
           true,
@@ -384,9 +387,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
           true,
@@ -394,9 +397,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           true,
@@ -404,9 +407,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
     });
 
-    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', () => {
+    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
@@ -414,9 +417,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
     });
 
-    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', () => {
+    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}/ipfs/`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
@@ -436,4 +439,424 @@ describe('assetsUtil', () => {
       expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
     });
   });
+
+  describe('divideIntoBatches', () => {
+    describe('given a non-empty list of values', () => {
+      it('partitions the values into max-N-sized groups', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5, 6], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]);
+      });
+
+      it('does not fill every group completely if the number of values does not divide evenly', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5], {
+          batchSize: 4,
+        });
+        expect(batches).toStrictEqual([[1, 2, 3, 4], [5]]);
+      });
+    });
+
+    describe('given a empty list of values', () => {
+      it('returns an empty array', () => {
+        const batches = assetsUtil.divideIntoBatches([], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([]);
+      });
+    });
+  });
+
+  describe('reduceInBatchesSerially', () => {
+    it('can build an object from running the given async function for each batch of the given values', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: (workingResult, batch) => {
+          const newBatch = batch.reduce<Partial<Record<string, number>>>(
+            (obj, value) => {
+              // We can assume that the first character is present.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const codePoint = value.codePointAt(0)!;
+              return {
+                ...obj,
+                [value]: codePoint,
+              };
+            },
+            {},
+          );
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      expect(results).toStrictEqual({
+        a: 97,
+        b: 98,
+        c: 99,
+        d: 100,
+        e: 101,
+        f: 102,
+      });
+    });
+
+    it('processes each batch one after another, not in parallel, even if the given callback is async', async () => {
+      const timestampsByIndex = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: async (workingResult, _batch, index) => {
+          const timestamp = new Date().getTime();
+          await new Promise<number[]>((resolve) => {
+            let duration: number;
+            switch (index) {
+              case 0:
+                duration = 2;
+                break;
+              case 1:
+                duration = 10;
+                break;
+              case 2:
+                duration = 4;
+                break;
+              default:
+                throw new Error(`invalid index ${index}`);
+            }
+            setTimeout(resolve, duration);
+          });
+          const newBatch = { [index]: timestamp };
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      let previousTimestamp = 0;
+      let timestampsIncreasing = true;
+      for (const timestamp of Object.values(timestampsByIndex)) {
+        if (timestamp <= previousTimestamp) {
+          timestampsIncreasing = false;
+          break;
+        }
+        previousTimestamp = timestamp;
+      }
+
+      expect(Object.keys(timestampsByIndex)).toHaveLength(3);
+      expect(timestampsIncreasing).toBe(true);
+    });
+
+    it('works when the result is an array', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        string[]
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          return [...workingResult, ...batch.map((s) => s.toUpperCase())];
+        },
+        initialResult: [],
+      });
+
+      expect(results).toStrictEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    });
+
+    it('works when the result is a number', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<number, number>({
+        values: [1, 2, 3, 4, 5],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          return workingResult + batch.reduce((a, b) => a + b, 0);
+        },
+        initialResult: 0,
+      });
+
+      expect(results).toBe(15);
+    });
+  });
+
+  describe('fetchAndMapExchangeRates', () => {
+    it('should return empty object when chainId not supported', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
+
+      jest
+        .spyOn(mockPriceService, 'validateChainIdSupported')
+        .mockReturnValue(false);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: 'ETH',
+        tokenAddresses: [testTokenAddress],
+        chainId: '0x0',
+      });
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return empty object when nativeCurrency not supported', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
+      jest
+        .spyOn(mockPriceService, 'validateCurrencySupported')
+        .mockReturnValue(false);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: 'X',
+        tokenAddresses: [testTokenAddress],
+        chainId: '0x1',
+      });
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return successfully with a number of tokens less than the batch size', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
+
+      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+        {
+          tokenAddress: testTokenAddress,
+          chainId: testChainId,
+          currency: testNativeCurrency,
+          allTimeHigh: 4000,
+          allTimeLow: 900,
+          circulatingSupply: 2000,
+          dilutedMarketCap: 100,
+          high1d: 200,
+          low1d: 100,
+          marketCap: 1000,
+          marketCapPercentChange1d: 100,
+          price: 0.0004588648479937523,
+          pricePercentChange14d: 100,
+          pricePercentChange1h: 1,
+          pricePercentChange1y: 200,
+          pricePercentChange200d: 300,
+          pricePercentChange30d: 200,
+          pricePercentChange7d: 100,
+          totalVolume: 100,
+          priceChange1d: 100,
+          pricePercentChange1d: 100,
+        },
+      ]);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: [testTokenAddress],
+        chainId: testChainId,
+      });
+
+      expect(result).toMatchObject({
+        [testTokenAddress]: 0.0004588648479937523,
+      });
+    });
+
+    it('should fetch successfully in batches', async () => {
+      const mockPriceService = createMockPriceService();
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort();
+
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+
+      const fetchTokenPricesSpy = jest.spyOn(
+        mockPriceService,
+        'fetchTokenPrices',
+      );
+
+      await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: tokenAddresses as Hex[],
+        chainId: testChainId,
+      });
+
+      const numBatches = Math.ceil(
+        tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+      );
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+      const tokenAddressesWithNativeToken = [
+        getNativeTokenAddress(testChainId),
+        ...tokenAddresses,
+      ];
+      for (let i = 1; i <= numBatches; i++) {
+        expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+          assets: tokenAddressesWithNativeToken
+            .slice(
+              (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+              i * TOKEN_PRICES_BATCH_SIZE,
+            )
+            .map((tokenAddress) => ({
+              chainId: testChainId,
+              tokenAddress,
+            })),
+          currency: testNativeCurrency,
+        });
+      }
+    });
+
+    it('should sort token addresses when batching', async () => {
+      const mockPriceService = createMockPriceService();
+
+      // Mock addresses in descending order
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort()
+        .reverse();
+
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+
+      const fetchTokenPricesSpy = jest.spyOn(
+        mockPriceService,
+        'fetchTokenPrices',
+      );
+
+      await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: tokenAddresses as Hex[],
+        chainId: testChainId,
+      });
+
+      // Expect batches in ascending order
+      tokenAddresses.sort();
+
+      const numBatches = Math.ceil(
+        tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+      );
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+      const tokenAddressesWithNativeToken = [
+        getNativeTokenAddress(testChainId),
+        ...tokenAddresses,
+      ];
+      for (let i = 1; i <= numBatches; i++) {
+        expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+          assets: tokenAddressesWithNativeToken
+            .slice(
+              (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+              i * TOKEN_PRICES_BATCH_SIZE,
+            )
+            .map((tokenAddress) => ({
+              chainId: testChainId,
+              tokenAddress,
+            })),
+          currency: testNativeCurrency,
+        });
+      }
+    });
+
+    it('should return full market data keyed by checksummed address when includeMarketData is true', async () => {
+      const testTokenAddress =
+        '0x7bef710a5759d197ec0bf621c3df802c2d60d848' as Hex;
+      const checksummedAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
+
+      const mockMarketData = {
+        tokenAddress: testTokenAddress,
+        chainId: testChainId,
+        currency: testNativeCurrency,
+        allTimeHigh: 4000,
+        allTimeLow: 900,
+        circulatingSupply: 2000,
+        dilutedMarketCap: 100,
+        high1d: 200,
+        low1d: 100,
+        marketCap: 1000,
+        marketCapPercentChange1d: 100,
+        price: 0.0004588648479937523,
+        pricePercentChange14d: 100,
+        pricePercentChange1h: 1,
+        pricePercentChange1y: 200,
+        pricePercentChange200d: 300,
+        pricePercentChange30d: 200,
+        pricePercentChange7d: 100,
+        totalVolume: 100,
+        priceChange1d: 100,
+        pricePercentChange1d: 100,
+      };
+
+      jest
+        .spyOn(mockPriceService, 'fetchTokenPrices')
+        .mockResolvedValue([
+          mockMarketData as unknown as EvmAssetWithMarketData,
+        ]);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: [testTokenAddress],
+        chainId: testChainId,
+        includeMarketData: true,
+      });
+
+      expect(result).toStrictEqual({
+        [checksummedAddress]: {
+          ...mockMarketData,
+          tokenAddress: checksummedAddress,
+        },
+      });
+    });
+  });
+
+  describe('getKeyByValue', () => {
+    it('should return correct key for a specific value', () => {
+      const testMap = new Map([
+        ['toto', 'koko'],
+        ['foo', 'bar'],
+      ]);
+      const result = assetsUtil.getKeyByValue(testMap, 'koko');
+      expect(result).toBe('toto');
+    });
+  });
 });
+
+/**
+ * Constructs a checksum Ethereum address.
+ *
+ * @param number - The address as a decimal number.
+ * @returns The address as an 0x-prefixed ERC-55 mixed-case checksum address in
+ * hexadecimal format.
+ */
+function buildAddress(number: number) {
+  return toChecksumHexAddress(add0x(number.toString(16).padStart(40, '0')));
+}
+
+/**
+ * Creates a mock for token prices service.
+ *
+ * @returns The mocked functions of token prices service.
+ */
+function createMockPriceService(): AbstractTokenPricesService {
+  return {
+    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
+      return true;
+    },
+    validateCurrencySupported(_currency: unknown): _currency is string {
+      return true;
+    },
+    async fetchTokenPrices() {
+      return [];
+    },
+    async fetchExchangeRates() {
+      return {};
+    },
+  };
+}

@@ -1,30 +1,47 @@
 /* eslint-disable jest/expect-expect */
 
-import { ControllerMessenger } from '@metamask/base-controller';
-import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
-
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
+import { nanoid } from 'nanoid';
+
+import { flushPromises } from '../../../tests/helpers.js';
+import type {
+  AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
+  ErrorOptions,
   StartFlowOptions,
-} from './ApprovalController';
+  SuccessOptions,
+} from './ApprovalController.js';
 import {
   APPROVAL_TYPE_RESULT_ERROR,
   APPROVAL_TYPE_RESULT_SUCCESS,
   ApprovalController,
   ORIGIN_METAMASK,
-} from './ApprovalController';
+} from './ApprovalController.js';
 import {
   ApprovalRequestNoResultSupportError,
   EndInvalidFlowError,
   MissingApprovalFlowError,
   NoApprovalFlowsError,
-} from './errors';
+} from './errors.js';
 
-jest.mock('nanoid', () => ({
-  nanoid: jest.fn(() => 'TestId'),
-}));
+jest.mock('nanoid');
+
+type AllActions = MessengerActions<ApprovalControllerMessenger>;
+
+type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const nanoidMock = jest.mocked(nanoid);
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
@@ -37,19 +54,28 @@ const ERROR_MOCK = new Error('TestError');
 const FLOW_ID_MOCK = 'TestFlowId';
 const MESSAGE_MOCK = 'TestMessage';
 const ERROR_MESSAGE_MOCK = 'TestErrorMessage';
+const TITLE_MOCK = 'TestTitle';
+const ICON_MOCK = 'TestIcon';
+
 const RESULT_COMPONENT_MOCK = {
   key: 'testKey',
   name: 'TestComponentName',
   properties: { testProp: 'testPropValue' },
   children: ['testChild1', 'testChild2'],
 };
+
 const SUCCESS_OPTIONS_MOCK = {
   message: MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
+  title: TITLE_MOCK,
+  icon: ICON_MOCK,
 };
+
 const ERROR_OPTIONS_MOCK = {
   error: ERROR_MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
+  title: TITLE_MOCK,
+  icon: ICON_MOCK,
 };
 
 const controllerName = 'ApprovalController';
@@ -197,34 +223,39 @@ function getApprovalCountParamsError() {
  * @returns An Error.
  */
 function getError(message: string, code?: number) {
-  const err: any = {
+  const err = {
     name: 'Error',
     message,
-  };
+  } as { name: string; message: string; code?: number };
+
   if (code !== undefined) {
     err.code = code;
   }
+
   return err;
 }
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a controller messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns A controller messenger.
  */
-function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    ApprovalControllerActions,
-    ApprovalControllerEvents
-  >();
-  const messenger = controllerMessenger.getRestricted<
-    typeof controllerName,
-    never,
-    never
-  >({
-    name: 'ApprovalController',
+function getMessengers() {
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
   });
-  return messenger;
+  return {
+    rootMessenger,
+    approvalControllerMessenger: new Messenger<
+      typeof controllerName,
+      ApprovalControllerActions,
+      ApprovalControllerEvents,
+      typeof rootMessenger
+    >({
+      namespace: controllerName,
+      parent: rootMessenger,
+    }),
+  };
 }
 
 describe('approval controller', () => {
@@ -232,9 +263,13 @@ describe('approval controller', () => {
   let showApprovalRequest: jest.Mock;
 
   beforeEach(() => {
+    nanoidMock.mockReturnValue('TestId');
+    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
+
     showApprovalRequest = jest.fn();
+
     approvalController = new ApprovalController({
-      messenger: getRestrictedMessenger(),
+      messenger: getMessengers().approvalControllerMessenger,
       showApprovalRequest,
     });
   });
@@ -242,15 +277,21 @@ describe('approval controller', () => {
   describe('add', () => {
     it('validates input', () => {
       expect(() =>
-        approvalController.add({ id: null, origin: 'bar.baz' } as any),
+        approvalController.add({
+          id: null,
+          origin: 'bar.baz',
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidIdError());
 
-      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
-        getInvalidOriginError(),
-      );
+      expect(() =>
+        approvalController.add({ id: 'foo' } as unknown as AddApprovalOptions),
+      ).toThrow(getInvalidOriginError());
 
       expect(() =>
-        approvalController.add({ id: 'foo', origin: true } as any),
+        approvalController.add({
+          id: 'foo',
+          origin: true,
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidOriginError());
 
       expect(() =>
@@ -258,7 +299,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: {},
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -266,7 +307,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: '',
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -275,7 +316,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestData: 'foo',
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestDataError());
 
       expect(() =>
@@ -284,7 +325,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestState: 'foo',
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestStateError());
     });
 
@@ -298,11 +339,11 @@ describe('approval controller', () => {
         }),
       ).not.toThrow();
 
-      expect(approvalController.has({ id: 'foo' })).toBe(true);
+      expect(approvalController.hasRequest({ id: 'foo' })).toBe(true);
 
-      expect(approvalController.has({ origin: 'bar.baz', type: TYPE })).toBe(
-        true,
-      );
+      expect(
+        approvalController.hasRequest({ origin: 'bar.baz', type: TYPE }),
+      ).toBe(true);
 
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -344,9 +385,9 @@ describe('approval controller', () => {
         }),
       ).not.toThrow();
 
-      expect(approvalController.has({ id: 'foo' })).toBe(true);
-      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
-      expect(approvalController.has({ type: 'myType' })).toBe(true);
+      expect(approvalController.hasRequest({ id: 'foo' })).toBe(true);
+      expect(approvalController.hasRequest({ origin: 'bar.baz' })).toBe(true);
+      expect(approvalController.hasRequest({ type: 'myType' })).toBe(true);
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY].foo.requestData,
       ).toStrictEqual({ foo: 'bar' });
@@ -362,9 +403,9 @@ describe('approval controller', () => {
         }),
       ).not.toThrow();
 
-      expect(approvalController.has({ id: 'foo' })).toBe(true);
-      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
-      expect(approvalController.has({ type: 'myType' })).toBe(true);
+      expect(approvalController.hasRequest({ id: 'foo' })).toBe(true);
+      expect(approvalController.hasRequest({ origin: 'bar.baz' })).toBe(true);
+      expect(approvalController.hasRequest({ type: 'myType' })).toBe(true);
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY].foo.requestState,
       ).toStrictEqual({ foo: 'bar' });
@@ -382,14 +423,14 @@ describe('approval controller', () => {
       ).not.toThrow();
 
       expect(
-        approvalController.has({ id: 'foo1' }) &&
-          approvalController.has({ id: 'foo2' }),
+        approvalController.hasRequest({ id: 'foo1' }) &&
+          approvalController.hasRequest({ id: 'foo2' }),
       ).toBe(true);
 
       expect(
-        approvalController.has({ origin: ORIGIN }) &&
-          approvalController.has({ origin: ORIGIN, type: 'myType1' }) &&
-          approvalController.has({ origin: ORIGIN, type: 'myType2' }),
+        approvalController.hasRequest({ origin: ORIGIN }) &&
+          approvalController.hasRequest({ origin: ORIGIN, type: 'myType1' }) &&
+          approvalController.hasRequest({ origin: ORIGIN, type: 'myType2' }),
       ).toBe(true);
     });
 
@@ -423,7 +464,7 @@ describe('approval controller', () => {
 
     it('does not throw on origin and type collision if type excluded', () => {
       approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessengers().approvalControllerMessenger,
         showApprovalRequest,
         typesExcludedFromRateLimiting: ['myType'],
       });
@@ -493,17 +534,15 @@ describe('approval controller', () => {
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
-      expect((approvalController as any).get()).toBeUndefined();
-
-      expect(approvalController.get({} as any)).toBeUndefined();
+      expect(approvalController.get({} as never)).toBeUndefined();
     });
   });
 
   describe('getApprovalCount', () => {
-    let addWithCatch: (args: any) => void;
+    let addWithCatch: (args: AddApprovalOptions) => void;
 
     beforeEach(() => {
-      addWithCatch = (args: any) => {
+      addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
       };
     });
@@ -518,11 +557,11 @@ describe('approval controller', () => {
       );
 
       expect(() =>
-        approvalController.getApprovalCount({ origin: null } as any),
+        approvalController.getApprovalCount({ origin: null } as never),
       ).toThrow(getApprovalCountParamsError());
 
       expect(() =>
-        approvalController.getApprovalCount({ type: false } as any),
+        approvalController.getApprovalCount({ type: false } as never),
       ).toThrow(getApprovalCountParamsError());
     });
 
@@ -618,7 +657,7 @@ describe('approval controller', () => {
 
     it('gets the count when specifying origin and type with type excluded from rate limiting', () => {
       approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessengers().approvalControllerMessenger,
         showApprovalRequest,
         typesExcludedFromRateLimiting: [TYPE],
       });
@@ -636,7 +675,7 @@ describe('approval controller', () => {
     it('gets the total approval count', () => {
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: any) => {
+      const addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
       };
 
@@ -649,22 +688,22 @@ describe('approval controller', () => {
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
       expect(approvalController.getTotalApprovalCount()).toBe(3);
 
-      approvalController.reject('2', new Error('foo'));
+      approvalController.rejectRequest('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
-      approvalController.clear(new JsonRpcError(1, 'clear'));
+      approvalController.clearRequests(new JsonRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toBe(0);
     });
 
     it('gets the total approval count with type excluded from rate limiting', () => {
       approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessengers().approvalControllerMessenger,
         showApprovalRequest,
         typesExcludedFromRateLimiting: ['type0'],
       });
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: any) => {
+      const addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
       };
 
@@ -674,38 +713,38 @@ describe('approval controller', () => {
       addWithCatch({ id: '2', origin: 'origin1', type: 'type0' });
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
-      approvalController.reject('2', new Error('foo'));
+      approvalController.rejectRequest('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toBe(1);
 
-      approvalController.clear(new JsonRpcError(1, 'clear'));
+      approvalController.clearRequests(new JsonRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toBe(0);
     });
   });
 
   describe('has', () => {
     it('validates input', () => {
-      expect(() => approvalController.has()).toThrow(
+      expect(() => approvalController.hasRequest()).toThrow(
         getInvalidHasParamsError(),
       );
 
-      expect(() => approvalController.has({})).toThrow(
+      expect(() => approvalController.hasRequest({})).toThrow(
         getInvalidHasParamsError(),
-      );
-
-      expect(() => approvalController.has({ id: true } as any)).toThrow(
-        getInvalidHasIdError(),
-      );
-
-      expect(() => approvalController.has({ origin: true } as any)).toThrow(
-        getInvalidHasOriginError(),
-      );
-
-      expect(() => approvalController.has({ type: true } as any)).toThrow(
-        getInvalidHasTypeError(),
       );
 
       expect(() =>
-        approvalController.has({ origin: 'foo', type: true } as any),
+        approvalController.hasRequest({ id: true } as never),
+      ).toThrow(getInvalidHasIdError());
+
+      expect(() =>
+        approvalController.hasRequest({ origin: true } as never),
+      ).toThrow(getInvalidHasOriginError());
+
+      expect(() =>
+        approvalController.hasRequest({ type: true } as never),
+      ).toThrow(getInvalidHasTypeError());
+
+      expect(() =>
+        approvalController.hasRequest({ origin: 'foo', type: true } as never),
       ).toThrow(getInvalidHasTypeError());
     });
 
@@ -718,61 +757,79 @@ describe('approval controller', () => {
         type: TYPE,
       });
 
-      expect(approvalController.has({ id: 'foo' })).toBe(true);
+      expect(approvalController.hasRequest({ id: 'foo' })).toBe(true);
     });
 
     it('returns true for existing entry by origin', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
+      expect(approvalController.hasRequest({ origin: 'bar.baz' })).toBe(true);
     });
 
     it('returns true for existing entry by origin and type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(
-        approvalController.has({ origin: 'bar.baz', type: 'myType' }),
+        approvalController.hasRequest({ origin: 'bar.baz', type: 'myType' }),
       ).toBe(true);
     });
 
     it('returns true for existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
-      expect(approvalController.has({ type: 'myType' })).toBe(true);
+      expect(approvalController.hasRequest({ type: 'myType' })).toBe(true);
     });
 
     it('returns false for non-existing entry by id', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ id: 'fizz' })).toBe(false);
+      expect(approvalController.hasRequest({ id: 'fizz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by origin', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
+      expect(approvalController.hasRequest({ origin: 'fizz.buzz' })).toBe(
+        false,
+      );
     });
 
     it('returns false for non-existing entry by existing origin and non-existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(
-        approvalController.has({ origin: 'bar.baz', type: 'myType' }),
+        approvalController.hasRequest({ origin: 'bar.baz', type: 'myType' }),
       ).toBe(false);
     });
 
     it('returns false for non-existing entry by non-existing origin and existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(
-        approvalController.has({ origin: 'fizz.buzz', type: 'myType' }),
+        approvalController.hasRequest({ origin: 'fizz.buzz', type: 'myType' }),
       ).toBe(false);
     });
 
     it('returns false for non-existing entry by type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
 
-      expect(approvalController.has({ type: 'myType2' })).toBe(false);
+      expect(approvalController.hasRequest({ type: 'myType2' })).toBe(false);
     });
   });
 
@@ -783,7 +840,9 @@ describe('approval controller', () => {
         origin: 'bar.baz',
         type: 'myType',
       });
-      approvalController.accept('foo', 'success');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('foo', 'success');
 
       const result = await approvalPromise;
       expect(result).toBe('success');
@@ -801,19 +860,23 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
-      approvalController.accept('foo2', 'success2');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('foo2', 'success2');
 
       let result = await approvalPromise2;
       expect(result).toBe('success2');
 
-      approvalController.accept('foo1', 'success1');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('foo1', 'success1');
 
       result = await approvalPromise1;
       expect(result).toBe('success1');
     });
 
     it('throws on unknown id', () => {
-      expect(() => approvalController.accept('foo')).toThrow(
+      expect(() => approvalController.acceptRequest('foo')).toThrow(
         getIdNotFoundError('foo'),
       );
     });
@@ -826,9 +889,13 @@ describe('approval controller', () => {
         expectsResult: true,
       });
 
-      const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
-        waitForResult: true,
-      });
+      const resultPromise = approvalController.acceptRequest(
+        ID_MOCK,
+        VALUE_MOCK,
+        {
+          waitForResult: true,
+        },
+      );
 
       const { resultCallbacks, value } = await approvalPromise;
 
@@ -847,9 +914,13 @@ describe('approval controller', () => {
         expectsResult: true,
       });
 
-      const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
-        waitForResult: true,
-      });
+      const resultPromise = approvalController.acceptRequest(
+        ID_MOCK,
+        VALUE_MOCK,
+        {
+          waitForResult: true,
+        },
+      );
 
       const { resultCallbacks, value } = await approvalPromise;
 
@@ -868,7 +939,9 @@ describe('approval controller', () => {
         expectsResult: true,
       });
 
-      approvalController.accept(ID_MOCK, VALUE_MOCK);
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest(ID_MOCK, VALUE_MOCK);
 
       expect(await approvalPromise).toStrictEqual({
         resultCallbacks: undefined,
@@ -877,6 +950,8 @@ describe('approval controller', () => {
     });
 
     it('throws if accept wants to wait but request does not expect result', async () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({
         id: ID_MOCK,
         origin: ORIGIN_MOCK,
@@ -884,40 +959,149 @@ describe('approval controller', () => {
       });
 
       await expect(
-        approvalController.accept(ID_MOCK, VALUE_MOCK, {
+        approvalController.acceptRequest(ID_MOCK, VALUE_MOCK, {
           waitForResult: true,
         }),
       ).rejects.toThrow(new ApprovalRequestNoResultSupportError(ID_MOCK));
     });
 
     it('deletes entry', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
 
-      approvalController.accept('foo');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('foo');
 
       expect(
-        !approvalController.has({ id: 'foo' }) &&
-          !approvalController.has({ type: 'type' }) &&
-          !approvalController.has({ origin: 'bar.baz' }) &&
+        !approvalController.hasRequest({ id: 'foo' }) &&
+          !approvalController.hasRequest({ type: 'type' }) &&
+          !approvalController.hasRequest({ origin: 'bar.baz' }) &&
           !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
       ).toBe(true);
     });
 
     it('deletes one entry out of many without side-effects', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
 
-      approvalController.accept('fizz');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('fizz');
 
       expect(
-        !approvalController.has({ id: 'fizz' }) &&
-          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+        !approvalController.hasRequest({ id: 'fizz' }) &&
+          !approvalController.hasRequest({ origin: 'bar.baz', type: 'type2' }),
       ).toBe(true);
 
       expect(
-        approvalController.has({ id: 'foo' }) &&
-          approvalController.has({ origin: 'bar.baz' }),
+        approvalController.hasRequest({ id: 'foo' }) &&
+          approvalController.hasRequest({ origin: 'bar.baz' }),
       ).toBe(true);
+    });
+
+    describe('with deleteAfterResult', () => {
+      it('deletes entry after result callback', async () => {
+        const approvalPromise = approvalController.add({
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          type: TYPE,
+          expectsResult: true,
+        });
+
+        const resultPromise = approvalController.acceptRequest(
+          ID_MOCK,
+          VALUE_MOCK,
+          {
+            waitForResult: true,
+            deleteAfterResult: true,
+          },
+        );
+
+        const { resultCallbacks } = await approvalPromise;
+
+        await flushPromises();
+
+        expect(approvalController.hasRequest({ id: ID_MOCK })).toBe(true);
+
+        resultCallbacks?.success(RESULT_MOCK);
+
+        await flushPromises();
+
+        expect(approvalController.hasRequest({ id: ID_MOCK })).toBe(false);
+
+        await resultPromise;
+      });
+
+      it.each([false, undefined])(
+        'deletes immediately if waitForResult is %s',
+        async (waitForResult) => {
+          const approvalPromise = approvalController.add({
+            id: ID_MOCK,
+            origin: ORIGIN_MOCK,
+            type: TYPE,
+            expectsResult: true,
+          });
+
+          const resultPromise = approvalController.acceptRequest(
+            ID_MOCK,
+            VALUE_MOCK,
+            {
+              waitForResult,
+              deleteAfterResult: true,
+            },
+          );
+
+          const { resultCallbacks } = await approvalPromise;
+
+          await flushPromises();
+
+          expect(approvalController.hasRequest({ id: ID_MOCK })).toBe(false);
+
+          resultCallbacks?.success(RESULT_MOCK);
+
+          await flushPromises();
+
+          expect(approvalController.hasRequest({ id: ID_MOCK })).toBe(false);
+
+          await resultPromise;
+        },
+      );
+
+      it('throws if already accepted', async () => {
+        const approvalPromise = approvalController.add({
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          type: TYPE,
+          expectsResult: true,
+        });
+
+        const resultPromise = approvalController.acceptRequest(
+          ID_MOCK,
+          VALUE_MOCK,
+          {
+            waitForResult: true,
+            deleteAfterResult: true,
+          },
+        );
+
+        const { resultCallbacks } = await approvalPromise;
+
+        await flushPromises();
+
+        await approvalController.acceptRequest(ID_MOCK, VALUE_MOCK);
+
+        resultCallbacks?.success(RESULT_MOCK);
+
+        await expect(resultPromise).rejects.toThrow(
+          `Approval request with id '${ID_MOCK}' not found.`,
+        );
+      });
     });
   });
 
@@ -928,7 +1112,7 @@ describe('approval controller', () => {
         origin: 'bar.baz',
         type: TYPE,
       });
-      approvalController.reject('foo', new Error('failure'));
+      approvalController.rejectRequest('foo', new Error('failure'));
       await expect(approvalPromise).rejects.toThrow('failure');
     });
 
@@ -944,16 +1128,16 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
-      approvalController.reject('foo2', new Error('failure2'));
-      approvalController.reject('foo1', new Error('failure1'));
+      approvalController.rejectRequest('foo2', new Error('failure2'));
+      approvalController.rejectRequest('foo1', new Error('failure1'));
       await expect(rejectionPromise2).rejects.toThrow('failure2');
       await expect(rejectionPromise1).rejects.toThrow('failure1');
     });
 
     it('throws on unknown id', () => {
-      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
-        getIdNotFoundError('foo'),
-      );
+      expect(() =>
+        approvalController.rejectRequest('foo', new Error('bar')),
+      ).toThrow(getIdNotFoundError('foo'));
     });
 
     it('deletes entry', () => {
@@ -961,12 +1145,12 @@ describe('approval controller', () => {
         .add({ id: 'foo', origin: 'bar.baz', type: 'type' })
         .catch(() => undefined);
 
-      approvalController.reject('foo', new Error('failure'));
+      approvalController.rejectRequest('foo', new Error('failure'));
 
       expect(
-        !approvalController.has({ id: 'foo' }) &&
-          !approvalController.has({ type: 'type' }) &&
-          !approvalController.has({ origin: 'bar.baz' }) &&
+        !approvalController.hasRequest({ id: 'foo' }) &&
+          !approvalController.hasRequest({ type: 'type' }) &&
+          !approvalController.hasRequest({ origin: 'bar.baz' }) &&
           !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
       ).toBe(true);
     });
@@ -979,16 +1163,16 @@ describe('approval controller', () => {
         .add({ id: 'fizz', origin: 'bar.baz', type: 'type2' })
         .catch(() => undefined);
 
-      approvalController.reject('fizz', new Error('failure'));
+      approvalController.rejectRequest('fizz', new Error('failure'));
 
       expect(
-        !approvalController.has({ id: 'fizz' }) &&
-          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+        !approvalController.hasRequest({ id: 'fizz' }) &&
+          !approvalController.hasRequest({ origin: 'bar.baz', type: 'type2' }),
       ).toBe(true);
 
       expect(
-        approvalController.has({ id: 'foo' }) &&
-          approvalController.has({ origin: 'bar.baz' }),
+        approvalController.hasRequest({ id: 'foo' }) &&
+          approvalController.hasRequest({ origin: 'bar.baz' }),
       ).toBe(true);
     });
   });
@@ -1016,38 +1200,44 @@ describe('approval controller', () => {
         type: 'myType4',
       });
 
-      approvalController.accept('foo2', 'success2');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('foo2', 'success2');
 
       let result = await promise2;
       expect(result).toBe('success2');
 
-      approvalController.reject('foo4', new Error('failure4'));
+      approvalController.rejectRequest('foo4', new Error('failure4'));
       await expect(promise4).rejects.toThrow('failure4');
 
-      approvalController.reject('foo3', new Error('failure3'));
+      approvalController.rejectRequest('foo3', new Error('failure3'));
       await expect(promise3).rejects.toThrow('failure3');
 
-      expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
-      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
+      expect(approvalController.hasRequest({ origin: 'fizz.buzz' })).toBe(
+        false,
+      );
+      expect(approvalController.hasRequest({ origin: 'bar.baz' })).toBe(true);
 
-      approvalController.accept('foo1', 'success1');
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest('foo1', 'success1');
 
       result = await promise1;
       expect(result).toBe('success1');
 
-      expect(approvalController.has({ origin: 'bar.baz' })).toBe(false);
+      expect(approvalController.hasRequest({ origin: 'bar.baz' })).toBe(false);
     });
   });
 
   describe('clear', () => {
     it('does nothing if state is already empty', () => {
       expect(() =>
-        approvalController.clear(new JsonRpcError(1, 'clear')),
+        approvalController.clearRequests(new JsonRpcError(1, 'clear')),
       ).not.toThrow();
     });
 
     it('deletes existing entries', async () => {
-      const rejectSpy = jest.spyOn(approvalController, 'reject');
+      const rejectSpy = jest.spyOn(approvalController, 'rejectRequest');
 
       approvalController
         .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
@@ -1057,7 +1247,7 @@ describe('approval controller', () => {
         .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
         .catch((_error) => undefined);
 
-      approvalController.clear(new JsonRpcError(1, 'clear'));
+      approvalController.clearRequests(new JsonRpcError(1, 'clear'));
 
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1072,7 +1262,7 @@ describe('approval controller', () => {
         type: 'myType',
       });
 
-      approvalController.clear(new JsonRpcError(1000, 'foo'));
+      approvalController.clearRequests(new JsonRpcError(1000, 'foo'));
       await expect(rejectPromise).rejects.toThrow(
         new JsonRpcError(1000, 'foo'),
       );
@@ -1081,7 +1271,7 @@ describe('approval controller', () => {
     it('does not clear approval flows', async () => {
       approvalController.startFlow();
 
-      approvalController.clear(new JsonRpcError(1, 'clear'));
+      approvalController.clearRequests(new JsonRpcError(1, 'clear'));
 
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
         1,
@@ -1122,62 +1312,53 @@ describe('approval controller', () => {
 
   describe('actions', () => {
     it('addApprovalRequest: shouldShowRequest = true', async () => {
-      const messenger = new ControllerMessenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
+      const { rootMessenger, approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-        }) as ApprovalControllerMessenger,
+        messenger: approvalControllerMessenger,
         showApprovalRequest,
       });
 
-      messenger.call(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      rootMessenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         true,
       );
       expect(showApprovalRequest).toHaveBeenCalledTimes(1);
-      expect(approvalController.has({ id: 'foo' })).toBe(true);
+      expect(approvalController.hasRequest({ id: 'foo' })).toBe(true);
     });
 
     it('addApprovalRequest: shouldShowRequest = false', async () => {
-      const messenger = new ControllerMessenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
+      const { rootMessenger, approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-        }) as ApprovalControllerMessenger,
+        messenger: approvalControllerMessenger,
         showApprovalRequest,
       });
 
-      messenger.call(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      rootMessenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         false,
       );
       expect(showApprovalRequest).toHaveBeenCalledTimes(0);
-      expect(approvalController.has({ id: 'foo' })).toBe(true);
+      expect(approvalController.hasRequest({ id: 'foo' })).toBe(true);
     });
 
     it('updateRequestState', () => {
-      const messenger = new ControllerMessenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
+      const { approvalControllerMessenger } = getMessengers();
 
       approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-        }) as ApprovalControllerMessenger,
+        messenger: approvalControllerMessenger,
         showApprovalRequest,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
@@ -1185,10 +1366,13 @@ describe('approval controller', () => {
         requestState: { foo: 'bar' },
       });
 
-      messenger.call('ApprovalController:updateRequestState', {
-        id: 'foo',
-        requestState: { foo: 'foobar' },
-      });
+      approvalControllerMessenger.call(
+        'ApprovalController:updateRequestState',
+        {
+          id: 'foo',
+          requestState: { foo: 'foobar' },
+        },
+      );
 
       expect(approvalController.get('foo')?.requestState).toStrictEqual({
         foo: 'foobar',
@@ -1207,6 +1391,8 @@ describe('approval controller', () => {
         const result = approvalController.startFlow(opts);
 
         const expectedFlow = {
+          // We're not making an assertion conditionally, we're using a helper.
+          // eslint-disable-next-line jest/no-conditional-expect
           id: opts?.id ?? expect.any(String),
           loadingText: opts?.loadingText ?? null,
         };
@@ -1220,6 +1406,23 @@ describe('approval controller', () => {
         ).toStrictEqual(expectedFlow);
       },
     );
+
+    it('does not call showApprovalRequest if show is false', () => {
+      const result = approvalController.startFlow({ show: false });
+
+      const expectedFlow = {
+        id: expect.any(String),
+        loadingText: null,
+      };
+      expect(result).toStrictEqual(expectedFlow);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(0);
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        1,
+      );
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY][0],
+      ).toStrictEqual(expectedFlow);
+    });
   });
 
   describe('endFlow', () => {
@@ -1311,9 +1514,11 @@ describe('approval controller', () => {
       expect(request.id).toStrictEqual(expect.any(String));
       expect(request.requestData).toStrictEqual(expectedData);
 
-      expect(approvalController.has({ id: request.id })).toBe(true);
-      expect(approvalController.has({ origin: ORIGIN_METAMASK })).toBe(true);
-      expect(approvalController.has({ type: expectedType })).toBe(true);
+      expect(approvalController.hasRequest({ id: request.id })).toBe(true);
+      expect(approvalController.hasRequest({ origin: ORIGIN_METAMASK })).toBe(
+        true,
+      );
+      expect(approvalController.hasRequest({ type: expectedType })).toBe(true);
     }
 
     /**
@@ -1322,7 +1527,7 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function endsSpecifiedFlowTemplate(
-      methodCallback: (flowId: string) => Promise<any>,
+      methodCallback: (flowId: string) => Promise<unknown>,
     ) {
       approvalController.startFlow({ id: FLOW_ID_MOCK });
 
@@ -1332,7 +1537,9 @@ describe('approval controller', () => {
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       )[0].id;
 
-      approvalController.accept(resultRequestId);
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest(resultRequestId);
       await promise;
 
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
@@ -1346,13 +1553,15 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfAddingRequestFails(
-      methodCallback: () => Promise<any>,
+      methodCallback: () => Promise<unknown>,
     ) {
-      jest.spyOn(global.console, 'info');
-
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       methodCallback();
 
       // Second call will fail as mocked nanoid will generate the same ID.
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       methodCallback();
 
       expect(console.info).toHaveBeenCalledTimes(1);
@@ -1370,17 +1579,17 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfEndFlowFails(
-      methodCallback: () => Promise<any>,
+      methodCallback: () => Promise<unknown>,
     ) {
-      jest.spyOn(global.console, 'info');
-
       const promise = methodCallback();
 
       const resultRequestId = Object.values(
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       )[0].id;
 
-      approvalController.accept(resultRequestId);
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.acceptRequest(resultRequestId);
       await promise;
 
       expect(console.info).toHaveBeenCalledTimes(1);
@@ -1392,24 +1601,32 @@ describe('approval controller', () => {
 
     describe('success', () => {
       it('adds request with result success approval type', async () => {
-        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showSuccess(SUCCESS_OPTIONS_MOCK);
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, SUCCESS_OPTIONS_MOCK);
       });
 
       it('adds request with no options', async () => {
-        approvalController.success();
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showSuccess();
 
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
           message: undefined,
           header: undefined,
+          title: undefined,
+          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        (approvalController as any).success({
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showSuccess({
           ...SUCCESS_OPTIONS_MOCK,
           extra: 'testValue',
-        });
+        } as SuccessOptions);
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1419,13 +1636,15 @@ describe('approval controller', () => {
       });
 
       it('shows approval request', async () => {
-        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showSuccess(SUCCESS_OPTIONS_MOCK);
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       });
 
       it('ends specified flow', async () => {
         await endsSpecifiedFlowTemplate((flowId) =>
-          approvalController.success({
+          approvalController.showSuccess({
             ...SUCCESS_OPTIONS_MOCK,
             flowToEnd: flowId,
           }),
@@ -1433,14 +1652,16 @@ describe('approval controller', () => {
       });
 
       it('does not throw if adding request fails', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         doesNotThrowIfAddingRequestFails(() =>
-          approvalController.success(SUCCESS_OPTIONS_MOCK),
+          approvalController.showSuccess(SUCCESS_OPTIONS_MOCK),
         );
       });
 
       it('does not throw if ending the flow fails', async () => {
         await doesNotThrowIfEndFlowFails(() =>
-          approvalController.success({
+          approvalController.showSuccess({
             ...SUCCESS_OPTIONS_MOCK,
             flowToEnd: FLOW_ID_MOCK,
           }),
@@ -1450,24 +1671,32 @@ describe('approval controller', () => {
 
     describe('error', () => {
       it('adds request with result error approval type', async () => {
-        approvalController.error(ERROR_OPTIONS_MOCK);
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showError(ERROR_OPTIONS_MOCK);
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, ERROR_OPTIONS_MOCK);
       });
 
       it('adds request with no options', async () => {
-        approvalController.error();
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showError();
 
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
           error: undefined,
           header: undefined,
+          title: undefined,
+          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        (approvalController as any).error({
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showError({
           ...ERROR_OPTIONS_MOCK,
           extra: 'testValue',
-        });
+        } as ErrorOptions);
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1477,13 +1706,15 @@ describe('approval controller', () => {
       });
 
       it('shows approval request', async () => {
-        approvalController.error(ERROR_OPTIONS_MOCK);
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        approvalController.showError(ERROR_OPTIONS_MOCK);
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       });
 
       it('ends specified flow', async () => {
         await endsSpecifiedFlowTemplate((flowId) =>
-          approvalController.error({
+          approvalController.showError({
             ...ERROR_OPTIONS_MOCK,
             flowToEnd: flowId,
           }),
@@ -1491,19 +1722,79 @@ describe('approval controller', () => {
       });
 
       it('does not throw if adding request fails', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         doesNotThrowIfAddingRequestFails(() =>
-          approvalController.error(ERROR_OPTIONS_MOCK),
+          approvalController.showError(ERROR_OPTIONS_MOCK),
         );
       });
 
       it('does not throw if ending the flow fails', async () => {
         await doesNotThrowIfEndFlowFails(() =>
-          approvalController.error({
+          approvalController.showError({
             ...ERROR_OPTIONS_MOCK,
             flowToEnd: FLOW_ID_MOCK,
           }),
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "pendingApprovals": {},
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "approvalFlows": [],
+          "pendingApprovalCount": 0,
+          "pendingApprovals": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      expect(
+        deriveStateFromMetadata(
+          approvalController.state,
+          approvalController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "approvalFlows": [],
+          "pendingApprovalCount": 0,
+          "pendingApprovals": {},
+        }
+      `);
     });
   });
 });

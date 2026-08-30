@@ -1,10 +1,9 @@
-import type { LogType } from './LogType';
+import type { LogType } from './LogType.js';
 
 /**
  * An enum of the signing method types that we are interested in logging.
  */
 export enum SigningMethod {
-  EthSign = 'eth_sign',
   PersonalSign = 'personal_sign',
   EthSignTypedData = 'eth_signTypedData',
   EthSignTypedDataV3 = 'eth_signTypedData_v3',
@@ -31,6 +30,8 @@ export type EthSignLog = {
   data: {
     signingMethod: SigningMethod;
     stage: SigningStage;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signingData?: any;
   };
 };

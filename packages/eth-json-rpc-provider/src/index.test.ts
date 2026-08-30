@@ -1,12 +1,13 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('Package exports', () => {
   it('has expected exports', () => {
-    expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+    expect(Object.keys(allExports).sort()).toMatchInlineSnapshot(`
+      [
+        "InternalProvider",
         "SafeEventEmitterProvider",
-        "providerFromEngine",
         "providerFromMiddleware",
+        "providerFromMiddlewareV2",
       ]
     `);
   });

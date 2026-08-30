@@ -1,14 +1,15 @@
-export type { BaseConfig, BaseState, Listener } from './BaseController';
-export { BaseController } from './BaseController';
 export type {
-  Listener as ListenerV2,
+  BaseControllerInstance,
+  StateChangeListener,
+  StateConstraint,
   StateDeriver,
+  StateDeriverConstraint,
   StateMetadata,
+  StateMetadataConstraint,
   StatePropertyMetadata,
-} from './BaseControllerV2';
-export {
-  BaseController as BaseControllerV2,
-  getAnonymizedState,
-  getPersistentState,
-} from './BaseControllerV2';
-export * from './ControllerMessenger';
+  StatePropertyMetadataConstraint,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
+} from './BaseController.js';
+export { BaseController, deriveStateFromMetadata } from './BaseController.js';

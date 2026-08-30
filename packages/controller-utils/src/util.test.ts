@@ -1,25 +1,53 @@
-import { BN } from 'ethereumjs-util';
+import EthQuery from '@metamask/eth-query';
+import { assert, JsonRpcParams } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
+import BN from 'bn.js';
 import nock from 'nock';
 
-import { MAX_SAFE_CHAIN_ID } from './constants';
-import * as util from './util';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { MAX_SAFE_CHAIN_ID } from './constants.js';
+import * as util from './util.js';
+
+type EverythingButNull =
+  | string
+  | number
+  | boolean
+  | object
+  | symbol
+  | undefined;
+
+type SendAsyncCallback<Result> = (
+  ...args:
+    | [error: EverythingButNull, result: undefined]
+    | [error: null, result: Result]
+) => void;
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
 describe('util', () => {
+  it('isSafeDynamicKey', () => {
+    expect(util.isSafeDynamicKey(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
+    expect(util.isSafeDynamicKey('')).toBe(true);
+    for (const badKey of util.PROTOTYPE_POLLUTION_BLOCKLIST) {
+      expect(util.isSafeDynamicKey(badKey)).toBe(false);
+    }
+    // @ts-expect-error - ensure that non-string input return false.
+    expect(util.isSafeDynamicKey(null)).toBe(false);
+  });
   it('isSafeChainId', () => {
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID + 1))).toBe(false);
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
     expect(util.isSafeChainId(util.toHex(0))).toBe(false);
     expect(util.isSafeChainId('0xinvalid')).toBe(false);
-    // @ts-expect-error - ensure that string args return false.
+    // @ts-expect-error - ensure that non-string args return false.
     expect(util.isSafeChainId('test')).toBe(false);
   });
 
   it('bNToHex', () => {
     expect(util.BNToHex(new BN('1337'))).toBe('0x539');
+    expect(util.BNToHex(new BigNumber('1337'))).toBe('0x539');
   });
 
   it('fractionBN', () => {
@@ -61,6 +89,10 @@ describe('util', () => {
   describe('toHex', () => {
     it('converts a BN to a hex string prepended with "0x"', () => {
       expect(util.toHex(new BN(4919))).toBe('0x1337');
+    });
+
+    it('converts a bigint to a string prepended with "0x"', () => {
+      expect(util.toHex(4919n)).toBe('0x1337');
     });
 
     it('parses a string as a number in decimal format and converts it to a hex string prepended with "0x"', () => {
@@ -129,7 +161,7 @@ describe('util', () => {
         123456000000600,
       );
       expect(util.gweiDecToWEIBN(1.000000016025).toNumber()).toBe(1000000016);
-      expect(util.gweiDecToWEIBN(1.0000000160000028).toNumber()).toBe(
+      expect(util.gweiDecToWEIBN('1.0000000160000028').toNumber()).toBe(
         1000000016,
       );
       expect(util.gweiDecToWEIBN(1.000000016522).toNumber()).toBe(1000000017);
@@ -260,7 +292,9 @@ describe('util', () => {
 
     it('should resolve', async () => {
       const response = await util.safelyExecuteWithTimeout(() => {
-        return new Promise((res) => setTimeout(() => res('response'), 200));
+        return new Promise((resolve) =>
+          setTimeout(() => resolve('response'), 200),
+        );
       });
       expect(response).toBe('response');
     });
@@ -268,20 +302,90 @@ describe('util', () => {
     it('should timeout', async () => {
       expect(
         await util.safelyExecuteWithTimeout(() => {
-          return new Promise((res) => setTimeout(res, 800));
+          return new Promise((resolve) => setTimeout(resolve, 800));
         }),
       ).toBeUndefined();
     });
   });
 
   describe('toChecksumHexAddress', () => {
-    const fullAddress = `0x${VALID}`;
-    it('should return address for valid address', () => {
-      expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
+    it('should return an 0x-prefixed checksum address untouched', () => {
+      const address = '0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+      expect(util.toChecksumHexAddress(address)).toBe(address);
     });
 
-    it('should return address for non prefix address', () => {
-      expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
+    it('should prefix a non-0x-prefixed checksum address with 0x', () => {
+      expect(
+        util.toChecksumHexAddress('4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0'),
+      ).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+    });
+
+    it('should convert a non-checksum address to a checksum address', () => {
+      expect(
+        util.toChecksumHexAddress('0x4e1ff7229bddaf0a73df183a88d9c3a04cc975e0'),
+      ).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+    });
+
+    it('should return "0x" if given an empty string', () => {
+      expect(util.toChecksumHexAddress('')).toBe('0x');
+    });
+
+    it('should return the input untouched if it is undefined', () => {
+      expect(util.toChecksumHexAddress(undefined)).toBeUndefined();
+    });
+
+    it('should return the input untouched if it is null', () => {
+      expect(util.toChecksumHexAddress(null)).toBeNull();
+    });
+
+    it('should return the address untouched if it is not a valid hex address', () => {
+      expect(util.toChecksumHexAddress('0x1')).toBe('0x1');
+    });
+
+    it('should memoize results for same input', () => {
+      const testAddress = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+
+      // Call the function multiple times with the same input
+      const result1 = util.toChecksumHexAddress(testAddress);
+      const result2 = util.toChecksumHexAddress(testAddress);
+      const result3 = util.toChecksumHexAddress(testAddress);
+
+      // All results should be identical
+      expect(result1).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+      expect(result2).toBe(result1);
+      expect(result3).toBe(result1);
+    });
+
+    it('should return different results for different inputs but still memoize each', () => {
+      const testAddress1 = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+      const testAddress2 = '742d35cc6ba4c0a2b7e8b4c0b1b0c2b2b2b2b2b2';
+
+      // Call with first address multiple times
+      const result1a = util.toChecksumHexAddress(testAddress1);
+      const result1b = util.toChecksumHexAddress(testAddress1);
+
+      // Call with second address multiple times
+      const result2a = util.toChecksumHexAddress(testAddress2);
+      const result2b = util.toChecksumHexAddress(testAddress2);
+
+      // Results for same address should be identical
+      expect(result1b).toBe(result1a);
+      expect(result2b).toBe(result2a);
+
+      // Results for different addresses should be different
+      expect(result1a).not.toBe(result2a);
+    });
+
+    it('should memoize based on complete argument signature', () => {
+      const testAddress = '4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
+
+      // Call with string argument
+      const result1 = util.toChecksumHexAddress(testAddress);
+      const result2 = util.toChecksumHexAddress(testAddress);
+
+      // Both should be memoized and return the same result
+      expect(result2).toBe(result1);
+      expect(result1).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
     });
   });
 
@@ -298,6 +402,83 @@ describe('util', () => {
       expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
         false,
       );
+    });
+
+    it('should memoize results for same input', () => {
+      const validAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+
+      // Call the function multiple times with the same input
+      const result1 = util.isValidHexAddress(validAddress);
+      const result2 = util.isValidHexAddress(validAddress);
+      const result3 = util.isValidHexAddress(validAddress);
+
+      // All results should be identical
+      expect(result1).toBe(true);
+      expect(result2).toBe(result1);
+      expect(result3).toBe(result1);
+    });
+
+    it('should memoize results for same input with options', () => {
+      const validAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+      const options = { allowNonPrefixed: true };
+
+      // Call the function multiple times with the same input and options
+      const result1 = util.isValidHexAddress(validAddress, options);
+      const result2 = util.isValidHexAddress(validAddress, options);
+      const result3 = util.isValidHexAddress(validAddress, options);
+
+      // All results should be identical
+      expect(result1).toBe(true);
+      expect(result2).toBe(result1);
+      expect(result3).toBe(result1);
+    });
+
+    it('should return different results for different option combinations', () => {
+      const addressWithoutPrefix = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+
+      // Call with different options
+      const result1 = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: true,
+      });
+      const result2 = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: false,
+      });
+
+      // Should return different results for different options
+      expect(result1).toBe(true);
+      expect(result2).toBe(false);
+
+      // But calling again with same options should return memoized results
+      const result1Again = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: true,
+      });
+      const result2Again = util.isValidHexAddress(addressWithoutPrefix, {
+        allowNonPrefixed: false,
+      });
+
+      expect(result1Again).toBe(result1);
+      expect(result2Again).toBe(result2);
+    });
+
+    it('should handle memoization with different address inputs', () => {
+      const validAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+      const invalidAddress = '0x00';
+
+      // Call with valid address multiple times
+      const validResult1 = util.isValidHexAddress(validAddress);
+      const validResult2 = util.isValidHexAddress(validAddress);
+
+      // Call with invalid address multiple times
+      const invalidResult1 = util.isValidHexAddress(invalidAddress);
+      const invalidResult2 = util.isValidHexAddress(invalidAddress);
+
+      // Results for same address should be identical
+      expect(validResult2).toBe(validResult1);
+      expect(invalidResult2).toBe(invalidResult1);
+
+      // Results should be correct
+      expect(validResult1).toBe(true);
+      expect(invalidResult1).toBe(false);
     });
   });
 
@@ -317,6 +498,26 @@ describe('util', () => {
     expect(toSmartContract4).toBe(true);
   });
 
+  describe('HttpError', () => {
+    it('stores the status as an instance variable', () => {
+      const httpError = new util.HttpError(500);
+
+      expect(httpError.httpStatus).toBe(500);
+    });
+
+    it('has the expected default message', () => {
+      const httpError = new util.HttpError(500);
+
+      expect(httpError.message).toBe(`Fetch failed with status '500'`);
+    });
+
+    it('allows setting a custom message', () => {
+      const httpError = new util.HttpError(500, 'custom message');
+
+      expect(httpError.message).toBe('custom message');
+    });
+  });
+
   describe('successfulFetch', () => {
     beforeEach(() => {
       nock(SOME_API).get(/.+/u).reply(200, { foo: 'bar' }).persist();
@@ -332,6 +533,12 @@ describe('util', () => {
     it('should throw error for an unsuccessful fetch', async () => {
       await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
         `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
+      );
+    });
+
+    it('throws an HttpError', async () => {
+      await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
+        util.HttpError,
       );
     });
   });
@@ -393,7 +600,7 @@ describe('util', () => {
       expect(invalid).toBeNull();
       invalid = util.normalizeEnsName('@metamask.eth');
       expect(invalid).toBeNull();
-      invalid = util.normalizeEnsName('foobar.eth');
+      invalid = util.normalizeEnsName('fo.eth');
       expect(invalid).toBeNull();
     });
 
@@ -410,9 +617,9 @@ describe('util', () => {
       expect(invalid).toBeNull();
     });
 
-    it('should return null with invalid 2LD and valid 3LD', async () => {
-      const invalid = util.normalizeEnsName('foo.barbaz.eth');
-      expect(invalid).toBeNull();
+    it('should normalize with valid 3LD', async () => {
+      const valid = util.normalizeEnsName('foo.barbaz.eth');
+      expect(valid).toBe('foo.barbaz.eth');
     });
 
     it('should return null with invalid TLD', async () => {
@@ -436,57 +643,76 @@ describe('util', () => {
   describe('query', () => {
     describe('when the given method exists directly on the EthQuery', () => {
       it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
-        class EthQuery {
-          getBlockByHash(blockId: any, cb: any) {
-            cb(null, { id: blockId });
+        class MockEthQuery extends EthQuery {
+          getBlockByHash(
+            blockId: unknown,
+            callback: (error: Error | null, value: unknown) => void,
+          ): void {
+            callback(null, { id: blockId });
           }
         }
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        const result = await util.query(new EthQuery(), 'getBlockByHash', [
-          '0x1234',
-        ]);
+        const result = await util.query(
+          new MockEthQuery(new FakeProvider()),
+          'getBlockByHash',
+          ['0x1234'],
+        );
         expect(result).toStrictEqual({ id: '0x1234' });
       });
 
       it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
-        class EthQuery {
-          getBlockByHash(_blockId: any, cb: any) {
-            cb(new Error('uh oh'), null);
+        class MockEthQuery extends EthQuery {
+          getBlockByHash(
+            _blockId: unknown,
+            callback: (error: Error | null, value: unknown) => void,
+          ): void {
+            callback(new Error('uh oh'), null);
           }
         }
         await expect(
-          // @ts-expect-error Mock eth query does not fulfill type requirements
-          util.query(new EthQuery(), 'getBlockByHash', ['0x1234']),
+          util.query(new MockEthQuery(new FakeProvider()), 'getBlockByHash', [
+            '0x1234',
+          ]),
         ).rejects.toThrow('uh oh');
       });
     });
 
     describe('when the given method does not exist directly on the EthQuery', () => {
       it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
-        class EthQuery {
-          sendAsync({ method, params }: any, cb: any) {
+        class MockEthQuery extends EthQuery {
+          sendAsync<Result>(
+            { method, params }: { method?: string; params?: JsonRpcParams },
+            callback: SendAsyncCallback<Result>,
+          ): void {
             if (method === 'eth_getBlockByHash') {
-              return cb(null, { id: params[0] });
+              assert(Array.isArray(params));
+              return callback(null, { id: params[0] } as Result);
             }
             throw new Error(`Unsupported method ${method}`);
           }
         }
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        const result = await util.query(new EthQuery(), 'eth_getBlockByHash', [
-          '0x1234',
-        ]);
+        const result = await util.query(
+          new MockEthQuery(new FakeProvider()),
+          'eth_getBlockByHash',
+          ['0x1234'],
+        );
         expect(result).toStrictEqual({ id: '0x1234' });
       });
 
       it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
-        class EthQuery {
-          sendAsync(_args: any, cb: any) {
-            cb(new Error('uh oh'), null);
+        class MockEthQuery extends EthQuery {
+          sendAsync<Result>(
+            _args: unknown,
+            callback: SendAsyncCallback<Result>,
+          ): void {
+            callback(new Error('uh oh'), undefined);
           }
         }
         await expect(
-          // @ts-expect-error Mock eth query does not fulfill type requirements
-          util.query(new EthQuery(), 'eth_getBlockByHash', ['0x1234']),
+          util.query(
+            new MockEthQuery(new FakeProvider()),
+            'eth_getBlockByHash',
+            ['0x1234'],
+          ),
         ).rejects.toThrow('uh oh');
       });
     });
@@ -528,7 +754,7 @@ describe('util', () => {
 
     it('returns true for objects', () => {
       expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
-      expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
+      expect(util.isPlainObject({ foo: 'bar', test: { value: 5 } })).toBe(true);
     });
   });
 
@@ -556,7 +782,37 @@ describe('util', () => {
     });
 
     it('returns true for valid JSON', () => {
-      expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+      expect(util.isValidJson({ foo: 'bar', test: { value: 5 } })).toBe(true);
     });
+  });
+});
+
+describe('isEqualCaseInsensitive', () => {
+  it('returns false for non-string values', () => {
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(null, null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(5, 5)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(null, 'test')).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive('test', null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(5, 'test')).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive('test', 5)).toBe(false);
+  });
+
+  it('returns false for strings that are not equal', () => {
+    expect(util.isEqualCaseInsensitive('test', 'test1')).toBe(false);
+    expect(util.isEqualCaseInsensitive('test1', 'test')).toBe(false);
+  });
+
+  it('returns true for strings that are equal', () => {
+    expect(util.isEqualCaseInsensitive('test', 'TEST')).toBe(true);
+    expect(util.isEqualCaseInsensitive('test', 'test')).toBe(true);
+    expect(util.isEqualCaseInsensitive('TEST', 'TEST')).toBe(true);
+    expect(util.isEqualCaseInsensitive('test', 'Test')).toBe(true);
+    expect(util.isEqualCaseInsensitive('Test', 'test')).toBe(true);
   });
 });

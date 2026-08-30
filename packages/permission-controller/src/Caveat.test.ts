@@ -1,17 +1,19 @@
-import type { PermissionConstraint } from '.';
-import { decorateWithCaveats, PermissionType } from '.';
-import * as errors from './errors';
+import * as errors from './errors.js';
+import type { Caveat, PermissionConstraint } from './index.js';
+import { decorateWithCaveats, PermissionType } from './index.js';
 
 describe('decorateWithCaveats', () => {
   it('decorates a method with caveat', async () => {
-    const methodImplementation = () => [1, 2, 3];
+    const methodImplementation = (): number[] => [1, 2, 3];
 
     const caveatSpecifications = {
       reverse: {
         type: 'reverse',
-        decorator: (method: any, _caveat: any) => async () => {
-          return (await method()).reverse();
-        },
+        decorator:
+          (method: () => Promise<unknown[]>, _caveat: Caveat<string, null>) =>
+          async (): Promise<unknown[]> => {
+            return (await method()).reverse();
+          },
       },
     };
 
@@ -39,20 +41,24 @@ describe('decorateWithCaveats', () => {
   });
 
   it('decorates a method with multiple caveats', async () => {
-    const methodImplementation = () => [1, 2, 3];
+    const methodImplementation = (): number[] => [1, 2, 3];
 
     const caveatSpecifications = {
       reverse: {
         type: 'reverse',
-        decorator: (method: any, _caveat: any) => async () => {
-          return (await method()).reverse();
-        },
+        decorator:
+          (method: () => Promise<unknown[]>, _caveat: Caveat<string, null>) =>
+          async (): Promise<unknown[]> => {
+            return (await method()).reverse();
+          },
       },
       slice: {
         type: 'slice',
-        decorator: (method: any, caveat: any) => async () => {
-          return (await method()).slice(0, caveat.value);
-        },
+        decorator:
+          (method: () => Promise<unknown[]>, caveat: Caveat<string, number>) =>
+          async (): Promise<unknown[]> => {
+            return (await method()).slice(0, caveat.value);
+          },
       },
     };
 
@@ -83,7 +89,7 @@ describe('decorateWithCaveats', () => {
   });
 
   it('returns the unmodified method implementation if there are no caveats', () => {
-    const methodImplementation = () => [1, 2, 3];
+    const methodImplementation = (): number[] => [1, 2, 3];
 
     const permission: PermissionConstraint = {
       id: 'foo',
@@ -103,14 +109,16 @@ describe('decorateWithCaveats', () => {
   });
 
   it('throws an error if the caveat type is unrecognized', () => {
-    const methodImplementation = () => [1, 2, 3];
+    const methodImplementation = (): number[] => [1, 2, 3];
 
     const caveatSpecifications = {
       reverse: {
         type: 'reverse',
-        decorator: (method: any, _caveat: any) => async () => {
-          return (await method()).reverse();
-        },
+        decorator:
+          (method: () => Promise<unknown[]>, _caveat: Caveat<string, null>) =>
+          async (): Promise<unknown[]> => {
+            return (await method()).reverse();
+          },
       },
     };
 
@@ -136,7 +144,7 @@ describe('decorateWithCaveats', () => {
   });
 
   it('throws an error if no decorator is present', async () => {
-    const methodImplementation = () => [1, 2, 3];
+    const methodImplementation = (): number[] => [1, 2, 3];
 
     const caveatSpecifications = {
       reverse: {

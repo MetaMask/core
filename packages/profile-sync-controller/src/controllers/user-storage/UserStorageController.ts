@@ -1,0 +1,710 @@
+import type {
+  AddressBookControllerContactUpdatedEvent,
+  AddressBookControllerContactDeletedEvent,
+  AddressBookControllerActions,
+  AddressBookControllerListAction,
+  AddressBookControllerSetAction,
+  AddressBookControllerDeleteAction,
+} from '@metamask/address-book-controller';
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import type {
+  TraceCallback,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+  KeyringControllerWithKeyringV2UnsafeAction,
+} from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
+
+import type {
+  UserStorageGenericFeatureKey,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
+} from '../../sdk/index.js';
+import { Env, UserStorage } from '../../sdk/index.js';
+import type { NativeScrypt } from '../../shared/types/encryption.js';
+import {
+  getHdKeyringEntropySourceIds,
+  getPrimaryHdKeyringEntropySourceId,
+} from '../../shared/utils/entropy-source.js';
+import { EventQueue } from '../../shared/utils/event-queue.js';
+import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
+import { signMessageWithMessageSigningKey } from '../../shared/utils/message-signing.js';
+import type {
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+} from '../authentication/AuthenticationController-method-action-types.js';
+import { BACKUPANDSYNC_FEATURES } from './constants.js';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration.js';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions.js';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types.js';
+
+const controllerName = 'UserStorageController';
+
+// State
+export type UserStorageControllerState = {
+  /**
+   * Condition used by UI and to determine if we can use some of the User Storage methods.
+   */
+  isBackupAndSyncEnabled: boolean;
+  /**
+   * Loading state for the backup and sync update
+   */
+  isBackupAndSyncUpdateLoading: boolean;
+  /**
+   * Condition used by UI to determine if account syncing is enabled.
+   */
+  isAccountSyncingEnabled: boolean;
+  /**
+   * Condition used by UI to determine if contact syncing is enabled.
+   */
+  isContactSyncingEnabled: boolean;
+  /**
+   * Condition used by UI to determine if contact syncing is in progress.
+   */
+  isContactSyncingInProgress: boolean;
+};
+
+export const defaultState: UserStorageControllerState = {
+  isBackupAndSyncEnabled: true,
+  isBackupAndSyncUpdateLoading: false,
+  isAccountSyncingEnabled: true,
+  isContactSyncingEnabled: true,
+  isContactSyncingInProgress: false,
+};
+
+const metadata: StateMetadata<UserStorageControllerState> = {
+  isBackupAndSyncEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  isBackupAndSyncUpdateLoading: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  isAccountSyncingEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  isContactSyncingEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  isContactSyncingInProgress: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+};
+
+type ControllerConfig = {
+  env: Env;
+  contactSyncing?: {
+    /**
+     * Callback that fires when contact sync updates a contact.
+     * This is used for analytics.
+     */
+    onContactUpdated?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when contact sync deletes a contact.
+     * This is used for analytics.
+     */
+    onContactDeleted?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when an erroneous situation happens during contact sync.
+     * This is used for analytics.
+     */
+    onContactSyncErroneousSituation?: (
+      profileId: string,
+      situationMessage: string,
+      sentryContext?: Record<string, unknown>,
+    ) => void;
+  };
+};
+
+const MESSENGER_EXPOSED_METHODS = [
+  'performGetStorage',
+  'performGetStorageAllFeatureEntries',
+  'performSetStorage',
+  'performBatchSetStorage',
+  'performDeleteStorage',
+  'performBatchDeleteStorage',
+  'getStorageKey',
+  'performDeleteStorageAllFeatureEntries',
+  'listEntropySources',
+  'setIsBackupAndSyncFeatureEnabled',
+  'setIsContactSyncingInProgress',
+  'syncContactsWithUserStorage',
+] as const;
+
+export type UserStorageControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Actions =
+  | UserStorageControllerGetStateAction
+  | UserStorageControllerMethodActions;
+
+export type AllowedActions =
+  // Keyring Requests
+  | KeyringControllerGetStateAction
+  | KeyringControllerWithKeyringV2UnsafeAction
+  // Auth Requests
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerIsSignedInAction
+  // Contact Syncing
+  | AddressBookControllerListAction
+  | AddressBookControllerSetAction
+  | AddressBookControllerDeleteAction
+  | AddressBookControllerActions;
+
+// Messenger events
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+
+export type Events = UserStorageControllerStateChangeEvent;
+
+export type AllowedEvents =
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
+  // Address Book Events
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
+
+// Messenger
+export type UserStorageControllerMessenger = Messenger<
+  typeof controllerName,
+  Actions | AllowedActions,
+  Events | AllowedEvents
+>;
+
+/**
+ * Reusable controller that allows any team to store synchronized data for a given user.
+ * These can be settings shared cross MetaMask clients, or data we want to persist when uninstalling/reinstalling.
+ *
+ * NOTE:
+ * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
+ * - No one can access this data unless they are have the SRP and are able to run the signing snap.
+ */
+export class UserStorageController extends BaseController<
+  typeof controllerName,
+  UserStorageControllerState,
+  UserStorageControllerMessenger
+> {
+  readonly #userStorage: UserStorage;
+
+  readonly #auth = {
+    getProfileId: async (entropySourceId?: string) => {
+      const sessionProfile = await this.messenger.call(
+        'AuthenticationController:getSessionProfile',
+        entropySourceId,
+      );
+      return sessionProfile?.profileId;
+    },
+    isSignedIn: () => {
+      return this.messenger.call('AuthenticationController:isSignedIn');
+    },
+    signIn: async () => {
+      return await this.messenger.call(
+        'AuthenticationController:performSignIn',
+      );
+    },
+  };
+
+  readonly #config: ControllerConfig = {
+    env: Env.PRD,
+  };
+
+  readonly #trace: TraceCallback;
+
+  #isUnlocked = false;
+
+  // Both caches are keyed by `${entropySourceId}:${message}` (the primary SRP
+  // resolves to its HD keyring metadata ID) so two SRPs that transiently
+  // resolve to the same `profileId` can never share a cached storage key /
+  // signature and leak data across each other's user storage.
+  #storageKeyCache: Record<string, string> = {};
+
+  #signMessageCache: Record<string, string> = {};
+
+  readonly #keyringController = {
+    setupLockedStateSubscriptions: () => {
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
+      this.#isUnlocked = isUnlocked;
+
+      this.messenger.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
+
+      this.messenger.subscribe('KeyringController:lock', () => {
+        this.#isUnlocked = false;
+      });
+    },
+  };
+
+  readonly #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+
+  eventQueue = new EventQueue();
+
+  constructor({
+    messenger,
+    state,
+    config,
+    nativeScryptCrypto,
+    trace,
+  }: {
+    messenger: UserStorageControllerMessenger;
+    state?: UserStorageControllerState;
+    config?: Partial<ControllerConfig>;
+    nativeScryptCrypto?: NativeScrypt;
+    trace?: TraceCallback;
+  }) {
+    super({
+      messenger,
+      metadata,
+      name: controllerName,
+      state: { ...defaultState, ...state },
+    });
+
+    this.#config = {
+      ...this.#config,
+      ...config,
+    };
+    this.#trace =
+      trace ??
+      (async <ReturnType>(
+        _request: TraceRequest,
+        fn?: (context?: TraceContext) => ReturnType,
+      ): Promise<ReturnType> => {
+        if (!fn) {
+          return undefined as ReturnType;
+        }
+        return await Promise.resolve(fn());
+      });
+
+    this.#userStorage = new UserStorage(
+      {
+        env: this.#config.env,
+        auth: {
+          getAccessToken: (entropySourceId?: string) =>
+            this.messenger.call(
+              'AuthenticationController:getBearerToken',
+              entropySourceId,
+            ),
+          getUserProfile: async (entropySourceId?: string) => {
+            return await this.messenger.call(
+              'AuthenticationController:getSessionProfile',
+              entropySourceId,
+            );
+          },
+          signMessage: (message: string, entropySourceId?: string) =>
+            this.#signMessage(message, entropySourceId),
+        },
+      },
+      {
+        storage: {
+          getStorageKey: async (message, entropySourceId) => {
+            // No derived key can exist while locked (the KeyringController
+            // clears its keyrings on lock, so the scope is unresolvable).
+            if (!this.#isUnlocked) {
+              return null;
+            }
+            return (
+              this.#storageKeyCache[
+                this.#scopedCacheKey(message, entropySourceId)
+              ] ?? null
+            );
+          },
+          // Only ever reached after a successful signature, i.e. while unlocked.
+          setStorageKey: async (message, key, entropySourceId) => {
+            this.#storageKeyCache[
+              this.#scopedCacheKey(message, entropySourceId)
+            ] = key;
+          },
+        },
+      },
+    );
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
+    this.#keyringController.setupLockedStateSubscriptions();
+    this.#nativeScryptCrypto = nativeScryptCrypto;
+
+    // Contact Syncing
+    setupContactSyncingSubscriptions({
+      getUserStorageControllerInstance: () => this,
+      getMessenger: () => this.messenger,
+      trace: this.#trace,
+    });
+  }
+
+  /**
+   * Allows retrieval of stored data. Data stored is string formatted.
+   * Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns the decrypted string contents found from user storage (or null if not found)
+   */
+  public async performGetStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    entropySourceId?: string,
+  ): Promise<string | null> {
+    return await this.#userStorage.getItem(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows retrieval of all stored data for a specific feature. Data stored is formatted as an array of strings.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns the array of decrypted string contents found from user storage (or null if not found)
+   */
+  public async performGetStorageAllFeatureEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    entropySourceId?: string,
+  ): Promise<string[] | null> {
+    return await this.#userStorage.getAllFeatureItems(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows storage of user data. Data stored must be string formatted.
+   * Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param value - The string data you want to store.
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performSetStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    value: string,
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.setItem(path, value, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows storage of multiple user data entries for one specific feature. Data stored must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchSetStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    values: [UserStorageGenericFeatureKey, string][],
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.batchSetItems(path, values, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.deleteItem(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows deletion of all user data entries for a specific feature.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorageAllFeatureEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.deleteAllFeatureItems(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of entryKey[]
+   * @param entropySourceId - The entropy source ID used to generate the encryption key.
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchDeleteStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    values: UserStorageGenericFeatureKey[],
+    entropySourceId?: string,
+  ): Promise<void> {
+    return await this.#userStorage.batchDeleteItems(path, values, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      entropySourceId,
+    });
+  }
+
+  /**
+   * Retrieves the storage key, for internal use only!
+   *
+   * @returns the storage key
+   */
+  public async getStorageKey(): Promise<string> {
+    return await this.#userStorage.getStorageKey();
+  }
+
+  /**
+   * Flushes the storage key cache.
+   * CAUTION: This is only public for testing purposes.
+   * It should not be used in production code.
+   */
+  public flushStorageKeyCache(): void {
+    this.#storageKeyCache = {};
+  }
+
+  /**
+   * Lists all the available HD keyring metadata IDs.
+   * These IDs can be used in a multi-SRP context to segregate data specific to different SRPs.
+   *
+   * @returns A promise that resolves to an array of HD keyring metadata IDs.
+   */
+  async listEntropySources(): Promise<string[]> {
+    if (!this.#isUnlocked) {
+      throw new Error(
+        'listEntropySources - unable to list entropy sources, wallet is locked',
+      );
+    }
+
+    return this.#getHdKeyringEntropySourceIds();
+  }
+
+  /**
+   * Reads the HD keyring entropy source IDs from KeyringController.
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getHdKeyringEntropySourceIds(keyrings);
+  }
+
+  /**
+   * Resolves the primary SRP's entropy source ID, used to scope the primary's
+   * cache entries. The ID is randomly regenerated whenever the vault is
+   * recreated (e.g. on restore), so a new primary can never inherit a previous
+   * vault's cached key.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve the scope
+   * while the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    return getPrimaryHdKeyringEntropySourceId(keyrings);
+  }
+
+  /**
+   * Builds a cache key scoped to a specific entropy source, so each SRP's
+   * signature/storage key derivation stays isolated even when two SRPs
+   * transiently resolve to the same `profileId` (see `#storageKeyCache`).
+   *
+   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
+   * primary HD keyring's metadata ID rather than a stable literal. Because that
+   * ID is randomly regenerated whenever the vault is recreated (e.g. on
+   * restore), the cached entry is naturally invalidated across vaults — a
+   * different SRP can never inherit the previous primary's cached key.
+   *
+   * @param message - The tagged message used for signing.
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The scoped cache key.
+   */
+  #scopedCacheKey(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): string {
+    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
+  }
+
+  /**
+   * Signs a `metamask:…` message with the native SIP-6 message-signing key
+   * (same key as `@metamask/message-signing-snap` with empty salt).
+   *
+   * @param message - A specific tagged message to sign.
+   * @param entropySourceId - The entropy source ID used to derive the key,
+   * when multiple sources are available (Multi-SRP).
+   * @returns Compact secp256k1 signature hex.
+   */
+  async #signMessage(
+    message: string,
+    entropySourceId?: string,
+  ): Promise<string> {
+    if (!this.#isUnlocked) {
+      throw new Error('#signMessage - unable to proceed, wallet is locked');
+    }
+
+    const cacheKey = this.#scopedCacheKey(
+      message as `metamask:${string}`,
+      entropySourceId,
+    );
+    if (this.#signMessageCache[cacheKey]) {
+      return this.#signMessageCache[cacheKey];
+    }
+
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const seed = await getHdKeyringSeed(this.messenger, resolvedId);
+    const result = await signMessageWithMessageSigningKey(message, seed);
+
+    this.#signMessageCache[cacheKey] = result;
+
+    return result;
+  }
+
+  public async setIsBackupAndSyncFeatureEnabled(
+    feature: keyof typeof BACKUPANDSYNC_FEATURES,
+    enabled: boolean,
+  ): Promise<void> {
+    try {
+      this.#setIsBackupAndSyncUpdateLoading(true);
+
+      if (enabled) {
+        // If any of the features are enabled, we need to ensure the user is signed in
+        const isSignedIn = this.#auth.isSignedIn();
+        if (!isSignedIn) {
+          await this.#auth.signIn();
+        }
+      }
+
+      this.update((state) => {
+        if (feature === BACKUPANDSYNC_FEATURES.main) {
+          state.isBackupAndSyncEnabled = enabled;
+        }
+
+        if (feature === BACKUPANDSYNC_FEATURES.accountSyncing) {
+          state.isAccountSyncingEnabled = enabled;
+        }
+
+        if (feature === BACKUPANDSYNC_FEATURES.contactSyncing) {
+          state.isContactSyncingEnabled = enabled;
+        }
+      });
+    } catch (e) {
+      // istanbul ignore next
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      // istanbul ignore next
+      throw new Error(
+        `${controllerName} - failed to ${enabled ? 'enable' : 'disable'} ${feature} - ${errorMessage}`,
+      );
+    } finally {
+      this.#setIsBackupAndSyncUpdateLoading(false);
+    }
+  }
+
+  #setIsBackupAndSyncUpdateLoading(
+    isBackupAndSyncUpdateLoading: boolean,
+  ): void {
+    this.update((state) => {
+      state.isBackupAndSyncUpdateLoading = isBackupAndSyncUpdateLoading;
+    });
+  }
+
+  /**
+   * Sets the isContactSyncingInProgress flag to prevent infinite loops during contact synchronization
+   *
+   * @param isContactSyncingInProgress - Whether contact syncing is in progress
+   */
+  async setIsContactSyncingInProgress(
+    isContactSyncingInProgress: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.isContactSyncingInProgress = isContactSyncingInProgress;
+    });
+  }
+
+  /**
+   * Syncs the address book list with the user storage address book list.
+   * This method is used to make sure that the address book list is up-to-date with the user storage address book list and vice-versa.
+   * It will add new contacts to the address book list, update/merge conflicting contacts and re-upload the results in some cases to the user storage.
+   */
+  async syncContactsWithUserStorage(): Promise<void> {
+    const profileId = await this.#auth.getProfileId();
+
+    const config = {
+      onContactUpdated: () => {
+        this.#config?.contactSyncing?.onContactUpdated?.(profileId);
+      },
+      onContactDeleted: () => {
+        this.#config?.contactSyncing?.onContactDeleted?.(profileId);
+      },
+      onContactSyncErroneousSituation: (
+        errorMessage: string,
+        sentryContext?: Record<string, unknown>,
+      ) => {
+        this.#config?.contactSyncing?.onContactSyncErroneousSituation?.(
+          profileId,
+          errorMessage,
+          sentryContext,
+        );
+      },
+    };
+
+    await syncContactsWithUserStorage(config, {
+      getMessenger: () => this.messenger,
+      getUserStorageControllerInstance: () => this,
+      trace: this.#trace,
+    });
+  }
+}

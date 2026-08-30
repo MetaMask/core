@@ -5,7 +5,7 @@ import {
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 
 import type {
   GasFeeEstimates,
@@ -13,7 +13,7 @@ import type {
   EstimatedGasFeeTimeBounds,
   unknownString,
   LegacyGasPriceEstimate,
-} from './GasFeeController';
+} from './GasFeeController.js';
 
 const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
 
@@ -25,7 +25,7 @@ const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
  */
 export function normalizeGWEIDecimalNumbers(n: string | number) {
   const numberAsWEIHex = gweiDecToWEIBN(n).toString(16);
-  const numberAsGWEI = weiHexToGweiDec(numberAsWEIHex).toString(10);
+  const numberAsGWEI = weiHexToGweiDec(numberAsWEIHex);
   return numberAsGWEI;
 }
 

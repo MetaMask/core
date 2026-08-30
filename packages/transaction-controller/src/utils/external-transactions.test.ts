@@ -1,11 +1,14 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import type { TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
-import { validateConfirmedExternalTransaction } from './external-transactions';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus } from '../types.js';
+import { validateConfirmedExternalTransaction } from './external-transactions.js';
 
 describe('validateConfirmedExternalTransaction', () => {
-  const mockTransactionMeta = (status: TransactionStatus, nonce: string) => {
+  const mockTransactionMeta = (
+    status: TransactionStatus,
+    nonce: string,
+  ): TransactionMeta => {
     const meta = {
       status,
       txParams: { nonce },

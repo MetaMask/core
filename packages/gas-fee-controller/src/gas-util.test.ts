@@ -5,8 +5,8 @@ import {
   normalizeGWEIDecimalNumbers,
   fetchGasEstimates,
   calculateTimeEstimate,
-} from './gas-util';
-import type { GasFeeEstimates } from './GasFeeController';
+} from './gas-util.js';
+import type { GasFeeEstimates } from './GasFeeController.js';
 
 const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   {
@@ -206,7 +206,7 @@ describe('gas utils', () => {
         '123456.0000006',
       );
       expect(normalizeGWEIDecimalNumbers(1.000000016025)).toBe('1.000000016');
-      expect(normalizeGWEIDecimalNumbers(1.0000000160000028)).toBe(
+      expect(normalizeGWEIDecimalNumbers('1.0000000160000028')).toBe(
         '1.000000016',
       );
       expect(normalizeGWEIDecimalNumbers(1.000000016522)).toBe('1.000000017');

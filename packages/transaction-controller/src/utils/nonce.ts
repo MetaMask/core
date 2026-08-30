@@ -1,0 +1,131 @@
+import { toHex } from '@metamask/controller-utils';
+import type {
+  NonceLock,
+  Transaction as NonceTrackerTransaction,
+} from '@metamask/nonce-tracker';
+
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { TransactionMeta, TransactionStatus } from '../types.js';
+import { getAuthorizationAuthority } from './eip7702.js';
+
+const log = createModuleLogger(projectLogger, 'nonce');
+
+/**
+ * Determine the next nonce to be used for a transaction.
+ *
+ * @param txMeta - The transaction metadata.
+ * @param getNonceLock - An anonymous function that acquires the nonce lock for an address
+ * @returns The next hexadecimal nonce to be used for the given transaction, and optionally a function to release the nonce lock.
+ */
+export async function getNextNonce(
+  txMeta: TransactionMeta,
+  getNonceLock: (address: string) => Promise<NonceLock>,
+): Promise<[string | undefined, (() => void) | undefined]> {
+  const {
+    customNonceValue,
+    isExternalSign,
+    txParams: { from, nonce: existingNonce },
+  } = txMeta;
+
+  if (isExternalSign) {
+    log('Skipping nonce as signed externally');
+    return [undefined, undefined];
+  }
+
+  const customNonce = customNonceValue ? toHex(customNonceValue) : undefined;
+
+  if (customNonce) {
+    log('Using custom nonce', customNonce);
+    return [customNonce, undefined];
+  }
+
+  if (existingNonce) {
+    log('Using existing nonce', existingNonce);
+    return [existingNonce, undefined];
+  }
+
+  const nonceLock = await getNonceLock(from);
+  const nonce = toHex(nonceLock.nextNonce);
+  const releaseLock = nonceLock.releaseLock.bind(nonceLock);
+
+  log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+
+  return [nonce, releaseLock];
+}
+
+/**
+ * Filter and format transactions for the nonce tracker.
+ *
+ * Includes the outer transaction nonce when `txParams.from` matches, and EIP-7702
+ * authorization nonces only when their recovered authority matches `fromAddress`.
+ * This keeps foreign authorizations (e.g. Money Account upgrades on a same-chain
+ * pay batch) out of the payer's nonce history.
+ *
+ * @param currentChainId - Chain ID of the current network.
+ * @param fromAddress - Address of the account from which the transactions to filter from are sent.
+ * @param transactionStatuses - Status of the transactions for which to filter.
+ * @param transactions - Array of transactionMeta objects that have been prefiltered.
+ * @returns Array of transactions formatted for the nonce tracker.
+ */
+export function getAndFormatTransactionsForNonceTracker(
+  currentChainId: string,
+  fromAddress: string,
+  transactionStatuses: TransactionStatus[],
+  transactions: TransactionMeta[],
+): NonceTrackerTransaction[] {
+  const normalizedFromAddress = fromAddress.toLowerCase();
+
+  return transactions
+    .filter(
+      ({ chainId, isTransfer, isUserOperation, status, txParams: { nonce } }) =>
+        !isTransfer &&
+        !isUserOperation &&
+        chainId === currentChainId &&
+        transactionStatuses.includes(status) &&
+        Boolean(nonce),
+    )
+    .flatMap(({ status, txParams }) => {
+      const { authorizationList, from, gas, value, nonce } = txParams;
+      // the only value we care about is the nonce
+      // but we need to return the other values to satisfy the type
+      // TODO: refactor nonceTracker to not require this
+      /* istanbul ignore next */
+      const toNonceTrackerTransaction = (
+        currentNonce: string,
+        authority: string,
+      ): NonceTrackerTransaction => ({
+        status,
+        history: [{}],
+        txParams: {
+          from: authority,
+          gas: gas ?? '',
+          value: value ?? '',
+          nonce: currentNonce,
+        },
+      });
+
+      const formatted: NonceTrackerTransaction[] = [];
+
+      if (from.toLowerCase() === normalizedFromAddress && nonce) {
+        formatted.push(toNonceTrackerTransaction(nonce, from));
+      }
+
+      for (const authorization of authorizationList ?? []) {
+        if (authorization.nonce === undefined) {
+          continue;
+        }
+
+        const authority = getAuthorizationAuthority(authorization, from);
+
+        if (authority?.toLowerCase() !== normalizedFromAddress) {
+          continue;
+        }
+
+        formatted.push(
+          toNonceTrackerTransaction(authorization.nonce, authority),
+        );
+      }
+
+      return formatted;
+    });
+}

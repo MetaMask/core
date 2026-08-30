@@ -1,10 +1,20 @@
-import type { NetworkClient } from './create-network-client';
-import { createNetworkClient } from './create-network-client';
+import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import { Json } from '@metamask/utils';
+import type { Logger } from 'loglevel';
+
+import type { NetworkClient } from './create-network-client.js';
+import { createNetworkClient } from './create-network-client.js';
+import type {
+  NetworkClientId,
+  NetworkControllerMessenger,
+} from './NetworkController.js';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from './selectors.js';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
   Provider,
-} from './types';
+} from './types.js';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can
@@ -38,6 +48,7 @@ export type AutoManagedNetworkClient<
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
   destroy: () => void;
+  setRpcFailoverMode: (rpcFailoverMode: RpcFailoverMode) => void;
 };
 
 /**
@@ -57,30 +68,86 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * part of the network client is serving as the receiver. The network client is
  * then cached for subsequent usages.
  *
- * @param networkClientConfiguration - The configuration object that will be
+ * @param args - The arguments.
+ * @param args.networkClientId - The ID that will be assigned to the new network
+ * client in the registry.
+ * @param args.networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.getBlockTrackerOptions - Factory for constructing block tracker
+ * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
+ * @param args.messenger - The network controller messenger.
+ * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`,
+ * `enabled` (divert to the failover URLs when the primary is unavailable), or
+ * `forced` (route all traffic for Infura endpoints with failover URLs to those
+ * URLs, bypassing Infura).
+ * @param args.logger - A `loglevel` logger.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
->(
-  networkClientConfiguration: Configuration,
-): AutoManagedNetworkClient<Configuration> {
+>({
+  networkClientId,
+  networkClientConfiguration,
+  getRpcServiceOptions,
+  getBlockTrackerOptions = (): Omit<
+    PollingBlockTrackerOptions,
+    'provider'
+  > => ({}),
+  messenger,
+  rpcFailoverMode: givenRpcFailoverMode,
+  logger,
+}: {
+  networkClientId: NetworkClientId;
+  networkClientConfiguration: Configuration;
+  getRpcServiceOptions?: (
+    rpcEndpointUrl: string,
+  ) => RpcServiceOptionsWithDefaults;
+  getBlockTrackerOptions?: (
+    rpcEndpointUrl: string,
+  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  messenger: NetworkControllerMessenger;
+  rpcFailoverMode: RpcFailoverMode;
+  logger?: Logger;
+}): AutoManagedNetworkClient<Configuration> {
+  let rpcFailoverMode = givenRpcFailoverMode;
   let networkClient: NetworkClient | undefined;
 
+  const ensureNetworkClientCreated = (): NetworkClient => {
+    networkClient ??= createNetworkClient({
+      id: networkClientId,
+      configuration: networkClientConfiguration,
+      getRpcServiceOptions,
+      getBlockTrackerOptions,
+      messenger,
+      rpcFailoverMode,
+      logger,
+    });
+
+    if (networkClient === undefined) {
+      throw new Error(
+        "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
+      );
+    }
+
+    return networkClient;
+  };
+
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
-    get(_target: any, propertyName: PropertyKey, receiver: unknown) {
+    get(
+      _target: unknown,
+      propertyName: PropertyKey,
+      receiver: unknown,
+    ):
+      | Provider
+      | ((this: unknown, ...args: unknown[]) => Promise<Json> | undefined)
+      | undefined {
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient(networkClientConfiguration);
-      if (networkClient === undefined) {
-        throw new Error(
-          "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
-        );
-      }
-      const { provider } = networkClient;
+      const { provider } = ensureNetworkClientCreated();
 
       if (propertyName in provider) {
         // Typecast: We know that `[propertyName]` is a propertyName on
@@ -90,7 +157,7 @@ export function createAutoManagedNetworkClient<
           // Ensure that the method on the provider is called with `this` as
           // the target, *not* the proxy (which happens by default) —
           // this allows private properties to be accessed
-          return function (this: unknown, ...args: any[]) {
+          return function (this: unknown, ...args: unknown[]): Promise<Json> {
             // @ts-expect-error We don't care that `this` may not be compatible
             // with the signature of the method being called, as technically
             // it can be anything.
@@ -103,12 +170,13 @@ export function createAutoManagedNetworkClient<
       return undefined;
     },
 
-    has(_target: any, propertyName: PropertyKey) {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    has(_target: any, propertyName: PropertyKey): boolean {
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient(networkClientConfiguration);
-      const { provider } = networkClient;
+      const { provider } = ensureNetworkClientCreated();
       return propertyName in provider;
     },
   });
@@ -116,18 +184,19 @@ export function createAutoManagedNetworkClient<
   const blockTrackerProxy: ProxyWithAccessibleTarget<BlockTracker> = new Proxy(
     UNINITIALIZED_TARGET,
     {
-      get(_target: any, propertyName: PropertyKey, receiver: unknown) {
+      get(
+        _target: unknown,
+        propertyName: PropertyKey,
+        receiver: unknown,
+      ):
+        | BlockTracker
+        | ((this: unknown, ...args: unknown[]) => unknown)
+        | undefined {
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient(networkClientConfiguration);
-        if (networkClient === undefined) {
-          throw new Error(
-            "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
-          );
-        }
-        const { blockTracker } = networkClient;
+        const { blockTracker } = ensureNetworkClientCreated();
 
         if (propertyName in blockTracker) {
           // Typecast: We know that `[propertyName]` is a propertyName on
@@ -137,7 +206,7 @@ export function createAutoManagedNetworkClient<
             // Ensure that the method on the provider is called with `this` as
             // the target, *not* the proxy (which happens by default) —
             // this allows private properties to be accessed
-            return function (this: unknown, ...args: any[]) {
+            return function (this: unknown, ...args: unknown[]) {
               // @ts-expect-error We don't care that `this` may not be
               // compatible with the signature of the method being called, as
               // technically it can be anything.
@@ -150,19 +219,26 @@ export function createAutoManagedNetworkClient<
         return undefined;
       },
 
-      has(_target: any, propertyName: PropertyKey) {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      has(_target: any, propertyName: PropertyKey): boolean {
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient(networkClientConfiguration);
-        const { blockTracker } = networkClient;
+        const { blockTracker } = ensureNetworkClientCreated();
         return propertyName in blockTracker;
       },
     },
   );
 
-  const destroy = () => {
+  const destroy = (): void => {
     networkClient?.destroy();
+  };
+
+  const setRpcFailoverMode = (newRpcFailoverMode: RpcFailoverMode): void => {
+    rpcFailoverMode = newRpcFailoverMode;
+    destroy();
+    networkClient = undefined;
   };
 
   return {
@@ -170,5 +246,6 @@ export function createAutoManagedNetworkClient<
     provider: providerProxy,
     blockTracker: blockTrackerProxy,
     destroy,
+    setRpcFailoverMode,
   };
 }

@@ -1,8 +1,15 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
-import { v1 as random } from 'uuid';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
+import { Duration, inMilliseconds } from '@metamask/utils';
+import { v4 as uuid } from 'uuid';
 
-import type { Log } from './logTypes';
+import type { LoggingControllerMethodActions } from './LoggingController-method-action-types.js';
+import type { Log } from './logTypes/index.js';
 
 /**
  * LogEntry is the entry that will be added to the logging controller state.
@@ -28,30 +35,37 @@ export type LoggingControllerState = {
 
 const name = 'LoggingController';
 
-/**
- * An action to add log messages to the controller state.
- */
-export type AddLog = {
-  type: `${typeof name}:add`;
-  handler: LoggingController['add'];
-};
+const MESSENGER_EXPOSED_METHODS = ['add', 'clear'] as const;
 
-/**
- * Currently only an alias, but the idea here is if future actions are needed
- * this can transition easily into a union type.
- */
-export type LoggingControllerActions = AddLog;
-
-export type LoggingControllerMessenger = RestrictedControllerMessenger<
+export type LoggingControllerGetStateAction = ControllerGetStateAction<
   typeof name,
-  LoggingControllerActions,
-  never,
-  never,
-  never
+  LoggingControllerState
 >;
 
-const metadata = {
-  logs: { persist: true, anonymous: false },
+export type LoggingControllerActions =
+  | LoggingControllerGetStateAction
+  | LoggingControllerMethodActions;
+
+export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof name,
+  LoggingControllerState
+>;
+
+export type LoggingControllerEvents = LoggingControllerStateChangeEvent;
+
+export type LoggingControllerMessenger = Messenger<
+  typeof name,
+  LoggingControllerActions,
+  LoggingControllerEvents
+>;
+
+const metadata: StateMetadata<LoggingControllerState> = {
+  logs: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
 };
 
 const defaultState = {
@@ -61,24 +75,29 @@ const defaultState = {
 /**
  * Controller that manages a list of logs for signature requests.
  */
-export class LoggingController extends BaseControllerV2<
+export class LoggingController extends BaseController<
   typeof name,
   LoggingControllerState,
   LoggingControllerMessenger
 > {
+  readonly #expiryTime: number;
+
   /**
    * Creates a LoggingController instance.
    *
    * @param options - Constructor options
-   * @param options.messenger - An instance of the ControllerMessenger
+   * @param options.messenger - An instance of the Messenger
    * @param options.state - Initial state to set on this controller.
+   * @param options.expiryTime - The number of milliseconds before we consider a log entry expired.
    */
   constructor({
     messenger,
     state,
+    expiryTime = inMilliseconds(7, Duration.Day),
   }: {
     messenger: LoggingControllerMessenger;
     state?: Partial<LoggingControllerState>;
+    expiryTime?: number;
   }) {
     super({
       name,
@@ -90,27 +109,12 @@ export class LoggingController extends BaseControllerV2<
       },
     });
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:add` as const,
-      (log: Log) => this.add(log),
-    );
-  }
+    this.#expiryTime = expiryTime;
 
-  /**
-   * Method to generate a randomId and ensures no collision with existing ids.
-   *
-   * We may want to end up using a hashing mechanism to make ids deterministic
-   * by the *data* passed in, and then make each key an array of logs that
-   * match that id.
-   *
-   * @returns unique id
-   */
-  #generateId(): string {
-    let id = random();
-    while (id in this.state.logs) {
-      id = random();
-    }
-    return id;
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -120,12 +124,19 @@ export class LoggingController extends BaseControllerV2<
    */
   add(log: Log) {
     const newLog: LogEntry = {
-      id: this.#generateId(),
+      id: uuid(),
       timestamp: Date.now(),
       log,
     };
 
+    const expiry = Date.now() - this.#expiryTime;
+
     this.update((state) => {
+      for (const [id, entry] of Object.entries(state.logs)) {
+        if (entry.timestamp < expiry) {
+          delete state.logs[id];
+        }
+      }
       state.logs[newLog.id] = newLog;
     });
   }

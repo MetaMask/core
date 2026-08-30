@@ -1,0 +1,525 @@
+import { RLP } from '@ethereumjs/rlp';
+import {
+  bigIntToUnpaddedBytes,
+  bytesToHex,
+  ecrecover,
+  hexToBytes,
+  pubToAddress,
+} from '@ethereumjs/util';
+import { defaultAbiCoder } from '@ethersproject/abi';
+import { Contract } from '@ethersproject/contracts';
+import { toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
+import { createModuleLogger, add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+import { keccak256 } from 'ethereum-cryptography/keccak';
+
+import { ABI_IERC7821 } from '../constants.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type {
+  BatchTransactionParams,
+  NestedTransactionUpdate,
+  Authorization,
+  AuthorizationList,
+  TransactionMeta,
+} from '../types.js';
+import {
+  getEIP7702ContractAddresses,
+  getEIP7702SupportedChains,
+} from './feature-flags.js';
+import { rpcRequest } from './provider.js';
+
+export const DELEGATION_PREFIX = '0xef0100';
+export const BATCH_FUNCTION_NAME = 'execute';
+export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
+export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
+
+/** EIP-7702 authorization signature magic prefix. */
+const EIP7702_AUTHORIZATION_MAGIC = 0x05;
+
+/**
+ * ERC-7579 ModeCode encoding for the ERC-7821 `execute` function.
+ *
+ * Layout: | CallType (1 byte) | ExecType (1 byte) | Unused (4 bytes) | ModeSelector (4 bytes) | ModePayload (22 bytes) |
+ *
+ * - CallType 0x01 = batch
+ * - ExecType 0x00 = default (revert on failure)
+ * - ExecType 0x01 = try (skip on failure)
+ */
+const ERC7579_CALL_TYPE_BATCH = '01';
+const ERC7579_EXEC_TYPE_DEFAULT = '00';
+const ERC7579_EXEC_TYPE_TRY = '01';
+
+const log = createModuleLogger(projectLogger, 'eip-7702');
+
+const KEYRING_TYPES_SUPPORTING_7702 = [
+  'HD Key Tree',
+  'Simple Key Pair',
+  'Money Keyring',
+];
+
+/**
+ * Check whether a given account's keyring supports EIP-7702 authorization
+ * signing.
+ *
+ * Looks up the account's keyring via `KeyringController:getState` and returns
+ * `true` only when the keyring type is in the supported list.
+ * Returns `false` when the keyring cannot be resolved.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - The account address to check.
+ * @returns Whether the account supports EIP-7702.
+ */
+export function doesAccountSupportEIP7702(
+  messenger: TransactionControllerMessenger,
+  account: string,
+): boolean {
+  const { keyrings } = messenger.call('KeyringController:getState');
+
+  return keyrings.some(
+    (k: { type: string; accounts: string[] }) =>
+      KEYRING_TYPES_SUPPORTING_7702.includes(k.type) &&
+      k.accounts.some((a: string) => a.toLowerCase() === account.toLowerCase()),
+  );
+}
+
+/**
+ * Determine if a chain supports EIP-7702 using LaunchDarkly feature flag.
+ *
+ * @param chainId - Hexadecimal ID of the chain.
+ * @param messenger - Messenger instance.
+ * @returns True if the chain supports EIP-7702.
+ */
+export function doesChainSupportEIP7702(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const supportedChains = getEIP7702SupportedChains(messenger);
+
+  return supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === chainId.toLowerCase(),
+  );
+}
+
+/**
+ * Retrieve the delegation address for an account.
+ *
+ * @param address - The address to check.
+ * @param messenger - The TransactionController messenger.
+ * @param networkClientId - The network client ID to use.
+ * @returns  The delegation address if it exists.
+ */
+export async function getDelegationAddress(
+  address: Hex,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+): Promise<Hex | undefined> {
+  const code = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  })) as string;
+  const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
+
+  const hasDelegation =
+    code?.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
+
+  return hasDelegation
+    ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
+    : undefined;
+}
+
+/**
+ * Determine if an account has been upgraded to a supported EIP-7702 contract.
+ *
+ * @param address - The EOA address to check.
+ * @param chainId - The chain ID.
+ * @param publicKey - Public key used to validate EIP-7702 contract signatures in feature flags.
+ * @param messenger - The messenger instance.
+ * @param networkClientId - The network client ID to use.
+ * @returns An object with the results of the check.
+ */
+export async function isAccountUpgradedToEIP7702(
+  address: Hex,
+  chainId: Hex,
+  publicKey: Hex,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+): Promise<{
+  delegationAddress: Hex | undefined;
+  isSupported: boolean;
+}> {
+  const contractAddresses = getEIP7702ContractAddresses(
+    chainId,
+    messenger,
+    publicKey,
+  );
+
+  const delegationAddress = await getDelegationAddress(
+    address,
+    messenger,
+    networkClientId,
+  );
+
+  const isSupported = Boolean(
+    delegationAddress &&
+    contractAddresses.some(
+      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
+    ),
+  );
+
+  return {
+    delegationAddress,
+    isSupported,
+  };
+}
+
+/**
+ * Update indexed transactions in an EIP-7702 batch and regenerate its calldata.
+ *
+ * @param options - Update options.
+ * @param options.from - The sender address.
+ * @param options.transactions - The existing nested transactions.
+ * @param options.updates - Indexed calldata updates.
+ * @returns Updated nested transactions and regenerated batch calldata.
+ */
+export function updateEIP7702BatchData({
+  from,
+  transactions,
+  updates,
+}: {
+  from: Hex;
+  transactions: BatchTransactionParams[];
+  updates: NestedTransactionUpdate[];
+}): {
+  nestedTransactions: BatchTransactionParams[];
+  transactionData: Hex;
+} {
+  const updatesByIndex = new Map<number, Hex>();
+
+  for (const { transactionIndex, transactionData } of updates) {
+    if (updatesByIndex.has(transactionIndex)) {
+      throw new Error(
+        `Duplicate nested transaction index - ${transactionIndex}`,
+      );
+    }
+
+    if (!transactions[transactionIndex]) {
+      throw new Error(
+        `Nested transaction not found with index - ${transactionIndex}`,
+      );
+    }
+
+    updatesByIndex.set(transactionIndex, transactionData);
+  }
+
+  const nestedTransactions = transactions.map((transaction, index) => {
+    const transactionData = updatesByIndex.get(index);
+
+    return {
+      ...transaction,
+      ...(transactionData === undefined ? {} : { data: transactionData }),
+    };
+  });
+  const batchTransaction = generateEIP7702BatchTransaction(
+    from,
+    nestedTransactions,
+  );
+
+  return {
+    nestedTransactions,
+    transactionData: batchTransaction.data as Hex,
+  };
+}
+
+/**
+ * Generate an EIP-7702 batch transaction.
+ *
+ * @param from - The sender address.
+ * @param transactions - The transactions to batch.
+ * @param options - Options bag.
+ * @param options.atomic - Whether the batch should be atomic. Defaults to `true`.
+ * When `true`, uses ERC-7579 ExecType `default` and all calls revert together.
+ * When `false`, uses ERC-7579 ExecType `try` and individual calls can fail independently.
+ * @returns The batch transaction.
+ */
+export function generateEIP7702BatchTransaction(
+  from: Hex,
+  transactions: BatchTransactionParams[],
+  options?: { atomic?: boolean },
+): BatchTransactionParams {
+  const atomic = options?.atomic ?? true;
+  const erc7821Contract = Contract.getInterface(ABI_IERC7821);
+
+  const calls = transactions.map((transaction) => {
+    const { data, to, value } = transaction;
+
+    return [
+      to ?? '0x0000000000000000000000000000000000000000',
+      value ?? '0x0',
+      data ?? '0x',
+    ];
+  });
+
+  const execType = atomic ? ERC7579_EXEC_TYPE_DEFAULT : ERC7579_EXEC_TYPE_TRY;
+  const mode = `0x${ERC7579_CALL_TYPE_BATCH}${execType}`.padEnd(66, '0');
+
+  const callData = defaultAbiCoder.encode([CALLS_SIGNATURE], [calls]);
+
+  const data = erc7821Contract.encodeFunctionData(BATCH_FUNCTION_NAME, [
+    mode,
+    callData,
+  ]) as Hex;
+
+  log('Transaction data', data);
+
+  return {
+    data,
+    to: from,
+  };
+}
+
+/**
+ * Sign an authorization list.
+ *
+ * @param options - Options bag.
+ * @param options.authorizationList - The authorization list to sign.
+ * @param options.messenger - The controller messenger.
+ * @param options.transactionMeta - The transaction metadata.
+ * @returns The signed authorization list.
+ */
+export async function signAuthorizationList({
+  authorizationList,
+  messenger,
+  transactionMeta,
+}: {
+  authorizationList?: AuthorizationList;
+  messenger: TransactionControllerMessenger;
+  transactionMeta: TransactionMeta;
+}): Promise<Required<AuthorizationList | undefined>> {
+  if (!authorizationList) {
+    return undefined;
+  }
+
+  const signedAuthorizationList: Required<AuthorizationList> = [];
+  let index = 0;
+
+  for (const authorization of authorizationList) {
+    const signedAuthorization = await signAuthorization(
+      authorization,
+      transactionMeta,
+      messenger,
+      index,
+    );
+
+    signedAuthorizationList.push(signedAuthorization);
+    index += 1;
+  }
+
+  return signedAuthorizationList;
+}
+
+/**
+ * Decode a 65-byte EIP-7702 authorization signature into RLP-canonical
+ * `r`, `s`, and `yParity` (no leading zero nibbles, `0x0` for zero).
+ *
+ * @param signature - The 65-byte signature.
+ * @returns The decoded authorization fields.
+ */
+export function decodeAuthorizationSignature(signature: Hex): {
+  r: Hex;
+  s: Hex;
+  yParity: Hex;
+} {
+  // eslint-disable-next-line id-length
+  const r = toCanonicalHex(signature.slice(0, 66));
+  // eslint-disable-next-line id-length
+  const s = toCanonicalHex(signature.slice(66, 130));
+  // eslint-disable-next-line id-length
+  const v = parseInt(signature.slice(130, 132), 16);
+  const yParity = toCanonicalHex(toHex(v - 27 === 0 ? 0 : 1));
+
+  return { r, s, yParity };
+}
+
+/**
+ * Strip leading zero nibbles from a hex string to produce its RLP-canonical
+ * form. Accepts input with or without a `0x` prefix; always returns
+ * `0x`-prefixed. An all-zero input is preserved as `0x0`.
+ *
+ * @param value - Hex string with or without a `0x` prefix.
+ * @returns The canonical `0x`-prefixed hex string.
+ */
+function toCanonicalHex(value: string): Hex {
+  const raw = value.startsWith('0x') ? value.slice(2) : value;
+  const stripped = raw.replace(/^0+/u, '');
+  return stripped.length === 0 ? '0x0' : `0x${stripped}`;
+}
+
+/**
+ * Signs an authorization.
+ *
+ * @param authorization - The authorization to sign.
+ * @param transactionMeta - The associated transaction metadata.
+ * @param messenger - The messenger to use for signing.
+ * @param index - The index of the authorization in the list.
+ * @returns The signed authorization.
+ */
+async function signAuthorization(
+  authorization: Authorization,
+  transactionMeta: TransactionMeta,
+  messenger: TransactionControllerMessenger,
+  index: number,
+): Promise<Required<Authorization>> {
+  // Retain pre-signed authorizations (e.g. Money Account upgrades signed by an
+  // account other than `txParams.from`) instead of re-signing with `from`.
+  if (isAuthorizationSigned(authorization)) {
+    log('Retaining pre-signed authorization', authorization);
+    return authorization;
+  }
+
+  const finalAuthorization = prepareAuthorization(
+    authorization,
+    transactionMeta,
+    index,
+  );
+
+  const { txParams } = transactionMeta;
+  const { from } = txParams;
+  const { address, chainId, nonce } = finalAuthorization;
+  const chainIdDecimal = parseInt(chainId, 16);
+  const nonceDecimal = parseInt(nonce, 16);
+
+  const signature = await messenger.call(
+    'KeyringController:signEip7702Authorization',
+    {
+      chainId: chainIdDecimal,
+      contractAddress: address,
+      from,
+      nonce: nonceDecimal,
+    },
+  );
+
+  const { r, s, yParity } = decodeAuthorizationSignature(signature as Hex);
+
+  const result: Required<Authorization> = {
+    address,
+    chainId,
+    nonce,
+    r,
+    s,
+    yParity,
+  };
+
+  log('Signed authorization', result);
+
+  return result;
+}
+
+/**
+ * Whether an authorization already includes a complete EIP-7702 signature.
+ *
+ * @param authorization - Authorization to check.
+ * @returns True when chainId, nonce, and signature components are all present.
+ */
+export function isAuthorizationSigned(
+  authorization: Authorization,
+): authorization is Required<Authorization> {
+  return Boolean(
+    authorization.chainId &&
+    authorization.nonce !== undefined &&
+    authorization.r &&
+    authorization.s &&
+    authorization.yParity !== undefined,
+  );
+}
+
+/**
+ * Recover the authority (signer) of a fully signed EIP-7702 authorization.
+ *
+ * Per EIP-7702: `authority = ecrecover(keccak(MAGIC || rlp([chain_id, address, nonce])), y_parity, r, s)`.
+ *
+ * @param authorization - Fully signed authorization.
+ * @returns The recovered authority address, or undefined if recovery fails.
+ */
+export function recoverAuthorizationAuthority(
+  authorization: Required<Authorization>,
+): Hex | undefined {
+  try {
+    const chainIdBytes = bigIntToUnpaddedBytes(BigInt(authorization.chainId));
+    const addressBytes = hexToBytes(authorization.address);
+    const nonceBytes = bigIntToUnpaddedBytes(BigInt(authorization.nonce));
+    const rlpEncoded = RLP.encode([chainIdBytes, addressBytes, nonceBytes]);
+    const messageHash = keccak256(
+      Uint8Array.from([EIP7702_AUTHORIZATION_MAGIC, ...rlpEncoded]),
+    );
+    const publicKey = ecrecover(
+      messageHash,
+      BigInt(authorization.yParity),
+      bigIntToUnpaddedBytes(BigInt(authorization.r)),
+      bigIntToUnpaddedBytes(BigInt(authorization.s)),
+    );
+
+    return bytesToHex(pubToAddress(publicKey));
+  } catch (error) {
+    log('Failed to recover authorization authority', { authorization, error });
+    return undefined;
+  }
+}
+
+/**
+ * Resolve which account an authorization nonce belongs to for nonce tracking.
+ *
+ * Unsigned authorizations are signed by the outer transaction sender (`from`).
+ * Signed authorizations recover their authority independently per EIP-7702.
+ *
+ * @param authorization - Authorization entry.
+ * @param transactionFrom - Outer transaction sender.
+ * @returns Authority address, or undefined when a signed auth cannot be recovered.
+ */
+export function getAuthorizationAuthority(
+  authorization: Authorization,
+  transactionFrom: string,
+): Hex | undefined {
+  if (!isAuthorizationSigned(authorization)) {
+    return transactionFrom as Hex;
+  }
+
+  return recoverAuthorizationAuthority(authorization);
+}
+
+/**
+ * Prepares an authorization for signing by populating the chainId and nonce.
+ *
+ * @param authorization - The authorization to prepare.
+ * @param transactionMeta - The associated transaction metadata.
+ * @param index - The index of the authorization in the list.
+ * @returns The prepared authorization.
+ */
+function prepareAuthorization(
+  authorization: Authorization,
+  transactionMeta: TransactionMeta,
+  index: number,
+): Authorization & { chainId: Hex; nonce: Hex } {
+  const { chainId: existingChainId, nonce: existingNonce } = authorization;
+  const { txParams, chainId: transactionChainId } = transactionMeta;
+  const { nonce: transactionNonce } = txParams;
+
+  const chainId = existingChainId ?? transactionChainId;
+  let nonce = existingNonce;
+
+  nonce ??= toHex(parseInt(transactionNonce as string, 16) + 1 + index);
+
+  const result = {
+    ...authorization,
+    chainId,
+    nonce,
+  };
+
+  log('Prepared authorization', result);
+
+  return result;
+}

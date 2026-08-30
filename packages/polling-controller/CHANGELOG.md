@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -6,22 +7,397 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0]
 ### Added
+
+- Export `AbstractPollingControllerBaseMixin`, `getKey`, `Constructor`, and `PollingTokenSetId` ([#9882](https://github.com/MetaMask/core/pull/9882))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+
+### Removed
+
+- **BREAKING:** Remove `BlockTrackerPollingController` and `BlockTrackerPollingControllerOnly` ([#9882](https://github.com/MetaMask/core/pull/9882))
+
+## [16.0.9]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [16.0.8]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [16.0.7]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Drop `@metamask/controller-utils` dependency, which was no longer used in source ([#9058](https://github.com/MetaMask/core/pull/9058), [#9064](https://github.com/MetaMask/core/pull/9064))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [16.0.6]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [16.0.5]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^12.0.0` ([#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^31.0.0` ([#8636](https://github.com/MetaMask/core/pull/8636), [#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [16.0.4]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [16.0.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [16.0.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [16.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
+  - The dependencies moved are:
+    - `@metamask/network-controller` (^28.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [16.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` for `StaticIntervalPollingController` and `BlockTrackerPollingController` ([#6444](https://github.com/MetaMask/core/pull/6444))
+  - Previously, `StaticIntervalPollingController` and `BlockTrackerPollingController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [14.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [14.0.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.1` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.14.1` ([#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^24.0.0` ([#5999](https://github.com/MetaMask/core/pull/5999))
+- Bump `@metamask/base-controller` to `^8.0.1` ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- Bump `@metamask/controller-utils` to `^11.5.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- Bump `@metamask/utils` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+## [12.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Removed
+
+- **BREAKING:** Remove `BlockTrackerPollingControllerV1`, `StaticIntervalPollingControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.4` ([#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `fast-json-stable-stringify`
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.2` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING**: `AbstractPollingController` now accepts a generic type parameter `PollingInput` which is polymorphic, unlike the previous monomorphic required input of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+
+## [10.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [9.0.1]
+
+### Changed
+
+- Remove `@metamask/network-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+  - This was listed under `peerDependencies` already, so it was redundant as a dependency.
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Fixed
+
+- `StaticIntervalPollingControllerOnly`, `StaticIntervalPollingController`, and `StaticIntervalPollingControllerV1` now properly stops polling when a stop is requested while `_executePoll` has not yet resolved for the current loop ([#4230](https://github.com/MetaMask/core/pull/4230))
+
+## [6.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+- Bump `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+- Bump `@metamask/controller-utils` to `^9.1.0` ([#4153](https://github.com/MetaMask/core/pull/4153), [#4065](https://github.com/MetaMask/core/pull/4065))
+
+## [6.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+## [5.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^17.2.0` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` dependency and peer dependency from `^17.0.0` to `^17.1.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678))
+
+## [3.0.0]
+
+### Added
+
+- `BlockTrackerPollingController`, `BlockTrackerPollingControllerV1` and `BlockTrackerPollingControllerOnly` have been added and can be used by subclasses to poll with a blockTracker using the same API as the `StaticIntervalPollingController` versions - the only exception is the requirement to implement the abstract method `_getNetworkClientById` on subclasses.
+
+### Changed
+
+- **BREAKING:** `PollingController`, `PollingControllerV1` and `PollingControllerOnly` are all removed and replaced by `StaticIntervalPollingController`, `StaticIntervalPollingControllerV1` and `StaticIntervalPollingControllerOnly` ([#3636](https://github.com/MetaMask/core/pull/3636))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [1.0.2]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
+## [1.0.1]
+
+### Fixed
+
+- Export `PollingControllerOnly` ([#1921](https://github.com/MetaMask/core/pull/1921))
+
+## [1.0.0]
+
+### Added
+
+- Add `PollingControllerOnly` to extend from an empty class. This will allow classes that previously are just classes that don't extend from BaseV1 or V2 to extend from this new `PollingControllerOnly`. ([#1873](https://github.com/MetaMask/core/pull/1873))
+
+### Changed
+
+- **BREAKING:** `_executePoll()` is called immediately on start if no polling interval is already active for the networkClientId + options combination ([#1874](https://github.com/MetaMask/core/pull/1874))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+
+## [0.2.0]
+
+### Added
+
 - Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
   - Add optional second argument to `stopPollingByPollingToken` (formerly `stopPollingByNetworkClientId`)
   - Add optional second argument to `onPollingCompleteByNetworkClientId`
 
 ### Changed
+
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
 - **BREAKING:** Polling controllers are expected to override `_executePoll` instead of `executePoll` ([#1810](https://github.com/MetaMask/core/pull/1810))
 - **BREAKING:** Rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
 - Add dependency on `fast-json-stable-stringify` ^2.1.0
 
 ## [0.1.0]
+
 ### Added
+
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.9...HEAD
+[16.0.9]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.8...@metamask/polling-controller@16.0.9
+[16.0.8]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.7...@metamask/polling-controller@16.0.8
+[16.0.7]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.6...@metamask/polling-controller@16.0.7
+[16.0.6]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.5...@metamask/polling-controller@16.0.6
+[16.0.5]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.4...@metamask/polling-controller@16.0.5
+[16.0.4]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.3...@metamask/polling-controller@16.0.4
+[16.0.3]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.2...@metamask/polling-controller@16.0.3
+[16.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.1...@metamask/polling-controller@16.0.2
+[16.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.0...@metamask/polling-controller@16.0.1
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@15.0.0...@metamask/polling-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.2...@metamask/polling-controller@15.0.0
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.1...@metamask/polling-controller@14.0.2
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@14.0.0...@metamask/polling-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@13.0.0...@metamask/polling-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.3...@metamask/polling-controller@13.0.0
+[12.0.3]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.2...@metamask/polling-controller@12.0.3
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.1...@metamask/polling-controller@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.0...@metamask/polling-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@11.0.0...@metamask/polling-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...@metamask/polling-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.0...@metamask/polling-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.1...@metamask/polling-controller@10.0.0
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.0...@metamask/polling-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@8.0.0...@metamask/polling-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@7.0.0...@metamask/polling-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.2...@metamask/polling-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.1...@metamask/polling-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.0...@metamask/polling-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.1...@metamask/polling-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.0...@metamask/polling-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@4.0.0...@metamask/polling-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@3.0.0...@metamask/polling-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...@metamask/polling-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.2...@metamask/polling-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.1...@metamask/polling-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.0...@metamask/polling-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.2.0...@metamask/polling-controller@1.0.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.1.0...@metamask/polling-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/polling-controller@0.1.0

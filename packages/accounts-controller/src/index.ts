@@ -1,2 +1,48 @@
-export * from './AccountsController';
-export * from './utils';
+export type {
+  AccountId,
+  AccountsControllerState,
+  AccountsControllerGetStateAction,
+  AllowedActions,
+  AccountsControllerActions,
+  AccountsControllerChangeEvent,
+  AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSelectedEvmAccountChangeEvent,
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountsRemovedEvent,
+  AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountBalancesUpdatesEvent,
+  AccountsControllerAccountTransactionsUpdatedEvent,
+  AccountsControllerAccountAssetListUpdatedEvent,
+  AllowedEvents,
+  AccountsControllerEvents,
+  AccountsControllerMessenger,
+} from './AccountsController.js';
+export type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountsAction,
+  AccountsControllerListAccountsAction,
+  AccountsControllerListMultichainAccountsAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerSetSelectedAccountAction,
+  AccountsControllerSetAccountNameAction,
+  AccountsControllerSetAccountNameAndSelectAccountAction,
+  AccountsControllerUpdateAccountMetadataAction,
+  AccountsControllerUpdateAccountsAction,
+  AccountsControllerLoadBackupAction,
+  AccountsControllerClearStateAction,
+} from './AccountsController-method-action-types.js';
+export {
+  EMPTY_ACCOUNT,
+  AccountsController,
+  getDefaultAccountsControllerState,
+} from './AccountsController.js';
+export {
+  keyringTypeToName,
+  getUUIDOptionsFromAddressOfNormalAccount,
+  getUUIDFromAddressOfNormalAccount,
+  isNormalKeyringType,
+} from './utils.js';

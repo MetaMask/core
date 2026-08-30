@@ -1,6 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
-import type { Patch } from 'immer';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
+
+import type { AnnouncementControllerMethodActions } from './AnnouncementController-method-action-types.js';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
@@ -36,45 +42,48 @@ export type AnnouncementControllerState = {
 };
 
 export type AnnouncementControllerActions =
-  AnnouncementControllerGetStateAction;
+  | AnnouncementControllerGetStateAction
+  | AnnouncementControllerMethodActions;
 export type AnnouncementControllerEvents =
   AnnouncementControllerStateChangeEvent;
 
-export type AnnouncementControllerGetStateAction = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => AnnouncementControllerState;
-};
+export type AnnouncementControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AnnouncementControllerState
+>;
 
-export type AnnouncementControllerStateChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [AnnouncementControllerState, Patch[]];
-};
+export type AnnouncementControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AnnouncementControllerState
+>;
 
 const controllerName = 'AnnouncementController';
+
+const MESSENGER_EXPOSED_METHODS = ['resetViewed', 'updateViewed'] as const;
 
 const defaultState = {
   announcements: {},
 };
 
-const metadata = {
+const metadata: StateMetadata<AnnouncementControllerState> = {
   announcements: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
 };
 
-export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
+export type AnnouncementControllerMessenger = Messenger<
   typeof controllerName,
   AnnouncementControllerActions,
-  AnnouncementControllerEvents,
-  never,
-  never
+  AnnouncementControllerEvents
 >;
 
 /**
  * Controller for managing in-app announcements.
  */
-export class AnnouncementController extends BaseControllerV2<
+export class AnnouncementController extends BaseController<
   typeof controllerName,
   AnnouncementControllerState,
   AnnouncementControllerMessenger
@@ -98,6 +107,10 @@ export class AnnouncementController extends BaseControllerV2<
   }) {
     const mergedState = { ...defaultState, ...state };
     super({ messenger, metadata, name: controllerName, state: mergedState });
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
     this.#addAnnouncements(allAnnouncements);
   }
 
@@ -116,6 +129,17 @@ export class AnnouncementController extends BaseControllerV2<
           announcement.id
         ] ?? { ...announcement, isShown: false };
       });
+    });
+  }
+
+  /**
+   * Resets the isShown status for all announcements
+   */
+  resetViewed(): void {
+    this.update(({ announcements }) => {
+      for (const announcement of Object.values(announcements)) {
+        announcement.isShown = false;
+      }
     });
   }
 

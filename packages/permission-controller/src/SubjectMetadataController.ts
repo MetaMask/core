@@ -1,15 +1,26 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
-import type { Patch } from 'immer';
 
+import type { PermissionControllerHasPermissionsAction } from './PermissionController-method-action-types.js';
 import type {
   GenericPermissionController,
-  HasPermissions,
   PermissionSubjectMetadata,
-} from './PermissionController';
+} from './PermissionController.js';
+import type { SubjectMetadataControllerMethodActions } from './SubjectMetadataController-method-action-types.js';
 
 const controllerName = 'SubjectMetadataController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'clearState',
+  'addSubjectMetadata',
+  'getSubjectMetadata',
+  'trimMetadataState',
+] as const;
 
 type SubjectOrigin = string;
 
@@ -27,7 +38,6 @@ export enum SubjectType {
 
 export type SubjectMetadata = PermissionSubjectMetadata & {
   [key: string]: Json;
-  // TODO:TS4.4 make optional
   name: string | null;
   subjectType: SubjectType | null;
   extensionId: string | null;
@@ -46,42 +56,61 @@ export type SubjectMetadataControllerState = {
 };
 
 const stateMetadata = {
-  subjectMetadata: { persist: true, anonymous: false },
+  subjectMetadata: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState: SubjectMetadataControllerState = {
   subjectMetadata: {},
 };
 
-export type GetSubjectMetadataState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => SubjectMetadataControllerState;
-};
+export type SubjectMetadataControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  SubjectMetadataControllerState
+>;
 
+/**
+ * @deprecated Use `SubjectMetadataControllerGetStateAction` instead.
+ */
+export type GetSubjectMetadataState = SubjectMetadataControllerGetStateAction;
+
+/**
+ * @deprecated Use `SubjectMetadataControllerGetSubjectMetadataAction` instead.
+ */
 export type GetSubjectMetadata = {
   type: `${typeof controllerName}:getSubjectMetadata`;
   handler: (origin: SubjectOrigin) => SubjectMetadata | undefined;
 };
 
-export type SubjectMetadataControllerActions =
-  | GetSubjectMetadataState
-  | GetSubjectMetadata;
-
-export type SubjectMetadataStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [SubjectMetadataControllerState, Patch[]];
+/**
+ * @deprecated Use `SubjectMetadataControllerAddSubjectMetadataAction` instead.
+ */
+export type AddSubjectMetadata = {
+  type: `${typeof controllerName}:addSubjectMetadata`;
+  handler: (metadata: SubjectMetadataToAdd) => void;
 };
+
+export type SubjectMetadataControllerActions =
+  | SubjectMetadataControllerGetStateAction
+  | SubjectMetadataControllerMethodActions;
+
+export type SubjectMetadataStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  SubjectMetadataControllerState
+>;
 
 export type SubjectMetadataControllerEvents = SubjectMetadataStateChange;
 
-type AllowedActions = HasPermissions;
+type AllowedActions = PermissionControllerHasPermissionsAction;
 
-export type SubjectMetadataControllerMessenger = RestrictedControllerMessenger<
+export type SubjectMetadataControllerMessenger = Messenger<
   typeof controllerName,
   SubjectMetadataControllerActions | AllowedActions,
-  SubjectMetadataControllerEvents,
-  AllowedActions['type'],
-  never
+  SubjectMetadataControllerEvents
 >;
 
 type SubjectMetadataControllerOptions = {
@@ -94,16 +123,16 @@ type SubjectMetadataControllerOptions = {
  * A controller for storing metadata associated with permission subjects. More
  * or less, a cache.
  */
-export class SubjectMetadataController extends BaseControllerV2<
+export class SubjectMetadataController extends BaseController<
   typeof controllerName,
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger
 > {
-  private readonly subjectCacheLimit: number;
+  readonly #subjectCacheLimit: number;
 
-  private readonly subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
+  readonly #subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
 
-  private readonly subjectHasPermissions: GenericPermissionController['hasPermissions'];
+  readonly #subjectHasPermissions: GenericPermissionController['hasPermissions'];
 
   constructor({
     messenger,
@@ -116,7 +145,7 @@ export class SubjectMetadataController extends BaseControllerV2<
       );
     }
 
-    const hasPermissions = (origin: string) => {
+    const hasPermissions = (origin: string): boolean => {
       return messenger.call('PermissionController:hasPermissions', origin);
     };
 
@@ -125,17 +154,17 @@ export class SubjectMetadataController extends BaseControllerV2<
       metadata: stateMetadata,
       messenger,
       state: {
-        ...SubjectMetadataController.getTrimmedState(state, hasPermissions),
+        ...SubjectMetadataController.#getTrimmedState(state, hasPermissions),
       },
     });
 
-    this.subjectHasPermissions = hasPermissions;
-    this.subjectCacheLimit = subjectCacheLimit;
-    this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
+    this.#subjectHasPermissions = hasPermissions;
+    this.#subjectCacheLimit = subjectCacheLimit;
+    this.#subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
 
-    this.messagingSystem.registerActionHandler(
-      `${this.name}:getSubjectMetadata`,
-      this.getSubjectMetadata.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -144,7 +173,7 @@ export class SubjectMetadataController extends BaseControllerV2<
    * encountered since startup, so as to not prematurely reach the cache limit.
    */
   clearState(): void {
-    this.subjectsWithoutPermissionsEncounteredSinceStartup.clear();
+    this.#subjectsWithoutPermissionsEncounteredSinceStartup.clear();
     this.update((_draftState) => {
       return { ...defaultState };
     });
@@ -166,38 +195,38 @@ export class SubjectMetadataController extends BaseControllerV2<
     const { origin } = metadata;
     const newMetadata: SubjectMetadata = {
       ...metadata,
-      extensionId: metadata.extensionId || null,
-      iconUrl: metadata.iconUrl || null,
-      name: metadata.name || null,
-      subjectType: metadata.subjectType || null,
+      extensionId: metadata.extensionId ?? null,
+      iconUrl: metadata.iconUrl ?? null,
+      name: metadata.name ?? null,
+      subjectType: metadata.subjectType ?? null,
     };
 
     let originToForget: string | null = null;
     // We only delete the oldest encountered subject from the cache, again to
     // ensure that the user's experience isn't degraded by missing icons etc.
     if (
-      this.subjectsWithoutPermissionsEncounteredSinceStartup.size >=
-      this.subjectCacheLimit
+      this.#subjectsWithoutPermissionsEncounteredSinceStartup.size >=
+      this.#subjectCacheLimit
     ) {
       const cachedOrigin =
-        this.subjectsWithoutPermissionsEncounteredSinceStartup
+        this.#subjectsWithoutPermissionsEncounteredSinceStartup
           .values()
           .next().value;
 
-      this.subjectsWithoutPermissionsEncounteredSinceStartup.delete(
+      this.#subjectsWithoutPermissionsEncounteredSinceStartup.delete(
         cachedOrigin,
       );
 
-      if (!this.subjectHasPermissions(cachedOrigin)) {
+      if (!this.#subjectHasPermissions(cachedOrigin)) {
         originToForget = cachedOrigin;
       }
     }
 
-    this.subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
+    this.#subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
-      draftState.subjectMetadata[origin] = newMetadata as any;
+      // @ts-expect-error TS2589: Type instantiation is excessively deep and possibly infinite
+      draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
       }
@@ -218,11 +247,10 @@ export class SubjectMetadataController extends BaseControllerV2<
    * Deletes all subjects without permissions from the controller's state.
    */
   trimMetadataState(): void {
-    this.update((draftState) => {
-      return SubjectMetadataController.getTrimmedState(
-        // Typecast: ts(2589)
-        draftState as any,
-        this.subjectHasPermissions,
+    this.update(() => {
+      return SubjectMetadataController.#getTrimmedState(
+        this.state,
+        this.#subjectHasPermissions,
       );
     });
   }
@@ -240,9 +268,9 @@ export class SubjectMetadataController extends BaseControllerV2<
    * subject metadata, the returned object will be equivalent to the default
    * state of this controller.
    */
-  private static getTrimmedState(
+  static #getTrimmedState(
     state: Partial<SubjectMetadataControllerState>,
-    hasPermissions: SubjectMetadataController['subjectHasPermissions'],
+    hasPermissions: GenericPermissionController['hasPermissions'],
   ): SubjectMetadataControllerState {
     const { subjectMetadata = {} } = state;
 

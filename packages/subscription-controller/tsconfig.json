@@ -1,0 +1,30 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../base-data-service"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

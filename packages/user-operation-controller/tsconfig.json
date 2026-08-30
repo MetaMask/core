@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../gas-fee-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../approval-controller"
+    },
+    {
+      "path": "../eth-block-tracker"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

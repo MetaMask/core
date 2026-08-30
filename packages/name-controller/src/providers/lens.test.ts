@@ -1,6 +1,6 @@
-import { NameType } from '../types';
-import { graphQL } from '../util';
-import { LensNameProvider } from './lens';
+import { NameType } from '../types.js';
+import { graphQL } from '../util.js';
+import { LensNameProvider } from './lens.js';
 
 jest.mock('../util');
 
@@ -12,10 +12,6 @@ const HANDLE_2_MOCK = 'TestHandle2';
 
 describe('LensNameProvider', () => {
   const graphqlMock = jest.mocked(graphQL);
-
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
 
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {

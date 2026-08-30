@@ -1,145 +1,189 @@
+/* eslint-disable jest/unbound-method */
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable camelcase */
 /* eslint-disable jest/expect-expect */
+
 import type {
-  AcceptResultCallbacks,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
-  NetworksTicker,
   toHex,
-  BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import HttpProvider from '@metamask/ethjs-provider-http';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import type {
   BlockTracker,
+  NetworkClientConfiguration,
+  NetworkClientId,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import HttpProvider from 'ethjs-provider-http';
-import NonceTracker from 'nonce-tracker';
+import {
+  NetworkStatus,
+  getDefaultNetworkControllerState,
+} from '@metamask/network-controller';
+import { errorCodes, providerErrors } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
+import assert from 'assert';
+// Necessary for mocking
+// eslint-disable-next-line import-x/namespace
+import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { mockNetwork } from '../../../tests/mock-network';
-import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
-import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import { flushPromises, jestAdvanceTime } from '../../../tests/helpers.js';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers.js';
+import { CHAIN_IDS } from './constants.js';
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow.js';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow.js';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow.js';
+import {
+  updateTransactionGasEstimates,
+  GasFeePoller,
+} from './helpers/GasFeePoller.js';
+import { MethodDataHelper } from './helpers/MethodDataHelper.js';
+import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper.js';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker.js';
+import {
+  RESIMULATE_INTERVAL_MS,
+  shouldResimulate,
+} from './helpers/ResimulateHelper.js';
+import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook.js';
 import type {
+  MethodData,
   TransactionControllerMessenger,
-  TransactionConfig,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
-import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import { WalletDevice, TransactionStatus, TransactionType } from './types';
-import { estimateGas, updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gas-fees';
+  TransactionControllerOptions,
+} from './TransactionController.js';
+import { TransactionController } from './TransactionController.js';
+import type {
+  TransactionMeta,
+  DappSuggestedGasFees,
+  TransactionParams,
+  TransactionError,
+  GasFeeFlow,
+  GasFeeFlowResponse,
+  SubmitHistoryEntry,
+  InternalAccount,
+  PublishHook,
+  GasFeeToken,
+  GasFeeEstimates,
+  SimulationData,
+  GetSimulationConfig,
+} from './types.js';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  SimulationErrorCode,
+  SimulationTokenStandard,
+  TransactionContainerType,
+  TransactionEnvelopeType,
+  TransactionStatus,
+  TransactionType,
+  WalletDevice,
+} from './types.js';
+import { getBalanceChanges } from './utils/balance-changes.js';
+import { addTransactionBatch } from './utils/batch.js';
+import { getDelegationAddress } from './utils/eip7702.js';
+import {
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
+} from './utils/feature-flags.js';
+import { updateFirstTimeInteraction } from './utils/first-time-interaction.js';
+import { getGasFeeTokens } from './utils/gas-fee-tokens.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { getGasFeeFlow } from './utils/gas-flow.js';
+import {
+  addGasBuffer,
+  estimateGas,
+  estimateGasBatch,
+  updateGas,
+} from './utils/gas.js';
+import {
+  getTransactionLayer1GasFee,
+  updateTransactionLayer1GasFee,
+} from './utils/layer1-gas-fee-flow.js';
+import { rpcRequest } from './utils/provider.js';
+import {
+  updatePostTransactionBalance,
+  updateSwapsTransaction,
+} from './utils/swaps.js';
+import * as transactionTypeUtils from './utils/transaction-type.js';
+import { ErrorCode } from './utils/validation.js';
+
+type AllTransactionControllerActions =
+  MessengerActions<TransactionControllerMessenger>;
+
+type AllTransactionControllerEvents =
+  MessengerEvents<TransactionControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTransactionControllerActions,
+  AllTransactionControllerEvents
+>;
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
-const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
+const TRANSACTION_HASH_MOCK = '0x123456';
+const DATA_MOCK = '0x12345678';
+const VALUE_MOCK = '0xabcd';
+const ORIGIN_MOCK = 'test.com';
+const GAS_FEE_TOKEN_ADDRESS_MOCK = '0x20c0000000000000000000000000000000000000';
 
-jest.mock('uuid', () => {
-  return {
-    ...jest.requireActual('uuid'),
-    v1: () => v1Stub(),
-  };
-});
-
-jest.mock('./utils/gas');
-jest.mock('./utils/gas-fees');
-
-const mockFlags: { [key: string]: any } = {
-  estimateGasError: null,
-  estimateGasValue: null,
-  getBlockByNumberValue: null,
-};
-
-jest.mock('@metamask/eth-query', () =>
-  jest.fn().mockImplementation(() => {
-    return {
-      estimateGas: (_transaction: any, callback: any) => {
-        if (mockFlags.estimateGasError) {
-          callback(new Error(mockFlags.estimateGasError));
-          return;
-        }
-
-        if (mockFlags.estimateGasValue) {
-          callback(undefined, mockFlags.estimateGasValue);
-          return;
-        }
-        callback(undefined, '0x0');
-      },
-      gasPrice: (callback: any) => {
-        callback(undefined, '0x0');
-      },
-      getBlockByNumber: (
-        _blocknumber: any,
-        _fetchTxs: boolean,
-        callback: any,
-      ) => {
-        if (mockFlags.getBlockByNumberValue) {
-          callback(undefined, { gasLimit: '0x12a05f200' });
-          return;
-        }
-        callback(undefined, { gasLimit: '0x0' });
-      },
-      getCode: (_to: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      getTransactionByHash: (_hash: string, callback: any) => {
-        const txs: any = [
-          { blockNumber: '0x1', hash: '1337' },
-          { blockNumber: null, hash: '1338' },
-        ];
-        const tx: any = txs.find((element: any) => element.hash === _hash);
-        callback(undefined, tx);
-      },
-      getTransactionCount: (_from: any, _to: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      sendRawTransaction: (_transaction: any, callback: any) => {
-        callback(undefined, '1337');
-      },
-      getTransactionReceipt: (_hash: any, callback: any) => {
-        const txs: any = [
-          {
-            blockHash: '1337',
-            gasUsed: '0x5208',
-            hash: '1337',
-            status: '0x1',
-            transactionIndex: 1337,
-          },
-          {
-            gasUsed: '0x1108',
-            hash: '1111',
-            status: '0x0',
-            transactionIndex: 1111,
-          },
-        ];
-        const tx: any = txs.find((element: any) => element.hash === _hash);
-        callback(undefined, tx);
-      },
-      getBlockByHash: (_blockHash: any, callback: any) => {
-        const blocks: any = [
-          {
-            baseFeePerGas: '0x14',
-            hash: '1337',
-            number: '0x1',
-            timestamp: '628dc0c8',
-          },
-          { hash: '1338', number: '0x2' },
-        ];
-        const block: any = blocks.find(
-          (element: any) => element.hash === _blockHash,
-        );
-        callback(undefined, block);
-      },
-    };
-  }),
-);
-
-jest.mock('./helpers/IncomingTransactionHelper');
+jest.mock('./api/accounts-api');
+jest.mock('./gas-flows/DefaultGasFeeFlow');
+jest.mock('./gas-flows/RandomisedEstimationsGasFeeFlow');
+jest.mock('./gas-flows/LineaGasFeeFlow');
+jest.mock('./gas-flows/TestGasFeeFlow');
+jest.mock('./helpers/GasFeePoller');
+jest.mock('./helpers/MethodDataHelper');
+jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./hooks/ExtraTransactionsPublishHook');
+jest.mock('./utils/batch');
+jest.mock('./utils/feature-flags');
+jest.mock('./utils/first-time-interaction');
+jest.mock('./utils/gas');
+jest.mock('./utils/gas-fee-tokens');
+jest.mock('./utils/gas-fees');
+jest.mock('./utils/gas-flow');
+jest.mock('./utils/layer1-gas-fee-flow');
+jest.mock('./utils/provider', () => ({
+  ...jest.requireActual('./utils/provider'),
+  getProvider: jest.fn(),
+  rpcRequest: jest.fn(),
+}));
+jest.mock('./utils/balance-changes');
+jest.mock('./utils/swaps');
+jest.mock('uuid');
+
+jest.mock('./helpers/ResimulateHelper', () => ({
+  ...jest.requireActual('./helpers/ResimulateHelper'),
+  shouldResimulate: jest.fn(),
+}));
+
+jest.mock('./utils/eip7702', () => ({
+  ...jest.requireActual('./utils/eip7702'),
+  getDelegationAddress: jest.fn(),
+  doesChainSupportEIP7702: jest.fn(),
+}));
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -147,119 +191,71 @@ jest.mock('./helpers/PendingTransactionTracker');
  *
  * @param latestBlockNumber - The block number that the block tracker should
  * always return.
+ * @param provider - json rpc provider
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker();
+function buildMockBlockTracker(
+  latestBlockNumber: string,
+  provider: InternalProvider,
+): BlockTracker {
+  const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
 }
 
 /**
- * Create an object containing mock result callbacks to be used when testing the approval process.
+ * Builds a mock gas fee flow.
  *
- * @returns The mock result callbacks.
+ * @returns The mocked gas fee flow.
  */
-function buildMockResultCallbacks(): AcceptResultCallbacks {
+function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
   return {
-    success: jest.fn(),
-    error: jest.fn(),
-  };
-}
-
-/**
- * Create a mock controller messenger.
- *
- * @param opts - Options to customize the mock messenger.
- * @param opts.approved - Whether transactions should immediately be approved or rejected.
- * @param opts.delay - Whether to delay approval or rejection until the returned functions are called.
- * @param opts.resultCallbacks - The result callbacks to return when a request is approved.
- * @returns The mock controller messenger.
- */
-function buildMockMessenger({
-  approved,
-  delay,
-  resultCallbacks,
-}: {
-  approved?: boolean;
-  delay?: boolean;
-  resultCallbacks?: AcceptResultCallbacks;
-}): {
-  messenger: TransactionControllerMessenger;
-  approve: () => void;
-  reject: (reason: any) => void;
-} {
-  let approve, reject;
-  let promise: Promise<AddResult>;
-
-  if (delay) {
-    promise = new Promise((res, rej) => {
-      approve = () => res({ resultCallbacks });
-      reject = rej;
-    });
-  }
-
-  const messenger = {
-    call: jest.fn().mockImplementation(() => {
-      if (approved) {
-        return Promise.resolve({ resultCallbacks });
-      }
-
-      if (delay) {
-        return promise;
-      }
-
-      // eslint-disable-next-line prefer-promise-reject-errors
-      return Promise.reject({
-        code: errorCodes.provider.userRejectedRequest,
-      });
-    }),
-  } as unknown as TransactionControllerMessenger;
-
-  return {
-    messenger,
-    approve: approve as any,
-    reject: reject as any,
+    matchesTransaction: jest.fn(),
+    getGasFees: jest.fn(),
   };
 }
 
 /**
  * Wait for the controller to emit a transaction finished event.
  *
- * @param controller - The transaction controller to monitor.
+ * @param messenger - The messenger to monitor.
  * @param options - Options to customize the wait.
  * @param options.confirmed - Whether to wait for the transaction to be confirmed or just finished.
  * @returns A promise that resolves with the transaction meta when the transaction is finished.
  */
 function waitForTransactionFinished(
-  controller: TransactionController,
+  messenger: TransactionControllerMessenger | RootMessenger,
   { confirmed = false } = {},
 ): Promise<TransactionMeta> {
+  const eventName = confirmed
+    ? 'TransactionController:transactionConfirmed'
+    : 'TransactionController:transactionFinished';
   return new Promise((resolve) => {
-    controller.hub.once(
-      `${controller.state.transactions[0].id}:${
-        confirmed ? 'confirmed' : 'finished'
-      }`,
-      (txMeta) => {
-        resolve(txMeta);
-      },
-    );
+    const subscriber = (transactionMeta: TransactionMeta): void => {
+      resolve(transactionMeta);
+      messenger.unsubscribe(eventName, subscriber);
+    };
+    messenger.subscribe(eventName, subscriber);
   });
 }
 
-const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
-const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
-const GOERLI_PROVIDER = new HttpProvider(
-  `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
-const MAINNET_PROVIDER = new HttpProvider(
-  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
-const PALM_PROVIDER = new HttpProvider(
-  `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
+const INFURA_PROJECT_ID = 'testinfuraid';
+const HTTP_PROVIDERS = {
+  sepolia: new HttpProvider('https://sepolia.infura.io/v3/sepolia-pid'),
+  // TODO: Investigate and address why tests break when mainnet has a different INFURA_PROJECT_ID
+  mainnet: new HttpProvider(
+    `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea: new HttpProvider('https://linea.infura.io/v3/linea-pid'),
+  lineaSepolia: new HttpProvider(
+    'https://linea-sepolia.infura.io/v3/linea-sepolia-pid',
+  ),
+  custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
+  palm: new HttpProvider('https://palm-mainnet.infura.io/v3/palm-pid'),
+};
 
 type MockNetwork = {
+  chainId: Hex;
   provider: Provider;
   blockTracker: BlockTracker;
   state: NetworkState;
@@ -267,67 +263,26 @@ type MockNetwork = {
 };
 
 const MOCK_NETWORK: MockNetwork = {
-  provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  chainId: ChainId.sepolia,
+  provider: HTTP_PROVIDERS.sepolia,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.sepolia),
   state: {
-    selectedNetworkClientId: NetworkType.goerli,
+    selectedNetworkClientId: NetworkType.sepolia,
     networksMetadata: {
-      [NetworkType.goerli]: {
+      [NetworkType.sepolia]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType.goerli,
-      chainId: ChainId.goerli,
-      ticker: NetworksTicker.goerli,
-    },
-    networkConfigurations: {},
-  },
-  subscribe: () => undefined,
-};
-const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
-  provider: GOERLI_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
-  state: {
-    selectedNetworkClientId: NetworkType.goerli,
-    networksMetadata: {
-      [NetworkType.goerli]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.goerli,
-    } as NetworkState['providerConfig'],
-    networkConfigurations: {},
-  },
-  subscribe: () => undefined,
-};
-const MOCK_MAINNET_NETWORK: MockNetwork = {
-  provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
-  state: {
-    selectedNetworkClientId: NetworkType.mainnet,
-    networksMetadata: {
-      [NetworkType.mainnet]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.mainnet,
-      chainId: ChainId.mainnet,
-      ticker: NetworksTicker.mainnet,
-    },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
 
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  chainId: ChainId['linea-mainnet'],
+  provider: HTTP_PROVIDERS.linea,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -336,247 +291,1100 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType['linea-mainnet'],
-      chainId: toHex(59144),
-      ticker: NetworksTicker['linea-mainnet'],
-    },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
 
-const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+const MOCK_LINEA_SEPOLIA_NETWORK: MockNetwork = {
+  chainId: ChainId['linea-sepolia'],
+  provider: HTTP_PROVIDERS.lineaSepolia,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaSepolia),
   state: {
-    selectedNetworkClientId: NetworkType['linea-goerli'],
+    selectedNetworkClientId: NetworkType['linea-sepolia'],
     networksMetadata: {
-      [NetworkType['linea-goerli']]: {
+      [NetworkType['linea-sepolia']]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType['linea-goerli'],
-      chainId: toHex(59140),
-      ticker: NetworksTicker['linea-goerli'],
-    },
-    networkConfigurations: {},
-  },
-  subscribe: () => undefined,
-};
-
-const MOCK_CUSTOM_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
-  state: {
-    selectedNetworkClientId: 'uuid-1',
-    networksMetadata: {
-      'uuid-1': {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.rpc,
-      chainId: toHex(11297108109),
-      ticker: 'TEST',
-    },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+
+const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
+  id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
+  address: ACCOUNT_MOCK,
+  type: 'eip155:eoa',
+  scopes: ['eip155:0'],
+  options: {},
+  methods: [],
+  metadata: {
+    name: 'Account 1',
+    keyring: { type: 'HD Key Tree' },
+    importTime: 1631619180000,
+    lastSelected: 1631619180000,
+  },
+};
+
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
+const CHAIN_ID_MOCK = MOCK_NETWORK.chainId;
+const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
+const BATCH_ID_MOCK = '0xabcd12';
+const ERROR_MESSAGE_MOCK = 'Test Error';
 
 const TRANSACTION_META_MOCK = {
+  chainId: ChainId.sepolia,
   hash: '0x1',
-  status: TransactionStatus.confirmed,
+  id: '1',
+  networkClientId: InfuraNetworkType.sepolia,
+  status: TransactionStatus.confirmed as const,
   time: 123456789,
   txParams: {
     from: ACCOUNT_MOCK,
+    to: ACCOUNT_2_MOCK,
+    value: '0x42',
   },
-} as TransactionMeta;
+} as unknown as TransactionMeta;
 
 const TRANSACTION_META_2_MOCK = {
+  chainId: ChainId.sepolia,
   hash: '0x2',
-  status: TransactionStatus.confirmed,
+  id: '2',
+  networkClientId: InfuraNetworkType.sepolia,
+  status: TransactionStatus.confirmed as const,
   time: 987654321,
   txParams: {
     from: '0x3',
   },
-} as TransactionMeta;
+} as unknown as TransactionMeta;
+
+const SIMULATION_DATA_RESULT_MOCK: SimulationData = {
+  nativeBalanceChange: {
+    previousBalance: '0x0',
+    newBalance: '0x1',
+    difference: '0x1',
+    isDecrease: false,
+  },
+  tokenBalanceChanges: [
+    {
+      address: '0x123',
+      standard: SimulationTokenStandard.erc721,
+      id: '0x456',
+      previousBalance: '0x1',
+      newBalance: '0x3',
+      difference: '0x2',
+      isDecrease: false,
+    },
+  ],
+};
+
+const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
+  amount: '0x1',
+  balance: '0x2',
+  decimals: 18,
+  gas: '0x3',
+  gasTransfer: '0x4',
+  maxFeePerGas: '0x4',
+  maxPriorityFeePerGas: '0x5',
+  rateWei: '0x6',
+  recipient: '0x7',
+  symbol: 'ETH',
+  tokenAddress: '0x8',
+};
+
+const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
+  estimates: {
+    type: GasFeeEstimateType.GasPrice,
+    gasPrice: '0x1',
+  },
+};
+
+const METHOD_DATA_MOCK: MethodData = {
+  registryMethod: 'testMethod(uint256,uint256)',
+  parsedRegistryMethod: {
+    name: 'testMethod',
+    args: [{ type: 'uint256' }, { type: 'uint256' }],
+  },
+};
 
 describe('TransactionController', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  const uuidModuleMock = jest.mocked(uuidModule);
+  const rpcRequestMock = jest.mocked(rpcRequest);
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
   const estimateGasMock = jest.mocked(estimateGas);
+  const estimateGasBatchMock = jest.mocked(estimateGasBatch);
+  const addGasBufferMock = jest.mocked(addGasBuffer);
+  const updateSwapsTransactionMock = jest.mocked(updateSwapsTransaction);
+  const updatePostTransactionBalanceMock = jest.mocked(
+    updatePostTransactionBalance,
+  );
+  const defaultGasFeeFlowClassMock = jest.mocked(DefaultGasFeeFlow);
+  const lineaGasFeeFlowClassMock = jest.mocked(LineaGasFeeFlow);
+  const randomisedEstimationsGasFeeFlowClassMock = jest.mocked(
+    RandomisedEstimationsGasFeeFlow,
+  );
+  const testGasFeeFlowClassMock = jest.mocked(TestGasFeeFlow);
+  const gasFeePollerClassMock = jest.mocked(GasFeePoller);
+  const updateTransactionGasEstimatesMock = jest.mocked(
+    updateTransactionGasEstimates,
+  );
+  const getBalanceChangesMock = jest.mocked(getBalanceChanges);
+  const getGasFeeTokensMock = jest.mocked(getGasFeeTokens);
+  const getTransactionLayer1GasFeeMock = jest.mocked(
+    getTransactionLayer1GasFee,
+  );
+  const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
+  const shouldResimulateMock = jest.mocked(shouldResimulate);
+  const addTransactionBatchMock = jest.mocked(addTransactionBatch);
+  const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
+  const getDelegationAddressMock = jest.mocked(getDelegationAddress);
+  const updateFirstTimeInteractionMock = jest.mocked(
+    updateFirstTimeInteraction,
+  );
+  const getSubmitHistoryLimitMock = jest.mocked(getSubmitHistoryLimit);
+  const getTransactionHistoryLimitMock = jest.mocked(
+    getTransactionHistoryLimit,
+  );
 
-  let resultCallbacksMock: AcceptResultCallbacks;
-  let messengerMock: TransactionControllerMessenger;
-  let rejectMessengerMock: TransactionControllerMessenger;
-  let delayMessengerMock: TransactionControllerMessenger;
-  let approveTransaction: () => void;
   let getNonceLockSpy: jest.Mock;
-  let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
+  let multichainTrackingHelperMock: jest.Mocked<MultichainTrackingHelper>;
+  let defaultGasFeeFlowMock: jest.Mocked<DefaultGasFeeFlow>;
+  let lineaGasFeeFlowMock: jest.Mocked<LineaGasFeeFlow>;
+  let randomisedEstimationsGasFeeFlowMock: jest.Mocked<RandomisedEstimationsGasFeeFlow>;
+  let testGasFeeFlowMock: jest.Mocked<TestGasFeeFlow>;
+  let gasFeePollerMock: jest.Mocked<GasFeePoller>;
+  let methodDataHelperMock: jest.Mocked<MethodDataHelper>;
   let timeCounter = 0;
-
-  const incomingTransactionHelperClassMock =
-    IncomingTransactionHelper as jest.MockedClass<
-      typeof IncomingTransactionHelper
-    >;
+  let signMock: jest.Mock;
+  let isEIP7702GasFeeTokensEnabledMock: jest.Mock;
 
   const pendingTransactionTrackerClassMock =
     PendingTransactionTracker as jest.MockedClass<
       typeof PendingTransactionTracker
     >;
 
+  const multichainTrackingHelperClassMock =
+    MultichainTrackingHelper as jest.MockedClass<
+      typeof MultichainTrackingHelper
+    >;
+
   /**
-   * Create a new instance of the TransactionController.
+   * Constructs an instance of the TransactionController and supporting data for
+   * use in tests.
    *
-   * @param opts - Options to use when creating the controller.
-   * @param opts.options - Any controller options to override the test defaults.
-   * @param opts.config - Any configuration to override the test defaults.
-   * @param opts.network - The mock network to use with the controller.
-   * @param opts.approve - Whether transactions should be immediately approved.
-   * @param opts.reject - Whether transactions should be immediately rejected.
+   * @param args - The arguments to this function.
+   * @param args.options - TransactionController options.
+   * @param args.network - The mock network to use with the controller.
+   * @param args.network.blockTracker - The desired block tracker associated
+   * with the network.
+   * @param args.network.provider - The desired provider associated with the
+   * provider.
+   * @param args.network.state - The desired NetworkController state.
+   * @param args.network.onNetworkStateChange - The function to subscribe to
+   * changes in the NetworkController state.
+   * @param args.messengerOptions - Options to build the mock unrestricted
+   * messenger.
+   * @param args.messengerOptions.addTransactionApprovalRequest - Options to
+   * mock the `ApprovalController:addRequest` action call for transactions.
+   * @param args.selectedAccount - The selected account to use with the controller.
+   * @param args.mockNetworkClientConfigurationsByNetworkClientId - Network
+   * client configurations by network client ID.
+   * @param args.updateToInitialState - Whether to apply the controller state after instantiation via the `update` method.
+   * This is required if unapproved transactions are included since they are cleared during instantiation.
    * @returns The new TransactionController instance.
    */
-  function newController({
-    options,
-    config,
-    network,
-    approve,
-    reject,
+  function setupController({
+    options: givenOptions = {},
+    network = {},
+    messengerOptions = {},
+    selectedAccount = INTERNAL_ACCOUNT_MOCK,
+    mockNetworkClientConfigurationsByNetworkClientId = {
+      [NETWORK_CLIENT_ID_MOCK]: buildCustomNetworkClientConfiguration({
+        chainId: CHAIN_ID_MOCK,
+      }),
+    },
+    updateToInitialState = false,
   }: {
-    options?: any;
-    config?: Partial<TransactionConfig>;
-    network?: MockNetwork;
-    approve?: boolean;
-    reject?: boolean;
-  } = {}): TransactionController {
-    const finalNetwork = network ?? MOCK_NETWORK;
-    let messenger = delayMessengerMock;
+    options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
+    network?: {
+      blockTracker?: BlockTracker;
+      provider?: Provider;
+      state?: Partial<NetworkState>;
+      onNetworkStateChange?: (
+        listener: (networkState: NetworkState) => void,
+      ) => void;
+    };
+    messengerOptions?: {
+      addTransactionApprovalRequest?: Parameters<
+        typeof mockAddTransactionApprovalRequest
+      >[1];
+    };
+    selectedAccount?: InternalAccount;
+    mockNetworkClientConfigurationsByNetworkClientId?: Record<
+      NetworkClientId,
+      NetworkClientConfiguration
+    >;
+    updateToInitialState?: boolean;
+  } = {}): {
+    controller: TransactionController;
+    messenger: RootMessenger;
+    rootMessenger: RootMessenger;
+    mockTransactionApprovalRequest: {
+      promise: Promise<AddResult>;
+      approve: (approvalResult?: Partial<AddResult>) => void;
+      reject: (rejectionError: unknown) => void;
+      actionHandlerMock: jest.Mock;
+    };
+    mockGetSelectedAccount: jest.Mock;
+    changeNetwork: (params: {
+      selectedNetworkClientId: NetworkClientId;
+    }) => void;
+  } {
+    let networkState = {
+      ...getDefaultNetworkControllerState(),
+      selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
+      ...network.state,
+    };
+    const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
+    const changeNetwork = ({
+      selectedNetworkClientId,
+    }: {
+      selectedNetworkClientId: NetworkClientId;
+    }): void => {
+      networkState = {
+        ...networkState,
+        selectedNetworkClientId,
+      };
+      onNetworkDidChangeListeners.forEach((listener) => {
+        listener(networkState);
+      });
+    };
+    const rootMessenger: RootMessenger = new Messenger({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
+    const getNetworkClientById = buildMockGetNetworkClientById(
+      mockNetworkClientConfigurationsByNetworkClientId,
+    );
+    rootMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      getNetworkClientById,
+    );
 
-    if (approve) {
-      messenger = messengerMock;
+    const findNetworkClientIdByChainId =
+      buildMockFindNetworkClientIdByChainId();
+    rootMessenger.registerActionHandler(
+      'NetworkController:findNetworkClientIdByChainId',
+      findNetworkClientIdByChainId,
+    );
+
+    const { addTransactionApprovalRequest = { state: 'pending' } } =
+      messengerOptions;
+    const mockTransactionApprovalRequest = mockAddTransactionApprovalRequest(
+      rootMessenger,
+      addTransactionApprovalRequest,
+    );
+
+    const {
+      messenger: givenRestrictedMessenger,
+      ...otherOptions
+    }: Partial<TransactionControllerOptions> = {
+      disableSwaps: false,
+      getPermittedAccounts: async () => [ACCOUNT_MOCK],
+      hooks: {},
+      isEIP7702GasFeeTokensEnabled: isEIP7702GasFeeTokensEnabledMock,
+      publicKeyEIP7702: '0x1234',
+      ...givenOptions,
+    };
+
+    const transactionControllerMessenger: TransactionControllerMessenger =
+      givenRestrictedMessenger ??
+      new Messenger({
+        namespace: 'TransactionController',
+        parent: rootMessenger,
+      });
+    rootMessenger.delegate({
+      messenger: transactionControllerMessenger,
+      actions: [
+        'AccountsController:getSelectedAccount',
+        'AccountsController:getState',
+        'ApprovalController:addRequest',
+        'GasFeeController:fetchGasFeeEstimates',
+        'KeyringController:signTransaction',
+        'NetworkController:findNetworkClientIdByChainId',
+        'NetworkController:getEIP1559Compatibility',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:getNetworkClientRegistry',
+        'NetworkController:getState',
+        'RemoteFeatureFlagController:getState',
+      ],
+    });
+
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    rootMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      mockGetSelectedAccount,
+    );
+
+    rootMessenger.registerActionHandler(
+      'AccountsController:getState',
+      () => ({}) as never,
+    );
+
+    const remoteFeatureFlagControllerGetStateMock = jest.fn().mockReturnValue({
+      featureFlags: {},
+    });
+
+    rootMessenger.registerActionHandler(
+      'RemoteFeatureFlagController:getState',
+      remoteFeatureFlagControllerGetStateMock,
+    );
+
+    rootMessenger.registerActionHandler(
+      'NetworkController:getEIP1559Compatibility',
+      async () => false,
+    );
+
+    rootMessenger.registerActionHandler(
+      'NetworkController:getState',
+      () =>
+        ({
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
+          ...network.state,
+        }) as NetworkState,
+    );
+
+    rootMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientRegistry',
+      () => ({}) as never,
+    );
+
+    rootMessenger.registerActionHandler(
+      'GasFeeController:fetchGasFeeEstimates',
+      async () => ({}) as never,
+    );
+
+    rootMessenger.registerActionHandler(
+      'KeyringController:signTransaction',
+      signMock,
+    );
+
+    const controller = new TransactionController({
+      ...otherOptions,
+      messenger: transactionControllerMessenger,
+    } as TransactionControllerOptions);
+
+    const state = givenOptions?.state;
+
+    if (updateToInitialState && state) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (controller as any).update(() => state);
     }
 
-    if (reject) {
-      messenger = rejectMessengerMock;
-    }
-
-    return new TransactionController(
+    multichainTrackingHelperClassMock.mock.calls[0][0].createPendingTransactionTracker(
       {
-        blockTracker: finalNetwork.blockTracker,
-        getNetworkState: () => finalNetwork.state,
-        getCurrentAccountEIP1559Compatibility: () => true,
-        getCurrentNetworkEIP1559Compatibility: () => true,
-        getGasFeeEstimates: () => ({}),
-        getPermittedAccounts: () => [ACCOUNT_MOCK],
-        getSelectedAddress: () => ACCOUNT_MOCK,
-        messenger,
-        onNetworkStateChange: finalNetwork.subscribe,
-        provider: finalNetwork.provider,
-        ...options,
-      },
-      {
-        sign: async (transaction: any) => transaction,
-        ...config,
+        blockTracker: network.blockTracker ?? MOCK_NETWORK.blockTracker,
+        networkClientId: networkState.selectedNetworkClientId,
       },
     );
+
+    getDelegationAddressMock.mockResolvedValue(undefined);
+
+    remoteFeatureFlagControllerGetStateMock.mockReturnValue({
+      remoteFeatureFlags: {},
+    });
+
+    return {
+      controller,
+      messenger: transactionControllerMessenger,
+      rootMessenger,
+      mockTransactionApprovalRequest,
+      mockGetSelectedAccount,
+      changeNetwork,
+    };
   }
 
   /**
-   * Wait for a specified number of milliseconds.
+   * Mocks the `ApprovalController:addRequest` action that the
+   * TransactionController calls as it creates transactions.
    *
-   * @param ms - The number of milliseconds to wait.
+   * This helper allows the `addRequest` action to be in one of three states:
+   * approved, rejected, or pending. In the approved state, the promise which
+   * the action returns is resolved ahead of time, and in the rejected state,
+   * the promise is rejected ahead of time. Otherwise, in the pending state, the
+   * promise is unresolved and it is assumed that the test will resolve or
+   * reject the promise.
+   *
+   * @param messenger - The unrestricted messenger.
+   * @param options - An options bag which will be used to create an action
+   * handler that places the approval request in a certain state. The `state`
+   * option controls the state of the promise as outlined above: if the `state`
+   * is approved, then its `result` may be specified; if the `state` is
+   * rejected, then its `error` may be specified.
+   * @returns An object which contains the aforementioned promise, functions to
+   * manually approve or reject the approval (and therefore the promise), and
+   * finally the mocked version of the action handler itself.
    */
-  async function wait(ms: number) {
-    await new Promise((resolve) => setTimeout(resolve, ms));
+  function mockAddTransactionApprovalRequest(
+    messenger: RootMessenger,
+    options:
+      | {
+          state: 'approved';
+          result?: Partial<AddResult>;
+        }
+      | {
+          state: 'rejected';
+          error?: unknown;
+        }
+      | {
+          state: 'pending';
+        },
+  ): {
+    promise: Promise<AddResult>;
+    approve: (approvalResult?: Partial<AddResult>) => void;
+    reject: (rejectionError: unknown) => void;
+    actionHandlerMock: jest.Mock<
+      ReturnType<ApprovalControllerAddRequestAction['handler']>,
+      Parameters<ApprovalControllerAddRequestAction['handler']>
+    >;
+  } {
+    const { promise, resolve, reject } = createDeferredPromise<AddResult>();
+
+    const approveTransaction = (approvalResult?: Partial<AddResult>): void => {
+      resolve({
+        resultCallbacks: {
+          success() {
+            // do nothing
+          },
+          error() {
+            // do nothing
+          },
+        },
+        ...approvalResult,
+      });
+    };
+
+    const rejectTransaction = (
+      rejectionError: unknown = {
+        code: errorCodes.provider.userRejectedRequest,
+      },
+    ): void => {
+      reject(rejectionError);
+    };
+
+    const actionHandlerMock: jest.Mock<
+      ReturnType<ApprovalControllerAddRequestAction['handler']>,
+      Parameters<ApprovalControllerAddRequestAction['handler']>
+    > = jest.fn().mockImplementation(() => {
+      if (options.state === 'approved') {
+        approveTransaction(options.result);
+      } else if (options.state === 'rejected') {
+        rejectTransaction(options.error);
+      }
+
+      return promise;
+    });
+
+    messenger.registerActionHandler(
+      'ApprovalController:addRequest',
+      actionHandlerMock,
+    );
+
+    return {
+      promise,
+      approve: approveTransaction,
+      reject: rejectTransaction,
+      actionHandlerMock,
+    };
   }
 
   beforeEach(() => {
+    jest.resetAllMocks();
+
     jest.spyOn(Date, 'now').mockImplementation(() => {
       timeCounter += 1;
       return timeCounter;
     });
 
-    for (const key in mockFlags) {
-      mockFlags[key] = null;
-    }
+    uuidModuleMock.v1.mockReturnValue(MOCK_V1_UUID);
 
-    resultCallbacksMock = buildMockResultCallbacks();
+    rpcRequestMock.mockImplementation(async ({ method }) => {
+      if (method === 'eth_sendRawTransaction') {
+        return TRANSACTION_HASH_MOCK;
+      }
 
-    messengerMock = buildMockMessenger({
-      approved: true,
-      resultCallbacks: resultCallbacksMock,
-    }).messenger;
+      if (method === 'eth_getBalance') {
+        return '0x0';
+      }
 
-    rejectMessengerMock = buildMockMessenger({
-      approved: false,
-      resultCallbacks: resultCallbacksMock,
-    }).messenger;
-
-    ({ messenger: delayMessengerMock, approve: approveTransaction } =
-      buildMockMessenger({
-        delay: true,
-        resultCallbacks: resultCallbacksMock,
-      }));
+      return undefined;
+    });
 
     getNonceLockSpy = jest.fn().mockResolvedValue({
       nextNonce: NONCE_MOCK,
       releaseLock: () => Promise.resolve(),
     });
 
-    NonceTracker.prototype.getNonceLock = getNonceLockSpy;
-
-    incomingTransactionHelperMock = {
-      hub: {
-        on: jest.fn(),
-      },
-    } as any;
-
     pendingTransactionTrackerMock = {
       start: jest.fn(),
+      stop: jest.fn(),
+      startIfPendingTransactions: jest.fn(),
       hub: {
         on: jest.fn(),
+        removeAllListeners: jest.fn(),
       },
-    } as any;
+      onStateChange: jest.fn(),
+      forceCheckTransaction: jest.fn(),
+    } as unknown as jest.Mocked<PendingTransactionTracker>;
 
-    incomingTransactionHelperClassMock.mockReturnValue(
-      incomingTransactionHelperMock,
+    pendingTransactionTrackerClassMock.mockImplementation(() => {
+      return pendingTransactionTrackerMock;
+    });
+
+    multichainTrackingHelperClassMock.mockImplementation(() => {
+      multichainTrackingHelperMock = {
+        getNetworkClient: jest.fn().mockImplementation(() => {
+          return {
+            configuration: {
+              chainId: CHAIN_ID_MOCK,
+            },
+            id: NETWORK_CLIENT_ID_MOCK,
+            provider: new FakeProvider(),
+          } as unknown as NetworkClientConfiguration;
+        }),
+        checkForPendingTransactionAndStartPolling: jest.fn(),
+        getNonceLock: getNonceLockSpy,
+        initialize: jest.fn(),
+        has: jest.fn().mockReturnValue(true),
+      } as unknown as jest.Mocked<MultichainTrackingHelper>;
+      return multichainTrackingHelperMock;
+    });
+
+    defaultGasFeeFlowClassMock.mockImplementation(() => {
+      defaultGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<DefaultGasFeeFlow>;
+      return defaultGasFeeFlowMock;
+    });
+
+    lineaGasFeeFlowClassMock.mockImplementation(() => {
+      lineaGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<LineaGasFeeFlow>;
+      return lineaGasFeeFlowMock;
+    });
+
+    randomisedEstimationsGasFeeFlowClassMock.mockImplementation(() => {
+      randomisedEstimationsGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<RandomisedEstimationsGasFeeFlow>;
+      return randomisedEstimationsGasFeeFlowMock;
+    });
+
+    testGasFeeFlowClassMock.mockImplementation(() => {
+      testGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<TestGasFeeFlow>;
+      return testGasFeeFlowMock;
+    });
+
+    gasFeePollerClassMock.mockImplementation(() => {
+      gasFeePollerMock = {
+        hub: {
+          on: jest.fn(),
+        },
+      } as unknown as jest.Mocked<GasFeePoller>;
+      return gasFeePollerMock;
+    });
+
+    methodDataHelperClassMock.mockImplementation(() => {
+      methodDataHelperMock = {
+        lookup: jest.fn(),
+        hub: {
+          on: jest.fn(),
+        },
+      } as unknown as jest.Mocked<MethodDataHelper>;
+      return methodDataHelperMock;
+    });
+
+    updateSwapsTransactionMock.mockImplementation(
+      (transactionMeta) => transactionMeta,
     );
 
-    pendingTransactionTrackerClassMock.mockReturnValue(
-      pendingTransactionTrackerMock,
-    );
-  });
+    signMock = jest
+      .fn()
+      .mockImplementation(async (transaction) => transaction.toJSON());
+    isEIP7702GasFeeTokensEnabledMock = jest.fn().mockResolvedValue(false);
+    getBalanceChangesMock.mockResolvedValue({
+      simulationData: SIMULATION_DATA_RESULT_MOCK,
+    });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+    updateFirstTimeInteractionMock.mockResolvedValue(undefined);
+
+    getSubmitHistoryLimitMock.mockReturnValue(100);
+    getTransactionHistoryLimitMock.mockReturnValue(40);
   });
 
   describe('constructor', () => {
     it('sets default state', () => {
-      const controller = newController();
+      const { controller } = setupController();
       expect(controller.state).toStrictEqual({
         methodData: {},
         transactions: [],
+        transactionBatches: [],
         lastFetchedBlockNumbers: {},
+        submitHistory: [],
       });
     });
 
-    it('sets default config', () => {
-      const controller = newController();
-      expect(controller.config).toStrictEqual({
-        txHistoryLimit: 40,
-        sign: expect.any(Function),
+    it('provides gas fee flows to GasFeePoller in correct order', () => {
+      setupController();
+
+      expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
+      expect(gasFeePollerClassMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeFlows: [
+            randomisedEstimationsGasFeeFlowMock,
+            lineaGasFeeFlowMock,
+            defaultGasFeeFlowMock,
+          ],
+        }),
+      );
+    });
+
+    it('provides only test flow if option set', () => {
+      setupController({
+        options: {
+          testGasFeeFlows: true,
+        },
+      });
+
+      expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
+      expect(gasFeePollerClassMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeFlows: [testGasFeeFlowMock],
+        }),
+      );
+    });
+
+    it('fails approved and signed transactions for all chains', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '456',
+          chainId: toHex(1),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '789',
+          chainId: toHex(16),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '111',
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          chainId: toHex(16),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      expect(transactions[0].status).toBe(TransactionStatus.failed);
+      expect(transactions[1].status).toBe(TransactionStatus.failed);
+      expect(transactions[2].status).toBe(TransactionStatus.failed);
+      expect(transactions[3].status).toBe(TransactionStatus.failed);
+      expect(transactions[4].status).toBe(TransactionStatus.failed);
+      expect(transactions[5].status).toBe(TransactionStatus.failed);
+    });
+
+    it('fails required transactions of approved and signed transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222', '333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '111',
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          chainId: toHex(16),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      expect(
+        transactions.map((transaction) => [transaction.id, transaction.status]),
+      ).toStrictEqual([
+        ['333', TransactionStatus.failed],
+        ['222', TransactionStatus.confirmed],
+        ['111', TransactionStatus.failed],
+        ['123', TransactionStatus.failed],
+      ]);
+    });
+
+    it('uses alternate error message when all required transactions are confirmed', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222', '333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          chainId: toHex(16),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      const incompleteTransaction = transactions.find((tx) => tx.id === '123');
+
+      expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
+      expect(incompleteTransaction?.error?.message).toBe(
+        'Transaction incomplete at startup with all required transactions confirmed',
+      );
+    });
+
+    it('uses default error message when not all required transactions are confirmed', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222', '333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          chainId: toHex(16),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      const incompleteTransaction = transactions.find((tx) => tx.id === '123');
+
+      expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
+      expect(incompleteTransaction?.error?.message).toBe(
+        'Transaction incomplete at startup',
+      );
+    });
+
+    it('uses default error message when transaction has no required transaction IDs', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      const incompleteTransaction = transactions.find((tx) => tx.id === '123');
+
+      expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
+      expect(incompleteTransaction?.error?.message).toBe(
+        'Transaction incomplete at startup',
+      );
+    });
+
+    it('fails signed transactions even when isSimulationEnabled throws', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '111',
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          isSimulationEnabled: () => {
+            throw new Error('Handler not registered');
+          },
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      expect(transactions[0].status).toBe(TransactionStatus.failed);
+      expect(transactions[1].status).toBe(TransactionStatus.failed);
+    });
+
+    it('removes unapproved transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '456',
+          chainId: toHex(1),
+          status: TransactionStatus.unapproved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '789',
+          chainId: toHex(16),
+          status: TransactionStatus.unapproved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      expect(transactions).toHaveLength(0);
+    });
+
+    it('updates state when helper emits update event', async () => {
+      const { controller } = setupController();
+
+      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
+        fourBytePrefix: '0x12345678',
+        methodData: METHOD_DATA_MOCK,
+      });
+
+      expect(controller.state.methodData).toStrictEqual({
+        '0x12345678': METHOD_DATA_MOCK,
       });
     });
   });
@@ -589,227 +1397,94 @@ describe('TransactionController', () => {
         errorKey: 'testKey',
       };
 
-      const controller = newController();
+      const { controller } = setupController();
 
       estimateGasMock.mockResolvedValue({
         estimatedGas: gasMock,
         simulationFails: simulationFailsMock,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
-      const { gas, simulationFails } = await controller.estimateGas({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      const { gas, simulationFails } = await controller.estimateGas(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        NETWORK_CLIENT_ID_MOCK,
+      );
 
       expect(gas).toBe(gasMock);
       expect(simulationFails).toBe(simulationFailsMock);
     });
   });
 
-  describe('with actionId', () => {
-    it('adds single unapproved transaction when called twice with same actionId', async () => {
-      const controller = newController();
+  describe('estimateGasBuffered', () => {
+    it('returns estimated gas and simulation fails', async () => {
+      const gasMock = '0x123';
+      const blockGasLimitMock = '0x1234';
+      const expectedEstimatedGas = '0x12345';
+      const multiplierMock = 1;
+      const transactionParamsMock = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      };
 
-      const mockOrigin = 'origin';
+      const simulationFailsMock = {
+        errorKey: 'testKey',
+        reason: 'testReason',
+        debug: {
+          blockNumber: '123',
+          blockGasLimit: '1234',
+        },
+      };
 
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          origin: mockOrigin,
-          actionId: ACTION_ID_MOCK,
-        },
+      const { controller } = setupController();
+
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: gasMock,
+        blockGasLimit: blockGasLimitMock,
+        simulationFails: simulationFailsMock,
+        isUpgradeWithData: false,
+      });
+
+      addGasBufferMock.mockReturnValue(expectedEstimatedGas);
+
+      const { gas, simulationFails } = await controller.estimateGasBuffered(
+        transactionParamsMock,
+        multiplierMock,
+        NETWORK_CLIENT_ID_MOCK,
       );
 
-      const firstTransactionCount = controller.state.transactions.length;
+      expect(estimateGasMock).toHaveBeenCalledTimes(1);
+      expect(estimateGasMock).toHaveBeenCalledWith({
+        isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
+        messenger: expect.anything(),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: transactionParamsMock,
+      });
 
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          origin: mockOrigin,
-          actionId: ACTION_ID_MOCK,
-        },
+      expect(addGasBufferMock).toHaveBeenCalledTimes(1);
+      expect(addGasBufferMock).toHaveBeenCalledWith(
+        gasMock,
+        blockGasLimitMock,
+        multiplierMock,
       );
-      const secondTransactionCount = controller.state.transactions.length;
 
-      expect(firstTransactionCount).toStrictEqual(secondTransactionCount);
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin: mockOrigin,
-          type: 'transaction',
-          requestData: { txId: expect.any(String) },
-          expectsResult: true,
-        },
-        true,
-      );
+      expect(gas).toBe(expectedEstimatedGas);
+      expect(simulationFails).toBe(simulationFailsMock);
     });
-
-    it('adds multiple transactions with same actionId and ensures second transaction result does not resolves before the first transaction result', async () => {
-      const controller = newController();
-
-      const mockOrigin = 'origin';
-      let firstTransactionCompleted = false;
-      let secondTransactionCompleted = false;
-
-      const { result: firstResult } = await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          origin: mockOrigin,
-          actionId: ACTION_ID_MOCK,
-        },
-      );
-
-      firstResult
-        .then(() => {
-          firstTransactionCompleted = true;
-        })
-        .catch(() => undefined);
-
-      const { result: secondResult } = await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          origin: mockOrigin,
-          actionId: ACTION_ID_MOCK,
-        },
-      );
-      secondResult
-        .then(() => {
-          secondTransactionCompleted = true;
-        })
-        .catch(() => undefined);
-
-      await wait(0);
-
-      expect(firstTransactionCompleted).toBe(false);
-      expect(secondTransactionCompleted).toBe(false);
-
-      approveTransaction();
-      await firstResult;
-      await secondResult;
-
-      expect(firstTransactionCompleted).toBe(true);
-      expect(secondTransactionCompleted).toBe(true);
-    });
-
-    it.each([
-      [
-        'does not add duplicate transaction if actionId already used',
-        ACTION_ID_MOCK,
-        ACTION_ID_MOCK,
-        1,
-      ],
-      [
-        'adds additional transaction if actionId not used',
-        ACTION_ID_MOCK,
-        '00000',
-        2,
-      ],
-    ])(
-      '%s',
-      async (_, firstActionId, secondActionId, expectedTransactionCount) => {
-        const controller = newController();
-        const expectedRequestApprovalCalledTimes = expectedTransactionCount;
-
-        const mockOrigin = 'origin';
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            origin: mockOrigin,
-            actionId: firstActionId,
-          },
-        );
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            origin: mockOrigin,
-            actionId: secondActionId,
-          },
-        );
-        const { transactions } = controller.state;
-
-        expect(transactions).toHaveLength(expectedTransactionCount);
-        expect(delayMessengerMock.call).toHaveBeenCalledTimes(
-          expectedRequestApprovalCalledTimes,
-        );
-      },
-    );
-
-    it.each([
-      [
-        'adds single transaction when speed up called twice with the same actionId',
-        ACTION_ID_MOCK,
-        2,
-        1,
-      ],
-      [
-        'adds multiple transactions when speed up called with non-existent actionId',
-        '00000',
-        3,
-        2,
-      ],
-    ])(
-      '%s',
-      async (
-        _,
-        actionId,
-        expectedTransactionCount,
-        expectedSignCalledTimes,
-      ) => {
-        const controller = newController();
-        const signSpy = jest.spyOn(controller, 'sign' as any);
-
-        const { transactionMeta } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          gas: '0x0',
-          gasPrice: '0x50fd51da',
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
-        await controller.speedUpTransaction(transactionMeta.id, undefined, {
-          actionId: ACTION_ID_MOCK,
-        });
-
-        await controller.speedUpTransaction(transactionMeta.id, undefined, {
-          actionId,
-        });
-
-        const { transactions } = controller.state;
-        expect(transactions).toHaveLength(expectedTransactionCount);
-        expect(signSpy).toHaveBeenCalledTimes(expectedSignCalledTimes);
-      },
-    );
   });
 
   describe('addTransaction', () => {
     it('adds unapproved transaction to state', async () => {
-      const controller = newController();
+      const { controller } = setupController();
 
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
-        resultType: 'Malicious',
+        result_type: 'Malicious',
         reason: 'blur_farming',
         description:
           'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
@@ -818,72 +1493,303 @@ describe('TransactionController', () => {
           operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
         },
       };
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
       await controller.addTransaction(
         {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_MOCK,
         },
         {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
           deviceConfirmedOn: mockDeviceConfirmedOn,
           origin: mockOrigin,
           securityAlertResponse: mockSecurityAlertResponse,
-          sendFlowHistory: mockSendFlowHistory,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
+      await flushPromises();
+
       const transactionMeta = controller.state.transactions[0];
 
+      expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
       expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
-      expect(transactionMeta.chainId).toBe(
-        MOCK_NETWORK.state.providerConfig.chainId,
-      );
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
+      expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
       expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
       expect(transactionMeta.origin).toBe(mockOrigin);
       expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
-      expect(transactionMeta.securityAlertResponse).toBe(
+      expect(transactionMeta.securityAlertResponse).toStrictEqual(
         mockSecurityAlertResponse,
       );
-      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
-        mockSendFlowHistory,
+      expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds unapproved transaction to state with gas fee token', async () => {
+      const { controller } = setupController();
+
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+      const mockSecurityAlertResponse = {
+        result_type: 'Malicious',
+        reason: 'blur_farming',
+        description:
+          'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
+        args: {
+          contract: '0xa7206d878c5c3871826dfdb42191c49b1d11f466',
+          operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
+        },
+      };
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          securityAlertResponse: mockSecurityAlertResponse,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          gasFeeToken: GAS_FEE_TOKEN_ADDRESS_MOCK,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
+      expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
+      expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
+      expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
+      expect(transactionMeta.origin).toBe(mockOrigin);
+      expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      expect(transactionMeta.securityAlertResponse).toStrictEqual(
+        mockSecurityAlertResponse,
+      );
+      // Because gasFeeToken has been passed
+      expect(transactionMeta.isGasFeeTokenIgnoredIfBalance).toBe(true);
+      expect(transactionMeta.selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_ADDRESS_MOCK,
+      );
+      expect(transactionMeta).not.toHaveProperty('excludeNativeTokenForFee');
+      expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds unapproved transaction to state with gas fee token and excludeNativeTokenForFee', async () => {
+      const { controller } = setupController();
+
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+      const mockSecurityAlertResponse = {
+        result_type: 'Malicious',
+        reason: 'blur_farming',
+        description:
+          'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
+        args: {
+          contract: '0xa7206d878c5c3871826dfdb42191c49b1d11f466',
+          operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
+        },
+      };
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          securityAlertResponse: mockSecurityAlertResponse,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          gasFeeToken: GAS_FEE_TOKEN_ADDRESS_MOCK,
+          excludeNativeTokenForFee: true,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
+      expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
+      expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
+      expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
+      expect(transactionMeta.origin).toBe(mockOrigin);
+      expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      expect(transactionMeta.securityAlertResponse).toStrictEqual(
+        mockSecurityAlertResponse,
+      );
+      // Because gasFeeToken has been passed AND excludeNativeTokenForFee is true
+      expect(transactionMeta.isGasFeeTokenIgnoredIfBalance).toBe(false);
+      expect(transactionMeta.selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_ADDRESS_MOCK,
+      );
+      expect(transactionMeta.excludeNativeTokenForFee).toBe(true);
+      expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists requiredAssets on transaction meta', async () => {
+      const { controller } = setupController();
+
+      const requiredAssets = [
+        {
+          address: '0x1234567890123456789012345678901234567890' as Hex,
+          amount: '0x1' as Hex,
+          standard: 'erc20',
+        },
+      ];
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          requiredAssets,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(transactionMeta.requiredAssets).toStrictEqual(requiredAssets);
+    });
+
+    it.each([
+      [TransactionEnvelopeType.legacy],
+      [TransactionEnvelopeType.accessList, { accessList: [] }],
+      [TransactionEnvelopeType.setCode, { authorizationList: [] }],
+    ])(
+      'sets txParams.type to %s if not defined in given txParams',
+      async (
+        type: TransactionEnvelopeType,
+        extraTxParamsToSet: Partial<TransactionParams> = {},
+      ) => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK, ...extraTxParamsToSet },
+          { isInternal: true, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        expect(controller.state.transactions[0].txParams.type).toBe(type);
+      },
+    );
+
+    it('sets txParams.type to 0x2 if not defined in given txParams', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      rootMessenger.unregisterActionHandler(
+        'NetworkController:getEIP1559Compatibility',
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getEIP1559Compatibility',
+        async () => true,
+      );
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          maxFeePerGas: '0x1',
+          maxPriorityFeePerGas: '0x1',
+        },
+        { isInternal: true, networkClientId: NETWORK_CLIENT_ID_MOCK },
+      );
+
+      expect(controller.state.transactions[0].txParams.type).toBe(
+        TransactionEnvelopeType.feeMarket,
       );
     });
 
-    it('generates initial history', async () => {
-      const controller = newController();
+    describe('networkClientId exists in the MultichainTrackingHelper', () => {
+      it('adds unapproved transaction to state when using networkClientId', async () => {
+        const { controller } = setupController();
+        const sepoliaTxParams: TransactionParams = {
+          chainId: ChainId.sepolia,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        };
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
+        multichainTrackingHelperMock.has.mockReturnValue(true);
+
+        await controller.addTransaction(sepoliaTxParams, {
+          origin: 'metamask',
+          actionId: ACTION_ID_MOCK,
+          networkClientId: InfuraNetworkType.sepolia,
+        });
+
+        const transactionMeta = controller.state.transactions[0];
+
+        expect(transactionMeta.txParams.from).toStrictEqual(
+          sepoliaTxParams.from,
+        );
+        expect(transactionMeta.chainId).toStrictEqual(CHAIN_ID_MOCK);
+        expect(transactionMeta.networkClientId).toBe('sepolia');
+        expect(transactionMeta.origin).toBe('metamask');
       });
 
-      const expectedInitialSnapshot = {
-        actionId: undefined,
-        chainId: expect.any(String),
-        dappSuggestedGasFees: undefined,
-        deviceConfirmedOn: undefined,
-        id: expect.any(String),
-        origin: undefined,
-        securityAlertResponse: undefined,
-        sendFlowHistory: expect.any(Array),
-        status: TransactionStatus.unapproved,
-        time: expect.any(Number),
-        txParams: expect.anything(),
-        userEditedGasLimit: false,
-        type: TransactionType.simpleSend,
-        verifiedOnBlockchain: expect.any(Boolean),
-      };
+      it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+        multichainTrackingHelperMock.has.mockReturnValue(true);
 
-      // Expect initial snapshot to be in place
-      expect(controller.state.transactions[0]?.history).toStrictEqual([
-        expectedInitialSnapshot,
-      ]);
+        const submittedEventListener = jest.fn();
+        messenger.subscribe(
+          'TransactionController:transactionSubmitted',
+          submittedEventListener,
+        );
+
+        const sepoliaTxParams: TransactionParams = {
+          chainId: ChainId.sepolia,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        const { result } = await controller.addTransaction(sepoliaTxParams, {
+          origin: 'metamask',
+          actionId: ACTION_ID_MOCK,
+          networkClientId: InfuraNetworkType.sepolia,
+        });
+
+        await result;
+
+        const { txParams, status, networkClientId, chainId } =
+          controller.state.transactions[0];
+        expect(submittedEventListener).toHaveBeenCalledTimes(1);
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
+        expect(networkClientId).toBe('sepolia');
+        expect(chainId).toBe(CHAIN_ID_MOCK);
+        expect(status).toBe(TransactionStatus.submitted);
+      });
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -892,7 +1798,7 @@ describe('TransactionController', () => {
         ['origin is not defined', undefined],
         ['no fee information is given', 'MockDappOrigin'],
       ])('as undefined if %s', async (_testName, origin) => {
-        const controller = newController();
+        const { controller } = setupController();
         await controller.addTransaction(
           {
             from: ACCOUNT_MOCK,
@@ -900,6 +1806,7 @@ describe('TransactionController', () => {
           },
           {
             origin,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         );
         expect(
@@ -907,116 +1814,158 @@ describe('TransactionController', () => {
         ).toBeUndefined();
       });
 
-      it.each([
-        ['gasPrice'],
-        ['maxFeePerGas'],
-        ['maxPriorityFeePerGas'],
-        ['gas'],
-      ])('if %s is defined', async (gasPropName) => {
-        const controller = newController();
-        const mockDappOrigin = 'MockDappOrigin';
-        const mockGasValue = '0x1';
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-            [gasPropName]: mockGasValue,
-          },
-          {
-            origin: mockDappOrigin,
-          },
-        );
-        expect(
-          controller.state.transactions[0]?.dappSuggestedGasFees?.[
-            gasPropName as keyof DappSuggestedGasFees
-          ],
-        ).toBe(mockGasValue);
-      });
+      it.each<[keyof DappSuggestedGasFees, TransactionEnvelopeType]>([
+        ['gasPrice', TransactionEnvelopeType.legacy],
+        ['maxFeePerGas', TransactionEnvelopeType.feeMarket],
+        ['maxPriorityFeePerGas', TransactionEnvelopeType.feeMarket],
+        ['gas', TransactionEnvelopeType.feeMarket],
+      ])(
+        'if %s is defined',
+        async (
+          gasPropName: keyof DappSuggestedGasFees,
+          type: TransactionEnvelopeType,
+        ) => {
+          const { controller } = setupController();
+          const mockDappOrigin = 'MockDappOrigin';
+          const mockGasValue = '0x1';
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+              type,
+              [gasPropName]: mockGasValue,
+            },
+            {
+              origin: mockDappOrigin,
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+          expect(
+            controller.state.transactions[0]?.dappSuggestedGasFees?.[
+              gasPropName
+            ],
+          ).toBe(mockGasValue);
+        },
+      );
     });
 
-    it.each([
-      ['mainnet', MOCK_MAINNET_NETWORK],
-      ['custom network', MOCK_CUSTOM_NETWORK],
-    ])(
-      'adds unapproved transaction to state after switching to %s',
-      async (_networkName, newNetwork) => {
-        const getNetworkState = jest.fn().mockReturnValue(MOCK_NETWORK.state);
+    it('adds unapproved transaction to state after switching to Infura network', async () => {
+      const { controller, changeNetwork } = setupController({
+        network: {
+          state: {
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
+          },
+        },
+      });
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.mainnet });
 
-        let networkStateChangeListener: ((state: NetworkState) => void) | null =
-          null;
-
-        const onNetworkStateChange = (
-          listener: (state: NetworkState) => void,
-        ) => {
-          networkStateChangeListener = listener;
-        };
-
-        const controller = newController({
-          options: { getNetworkState, onNetworkStateChange },
-        });
-
-        // switch from Goerli to Mainnet
-        getNetworkState.mockReturnValue(newNetwork.state);
-
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        networkStateChangeListener!(newNetwork.state);
-
-        await controller.addTransaction({
+      await controller.addTransaction(
+        {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_MOCK,
-        });
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
-        expect(controller.state.transactions[0].txParams.from).toBe(
-          ACCOUNT_MOCK,
-        );
-        expect(controller.state.transactions[0].chainId).toBe(
-          newNetwork.state.providerConfig.chainId,
-        );
-        expect(controller.state.transactions[0].status).toBe(
-          TransactionStatus.unapproved,
-        );
-      },
-    );
+      expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
+      expect(controller.state.transactions[0].chainId).toBe(CHAIN_ID_MOCK);
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.unapproved,
+      );
+    });
+
+    it('adds unapproved transaction to state after switching to custom network', async () => {
+      const { controller, changeNetwork } = setupController({
+        network: {
+          state: {
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
+          },
+        },
+        mockNetworkClientConfigurationsByNetworkClientId: {
+          'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
+            chainId: '0x1337',
+          }),
+        },
+      });
+      changeNetwork({ selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD' });
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+        },
+      );
+
+      expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
+      expect(controller.state.transactions[0].chainId).toBe('0x1337');
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.unapproved,
+      );
+    });
 
     it('throws if address invalid', async () => {
-      const controller = newController();
+      const { controller } = setupController();
       await expect(
-        controller.addTransaction({ from: 'foo' } as any),
+        controller.addTransaction(
+          { from: 'foo' },
+          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+        ),
       ).rejects.toThrow('Invalid "from" address');
     });
 
     it('increments nonce when adding a new non-cancel non-speedup transaction', async () => {
-      v1Stub
+      uuidModuleMock.v1
         .mockImplementationOnce(() => 'aaaab1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')
         .mockImplementationOnce(() => 'bbbb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
 
-      const controller = newController({ approve: true });
-
-      const { result: firstResult } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
+      const { controller } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
       });
+
+      const { result: firstResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await firstResult.catch(() => undefined);
 
       const firstTransaction = controller.state.transactions[0];
 
       // eslint-disable-next-line jest/prefer-spy-on
-      NonceTracker.prototype.getNonceLock = jest.fn().mockResolvedValue({
+      multichainTrackingHelperMock.getNonceLock = jest.fn().mockResolvedValue({
         nextNonce: NONCE_MOCK + 1,
         releaseLock: () => Promise.resolve(),
       });
 
-      const { result: secondResult } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x2',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x1290',
-      });
+      const { result: secondResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x2',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x1290',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await secondResult.catch(() => undefined);
 
@@ -1033,15 +1982,25 @@ describe('TransactionController', () => {
     });
 
     it('requests approval using the approval controller', async () => {
-      const controller = newController();
+      const { controller, messenger } = setupController();
+      const messengerCallSpy = jest.spyOn(messenger, 'call');
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+      expect(
+        messengerCallSpy.mock.calls.filter(
+          (args) => args[0] === 'ApprovalController:addRequest',
+        ),
+      ).toHaveLength(1);
+      expect(messengerCallSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           id: expect.any(String),
@@ -1055,7 +2014,8 @@ describe('TransactionController', () => {
     });
 
     it('skips approval if option explicitly false', async () => {
-      const controller = newController();
+      const { controller, messenger } = setupController();
+      jest.spyOn(messenger, 'call');
 
       await controller.addTransaction(
         {
@@ -1064,27 +2024,17 @@ describe('TransactionController', () => {
         },
         {
           requireApproval: false,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
+      expect(messenger.call).not.toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+      );
     });
 
-    it('calls security provider with transaction meta and sets response in to securityProviderResponse', async () => {
-      const mockRPCMethodName = 'MOCK_RPC_METHOD_NAME';
-      const mockSecurityProviderResponse = {
-        flagAsDangerous: 1,
-        info: 'Mock info',
-      };
-      const securityProviderRequestMock = jest
-        .fn()
-        .mockResolvedValue(mockSecurityProviderResponse);
-
-      const controller = newController({
-        options: {
-          securityProviderRequest: securityProviderRequestMock,
-        },
-      });
+    it('updates gas properties', async () => {
+      const { controller } = setupController();
 
       await controller.addTransaction(
         {
@@ -1092,100 +2042,1308 @@ describe('TransactionController', () => {
           to: ACCOUNT_MOCK,
         },
         {
-          method: mockRPCMethodName,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
-      expect(securityProviderRequestMock).toHaveBeenCalledTimes(1);
-      expect(securityProviderRequestMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: MOCK_V1_UUID,
-        }),
-        mockRPCMethodName,
-      );
-
-      const { securityProviderResponse } = controller.state.transactions[0];
-      expect(securityProviderResponse).toBe(mockSecurityProviderResponse);
-    });
-
-    it('updates gas properties', async () => {
-      const controller = newController();
-
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
-        ethQuery: expect.any(Object),
-        providerConfig: MOCK_NETWORK.state.providerConfig,
+        isCustomNetwork: false,
+        isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
+        messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
     });
 
     it('updates gas fee properties', async () => {
-      const controller = newController();
+      const { controller, rootMessenger } = setupController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      rootMessenger.unregisterActionHandler(
+        'NetworkController:getEIP1559Compatibility',
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getEIP1559Compatibility',
+        async () => true,
+      );
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       expect(updateGasFeesMock).toHaveBeenCalledTimes(1);
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
-        ethQuery: expect.any(Object),
+        gasFeeFlows: [
+          randomisedEstimationsGasFeeFlowMock,
+          lineaGasFeeFlowMock,
+          defaultGasFeeFlowMock,
+        ],
         getGasFeeEstimates: expect.any(Function),
+        getSavedGasFees: expect.any(Function),
+        messenger: expect.any(Object),
         txMeta: expect.any(Object),
+      });
+    });
+
+    it('adds delegration address to metadata', async () => {
+      const { controller } = setupController();
+
+      getDelegationAddressMock.mockResolvedValueOnce(ACCOUNT_MOCK);
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      expect(controller.state.transactions[0].delegationAddress).toBe(
+        ACCOUNT_MOCK,
+      );
+    });
+
+    describe('with afterAdd hook', () => {
+      it('calls afterAdd hook', async () => {
+        const afterAddHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterAdd: afterAddHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(afterAddHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const afterAddHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterAdd: afterAddHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+        expect(updateTransactionMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: expect.any(String),
+          }),
+        );
+      });
+
+      it('saves original transaction params if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const afterAddHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              afterAdd: afterAddHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(controller.state.transactions[0].txParamsOriginal).toStrictEqual(
+          expect.objectContaining({
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          }),
+        );
+      });
+    });
+
+    describe('with enforced simulations', () => {
+      const wrappedParams = {
+        data: '0xabcdef',
+        to: ACCOUNT_2_MOCK,
+        value: '0x123',
+      };
+      const refreshedGasFeeToken = {
+        ...GAS_FEE_TOKEN_MOCK,
+        amount: '0x10',
+      };
+
+      it('skips balance changes but refreshes gas fee tokens using the wrapped transaction', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [refreshedGasFeeToken],
+          isGasFeeSponsored: false,
+        });
+        shouldResimulateMock.mockReturnValueOnce({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const originalGasUsed = '0x5208';
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          gasUsed: originalGasUsed,
+          isGasFeeSponsored: true,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...wrappedParams,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        });
+        await flushPromises();
+
+        expect(getBalanceChangesMock).not.toHaveBeenCalled();
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              containerTypes: [TransactionContainerType.EnforcedSimulations],
+              txParams: expect.objectContaining(wrappedParams),
+            }),
+          }),
+        );
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [refreshedGasFeeToken],
+          gasUsed: originalGasUsed,
+          isExternalSign: true,
+          isGasFeeSponsored: true,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
+      });
+
+      it('keeps the selected token during periodic simulation updates', async () => {
+        jest.useFakeTimers();
+        getGasFeeTokensMock.mockResolvedValue({
+          gasFeeTokens: [refreshedGasFeeToken],
+          isGasFeeSponsored: false,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isActive: true,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          status: TransactionStatus.unapproved as const,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            ...wrappedParams,
+          },
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await jestAdvanceTime({ duration: RESIMULATE_INTERVAL_MS });
+
+        expect(getBalanceChangesMock).not.toHaveBeenCalled();
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [refreshedGasFeeToken],
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+        });
+
+        jest.useRealTimers();
+      });
+
+      it('replaces existing tokens with an empty response without clearing the selection', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+        shouldResimulateMock.mockReturnValueOnce({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          gasUsed: '0x5208',
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: wrappedParams.data,
+        });
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [],
+          gasUsed: transactionMeta.gasUsed,
+          selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
+        });
+      });
+
+      it('does not apply an older in-flight simulation response after wrapping', async () => {
+        const staleBalanceChanges =
+          createDeferredPromise<
+            Awaited<ReturnType<typeof getBalanceChanges>>
+          >();
+        const staleGasFeeToken = {
+          ...GAS_FEE_TOKEN_MOCK,
+          amount: '0x20',
+        };
+        getBalanceChangesMock.mockReturnValueOnce(staleBalanceChanges.promise);
+        getGasFeeTokensMock.mockImplementation(async ({ transactionMeta }) => {
+          const isWrapped = transactionMeta.containerTypes?.includes(
+            TransactionContainerType.EnforcedSimulations,
+          );
+
+          return {
+            gasFeeTokens: [isWrapped ? refreshedGasFeeToken : staleGasFeeToken],
+            isGasFeeSponsored: false,
+          };
+        });
+        shouldResimulateMock.mockReturnValue({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          gasUsed: '0x100',
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0x1111',
+        });
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...wrappedParams,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        });
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          refreshedGasFeeToken,
+        ]);
+
+        staleBalanceChanges.resolve({
+          gasUsed: '0x200',
+          simulationData: {
+            ...SIMULATION_DATA_RESULT_MOCK,
+            tokenBalanceChanges: [],
+          },
+        });
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(2);
+        expect(controller.state.transactions[0]).toMatchObject({
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+          gasFeeTokens: [refreshedGasFeeToken],
+          gasUsed: transactionMeta.gasUsed,
+          txParams: expect.objectContaining(wrappedParams),
+        });
+      });
+    });
+
+    describe('with beforeSign hook', () => {
+      it('calls beforeSign hook', async () => {
+        const beforeSignHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(beforeSignHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if update callback returned', async () => {
+        const updateTransactionMock = jest.fn();
+
+        const beforeSignHook = jest
+          .fn()
+          .mockResolvedValueOnce({ updateTransaction: updateTransactionMock });
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('updates simulation data', () => {
+      it('by default', async () => {
+        getBalanceChangesMock.mockImplementationOnce(async (request) => {
+          await request.getSimulationConfig('https://testurl.com');
+          return {
+            simulationData: SIMULATION_DATA_RESULT_MOCK,
+          };
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+        expect(getBalanceChangesMock).toHaveBeenCalledWith({
+          blockTime: undefined,
+          chainId: MOCK_NETWORK.chainId,
+          getSimulationConfig: expect.any(Function),
+          messenger: expect.any(Object),
+          nestedTransactions: undefined,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          txParams: {
+            data: undefined,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            type: TransactionEnvelopeType.legacy,
+            value: '0x0',
+          },
+        });
+
+        expect(controller.state.transactions[0].simulationData).toStrictEqual(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+      });
+
+      it('sets gasUsed on transaction meta from simulation response', async () => {
+        const testGasUsed = toHex(21123);
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+          gasUsed: testGasUsed,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasUsed).toBe(testGasUsed);
+      });
+
+      it('does not apply an older in-flight result after a newer simulation', async () => {
+        const staleBalanceChanges =
+          createDeferredPromise<
+            Awaited<ReturnType<typeof getBalanceChanges>>
+          >();
+        const freshBalanceChanges =
+          createDeferredPromise<
+            Awaited<ReturnType<typeof getBalanceChanges>>
+          >();
+        const staleGasFeeToken = {
+          ...GAS_FEE_TOKEN_MOCK,
+          amount: '0x20',
+        };
+        const freshGasFeeToken = {
+          ...GAS_FEE_TOKEN_MOCK,
+          amount: '0x30',
+        };
+        const freshSimulationData = {
+          ...SIMULATION_DATA_RESULT_MOCK,
+          tokenBalanceChanges: [],
+        };
+        const freshSimulationRevert = { message: 'Fresh revert' };
+        getBalanceChangesMock
+          .mockReturnValueOnce(staleBalanceChanges.promise)
+          .mockReturnValueOnce(freshBalanceChanges.promise);
+        getGasFeeTokensMock.mockImplementation(async ({ transactionMeta }) => {
+          const isFresh = transactionMeta.txParams.data === '0x2222';
+
+          return {
+            gasFeeTokens: [isFresh ? freshGasFeeToken : staleGasFeeToken],
+            isGasFeeSponsored: isFresh,
+          };
+        });
+        shouldResimulateMock.mockReturnValue({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0x1111',
+        });
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0x2222',
+        });
+
+        freshBalanceChanges.resolve({
+          gasUsed: '0x300',
+          simulationData: freshSimulationData,
+          simulationRevert: freshSimulationRevert,
+        });
+        await flushPromises();
+
+        staleBalanceChanges.resolve({
+          gasUsed: '0x200',
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+          simulationRevert: { message: 'Stale revert' },
+        });
+        await flushPromises();
+
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [freshGasFeeToken],
+          gasUsed: '0x300',
+          isExternalSign: true,
+          isGasFeeSponsored: true,
+          revert: { simulation: freshSimulationRevert },
+          simulationData: freshSimulationData,
+          txParams: expect.objectContaining({ data: '0x2222' }),
+        });
+      });
+
+      it('with getSimulationConfig', async () => {
+        getBalanceChangesMock.mockImplementationOnce(async (request) => {
+          await request.getSimulationConfig('https://testurl.com');
+          return {
+            simulationData: SIMULATION_DATA_RESULT_MOCK,
+          };
+        });
+
+        const getSimulationConfigMock: GetSimulationConfig = jest
+          .fn()
+          .mockResolvedValue({});
+
+        const { controller } = setupController({
+          options: {
+            getSimulationConfig: getSimulationConfigMock,
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+        expect(getBalanceChangesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            getSimulationConfig: expect.any(Function),
+          }),
+        );
+
+        expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
+        expect(getSimulationConfigMock).toHaveBeenCalledWith(
+          'https://testurl.com',
+          {
+            txMeta: expect.objectContaining({
+              txParams: expect.objectContaining({
+                from: ACCOUNT_MOCK,
+                to: ACCOUNT_MOCK,
+              }),
+            }),
+          },
+        );
+
+        expect(controller.state.transactions[0].simulationData).toStrictEqual(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+      });
+
+      it('with error if simulation disabled', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
+
+        const { controller } = setupController({
+          options: { isSimulationEnabled: () => false },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toStrictEqual({
+          error: {
+            code: SimulationErrorCode.Disabled,
+            message: 'Simulation disabled',
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('passes the transaction meta to the isSimulationEnabled callback', async () => {
+        const isSimulationEnabled = jest.fn().mockReturnValue(true);
+
+        const { controller } = setupController({
+          options: { isSimulationEnabled },
+        });
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSimulationEnabled).toHaveBeenCalledWith(
+          expect.objectContaining({ id: transactionMeta.id }),
+        );
+      });
+
+      it('unless approval not required', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+    });
+
+    describe('updates gas fee tokens', () => {
+      it('by default', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          GAS_FEE_TOKEN_MOCK,
+        ]);
+      });
+
+      it('with getSimulationConfig', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const getSimulationConfigMock: GetSimulationConfig = jest
+          .fn()
+          .mockResolvedValue({});
+
+        const { controller } = setupController({
+          options: {
+            getSimulationConfig: getSimulationConfigMock,
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            getSimulationConfig: getSimulationConfigMock,
+          }),
+        );
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          GAS_FEE_TOKEN_MOCK,
+        ]);
+      });
+
+      it('unless approval not required', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].gasFeeTokens).toBeUndefined();
+      });
+    });
+
+    describe('updates isGasFeeSponsored', () => {
+      it('sets isGasFeeSponsored to true when transaction is sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+      });
+
+      it('sets isGasFeeSponsored to false when transaction is not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
+      });
+
+      it('defaults isGasFeeSponsored to false when gas fee tokens are disabled', async () => {
+        const { controller } = setupController({
+          options: {
+            isEIP7702GasFeeTokensEnabled: () => Promise.resolve(false),
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
+      });
+
+      it('sets isExternalSign to true when transaction is sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+
+      it('does not set isExternalSign when transaction is not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isExternalSign).toBeUndefined();
+      });
+
+      it('sets isExternalSign to true immediately when isGasFeeSponsored is passed in options', async () => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            isGasFeeSponsored: true,
+          },
+        );
+
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+
+      it('preserves isGasFeeSponsored and isExternalSign when passed in options even if simulation returns not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            isGasFeeSponsored: true,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+    });
+
+    describe('with isStateOnly', () => {
+      it('sets isStateOnly on transaction metadata', async () => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(controller.state.transactions[0].isStateOnly).toBe(true);
+      });
+
+      it('does not update simulation data', async () => {
+        getBalanceChangesMock.mockResolvedValueOnce({
+          simulationData: SIMULATION_DATA_RESULT_MOCK,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+
+      it('marks transaction as submitted', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(signMock).not.toHaveBeenCalled();
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            isStateOnly: true,
+            status: TransactionStatus.submitted,
+            submittedTime: expect.any(Number),
+          }),
+        ]);
+      });
+
+      it('returns empty string as result hash', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            isStateOnly: true,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const hash = await result;
+
+        expect(hash).toBe('');
       });
     });
 
     describe('on approve', () => {
       it('submits transaction', async () => {
-        const controller = newController({ approve: true });
-
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          gas: '0x0',
-          gasPrice: '0x0',
-          to: ACCOUNT_MOCK,
-          value: '0x0',
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
         });
+        const submittedEventListener = jest.fn();
+        messenger.subscribe(
+          'TransactionController:transactionSubmitted',
+          submittedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         await result;
 
-        const { txParams, status, submittedTime } =
-          controller.state.transactions[0];
-        expect(txParams.from).toBe(ACCOUNT_MOCK);
-        expect(txParams.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
-        expect(status).toBe(TransactionStatus.submitted);
-        expect(submittedTime).toStrictEqual(expect.any(Number));
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            txParams: expect.objectContaining({
+              from: ACCOUNT_MOCK,
+              nonce: toHex(NONCE_MOCK),
+            }),
+            status: TransactionStatus.submitted,
+            submittedTime: expect.any(Number),
+          }),
+        ]);
+
+        expect(submittedEventListener).toHaveBeenCalledTimes(1);
+        expect(submittedEventListener).toHaveBeenCalledWith({
+          transactionMeta: expect.objectContaining({
+            txParams: expect.objectContaining({
+              from: ACCOUNT_MOCK,
+              nonce: toHex(NONCE_MOCK),
+            }),
+            status: TransactionStatus.submitted,
+            submittedTime: expect.any(Number),
+          }),
+        });
+      });
+
+      it('preserves submittedTime if already set by publish hook', async () => {
+        const presetSubmittedTime = 1000000;
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              publish: async (txMeta) => {
+                const existing = controller.state.transactions.find(
+                  (transaction) => transaction.id === txMeta.id,
+                );
+
+                if (existing) {
+                  controller.updateTransaction(
+                    { ...existing, submittedTime: presetSubmittedTime },
+                    'Set submittedTime in publish hook',
+                  );
+                }
+                return { transactionHash: '0x123' };
+              },
+            },
+          },
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(controller.state.transactions[0].submittedTime).toBe(
+          presetSubmittedTime,
+        );
+      });
+
+      it('throws with contextual rpcRequest message if publish fails', async () => {
+        const rpcErrorMessage = `RPC 0x5 Custom eth_sendRawTransaction: ${ERROR_MESSAGE_MOCK}`;
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        rpcRequestMock.mockImplementation(async ({ method }) => {
+          if (method === 'eth_sendRawTransaction') {
+            throw new Error(rpcErrorMessage);
+          }
+
+          if (method === 'eth_getBalance') {
+            return '0x0';
+          }
+
+          return undefined;
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toThrow(rpcErrorMessage);
+      });
+
+      it('throws with standard message if publish fails', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        rpcRequestMock.mockImplementation(async ({ method }) => {
+          if (method === 'eth_sendRawTransaction') {
+            throw new Error(ERROR_MESSAGE_MOCK);
+          }
+
+          if (method === 'eth_getBalance') {
+            return '0x0';
+          }
+
+          return undefined;
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
       });
 
       it('reports success to approval acceptor', async () => {
-        const controller = newController({ approve: true });
-
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
+        const successCallback = jest.fn();
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+              result: {
+                resultCallbacks: {
+                  success: successCallback,
+                  error: () => {
+                    // do nothing
+                  },
+                },
+              },
+            },
+          },
         });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         await result;
 
-        expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
+        expect(successCallback).toHaveBeenCalledTimes(1);
       });
 
       it('reports error to approval acceptor on error', async () => {
-        const controller = newController({
-          approve: true,
-          config: { sign: undefined },
+        const errorCallback = jest.fn();
+        const { controller, rootMessenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+              result: {
+                resultCallbacks: {
+                  success: () => {
+                    // do nothing
+                  },
+                  error: errorCallback,
+                },
+              },
+            },
+          },
         });
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        rootMessenger.unregisterActionHandler(
+          'KeyringController:signTransaction',
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         try {
           await result;
@@ -1193,7 +3351,125 @@ describe('TransactionController', () => {
           // Expected error
         }
 
-        expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
+        expect(errorCallback).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if approval result includes updated metadata', async () => {
+        const { controller, mockTransactionApprovalRequest } =
+          setupController();
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const transaction = controller.state.transactions[0];
+
+        mockTransactionApprovalRequest.approve({
+          value: {
+            txMeta: { ...transaction, customNonceValue: '123' },
+          },
+        });
+
+        await result;
+
+        expect(controller.state.transactions).toStrictEqual([
+          expect.objectContaining({
+            customNonceValue: '123',
+          }),
+        ]);
+      });
+
+      it('uses extra transactions publish hook if batch transactions in metadata', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const publishHook: jest.MockedFn<PublishHook> = jest.fn();
+
+        publishHook.mockResolvedValueOnce({
+          transactionHash: TRANSACTION_HASH_MOCK,
+        });
+
+        const extraTransactionsPublishHook = jest.mocked(
+          ExtraTransactionsPublishHook,
+        );
+
+        extraTransactionsPublishHook.mockReturnValue({
+          getHook: () => publishHook,
+        } as unknown as ExtraTransactionsPublishHook);
+
+        const { result, transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        controller.updateBatchTransactions({
+          transactionId: transactionMeta.id,
+          batchTransactions: [
+            { data: DATA_MOCK, to: ACCOUNT_2_MOCK, value: VALUE_MOCK },
+          ],
+        });
+
+        result.catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(ExtraTransactionsPublishHook).toHaveBeenCalledTimes(1);
+        expect(publishHook).toHaveBeenCalledTimes(1);
+      });
+
+      it('skips signing if isExternalSign is true', async () => {
+        const { controller, mockTransactionApprovalRequest } =
+          setupController();
+
+        const { result, transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve({
+          value: {
+            txMeta: {
+              ...transactionMeta,
+              isExternalSign: true,
+            },
+          },
+        });
+
+        await result;
+
+        expect(signMock).not.toHaveBeenCalled();
+
+        expect(controller.state.transactions).toMatchObject([
+          expect.objectContaining({
+            status: TransactionStatus.submitted,
+          }),
+        ]);
       });
 
       describe('fails', () => {
@@ -1206,11 +3482,16 @@ describe('TransactionController', () => {
         async function expectTransactionToFail(
           controller: TransactionController,
           expectedError: string,
-        ) {
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          });
+        ): Promise<void> {
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           await expect(result).rejects.toThrow(expectedError);
 
@@ -1221,95 +3502,117 @@ describe('TransactionController', () => {
         }
 
         it('if signing error', async () => {
-          const controller = newController({
-            approve: true,
-            config: {
-              sign: () => {
-                throw new Error('foo');
+          const { controller, rootMessenger } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: 'approved',
               },
             },
           });
+
+          rootMessenger.unregisterActionHandler(
+            'KeyringController:signTransaction',
+          );
+          rootMessenger.registerActionHandler(
+            'KeyringController:signTransaction',
+            () => {
+              throw new Error('foo');
+            },
+          );
 
           await expectTransactionToFail(controller, 'foo');
         });
 
         it('if no sign method defined', async () => {
-          const controller = newController({
-            approve: true,
-            config: {
-              sign: undefined,
+          const { controller, rootMessenger } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: 'approved',
+              },
             },
           });
 
-          await expectTransactionToFail(controller, 'No sign method defined');
-        });
+          rootMessenger.unregisterActionHandler(
+            'KeyringController:signTransaction',
+          );
 
-        it('if no chainId defined', async () => {
-          const controller = newController({
-            approve: true,
-            network: MOCK_NETWORK_WITHOUT_CHAIN_ID,
-          });
-
-          await expectTransactionToFail(controller, 'No chainId defined');
+          await expectTransactionToFail(
+            controller,
+            'A handler for KeyringController:signTransaction has not been registered',
+          );
         });
 
         it('if unexpected status', async () => {
-          const controller = newController();
-
-          (
-            delayMessengerMock.call as jest.MockedFunction<any>
-          ).mockImplementationOnce(() => {
-            throw new Error('Unknown problem');
+          const { controller } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: TransactionStatus.rejected,
+                error: new Error('Unknown problem'),
+              },
+            },
           });
 
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            gas: '0x0',
-            gasPrice: '0x0',
-            to: ACCOUNT_MOCK,
-            value: '0x0',
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           await expect(result).rejects.toThrow('Unknown problem');
         });
 
         it('if unrecognised error', async () => {
-          const controller = newController();
-
-          (
-            delayMessengerMock.call as jest.MockedFunction<any>
-          ).mockImplementationOnce(() => {
-            throw new Error('TestError');
+          const { controller } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: TransactionStatus.rejected,
+                error: new Error('TestError'),
+              },
+            },
           });
 
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            gas: '0x0',
-            gasPrice: '0x0',
-            to: ACCOUNT_MOCK,
-            value: '0x0',
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           await expect(result).rejects.toThrow('TestError');
         });
 
         it('if transaction removed', async () => {
-          const controller = newController();
+          const { controller, mockTransactionApprovalRequest } =
+            setupController();
 
-          (
-            delayMessengerMock.call as jest.MockedFunction<any>
-          ).mockImplementationOnce(() => {
-            controller.state.transactions = [];
-            throw new Error('Unknown problem');
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            gas: '0x0',
-            gasPrice: '0x0',
-            to: ACCOUNT_MOCK,
-            value: '0x0',
-          });
+          controller.clearUnapprovedTransactions();
+          mockTransactionApprovalRequest.reject(new Error('Unknown problem'));
 
           await expect(result).rejects.toThrow('Unknown problem');
         });
@@ -1318,73 +3621,406 @@ describe('TransactionController', () => {
 
     describe('on reject', () => {
       it('cancels transaction', async () => {
-        const controller = newController({ reject: true });
-
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+            },
+          },
         });
 
-        const finishedPromise = waitForTransactionFinished(controller);
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
-        await expect(result).rejects.toThrow('User rejected the transaction');
+        const finishedPromise = waitForTransactionFinished(messenger);
+
+        await expect(result).rejects.toThrow(
+          'MetaMask Tx Signature: User denied transaction signature.',
+        );
 
         const { txParams, status } = await finishedPromise;
         expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(status).toBe(TransactionStatus.rejected);
       });
-    });
 
-    describe('checks from address origin', () => {
-      it('throws if `from` address is different from current selected address', async () => {
-        const controller = newController();
-        const origin = ORIGIN_METAMASK;
-        const notSelectedFromAddress = ACCOUNT_2_MOCK;
-        await expect(
-          controller.addTransaction(
-            {
-              from: notSelectedFromAddress,
-              to: ACCOUNT_MOCK,
-            } as any,
-            { origin: ORIGIN_METAMASK },
-          ),
-        ).rejects.toThrow(
-          rpcErrors.internal({
-            message: `Internally initiated transaction is using invalid account.`,
-            data: {
-              origin,
-              fromAddress: notSelectedFromAddress,
-              selectedAddress: ACCOUNT_MOCK,
+      it('publishes TransactionController:transactionRejected and TransactionController:transactionFinished', async () => {
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
             },
+          },
+        });
+        const rejectedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionRejected',
+          rejectedEventListener,
+        );
+
+        const mockActionId = 'mockActionId';
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            actionId: mockActionId,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const finishedPromise = waitForTransactionFinished(messenger);
+
+        try {
+          await result;
+        } catch {
+          // Ignore user rejected error as it is expected
+        }
+        await finishedPromise;
+
+        expect(rejectedEventListener).toHaveBeenCalledTimes(1);
+        expect(rejectedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              status: 'rejected',
+            }),
+            actionId: mockActionId,
           }),
         );
       });
 
+      it('publishes TransactionController:transactionRejected if error is rejected upgrade', async () => {
+        const error = {
+          code: ErrorCode.RejectedUpgrade,
+        };
+
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+              error,
+            },
+          },
+        });
+
+        const rejectedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionRejected',
+          rejectedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const finishedPromise = waitForTransactionFinished(messenger);
+
+        try {
+          await result;
+        } catch {
+          // Ignore user rejected error as it is expected
+        }
+        await finishedPromise;
+
+        expect(rejectedEventListener).toHaveBeenCalledTimes(1);
+        expect(rejectedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              error,
+              status: 'rejected',
+            }),
+          }),
+        );
+      });
+
+      it('throws with correct error code if approval request is rejected due to upgrade', async () => {
+        const error = {
+          code: ErrorCode.RejectedUpgrade,
+        };
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+              error,
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(result).rejects.toHaveProperty(
+          'code',
+          ErrorCode.RejectedUpgrade,
+        );
+      });
+    });
+
+    describe('checks from address origin', () => {
       it('throws if the origin does not have permissions to initiate transactions from the specified address', async () => {
-        const controller = newController();
+        const { controller } = setupController();
         const expectedOrigin = 'originMocked';
         await expect(
           controller.addTransaction(
             { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
-            { origin: expectedOrigin },
+            { origin: expectedOrigin, networkClientId: NETWORK_CLIENT_ID_MOCK },
           ),
         ).rejects.toThrow(
           providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
         );
       });
     });
+
+    describe('updates submit history', () => {
+      it('adds entry to start of array', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            state: {
+              submitHistory: [
+                {
+                  chainId: CHAIN_IDS.LINEA_MAINNET,
+                } as unknown as SubmitHistoryEntry,
+              ],
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { origin: ORIGIN_METAMASK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        await result;
+
+        expect(controller.state.submitHistory).toStrictEqual([
+          {
+            chainId: MOCK_NETWORK.chainId,
+            hash: TRANSACTION_HASH_MOCK,
+            networkType: NETWORK_CLIENT_ID_MOCK,
+            networkUrl: undefined,
+            origin: ORIGIN_METAMASK,
+            rawTransaction: expect.stringContaining('0x'),
+            time: expect.any(Number),
+            transaction: {
+              from: ACCOUNT_MOCK,
+              nonce: '0xc',
+              to: ACCOUNT_MOCK,
+              type: TransactionEnvelopeType.legacy,
+              value: '0x0',
+            },
+          },
+          {
+            chainId: CHAIN_IDS.LINEA_MAINNET,
+          },
+        ]);
+      });
+
+      it('removes last entry if reached maximum size', async () => {
+        const existingSubmitHistory = Array(100);
+
+        existingSubmitHistory[99] = {
+          chainId: CHAIN_IDS.LINEA_MAINNET,
+        } as unknown as SubmitHistoryEntry;
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            state: {
+              submitHistory: existingSubmitHistory,
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: ORIGIN_METAMASK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(controller.state.submitHistory).toHaveLength(100);
+        expect(controller.state.submitHistory[0]).toStrictEqual(
+          expect.objectContaining({
+            chainId: MOCK_NETWORK.chainId,
+            origin: ORIGIN_METAMASK,
+          }),
+        );
+        expect(controller.state.submitHistory[99]).toBeUndefined();
+      });
+    });
+
+    describe('with batch ID', () => {
+      it('throws if duplicate and external origin', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK,
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        await expect(
+          controller.addTransaction(txParams, {
+            batchId: BATCH_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_MOCK,
+          }),
+        ).rejects.toThrow('Batch ID already exists');
+      });
+
+      it('throws if duplicate with different case and external origin', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK.toLowerCase(),
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        await expect(
+          controller.addTransaction(txParams, {
+            batchId: BATCH_ID_MOCK.toUpperCase() as Hex,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_MOCK,
+          }),
+        ).rejects.toThrow('Batch ID already exists');
+      });
+
+      it('does not throw if duplicate but isInternal', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK,
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        await controller.addTransaction(txParams, {
+          batchId: BATCH_ID_MOCK,
+          isInternal: true,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        });
+      });
+
+      it('does not throw if duplicate and isInternal is true', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK,
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        const { result } = await controller.addTransaction(txParams, {
+          batchId: BATCH_ID_MOCK,
+          isInternal: true,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
+          requireApproval: false,
+        });
+
+        await result.catch(() => undefined);
+      });
+    });
   });
 
   describe('wipeTransactions', () => {
     it('removes all transactions on current network', async () => {
-      const controller = newController();
+      const { controller } = setupController();
 
       controller.wipeTransactions();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       controller.wipeTransactions();
 
@@ -1392,277 +4028,696 @@ describe('TransactionController', () => {
     });
 
     it('removes only txs with given address', async () => {
-      const controller = newController();
-
-      controller.wipeTransactions();
-
       const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
       const mockFromAccount2 = '0x2bf137f335ea1b8f193b8f6ea92561a60d23a207';
       const mockCurrentChainId = toHex(5);
-
-      controller.state.transactions.push({
-        id: '1',
-        chainId: mockCurrentChainId,
-        txParams: {
-          from: mockFromAccount1,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '1',
+                chainId: mockCurrentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.confirmed as const,
+                time: 123456789,
+                txParams: {
+                  from: mockFromAccount1,
+                },
+              },
+              {
+                id: '2',
+                chainId: mockCurrentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.confirmed as const,
+                time: 987654321,
+                txParams: {
+                  from: mockFromAccount2,
+                },
+              },
+            ],
+          },
         },
-      } as any);
+      });
 
-      controller.state.transactions.push({
-        id: '2',
-        chainId: mockCurrentChainId,
-        txParams: {
-          from: mockFromAccount2,
-        },
-      } as any);
-
-      controller.wipeTransactions(true, mockFromAccount2);
+      controller.wipeTransactions({ address: mockFromAccount2 });
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('1');
     });
 
     it('removes only txs with given address only on current network', async () => {
-      const controller = newController();
-
-      controller.wipeTransactions();
-
       const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
       const mockDifferentChainId = toHex(1);
       const mockCurrentChainId = toHex(5);
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '1',
+                chainId: mockCurrentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                txParams: {
+                  from: mockFromAccount1,
+                },
+                status: TransactionStatus.confirmed as const,
+                time: 123456789,
+              },
+              {
+                id: '4',
+                chainId: mockDifferentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                txParams: {
+                  from: mockFromAccount1,
+                },
+                status: TransactionStatus.confirmed as const,
+                time: 987654321,
+              },
+            ],
+          },
+        },
+      });
 
-      controller.state.transactions.push({
-        id: '1',
+      controller.wipeTransactions({
         chainId: mockCurrentChainId,
-        txParams: {
-          from: mockFromAccount1,
-        },
-      } as any);
-
-      controller.state.transactions.push({
-        id: '4',
-        chainId: mockDifferentChainId,
-        txParams: {
-          from: mockFromAccount1,
-        },
-      } as any);
-
-      controller.wipeTransactions(false, mockFromAccount1);
+        address: mockFromAccount1,
+      });
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('4');
     });
-  });
 
-  describe('handleMethodData', () => {
-    it('loads method data from registry', async () => {
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
-      mockNetwork({
-        networkClientConfiguration: {
-          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
-          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-          type: NetworkClientType.Infura,
-          network: 'mainnet',
-          infuraProjectId: INFURA_PROJECT_ID,
-        },
-        mocks: [
-          {
-            request: {
-              method: 'eth_call',
-              params: [
-                {
-                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
-                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
-                },
-                'latest',
-              ],
-            },
-            response: {
-              result:
-                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-            },
+    it('removes incoming transactions to specified account', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
+            ],
           },
-        ],
-      });
-      const registry = await controller.handleMethodData('0xf39b5b9b');
-
-      expect(registry.parsedRegistryMethod).toStrictEqual({
-        args: [{ type: 'uint256' }, { type: 'uint256' }],
-        name: 'Eth To Token Swap Input',
-      });
-      expect(registry.registryMethod).toBe(
-        'ethToTokenSwapInput(uint256,uint256)',
-      );
-    });
-
-    it('skips reading registry if already cached in state', async () => {
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
-      mockNetwork({
-        networkClientConfiguration: {
-          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
-          type: NetworkClientType.Infura,
-          network: 'mainnet',
-          infuraProjectId: INFURA_PROJECT_ID,
         },
-        mocks: [
-          {
-            request: {
-              method: 'eth_call',
-              params: [
-                {
-                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
-                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
-                },
-                'latest',
-              ],
-            },
-            response: {
-              result:
-                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-            },
-          },
-        ],
+        updateToInitialState: true,
       });
 
-      await controller.handleMethodData('0xf39b5b9b');
+      expect(controller.state.transactions).toHaveLength(1);
 
-      const registryLookup = jest.spyOn(controller, 'registryLookup' as any);
+      controller.wipeTransactions({ address: ACCOUNT_2_MOCK });
 
-      await controller.handleMethodData('0xf39b5b9b');
-
-      expect(registryLookup).not.toHaveBeenCalled();
+      expect(controller.state.transactions).toHaveLength(0);
     });
   });
 
   describe('stopTransaction', () => {
-    it('rejects result promise', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_GOERLI_NETWORK,
+    it('should throw error if transaction already confirmed', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.cancel,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
       });
 
-      const { result, transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x1',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
+      rpcRequestMock.mockRejectedValueOnce(new Error('nonce too low'));
+
+      await expect(controller.stopTransaction('2')).rejects.toThrow(
+        'Previous transaction is already confirmed',
+      );
+
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('should throw error if publish transaction fails', async () => {
+      const error = new Error('Another reason');
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.cancel,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
       });
 
-      const finishedPromise = waitForTransactionFinished(controller);
+      rpcRequestMock.mockRejectedValueOnce(error);
 
-      await controller.stopTransaction(transactionMeta.id, undefined, {
+      await expect(controller.stopTransaction('2')).rejects.toThrow(
+        'Another reason',
+      );
+
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('submits a cancel transaction', async () => {
+      const simpleSendTransactionId =
+        'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const mockNonce = '0x9';
+      uuidModuleMock.v1.mockImplementationOnce(() => cancelTransactionId);
+      rpcRequestMock.mockResolvedValueOnce('transaction-hash');
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              // Assume we have a submitted transaction in the state
+              {
+                id: simpleSendTransactionId,
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.simpleSend,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  nonce: mockNonce,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      await controller.stopTransaction(simpleSendTransactionId, undefined, {
         estimatedBaseFee: '0x123',
       });
 
-      const { estimatedBaseFee } = await finishedPromise;
+      const { transactions } = controller.state;
 
-      approveTransaction();
+      const cancelTransaction = transactions.find(
+        ({ id }) => id === cancelTransactionId,
+      );
+
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(1);
+      expect(cancelTransaction?.hash).toBe('transaction-hash');
+    });
+
+    it('adds cancel transaction to state', async () => {
+      const simpleSendTransactionId =
+        'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const mockNonce = '0x9';
+      uuidModuleMock.v1.mockImplementationOnce(() => cancelTransactionId);
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              // Assume we have a submitted transaction in the state
+              {
+                id: simpleSendTransactionId,
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.simpleSend,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  nonce: mockNonce,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      await controller.stopTransaction(simpleSendTransactionId, undefined, {
+        estimatedBaseFee: '0x123',
+      });
 
       const { transactions } = controller.state;
-      await expect(result).rejects.toThrow('User cancelled the transaction');
-      expect(estimatedBaseFee).toBe('0x123');
-      expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
-      expect(transactions[0].type).toStrictEqual(TransactionType.simpleSend);
+
+      const simpleSendTransaction = transactions.find(
+        ({ id }) => id === simpleSendTransactionId,
+      );
+      const cancelTransaction = transactions.find(
+        ({ id }) => id === cancelTransactionId,
+      );
+
+      expect(transactions).toHaveLength(2);
+      expect(simpleSendTransaction?.type).toBe(TransactionType.simpleSend);
+      expect(simpleSendTransaction?.status).toBe(TransactionStatus.submitted);
+
+      // This nonce provided while adding first transaction
+      expect(cancelTransaction?.txParams.nonce).toBe(mockNonce);
+
+      expect(cancelTransaction?.type).toBe(TransactionType.cancel);
+      expect(cancelTransaction?.status).toBe(TransactionStatus.submitted);
     });
 
     it('rejects unknown transaction', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_GOERLI_NETWORK,
-      });
+      const { controller } = setupController();
 
       await controller.stopTransaction('transactionIdMock', {
         gasPrice: '0x1',
       });
 
-      const signSpy = jest.spyOn(controller, 'sign' as any);
-
-      expect(signSpy).toHaveBeenCalledTimes(0);
+      expect(signMock).toHaveBeenCalledTimes(0);
     });
 
     it('throws if no sign method', async () => {
-      const controller = newController({ config: { sign: undefined } });
+      const { controller, rootMessenger } = setupController();
 
-      await controller.addTransaction({ from: ACCOUNT_MOCK, to: ACCOUNT_MOCK });
+      rootMessenger.unregisterActionHandler(
+        'KeyringController:signTransaction',
+      );
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          gasPrice: '0x1',
+          gas: '0x5208',
+        },
+        { networkClientId: NETWORK_CLIENT_ID_MOCK },
+      );
 
       await expect(
         controller.stopTransaction(controller.state.transactions[0].id),
-      ).rejects.toThrow('No sign method defined');
-    });
-  });
-
-  describe('speedUpTransaction', () => {
-    it('creates additional transaction with increased gas', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_MAINNET_NETWORK,
-        options: {
-          getCurrentNetworkEIP1559Compatibility: () => false,
-        },
-      });
-
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
-
-      await controller.speedUpTransaction(transactionMeta.id);
-
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(2);
-      expect(transactions[1].txParams.gasPrice).toBe(
-        '0x5916a6d6', // 1.1 * 0x50fd51da
+      ).rejects.toThrow(
+        'A handler for KeyringController:signTransaction has not been registered',
       );
     });
 
-    it('verifies s,r and v values are correctly populated', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_MAINNET_NETWORK,
-        config: {
-          sign: async (transaction: any) => {
-            transaction.r = '1b';
-            transaction.s = 'abc';
-            transaction.v = '123';
-            return transaction;
+    it('publishes transaction events', async () => {
+      const { controller, messenger, mockTransactionApprovalRequest } =
+        setupController({ network: MOCK_LINEA_SEPOLIA_NETWORK });
+
+      const approvedEventListener = jest.fn();
+      const submittedEventListener = jest.fn();
+      const finishedEventListener = jest.fn();
+
+      const mockActionId = 'mockActionId';
+
+      messenger.subscribe(
+        'TransactionController:transactionApproved',
+        approvedEventListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionSubmitted',
+        submittedEventListener,
+      );
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x1',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedEventListener,
+      );
+
+      mockTransactionApprovalRequest.approve();
+
+      // Release for add transaction submission
+      await flushPromises();
+
+      await controller.stopTransaction(transactionMeta.id, undefined, {
+        estimatedBaseFee: '0x123',
+        actionId: mockActionId,
+      });
+
+      // Release for cancel transaction submission
+      await flushPromises();
+
+      const cancelTransaction = controller.state.transactions.find(
+        ({ type }) => type === TransactionType.cancel,
+      );
+
+      // All expected events should be emitted twice (add and cancel transaction)
+      expect(approvedEventListener).toHaveBeenCalledTimes(2);
+      expect(approvedEventListener.mock.calls[1][0]).toStrictEqual({
+        actionId: mockActionId,
+        transactionMeta: cancelTransaction,
+      });
+
+      expect(submittedEventListener).toHaveBeenCalledTimes(2);
+      expect(submittedEventListener).toHaveBeenCalledWith({
+        actionId: mockActionId,
+        transactionMeta: cancelTransaction,
+      });
+
+      expect(finishedEventListener).toHaveBeenCalledTimes(2);
+      expect(finishedEventListener).toHaveBeenCalledWith(cancelTransaction);
+    });
+
+    it('updates submit history', async () => {
+      const { controller } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
           },
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
+      const { result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0xFF',
+          gasPrice: '0xEE',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          origin: ORIGIN_METAMASK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      await result;
+
+      await controller.stopTransaction(controller.state.transactions[0].id);
+
+      const { submitHistory } = controller.state;
+
+      expect(submitHistory).toStrictEqual([
+        {
+          chainId: MOCK_NETWORK.chainId,
+          hash: TRANSACTION_HASH_MOCK,
+          networkType: NETWORK_CLIENT_ID_MOCK,
+          networkUrl: undefined,
+          origin: 'cancel',
+          rawTransaction: expect.stringContaining('0x'),
+          time: expect.any(Number),
+          transaction: {
+            from: ACCOUNT_MOCK,
+            gas: '0xFF',
+            gasLimit: '0xFF',
+            gasPrice: '0x105',
+            nonce: '0xc',
+            to: ACCOUNT_MOCK,
+            type: TransactionEnvelopeType.legacy,
+            value: '0x0',
+          },
+        },
+        expect.objectContaining({
+          origin: ORIGIN_METAMASK,
+        }),
+      ]);
+    });
+  });
+
+  describe('speedUpTransaction', () => {
+    it('creates additional transaction', async () => {
+      const { controller } = setupController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
       });
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id);
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
       const speedUpTransaction = transactions[1];
-      expect(speedUpTransaction.r).toBe('0x1b');
-      expect(speedUpTransaction.s).toBe('0xabc');
-      expect(speedUpTransaction.v).toBe('0x123');
+      expect(speedUpTransaction.originalType).toBe(transactionMeta.type);
+      expect(speedUpTransaction.type).toBe(TransactionType.retry);
     });
 
-    it('creates additional transaction specifying the gasPrice', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_MAINNET_NETWORK,
+    it('should throw error if transaction already confirmed', async () => {
+      const { controller } = setupController({
         options: {
-          getCurrentNetworkEIP1559Compatibility: () => false,
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.retry,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
+      rpcRequestMock.mockRejectedValueOnce(new Error('nonce too low'));
+
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'Previous transaction is already confirmed',
+      );
+
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('should throw error if publish transaction fails', async () => {
+      const error = new Error('Another reason');
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.retry,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
       });
+
+      rpcRequestMock.mockRejectedValueOnce(error);
+
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'Another reason',
+      );
+
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('propagates contextual rpcRequest errors without masking the message', async () => {
+      const error = new Error(
+        'RPC 0x5 Custom eth_sendRawTransaction: Nested rpc error message',
+      );
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.retry,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      rpcRequestMock.mockRejectedValueOnce(error);
+
+      await expect(controller.speedUpTransaction('2')).rejects.toBe(error);
+    });
+
+    it('creates additional transaction with increased gas', async () => {
+      const { controller } = setupController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      expect(transactions[1].txParams.gasPrice).toBe('0x5916a6d6');
+    });
+
+    it('verifies s,r and v values are correctly populated', async () => {
+      const { controller, rootMessenger } = setupController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      rootMessenger.unregisterActionHandler(
+        'KeyringController:signTransaction',
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signTransaction',
+        async (transaction) => ({
+          ...transaction.toJSON(),
+          r: 128n,
+          s: 256n,
+          v: 22310257n, // valid EIP-155 V for Sepolia (chainId 11155111): 2 * 11155111 + 35
+        }),
+      );
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction).toMatchObject({
+        r: '0x80',
+        s: '0x100',
+        v: '0x1546d71',
+      });
+    });
+
+    it('verifies s,r and v values are correctly populated if values are zero', async () => {
+      const { controller, rootMessenger } = setupController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      rootMessenger.unregisterActionHandler(
+        'KeyringController:signTransaction',
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signTransaction',
+        async (transaction) => ({
+          ...transaction.toJSON(),
+          r: 0n,
+          s: 0n,
+          v: 27n,
+        }),
+      );
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x0');
+      expect(speedUpTransaction.s).toBe('0x0');
+      expect(speedUpTransaction.v).toBe('0x1b');
+    });
+
+    it('creates additional transaction specifying the gasPrice', async () => {
+      const { controller } = setupController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id, {
         gasPrice: '0x62DEF4DA',
@@ -1674,15 +4729,26 @@ describe('TransactionController', () => {
     });
 
     it('uses the same nonce', async () => {
-      const controller = newController({ approve: true });
-
-      const { transactionMeta, result } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x1',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
+      const { controller } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
       });
+
+      const { transactionMeta, result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x1',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await result;
       await controller.speedUpTransaction(transactionMeta.id, undefined, {
@@ -1700,98 +4766,140 @@ describe('TransactionController', () => {
       expect(transactions[1].originalGasEstimate).toBe('0x1');
     });
 
-    it('allows transaction count to exceed txHistorylimit', async () => {
-      const controller = newController({
-        approve: true,
-        config: {
-          txHistoryLimit: 1,
+    it('publishes transaction events', async () => {
+      const { controller, messenger } = setupController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const approvedEventListener = jest.fn();
+      const submittedEventListener = jest.fn();
+      const speedupEventListener = jest.fn();
+
+      const mockActionId = 'mockActionId';
+
+      messenger.subscribe(
+        'TransactionController:transactionApproved',
+        approvedEventListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionSubmitted',
+        submittedEventListener,
+      );
+
+      const { transactionMeta: firstTransactionMeta } =
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+      messenger.subscribe(
+        'TransactionController:speedupTransactionAdded',
+        speedupEventListener,
+      );
+
+      await controller.speedUpTransaction(firstTransactionMeta.id, undefined, {
+        actionId: mockActionId,
+      });
+
+      const { transactions } = controller.state;
+      const speedUpTransaction = transactions[1];
+
+      expect(approvedEventListener).toHaveBeenCalledTimes(1);
+      expect(approvedEventListener).toHaveBeenCalledWith({
+        actionId: mockActionId,
+        transactionMeta: speedUpTransaction,
+      });
+
+      expect(submittedEventListener).toHaveBeenCalledTimes(1);
+      expect(submittedEventListener).toHaveBeenCalledWith({
+        actionId: mockActionId,
+        transactionMeta: speedUpTransaction,
+      });
+
+      expect(speedupEventListener).toHaveBeenCalledTimes(1);
+      expect(speedupEventListener).toHaveBeenCalledWith(speedUpTransaction);
+    });
+
+    it('updates submit history', async () => {
+      const { controller } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
         },
       });
 
-      const { transactionMeta, result } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        nonce: '1111111',
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0xFF',
+          gasPrice: '0xEE',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          origin: ORIGIN_METAMASK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await result;
-      await controller.speedUpTransaction(transactionMeta.id);
 
-      expect(controller.state.transactions).toHaveLength(2);
-    });
-  });
+      await controller.speedUpTransaction(controller.state.transactions[0].id);
 
-  describe('initApprovals', () => {
-    it('creates approvals for all unapproved transaction', async () => {
-      const txParams = {
-        from: ACCOUNT_MOCK,
-        hash: '1337',
-        id: 'mocked',
-        chainId: toHex(5),
-        status: TransactionStatus.unapproved,
-      };
-      const controller = newController();
-      controller.state.transactions.push(txParams as any);
-      controller.state.transactions.push({
-        ...txParams,
-        id: 'mocked1',
-        hash: '1338',
-      } as any);
+      const { submitHistory } = controller.state;
 
-      controller.initApprovals();
-
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
+      expect(submitHistory).toStrictEqual([
         {
-          expectsResult: true,
-          id: 'mocked',
-          origin: 'metamask',
-          requestData: { txId: 'mocked' },
-          type: 'transaction',
+          chainId: MOCK_NETWORK.chainId,
+          hash: TRANSACTION_HASH_MOCK,
+          networkType: NETWORK_CLIENT_ID_MOCK,
+          networkUrl: undefined,
+          origin: 'speed up',
+          rawTransaction: expect.stringContaining('0x'),
+          time: expect.any(Number),
+          transaction: {
+            from: ACCOUNT_MOCK,
+            gas: '0xFF',
+            gasLimit: '0xFF',
+            gasPrice: '0x105',
+            nonce: '0xc',
+            to: ACCOUNT_MOCK,
+            type: TransactionEnvelopeType.legacy,
+            value: '0x0',
+          },
         },
-        false,
-      );
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          expectsResult: true,
-          id: 'mocked1',
-          origin: 'metamask',
-          requestData: { txId: 'mocked1' },
-          type: 'transaction',
-        },
-        false,
-      );
-    });
-
-    it('does not create any approval when there is no unapproved transaction', async () => {
-      const controller = newController();
-      controller.initApprovals();
-
-      expect(delayMessengerMock.call).not.toHaveBeenCalled();
+        expect.objectContaining({
+          origin: ORIGIN_METAMASK,
+        }),
+      ]);
     });
   });
 
   describe('confirmExternalTransaction', () => {
     it('adds external transaction to the state as confirmed', async () => {
-      const controller = newController();
+      const { controller } = setupController();
 
       const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
         id: '1',
         chainId: toHex(1),
-        status: TransactionStatus.confirmed,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        time: 123456789,
+        status: TransactionStatus.confirmed as const,
         txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
-      } as any;
+      };
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
@@ -1814,78 +4922,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('generates initial history', async () => {
-      const controller = newController();
-
-      const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        id: '1',
-        chainId: toHex(1),
-        status: TransactionStatus.confirmed,
-        txParams: {
-          gasUsed: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      } as any;
-
-      const externalTransactionReceipt = {
-        gasUsed: '0x5208',
-      };
-
-      const externalBaseFeePerGas = '0x14';
-
-      await controller.confirmExternalTransaction(
-        externalTransactionToConfirm,
-        externalTransactionReceipt,
-        externalBaseFeePerGas,
-      );
-
-      const expectedInitialSnapshot = {
-        chainId: '0x1',
-        from: ACCOUNT_MOCK,
-        id: '1',
-        status: TransactionStatus.confirmed,
-        to: ACCOUNT_2_MOCK,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-          gasUsed: undefined,
-        },
-      };
-
-      // Expect initial snapshot to be the first history item
-      expect(controller.state.transactions[0]?.history?.[0]).toStrictEqual(
-        expectedInitialSnapshot,
-      );
-      // Expect modification history to be present
-      expect(controller.state.transactions[0]?.history?.[1]).toStrictEqual([
-        {
-          note: expect.any(String),
-          op: 'remove',
-          path: '/txParams/gasUsed',
-          timestamp: expect.any(Number),
-        },
-        {
-          op: 'add',
-          path: '/txReceipt',
-          value: expect.anything(),
-        },
-        {
-          op: 'add',
-          path: '/baseFeePerGas',
-          value: expect.any(String),
-        },
-      ]);
-    });
-
-    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
-      const controller = newController({
-        options: {
-          disableHistory: true,
-        },
-      });
+    it('marks local transactions with the same nonce and chainId as status dropped and defines replacedBy properties', async () => {
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
       const externalTransactionToConfirm = {
@@ -1894,32 +4931,57 @@ describe('TransactionController', () => {
         hash: externalTransactionHash,
         id: externalTransactionId,
         chainId: toHex(5),
-        status: TransactionStatus.confirmed,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+          nonce: toHex(NONCE_MOCK),
+          value: '0x42',
         },
-      } as any;
+      };
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
       const externalBaseFeePerGas = '0x14';
 
-      // Submitted local unapproved transaction
       const localTransactionIdWithSameNonce = '9';
-      controller.state.transactions.push({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        id: localTransactionIdWithSameNonce,
-        chainId: toHex(5),
-        status: TransactionStatus.unapproved,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+
+      const droppedEventListener = jest.fn();
+      const statusUpdatedEventListener = jest.fn();
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [
+              // Local unapproved transaction with the same chainId and nonce
+              {
+                id: localTransactionIdWithSameNonce,
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.unapproved as const,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                  nonce: toHex(NONCE_MOCK),
+                  value: '0x42',
+                },
+              },
+            ],
+          },
         },
-      } as any);
+        updateToInitialState: true,
+      });
+      messenger.subscribe(
+        'TransactionController:transactionDropped',
+        droppedEventListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedEventListener,
+      );
 
       await controller.confirmExternalTransaction(
         externalTransactionToConfirm,
@@ -1930,16 +4992,30 @@ describe('TransactionController', () => {
       const droppedTx = controller.state.transactions.find(
         (transaction) => transaction.id === localTransactionIdWithSameNonce,
       );
+      assert(droppedTx, 'Could not find dropped transaction');
+      const externalTx = controller.state.transactions.find(
+        (transaction) => transaction.id === externalTransactionId,
+      );
 
-      expect(droppedTx?.status).toBe(TransactionStatus.dropped);
+      expect(droppedTx.status).toBe(TransactionStatus.dropped);
+      expect(droppedTx.replacedById).toBe(externalTransactionId);
+      expect(droppedTx.replacedBy).toBe(externalTransactionHash);
 
-      expect(droppedTx?.replacedById).toBe(externalTransactionId);
+      expect(droppedEventListener).toHaveBeenCalledTimes(1);
+      expect(droppedEventListener).toHaveBeenCalledWith({
+        transactionMeta: droppedTx,
+      });
 
-      expect(droppedTx?.replacedBy).toBe(externalTransactionHash);
+      expect(statusUpdatedEventListener).toHaveBeenCalledTimes(2);
+      expect(statusUpdatedEventListener.mock.calls[0][0]).toStrictEqual({
+        transactionMeta: droppedTx,
+      });
+      expect(statusUpdatedEventListener.mock.calls[1][0]).toStrictEqual({
+        transactionMeta: externalTx,
+      });
     });
 
-    it('doesnt mark transaction as dropped if same nonce local transaction status is failed', async () => {
-      const controller = newController();
+    it('doesnt mark transaction as dropped if local transaction with same nonce and chainId has status of failed', async () => {
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
       const externalTransactionToConfirm = {
@@ -1947,33 +5023,44 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         chainId: toHex(5),
-        status: TransactionStatus.confirmed,
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+          nonce: toHex(NONCE_MOCK),
         },
-      } as any;
+      };
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
       const externalBaseFeePerGas = '0x14';
 
-      // Off-chain failed local transaction
       const localTransactionIdWithSameNonce = '9';
-      controller.state.transactions.push({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        id: localTransactionIdWithSameNonce,
-        chainId: toHex(5),
-        status: TransactionStatus.failed,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                // Off-chain failed local transaction with the same chainId and nonce
+                id: localTransactionIdWithSameNonce,
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.failed as const,
+                error: new Error('mock error'),
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                  nonce: toHex(NONCE_MOCK),
+                },
+              },
+            ],
+          },
         },
-      } as any);
+      });
 
       await controller.confirmExternalTransaction(
         externalTransactionToConfirm,
@@ -1991,264 +5078,276 @@ describe('TransactionController', () => {
 
       expect(failedTx?.replacedBy).toBe(externalTransactionHash);
     });
-  });
 
-  describe('updateTransactionSendFlowHistory', () => {
-    it('appends sendFlowHistory entries to transaction meta', async () => {
-      const controller = newController();
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
+    it('updates post transaction balance if type is swap', async () => {
+      const mockPostTxBalance = '7a00';
+      const mockApprovalTransactionMeta = {
+        id: '2',
+      };
+      updatePostTransactionBalanceMock.mockImplementationOnce(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (transactionMeta: TransactionMeta, _request: any) => {
+          return Promise.resolve({
+            updatedTransactionMeta: {
+              ...transactionMeta,
+              postTxBalance: mockPostTxBalance,
+            },
+            approvalTransactionMeta:
+              mockApprovalTransactionMeta as TransactionMeta,
+          });
         },
-      ];
-      await controller.addTransaction({
+      );
+      const postTransactionBalanceUpdatedListener = jest.fn();
+      const { controller, messenger } = setupController();
+      messenger.subscribe(
+        'TransactionController:postTransactionBalanceUpdated',
+        postTransactionBalanceUpdatedListener,
+      );
+
+      const externalTransactionToConfirm = {
         from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-      const addedTxId = controller.state.transactions[0].id;
-      controller.updateTransactionSendFlowHistory(
-        addedTxId,
-        0,
-        mockSendFlowHistory,
-      );
-
-      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
-        mockSendFlowHistory,
-      );
-    });
-
-    it('appends sendFlowHistory entries to existing entries in transaction meta', async () => {
-      const controller = newController();
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
-      const mockExistingSendFlowHistory = [
-        {
-          entry: 'sendFlow - user selected transfer to my accounts',
-          timestamp: 1650663928210,
-        },
-      ];
-      await controller.addTransaction(
-        {
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        chainId: '0x1',
+        status: TransactionStatus.confirmed,
+        type: TransactionType.swap,
+        txParams: {
+          gasUsed: undefined,
           from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
         },
-        {
-          sendFlowHistory: mockExistingSendFlowHistory,
-        },
-      );
-      const addedTxId = controller.state.transactions[0].id;
-      controller.updateTransactionSendFlowHistory(
-        addedTxId,
-        1,
-        mockSendFlowHistory,
+        preTxBalance: '8b11',
+        // Default token address
+        destinationTokenAddress: '0x0000000000000000000000000000000000000000',
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
       );
 
-      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual([
-        ...mockExistingSendFlowHistory,
-        ...mockSendFlowHistory,
-      ]);
+      await flushPromises();
+
+      expect(postTransactionBalanceUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(postTransactionBalanceUpdatedListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: expect.objectContaining({
+            postTxBalance: mockPostTxBalance,
+          }),
+          approvalTransactionMeta: expect.objectContaining(
+            mockApprovalTransactionMeta,
+          ),
+        }),
+      );
     });
 
-    it('doesnt append if current sendFlowHistory lengths doesnt match', async () => {
-      const controller = newController();
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
-      await controller.addTransaction({
+    it('publishes TransactionController:transactionConfirmed', async () => {
+      const { controller, messenger } = setupController();
+
+      const confirmedEventListener = jest.fn();
+
+      messenger.subscribe(
+        'TransactionController:transactionConfirmed',
+        confirmedEventListener,
+      );
+
+      const externalTransactionToConfirm = {
         from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-      const addedTxId = controller.state.transactions[0].id;
-      controller.updateTransactionSendFlowHistory(
-        addedTxId,
-        5,
-        mockSendFlowHistory,
-      );
-
-      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
-        [],
-      );
-    });
-
-    it('throws if sendFlowHistory persistence is disabled', async () => {
-      const controller = newController({
-        options: { disableSendFlowHistory: true },
-      });
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-      const addedTxId = controller.state.transactions[0].id;
-      expect(() =>
-        controller.updateTransactionSendFlowHistory(
-          addedTxId,
-          0,
-          mockSendFlowHistory,
-        ),
-      ).toThrow(
-        'Send flow history is disabled for the current transaction controller',
-      );
-    });
-
-    it('throws if transactionMeta is not found', async () => {
-      const controller = newController();
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
-      expect(() =>
-        controller.updateTransactionSendFlowHistory(
-          'foo',
-          0,
-          mockSendFlowHistory,
-        ),
-      ).toThrow(
-        'Cannot update send flow history as no transaction metadata found',
-      );
-    });
-
-    it('throws if the transaction is not unapproved status', async () => {
-      const controller = newController();
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
-      controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
-        id: 'foo',
+        to: ACCOUNT_2_MOCK,
+        id: '1',
         chainId: toHex(5),
-        status: TransactionStatus.submitted,
-        transactionHash: '1337',
-      } as any);
-      expect(() =>
-        controller.updateTransactionSendFlowHistory(
-          'foo',
-          0,
-          mockSendFlowHistory,
-        ),
-      )
-        .toThrow(`Can only call updateTransactionSendFlowHistory on an unapproved transaction.
-      Current tx status: submitted`);
+        status: TransactionStatus.confirmed,
+        txParams: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      expect(confirmedEventListener).toHaveBeenCalledTimes(1);
+      expect(confirmedEventListener).toHaveBeenCalledWith(
+        expect.objectContaining(externalTransactionToConfirm),
+      );
     });
   });
 
-  describe('on incoming transaction helper transactions event', () => {
-    it('adds new transactions to state', async () => {
-      const controller = newController();
+  describe('clearUnapprovedTransactions', () => {
+    it('clears unapproved transactions', async () => {
+      const firstUnapprovedTxId = '1';
+      const secondUnapprovedTxId = '2';
+      const firstConfirmedTxId = '3';
+      const secondConfirmedTxId = '4';
 
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
-        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
-        updated: [],
+      const transactionMeta = {
+        chainId: toHex(5),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.unapproved as const,
+        time: 123456789,
+        txParams: {
+          from: '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207',
+        },
+      };
+
+      const confirmedTxMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.confirmed as const,
+      };
+
+      const unapprovedTxMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.unapproved as const,
+      };
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...unapprovedTxMeta,
+                id: firstUnapprovedTxId,
+              },
+              {
+                ...unapprovedTxMeta,
+                id: secondUnapprovedTxId,
+              },
+              {
+                ...confirmedTxMeta,
+                id: firstConfirmedTxId,
+              },
+              {
+                ...confirmedTxMeta,
+                id: secondConfirmedTxId,
+              },
+            ],
+          },
+        },
       });
 
-      expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
+      controller.clearUnapprovedTransactions();
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      expect(
+        transactions.find(({ id }) => id === firstConfirmedTxId)?.status,
+      ).toBe(TransactionStatus.confirmed);
+      expect(
+        transactions.find(({ id }) => id === secondConfirmedTxId)?.status,
+      ).toBe(TransactionStatus.confirmed);
+    });
+  });
+
+  describe('updateTransactionMetadata', () => {
+    it('updates multiple properties using a callback and returns the updated transaction', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      const result = controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: (transactionMeta) => {
+          transactionMeta.requiredAssets = [
+            {
+              address: ACCOUNT_2_MOCK,
+              amount: '0x1',
+              standard: 'erc20',
+            },
+          ];
+          transactionMeta.txParams.value = '0x2';
+        },
+      });
+
+      expect(result).toStrictEqual(controller.state.transactions[0]);
+      expect(result.requiredAssets).toStrictEqual([
+        {
+          address: ACCOUNT_2_MOCK,
+          amount: '0x1',
+          standard: 'erc20',
+        },
       ]);
+      expect(result.txParams.value).toBe('0x2');
     });
 
-    it('updates existing transactions in state', async () => {
-      const controller = newController();
+    it('does not check whether the update should trigger re-simulation', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
 
-      controller.state.transactions = [
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
-      ];
+      controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: (transactionMeta) => {
+          transactionMeta.txParams.data = '0x1234';
+        },
+        skipResimulate: true,
+      });
 
+      expect(shouldResimulateMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores a transaction returned by the callback', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
       const updatedTransaction = {
         ...TRANSACTION_META_MOCK,
-        status: 'failed',
+        txParams: { ...TRANSACTION_META_MOCK.txParams, value: '0x3' },
       };
 
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
-        added: [],
-        updated: [updatedTransaction],
+      const result = controller.updateTransactionMetadata({
+        transactionId: TRANSACTION_META_MOCK.id,
+        callback: () => updatedTransaction,
       });
 
-      expect(controller.state.transactions).toStrictEqual([
-        updatedTransaction,
-        TRANSACTION_META_2_MOCK,
-      ]);
+      expect(result).toStrictEqual(TRANSACTION_META_MOCK);
     });
 
-    it('limits max transactions when adding to state', async () => {
-      const controller = newController({ config: { txHistoryLimit: 1 } });
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
 
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
-        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
-        updated: [],
-      });
-
-      expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_2_MOCK,
-      ]);
-    });
-  });
-
-  describe('on incoming transaction helper lastFetchedBlockNumbers event', () => {
-    it('updates state', async () => {
-      const controller = newController();
-
-      const lastFetchedBlockNumbers = {
-        key: 234,
-      };
-
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
-        lastFetchedBlockNumbers,
-        blockNumber: 123,
-      });
-
-      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual(
-        lastFetchedBlockNumbers,
-      );
-    });
-
-    it('emits incomingTransactionBlock event', async () => {
-      const blockNumber = 123;
-      const listener = jest.fn();
-
-      const controller = newController();
-      controller.hub.on('incomingTransactionBlock', listener);
-
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
-        lastFetchedBlockNumbers: {
-          key: 234,
-        },
-        blockNumber,
-      });
-
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(blockNumber);
+      expect(() =>
+        controller.updateTransactionMetadata({
+          transactionId: 'missing-id',
+          callback: () => undefined,
+        }),
+      ).toThrow('Cannot update transaction as ID not found - missing-id');
     });
   });
 
   describe('updateTransactionGasFees', () => {
     it('throws if transaction does not exist', async () => {
-      const controller = newController();
+      const { controller } = setupController();
       expect(() =>
         controller.updateTransactionGasFees('123', {
           gasPrice: '0x1',
@@ -2256,55 +5355,109 @@ describe('TransactionController', () => {
       ).toThrow('Cannot update transaction as no transaction metadata found');
     });
 
-    it('throws if transaction not unapproved status', async () => {
+    it('throws if transaction not unapproved or submitted status', async () => {
       const transactionId = '123';
       const fnName = 'updateTransactionGasFees';
       const status = TransactionStatus.failed;
-      const controller = newController();
-      controller.state.transactions.push({
-        id: transactionId,
-        status,
-      } as any);
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status,
+                error: new Error('mock error'),
+                chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                time: 123456789,
+                txParams: {} as TransactionParams,
+              },
+            ],
+          },
+        },
+      });
       expect(() =>
         controller.updateTransactionGasFees(transactionId, {
           gasPrice: '0x1',
         }),
-      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
-      Current tx status: ${status}`);
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
     });
 
-    it('updates provided gas values', async () => {
+    it('allows update when transaction status is submitted', async () => {
       const transactionId = '123';
-      const controller = newController();
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                time: 123456789,
+                status: TransactionStatus.submitted as const,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
 
-      const gas = '0xgas';
-      const gasLimit = '0xgasLimit';
-      const gasPrice = '0xgasPrice';
-      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
-      const maxFeePerGas = '0xmaxFeePerGas';
-      const estimateUsed = '0xestimateUsed';
-      const estimateSuggested = '0xestimateSuggested';
-      const defaultGasEstimates = '0xdefaultGasEstimates';
-      const originalGasEstimate = '0xoriginalGasEstimate';
+      const gasPrice = '0x12';
+      expect(() =>
+        controller.updateTransactionGasFees(transactionId, {
+          gasPrice,
+        }),
+      ).not.toThrow();
+
+      const transaction = controller.state.transactions.find(
+        ({ id }) => id === transactionId,
+      );
+      expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
+    });
+
+    it('updates provided legacy gas values', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                time: 123456789,
+                status: TransactionStatus.unapproved as const,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const gas = '0x1';
+      const gasLimit = '0x2';
+      const gasPrice = '0x12';
+      const estimateUsed = '0x3';
+      const estimateSuggested = '0x123';
+      const defaultGasEstimates = '0x124';
+      const originalGasEstimate = '0x134';
       const userEditedGasLimit = true;
       const userFeeLevel = '0xuserFeeLevel';
-
-      controller.state.transactions.push({
-        id: transactionId,
-        status: TransactionStatus.unapproved,
-        history: [{}],
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      } as any);
 
       controller.updateTransactionGasFees(transactionId, {
         gas,
         gasLimit,
         gasPrice,
-        maxPriorityFeePerGas,
-        maxFeePerGas,
         estimateUsed,
         estimateSuggested,
         defaultGasEstimates,
@@ -2313,15 +5466,13 @@ describe('TransactionController', () => {
         userFeeLevel,
       });
 
-      const transaction = controller.state.transactions[0];
+      const transaction = controller.state.transactions.find(
+        ({ id }) => id === transactionId,
+      );
 
       expect(transaction?.txParams?.gas).toBe(gas);
       expect(transaction?.txParams?.gasLimit).toBe(gasLimit);
       expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
-      expect(transaction?.txParams?.maxPriorityFeePerGas).toBe(
-        maxPriorityFeePerGas,
-      );
-      expect(transaction?.txParams?.maxFeePerGas).toBe(maxFeePerGas);
       expect(transaction?.estimateUsed).toBe(estimateUsed);
       expect(transaction?.estimateSuggested).toBe(estimateSuggested);
       expect(transaction?.defaultGasEstimates).toBe(defaultGasEstimates);
@@ -2329,42 +5480,3625 @@ describe('TransactionController', () => {
       expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
     });
+
+    it('updates provided 1559 gas values', async () => {
+      const maxPriorityFeePerGas = '0x01';
+      const maxFeePerGas = '0x01';
+      const transactionId = '123';
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                time: 123456789,
+                status: TransactionStatus.unapproved as const,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateTransactionGasFees(transactionId, {
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+      });
+
+      const txToBeUpdatedWithoutGasPrice = controller.state.transactions.find(
+        ({ id }) => id === transactionId,
+      );
+
+      expect(txToBeUpdatedWithoutGasPrice?.txParams?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+      expect(txToBeUpdatedWithoutGasPrice?.txParams?.maxFeePerGas).toBe(
+        maxFeePerGas,
+      );
+    });
+
+    describe('when called with userFeeLevel', () => {
+      it('does not call updateTransactionGasEstimates when gasFeeEstimates is undefined', async () => {
+        const transactionId = '123';
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: undefined,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
+      });
+
+      it('calls updateTransactionGasEstimates with correct parameters when gasFeeEstimates exists', async () => {
+        const transactionId = '123';
+        const gasFeeEstimates = {
+          type: GasFeeEstimateType.FeeMarket,
+          low: { maxFeePerGas: '0x1', maxPriorityFeePerGas: '0x2' },
+          medium: { maxFeePerGas: '0x3', maxPriorityFeePerGas: '0x4' },
+          high: { maxFeePerGas: '0x5', maxPriorityFeePerGas: '0x6' },
+        } as GasFeeEstimates;
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => true,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).toHaveBeenCalledWith({
+          txMeta: expect.objectContaining({
+            id: transactionId,
+            gasFeeEstimates,
+          }),
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+      });
+
+      it('preserves existing gas values when gasFeeEstimates type is unknown', async () => {
+        const transactionId = '123';
+        const unknownGasFeeEstimates = {
+          type: 'unknown' as unknown as GasFeeEstimateType,
+          low: '0x123',
+          medium: '0x1234',
+          high: '0x12345',
+        } as GasFeeEstimates;
+
+        const existingGasPrice = '0x777777';
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => true,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: unknownGasFeeEstimates,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    gasPrice: existingGasPrice,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        updateTransactionGasEstimatesMock.mockImplementation(({ txMeta }) => {
+          expect(txMeta.txParams.gasPrice).toBe(existingGasPrice);
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).toHaveBeenCalled();
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+
+        // Gas price should remain unchanged
+        expect(updatedTransaction?.txParams.gasPrice).toBe(existingGasPrice);
+      });
+
+      it('preserves existing EIP-1559 gas values when gasFeeEstimates is undefined', async () => {
+        const transactionId = '123';
+        const existingMaxFeePerGas = '0x999999';
+        const existingMaxPriorityFeePerGas = '0x888888';
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: undefined,
+                  txParams: {
+                    type: TransactionEnvelopeType.feeMarket,
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    maxFeePerGas: existingMaxFeePerGas,
+                    maxPriorityFeePerGas: existingMaxPriorityFeePerGas,
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+        });
+
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+
+        // Values should remain unchanged
+        expect(updatedTransaction?.txParams.maxFeePerGas).toBe(
+          existingMaxFeePerGas,
+        );
+        expect(updatedTransaction?.txParams.maxPriorityFeePerGas).toBe(
+          existingMaxPriorityFeePerGas,
+        );
+      });
+
+      it('does not update transaction gas estimates when userFeeLevel is custom', () => {
+        const transactionId = '1';
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => true,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: {
+                    type: GasFeeEstimateType.Legacy,
+                    low: '0x1',
+                    medium: '0x2',
+                    high: '0x3',
+                  },
+                  txParams: {
+                    type: TransactionEnvelopeType.legacy,
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    gasPrice: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        // Update with custom userFeeLevel and new gasPrice
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: 'custom',
+          gasPrice: '0x5678',
+        });
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+        expect(updatedTransaction?.txParams.gasPrice).toBe('0x5678');
+        expect(updatedTransaction?.userFeeLevel).toBe('custom');
+      });
+
+      it('does not update transaction gas estimates when isAutomaticGasFeeUpdateEnabled returns false', () => {
+        const transactionId = '1';
+
+        const { controller } = setupController({
+          options: {
+            isAutomaticGasFeeUpdateEnabled: () => false,
+            state: {
+              transactions: [
+                {
+                  id: transactionId,
+                  chainId: '0x1',
+                  networkClientId: NETWORK_CLIENT_ID_MOCK,
+                  time: 123456789,
+                  status: TransactionStatus.unapproved as const,
+                  gasFeeEstimates: {
+                    type: GasFeeEstimateType.Legacy,
+                    low: '0x1',
+                    medium: '0x2',
+                    high: '0x3',
+                  },
+                  txParams: {
+                    type: TransactionEnvelopeType.legacy,
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                    gasPrice: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateTransactionGasFees(transactionId, {
+          userFeeLevel: GasFeeEstimateLevel.Medium,
+          gasPrice: '0x5678',
+        });
+
+        expect(updateTransactionGasEstimatesMock).not.toHaveBeenCalled();
+
+        const updatedTransaction = controller.state.transactions.find(
+          ({ id }) => id === transactionId,
+        );
+        expect(updatedTransaction?.txParams.gasPrice).toBe('0x5678');
+        expect(updatedTransaction?.userFeeLevel).toBe(
+          GasFeeEstimateLevel.Medium,
+        );
+      });
+    });
   });
 
-  describe('on pending transactions event', () => {
-    it('updates existing transactions in state', async () => {
-      const controller = newController();
+  describe('updatePreviousGasParams', () => {
+    it('throws if transaction does not exist', async () => {
+      const { controller } = setupController();
+      expect(() =>
+        controller.updatePreviousGasParams('123', {
+          maxFeePerGas: '0x1',
+        }),
+      ).toThrow('Cannot update transaction as no transaction metadata found');
+    });
 
-      controller.state.transactions = [
-        { ...TRANSACTION_META_MOCK, status: TransactionStatus.submitted },
-        { ...TRANSACTION_META_2_MOCK, status: TransactionStatus.submitted },
-      ];
+    it('throws if transaction not unapproved status', async () => {
+      const transactionId = '123';
+      const fnName = 'updatePreviousGasParams';
+      const status = TransactionStatus.failed;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { id: transactionId, status } as any,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+      expect(() =>
+        controller.updatePreviousGasParams(transactionId, {
+          maxFeePerGas: '0x1',
+        }),
+      )
+        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.
+      Current tx status: ${status}`);
+    });
 
-      const updatedTransaction = TRANSACTION_META_MOCK;
-      const updatedTransaction_2 = TRANSACTION_META_2_MOCK;
+    it('updates previous gas values', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
 
-      await (pendingTransactionTrackerMock.hub.on as any).mock.calls[0][1]([
-        updatedTransaction,
-        updatedTransaction_2,
-      ]);
+      const gasLimit = '0xgasLimit';
+      const maxFeePerGas = '0xmaxFeePerGas';
+      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
+
+      controller.updatePreviousGasParams(transactionId, {
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.previousGas?.gasLimit).toBe(gasLimit);
+      expect(transaction?.previousGas?.maxFeePerGas).toBe(maxFeePerGas);
+      expect(transaction?.previousGas?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+    });
+  });
+
+  describe('on pending transactions tracker event', () => {
+    /**
+     * Simulate an event from the pending transaction tracker.
+     *
+     * @param eventName - The name of the event to fire.
+     * @param args - The arguments to pass to the event handler.
+     */
+    function firePendingTransactionTrackerEvent(
+      eventName: string,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...args: any
+    ): void {
+      (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
+        (call) => call[0] === eventName,
+      )[1](...args);
+    }
+
+    describe('on transaction-confirmed event', () => {
+      it('bubbles event', async () => {
+        const listener = jest.fn();
+        const statusUpdateListener = jest.fn();
+        const { messenger } = setupController();
+
+        messenger.subscribe(
+          'TransactionController:transactionConfirmed',
+          listener,
+        );
+        messenger.subscribe(
+          'TransactionController:transactionStatusUpdated',
+          statusUpdateListener,
+        );
+
+        firePendingTransactionTrackerEvent(
+          'transaction-confirmed',
+          TRANSACTION_META_MOCK,
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+
+        expect(statusUpdateListener).toHaveBeenCalledTimes(1);
+        expect(statusUpdateListener).toHaveBeenCalledWith({
+          transactionMeta: TRANSACTION_META_MOCK,
+        });
+      });
+
+      it('marks duplicate nonce transactions as dropped', async () => {
+        const confirmed = {
+          ...TRANSACTION_META_MOCK,
+          id: 'testId1',
+          chainId: MOCK_NETWORK.chainId,
+          hash: '0x3',
+          status: TransactionStatus.confirmed,
+          txParams: { ...TRANSACTION_META_MOCK.txParams, nonce: '0x1' },
+        };
+
+        const duplicate_1 = {
+          ...confirmed,
+          id: 'testId2',
+          status: TransactionStatus.submitted,
+        };
+
+        const duplicate_2 = {
+          ...duplicate_1,
+          id: 'testId3',
+          status: TransactionStatus.approved,
+        };
+
+        const duplicate_3 = {
+          ...duplicate_1,
+          id: 'testId4',
+          status: TransactionStatus.failed,
+        };
+
+        const wrongChain = {
+          ...duplicate_1,
+          id: 'testId5',
+          chainId: '0x2',
+          txParams: { ...duplicate_1.txParams },
+        };
+
+        const wrongNonce = {
+          ...duplicate_1,
+          id: 'testId6',
+          txParams: { ...duplicate_1.txParams, nonce: '0x2' },
+        };
+
+        const wrongFrom = {
+          ...duplicate_1,
+          id: 'testId7',
+          txParams: { ...duplicate_1.txParams, from: '0x2' },
+        };
+
+        const wrongType = {
+          ...duplicate_1,
+          id: 'testId8',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.incoming,
+        };
+
+        const isTransferTransaction = {
+          ...duplicate_1,
+          id: 'testId9',
+          isTransfer: true,
+        };
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                confirmed,
+                wrongChain,
+                wrongNonce,
+                wrongFrom,
+                wrongType,
+                isTransferTransaction,
+                duplicate_1,
+                duplicate_2,
+                duplicate_3,
+              ] as TransactionMeta[],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        firePendingTransactionTrackerEvent('transaction-confirmed', confirmed);
+
+        expect(
+          controller.state.transactions.map((tx) => tx.status),
+        ).toStrictEqual([
+          TransactionStatus.confirmed,
+          TransactionStatus.submitted,
+          TransactionStatus.submitted,
+          TransactionStatus.submitted,
+          TransactionStatus.confirmed,
+          TransactionStatus.submitted,
+          TransactionStatus.dropped,
+          TransactionStatus.dropped,
+          TransactionStatus.failed,
+        ]);
+
+        expect(
+          controller.state.transactions.map((tx) => tx.replacedBy),
+        ).toStrictEqual([
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          confirmed.hash,
+          confirmed.hash,
+          confirmed.hash,
+        ]);
+
+        expect(
+          controller.state.transactions.map((tx) => tx.replacedById),
+        ).toStrictEqual([
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          confirmed.id,
+          confirmed.id,
+          confirmed.id,
+        ]);
+      });
+    });
+
+    it('sets status to dropped on transaction-dropped event', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [{ ...TRANSACTION_META_MOCK }],
+          },
+        },
+      });
+
+      firePendingTransactionTrackerEvent(
+        'transaction-dropped',
+        TRANSACTION_META_MOCK,
+      );
 
       expect(controller.state.transactions).toStrictEqual([
-        updatedTransaction,
-        updatedTransaction_2,
+        { ...TRANSACTION_META_MOCK, status: TransactionStatus.dropped },
       ]);
     });
 
-    it('limits max transactions when adding to state', async () => {
-      const controller = newController({ config: { txHistoryLimit: 1 } });
+    it('sets status to failed on transaction-failed event', async () => {
+      const statusUpdatedEventListener = jest.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [{ ...TRANSACTION_META_MOCK }],
+          },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedEventListener,
+      );
 
-      await (pendingTransactionTrackerMock.hub.on as any).mock.calls[0][1]([
+      const errorMock = new Error('TestError');
+      const expectedTransactionError: TransactionError = {
+        message: errorMock.message,
+        name: errorMock.name,
+        stack: errorMock.stack,
+        code: undefined,
+        rpc: undefined,
+      };
+
+      firePendingTransactionTrackerEvent(
+        'transaction-failed',
         TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
-      ]);
+        errorMock,
+      );
+
+      const failedTx = {
+        ...TRANSACTION_META_MOCK,
+        status: TransactionStatus.failed,
+        error: expectedTransactionError,
+      };
+
+      expect(controller.state.transactions[0]).toStrictEqual(failedTx);
+
+      expect(statusUpdatedEventListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedEventListener).toHaveBeenCalledWith({
+        transactionMeta: failedTx,
+      });
+    });
+
+    it('updates transaction on transaction-updated event', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      firePendingTransactionTrackerEvent(
+        'transaction-updated',
+        { ...TRANSACTION_META_MOCK, retryCount: 123 },
+        'TestNote',
+      );
 
       expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_2_MOCK,
+        {
+          ...TRANSACTION_META_MOCK,
+          retryCount: 123,
+        },
       ]);
+    });
+  });
+
+  describe('approveTransactionsWithSameNonce', () => {
+    it('throws error if no sign method', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      rootMessenger.unregisterActionHandler(
+        'KeyringController:signTransaction',
+      );
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      await expect(
+        controller.approveTransactionsWithSameNonce([mockTransactionParam2]),
+      ).rejects.toThrow(
+        'A handler for KeyringController:signTransaction has not been registered',
+      );
+    });
+
+    it('returns empty string if no transactions are provided', async () => {
+      const { controller } = setupController();
+      const result = await controller.approveTransactionsWithSameNonce([]);
+      expect(result).toBe('');
+    });
+
+    it('return empty string if transaction is already being signed', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // We never resolve this promise, so the transaction is always in the process of being signed
+      rootMessenger.unregisterActionHandler(
+        'KeyringController:signTransaction',
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signTransaction',
+        async () =>
+          new Promise(() => {
+            /* noop */
+          }),
+      );
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x5208',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      // Send the transaction to put it in the process of being signed
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      controller.approveTransactionsWithSameNonce([mockTransactionParam]);
+
+      // Now send it one more time to test that it doesn't get signed again
+      const result = await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+      ]);
+
+      expect(result).toBe('');
+    });
+
+    it('signs transactions and return raw transactions', async () => {
+      signMock.mockImplementation(async (transaction) =>
+        Promise.resolve(transaction.toJSON()),
+      );
+
+      const { controller } = setupController();
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.chainId,
+      };
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      const result = await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
+
+      expect(result).toHaveLength(2);
+      expect(result).toStrictEqual([expect.any(String), expect.any(String)]);
+    });
+
+    it('throws if error while signing transaction', async () => {
+      const mockSignError = 'Error while signing transaction';
+
+      signMock.mockImplementation(async () =>
+        Promise.reject(new Error(mockSignError)),
+      );
+
+      const { controller } = setupController();
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.chainId,
+      };
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      await expect(
+        controller.approveTransactionsWithSameNonce([
+          mockTransactionParam,
+          mockTransactionParam2,
+        ]),
+      ).rejects.toThrow(mockSignError);
+    });
+
+    it('does not create nonce lock if hasNonce set', async () => {
+      const { controller } = setupController();
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      await controller.approveTransactionsWithSameNonce(
+        [mockTransactionParam, mockTransactionParam2],
+        { hasNonce: true },
+      );
+
+      expect(getNonceLockSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses the nonceTracker for the networkClientId matching the chainId', async () => {
+      const { controller, rootMessenger } = setupController();
+      rootMessenger.unregisterActionHandler(
+        'NetworkController:findNetworkClientIdByChainId',
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:findNetworkClientIdByChainId',
+        () => 'sepolia',
+      );
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.chainId,
+      };
+
+      await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
+
+      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK, 'sepolia');
+    });
+  });
+
+  describe('with hooks', () => {
+    const paramsMock: TransactionParams = {
+      from: ACCOUNT_MOCK,
+      to: ACCOUNT_MOCK,
+    };
+
+    it('gets transaction hash from publish hook and does not submit to provider', async () => {
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            publish: async () => ({
+              transactionHash: '0x123',
+            }),
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe('0x123');
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(0);
+    });
+
+    it('submits to provider if publish hook returns no transaction hash', async () => {
+      rpcRequestMock.mockImplementation(async ({ method }) => {
+        if (method === 'eth_sendRawTransaction') {
+          return 'some-transaction-hash';
+        }
+
+        if (method === 'eth_getBalance') {
+          return '0x0';
+        }
+
+        return undefined;
+      });
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            // @ts-expect-error We are intentionally having this hook return no
+            // transaction hash
+            publish: async () => ({}),
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe(
+        'some-transaction-hash',
+      );
+
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(1);
+    });
+
+    it('submits to publish hook with final transaction meta', async () => {
+      const publishHook = jest
+        .fn()
+        .mockResolvedValue({ transactionHash: TRANSACTION_META_MOCK.hash });
+
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            publish: publishHook,
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+
+      await result;
+
+      expect(publishHook).toHaveBeenCalledTimes(1);
+      expect(publishHook).toHaveBeenCalledWith(
+        expect.objectContaining({
+          txParams: expect.objectContaining({ nonce: toHex(NONCE_MOCK) }),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('supports publish hook override per call', async () => {
+      const publishHookController = jest.fn();
+
+      const publishHookCall = jest.fn().mockResolvedValueOnce({
+        transactionHash: TRANSACTION_HASH_MOCK,
+      });
+
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            publish: publishHookController,
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        publishHook: publishHookCall,
+      });
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe(TRANSACTION_HASH_MOCK);
+
+      expect(publishHookCall).toHaveBeenCalledTimes(1);
+      expect(publishHookController).not.toHaveBeenCalled();
+      const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
+        ([request]) => request.method === 'eth_sendRawTransaction',
+      );
+      expect(sendRawTransactionCalls).toHaveLength(0);
+    });
+  });
+
+  describe('failTransaction', () => {
+    const submittedTransactionMock = {
+      ...TRANSACTION_META_MOCK,
+      status: TransactionStatus.submitted as const,
+    } as unknown as TransactionMeta;
+
+    it('marks the transaction as failed with the provided error', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [submittedTransactionMock],
+          },
+        },
+      });
+
+      controller.failTransaction(
+        submittedTransactionMock.id,
+        new Error('Test failure'),
+      );
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Test failure',
+      );
+    });
+
+    it('publishes the failure lifecycle events', () => {
+      const failedListener = jest.fn();
+      const statusUpdatedListener = jest.fn();
+      const finishedListener = jest.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [submittedTransactionMock],
+          },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionFailed',
+        failedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedListener,
+      );
+
+      controller.failTransaction(
+        submittedTransactionMock.id,
+        new Error('Test failure'),
+      );
+
+      expect(failedListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(finishedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.failTransaction('missing-id', new Error('Test failure')),
+      ).toThrow('No transaction found with id missing-id');
+    });
+  });
+
+  describe('updateSecurityAlertResponse', () => {
+    it('add securityAlertResponse to transaction meta', async () => {
+      const transactionMeta = TRANSACTION_META_MOCK;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+      });
+
+      controller.updateSecurityAlertResponse(transactionMeta.id, {
+        reason: 'NA',
+        result_type: 'Benign',
+      });
+
+      expect(
+        controller.state.transactions[0].securityAlertResponse,
+      ).toBeDefined();
+    });
+
+    it('should throw error if transactionMetaId is not defined', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      expect(() =>
+        // @ts-expect-error Intentionally passing invalid input
+        controller.updateSecurityAlertResponse(undefined, {
+          reason: 'NA',
+          result_type: 'Benign',
+        }),
+      ).toThrow(
+        'Cannot update security alert response as no transaction metadata found',
+      );
+    });
+
+    it('should throw error if securityAlertResponse is not defined', async () => {
+      const transactionMetaId = '123';
+      const status = TransactionStatus.submitted;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionMetaId,
+                status,
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+      expect(controller.state.transactions[0]).toBeDefined();
+
+      expect(() =>
+        controller.updateSecurityAlertResponse(
+          transactionMetaId,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          undefined as any,
+        ),
+      ).toThrow(
+        'updateSecurityAlertResponse: securityAlertResponse should not be null',
+      );
+    });
+
+    it('should throw error if transaction with given id does not exist', async () => {
+      const transactionMetaId = '123';
+      const status = TransactionStatus.submitted;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionMetaId,
+                status,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              } as unknown as TransactionMeta,
+            ],
+          },
+        },
+      });
+      expect(controller.state.transactions[0]).toBeDefined();
+
+      expect(() =>
+        controller.updateSecurityAlertResponse('456', {
+          reason: 'NA',
+          result_type: 'Benign',
+        }),
+      ).toThrow(
+        'Cannot update security alert response as no transaction metadata found',
+      );
+    });
+  });
+
+  describe('updateCustodialTransaction', () => {
+    let transactionId: string;
+    let statusMock: TransactionStatus;
+    let baseTransaction: TransactionMeta;
+    let transactionMeta: TransactionMeta;
+
+    beforeEach(() => {
+      transactionId = '1';
+      statusMock = TransactionStatus.unapproved as const;
+      baseTransaction = {
+        id: transactionId,
+        chainId: toHex(5),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: statusMock,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      transactionMeta = {
+        ...baseTransaction,
+      };
+    });
+
+    it.each([
+      {
+        newStatus: TransactionStatus.signed,
+      },
+      {
+        newStatus: TransactionStatus.submitted,
+      },
+      {
+        newStatus: TransactionStatus.failed,
+        errorMessage: 'Error mock',
+      },
+    ])(
+      'updates transaction status to $newStatus',
+      async ({ newStatus, errorMessage }) => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMeta],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          status: newStatus,
+          errorMessage,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+
+        expect(updatedTransaction?.status).toStrictEqual(newStatus);
+      },
+    );
+
+    it.each([
+      {
+        newStatus: TransactionStatus.submitted,
+      },
+      {
+        newStatus: TransactionStatus.failed,
+        errorMessage: 'Error mock',
+      },
+    ])(
+      'publishes TransactionController:transactionFinished when update transaction status to $newStatus',
+      async ({ newStatus, errorMessage }) => {
+        const finishedEventListener = jest.fn();
+        const { controller, messenger } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMeta],
+            },
+          },
+          updateToInitialState: true,
+        });
+        messenger.subscribe(
+          'TransactionController:transactionFinished',
+          finishedEventListener,
+        );
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          status: newStatus,
+          errorMessage,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+
+        expect(finishedEventListener).toHaveBeenCalledTimes(1);
+        expect(finishedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ...transactionMeta,
+            status: newStatus,
+          }),
+        );
+        expect(updatedTransaction.status).toStrictEqual(newStatus);
+      },
+    );
+
+    it('updates transaction hash', async () => {
+      const newHash = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        hash: newHash,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.hash).toStrictEqual(newHash);
+    });
+
+    it('updates gasLimit', async () => {
+      const newGasLimit = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        gasLimit: newGasLimit,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.gasLimit).toStrictEqual(newGasLimit);
+    });
+
+    it('updates gasPrice', async () => {
+      const newGasPrice = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        gasPrice: newGasPrice,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.gasPrice).toStrictEqual(newGasPrice);
+    });
+
+    it('updates maxFeePerGas', async () => {
+      const newMaxFeePerGas = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        maxFeePerGas: newMaxFeePerGas,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxFeePerGas).toStrictEqual(
+        newMaxFeePerGas,
+      );
+    });
+
+    it('updates maxPriorityFeePerGas', async () => {
+      const newMaxPriorityFeePerGas = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxPriorityFeePerGas).toStrictEqual(
+        newMaxPriorityFeePerGas,
+      );
+    });
+
+    it('updates nonce', async () => {
+      const newNonce = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        nonce: newNonce,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.nonce).toStrictEqual(newNonce);
+    });
+
+    it('updates type from legacy to feeMarket', async () => {
+      const newType = TransactionEnvelopeType.feeMarket;
+      const { controller } = setupController({
+        options: { state: { transactions: [transactionMeta] } },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        type: newType,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.type).toStrictEqual(newType);
+    });
+
+    it('updates type from feeMarket to legacy', async () => {
+      const newType = TransactionEnvelopeType.legacy;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...transactionMeta,
+                txParams: {
+                  ...transactionMeta.txParams,
+                  maxFeePerGas: '0x1234',
+                  maxPriorityFeePerGas: '0x1234',
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        type: newType,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxFeePerGas).toBeUndefined();
+      expect(updatedTransaction.txParams.maxPriorityFeePerGas).toBeUndefined();
+    });
+
+    it('throws if custodial transaction does not exists', async () => {
+      const nonExistentId = 'nonExistentId';
+      const newStatus = TransactionStatus.approved as const;
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.updateCustodialTransaction({
+          transactionId: nonExistentId,
+          status: newStatus,
+        }),
+      ).toThrow(
+        'Cannot update custodial transaction as no transaction metadata found',
+      );
+    });
+
+    it('throws if status is invalid', async () => {
+      const newStatus = TransactionStatus.approved as const;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(() =>
+        controller.updateCustodialTransaction({
+          transactionId: transactionMeta.id,
+          status: newStatus,
+        }),
+      ).toThrow(
+        `Cannot update custodial transaction with status: ${newStatus}`,
+      );
+    });
+
+    it('no property was updated', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        ...{},
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.status).toStrictEqual(transactionMeta.status);
+      expect(updatedTransaction.hash).toStrictEqual(transactionMeta.hash);
+    });
+
+    it.each([
+      {
+        paramName: 'hash',
+        newValue: '0x1234',
+        expectedPath: 'hash',
+      },
+      {
+        paramName: 'gasLimit',
+        newValue: '0x1234',
+        expectedPath: 'txParams.gasLimit',
+      },
+      {
+        paramName: 'gasPrice',
+        newValue: '0x1234',
+        expectedPath: 'txParams.gasPrice',
+      },
+      {
+        paramName: 'maxFeePerGas',
+        newValue: '0x1234',
+        expectedPath: 'txParams.maxFeePerGas',
+      },
+      {
+        paramName: 'maxPriorityFeePerGas',
+        newValue: '0x1234',
+        expectedPath: 'txParams.maxPriorityFeePerGas',
+      },
+      {
+        paramName: 'nonce',
+        newValue: '0x1234',
+        expectedPath: 'txParams.nonce',
+      },
+    ])('updates $paramName', async ({ paramName, newValue, expectedPath }) => {
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        [paramName]: newValue,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+      const pathParts = expectedPath.split('.');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let actualValue: any = updatedTransaction;
+
+      for (const key of pathParts) {
+        // Type assertion needed since we're accessing dynamic properties
+        actualValue = actualValue[key as keyof typeof actualValue];
+      }
+
+      expect(actualValue).toStrictEqual(newValue);
+    });
+
+    describe('type updates', () => {
+      it('updates from legacy to feeMarket', async () => {
+        const newType = TransactionEnvelopeType.feeMarket;
+        const { controller } = setupController({
+          options: { state: { transactions: [transactionMeta] } },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          type: newType,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+        expect(updatedTransaction.txParams.type).toStrictEqual(newType);
+      });
+
+      it('updates from feeMarket to legacy', async () => {
+        const newType = TransactionEnvelopeType.legacy;
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...transactionMeta,
+                  txParams: {
+                    ...transactionMeta.txParams,
+                    maxFeePerGas: '0x1234',
+                    maxPriorityFeePerGas: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          type: newType,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+        expect(updatedTransaction.txParams.maxFeePerGas).toBeUndefined();
+        expect(
+          updatedTransaction.txParams.maxPriorityFeePerGas,
+        ).toBeUndefined();
+      });
+    });
+  });
+
+  describe('getTransactions', () => {
+    it('returns transactions matching values in search criteria', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 1,
+          txParams: { from: '0x3' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { time: 1 },
+        }),
+      ).toStrictEqual([transactions[0], transactions[2]]);
+    });
+
+    it('returns transactions matching param values in search criteria', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 3,
+          txParams: { from: '0x1' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { from: '0x1' },
+        }),
+      ).toStrictEqual([transactions[0], transactions[2]]);
+    });
+
+    it('returns transactions matching multiple values in search criteria', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { from: '0x1', time: 1 },
+        }),
+      ).toStrictEqual([transactions[0], transactions[2]]);
+    });
+
+    it('returns transactions matching function in search criteria', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 1,
+          txParams: { from: '0x3' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          searchCriteria: { time: (value: any) => value === 1 },
+        }),
+      ).toStrictEqual([transactions[0], transactions[2]]);
+    });
+
+    it('returns transactions matching specified chain', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: MOCK_NETWORK.chainId,
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+        {
+          chainId: '0x2',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2' },
+        },
+        {
+          chainId: MOCK_NETWORK.chainId,
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 1,
+          txParams: { from: '0x3' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { chainId: MOCK_NETWORK.chainId },
+        }),
+      ).toStrictEqual([transactions[0], transactions[2]]);
+    });
+
+    it('returns transactions from specified list', () => {
+      const { controller } = setupController();
+
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 1,
+          txParams: { from: '0x3' },
+        },
+      ];
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { time: 1 },
+          initialList: transactions,
+        }),
+      ).toStrictEqual([transactions[0], transactions[2]]);
+    });
+
+    it('returns limited number of transactions sorted by ascending time', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1', nonce: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 2,
+          txParams: { from: '0x1', nonce: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 3,
+          txParams: { from: '0x2', nonce: '0x3' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId4',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 4,
+          txParams: { from: '0x1', nonce: '0x4' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { from: '0x1' },
+          limit: 2,
+        }),
+      ).toStrictEqual([transactions[1], transactions[3]]);
+    });
+
+    it('returns limited number of transactions except for duplicate nonces', () => {
+      const transactions: TransactionMeta[] = [
+        {
+          chainId: '0x1',
+          id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.confirmed,
+          time: 1,
+          txParams: { from: '0x1', nonce: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.unapproved,
+          time: 2,
+          txParams: { from: '0x2', nonce: '0x2' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 3,
+          txParams: { from: '0x1', nonce: '0x1' },
+        },
+        {
+          chainId: '0x1',
+          id: 'testId4',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          status: TransactionStatus.submitted,
+          time: 4,
+          txParams: { from: '0x1', nonce: '0x3' },
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          state: { transactions },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(
+        controller.getTransactions({
+          searchCriteria: { from: '0x1' },
+          limit: 2,
+        }),
+      ).toStrictEqual([transactions[0], transactions[2], transactions[3]]);
+    });
+  });
+
+  describe('updateEditableParams', () => {
+    const transactionId = '1';
+    const params = {
+      data: '0x12',
+      from: ACCOUNT_2_MOCK,
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: ACCOUNT_MOCK,
+      value: '0x0',
+    };
+
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+      status: TransactionStatus.unapproved as const,
+      time: 123456789,
+      type: TransactionType.contractInteraction,
+      txParams: {
+        data: 'originalData',
+        gas: '50000',
+        gasPrice: '1000000000',
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        value: '5000000000000000000',
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+    };
+
+    it('updates editable params and returns updated transaction metadata', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.txParams).toStrictEqual(params);
+    });
+
+    it('updates EIP-1559 properties and returns updated transaction metadata', async () => {
+      const transactionMeta1559 = {
+        ...transactionMeta,
+        txParams: {
+          ...transactionMeta.txParams,
+          gasPrice: undefined,
+          maxFeePerGas: '0xdef',
+          maxPriorityFeePerGas: '0xabc',
+        },
+      };
+
+      const params1559: Partial<TransactionParams> = {
+        ...params,
+        maxFeePerGas: '0x456',
+        maxPriorityFeePerGas: '0x123',
+      };
+
+      delete params1559.gasPrice;
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta1559],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params1559,
+      );
+
+      expect(updatedTransaction?.txParams).toStrictEqual(params1559);
+    });
+
+    it('updates transaction layer 1 gas fee updater', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: {
+            ...updatedTransaction,
+          },
+        }),
+      );
+    });
+
+    it('updates container types', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.containerTypes).toStrictEqual([
+        TransactionContainerType.EnforcedSimulations,
+      ]);
+    });
+
+    it('snapshots txParamsOriginal when container types are newly applied', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toStrictEqual(
+        transactionMeta.txParams,
+      );
+    });
+
+    it('does not snapshot txParamsOriginal when container types are not applied', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toBeUndefined();
+    });
+
+    it('does not snapshot txParamsOriginal when container types are already set', async () => {
+      const alreadyWrappedMeta: TransactionMeta = {
+        ...transactionMeta,
+        containerTypes: [TransactionContainerType.EnforcedSimulations],
+      };
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [alreadyWrappedMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toBeUndefined();
+    });
+
+    it('does not overwrite an existing txParamsOriginal', async () => {
+      const existingOriginal = {
+        data: '0xexistingdata',
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+      const metaWithOriginal: TransactionMeta = {
+        ...transactionMeta,
+        txParamsOriginal: existingOriginal,
+      };
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [metaWithOriginal],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toStrictEqual(
+        existingOriginal,
+      );
+    });
+
+    it('updates transaction type', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      jest
+        .spyOn(transactionTypeUtils, 'determineTransactionType')
+        .mockResolvedValue({ type: TransactionType.tokenMethodTransfer });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.type).toStrictEqual(
+        TransactionType.tokenMethodTransfer,
+      );
+    });
+
+    it('does not update transaction type if disabled', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      jest
+        .spyOn(transactionTypeUtils, 'determineTransactionType')
+        .mockResolvedValue({ type: TransactionType.tokenMethodTransfer });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        { ...params, updateType: false },
+      );
+
+      expect(updatedTransaction?.type).toStrictEqual(
+        TransactionType.contractInteraction,
+      );
+    });
+
+    it('throws an error if no transaction metadata is found', async () => {
+      const { controller } = setupController();
+      await expect(
+        controller.updateEditableParams(transactionId, params),
+      ).rejects.toThrow(
+        'Cannot update editable params as no transaction metadata found',
+      );
+    });
+
+    it('throws an error if the transaction is not unapproved', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...transactionMeta,
+                status: TransactionStatus.submitted as const,
+              },
+            ],
+          },
+        },
+      });
+      await expect(controller.updateEditableParams(transactionId, params))
+        .rejects
+        .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
+      Current tx status: ${TransactionStatus.submitted}`);
+    });
+  });
+
+  describe('abortTransactionSigning', () => {
+    it('throws if transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.abortTransactionSigning(TRANSACTION_META_MOCK.id),
+      ).toThrow('Cannot abort signing as no transaction metadata found');
+    });
+
+    it('throws if transaction not being signed', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      expect(() =>
+        controller.abortTransactionSigning(TRANSACTION_META_MOCK.id),
+      ).toThrow(
+        'Cannot abort signing as transaction is not waiting for signing',
+      );
+    });
+
+    it('sets status to failed if transaction being signed', async () => {
+      const { controller, rootMessenger } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      rootMessenger.unregisterActionHandler(
+        'KeyringController:signTransaction',
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signTransaction',
+        () => createDeferredPromise<never>().promise,
+      );
+
+      const { transactionMeta, result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      result.catch(() => {
+        // Ignore error
+      });
+
+      await flushPromises();
+
+      controller.abortTransactionSigning(transactionMeta.id);
+
+      await flushPromises();
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Signing aborted by user',
+      );
+    });
+  });
+
+  describe('getLayer1GasFee', () => {
+    it('calls getTransactionLayer1GasFee with the correct parameters', async () => {
+      const chainIdMock = '0x1';
+      const networkClientIdMock = 'mainnet';
+      const layer1GasFeeMock = '0x12356';
+
+      getTransactionLayer1GasFeeMock.mockResolvedValueOnce(layer1GasFeeMock);
+
+      const { controller } = setupController();
+
+      const result = await controller.getLayer1GasFee({
+        transactionParams: TRANSACTION_META_MOCK.txParams,
+        chainId: chainIdMock,
+        networkClientId: networkClientIdMock,
+      });
+
+      expect(result).toBe(layer1GasFeeMock);
+      expect(getTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('estimateGasFee', () => {
+    it('returns estimates from gas fee flow', async () => {
+      const gasFeeFlowMock = buildMockGasFeeFlow();
+
+      gasFeeFlowMock.getGasFees.mockResolvedValueOnce(GAS_FEE_ESTIMATES_MOCK);
+      getGasFeeFlowMock.mockReturnValueOnce(gasFeeFlowMock);
+
+      const { controller } = setupController();
+
+      const result = await controller.estimateGasFee({
+        transactionParams: TRANSACTION_META_MOCK.txParams,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+
+      expect(result).toStrictEqual(GAS_FEE_ESTIMATES_MOCK);
+    });
+
+    it('calls flow with transaction metadata matching args', async () => {
+      const gasFeeFlowMock = buildMockGasFeeFlow();
+
+      gasFeeFlowMock.getGasFees.mockResolvedValueOnce(GAS_FEE_ESTIMATES_MOCK);
+      getGasFeeFlowMock.mockReturnValueOnce(gasFeeFlowMock);
+
+      const { controller } = setupController();
+
+      await controller.estimateGasFee({
+        transactionParams: TRANSACTION_META_MOCK.txParams,
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+
+      expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
+      expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: {
+            txParams: TRANSACTION_META_MOCK.txParams,
+            chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        }),
+      );
+    });
+  });
+
+  describe('resimulate', () => {
+    it('triggers simulation if re-simulation detected on state update', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValueOnce({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+      expect(getBalanceChangesMock).toHaveBeenCalledWith({
+        blockTime: 123,
+        chainId: ChainId.sepolia,
+        getSimulationConfig: expect.any(Function),
+        messenger: expect.any(Object),
+        nestedTransactions: undefined,
+        networkClientId: InfuraNetworkType.sepolia,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+      });
+    });
+
+    it('does not trigger simulation loop', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValue({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+      expect(getBalanceChangesMock).toHaveBeenCalledWith({
+        blockTime: 123,
+        chainId: ChainId.sepolia,
+        getSimulationConfig: expect.any(Function),
+        messenger: expect.any(Object),
+        nestedTransactions: undefined,
+        networkClientId: InfuraNetworkType.sepolia,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+      });
+    });
+  });
+
+  describe('setTransactionActive', () => {
+    it('throws if transaction does not exist', async () => {
+      const { controller } = setupController();
+      expect(() => controller.setTransactionActive('123', true)).toThrow(
+        'Transaction with id 123 not found',
+      );
+    });
+
+    it('updates the isActive state of a transaction', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              } as unknown as TransactionMeta,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.setTransactionActive(transactionId, true);
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.isActive).toBe(true);
+    });
+  });
+
+  describe('addTransactionBatch', () => {
+    it('invokes util', async () => {
+      const { controller } = setupController();
+
+      await controller.addTransactionBatch({
+        from: ACCOUNT_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        transactions: [
+          {
+            params: {
+              to: ACCOUNT_2_MOCK,
+              data: '0x123456',
+              value: '0x123',
+            },
+          },
+        ],
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('updateAtomicBatchData', () => {
+    /**
+     * Template for updateAtomicBatchData test.
+     *
+     * @returns The controller instance and function result;
+     */
+    async function updateAtomicBatchDataTemplate(): Promise<{
+      controller: TransactionController;
+      result: Hex;
+    }> {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                nestedTransactions: [
+                  {
+                    to: ACCOUNT_2_MOCK,
+                    data: '0x1234',
+                  },
+                  {
+                    to: ACCOUNT_2_MOCK,
+                    data: '0x4567',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+
+      const result = await controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 1,
+        transactionData: '0x89AB',
+      });
+
+      return { controller, result };
+    }
+
+    it('updates transaction params', async () => {
+      const { controller } = await updateAtomicBatchDataTemplate();
+
+      expect(controller.state.transactions[0]?.txParams.data).toContain('89ab');
+      expect(controller.state.transactions[0]?.txParams.data).not.toContain(
+        '4567',
+      );
+    });
+
+    it('updates nested transaction', async () => {
+      const { controller } = await updateAtomicBatchDataTemplate();
+
+      expect(
+        controller.state.transactions[0]?.nestedTransactions?.[1]?.data,
+      ).toBe('0x89AB');
+    });
+
+    it('returns updated batch transaction data', async () => {
+      const { result } = await updateAtomicBatchDataTemplate();
+
+      expect(result).toContain('89ab');
+      expect(result).not.toContain('4567');
+    });
+
+    it('clears stale preparation metadata before gas estimation completes', async () => {
+      const gasPreparation = createDeferredPromise<void>();
+      const receiptRevert = { message: 'Receipt reverted' };
+      const simulationRevert = { message: 'Simulation reverted' };
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        await gasPreparation.promise;
+        txMeta.txParams.gas = '0x222';
+        txMeta.gasLimitNoBuffer = '0x200';
+      });
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                gasLimitNoBuffer: '0x100',
+                gasUsed: '0x101',
+                nestedTransactions: [{ to: ACCOUNT_2_MOCK, data: '0x1234' }],
+                revert: {
+                  gas: { message: 'Gas reverted' },
+                  receipt: receiptRevert,
+                  simulation: simulationRevert,
+                },
+                securityAlertResponse: {
+                  reason: 'Previous revision warning',
+                  result_type: 'Warning',
+                },
+                simulationData: SIMULATION_DATA_RESULT_MOCK,
+                simulationFails: {
+                  debug: {},
+                  reason: 'Previous gas estimate failed',
+                },
+                txParams: {
+                  ...TRANSACTION_META_MOCK.txParams,
+                  gas: '0x102',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const updatePromise = controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 0,
+        transactionData: '0x89AB',
+      });
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction.nestedTransactions?.[0].data).toBe('0x89AB');
+      expect(transaction.txParams.data).toContain('89ab');
+      expect(transaction.txParams.gas).toBeUndefined();
+      expect(transaction.gasLimitNoBuffer).toBeUndefined();
+      expect(transaction.gasUsed).toBeUndefined();
+      expect(transaction.securityAlertResponse).toBeUndefined();
+      expect(transaction.simulationData).toBeUndefined();
+      expect(transaction.simulationFails).toBeUndefined();
+      expect(transaction.revert).toStrictEqual({
+        receipt: receiptRevert,
+        simulation: simulationRevert,
+      });
+
+      gasPreparation.resolve();
+      await updatePromise;
+
+      expect(controller.state.transactions[0].txParams.gas).toBe('0x222');
+      expect(controller.state.transactions[0].gasLimitNoBuffer).toBe('0x200');
+    });
+
+    it('clears stale revert metadata and applies a new gas revert', async () => {
+      updateGasMock.mockImplementationOnce(async ({ txMeta }) => {
+        txMeta.revert = { gas: { message: 'New gas revert' } };
+      });
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                nestedTransactions: [{ to: ACCOUNT_2_MOCK, data: '0x1234' }],
+                revert: { gas: { message: 'Old gas revert' } },
+              },
+            ],
+          },
+        },
+      });
+
+      await controller.updateAtomicBatchData({
+        transactionId: TRANSACTION_META_MOCK.id,
+        transactionIndex: 0,
+        transactionData: '0x89AB',
+      });
+
+      expect(controller.state.transactions[0].revert).toStrictEqual({
+        gas: { message: 'New gas revert' },
+      });
+    });
+
+    it('updates gas', async () => {
+      const gasMock = '0x1234';
+      const gasLimitNoBufferMock = '0x123';
+      const simulationFailsMock = { reason: 'testReason', debug: {} };
+
+      updateGasMock.mockImplementationOnce(async (request) => {
+        request.txMeta.txParams.gas = gasMock;
+        request.txMeta.simulationFails = simulationFailsMock;
+        request.txMeta.gasLimitNoBuffer = gasLimitNoBufferMock;
+      });
+
+      const { controller } = await updateAtomicBatchDataTemplate();
+
+      const stateTransaction = controller.state.transactions[0];
+
+      expect(stateTransaction.txParams.gas).toBe(gasMock);
+      expect(stateTransaction.simulationFails).toStrictEqual(
+        simulationFailsMock,
+      );
+      expect(stateTransaction.gasLimitNoBuffer).toBe(gasLimitNoBufferMock);
+    });
+
+    it('throws if nested transaction does not exist', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      await expect(
+        controller.updateAtomicBatchData({
+          transactionId: TRANSACTION_META_MOCK.id,
+          transactionIndex: 0,
+          transactionData: '0x89AB',
+        }),
+      ).rejects.toThrow('Nested transaction not found');
+    });
+
+    it('throws if the transaction has no nested transactions', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, nestedTransactions: undefined },
+            ],
+          },
+        },
+      });
+
+      await expect(
+        controller.updateAtomicBatchData({
+          transactionId: TRANSACTION_META_MOCK.id,
+          transactionIndex: 0,
+          transactionData: '0x89AB',
+        }),
+      ).rejects.toThrow('Nested transaction not found');
+    });
+
+    it('throws if batch transaction does not exist', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      await expect(
+        controller.updateAtomicBatchData({
+          transactionId: 'invalidId',
+          transactionIndex: 0,
+          transactionData: '0x89AB',
+        }),
+      ).rejects.toThrow(
+        'Cannot update transaction as ID not found - invalidId',
+      );
+    });
+  });
+
+  describe('updateRequiredTransactionIds', () => {
+    it('updates required transaction IDs in state', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      controller.updateRequiredTransactionIds({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredTransactionIds: ['123-456', '234-567'],
+      });
+
+      expect(
+        controller.state.transactions[0].requiredTransactionIds,
+      ).toStrictEqual(['123-456', '234-567']);
+    });
+
+    it('appends to existing values by default', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, requiredTransactionIds: ['123-456'] },
+            ],
+          },
+        },
+      });
+
+      controller.updateRequiredTransactionIds({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredTransactionIds: ['234-567'],
+      });
+
+      expect(
+        controller.state.transactions[0].requiredTransactionIds,
+      ).toStrictEqual(['123-456', '234-567']);
+    });
+
+    it('replaces existing values if append is false', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, requiredTransactionIds: ['123-456'] },
+            ],
+          },
+        },
+      });
+
+      controller.updateRequiredTransactionIds({
+        transactionId: TRANSACTION_META_MOCK.id,
+        requiredTransactionIds: ['234-567'],
+        append: false,
+      });
+
+      expect(
+        controller.state.transactions[0].requiredTransactionIds,
+      ).toStrictEqual(['234-567']);
+    });
+  });
+
+  describe('updateSelectedGasFeeToken', () => {
+    it('updates selected gas fee token in state', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+              },
+            ],
+          },
+        },
+      });
+
+      controller.updateSelectedGasFeeToken(
+        TRANSACTION_META_MOCK.id,
+        GAS_FEE_TOKEN_MOCK.tokenAddress,
+      );
+
+      expect(controller.state.transactions[0].selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_MOCK.tokenAddress,
+      );
+    });
+
+    it('throws if transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.updateSelectedGasFeeToken(
+          TRANSACTION_META_MOCK.id,
+          GAS_FEE_TOKEN_MOCK.tokenAddress,
+        ),
+      ).toThrow(
+        `Cannot update transaction as ID not found - ${TRANSACTION_META_MOCK.id}`,
+      );
+    });
+
+    it('throws if no matching gas fee token', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, gasFeeTokens: [GAS_FEE_TOKEN_MOCK] },
+            ],
+          },
+        },
+      });
+
+      expect(() =>
+        controller.updateSelectedGasFeeToken(TRANSACTION_META_MOCK.id, '0x123'),
+      ).toThrow('No matching gas fee token found');
+    });
+  });
+
+  describe('emulateNewTransaction', () => {
+    it('publishes swap event when transaction is a swap', () => {
+      const swapTransactionMeta = {
+        id: 'tx1',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        type: TransactionType.swap,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [swapTransactionMeta],
+          },
+        },
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toMatchObject({
+        id: swapTransactionMeta.id,
+        type: TransactionType.swap,
+      });
+
+      const swapListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+
+      controller.emulateNewTransaction(swapTransactionMeta.id);
+
+      expect(swapListener).toHaveBeenCalledTimes(1);
+      expect(swapListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          id: swapTransactionMeta.id,
+          type: TransactionType.swap,
+        }),
+      });
+    });
+
+    it('publishes swap approval event when transaction is a swap approval', () => {
+      const swapApprovalTransactionMeta = {
+        id: 'tx2',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.approved,
+        type: TransactionType.swapApproval,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [swapApprovalTransactionMeta],
+          },
+        },
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0]).toMatchObject({
+        id: swapApprovalTransactionMeta.id,
+        type: TransactionType.swapApproval,
+      });
+
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction(swapApprovalTransactionMeta.id);
+
+      expect(swapApprovalListener).toHaveBeenCalledTimes(1);
+      expect(swapApprovalListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          id: swapApprovalTransactionMeta.id,
+          type: TransactionType.swapApproval,
+        }),
+      });
+    });
+
+    it('does not publish events when transaction is not a swap or swap approval', () => {
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      const swapListener = jest.fn();
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction(TRANSACTION_META_MOCK.id);
+
+      expect(swapListener).not.toHaveBeenCalled();
+      expect(swapApprovalListener).not.toHaveBeenCalled();
+    });
+
+    it('does not publish events when transaction does not exist', () => {
+      const { controller, messenger } = setupController();
+
+      const swapListener = jest.fn();
+      const swapApprovalListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionNewSwap',
+        swapListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionNewSwapApproval',
+        swapApprovalListener,
+      );
+
+      controller.emulateNewTransaction('missing-transaction-id');
+
+      expect(swapListener).not.toHaveBeenCalled();
+      expect(swapApprovalListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('emulateTransactionUpdate', () => {
+    it('adds transaction to state and publishes update when it does not exist', () => {
+      const selectedAccount = {
+        ...INTERNAL_ACCOUNT_MOCK,
+        address: ACCOUNT_2_MOCK,
+      };
+      const { controller, messenger, mockGetSelectedAccount } = setupController(
+        { selectedAccount },
+      );
+
+      const transactionMeta = {
+        id: 'tx3',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+
+      const statusUpdatedListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+
+      controller.emulateTransactionUpdate(transactionMeta);
+
+      const transactionMetaWithUpdatedSender = {
+        ...transactionMeta,
+        txParams: {
+          ...transactionMeta.txParams,
+          from: ACCOUNT_2_MOCK,
+        },
+      };
+      const transactionMetaWithUpdatedSenderAndNormalized = {
+        ...transactionMetaWithUpdatedSender,
+        txParams: {
+          ...transactionMetaWithUpdatedSender.txParams,
+          value: '0x0',
+        },
+      };
+      expect(controller.state.transactions).toHaveLength(1);
+      // State updated after updating sender and normalizing
+      expect(controller.state.transactions[0]).toStrictEqual(
+        transactionMetaWithUpdatedSenderAndNormalized,
+      );
+      expect(mockGetSelectedAccount).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      // Status published after updating sender, but before normalization
+      expect(statusUpdatedListener).toHaveBeenCalledWith({
+        transactionMeta: transactionMetaWithUpdatedSender,
+      });
+    });
+
+    it('updates transaction when it already exists', () => {
+      const selectedAccount = {
+        ...INTERNAL_ACCOUNT_MOCK,
+        address: ACCOUNT_2_MOCK,
+      };
+      const existingTransactionMeta = {
+        id: 'tx4',
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as TransactionMeta;
+      const newTransactionMeta = {
+        ...existingTransactionMeta,
+        status: TransactionStatus.approved,
+      };
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [existingTransactionMeta],
+          },
+        },
+        selectedAccount,
+      });
+
+      const statusUpdatedListener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+
+      controller.emulateTransactionUpdate(newTransactionMeta);
+
+      const transactionMetaWithUpdatedSender = {
+        ...newTransactionMeta,
+        txParams: {
+          ...newTransactionMeta.txParams,
+          from: ACCOUNT_2_MOCK,
+        },
+      };
+      const transactionMetaWithUpdatedSenderAndNormalized = {
+        ...transactionMetaWithUpdatedSender,
+        txParams: {
+          ...transactionMetaWithUpdatedSender.txParams,
+          value: '0x0',
+        },
+      };
+      expect(controller.state.transactions).toHaveLength(1);
+      // State updated after updating sender and normalizing
+      expect(controller.state.transactions[0]).toStrictEqual(
+        transactionMetaWithUpdatedSenderAndNormalized,
+      );
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      // Status published after updating sender, but before normalization
+      expect(statusUpdatedListener).toHaveBeenCalledWith({
+        transactionMeta: transactionMetaWithUpdatedSender,
+      });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "lastFetchedBlockNumbers": {},
+          "methodData": {},
+          "submitHistory": [],
+          "transactionBatches": [],
+          "transactions": [],
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "lastFetchedBlockNumbers": {},
+          "methodData": {},
+          "submitHistory": [],
+          "transactionBatches": [],
+          "transactions": [],
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setupController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "methodData": {},
+          "transactionBatches": [],
+          "transactions": [],
+        }
+      `);
+    });
+
+    it('accepts ignored incoming transaction compatibility options', () => {
+      expect(() =>
+        setupController({
+          options: {
+            incomingTransactions: {
+              client: 'extension-test',
+              includeTokenTransfers: false,
+              isEnabled: () => false,
+              updateTransactions: true,
+            },
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('keeps incoming transaction polling compatibility methods as no-ops', () => {
+      const { controller } = setupController();
+
+      expect(() => controller.startIncomingTransactionPolling()).not.toThrow();
+      expect(() => controller.stopIncomingTransactionPolling()).not.toThrow();
+    });
+  });
+
+  describe('messenger actions', () => {
+    describe('TransactionController:confirmExternalTransaction', () => {
+      it('calls confirmExternalTransaction method via messenger', async () => {
+        const { controller, messenger } = setupController();
+        const externalTransactionToConfirm = {
+          id: '1',
+          chainId: toHex(1),
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          time: 123456789,
+          status: TransactionStatus.confirmed as const,
+          txParams: {
+            gasUsed: undefined,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const externalTransactionReceipt = {
+          gasUsed: '0x5208',
+        };
+        const externalBaseFeePerGas = '0x14';
+
+        await messenger.call(
+          'TransactionController:confirmExternalTransaction',
+          externalTransactionToConfirm,
+          externalTransactionReceipt,
+          externalBaseFeePerGas,
+        );
+
+        expect(controller.state.transactions).toHaveLength(1);
+        expect(controller.state.transactions[0]).toMatchObject({
+          id: '1',
+          status: TransactionStatus.confirmed,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        });
+      });
+    });
+
+    describe('TransactionController:getNonceLock', () => {
+      it('calls getNonceLock method via messenger', async () => {
+        const { messenger } = setupController();
+
+        const result = await messenger.call(
+          'TransactionController:getNonceLock',
+          ACCOUNT_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
+        );
+
+        expect(result).toMatchObject({
+          nextNonce: NONCE_MOCK,
+          releaseLock: expect.any(Function),
+        });
+        expect(getNonceLockSpy).toHaveBeenCalledWith(
+          ACCOUNT_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
+        );
+      });
+    });
+
+    describe('TransactionController:getTransactions', () => {
+      it('calls getTransactions method via messenger with no parameters', async () => {
+        const { messenger } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...TRANSACTION_META_MOCK,
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                  },
+                },
+              ],
+            },
+          },
+        });
+
+        const result = messenger.call('TransactionController:getTransactions');
+
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatchObject({
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        });
+      });
+
+      it('calls getTransactions method via messenger with search criteria', async () => {
+        const { messenger } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...TRANSACTION_META_MOCK,
+                  id: '1',
+                  txParams: {
+                    from: ACCOUNT_MOCK,
+                    to: ACCOUNT_2_MOCK,
+                  },
+                },
+                {
+                  ...TRANSACTION_META_2_MOCK,
+                  id: '2',
+                  txParams: {
+                    from: ACCOUNT_2_MOCK,
+                    to: ACCOUNT_MOCK,
+                  },
+                },
+              ],
+            },
+          },
+        });
+
+        const result = messenger.call('TransactionController:getTransactions', {
+          searchCriteria: {
+            from: ACCOUNT_MOCK,
+          },
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].txParams.from).toBe(ACCOUNT_MOCK);
+      });
+    });
+
+    describe('TransactionController:updateTransaction', () => {
+      it('calls updateTransaction method via messenger', async () => {
+        const transaction = {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const { controller, messenger } = setupController({
+          options: {
+            state: {
+              transactions: [transaction],
+            },
+          },
+        });
+        const updatedTransaction = {
+          ...transaction,
+          txParams: {
+            ...transaction.txParams,
+            value: '0x1',
+          },
+        };
+
+        messenger.call(
+          'TransactionController:updateTransaction',
+          updatedTransaction,
+          'Test update note',
+        );
+
+        expect(controller.state.transactions[0].txParams.value).toBe('0x1');
+      });
+    });
+
+    describe('TransactionController:updateTransactionMetadata', () => {
+      it('calls updateTransactionMetadata via messenger', () => {
+        const { controller, messenger } = setupController({
+          options: {
+            state: {
+              transactions: [TRANSACTION_META_MOCK],
+            },
+          },
+        });
+
+        const result = messenger.call(
+          'TransactionController:updateTransactionMetadata',
+          {
+            transactionId: TRANSACTION_META_MOCK.id,
+            callback: (transactionMeta) => {
+              transactionMeta.txParams.value = '0x1';
+            },
+          },
+        );
+
+        expect(result).toStrictEqual(controller.state.transactions[0]);
+        expect(result.txParams.value).toBe('0x1');
+      });
+    });
+
+    describe('TransactionController:getGasFeeTokens', () => {
+      it('returns gas fee tokens', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const result = await messenger.call(
+          'TransactionController:getGasFeeTokens',
+          {
+            chainId: CHAIN_ID_MOCK,
+            data: DATA_MOCK,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+            value: VALUE_MOCK,
+          },
+        );
+
+        expect(result).toStrictEqual([GAS_FEE_TOKEN_MOCK]);
+      });
+
+      it('includes delegation address and isExternalSign in request', async () => {
+        const { messenger } = setupController();
+
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        getDelegationAddressMock.mockResolvedValue(ACCOUNT_2_MOCK);
+
+        await messenger.call('TransactionController:getGasFeeTokens', {
+          chainId: CHAIN_ID_MOCK,
+          data: DATA_MOCK,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              delegationAddress: ACCOUNT_2_MOCK,
+              isExternalSign: true,
+            }),
+          }),
+        );
+      });
+    });
+
+    describe('TransactionController:transactionApproved event', () => {
+      it('does not publish transactionApproved event when keyring throws during signing', async () => {
+        const signingError = new Error('Keyring signing failed');
+
+        const {
+          controller,
+          messenger,
+          rootMessenger,
+          mockTransactionApprovalRequest,
+        } = setupController();
+
+        rootMessenger.unregisterActionHandler(
+          'KeyringController:signTransaction',
+        );
+        rootMessenger.registerActionHandler(
+          'KeyringController:signTransaction',
+          jest.fn().mockRejectedValue(signingError),
+        );
+
+        const approvedEventListener = jest.fn();
+        const mockActionId = 'test-action-id-456';
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            actionId: mockActionId,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await expect(result).rejects.toThrow('Keyring signing failed');
+
+        const transaction = controller.state.transactions[0];
+        expect(transaction.status).toBe(TransactionStatus.failed);
+
+        expect(approvedEventListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('TransactionController:estimateGasBatch', () => {
+      it('calls estimateGasBatch method via messenger and returns gas estimates', async () => {
+        const { messenger } = setupController();
+
+        const totalGasLimitMock = 100000;
+        const gasLimitsMock = [50000, 50000];
+
+        estimateGasBatchMock.mockResolvedValueOnce({
+          totalGasLimit: totalGasLimitMock,
+          gasLimits: gasLimitsMock,
+        });
+
+        const result = await messenger.call(
+          'TransactionController:estimateGasBatch',
+          {
+            chainId: CHAIN_ID_MOCK,
+            from: ACCOUNT_MOCK,
+            transactions: [
+              {
+                to: ACCOUNT_2_MOCK,
+                value: VALUE_MOCK,
+                data: DATA_MOCK,
+              },
+              {
+                to: ACCOUNT_2_MOCK,
+                value: VALUE_MOCK,
+                data: DATA_MOCK,
+              },
+            ],
+          },
+        );
+
+        expect(result).toStrictEqual({
+          totalGasLimit: totalGasLimitMock,
+          gasLimits: gasLimitsMock,
+        });
+
+        expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+        expect(estimateGasBatchMock).toHaveBeenCalledWith({
+          from: ACCOUNT_MOCK,
+          getSimulationConfig: expect.any(Function),
+          isAtomicBatchSupported: expect.any(Function),
+          messenger: expect.anything(),
+          networkClientId: InfuraNetworkType.sepolia,
+          transactions: [
+            {
+              to: ACCOUNT_2_MOCK,
+              value: VALUE_MOCK,
+              data: DATA_MOCK,
+            },
+            {
+              to: ACCOUNT_2_MOCK,
+              value: VALUE_MOCK,
+              data: DATA_MOCK,
+            },
+          ],
+        });
+      });
     });
   });
 });

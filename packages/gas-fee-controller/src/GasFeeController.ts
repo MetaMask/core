@@ -1,27 +1,36 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
+import {
+  convertHexToDecimal,
+  safelyExecute,
+  toHex,
+} from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  NetworkClientId,
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
-  NetworkControllerStateChangeEvent,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { PollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
-import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
-import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
+import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
-} from './gas-util';
+} from './gas-util.js';
+import type { GasFeeControllerMethodActions } from './GasFeeController-method-action-types.js';
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -73,6 +82,7 @@ export type EstimatedGasFeeTimeBounds = {
  * A single gas price estimate for networks and accounts that don't support EIP-1559
  * This estimate comes from eth_gasPrice but is converted to dec gwei to match other
  * return values
+ *
  * @property gasPrice - A GWEI dec string
  */
 
@@ -86,6 +96,7 @@ export type EthGasPriceEstimate = {
  * A set of gas price estimates for networks and accounts that don't support EIP-1559
  * These estimates include low, medium and high all as strings representing gwei in
  * decimal format.
+ *
  * @property high - gasPrice, in decimal gwei string format, suggested for fast inclusion
  * @property medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
  * @property low - gasPrice, in decimal gwei string format, suggested for slow inclusion
@@ -100,6 +111,7 @@ export type LegacyGasPriceEstimate = {
  * @type Eip1559GasFee
  *
  * Data necessary to provide an estimate of a gas fee with a specific tip
+ *
  * @property minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
  * @property maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
  * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
@@ -116,6 +128,7 @@ export type Eip1559GasFee = {
  * @type GasFeeEstimates
  *
  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
+ *
  * @property low - A GasFee for a minimum necessary combination of tip and maxFee
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
@@ -151,14 +164,37 @@ type FallbackGasFeeEstimates = {
   networkCongestion: null;
 };
 
-const metadata = {
+const metadata: StateMetadata<GasFeeState> = {
   gasFeeEstimatesByChainId: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
-  gasFeeEstimates: { persist: true, anonymous: false },
-  estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
-  gasEstimateType: { persist: true, anonymous: false },
+  gasFeeEstimates: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  estimatedGasFeeTimeBounds: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  gasEstimateType: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  nonRPCGasFeeApisDisabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
 };
 
 export type GasFeeStateEthGasPrice = {
@@ -187,12 +223,14 @@ export type GasFeeStateNoEstimates = {
 
 export type FetchGasFeeEstimateOptions = {
   shouldUpdateState?: boolean;
+  networkClientId?: NetworkClientId;
 };
 
 /**
  * @type GasFeeState
  *
  * Gas Fee controller state
+ *
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
@@ -206,31 +244,46 @@ export type GasFeeEstimatesByChainId = {
   gasFeeEstimatesByChainId?: Record<string, SingleChainGasFeeState>;
 };
 
-export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
+export type GasFeeState = GasFeeEstimatesByChainId &
+  SingleChainGasFeeState & {
+    nonRPCGasFeeApisDisabled?: boolean;
+  };
 
 const name = 'GasFeeController';
 
-export type GasFeeStateChange = {
-  type: `${typeof name}:stateChange`;
-  payload: [GasFeeState, Patch[]];
-};
+const MESSENGER_EXPOSED_METHODS = [
+  'disableNonRPCGasFeeApis',
+  'disconnectPoller',
+  'enableNonRPCGasFeeApis',
+  'fetchGasFeeEstimates',
+  'getGasFeeEstimatesAndStartPolling',
+  'getTimeEstimate',
+  'resetPolling',
+  'stopPolling',
+] as const;
 
-export type GetGasFeeState = {
-  type: `${typeof name}:getState`;
-  handler: () => GasFeeState;
-};
-
-type GasFeeMessenger = RestrictedControllerMessenger<
+export type GasFeeStateChange = ControllerStateChangeEvent<
   typeof name,
+  GasFeeState
+>;
+
+export type GetGasFeeState = ControllerGetStateAction<typeof name, GasFeeState>;
+
+export type GasFeeControllerActions =
   | GetGasFeeState
+  | GasFeeControllerMethodActions;
+
+export type GasFeeControllerEvents = GasFeeStateChange;
+
+type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
-  GasFeeStateChange | NetworkControllerStateChangeEvent,
-  | NetworkControllerGetStateAction['type']
-  | NetworkControllerGetNetworkClientByIdAction['type']
-  | NetworkControllerGetEIP1559CompatibilityAction['type'],
-  NetworkControllerStateChangeEvent['type']
+  | NetworkControllerGetEIP1559CompatibilityAction;
+
+export type GasFeeMessenger = Messenger<
+  typeof name,
+  GasFeeControllerActions | AllowedActions,
+  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent
 >;
 
 const defaultState: GasFeeState = {
@@ -238,12 +291,18 @@ const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+  nonRPCGasFeeApisDisabled: false,
+};
+
+/** The input to start polling for the {@link GasFeeController} */
+type GasFeePollingInput = {
+  networkClientId: NetworkClientId;
 };
 
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends PollingController<
+export class GasFeeController extends StaticIntervalPollingController<GasFeePollingInput>()<
   typeof name,
   GasFeeState,
   GasFeeMessenger
@@ -264,13 +323,15 @@ export class GasFeeController extends PollingController<
 
   private readonly getCurrentAccountEIP1559Compatibility;
 
-  private currentChainId;
+  private currentChainId?: Hex;
 
   private ethQuery?: EthQuery;
 
   private readonly clientId?: string;
 
-  #getProvider: () => ProviderProxy;
+  readonly #getProvider: () => ProviderProxy;
+
+  readonly #getChainId?: () => Hex;
 
   /**
    * Creates a GasFeeController instance.
@@ -287,7 +348,7 @@ export class GasFeeController extends PollingController<
    * account is EIP-1559 compatible.
    * @param options.getChainId - Returns the current chain ID.
    * @param options.getProvider - Returns a network provider for the current network.
-   * @param options.onNetworkStateChange - A function for registering an event handler for the
+   * @param options.onNetworkDidChange - A function for registering an event handler for the
    * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
@@ -304,7 +365,7 @@ export class GasFeeController extends PollingController<
     getChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
-    onNetworkStateChange,
+    onNetworkDidChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint,
     clientId,
@@ -317,7 +378,7 @@ export class GasFeeController extends PollingController<
     getCurrentAccountEIP1559Compatibility?: () => boolean;
     getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
-    onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
+    onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint: string;
     clientId?: string;
@@ -342,27 +403,34 @@ export class GasFeeController extends PollingController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    // @ts-expect-error TODO: Provider type alignment
-    this.ethQuery = new EthQuery(this.#getProvider());
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
-    if (onNetworkStateChange && getChainId) {
-      this.currentChainId = getChainId();
-      onNetworkStateChange(async (networkControllerState) => {
-        await this.#onNetworkControllerStateChange(networkControllerState);
+    if (onNetworkDidChange && getChainId) {
+      this.#getChainId = getChainId;
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      onNetworkDidChange(async (networkControllerState) => {
+        await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      this.currentChainId = this.messagingSystem.call(
-        'NetworkController:getState',
-      ).providerConfig.chainId;
-      this.messagingSystem.subscribe(
-        'NetworkController:stateChange',
+      this.messenger.subscribe(
+        'NetworkController:networkDidChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
-          await this.#onNetworkControllerStateChange(networkControllerState);
+          await this.#onNetworkControllerDidChange(networkControllerState);
         },
       );
     }
   }
 
+  /**
+   * Resets the polling interval by stopping and restarting polling
+   * with the existing poll tokens.
+   */
   async resetPolling() {
     if (this.pollTokens.size !== 0) {
       const tokens = Array.from(this.pollTokens);
@@ -374,10 +442,23 @@ export class GasFeeController extends PollingController<
     }
   }
 
+  /**
+   * Fetches gas fee estimates.
+   *
+   * @param options - The gas fee estimate options.
+   * @returns The gas fee estimates.
+   */
   async fetchGasFeeEstimates(options?: FetchGasFeeEstimateOptions) {
     return await this._fetchGasFeeEstimateData(options);
   }
 
+  /**
+   * Gets gas fee estimates and starts polling for updates.
+   *
+   * @param pollToken - An existing poll token to reuse, or undefined to
+   * generate a new one.
+   * @returns The poll token that can be used to stop polling.
+   */
   async getGasFeeEstimatesAndStartPolling(
     pollToken: string | undefined,
   ): Promise<string> {
@@ -393,63 +474,6 @@ export class GasFeeController extends PollingController<
     return _pollToken;
   }
 
-  async #fetchGasFeeEstimateForNetworkClientId(networkClientId: string) {
-    let isEIP1559Compatible = false;
-
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    const isLegacyGasAPICompatible =
-      networkClient.configuration.chainId === '0x38';
-
-    const decimalChainId = convertHexToDecimal(
-      networkClient.configuration.chainId,
-    );
-
-    try {
-      const result = await this.messagingSystem.call(
-        'NetworkController:getEIP1559Compatibility',
-        networkClientId,
-      );
-      isEIP1559Compatible = result || false;
-    } catch {
-      isEIP1559Compatible = false;
-    }
-
-    // @ts-expect-error TODO: Provider type alignment
-    const ethQuery = new EthQuery(networkClient.provider);
-
-    const gasFeeCalculations = await determineGasFeeCalculations({
-      isEIP1559Compatible,
-      isLegacyGasAPICompatible,
-      fetchGasEstimates,
-      fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
-        '<chain_id>',
-        `${decimalChainId}`,
-      ),
-      fetchGasEstimatesViaEthFeeHistory,
-      fetchLegacyGasPriceEstimates,
-      fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
-        '<chain_id>',
-        `${decimalChainId}`,
-      ),
-      fetchEthGasPriceEstimate,
-      calculateTimeEstimate,
-      clientId: this.clientId,
-      ethQuery,
-    });
-
-    this.update((state) => {
-      state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
-      state.gasFeeEstimatesByChainId[networkClient.configuration.chainId] = {
-        gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
-        estimatedGasFeeTimeBounds: gasFeeCalculations.estimatedGasFeeTimeBounds,
-        gasEstimateType: gasFeeCalculations.gasEstimateType,
-      } as any;
-    });
-  }
-
   /**
    * Gets and sets gasFeeEstimates in state.
    *
@@ -461,18 +485,46 @@ export class GasFeeController extends PollingController<
   async _fetchGasFeeEstimateData(
     options: FetchGasFeeEstimateOptions = {},
   ): Promise<GasFeeState> {
-    const { shouldUpdateState = true } = options;
-    let isEIP1559Compatible;
-    const isLegacyGasAPICompatible =
+    const { shouldUpdateState = true, networkClientId } = options;
+
+    let ethQuery,
+      isEIP1559Compatible,
+      isLegacyGasAPICompatible,
+      decimalChainId: number;
+
+    if (networkClientId !== undefined) {
+      const networkClient = this.messenger.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      );
+      isLegacyGasAPICompatible = networkClient.configuration.chainId === '0x38';
+
+      decimalChainId = convertHexToDecimal(networkClient.configuration.chainId);
+
+      try {
+        const result = await this.messenger.call(
+          'NetworkController:getEIP1559Compatibility',
+          networkClientId,
+        );
+        isEIP1559Compatible = result || false;
+      } catch {
+        isEIP1559Compatible = false;
+      }
+      ethQuery = new EthQuery(networkClient.provider);
+    }
+
+    ethQuery ??= this.#getEthQuery();
+
+    isLegacyGasAPICompatible ??=
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    const decimalChainId = convertHexToDecimal(this.currentChainId);
+    decimalChainId ??= convertHexToDecimal(this.#getCurrentChainId());
 
     try {
-      isEIP1559Compatible = await this.getEIP1559Compatibility();
+      isEIP1559Compatible ??= await this.getEIP1559Compatibility();
     } catch (e) {
       console.error(e);
-      isEIP1559Compatible = false;
+      isEIP1559Compatible ??= false;
     }
 
     const gasFeeCalculations = await determineGasFeeCalculations({
@@ -483,7 +535,6 @@ export class GasFeeController extends PollingController<
         '<chain_id>',
         `${decimalChainId}`,
       ),
-      fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
@@ -492,15 +543,27 @@ export class GasFeeController extends PollingController<
       fetchEthGasPriceEstimate,
       calculateTimeEstimate,
       clientId: this.clientId,
-      ethQuery: this.ethQuery,
+      ethQuery,
+      nonRPCGasFeeApisDisabled: this.state.nonRPCGasFeeApisDisabled,
     });
 
     if (shouldUpdateState) {
+      const chainId = toHex(decimalChainId);
+      const currentChainId = this.#getCurrentChainId();
       this.update((state) => {
-        state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
-        state.estimatedGasFeeTimeBounds =
-          gasFeeCalculations.estimatedGasFeeTimeBounds;
-        state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        if (currentChainId === chainId) {
+          state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
+          state.estimatedGasFeeTimeBounds =
+            gasFeeCalculations.estimatedGasFeeTimeBounds;
+          state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        }
+        state.gasFeeEstimatesByChainId ??= {};
+        state.gasFeeEstimatesByChainId[chainId] = {
+          gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
+          estimatedGasFeeTimeBounds:
+            gasFeeCalculations.estimatedGasFeeTimeBounds,
+          gasEstimateType: gasFeeCalculations.gasEstimateType,
+        } as SingleChainGasFeeState;
       });
     }
 
@@ -519,6 +582,9 @@ export class GasFeeController extends PollingController<
     }
   }
 
+  /**
+   * Stops polling for gas fee estimates and clears all poll tokens.
+   */
   stopPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -542,6 +608,8 @@ export class GasFeeController extends PollingController<
       clearInterval(this.intervalId);
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
@@ -550,12 +618,12 @@ export class GasFeeController extends PollingController<
   /**
    * Fetching token list from the Token Service API.
    *
-   * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The ID of the network client triggering the fetch.
    * @returns A promise that resolves when this operation completes.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
-    await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
+  async _executePoll({ networkClientId }: GasFeePollingInput): Promise<void> {
+    await this._fetchGasFeeEstimateData({ networkClientId });
   }
 
   private resetState() {
@@ -575,6 +643,14 @@ export class GasFeeController extends PollingController<
     );
   }
 
+  /**
+   * Gets the estimated time for a transaction based on the given gas parameters.
+   *
+   * @param maxPriorityFeePerGas - The maximum priority fee per gas in GWEI.
+   * @param maxFeePerGas - The maximum fee per gas in GWEI.
+   * @returns The estimated time bounds, or an empty object if fee market
+   * estimates are not available.
+   */
   getTimeEstimate(
     maxPriorityFeePerGas: string,
     maxFeePerGas: string,
@@ -592,16 +668,57 @@ export class GasFeeController extends PollingController<
     );
   }
 
-  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    const newChainId = networkControllerState.providerConfig.chainId;
+  async #onNetworkControllerDidChange({
+    selectedNetworkClientId,
+  }: NetworkState) {
+    const newChainId = this.#getChainIdForNetworkClient(
+      selectedNetworkClientId,
+    );
 
     if (newChainId !== this.currentChainId) {
-      // @ts-expect-error TODO: Provider type alignment
-      this.ethQuery = new EthQuery(this.#getProvider());
+      // Reset so the next fetch rebuilds it from the new network's provider.
+      this.ethQuery = undefined;
       await this.resetPolling();
 
       this.currentChainId = newChainId;
     }
+  }
+
+  #getEthQuery(): EthQuery {
+    this.ethQuery ??= new EthQuery(this.#getProvider());
+    return this.ethQuery;
+  }
+
+  #getCurrentChainId(): Hex {
+    this.currentChainId ??=
+      this.#getChainId?.() ?? this.#getChainIdFromNetworkController();
+    return this.currentChainId;
+  }
+
+  #getChainIdFromNetworkController(): Hex {
+    const { selectedNetworkClientId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return this.#getChainIdForNetworkClient(selectedNetworkClientId);
+  }
+
+  #getChainIdForNetworkClient(networkClientId: NetworkClientId): Hex {
+    return this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.chainId;
+  }
+
+  enableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = false;
+    });
+  }
+
+  disableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = true;
+    });
   }
 }
 

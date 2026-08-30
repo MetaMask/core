@@ -1,0 +1,297 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { AccountTreeController } from './AccountTreeController.js';
+
+/**
+ * Initialize the controller's state.
+ *
+ * It constructs the initial state of the account tree (tree nodes, nodes
+ * names, metadata, etc..) and will automatically update the controller's
+ * state with it.
+ */
+export type AccountTreeControllerInitAction = {
+  type: `AccountTreeController:init`;
+  handler: AccountTreeController['init'];
+};
+
+/**
+ * Re-initialize the controller's state.
+ *
+ * This is done in one single (atomic) `update` block to avoid having a temporary
+ * cleared state. Use this when you need to force a full re-init even if already initialized.
+ */
+export type AccountTreeControllerReinitAction = {
+  type: `AccountTreeController:reinit`;
+  handler: AccountTreeController['reinit'];
+};
+
+/**
+ * Gets the account wallet object from its ID.
+ *
+ * @param walletId - Account wallet ID.
+ * @returns The account wallet object if found, undefined otherwise.
+ */
+export type AccountTreeControllerGetAccountWalletObjectAction = {
+  type: `AccountTreeController:getAccountWalletObject`;
+  handler: AccountTreeController['getAccountWalletObject'];
+};
+
+/**
+ * Gets all account wallet objects.
+ *
+ * @returns All account wallet objects.
+ */
+export type AccountTreeControllerGetAccountWalletObjectsAction = {
+  type: `AccountTreeController:getAccountWalletObjects`;
+  handler: AccountTreeController['getAccountWalletObjects'];
+};
+
+/**
+ * Gets all underlying accounts from the currently selected account
+ * group.
+ *
+ * It also support account selector, which allows to filter specific
+ * accounts given some criterias (account type, address, scopes, etc...).
+ *
+ * @param selector - Optional account selector.
+ * @returns Underlying accounts for the currently selected account (filtered
+ * by the selector if provided).
+ */
+export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
+  type: `AccountTreeController:getAccountsFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
+};
+
+/**
+ * Gets an account from the currently selected account group, optionally
+ * filtered by a CAIP-2 chain ID.
+ *
+ * This is the group-based replacement for both
+ * `AccountsController:getSelectedAccount` and
+ * `AccountsController:getSelectedMultichainAccount`.
+ *
+ * When no chain ID is provided, an account of the selected group is returned
+ * using an EVM-priority rule: the first EVM account found in the group, or the
+ * first account in the group if no EVM account is found. When a chain ID is
+ * provided, the first account in the selected group whose scopes match the
+ * given chain is returned.
+ *
+ * @param chainId - Optional CAIP-2 chain ID used to filter accounts by scope.
+ * @returns The matching internal account from the selected group, or
+ * undefined if no group is selected or no account matches.
+ * @throws If `chainId` is provided but is not a valid CAIP-2 chain ID.
+ */
+export type AccountTreeControllerGetAccountFromSelectedAccountGroupAction = {
+  type: `AccountTreeController:getAccountFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountFromSelectedAccountGroup'];
+};
+
+/**
+ * Gets the account group object from its ID.
+ *
+ * @param groupId - Account group ID.
+ * @returns The account group object if found, undefined otherwise.
+ */
+export type AccountTreeControllerGetAccountGroupObjectAction = {
+  type: `AccountTreeController:getAccountGroupObject`;
+  handler: AccountTreeController['getAccountGroupObject'];
+};
+
+/**
+ * Gets the account's context which contains its wallet ID, group ID, and sort order.
+ *
+ * @param accountId - Account ID.
+ * @returns The account context if found, undefined otherwise.
+ */
+export type AccountTreeControllerGetAccountContextAction = {
+  type: `AccountTreeController:getAccountContext`;
+  handler: AccountTreeController['getAccountContext'];
+};
+
+/**
+ * Gets the currently selected account group ID.
+ *
+ * @returns The selected account group ID or empty string if none selected.
+ */
+export type AccountTreeControllerGetSelectedAccountGroupAction = {
+  type: `AccountTreeController:getSelectedAccountGroup`;
+  handler: AccountTreeController['getSelectedAccountGroup'];
+};
+
+/**
+ * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+ *
+ * @param groupId - The account group ID to select.
+ */
+export type AccountTreeControllerSetSelectedAccountGroupAction = {
+  type: `AccountTreeController:setSelectedAccountGroup`;
+  handler: AccountTreeController['setSelectedAccountGroup'];
+};
+
+/**
+ * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+ *
+ * @param accountId - The account ID to select the group for.
+ */
+export type AccountTreeControllerSetSelectedAccountGroupByAccountIdAction = {
+  type: `AccountTreeController:setSelectedAccountGroupByAccountId`;
+  handler: AccountTreeController['setSelectedAccountGroupByAccountId'];
+};
+
+/**
+ * Sets a custom name for an account group.
+ *
+ * @param groupId - The account group ID.
+ * @param name - The custom name to set.
+ * @param autoHandleConflict - If true, automatically resolves name conflicts by adding a suffix. If false, throws on conflicts.
+ * @throws If the account group ID is not found in the current tree.
+ * @throws If the account group name already exists and autoHandleConflict is false.
+ */
+export type AccountTreeControllerSetAccountGroupNameAction = {
+  type: `AccountTreeController:setAccountGroupName`;
+  handler: AccountTreeController['setAccountGroupName'];
+};
+
+/**
+ * Sets a custom name for an account wallet.
+ *
+ * @param walletId - The account wallet ID.
+ * @param name - The custom name to set.
+ * @throws If the account wallet ID is not found in the current tree.
+ */
+export type AccountTreeControllerSetAccountWalletNameAction = {
+  type: `AccountTreeController:setAccountWalletName`;
+  handler: AccountTreeController['setAccountWalletName'];
+};
+
+/**
+ * Toggles the pinned state of an account group.
+ *
+ * @param groupId - The account group ID.
+ * @param pinned - Whether the group should be pinned.
+ * @throws If the account group ID is not found in the current tree.
+ */
+export type AccountTreeControllerSetAccountGroupPinnedAction = {
+  type: `AccountTreeController:setAccountGroupPinned`;
+  handler: AccountTreeController['setAccountGroupPinned'];
+};
+
+/**
+ * Toggles the hidden state of an account group.
+ *
+ * @param groupId - The account group ID.
+ * @param hidden - Whether the group should be hidden.
+ * @throws If the account group ID is not found in the current tree.
+ */
+export type AccountTreeControllerSetAccountGroupHiddenAction = {
+  type: `AccountTreeController:setAccountGroupHidden`;
+  handler: AccountTreeController['setAccountGroupHidden'];
+};
+
+/**
+ * Clears the controller state and resets to default values.
+ * Also clears the backup and sync service state.
+ */
+export type AccountTreeControllerClearStateAction = {
+  type: `AccountTreeController:clearState`;
+  handler: AccountTreeController['clearState'];
+};
+
+/**
+ * Bi-directionally syncs the account tree with user storage.
+ * This will perform a full sync, including both pulling updates
+ * from user storage and pushing local changes to user storage.
+ * This also performs legacy account syncing if needed.
+ *
+ * IMPORTANT:
+ * If a full sync is already in progress, it will return the ongoing promise.
+ *
+ * @returns A promise that resolves when the sync is complete.
+ */
+export type AccountTreeControllerSyncWithUserStorageAction = {
+  type: `AccountTreeController:syncWithUserStorage`;
+  handler: AccountTreeController['syncWithUserStorage'];
+};
+
+/**
+ * Bi-directionally syncs the account tree with user storage.
+ * This will ensure at least one full sync is ran, including both pulling updates
+ * from user storage and pushing local changes to user storage.
+ * This also performs legacy account syncing if needed.
+ *
+ * IMPORTANT:
+ * If the first ever full sync is already in progress, it will return the ongoing promise.
+ * If the first ever full sync was previously completed, it will NOT start a new sync, and will resolve immediately.
+ *
+ * @returns A promise that resolves when the first ever full sync is complete.
+ */
+export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
+  type: `AccountTreeController:syncWithUserStorageAtLeastOnce`;
+  handler: AccountTreeController['syncWithUserStorageAtLeastOnce'];
+};
+
+/**
+ * Produces a versioned snapshot of the current wallet and group state.
+ *
+ * When `options.includeSecrets` is `true`, `options.password` is required
+ * and verified against the vault before any secret is read. Without
+ * `includeSecrets`, only metadata (names, pinned, hidden) is exported and
+ * no password is needed.
+ *
+ * @param options - Export options.
+ * @returns A promise resolving to an `AccountTreeSnapshot`.
+ * @throws If the vault is locked or the password is incorrect.
+ */
+export type AccountTreeControllerExportStateAction = {
+  type: `AccountTreeController:exportState`;
+  handler: AccountTreeController['exportState'];
+};
+
+/**
+ * Applies a validated snapshot to the current state.
+ *
+ * Accepts an {@link AccountTreeSnapshot} only — untrusted wire data must be
+ * parsed with {@link AccountTreeSnapshot.deserialize} first. Callers may
+ * filter the snapshot with {@link AccountTreeSnapshot.filterWallets},
+ * {@link AccountTreeSnapshot.filterGroups}, or
+ * {@link AccountTreeSnapshot.filterAllGroups} before importing.
+ *
+ * New mnemonic wallets are imported via `MultichainAccountService` and new
+ * private-key accounts via `KeyringController`. Metadata (name, pinned,
+ * hidden) is applied to all existing and newly created wallets / groups.
+ *
+ * @param snapshot - The validated snapshot to import.
+ * @returns A promise that resolves when the import is complete.
+ */
+export type AccountTreeControllerImportStateAction = {
+  type: `AccountTreeController:importState`;
+  handler: AccountTreeController['importState'];
+};
+
+/**
+ * Union of all AccountTreeController action types.
+ */
+export type AccountTreeControllerMethodActions =
+  | AccountTreeControllerInitAction
+  | AccountTreeControllerReinitAction
+  | AccountTreeControllerGetAccountWalletObjectAction
+  | AccountTreeControllerGetAccountWalletObjectsAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountFromSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetAccountContextAction
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountTreeControllerSetSelectedAccountGroupAction
+  | AccountTreeControllerSetSelectedAccountGroupByAccountIdAction
+  | AccountTreeControllerSetAccountGroupNameAction
+  | AccountTreeControllerSetAccountWalletNameAction
+  | AccountTreeControllerSetAccountGroupPinnedAction
+  | AccountTreeControllerSetAccountGroupHiddenAction
+  | AccountTreeControllerClearStateAction
+  | AccountTreeControllerSyncWithUserStorageAction
+  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction
+  | AccountTreeControllerExportStateAction
+  | AccountTreeControllerImportStateAction;

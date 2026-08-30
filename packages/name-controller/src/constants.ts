@@ -6,7 +6,7 @@ export const CHAIN_IDS = {
   BSC: '0x38',
   BSC_TESTNET: '0x61',
   OPTIMISM: '0xa',
-  OPTIMISM_TESTNET: '0x1a4',
+  OPTIMISM_SEPOLIA: '0xaa37dc',
   POLYGON: '0x89',
   POLYGON_TESTNET: '0x13881',
   AVALANCHE: '0xa86a',
@@ -15,6 +15,7 @@ export const CHAIN_IDS = {
   FANTOM_TESTNET: '0xfa2',
   SEPOLIA: '0xaa36a7',
   LINEA_GOERLI: '0xe704',
+  LINEA_SEPOLIA: '0xe705',
   LINEA_MAINNET: '0xe708',
   MOONBEAM: '0x504',
   MOONBEAM_TESTNET: '0x507',
@@ -42,6 +43,10 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
     domain: 'lineascan.build',
     subdomain: 'goerli',
   },
+  [CHAIN_IDS.LINEA_SEPOLIA]: {
+    domain: 'lineascan.build',
+    subdomain: 'sepolia',
+  },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',
     subdomain: DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX,
@@ -58,9 +63,9 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
     domain: DEFAULT_ETHERSCAN_DOMAIN,
     subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-optimistic`,
   },
-  [CHAIN_IDS.OPTIMISM_TESTNET]: {
+  [CHAIN_IDS.OPTIMISM_SEPOLIA]: {
     domain: DEFAULT_ETHERSCAN_DOMAIN,
-    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli-optimistic`,
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-sepolia-optimistic`,
   },
   [CHAIN_IDS.POLYGON]: {
     domain: 'polygonscan.com',

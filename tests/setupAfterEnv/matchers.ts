@@ -30,6 +30,8 @@ expect.extend({
    * @param promise - The promise to test.
    * @returns The result of the matcher.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async toBeFulfilled(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
@@ -37,23 +39,25 @@ expect.extend({
       );
     }
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let rejectionValue: any = UNRESOLVED;
     try {
       await promise;
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     if (rejectionValue !== UNRESOLVED) {
       return {
-        message: () =>
+        message: (): string =>
           `Expected promise to be fulfilled, but it was rejected with ${rejectionValue}.`,
         pass: false,
       };
     }
 
     return {
-      message: () =>
+      message: (): string =>
         'This message should not be displayed as it is for the negative case, which will never happen.',
       pass: true,
     };
@@ -69,6 +73,8 @@ expect.extend({
    * @param promise - The promise to test.
    * @returns The result of the matcher.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async toNeverResolve(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
@@ -78,25 +84,29 @@ expect.extend({
       );
     }
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let resolutionValue: any;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let rejectionValue: any;
     try {
       resolutionValue = await Promise.race([
         promise,
         treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
       ]);
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     return resolutionValue === UNRESOLVED
       ? {
-          message: () =>
+          message: (): string =>
             `Expected promise to resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it did not`,
           pass: true,
         }
       : {
-          message: () => {
+          message: (): string => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
                 ? `was rejected with ${rejectionValue}`

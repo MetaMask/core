@@ -1,33 +1,93 @@
-import { ControllerMessenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { NetworkControllerGetStateAction } from '@metamask/network-controller';
-
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
-} from '../src/SelectedNetworkController';
-import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
-import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import type { JsonRpcResponse } from '@metamask/utils';
 
-const buildMessenger = () => {
-  return new ControllerMessenger<
-    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | NetworkControllerGetStateAction,
-    never
-  >();
-};
+import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController.js';
+import type { SelectedNetworkControllerMessenger } from '../src/SelectedNetworkController.js';
+import type { SelectedNetworkMiddlewareJsonRpcRequest } from '../src/SelectedNetworkMiddleware.js';
+import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware.js';
+
+type AllSelectedNetworkControllerActions =
+  MessengerActions<SelectedNetworkControllerMessenger>;
+
+type AllSelectedNetworkControllerEvents =
+  MessengerEvents<SelectedNetworkControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllSelectedNetworkControllerActions,
+  AllSelectedNetworkControllerEvents
+>;
+
+const controllerName = 'SelectedNetworkController';
+
+/**
+ * Constructs the root messenger.
+ *
+ * @returns A root messenger.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
+ * Constructs the selected network controller messenger.
+ *
+ * @param rootMessenger - A root messenger.
+ * @returns A selected network controller messenger.
+ */
+function getSelectedNetworkControllerMessenger(
+  rootMessenger: RootMessenger,
+): SelectedNetworkControllerMessenger {
+  return new Messenger<
+    typeof controllerName,
+    AllSelectedNetworkControllerActions,
+    AllSelectedNetworkControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+}
 
 const noop = jest.fn();
 
 describe('createSelectedNetworkMiddleware', () => {
+  it('throws if not provided an origin', async () => {
+    const rootMessenger = getRootMessenger();
+    const middleware = createSelectedNetworkMiddleware(
+      getSelectedNetworkControllerMessenger(rootMessenger),
+    );
+    const req: SelectedNetworkMiddlewareJsonRpcRequest = {
+      id: '123',
+      jsonrpc: '2.0',
+      method: 'anything',
+      networkClientId: 'anything',
+    };
+
+    await expect(
+      () =>
+        new Promise((resolve, reject) =>
+          middleware(req, {} as JsonRpcResponse<typeof req>, resolve, reject),
+        ),
+    ).rejects.toThrow("Request object is lacking an 'origin'");
+  });
+
   it('puts networkClientId on request', async () => {
-    const messenger = buildMessenger();
+    const rootMessenger = getRootMessenger();
+    const messenger = getSelectedNetworkControllerMessenger(rootMessenger);
     const middleware = createSelectedNetworkMiddleware(messenger);
 
     const req = {
       origin: 'example.com',
-    } as any;
+    } as SelectedNetworkMiddlewareJsonRpcRequest;
 
     const mockGetNetworkClientIdForDomain = jest
       .fn()
@@ -38,55 +98,18 @@ describe('createSelectedNetworkMiddleware', () => {
       mockGetNetworkClientIdForDomain,
     );
 
-    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+    await new Promise((resolve) =>
+      middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
+    );
 
     expect(req.networkClientId).toBe('mockNetworkClientId');
   });
 
-  it('sets the networkClientId for the domain to the current network from networkController if one is not set', async () => {
-    const messenger = buildMessenger();
-    const middleware = createSelectedNetworkMiddleware(messenger);
-
-    const req = {
-      origin: 'example.com',
-    } as any;
-
-    const mockGetNetworkClientIdForDomain = jest
-      .fn()
-      .mockReturnValueOnce(undefined)
-      .mockReturnValueOnce('defaultNetworkClientId');
-    const mockSetNetworkClientIdForDomain = jest.fn();
-    const mockNetworkControllerGetState = jest.fn().mockReturnValue({
-      selectedNetworkClientId: 'defaultNetworkClientId',
-    });
-    messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
-      mockGetNetworkClientIdForDomain,
-    );
-    messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-      mockSetNetworkClientIdForDomain,
-    );
-    messenger.registerActionHandler(
-      'NetworkController:getState',
-      mockNetworkControllerGetState,
-    );
-
-    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
-
-    expect(mockGetNetworkClientIdForDomain).toHaveBeenCalledWith('example.com');
-    expect(mockNetworkControllerGetState).toHaveBeenCalled();
-    expect(mockSetNetworkClientIdForDomain).toHaveBeenCalledWith(
-      'example.com',
-      'defaultNetworkClientId',
-    );
-    expect(req.networkClientId).toBe('defaultNetworkClientId');
-  });
-
   it('implements the json-rpc-engine middleware interface appropriately', async () => {
     const engine = new JsonRpcEngine();
-    const messenger = buildMessenger();
-    engine.push((req: any, _, next) => {
+    const rootMessenger = getRootMessenger();
+    const messenger = getSelectedNetworkControllerMessenger(rootMessenger);
+    engine.push((req: SelectedNetworkMiddlewareJsonRpcRequest, _, next) => {
       req.origin = 'foobar';
       next();
     });
