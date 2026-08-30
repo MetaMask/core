@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add IoTeX Mainnet (chain 4689) support ([#8930](https://github.com/MetaMask/core/pull/8930))
+  - Add `0x1251` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
+  - Add `0x1251` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
+
 ### Changed
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
