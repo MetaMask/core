@@ -445,6 +445,11 @@ linkStyle default opacity:0.5
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_subscription_controller --> base_controller;
+  money_account_subscription_controller --> messenger;
+  money_account_subscription_controller --> polling_controller;
+  money_account_subscription_controller --> profile_sync_controller;
+  money_account_subscription_controller --> subscription_controller;
   money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
