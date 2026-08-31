@@ -117,8 +117,8 @@ const MarginFractionStruct = define<number>(
   'margin fraction in (0, 10000]',
   (value) =>
     typeof value === 'number' &&
-    Number.isFinite(value) &&
-    value > 0 &&
+    Number.isSafeInteger(value) &&
+    value >= 1 &&
     value <= 10_000,
 );
 const NonNegativeFinancialNumberStruct = union([

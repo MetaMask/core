@@ -312,6 +312,38 @@ export function deriveLighterFillDirection(context: {
   return isBuy ? 'Buy' : 'Sell';
 }
 
+/**
+ * Parse one optional venue fee without treating malformed supplied values as
+ * an omitted zero.
+ *
+ * @param value - Raw maker or taker fee.
+ * @param tradeId - Trade identity for error context.
+ * @param role - Fee role for error context.
+ * @returns The finite nonnegative fee, with undefined mapped to venue-zero.
+ */
+function parseLighterTradeFee(
+  value: unknown,
+  tradeId: number,
+  role: 'maker' | 'taker',
+): number {
+  let parsed: number | null;
+  if (value === undefined) {
+    parsed = 0;
+  } else if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string') {
+    parsed = parseLighterStrictDecimal(value);
+  } else {
+    parsed = null;
+  }
+  if (parsed === null || !Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${tradeId} has invalid ${role} fee`,
+    );
+  }
+  return parsed;
+}
+
 export function adaptFillFromLighterTrade(
   trade: LighterRestTrade | LighterWsTrade,
   symbol: string,
@@ -368,28 +400,11 @@ export function adaptFillFromLighterTrade(
   // Premium at account resolution) pay zero fees, so zero is venue truth.
   // A PRESENT nonzero fee ON OUR SIDE contradicts that gate and its wire
   // unit is unverified: refusing loudly beats silently coercing a real fee
-  // to $0. The counterparty's fee is irrelevant — a Standard user trading
-  // against a Premium account must keep their valid fill.
-  const ourFee = accountIsMaker ? trade.makerFee : trade.takerFee;
-  let ourFeeNumeric: number | null = 0;
-  if (ourFee === undefined) {
-    ourFeeNumeric = 0;
-  } else if (typeof ourFee === 'number') {
-    ourFeeNumeric = ourFee;
-  } else if (typeof ourFee === 'string') {
-    ourFeeNumeric = parseLighterStrictDecimal(ourFee);
-  } else {
-    ourFeeNumeric = null;
-  }
-  if (
-    ourFeeNumeric === null ||
-    !Number.isFinite(ourFeeNumeric) ||
-    ourFeeNumeric < 0
-  ) {
-    throw new Error(
-      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} has invalid account fee`,
-    );
-  }
+  // to $0. A valid nonzero counterparty fee is allowed, but malformed
+  // supplied counterparty data still invalidates the venue row.
+  const makerFee = parseLighterTradeFee(trade.makerFee, trade.tradeId, 'maker');
+  const takerFee = parseLighterTradeFee(trade.takerFee, trade.tradeId, 'taker');
+  const ourFeeNumeric = accountIsMaker ? makerFee : takerFee;
   if (ourFeeNumeric !== 0) {
     throw new Error(
       `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} nonzero fee in trade ${trade.tradeId}: fee unit is unverified`,

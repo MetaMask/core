@@ -397,6 +397,37 @@ describe('LighterClientService', () => {
         'Invalid Lighter venue data',
       );
     });
+
+    it.each([Number.MIN_VALUE, 1.5])(
+      'rejects non-integer margin fraction %p',
+      async (marginFraction) => {
+        fetchMock.mockResolvedValueOnce(
+          mockJsonResponse({
+            code: 200,
+            order_book_details: [
+              {
+                ...ORDER_BOOK,
+                last_trade_price: 100000,
+                default_initial_margin_fraction: marginFraction,
+                min_initial_margin_fraction: marginFraction,
+                maintenance_margin_fraction: marginFraction,
+                daily_trades_count: 1,
+                daily_base_token_volume: 1,
+                daily_quote_token_volume: 1,
+                daily_price_low: 1,
+                daily_price_high: 1,
+                daily_price_change: 0,
+                open_interest: 1,
+                daily_chart: {},
+              },
+            ],
+          }),
+        );
+        await expect(buildService().getOrderBookDetails()).rejects.toThrow(
+          'Invalid Lighter venue data',
+        );
+      },
+    );
   });
 
   describe('error handling', () => {

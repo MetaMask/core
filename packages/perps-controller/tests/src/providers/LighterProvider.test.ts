@@ -1110,6 +1110,30 @@ describe('LighterProvider', () => {
       );
     });
 
+    it.each([Number.MIN_VALUE, 1.5])(
+      'rejects non-integer margin fraction %p through market and position reads',
+      async (marginFraction) => {
+        const built = buildProvider();
+        built.clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: 100000,
+              minInitialMarginFraction: marginFraction,
+              maintenanceMarginFraction: marginFraction,
+            },
+          ],
+        });
+        await expect(built.provider.getMarkets()).rejects.toThrow(
+          'Invalid Lighter venue data',
+        );
+        await expect(built.provider.getPositions()).rejects.toThrow(
+          'Invalid Lighter venue data',
+        );
+      },
+    );
+
     it('surfaces malformed successful order-book details instead of reporting no market data', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBookDetails.mockRejectedValue(
@@ -9832,6 +9856,7 @@ describe('LighterProvider', () => {
       ['nonparticipant account', { ask_account_id: 7, bid_account_id: 8 }],
       ['wrong maker role type', { is_maker_ask: 1 }],
       ['null fee', { taker_fee: null }],
+      ['null counterparty fee', { maker_fee: null }],
       ['unsafe trade id', { trade_id: Number.MAX_SAFE_INTEGER + 1 }],
       ['negative market id', { market_id: -1 }],
       ['negative ask id', { ask_id: -1 }],

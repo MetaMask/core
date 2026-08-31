@@ -187,8 +187,8 @@ const deriveLighterMaxLeverage = (
 ): number => {
   if (
     typeof minInitialMarginFraction !== 'number' ||
-    !Number.isFinite(minInitialMarginFraction) ||
-    minInitialMarginFraction <= 0 ||
+    !Number.isSafeInteger(minInitialMarginFraction) ||
+    minInitialMarginFraction < 1 ||
     minInitialMarginFraction > 10_000
   ) {
     throw new Error(
@@ -196,7 +196,7 @@ const deriveLighterMaxLeverage = (
     );
   }
   const maxLeverage = Math.floor(10_000 / minInitialMarginFraction);
-  if (maxLeverage < 1) {
+  if (!Number.isSafeInteger(maxLeverage) || maxLeverage < 1) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid max leverage for market ${String(market)}`,
     );
@@ -7404,8 +7404,8 @@ export class LighterProvider implements PerpsProvider {
             }
             if (
               detail.maintenanceMarginFraction !== undefined &&
-              (!Number.isFinite(detail.maintenanceMarginFraction) ||
-                detail.maintenanceMarginFraction <= 0 ||
+              (!Number.isSafeInteger(detail.maintenanceMarginFraction) ||
+                detail.maintenanceMarginFraction < 1 ||
                 detail.maintenanceMarginFraction > 10_000)
             ) {
               throw new Error(
