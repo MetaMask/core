@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MoneyAccountSubscriptionController`, a read-only polling controller that hydrates Money Account Plus plan and entitlement flags from the Profile JWT, exposes gating selectors, and supports explicit and event-driven JWT refreshes.
-
-### Changed
-
-- Decode JWT payloads with `@metamask/utils` instead of `atob`.
+- Add `MoneyAccountSubscriptionController`, a read-only polling controller that hydrates Money Account Plus plan and entitlement flags from the Profile JWT, exposes gating selectors, and supports explicit and event-driven JWT refreshes ([#10017](https://github.com/MetaMask/core/pull/10017))
 
 [Unreleased]: https://github.com/MetaMask/core/
