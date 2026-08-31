@@ -76,21 +76,45 @@ const NonNegativeIntegerStruct = define<number>(
       ? Number.isSafeInteger(value) && value >= 0
       : false,
 );
-const StrictDecimalStringStruct = define<string>(
+const parseStrictDecimalString = (value: unknown): number | null => {
+  if (
+    typeof value !== 'string' ||
+    !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u.test(value)
+  ) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const SignedDecimalStringStruct = define<string>(
   'finite decimal string',
+  (value) => parseStrictDecimalString(value) !== null,
+);
+const NonNegativeDecimalStringStruct = define<string>(
+  'non-negative finite decimal string',
   (value) => {
-    if (
-      typeof value !== 'string' ||
-      !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u.test(value.trim())
-    ) {
-      return false;
-    }
-    return Number.isFinite(Number(value));
+    const parsed = parseStrictDecimalString(value);
+    return parsed !== null && parsed >= 0;
   },
 );
-const FinancialNumberStruct = union([
-  FiniteNumberStruct,
-  StrictDecimalStringStruct,
+const PositiveDecimalStringStruct = define<string>(
+  'positive finite decimal string',
+  (value) => {
+    const parsed = parseStrictDecimalString(value);
+    return parsed !== null && parsed > 0;
+  },
+);
+const NonNegativeFiniteNumberStruct = define<number>(
+  'non-negative finite number',
+  (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
+);
+const PositiveFiniteNumberStruct = define<number>(
+  'positive finite number',
+  (value) => typeof value === 'number' && Number.isFinite(value) && value > 0,
+);
+const NonNegativeFinancialNumberStruct = union([
+  NonNegativeFiniteNumberStruct,
+  NonNegativeDecimalStringStruct,
 ]);
 const BaseResponseStruct = type({
   code: SafeIntegerStruct,
@@ -99,15 +123,15 @@ const BaseResponseStruct = type({
 const PositionStruct = type({
   marketId: NonNegativeIntegerStruct,
   symbol: string(),
-  initialMarginFraction: StrictDecimalStringStruct,
+  initialMarginFraction: NonNegativeDecimalStringStruct,
   openOrderCount: NonNegativeIntegerStruct,
   sign: SafeIntegerStruct,
-  position: StrictDecimalStringStruct,
-  avgEntryPrice: StrictDecimalStringStruct,
-  positionValue: StrictDecimalStringStruct,
-  unrealizedPnl: StrictDecimalStringStruct,
-  realizedPnl: StrictDecimalStringStruct,
-  liquidationPrice: StrictDecimalStringStruct,
+  position: NonNegativeDecimalStringStruct,
+  avgEntryPrice: NonNegativeDecimalStringStruct,
+  positionValue: NonNegativeDecimalStringStruct,
+  unrealizedPnl: SignedDecimalStringStruct,
+  realizedPnl: SignedDecimalStringStruct,
+  liquidationPrice: NonNegativeDecimalStringStruct,
   marginMode: optional(SafeIntegerStruct),
 });
 const AccountStruct = type({
@@ -119,8 +143,8 @@ const AccountStruct = type({
   totalOrderCount: NonNegativeIntegerStruct,
   pendingOrderCount: NonNegativeIntegerStruct,
   status: SafeIntegerStruct,
-  collateral: StrictDecimalStringStruct,
-  availableBalance: StrictDecimalStringStruct,
+  collateral: NonNegativeDecimalStringStruct,
+  availableBalance: NonNegativeDecimalStringStruct,
   positions: optional(array(PositionStruct)),
 });
 const MarketStruct = type({
@@ -128,27 +152,27 @@ const MarketStruct = type({
   marketId: NonNegativeIntegerStruct,
   marketType: string(),
   status: string(),
-  takerFee: StrictDecimalStringStruct,
-  makerFee: StrictDecimalStringStruct,
-  minBaseAmount: StrictDecimalStringStruct,
-  minQuoteAmount: StrictDecimalStringStruct,
+  takerFee: SignedDecimalStringStruct,
+  makerFee: SignedDecimalStringStruct,
+  minBaseAmount: PositiveDecimalStringStruct,
+  minQuoteAmount: PositiveDecimalStringStruct,
   supportedSizeDecimals: NonNegativeIntegerStruct,
   supportedPriceDecimals: NonNegativeIntegerStruct,
   supportedQuoteDecimals: NonNegativeIntegerStruct,
 });
 const MarketDetailStruct = type({
   ...MarketStruct.schema,
-  lastTradePrice: FiniteNumberStruct,
-  defaultInitialMarginFraction: optional(FiniteNumberStruct),
-  minInitialMarginFraction: optional(FiniteNumberStruct),
-  maintenanceMarginFraction: optional(FiniteNumberStruct),
-  dailyTradesCount: FiniteNumberStruct,
-  dailyBaseTokenVolume: FiniteNumberStruct,
-  dailyQuoteTokenVolume: FiniteNumberStruct,
-  dailyPriceLow: FiniteNumberStruct,
-  dailyPriceHigh: FiniteNumberStruct,
+  lastTradePrice: NonNegativeFiniteNumberStruct,
+  defaultInitialMarginFraction: optional(PositiveFiniteNumberStruct),
+  minInitialMarginFraction: optional(PositiveFiniteNumberStruct),
+  maintenanceMarginFraction: optional(PositiveFiniteNumberStruct),
+  dailyTradesCount: NonNegativeFiniteNumberStruct,
+  dailyBaseTokenVolume: NonNegativeFiniteNumberStruct,
+  dailyQuoteTokenVolume: NonNegativeFiniteNumberStruct,
+  dailyPriceLow: NonNegativeFiniteNumberStruct,
+  dailyPriceHigh: NonNegativeFiniteNumberStruct,
   dailyPriceChange: FiniteNumberStruct,
-  openInterest: FiniteNumberStruct,
+  openInterest: NonNegativeFiniteNumberStruct,
   dailyChart: record(string(), FiniteNumberStruct),
 });
 const OrderStruct = type({
@@ -156,9 +180,9 @@ const OrderStruct = type({
   clientOrderIndex: NonNegativeIntegerStruct,
   marketIndex: NonNegativeIntegerStruct,
   ownerAccountIndex: NonNegativeIntegerStruct,
-  initialBaseAmount: StrictDecimalStringStruct,
-  remainingBaseAmount: StrictDecimalStringStruct,
-  price: StrictDecimalStringStruct,
+  initialBaseAmount: PositiveDecimalStringStruct,
+  remainingBaseAmount: NonNegativeDecimalStringStruct,
+  price: PositiveDecimalStringStruct,
   isAsk: boolean(),
   type: string(),
   timeInForce: string(),
@@ -166,7 +190,7 @@ const OrderStruct = type({
   status: string(),
   orderExpiry: SafeIntegerStruct,
   timestamp: NonNegativeIntegerStruct,
-  triggerPrice: optional(StrictDecimalStringStruct),
+  triggerPrice: optional(NonNegativeDecimalStringStruct),
   orderId: optional(string()),
   parentOrderIndex: optional(NonNegativeIntegerStruct),
   parentOrderId: optional(string()),
@@ -176,25 +200,26 @@ const OrderStruct = type({
 });
 const TradeStruct = type({
   tradeId: NonNegativeIntegerStruct,
+  txHash: string(),
   type: string(),
   marketId: NonNegativeIntegerStruct,
-  size: StrictDecimalStringStruct,
-  price: StrictDecimalStringStruct,
+  size: PositiveDecimalStringStruct,
+  price: PositiveDecimalStringStruct,
+  usdAmount: PositiveDecimalStringStruct,
   askId: NonNegativeIntegerStruct,
   bidId: NonNegativeIntegerStruct,
   askAccountId: NonNegativeIntegerStruct,
   bidAccountId: NonNegativeIntegerStruct,
-  isMakerAsk: optional(boolean()),
+  isMakerAsk: boolean(),
   timestamp: NonNegativeIntegerStruct,
-  usdAmount: optional(StrictDecimalStringStruct),
-  askAccountPnl: optional(StrictDecimalStringStruct),
-  bidAccountPnl: optional(StrictDecimalStringStruct),
-  takerFee: optional(FinancialNumberStruct),
-  makerFee: optional(FinancialNumberStruct),
-  takerPositionSizeBefore: optional(StrictDecimalStringStruct),
-  makerPositionSizeBefore: optional(StrictDecimalStringStruct),
-  takerPositionSignChanged: optional(boolean()),
-  makerPositionSignChanged: optional(boolean()),
+  askAccountPnl: SignedDecimalStringStruct,
+  bidAccountPnl: SignedDecimalStringStruct,
+  takerFee: optional(NonNegativeFinancialNumberStruct),
+  makerFee: optional(NonNegativeFinancialNumberStruct),
+  takerPositionSizeBefore: NonNegativeDecimalStringStruct,
+  makerPositionSizeBefore: NonNegativeDecimalStringStruct,
+  takerPositionSignChanged: boolean(),
+  makerPositionSignChanged: boolean(),
 });
 
 const ResponseStructs = {
@@ -257,7 +282,7 @@ const ResponseStructs = {
       type({
         id: string(),
         assetId: NonNegativeIntegerStruct,
-        amount: StrictDecimalStringStruct,
+        amount: PositiveDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
         status: string(),
         l1TxHash: string(),
@@ -271,7 +296,7 @@ const ResponseStructs = {
       type({
         id: string(),
         assetId: NonNegativeIntegerStruct,
-        amount: StrictDecimalStringStruct,
+        amount: PositiveDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
         status: string(),
         type: string(),
@@ -286,8 +311,8 @@ const ResponseStructs = {
       type({
         id: string(),
         assetId: NonNegativeIntegerStruct,
-        amount: StrictDecimalStringStruct,
-        fee: StrictDecimalStringStruct,
+        amount: PositiveDecimalStringStruct,
+        fee: NonNegativeDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
         type: string(),
         fromL1Address: string(),
@@ -306,18 +331,16 @@ const ResponseStructs = {
   }),
   fundings: type({
     ...BaseResponseStruct.schema,
-    positionFundings: optional(
-      array(
-        type({
-          timestamp: NonNegativeIntegerStruct,
-          marketId: NonNegativeIntegerStruct,
-          fundingId: NonNegativeIntegerStruct,
-          change: StrictDecimalStringStruct,
-          rate: StrictDecimalStringStruct,
-          positionSize: StrictDecimalStringStruct,
-          positionSide: string(),
-        }),
-      ),
+    positionFundings: array(
+      type({
+        timestamp: NonNegativeIntegerStruct,
+        marketId: NonNegativeIntegerStruct,
+        fundingId: NonNegativeIntegerStruct,
+        change: SignedDecimalStringStruct,
+        rate: SignedDecimalStringStruct,
+        positionSize: NonNegativeDecimalStringStruct,
+        positionSide: string(),
+      }),
     ),
   }),
   pnl: type({

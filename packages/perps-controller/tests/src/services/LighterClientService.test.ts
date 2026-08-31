@@ -18,6 +18,28 @@ const ORDER_BOOK = {
   supportedQuoteDecimals: 6,
 };
 
+const VALID_TRADE_WIRE = {
+  trade_id: 1,
+  tx_hash: '0xabc',
+  type: 'trade',
+  market_id: 1,
+  size: '0.1',
+  price: '90000',
+  usd_amount: '9000',
+  ask_id: 10,
+  bid_id: 11,
+  ask_account_id: 28,
+  bid_account_id: 99,
+  is_maker_ask: false,
+  timestamp: 1700000000000,
+  ask_account_pnl: '0',
+  bid_account_pnl: '0',
+  taker_position_size_before: '0.1',
+  maker_position_size_before: '0',
+  taker_position_sign_changed: true,
+  maker_position_sign_changed: true,
+};
+
 describe('LighterClientService', () => {
   let fetchMock: jest.Mock;
 
@@ -211,6 +233,117 @@ describe('LighterClientService', () => {
         buildService().getTrades(28, 'auth-token', { limit: 50 }),
       ).rejects.toThrow('Invalid Lighter venue data');
     });
+
+    it.each([
+      ['negative size', { size: '-0.1' }],
+      ['zero price', { price: '0' }],
+      ['negative position magnitude', { taker_position_size_before: '-0.1' }],
+      ['missing account pnl', { ask_account_pnl: undefined }],
+      ['missing maker role', { is_maker_ask: undefined }],
+      [
+        'missing position sign context',
+        { taker_position_sign_changed: undefined },
+      ],
+    ])('rejects %s in a trade payload', async (_label, override) => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [{ ...VALID_TRADE_WIRE, ...override }],
+        }),
+      );
+
+      await expect(
+        buildService().getTrades(28, 'auth-token', { limit: 50 }),
+      ).rejects.toThrow('Invalid Lighter venue data');
+    });
+  });
+
+  describe('financial history decoders', () => {
+    it('rejects malformed funding, deposit, withdrawal, and transfer amounts', async () => {
+      const service = buildService();
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          position_fundings: [
+            {
+              timestamp: 1,
+              market_id: 1,
+              funding_id: 1,
+              change: '0.1',
+              rate: '0.001',
+              position_size: '-1',
+              position_side: 'long',
+            },
+          ],
+        }),
+      );
+      await expect(
+        service.getPositionFundings(28, 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          deposits: [
+            {
+              id: '1',
+              asset_id: 3,
+              amount: '-1',
+              timestamp: 1,
+              status: 'completed',
+              l1_tx_hash: '0xdep',
+            },
+          ],
+        }),
+      );
+      await expect(
+        service.getDepositHistory(28, '0xabc', 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          withdraws: [
+            {
+              id: '2',
+              asset_id: 3,
+              amount: '-1',
+              timestamp: 1,
+              status: 'completed',
+              type: 'secure',
+              l1_tx_hash: '0xwit',
+            },
+          ],
+        }),
+      );
+      await expect(
+        service.getWithdrawHistory(28, 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          transfers: [
+            {
+              id: '3',
+              asset_id: 3,
+              amount: '1',
+              fee: '-0.1',
+              timestamp: 1,
+              type: 'L2TransferOutflow',
+              from_l1_address: '0xabc',
+              to_l1_address: '0xdef',
+              from_account_index: 28,
+              to_account_index: 29,
+              tx_hash: '0xtransfer',
+            },
+          ],
+        }),
+      );
+      await expect(
+        service.getTransferHistory(28, 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
+    });
   });
 
   describe('error handling', () => {
@@ -318,6 +451,42 @@ describe('LighterClientService', () => {
       await expect(
         service.getActiveOrders(28, 'auth-token-value'),
       ).rejects.toThrow('Invalid Lighter venue data');
+    });
+
+    it('rejects financial values outside their endpoint domains', async () => {
+      const service = buildService();
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          accounts: [
+            {
+              code: 200,
+              account_type: 0,
+              index: 28,
+              l1_address: '0xabc',
+              cancel_all_time: 0,
+              total_order_count: 0,
+              pending_order_count: 0,
+              status: 1,
+              collateral: '-1',
+              available_balance: '0',
+            },
+          ],
+        }),
+      );
+      await expect(service.getAccountByIndex(28)).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          order_books: [{ ...ORDER_BOOK, min_base_amount: '-0.0002' }],
+        }),
+      );
+      await expect(service.getOrderBooks(true)).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
     });
 
     it('passes the auth token as authorization header for active orders', async () => {

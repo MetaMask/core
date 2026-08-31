@@ -25,7 +25,6 @@ import {
   LIGHTER_RESOLUTION_MS,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
-  LIGHTER_MAX_LEVERAGE,
   LIGHTER_NO_TRIGGER_PRICE,
   LIGHTER_ORDER_EXPIRY_NONE,
   LIGHTER_ORDER_TYPE_LIMIT,
@@ -162,6 +161,13 @@ import {
 
 type LighterFillQuery = GetOrderFillsParams & {
   symbol?: string;
+};
+
+type LighterMarginMetadata = {
+  marketId: number;
+  minInitial?: number;
+  maintenance?: number;
+  lastTradePrice?: number;
 };
 
 type LighterOrderBookState = {
@@ -1568,6 +1574,16 @@ export class LighterProvider implements PerpsProvider {
 
   readonly #isDataIntegrityError = (error: unknown): boolean =>
     String(error).includes(LIGHTER_DATA_INTEGRITY_PREFIX);
+
+  /**
+   * Whether a read error represents an explicit non-empty state.
+   *
+   * @param error - Caught read error.
+   * @returns Whether the error must surface to the caller.
+   */
+  readonly #mustSurfaceReadError = (error: unknown): boolean =>
+    this.#isUnsupportedCapabilityError(error) ||
+    this.#isDataIntegrityError(error);
 
   /**
    * TP/SL settlement expectations that timed out before becoming visible
@@ -3008,9 +3024,16 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       ingest(firstPage.orders);
       if (missing() && !deepTraversalDone) {
-        deepTraversalDone = true;
         let cursor = firstPage.nextCursor;
-        for (let page = 0; page < 9 && cursor && missing(); page += 1) {
+        const seenCursors = new Set<string>();
+        let page = 1;
+        while (cursor && missing()) {
+          if (seenCursors.has(cursor) || page >= 100) {
+            throw new Error(
+              `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history remained incomplete after ${page * 100} rows; TP/SL recovery is still pending`,
+            );
+          }
+          seenCursors.add(cursor);
           const response = await this.#clientService.getInactiveOrders(
             accountIndex,
             authToken,
@@ -3021,7 +3044,9 @@ export class LighterProvider implements PerpsProvider {
           this.#assertSession(generation);
           ingest(response.orders);
           cursor = response.nextCursor;
+          page += 1;
         }
+        deepTraversalDone = !cursor || !missing();
       }
       return [...terminalCache.values()];
     };
@@ -4690,9 +4715,9 @@ export class LighterProvider implements PerpsProvider {
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
-      // Per-market max leverage comes from the margin cache; warm it so
-      // known markets never fall back to the global constant.
-      await this.#ensureMarketMargins().catch(() => undefined);
+      // Per-market max leverage is authoritative venue data. If it cannot be
+      // established, the position read must fail instead of inventing 50x.
+      await this.#ensureMarketMargins();
       const accountIndex = await this.#ensureAccountIndex();
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
@@ -6568,7 +6593,7 @@ export class LighterProvider implements PerpsProvider {
         token,
       );
       this.#assertSession(generation);
-      return (response.positionFundings ?? []).map((entry) => ({
+      return response.positionFundings.map((entry) => ({
         symbol:
           this.#marketsById.get(entry.marketId)?.symbol ??
           String(entry.marketId),
@@ -6578,7 +6603,7 @@ export class LighterProvider implements PerpsProvider {
         timestamp: entry.timestamp * 1000,
       }));
     } catch (error) {
-      if (this.#isUnsupportedCapabilityError(error)) {
+      if (this.#mustSurfaceReadError(error)) {
         // Capability gates must surface, never degrade into empty state.
         throw error;
       }
@@ -6640,7 +6665,7 @@ export class LighterProvider implements PerpsProvider {
           (endTime === undefined || update.time <= endTime),
       );
     } catch (error) {
-      if (this.#isUnsupportedCapabilityError(error)) {
+      if (this.#mustSurfaceReadError(error)) {
         // Capability gates must surface, never degrade into empty state.
         throw error;
       }
@@ -6707,7 +6732,7 @@ export class LighterProvider implements PerpsProvider {
           (endTime === undefined || item.timestamp <= endTime),
       );
     } catch (error) {
-      if (this.#isUnsupportedCapabilityError(error)) {
+      if (this.#mustSurfaceReadError(error)) {
         // Capability gates must surface, never degrade into empty state.
         throw error;
       }
@@ -7182,20 +7207,14 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<number> {
     // The venue publishes per-market maintenance margin fractions
     // (hundredths of a percent, e.g. 240 = 2.4%) in orderBookDetails.
-    try {
-      await this.#ensureMarketMargins();
-      const maintenance = this.#marginBySymbol.get(params.asset)?.maintenance;
-      if (maintenance && maintenance > 0) {
-        return maintenance / 10_000;
-      }
-    } catch (error) {
-      this.#deps.debugLogger.log(
-        '[LighterProvider] maintenance margin fallback',
-        { error: String(error) },
-      );
+    await this.#ensureMarketMargins();
+    const maintenance = this.#marginBySymbol.get(params.asset)?.maintenance;
+    if (maintenance && maintenance > 0) {
+      return maintenance / 10_000;
     }
-    // Fallback: half the initial margin at the max-leverage constant.
-    return 1 / (2 * LIGHTER_MAX_LEVERAGE);
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} maintenance margin metadata unavailable for ${params.asset || 'unknown market'}`,
+    );
   }
 
   /**
@@ -7229,34 +7248,35 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /** Per-market margin fractions + last price from orderBookDetails. */
-  readonly #marginBySymbol: Map<
-    string,
-    { minInitial?: number; maintenance?: number; lastTradePrice?: number }
-  > = new Map();
+  readonly #marginBySymbol = new Map<string, LighterMarginMetadata>();
 
   /**
-   * Synchronous best-effort per-market max leverage from the margin cache
-   * (populated by #ensureMarketMargins); the constant covers cache misses.
+   * Synchronous per-market max leverage from the authoritative margin cache.
    *
    * @param marketId - Numeric Lighter market id.
    * @returns Max leverage for the market.
+   * @throws If the market identity or margin metadata is unavailable.
    */
   readonly #maxLeverageForMarketId = (marketId: number): number => {
     const symbol = this.#marketsById.get(marketId)?.symbol;
-    const minInitial = symbol
-      ? this.#marginBySymbol.get(symbol)?.minInitial
-      : undefined;
-    return minInitial && minInitial > 0
-      ? Math.floor(10_000 / minInitial)
-      : LIGHTER_MAX_LEVERAGE;
+    const metadata =
+      (symbol ? this.#marginBySymbol.get(symbol) : undefined) ??
+      [...this.#marginBySymbol.values()].find(
+        (entry) => entry.marketId === marketId,
+      );
+    const minInitial = metadata?.minInitial;
+    if (!minInitial || !(minInitial > 0)) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for market ${marketId}`,
+      );
+    }
+    return Math.floor(10_000 / minInitial);
   };
 
   /**
-   * Authoritative per-market max leverage for TRADING validation: unlike
-   * getMaxLeverage (which may fall back to the global constant for
-   * display), this returns null when the venue's margin metadata is
-   * missing or unreadable so leverage validation fails CLOSED — the 50x
-   * fallback must never approve 26x for what may be a 25x market.
+   * Authoritative per-market max leverage for trading validation. This returns
+   * null when venue metadata is missing or unreadable so placement can return
+   * its validation result instead of throwing.
    *
    * @param symbol - Market symbol.
    * @returns The published max leverage, or null when unavailable.
@@ -7286,8 +7306,7 @@ export class LighterProvider implements PerpsProvider {
     // TTL refresh: metadata cached once for the whole session would keep
     // validating leverage against a stale (possibly higher) max. On
     // expiry the fetch re-runs; if it fails, the throw propagates and
-    // #requireMarketMaxLeverage fails CLOSED for explicit leverage while
-    // display callers keep their catch+fallback behavior.
+    // every authoritative risk caller fails closed until a later retry.
     if (
       this.#marginBySymbol.size > 0 &&
       Date.now() - this.#marginFetchedAt < LIGHTER_MARGIN_METADATA_TTL_MS
@@ -7309,16 +7328,10 @@ export class LighterProvider implements PerpsProvider {
           // Atomic replacement: set()-ing into the old map would let a
           // symbol REMOVED from fresh metadata keep its stale cap forever.
           // The timestamp only advances on success.
-          const fresh = new Map<
-            string,
-            {
-              minInitial?: number;
-              maintenance?: number;
-              lastTradePrice?: number;
-            }
-          >();
+          const fresh = new Map<string, LighterMarginMetadata>();
           for (const detail of details.orderBookDetails) {
             fresh.set(detail.symbol, {
+              marketId: detail.marketId,
               minInitial: detail.minInitialMarginFraction,
               maintenance: detail.maintenanceMarginFraction,
               lastTradePrice: detail.lastTradePrice,
@@ -7339,20 +7352,16 @@ export class LighterProvider implements PerpsProvider {
 
   async getMaxLeverage(asset: string): Promise<number> {
     // The venue publishes per-market minimum initial margin fractions
-    // (hundredths of a percent): 400 → 25x. The global constant is only a
-    // fallback when the market is unknown.
-    try {
-      await this.#ensureMarketMargins();
-      const minInitial = this.#marginBySymbol.get(asset)?.minInitial;
-      if (minInitial && minInitial > 0) {
-        return Math.floor(10_000 / minInitial);
-      }
-    } catch (error) {
-      this.#deps.debugLogger.log('[LighterProvider] getMaxLeverage fallback', {
-        error: String(error),
-      });
+    // (hundredths of a percent): 400 → 25x. Missing metadata is unavailable,
+    // never evidence that the global maximum applies to this market.
+    await this.#ensureMarketMargins();
+    const minInitial = this.#marginBySymbol.get(asset)?.minInitial;
+    if (minInitial && minInitial > 0) {
+      return Math.floor(10_000 / minInitial);
     }
-    return LIGHTER_MAX_LEVERAGE;
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for ${asset}`,
+    );
   }
 
   async calculateFees(
@@ -7518,38 +7527,20 @@ export class LighterProvider implements PerpsProvider {
             '[LighterProvider] orders channel skipped (no auth token)',
             { error: String(error) },
           );
-          // Only the CURRENT session may blank the order subscribers: an
-          // auth failure from an aborted previous-account setup must not
-          // overwrite the new account's live orders with [].
-          if (generation === this.#sessionGeneration) {
-            this.#emitToOrderSubscribers([]);
-          }
+          // Setup failures are not authoritative empty order state. Account
+          // switches and deselection already emit their synchronous reset.
+          channelsRequested = false;
         }
       } catch (error) {
         this.#deps.debugLogger.log(
           '[LighterProvider] account channels unavailable',
           { error: String(error) },
         );
-        // Only the CURRENT session may blank the subscribers: an aborted
-        // previous-account setup must not overwrite the new account's data
-        // with empty emissions.
-        if (generation !== this.#sessionGeneration) {
-          return;
-        }
-        // Capability gates (Premium/unverified tier, cross-owner config)
-        // are not "no data": emitting empty state for them would present
-        // false emptiness where reads surface an explicit error. Preserve
-        // whatever the subscribers last saw and only log.
-        if (this.#isUnsupportedCapabilityError(error)) {
-          return;
-        }
-        for (const subscriber of this.#accountSubscribers) {
-          subscriber.callback(EMPTY_ACCOUNT_STATE);
-        }
-        for (const subscriber of this.#positionSubscribers) {
-          subscriber.callback([]);
-        }
-        this.#emitToOrderSubscribers([]);
+        // An aborted previous-account setup has no authority over the new
+        // session. Current-session failures also preserve the last known data.
+        // Discovery, transport, auth, capability, and integrity failures are
+        // not authoritative empty account state. Explicit account switches
+        // and deselection already emit their synchronous reset.
       }
     })();
     this.#accountChannelsPromise = setupPromise;

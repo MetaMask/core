@@ -322,6 +322,7 @@ describe('lighterAdapter', () => {
       isMakerAsk: false,
       timestamp: 1786878754951,
       askAccountPnl: '-0.012901',
+      bidAccountPnl: '0',
       takerPositionSizeBefore: '0.133',
       takerPositionSignChanged: true,
       makerPositionSizeBefore: '0.000',
@@ -399,17 +400,17 @@ describe('lighterAdapter', () => {
       );
       expect(flip.direction).toBe('Long > Short');
 
-      // Without position-before context: side-only vocabulary.
-      const bare = adaptFillFromLighterTrade(
-        {
-          ...REAL_TRADE,
-          takerPositionSizeBefore: undefined,
-          takerPositionSignChanged: undefined,
-        },
-        'SOL',
-        28,
-      );
-      expect(bare.direction).toBe('Sell');
+      expect(() =>
+        adaptFillFromLighterTrade(
+          {
+            ...REAL_TRADE,
+            takerPositionSizeBefore: undefined,
+            takerPositionSignChanged: undefined,
+          },
+          'SOL',
+          28,
+        ),
+      ).toThrow('Invalid Lighter venue data');
     });
 
     it('a nonzero-pnl partial reduce without sign change is a close', () => {
@@ -500,18 +501,24 @@ describe('lighterAdapter', () => {
       ).toBe('0');
     });
 
-    it('falls back to neutral vocabulary when isMakerAsk is absent', () => {
-      // Without isMakerAsk our maker/taker role is unknown: deriving
-      // lifecycle from the wrong side's position context would misattribute
-      // opens/closes, so the fill stays side-only with no startPosition.
+    it('rejects missing maker role instead of manufacturing neutral history', () => {
       const roleless = {
         ...REAL_TRADE,
         isMakerAsk: undefined,
       };
-      const fill = adaptFillFromLighterTrade(roleless, 'SOL', 28);
-      expect(fill.direction).toBe('Sell');
-      expect(fill.startPosition).toBeUndefined();
-      expect(fill.fee).toBe('0');
+      expect(() => adaptFillFromLighterTrade(roleless, 'SOL', 28)).toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
+    it('rejects missing account pnl instead of manufacturing zero', () => {
+      expect(() =>
+        adaptFillFromLighterTrade(
+          { ...REAL_TRADE, askAccountPnl: undefined },
+          'SOL',
+          28,
+        ),
+      ).toThrow('Invalid Lighter venue data');
     });
 
     it('keeps a Standard fill whose Premium counterparty paid the fee', () => {

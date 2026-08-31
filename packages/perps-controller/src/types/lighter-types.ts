@@ -644,22 +644,22 @@ export type LighterWsTradesMessage = {
  */
 export type LighterRestTrade = {
   tradeId: number;
-  txHash?: string;
+  txHash: string;
   type: string;
   marketId: number;
   size: string;
   price: string;
-  usdAmount?: string;
+  usdAmount: string;
   askId: number;
   bidId: number;
   askAccountId: number;
   bidAccountId: number;
-  isMakerAsk?: boolean;
+  isMakerAsk: boolean;
   timestamp: number;
   /** Realized pnl for the ask-side account, signed USDC. */
-  askAccountPnl?: string;
+  askAccountPnl: string;
   /** Realized pnl for the bid-side account, signed USDC. */
-  bidAccountPnl?: string;
+  bidAccountPnl: string;
   /**
    * Taker/maker fees, present when nonzero. The official model types them
    * as StrictInt with NO documented unit or scale; until a captured
@@ -668,11 +668,11 @@ export type LighterRestTrade = {
   takerFee?: number | string;
   makerFee?: number | string;
   /** Position size (absolute) of each side before the trade executed. */
-  takerPositionSizeBefore?: string;
-  makerPositionSizeBefore?: string;
+  takerPositionSizeBefore: string;
+  makerPositionSizeBefore: string;
   /** Whether the side's position sign changed (crossed or left zero). */
-  takerPositionSignChanged?: boolean;
-  makerPositionSignChanged?: boolean;
+  takerPositionSignChanged: boolean;
+  makerPositionSignChanged: boolean;
 };
 
 /**
@@ -712,7 +712,7 @@ export type LighterPositionFunding = {
 export type LighterPositionFundingsResponse = {
   code: number;
   message?: string;
-  positionFundings?: LighterPositionFunding[];
+  positionFundings: LighterPositionFunding[];
 };
 
 /**

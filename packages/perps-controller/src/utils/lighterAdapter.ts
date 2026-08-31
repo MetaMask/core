@@ -299,22 +299,21 @@ export function adaptFillFromLighterTrade(
   accountIndex: number,
 ): OrderFill {
   const accountIsAsk = trade.askAccountId === accountIndex;
+  if (trade.isMakerAsk === undefined) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing maker-role context`,
+    );
+  }
   // Our side's role decides which fee applies; the venue includes the fee
   // fields only when nonzero (zero is the current standard-account truth).
-  const accountIsMaker =
-    trade.isMakerAsk === undefined
-      ? undefined
-      : accountIsAsk === trade.isMakerAsk;
+  const accountIsMaker = accountIsAsk === trade.isMakerAsk;
   // Standard accounts (the only supported type — the provider gates
   // Premium at account resolution) pay zero fees, so zero is venue truth.
   // A PRESENT nonzero fee ON OUR SIDE contradicts that gate and its wire
   // unit is unverified: refusing loudly beats silently coercing a real fee
   // to $0. The counterparty's fee is irrelevant — a Standard user trading
   // against a Premium account must keep their valid fill.
-  let ourFee: number | string | undefined;
-  if (accountIsMaker !== undefined) {
-    ourFee = accountIsMaker ? trade.makerFee : trade.takerFee;
-  }
+  const ourFee = accountIsMaker ? trade.makerFee : trade.takerFee;
   const ourFeeNumeric =
     typeof ourFee === 'number' ? ourFee : parseFloat(ourFee ?? '0');
   if (Number.isFinite(ourFeeNumeric) && ourFeeNumeric !== 0) {
@@ -323,29 +322,39 @@ export function adaptFillFromLighterTrade(
     );
   }
   const fee = '0';
-  const pnl = (accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl) ?? '0';
-  const isBuy = !accountIsAsk;
-  // Without isMakerAsk our maker/taker role is unknown — never guess which
-  // side's position context applies; fall back to the neutral side-only
-  // vocabulary instead of deriving lifecycle from the wrong side.
-  let positionBefore = NaN;
-  let signChanged: boolean | undefined;
-  if (accountIsMaker !== undefined) {
-    positionBefore = parseFloat(
-      (accountIsMaker
-        ? trade.makerPositionSizeBefore
-        : trade.takerPositionSizeBefore) ?? '',
+  const pnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
+  const parsedPnl = parseLighterStrictDecimal(pnl);
+  if (typeof pnl !== 'string' || parsedPnl === null) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid account pnl`,
     );
-    signChanged = accountIsMaker
-      ? trade.makerPositionSignChanged
-      : trade.takerPositionSignChanged;
+  }
+  const isBuy = !accountIsAsk;
+  // The account's maker/taker role selects the matching pre-trade position
+  // context. Missing context is rejected above instead of becoming neutral
+  // history that looks authoritative.
+  const positionBeforeRaw = accountIsMaker
+    ? trade.makerPositionSizeBefore
+    : trade.takerPositionSizeBefore;
+  const positionBefore = parseLighterStrictDecimal(positionBeforeRaw);
+  const signChanged = accountIsMaker
+    ? trade.makerPositionSignChanged
+    : trade.takerPositionSignChanged;
+  if (
+    positionBefore === null ||
+    positionBefore < 0 ||
+    typeof signChanged !== 'boolean'
+  ) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid position context`,
+    );
   }
   const direction = deriveLighterFillDirection({
     isBuy,
     size: parseFloat(trade.size),
     positionBefore,
     signChanged,
-    pnl: parseFloat(pnl),
+    pnl: parsedPnl,
   });
   // Signed pre-trade position, derivable whenever the direction proved the
   // orientation: closing/flipping a long means it was +before, a short

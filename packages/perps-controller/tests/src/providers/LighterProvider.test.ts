@@ -305,6 +305,7 @@ type MockClientInstance = {
   getDepositHistory: jest.Mock;
   getWithdrawHistory: jest.Mock;
   getTransferHistory: jest.Mock;
+  getPositionFundings: jest.Mock;
   getTrades: jest.Mock;
   sendTx: jest.Mock;
 };
@@ -500,6 +501,10 @@ function buildProvider(
           txHash: '0xtra',
         },
       ],
+    }),
+    getPositionFundings: jest.fn().mockResolvedValue({
+      code: 200,
+      positionFundings: [],
     }),
     getTrades: jest.fn().mockResolvedValue({ code: 200, trades: [] }),
     sendTx: jest.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
@@ -793,8 +798,12 @@ describe('LighterProvider', () => {
           },
         ],
       });
-      expect(await pendingLeverage).toBe(50);
-      expect(await provider.getMaxLeverage('BTC')).toBe(50);
+      await expect(pendingLeverage).rejects.toThrow(
+        'margin metadata unavailable',
+      );
+      await expect(provider.getMaxLeverage('BTC')).rejects.toThrow(
+        'margin metadata unavailable',
+      );
       expect(clientInstance.getOrderBookDetails).toHaveBeenCalledTimes(2);
     });
 
@@ -1595,9 +1604,28 @@ describe('LighterProvider', () => {
     });
 
     it('streams user_stats and account_all_positions into their subscribers', async () => {
-      const { provider } = buildProvider({
+      const { provider, clientInstance } = buildProvider({
         webSocketCtor: fakeCtor,
         registeredKey: 'a'.repeat(80),
+      });
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+          {
+            ...BTC_MARKET,
+            symbol: 'SOL',
+            marketId: 2,
+            lastTradePrice: 100,
+            minInitialMarginFraction: 400,
+            maintenanceMarginFraction: 240,
+          },
+        ],
       });
       const accountCallback = jest.fn();
       const positionsCallback = jest.fn();
@@ -1673,9 +1701,28 @@ describe('LighterProvider', () => {
     });
 
     it('applies position snapshots and deltas transactionally', async () => {
-      const { provider } = buildProvider({
+      const { provider, clientInstance } = buildProvider({
         webSocketCtor: fakeCtor,
         registeredKey: 'a'.repeat(80),
+      });
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+          {
+            ...BTC_MARKET,
+            symbol: 'SOL',
+            marketId: 2,
+            lastTradePrice: 100,
+            minInitialMarginFraction: 400,
+            maintenanceMarginFraction: 240,
+          },
+        ],
       });
       const callback = jest.fn();
       const unsubscribe = provider.subscribeToPositions({ callback });
@@ -1837,6 +1884,70 @@ describe('LighterProvider', () => {
         }),
       );
 
+      unsubscribe();
+      await provider.disconnect();
+    });
+
+    it('does not emit authoritative empty state when account-channel discovery fails', async () => {
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeCtor,
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockRejectedValue(
+        new Error('Invalid Lighter venue data: malformed account discovery'),
+      );
+      const accountCallback = jest.fn();
+      const positionsCallback = jest.fn();
+      const ordersCallback = jest.fn();
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: positionsCallback,
+      });
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: ordersCallback,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(accountCallback).not.toHaveBeenCalled();
+      expect(positionsCallback).not.toHaveBeenCalled();
+      expect(ordersCallback).not.toHaveBeenCalled();
+      unsubscribeAccount();
+      unsubscribePositions();
+      unsubscribeOrders();
+      await provider.disconnect();
+    });
+
+    it('does not clear orders when authenticated channel setup fails', async () => {
+      const { provider, bridge } = buildProvider({
+        webSocketCtor: fakeCtor,
+        registeredKey: 'a'.repeat(80),
+      });
+      const realExecute = (bridge.execute as jest.Mock)
+        .getMockImplementation()
+        ?.bind(bridge);
+      (bridge.execute as jest.Mock).mockImplementation(
+        async (call: LighterWasmCall) => {
+          if (call.function === '_createAuthToken') {
+            throw new Error(
+              'Invalid Lighter venue data: malformed auth-token response',
+            );
+          }
+          return await realExecute?.(call);
+        },
+      );
+      const ordersCallback = jest.fn();
+      const unsubscribe = provider.subscribeToOrders({
+        callback: ordersCallback,
+      });
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(ordersCallback).not.toHaveBeenCalledWith([]);
+      expect(ordersCallback).not.toHaveBeenCalled();
       unsubscribe();
       await provider.disconnect();
     });
@@ -3903,8 +4014,8 @@ describe('LighterProvider', () => {
         stopLossPrice: '85000',
       });
       expect(deepFirst.success).toBe(false);
-      // Bury THAT terminal row under 120 newer inactive rows.
-      for (let filler = 0; filler < 120; filler += 1) {
+      // Bury THAT terminal row beyond the old ten-page traversal limit.
+      for (let filler = 0; filler < 1120; filler += 1) {
         deepVenue.rawInactive.push({
           ...deepVenue.rawInactive[0],
           orderIndex: 500000 + filler,
@@ -3928,7 +4039,8 @@ describe('LighterProvider', () => {
       // Cursor pages were genuinely used (>1) and bounded (found early) —
       // never a 10-pages-per-poll blowup (100+).
       expect(inactiveCalls).toBeGreaterThan(1);
-      expect(inactiveCalls).toBeLessThanOrEqual(6);
+      expect(inactiveCalls).toBeGreaterThan(10);
+      expect(inactiveCalls).toBeLessThanOrEqual(15);
       expect(deepVenue.rawTriggers).toHaveLength(1);
       expect(deepVenue.rawTriggers[0].triggerPrice).toBe('86000');
     });
@@ -8292,7 +8404,14 @@ describe('LighterProvider', () => {
       const reference = 415_000_000;
       clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
-        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: reference }],
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: reference,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+        ],
       });
       const buyRequest = {
         symbol: 'BTC',
@@ -8322,7 +8441,14 @@ describe('LighterProvider', () => {
       const reference = 415_000_000;
       clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
-        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: reference }],
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: reference,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+        ],
       });
       // SHORT position (documented venue representation: positive
       // magnitude, sign -1): closing means BUYING, so the +5% protection
@@ -9054,8 +9180,22 @@ describe('LighterProvider', () => {
 
     it('fails market close validation closed when the fresh venue price is missing or zero', async () => {
       for (const orderBookDetails of [
-        [],
-        [{ symbol: 'BTC', lastTradePrice: 0 }],
+        [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: undefined,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+        ],
+        [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 0,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+        ],
       ]) {
         const { provider, clientInstance } = buildProvider();
         clientInstance.getAccountByIndex.mockResolvedValue({
@@ -10092,20 +10232,56 @@ describe('LighterProvider', () => {
       expect(updates[2].delta.usdc).toBe('10000.000000');
     });
 
+    it('rethrows venue integrity failures from every financial-history API', async () => {
+      const integrityError = new Error(
+        'Invalid Lighter venue data: malformed financial history',
+      );
+
+      const funding = buildProvider();
+      funding.clientInstance.getPositionFundings.mockRejectedValue(
+        integrityError,
+      );
+      await expect(funding.provider.getFunding()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+
+      const ledger = buildProvider();
+      ledger.clientInstance.getDepositHistory.mockRejectedValue(integrityError);
+      await expect(
+        ledger.provider.getUserNonFundingLedgerUpdates(),
+      ).rejects.toThrow('Invalid Lighter venue data');
+
+      const history = buildProvider();
+      history.clientInstance.getWithdrawHistory.mockRejectedValue(
+        integrityError,
+      );
+      await expect(history.provider.getUserHistory()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
     it('honors fill limit, time range, symbol, and selected-account contracts', async () => {
       const { provider, clientInstance } = buildProvider();
       const matchingTrade = {
         tradeId: 1,
+        txHash: '0xtrade',
         type: 'trade',
         marketId: 1,
         size: '0.1',
         price: '90000',
+        usdAmount: '9000',
         askId: 10,
         bidId: 11,
         askAccountId: 99,
         bidAccountId: 28,
         isMakerAsk: false,
         timestamp: 1700000000000,
+        askAccountPnl: '0',
+        bidAccountPnl: '0',
+        takerPositionSizeBefore: '0',
+        makerPositionSizeBefore: '0',
+        takerPositionSignChanged: true,
+        makerPositionSignChanged: true,
       };
       clientInstance.getTrades
         .mockResolvedValueOnce({
@@ -10148,16 +10324,24 @@ describe('LighterProvider', () => {
       const { provider, clientInstance } = buildProvider();
       const boundaryTrade = {
         tradeId: 1,
+        txHash: '0xtrade',
         type: 'trade',
         marketId: 1,
         size: '0.1',
         price: '90000',
+        usdAmount: '9000',
         askId: 10,
         bidId: 11,
         askAccountId: 99,
         bidAccountId: 28,
         isMakerAsk: false,
         timestamp: 1700000000000,
+        askAccountPnl: '0',
+        bidAccountPnl: '0',
+        takerPositionSizeBefore: '0',
+        makerPositionSizeBefore: '0',
+        takerPositionSignChanged: true,
+        makerPositionSignChanged: true,
       };
       clientInstance.getTrades
         .mockResolvedValueOnce({
@@ -10277,10 +10461,9 @@ describe('LighterProvider', () => {
 
     it('derives estimates instead of returning false zeros', async () => {
       const { provider } = buildProvider();
-      // Maintenance fraction: venue fallback (no margin data mocked).
-      expect(
-        await provider.calculateMaintenanceMargin({} as never),
-      ).toBeCloseTo(1 / (2 * 50));
+      await expect(
+        provider.calculateMaintenanceMargin({ asset: 'UNKNOWN' }),
+      ).rejects.toThrow('maintenance margin metadata unavailable');
       // The liquidation preview uses the ISOLATED formula when the caller
       // requests (or omits) that supported mode, with the venue's own
       // maintenance fraction:
@@ -10307,17 +10490,14 @@ describe('LighterProvider', () => {
           }),
         ),
       ).toBeCloseTo(108.6957, 3);
-      // Unknown asset falls back to the constant-derived maintenance
-      // (1 / (2 * 50) = 1%): 100 - 0.09*100/0.99 = 90.9090...
-      expect(
-        parseFloat(
-          await provider.calculateLiquidationPrice({
-            entryPrice: 100,
-            leverage: 10,
-            direction: 'long',
-          }),
-        ),
-      ).toBeCloseTo(90.909, 3);
+      await expect(
+        provider.calculateLiquidationPrice({
+          entryPrice: 100,
+          leverage: 10,
+          direction: 'long',
+          asset: 'UNKNOWN',
+        }),
+      ).rejects.toThrow('maintenance margin metadata unavailable');
       // Malformed inputs report the explicit zero contract.
       expect(
         await provider.calculateLiquidationPrice({
@@ -10336,6 +10516,9 @@ describe('LighterProvider', () => {
         }),
       ).rejects.toThrow('cross-margin liquidation previews');
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
+      await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
+        'margin metadata unavailable',
+      );
       // Fee rates come from the venue's per-market metadata (currently 0).
       const fees = await provider.calculateFees({
         orderType: 'market',
