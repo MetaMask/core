@@ -399,10 +399,12 @@ export type RampsControllerApplyAutorampStatusFromPushAction = {
 
 /**
  * Fetches one autoramp from the neo-bank proxy and applies it to the
- * last-seen cursor.
+ * last-seen cursor. Does not recreate a cursor that was removed while the
+ * request was in flight.
  *
  * @param autorampId - MoonPay autoramp id.
- * @returns The updated local account.
+ * @returns The updated local account, or an unpersisted snapshot if the
+ * cursor was removed during the fetch.
  */
 export type RampsControllerRefreshAutorampAction = {
   type: `RampsController:refreshAutoramp`;
