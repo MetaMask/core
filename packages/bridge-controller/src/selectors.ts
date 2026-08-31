@@ -598,7 +598,7 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<(QuoteResponse & QuoteMetadata) | null>(requestCount).fill(null)),
+    }, Array<QuoteResponse | null>(requestCount).fill(null)),
 );
 
 const selectDestAmountSum = createBridgeSelector(
