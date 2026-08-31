@@ -1,9 +1,5 @@
 /* eslint-disable jest/unbound-method */
-import type {
-  V5BalanceItem,
-  V6BalanceItem,
-  V6AccountBalancesEntry,
-} from '@metamask/core-backend';
+import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
@@ -70,7 +66,7 @@ function createMockApiClient(
   supportedChains: number[] = [1, 137],
   balances: V5BalanceItem[] = [],
   unprocessedNetworks: string[] = [],
-  v6Accounts: V6AccountBalancesEntry[] = [],
+  v6Balances: V6BalanceItem[] = [],
 ): MockApiClient {
   return {
     accounts: {
@@ -83,7 +79,7 @@ function createMockApiClient(
         unprocessedNetworks,
       }),
       fetchV6MultiAccountBalances: jest.fn().mockResolvedValue({
-        accounts: v6Accounts,
+        balances: v6Balances,
         unprocessedNetworks,
         unprocessedIncludeAssetIds: [],
       }),
@@ -92,11 +88,13 @@ function createMockApiClient(
 }
 
 function createMockV6BalanceItem(
+  accountId: string,
   assetId: string,
   balance: string,
-  category: 'token' | 'defi' = 'token',
+  object: 'token' | 'defi' = 'token',
+  type: 'native' | 'erc20' = 'erc20',
 ): V6BalanceItem {
-  return { category, assetId, balance } as V6BalanceItem;
+  return { accountId, object, type, assetId, balance } as V6BalanceItem;
 }
 
 function createMockBalanceItem(
@@ -147,7 +145,7 @@ async function setupController(
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
     fetchTimeoutMs?: number;
-    v6Accounts?: V6AccountBalancesEntry[];
+    v6Balances?: V6BalanceItem[];
     remoteFeatureFlags?: Record<string, unknown>;
   } = {},
 ): Promise<SetupResult> {
@@ -156,7 +154,7 @@ async function setupController(
     balances = [],
     unprocessedNetworks = [],
     fetchTimeoutMs,
-    v6Accounts = [],
+    v6Balances = [],
     remoteFeatureFlags = {},
   } = options;
 
@@ -197,7 +195,7 @@ async function setupController(
     supportedChains,
     balances,
     unprocessedNetworks,
-    v6Accounts,
+    v6Balances,
   );
 
   const controller = new AccountsApiDataSource({
@@ -731,18 +729,17 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('processes v6 token balances grouped by account', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
-        v6Accounts: [
-          {
-            accountId: `eip155:1:${MOCK_ADDRESS}`,
-            balances: [
-              createMockV6BalanceItem(
-                'eip155:1/slip44:60',
-                '1000000000000000000',
-              ),
-            ],
-          },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
         ],
       });
 
@@ -757,19 +754,23 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('ignores v6 defi positions', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
-        v6Accounts: [
-          {
-            accountId: `eip155:1:${MOCK_ADDRESS}`,
-            balances: [
-              createMockV6BalanceItem(
-                'eip155:1/slip44:60',
-                '1000000000000000000',
-              ),
-              createMockV6BalanceItem('eip155:1/erc20:0xdefi', '500', 'defi'),
-            ],
-          },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/erc20:0xdefi',
+            '500',
+            'defi',
+          ),
         ],
       });
 
@@ -783,21 +784,20 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('excludes staking contract asset IDs from v6 balance response', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const stakingAssetId =
         'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
-        v6Accounts: [
-          {
-            accountId: `eip155:1:${MOCK_ADDRESS}`,
-            balances: [
-              createMockV6BalanceItem(
-                'eip155:1/slip44:60',
-                '1000000000000000000',
-              ),
-              createMockV6BalanceItem(stakingAssetId, '0'),
-            ],
-          },
+        v6Balances: [
+          createMockV6BalanceItem(
+            accountId,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(accountId, stakingAssetId, '0'),
         ],
       });
 
@@ -947,6 +947,34 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware skips Accounts API when balance is not requested', async () => {
+    const { controller, apiClient } = await setupController({
+      balances: [
+        createMockBalanceItem(
+          `eip155:1:${MOCK_ADDRESS}`,
+          'eip155:1/slip44:60',
+          '1',
+        ),
+      ],
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['price'] }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
   it('middleware removes handled chains from next request', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
@@ -979,6 +1007,48 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('subscribe polling fetch always bypasses the TanStack cache', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
+  it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
+    const { controller, assetsUpdateHandler, apiClient } =
+      await setupController();
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+      skipInitialFetch: true,
+    });
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).not.toHaveBeenCalled();
 
     controller.destroy();
   });

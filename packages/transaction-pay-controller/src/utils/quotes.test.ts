@@ -76,6 +76,7 @@ const QUOTE_MOCK = {
 } as TransactionPayQuote<Json>;
 
 const TOTALS_MOCK = {
+  isInputBased: false,
   fees: {
     provider: {
       fiat: '7.89',

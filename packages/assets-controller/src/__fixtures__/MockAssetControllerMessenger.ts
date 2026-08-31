@@ -1,5 +1,6 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   MOCK_ANY_NAMESPACE,
   Messenger,
@@ -7,12 +8,9 @@ import {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { NetworkStatus } from '@metamask/network-controller';
-import {
-  NetworkState,
-  RpcEndpoint,
-  RpcEndpointType,
-} from '@metamask/network-controller/src/NetworkController';
+import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import {
   AssetsControllerMessenger,
@@ -33,10 +31,14 @@ export type MockRootMessenger = Messenger<
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1';
 
-export function createMockAssetControllerMessenger(): {
+export function createMockAssetControllerMessenger(options?: {
+  delegateGetState?: boolean;
+}): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
 } {
+  const { delegateGetState = true } = options ?? {};
+
   const rootMessenger: MockRootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -50,8 +52,9 @@ export function createMockAssetControllerMessenger(): {
     messenger: assetsControllerMessenger,
     actions: [
       // AssetsController
+      'AccountsController:getSelectedAccount',
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      'AssetsController:getState',
+      ...(delegateGetState ? ['AssetsController:getState' as const] : []),
       // RpcDataSource
       'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
       'NetworkController:getState',
@@ -62,27 +65,42 @@ export function createMockAssetControllerMessenger(): {
       'SnapController:getRunnableSnaps',
       'SnapController:handleRequest',
       'PermissionController:getPermissions',
+      // PhishingController
+      'PhishingController:bulkScanTokens',
+      // AccountsApiDataSource
+      'RemoteFeatureFlagController:getState',
     ],
+    /* eslint-disable no-restricted-syntax */
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
       'AccountTreeController:stateChange',
+      'AccountTreeController:initialized',
+      'AccountTreeController:uninitialized',
       'ClientController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'PreferencesController:stateChange',
+      'TransactionController:unapprovedTransactionAdded',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
+      'NetworkController:networkAdded',
+      'NetworkController:networkDidChange',
+      'NetworkController:networkRemoved',
       // StakedBalanceDataSource
       'NetworkEnablementController:stateChange',
       // SnapDataSource
       'AccountsController:accountBalancesUpdated',
       'PermissionController:stateChange',
+      'SnapController:snapInstalled',
       // AccountActivityService (real-time balances + chain status)
       'AccountActivityService:balanceUpdated',
       'AccountActivityService:statusChanged',
+      // AccountsApiDataSource
+      'RemoteFeatureFlagController:stateChange',
     ],
+    /* eslint-enable no-restricted-syntax */
   });
 
   return {
@@ -125,7 +143,7 @@ export function registerStakedMessengerActions(
     networkConfigurationsByChainId: {
       [MAINNET_CHAIN_ID_HEX]: {
         chainId: MAINNET_CHAIN_ID_HEX,
-        rpcEndpoints: [{ networkClientId: 'mainnet' }] as RpcEndpoint[],
+        rpcEndpoints: [{ networkClientId: 'mainnet' }] as TestMockType,
         defaultRpcEndpointIndex: 0,
         blockExplorerUrls: [],
         name: 'Mainnet',
@@ -240,4 +258,120 @@ export function createMockNetworkState(
       },
     },
   } as unknown as NetworkState;
+}
+
+export type RegisterAssetsControllerActionsOptions = {
+  accounts?: InternalAccount[];
+  selectedAccount?: InternalAccount;
+  enabledNetworkMap?: Record<string, Record<string, boolean>>;
+  nativeAssetIdentifiers?: Record<string, string>;
+  networkState?: NetworkState;
+  remoteFeatureFlags?: FeatureFlags;
+  clientControllerState?: { isUiOpen: boolean };
+};
+
+/**
+ * Build a mock internal account with sensible defaults.
+ *
+ * @param overrides - Partial account to override defaults.
+ * @returns The internal account.
+ */
+export function createMockInternalAccount(
+  overrides?: Partial<InternalAccount>,
+): InternalAccount {
+  const { metadata, ...rest } = overrides ?? {};
+  return {
+    id: 'mock-account-id',
+    address: '0x1234567890123456789012345678901234567890',
+    options: {},
+    methods: [],
+    type: 'eip155:eoa',
+    scopes: ['eip155:1'],
+    metadata: {
+      name: 'Test Account',
+      keyring: { type: 'HD Key Tree' },
+      importTime: 1_756_100_000_000,
+      lastSelected: 1_756_200_000_000,
+      ...metadata,
+    },
+    ...rest,
+  } as InternalAccount;
+}
+
+/**
+ * Register mock action handlers for external controller actions that
+ * AssetsController and its data sources call.
+ *
+ * @param rootMessenger - The root mock messenger.
+ * @param opts - Action handler return value overrides.
+ */
+export function registerAssetsControllerActions(
+  rootMessenger: MockRootMessenger,
+  opts: RegisterAssetsControllerActionsOptions = {},
+): void {
+  const accounts = opts.accounts ?? [
+    opts.selectedAccount ?? createMockInternalAccount(),
+  ];
+  const selectedAccount = opts.selectedAccount ?? accounts[0];
+
+  rootMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    () => selectedAccount,
+  );
+
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    () => accounts,
+  );
+
+  rootMessenger.registerActionHandler(
+    'NetworkEnablementController:getState',
+    () =>
+      ({
+        enabledNetworkMap: opts.enabledNetworkMap ?? {
+          eip155: { [MAINNET_CHAIN_ID_HEX]: true },
+        },
+        nativeAssetIdentifiers: opts.nativeAssetIdentifiers ?? {
+          [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+        },
+      }) as TestMockType,
+  );
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:getState',
+    () => opts.networkState ?? createMockNetworkState(),
+  );
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    () =>
+      ({
+        provider: { request: jest.fn().mockResolvedValue('0x0') },
+        configuration: { chainId: MAINNET_CHAIN_ID_HEX },
+      }) as TestMockType,
+  );
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: opts.remoteFeatureFlags ?? {},
+      cacheTimestamp: 0,
+    }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    () => undefined,
+  );
+
+  if (opts.clientControllerState !== undefined) {
+    (
+      rootMessenger as {
+        registerActionHandler: (a: string, h: () => unknown) => void;
+      }
+    ).registerActionHandler(
+      'ClientController:getState',
+      () => opts.clientControllerState,
+    );
+  }
 }

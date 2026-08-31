@@ -41,17 +41,14 @@ import type {
  */
 function escapeJsDocTextForMdx(text: string): string {
   const withLinksResolved = text.replace(/\{@link\s+([^}]+)\}/gu, '`$1`');
+  // Escape the characters MDX reads as syntax rather than text: `{` and `}`
+  // open an expression, and `<` opens a JSX tag — so an unescaped return type
+  // like `Promise<Foo[]>` fails the site build. Content already inside a code
+  // span is left alone.
   return withLinksResolved.replace(
-    /`[^`]*`|(\{)|(\})/gu,
-    (match, open: string | undefined, close: string | undefined) => {
-      if (open) {
-        return '\\{';
-      }
-      if (close) {
-        return '\\}';
-      }
-      return match;
-    },
+    /`[^`]*`|([{}<])/gu,
+    (match, special: string | undefined) =>
+      special === undefined ? match : `\\${special}`,
   );
 }
 
@@ -314,6 +311,67 @@ type MessengerCapabilityTypeDeclaration =
   | ObjectMessengerCapabilityTypeDeclaration;
 
 /**
+ * Tag a capability type declaration with the body shape it has, so the right
+ * extractor can read it: 'constructor' for a capability-type-constructor
+ * invocation such as `ControllerGetStateAction<...>`, 'object' otherwise.
+ *
+ * Callers must resolve unions and bare type references first, so that the
+ * declaration reaching here is a leaf.
+ *
+ * @param declaration - The type alias or interface to classify.
+ * @param kind - Whether to tag the declaration as 'action' or 'event'.
+ * @returns The tagged declaration, or null for a qualified-name reference.
+ */
+export function classifyMessengerCapabilityTypeDeclaration(
+  declaration: TypeAliasDeclaration | InterfaceDeclaration,
+  kind: 'action' | 'event',
+): MessengerCapabilityTypeDeclaration | null {
+  // Interfaces always carry their members directly.
+  // EXAMPLE:
+  //   interface FooControllerSomeAction { ... }
+  if (NodeGuards.isInterfaceDeclaration(declaration)) {
+    return { bodyShape: 'object', kind, declaration };
+  }
+
+  const body = declaration.getTypeNode();
+
+  // A TypeReference body is a capability-type-constructor invocation (e.g.
+  // `ControllerGetStateAction<typeof name, State>`). Tag it so the constructor
+  // extractor can read `body` directly without re-checking its shape.
+  // EXAMPLE:
+  //   type FooControllerSomeAction = ControllerGetStateAction<...>
+  //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  if (body && NodeGuards.isTypeReference(body)) {
+    // Reject qualified-name constructor type names, as we need a plain
+    // identifier to match the constructor by name.
+    // EXAMPLE:
+    //   import * as somePackage from '....js';
+    //   type FooControllerSomeAction = somePackage.ControllerGetStateAction<...>
+    //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    const constructorTypeName = body.getTypeName();
+    if (!NodeGuards.isIdentifier(constructorTypeName)) {
+      return null;
+    }
+
+    return {
+      bodyShape: 'constructor',
+      kind,
+      declaration,
+      body,
+      typeName: constructorTypeName,
+    };
+  }
+
+  // Anything else (a type literal, intersection, conditional, …) goes to the
+  // literal extractor, which knows how to read members off a type literal and
+  // rejects exotic shapes.
+  // EXAMPLE:
+  //   type FooControllerSomeAction = { ... }
+  //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  return { bodyShape: 'object', kind, declaration };
+}
+
+/**
  * Represents a type alias for a messenger. Only includes nodes representing the
  * `Actions` and `Events` type parameters.
  */
@@ -539,45 +597,22 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
         continue;
       }
 
-      // A TypeReference body with type arguments is a capability-type-
+      // Everything else is a leaf capability type — a capability-type-
       // constructor invocation (e.g. `ControllerGetStateAction<typeof name,
-      // State>`). Tag it so the constructor extractor can read `body`
-      // directly without re-checking its shape.
-      // EXAMPLE:
+      // State>`) or a literal object type. Tag it so the matching extractor
+      // can read it without re-checking its shape.
+      // EXAMPLES:
       //   type FooControllerSomeAction = ControllerGetStateAction<...>
-      //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      if (body && NodeGuards.isTypeReference(body)) {
-        // Reject qualified-name constructor type names, as we need a plain
-        // identifier to match the constructor by name.
-        // EXAMPLE:
-        //   // Bad
-        //   import * as somePackage from '....js';
-        //   type FooControllerSomeAction = somePackage.ControllerGetStateAction<...>
-        //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        const constructorTypeName = body.getTypeName();
-        if (NodeGuards.isIdentifier(constructorTypeName)) {
-          result.capabilityTypeDeclarations.push({
-            bodyShape: 'constructor',
-            kind,
-            declaration,
-            body,
-            typeName: constructorTypeName,
-          });
-        }
-        continue;
-      }
-
-      // Anything else (a type literal, intersection, conditional, …) gets
-      // tagged for the literal extractor, which knows how to read members
-      // off a type literal and rejects exotic shapes.
-      // EXAMPLE:
+      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
       //   type FooControllerSomeAction = { ... }
       //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      result.capabilityTypeDeclarations.push({
-        bodyShape: 'object',
-        kind,
+      const classified = classifyMessengerCapabilityTypeDeclaration(
         declaration,
-      });
+        kind,
+      );
+      if (classified) {
+        result.capabilityTypeDeclarations.push(classified);
+      }
     }
 
     // Interfaces always carry their members directly — tag for the literal
@@ -612,7 +647,7 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
  * @returns Information that may be extracted from the messenger capability type
  * (may be `null` if the type is ineligible for extraction).
  */
-function extractFromMessengerCapabilityTypeDeclaration(
+export function extractFromMessengerCapabilityTypeDeclaration(
   capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
   projectPath: string,
 ): MessengerCapabilityPacket | null {

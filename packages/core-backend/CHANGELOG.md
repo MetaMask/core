@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^7.6.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Align the Accounts API v6 balance response types with the flat `/v6/multiaccount/balances` response: `V6BalancesResponse.accounts` is replaced by `balances`, `V6BalanceItem` now includes `accountId`, `object`, and `type`, `V6BalanceMetadata.protocolIconUrl` is optional, `processingDefiPositions` is now an optional response-level array of CAIP-10 account IDs, and `V6AccountBalancesEntry` is removed ([#9911](https://github.com/MetaMask/core/pull/9911))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+
+## [8.1.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.0` to `^8.0.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9886](https://github.com/MetaMask/core/pull/9886))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [8.1.1]
@@ -388,7 +401,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...@metamask/core-backend@9.0.0
+[8.1.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.1...@metamask/core-backend@8.1.2
 [8.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.0...@metamask/core-backend@8.1.1
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.0.0...@metamask/core-backend@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...@metamask/core-backend@8.0.0

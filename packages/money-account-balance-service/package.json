@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-balance-service",
-  "version": "2.4.1",
+  "version": "2.4.3",
   "description": "Data service for fetching Money account balances, exchange rates, and vault APY",
   "keywords": [
     "Ethereum",
@@ -57,13 +57,13 @@
   "dependencies": {
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-data-service": "^0.1.3",
+    "@metamask/base-data-service": "^1.0.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/money-account-api-data-service": "^0.4.0",
-    "@metamask/network-controller": "^35.0.1",
-    "@metamask/remote-feature-flag-controller": "^5.0.0",
+    "@metamask/money-account-api-data-service": "^0.4.1",
+    "@metamask/network-controller": "^36.0.0",
+    "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.11.0"
   },

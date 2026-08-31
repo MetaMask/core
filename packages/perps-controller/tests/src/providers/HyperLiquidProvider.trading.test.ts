@@ -301,10 +301,18 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
+  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
   modify: jest.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -1287,6 +1295,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('closes a position successfully', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
       const closeParams: ClosePositionParams = {
         symbol: 'BTC',
         orderType: 'market',
@@ -1295,6 +1304,10 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(true);
+      expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual({
+        b: BUILDER_FEE_CONFIG.MainnetBuilder,
+        f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+      });
     });
 
     it('repairs missing HIP-3 asset IDs during closePosition after degraded discovery', async () => {
@@ -2992,6 +3005,7 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
             cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
               response: {
                 data: {
                   statuses: ['success', 'success'],
@@ -3037,6 +3051,7 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
             cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
               response: {
                 data: {
                   statuses: ['success', { error: 'multi-sig required' }],
@@ -3057,6 +3072,35 @@ describe('HyperLiquidProvider', () => {
         expect(result.results[1].error).toBe(
           PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
         );
+      });
+
+      it('rejects a non-ok batch response even when its statuses say success', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockResolvedValue({
+              status: 'err',
+              response: { data: { statuses: ['success'] } },
+            }),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+        ]);
+
+        expect(result).toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 1,
+          results: [
+            {
+              orderId: '123',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+            },
+          ],
+        });
       });
 
       it('maps recognized batch cancel rejections to a standardized code', async () => {
@@ -3155,17 +3199,18 @@ describe('HyperLiquidProvider', () => {
           }),
         );
 
-        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
-          createMockExchangeClient({
-            order: jest.fn().mockResolvedValue({
-              response: {
-                data: {
-                  statuses: [{ filled: {} }, { filled: {} }],
-                },
+        const exchangeClient = createMockExchangeClient({
+          order: jest.fn().mockResolvedValue({
+            response: {
+              data: {
+                statuses: [{ filled: {} }, { filled: {} }],
               },
-            }),
+            },
           }),
-        );
+        });
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(exchangeClient);
 
         const result = await provider.closePositions({ closeAll: true });
 
@@ -3175,6 +3220,10 @@ describe('HyperLiquidProvider', () => {
         expect(result.results).toHaveLength(2);
         expect(result.results[0].symbol).toBe('BTC');
         expect(result.results[1].symbol).toBe('ETH');
+        expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual({
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        });
       });
 
       it('rounds each reduce-only close size down to the size grid', async () => {

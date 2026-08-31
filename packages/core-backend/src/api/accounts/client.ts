@@ -563,7 +563,7 @@ export class AccountsApiClient extends BaseApiClient {
           return {
             unprocessedNetworks: [],
             unprocessedIncludeAssetIds: [],
-            accounts: [],
+            balances: [],
           };
         }
         return this.fetch<V6BalancesResponse>(
@@ -638,7 +638,7 @@ export class AccountsApiClient extends BaseApiClient {
       return {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
-        accounts: [],
+        balances: [],
       };
     }
     return this.queryClient.fetchQuery(

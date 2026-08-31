@@ -15,10 +15,10 @@ import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import { projectLogger } from './logger.js';
 import type {
   GetAmountDataCallback,
+  GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
-  ResolveSourceAmountCallback,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -70,11 +70,13 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #fiatOptions?: TransactionPayFiatOptions;
+
   readonly #getAmountData?: GetAmountDataCallback;
 
-  readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+  readonly #getBalance?: GetBalanceCallback;
 
-  readonly #fiatOptions?: TransactionPayFiatOptions;
+  readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
   readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
@@ -88,18 +90,16 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
-  readonly #resolveSourceAmount?: ResolveSourceAmountCallback;
-
   constructor({
     fiatOptions,
     getAmountData,
+    getBalance,
     getDelegationTransaction,
     getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
     polymarket,
-    resolveSourceAmount,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -109,14 +109,14 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.#getAmountData = getAmountData;
-    this.#getDelegationTransaction = getDelegationTransaction;
     this.#fiatOptions = fiatOptions;
+    this.#getAmountData = getAmountData;
+    this.#getBalance = getBalance;
+    this.#getDelegationTransaction = getDelegationTransaction;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
-    this.#resolveSourceAmount = resolveSourceAmount;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -381,7 +381,7 @@ export class TransactionPayController extends BaseController<
           transactionId,
           current as never,
           this.messenger,
-          this.#resolveSourceAmount,
+          this.#getBalance,
         );
 
         shouldUpdateQuotes = true;

@@ -33,6 +33,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -281,10 +282,18 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
+  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
   modify: jest.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -353,6 +362,9 @@ describe('HyperLiquidProvider', () => {
   let mockClientService: jest.Mocked<HyperLiquidClientService>;
   let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
   let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+
+  const getMockUserFees = () =>
+    jest.mocked(mockClientService.getInfoClient().userFees);
 
   beforeEach(() => {
     // Reset all mocks
@@ -517,6 +529,28 @@ describe('HyperLiquidProvider', () => {
   });
   describe('Additional Error Handling and Edge Cases', () => {
     describe('ensureReady and buildAssetMapping', () => {
+      it('retries readiness after initialization rejects', async () => {
+        mockClientService.initialize
+          .mockRejectedValueOnce(new Error('Initialization failed'))
+          .mockResolvedValueOnce(undefined);
+        const orderParams: OrderParams = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        };
+
+        await expect(provider.placeOrder(orderParams)).resolves.toMatchObject({
+          success: false,
+          error: 'Initialization failed',
+        });
+        await expect(provider.placeOrder(orderParams)).resolves.toMatchObject({
+          success: true,
+        });
+        expect(mockClientService.initialize).toHaveBeenCalledTimes(2);
+      });
+
       it('handles meta fetch failure in buildAssetMapping', async () => {
         // Create a fresh provider to test buildAssetMapping
         const freshProvider = createTestProvider();
@@ -1014,7 +1048,7 @@ describe('HyperLiquidProvider', () => {
             }),
             order: jest.fn().mockResolvedValue({
               status: 'ok',
-              response: { data: { statuses: [{ resting: { oid: '999' } }] } },
+              response: { data: { statuses: [{ resting: { oid: 999 } }] } },
             }),
           }),
         );
@@ -1187,7 +1221,12 @@ describe('HyperLiquidProvider', () => {
             order: jest.fn().mockResolvedValue({
               status: 'ok',
               response: {
-                data: { statuses: [{ resting: { oid: '999' } }] },
+                data: {
+                  statuses: [
+                    { resting: { oid: 999 } },
+                    { resting: { oid: 1000 } },
+                  ],
+                },
               },
             }),
           }),
@@ -2296,7 +2335,7 @@ describe('HyperLiquidProvider', () => {
     describe('calculateFees', () => {
       beforeEach(() => {
         // Reset userFees mock for each test
-        (mockClientService.getInfoClient().userFees as jest.Mock).mockClear();
+        getMockUserFees().mockClear();
         // Default to throw error (will use base rates)
         mockWalletService.getUserAddressWithDefault.mockRejectedValue(
           new Error('No wallet connected'),
@@ -2339,18 +2378,6 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBeCloseTo(115, 10); // Includes MetaMask fee
       });
 
-      it('handles zero amount', async () => {
-        const result = await provider.calculateFees({
-          orderType: 'market',
-          isMaker: false,
-          amount: '0',
-          symbol: 'BTC',
-        });
-
-        expect(result.feeRate).toBe(0.00145); // Includes 0.1% MetaMask fee
-        expect(result.feeAmount).toBe(0);
-      });
-
       it('handles undefined amount', async () => {
         const result = await provider.calculateFees({
           orderType: 'market',
@@ -2364,10 +2391,8 @@ describe('HyperLiquidProvider', () => {
 
       it('uses cached user-specific fee rates when available', async () => {
         // Reset mock and set user address to trigger user fee fetching
-        (mockClientService.getInfoClient().userFees as jest.Mock).mockClear();
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockClear();
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00045', // 0.045% base taker rate
           userAddRate: '0.00015', // 0.015% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
@@ -2409,15 +2434,119 @@ describe('HyperLiquidProvider', () => {
         ).toHaveBeenCalledTimes(1);
       });
 
+      it('does not cache user fee rates after the selected account changes', async () => {
+        const userFees = getMockUserFees();
+        userFees
+          .mockResolvedValueOnce({
+            userCrossRate: '0.0002',
+            userAddRate: '0.0001',
+            userSpotCrossRate: '0.0004',
+            userSpotAddRate: '0.0002',
+            activeReferralDiscount: '0',
+            activeStakingDiscount: null,
+          })
+          .mockResolvedValueOnce({
+            userCrossRate: '0.0003',
+            userAddRate: '0.0001',
+            userSpotCrossRate: '0.0004',
+            userSpotAddRate: '0.0002',
+            activeReferralDiscount: '0',
+            activeStakingDiscount: null,
+          });
+        mockWalletService.getUserAddressWithDefault
+          .mockResolvedValueOnce('0x123')
+          .mockResolvedValue('0x456');
+
+        await provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+        const currentFees = await provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+        const cachedCurrentFees = await provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+
+        expect(currentFees.protocolFeeRate).toBe(0.0003);
+        expect(cachedCurrentFees.protocolFeeRate).toBe(0.0003);
+        expect(userFees).toHaveBeenCalledTimes(2);
+      });
+
+      it('rejects user fee results that resolve after disconnect', async () => {
+        const userFeesRequestStarted = createDeferred<void>();
+        const pendingUserFees = createDeferred<{
+          userCrossRate: string;
+          userAddRate: string;
+          userSpotCrossRate: string;
+          userSpotAddRate: string;
+          activeReferralDiscount: string;
+          activeStakingDiscount: null;
+        }>();
+        const userFees = getMockUserFees()
+          .mockImplementationOnce(() => {
+            userFeesRequestStarted.resolve();
+            return pendingUserFees.promise;
+          })
+          .mockResolvedValue({
+            userCrossRate: '0.0002',
+            userAddRate: '0.0001',
+            userSpotCrossRate: '0.0004',
+            userSpotAddRate: '0.0002',
+            activeReferralDiscount: '0',
+            activeStakingDiscount: null,
+          });
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        const staleFees = provider.calculateFees({
+          orderType: 'market',
+          amount: '100000',
+          symbol: 'BTC',
+        });
+        await userFeesRequestStarted.promise;
+        const disconnectPromise = provider.disconnect();
+        await Promise.resolve();
+        pendingUserFees.resolve({
+          userCrossRate: '0.0003',
+          userAddRate: '0.0001',
+          userSpotCrossRate: '0.0004',
+          userSpotAddRate: '0.0002',
+          activeReferralDiscount: '0',
+          activeStakingDiscount: null,
+        });
+
+        await expect(staleFees).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        await expect(disconnectPromise).resolves.toStrictEqual({
+          success: true,
+        });
+
+        await expect(provider.initialize()).resolves.toMatchObject({
+          success: true,
+        });
+        await expect(
+          provider.calculateFees({
+            orderType: 'market',
+            amount: '100000',
+            symbol: 'BTC',
+          }),
+        ).resolves.toMatchObject({ protocolFeeRate: 0.0002 });
+        expect(userFees).toHaveBeenCalledTimes(2);
+      });
+
       it('falls back to base rates on API failure', async () => {
         // Reset and mock user address
-        (mockClientService.getInfoClient().userFees as jest.Mock).mockClear();
+        getMockUserFees().mockClear();
         mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
 
         // Mock API failure
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockRejectedValue(new Error('API Error'));
+        getMockUserFees().mockRejectedValue(new Error('API Error'));
 
         const result = await provider.calculateFees({
           orderType: 'market',
@@ -2431,17 +2560,39 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBe(145); // Includes MetaMask fee
       });
 
-      it('handles non-numeric amount gracefully', async () => {
+      it.each([
+        ['', 0],
+        ['.5', 0.5],
+        ['1e2', 100],
+        ['  100 ', 100],
+      ])('quotes compatible fee amount %p', async (amount, expectedAmount) => {
         const result = await provider.calculateFees({
           orderType: 'market',
           isMaker: false,
-          amount: 'invalid',
+          amount,
           symbol: 'BTC',
         });
 
-        expect(result.feeRate).toBe(0.00145); // Includes 0.1% MetaMask fee
-        expect(result.feeAmount).toBe(0); // parseFloat('invalid') returns NaN, which * 0.00045 = NaN, but we expect 0
+        expect(result.feeAmount).toBeCloseTo(expectedAmount * 0.00145, 10);
       });
+
+      it.each(['invalid', '-1', 'Infinity', '0x10'])(
+        'returns a zero quote for unusable fee amount %p',
+        async (amount) => {
+          const result = await provider.calculateFees({
+            orderType: 'market',
+            isMaker: false,
+            amount,
+            symbol: 'BTC',
+          });
+
+          expect(result).toMatchObject({
+            feeAmount: 0,
+            protocolFeeAmount: 0,
+            metamaskFeeAmount: 0,
+          });
+        },
+      );
 
       it('returns FeeCalculationResult with correct structure', async () => {
         const result = await provider.calculateFees({
@@ -2474,9 +2625,7 @@ describe('HyperLiquidProvider', () => {
         );
 
         // Mock user fees API response with base rates and discounts
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00045', // 0.045% base taker rate
           userAddRate: '0.00015', // 0.015% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
@@ -2503,9 +2652,7 @@ describe('HyperLiquidProvider', () => {
         );
 
         // Mock user fees API response with invalid rates that will produce NaN
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: 'invalid', // Will cause parseFloat to return NaN
           userAddRate: 'invalid',
           activeReferralDiscount: 'invalid',
@@ -2524,6 +2671,51 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBe(145); // Includes MetaMask fee
       });
 
+      it.each([
+        ['partial rate', { userCrossRate: '0.0003junk' }],
+        ['non-finite rate', { userCrossRate: 'Infinity' }],
+        ['out-of-range rate', { userCrossRate: '1.1' }],
+        ['out-of-range discount', { activeReferralDiscount: '1.1' }],
+        ['negative discount', { activeReferralDiscount: '-0.1' }],
+        [
+          'out-of-range staking discount',
+          { activeStakingDiscount: { discount: '1.1' } },
+        ],
+        [
+          'negative staking discount',
+          { activeStakingDiscount: { discount: '-0.1' } },
+        ],
+      ])('falls back to base rates for %s', async (_label, override) => {
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+          '0xTestAddress123',
+        );
+        getMockUserFees().mockResolvedValue({
+          userCrossRate: '0.00030',
+          userAddRate: '0.00010',
+          userSpotCrossRate: '0.00050',
+          userSpotAddRate: '0.00020',
+          activeReferralDiscount: '0',
+          activeStakingDiscount: null,
+          ...override,
+        });
+
+        const result = await provider.calculateFees({
+          orderType: 'market',
+          isMaker: false,
+          amount: '100000',
+          symbol: 'BTC',
+        });
+
+        expect(result.protocolFeeRate).toBe(0.00045);
+        expect(result.feeAmount).toBe(145);
+        expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+          'Fee API Call Failed - Falling Back to Base Rates',
+          expect.objectContaining({
+            error: 'Invalid fee rates received from API',
+          }),
+        );
+      });
+
       it('falls back to base rates when API returns negative fee rates', async () => {
         const testAddress = '0xTestAddress123';
         mockWalletService.getUserAddressWithDefault.mockResolvedValue(
@@ -2531,9 +2723,7 @@ describe('HyperLiquidProvider', () => {
         );
 
         // Mock user fees API response with negative rates
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '-0.0003', // Negative rate - invalid
           userAddRate: '0.0001',
           activeReferralDiscount: '0.00',
@@ -2558,9 +2748,7 @@ describe('HyperLiquidProvider', () => {
           testAddress,
         );
 
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00035', // Taker rate
           userAddRate: '0.00008', // Maker rate (lower)
           userSpotCrossRate: '0.00070',
@@ -2588,9 +2776,7 @@ describe('HyperLiquidProvider', () => {
           testAddress,
         );
 
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00045', // 0.045% base taker rate
           userAddRate: '0.00015', // 0.015% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
@@ -2617,9 +2803,7 @@ describe('HyperLiquidProvider', () => {
           testAddress,
         );
 
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00045', // 0.045% base taker rate
           userAddRate: '0.00015', // 0.015% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
@@ -2646,9 +2830,7 @@ describe('HyperLiquidProvider', () => {
           testAddress,
         );
 
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00045', // 0.045% base taker rate
           userAddRate: '0.00015', // 0.015% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
@@ -2676,9 +2858,7 @@ describe('HyperLiquidProvider', () => {
           testAddress,
         );
 
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
+        getMockUserFees().mockResolvedValue({
           userCrossRate: '0.00045', // 0.045% base taker rate
           userAddRate: '0.00015', // 0.015% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
@@ -2699,21 +2879,19 @@ describe('HyperLiquidProvider', () => {
         expect(result.feeAmount).toBeCloseTo(113.65, 2);
       });
 
-      it('handles zero discounts correctly', async () => {
+      it('treats empty optional discounts as zero', async () => {
         const testAddress = '0xTestAddress123';
         mockWalletService.getUserAddressWithDefault.mockResolvedValue(
           testAddress,
         );
 
-        (
-          mockClientService.getInfoClient().userFees as jest.Mock
-        ).mockResolvedValue({
-          userCrossRate: '0.00045', // 0.045% base taker rate
-          userAddRate: '0.00015', // 0.015% base maker rate
+        getMockUserFees().mockResolvedValue({
+          userCrossRate: '0.00030', // 0.030% base taker rate
+          userAddRate: '0.00010', // 0.010% base maker rate
           userSpotCrossRate: '0.00070', // 0.070% spot taker rate
           userSpotAddRate: '0.00040', // 0.040% spot maker rate
-          activeReferralDiscount: '0.00', // No referral discount
-          activeStakingDiscount: { discount: '0.00' }, // No staking discount
+          activeReferralDiscount: '',
+          activeStakingDiscount: { discount: '' },
         });
 
         const result = await provider.calculateFees({
@@ -2723,9 +2901,8 @@ describe('HyperLiquidProvider', () => {
           symbol: 'BTC',
         });
 
-        // Should use base rates without discounts
-        expect(result.feeRate).toBe(0.00145); // 0.045% + 0.1% MetaMask
-        expect(result.feeAmount).toBe(145);
+        expect(result.feeRate).toBe(0.0013); // 0.030% + 0.1% MetaMask
+        expect(result.feeAmount).toBe(130);
       });
 
       it('applies 2× fee multiplier for HIP-3 assets', async () => {
@@ -2850,7 +3027,7 @@ describe('HyperLiquidProvider', () => {
       describe('calculateFees with fee discount', () => {
         beforeEach(() => {
           // Reset mocks for fee discount tests
-          (mockClientService.getInfoClient().userFees as jest.Mock).mockClear();
+          getMockUserFees().mockClear();
           mockWalletService.getUserAddressWithDefault.mockRejectedValue(
             new Error('No wallet connected'),
           );
@@ -2952,6 +3129,18 @@ describe('HyperLiquidProvider', () => {
           expect(result.feeAmount).toBeCloseTo(115, 10);
         });
 
+        it('rejects a non-finite fee discount result', async () => {
+          provider.setUserFeeDiscount(Number.POSITIVE_INFINITY);
+
+          await expect(
+            provider.calculateFees({
+              orderType: 'market',
+              amount: '100000',
+              symbol: 'BTC',
+            }),
+          ).rejects.toThrow('Invalid fee calculation result');
+        });
+
         it('combines discount with user staking discount', async () => {
           // Arrange
           const rewardsDiscountBips = 2000; // 20% MetaMask rewards discount in basis points
@@ -2965,9 +3154,7 @@ describe('HyperLiquidProvider', () => {
           mockWalletService.getUserAddressWithDefault.mockResolvedValue(
             '0x123',
           );
-          (
-            mockClientService.getInfoClient().userFees as jest.Mock
-          ).mockResolvedValue({
+          getMockUserFees().mockResolvedValue({
             feeSchedule: {
               fee: '0.03', // 0.03% protocol fee (better than base)
             },
