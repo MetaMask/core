@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimize C2 domain blocklist lookups by switching internal storage from `Array` to `Set`, reducing per-lookup complexity from O(n) to O(1) ([#6388](https://github.com/MetaMask/core/pull/6388))
 - Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
 
+### Fixed
+
+- Restrict address poisoning known recipients to user-chosen send payees (`simpleSend`, decoded token transfer recipients, `swapAndSendRecipient`, and nested batch sends) so confirmed approves, swaps, and contract interactions no longer add token or protocol addresses to the comparison set ([#9943](https://github.com/MetaMask/core/pull/9943))
+
 ## [17.4.0]
 
 ### Added
@@ -21,10 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.2` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
-
-### Fixed
-
-- Restrict address poisoning known recipients to user-chosen send payees (`simpleSend`, decoded token transfer recipients, `swapAndSendRecipient`, and nested batch sends) so confirmed approves, swaps, and contract interactions no longer add token or protocol addresses to the comparison set ([#9943](https://github.com/MetaMask/core/pull/9943))
 
 ## [17.3.1]
 

@@ -1,7 +1,7 @@
 import type { TransactionDescription } from '@ethersproject/abi';
 
 import { TransactionType } from '../types.js';
-import type { NestedTransactionMetadata, TransactionMeta } from '../types.js';
+import type { TransactionMeta } from '../types.js';
 import { decodeTransactionData } from './transaction-type.js';
 
 const TOKEN_TRANSFER_TYPES = [
@@ -12,7 +12,6 @@ const TOKEN_TRANSFER_TYPES = [
 
 type SendRecipientSource = {
   data?: string;
-  swapAndSendRecipient?: string;
   to?: string;
   type?: TransactionType;
 };
@@ -55,7 +54,7 @@ export function getEffectiveRecipient(
  * Included:
  * - `simpleSend` `to`, preferring `txParamsOriginal` when present
  * - Decoded `to` / `_to` for ERC-20/721/1155 transfer methods
- * - `swapAndSendRecipient` when set
+ * - `swapAndSendRecipient` whenever set (only ever a user-entered payee)
  * - Nested batch calls that themselves are sends or token transfers
  * - Untyped transactions with no calldata, treated as legacy native sends
  *
@@ -63,11 +62,16 @@ export function getEffectiveRecipient(
  * @returns Deduplicated send recipient addresses, possibly empty.
  */
 export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
+  // Swap the whole params object rather than falling back field by field.
+  // `txParamsOriginal` is a `cloneDeep` snapshot of the pre-wrapping params, so
+  // its `to` and `data` always describe the same call. Mixing an original `to`
+  // with a wrapped `data` would misread an untyped transaction as a contract
+  // call and drop a real payee.
   const params = transactionMeta.txParamsOriginal ?? transactionMeta.txParams;
   const recipients: string[] = [];
   const seen = new Set<string>();
 
-  const addRecipient = (address?: string) => {
+  const addRecipient = (address?: string): void => {
     const normalized = address?.toLowerCase();
     if (!address || !normalized || seen.has(normalized)) {
       return;
@@ -79,7 +83,6 @@ export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
   addRecipient(
     getSendRecipientFromSource({
       data: params?.data,
-      swapAndSendRecipient: transactionMeta.swapAndSendRecipient,
       to: params?.to,
       type: transactionMeta.type,
     }),
@@ -87,32 +90,17 @@ export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
   addRecipient(transactionMeta.swapAndSendRecipient);
 
   for (const nestedTransaction of transactionMeta.nestedTransactions ?? []) {
-    addRecipient(getSendRecipientFromNestedTransaction(nestedTransaction));
+    addRecipient(getSendRecipientFromSource(nestedTransaction));
   }
 
   return recipients;
 }
 
-function getSendRecipientFromNestedTransaction(
-  nestedTransaction: NestedTransactionMetadata,
-): string | undefined {
-  return getSendRecipientFromSource({
-    data: nestedTransaction.data,
-    to: nestedTransaction.to,
-    type: nestedTransaction.type,
-  });
-}
-
 function getSendRecipientFromSource({
   data,
-  swapAndSendRecipient,
   to,
   type,
 }: SendRecipientSource): string | undefined {
-  if (type === TransactionType.swapAndSend) {
-    return swapAndSendRecipient;
-  }
-
   if (isNativeSendType(type, data)) {
     return to;
   }

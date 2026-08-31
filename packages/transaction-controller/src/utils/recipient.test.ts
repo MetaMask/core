@@ -115,7 +115,7 @@ describe('getSendRecipients', () => {
       TOKEN_RECIPIENT,
     );
 
-    expect(getSendRecipients(transactionMeta)).toEqual([TOKEN_RECIPIENT]);
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
   it('prefers txParamsOriginal.to when container wrapping replaced the recipient', () => {
@@ -132,7 +132,7 @@ describe('getSendRecipients', () => {
       },
     };
 
-    expect(getSendRecipients(transactionMeta)).toEqual([TOKEN_RECIPIENT]);
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
   it('returns the decoded payee for token transfers and ignores the token contract', () => {
@@ -145,7 +145,7 @@ describe('getSendRecipients', () => {
       getSendRecipients(transactionMeta).map((address) =>
         address.toLowerCase(),
       ),
-    ).toEqual([TOKEN_RECIPIENT]);
+    ).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
   it('returns the decoded payee for transferFrom transactions', () => {
@@ -158,7 +158,7 @@ describe('getSendRecipients', () => {
       getSendRecipients(transactionMeta).map((address) =>
         address.toLowerCase(),
       ),
-    ).toEqual([TOKEN_RECIPIENT]);
+    ).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
   it('returns no recipients when token transfer calldata cannot be decoded', () => {
@@ -167,7 +167,7 @@ describe('getSendRecipients', () => {
       '0x01',
     );
 
-    expect(getSendRecipients(transactionMeta)).toEqual([]);
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
   });
 
   it('returns no recipients for approve transactions', () => {
@@ -176,7 +176,7 @@ describe('getSendRecipients', () => {
       '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
     );
 
-    expect(getSendRecipients(transactionMeta)).toEqual([]);
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
   });
 
   it('returns no recipients for contract interactions', () => {
@@ -185,7 +185,7 @@ describe('getSendRecipients', () => {
       TRANSFER_DATA,
     );
 
-    expect(getSendRecipients(transactionMeta)).toEqual([]);
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
   });
 
   it('returns swapAndSendRecipient for swap-and-send transactions', () => {
@@ -194,7 +194,7 @@ describe('getSendRecipients', () => {
       swapAndSendRecipient: TOKEN_RECIPIENT,
     };
 
-    expect(getSendRecipients(transactionMeta)).toEqual([TOKEN_RECIPIENT]);
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
   it('includes nested send and transfer payees from a batch', () => {
@@ -226,7 +226,7 @@ describe('getSendRecipients', () => {
       getSendRecipients(transactionMeta).map((address) =>
         address.toLowerCase(),
       ),
-    ).toEqual([nestedSendRecipient, TOKEN_RECIPIENT]);
+    ).toStrictEqual([nestedSendRecipient, TOKEN_RECIPIENT]);
   });
 
   it('treats untyped transactions with no calldata as native sends', () => {
@@ -236,7 +236,7 @@ describe('getSendRecipients', () => {
       TOKEN_RECIPIENT,
     );
 
-    expect(getSendRecipients({ ...transactionMeta, type: undefined })).toEqual([
+    expect(getSendRecipients({ ...transactionMeta, type: undefined })).toStrictEqual([
       TOKEN_RECIPIENT,
     ]);
   });
