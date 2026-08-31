@@ -180,6 +180,11 @@ async function executeFiatQuotePipeline(
       transactionId,
     });
 
+    // `getRampsQuote` asks for fee-on-top, so this quote's `amountOut` is
+    // `adjustedAmount` before the ramp's fee rather than after it, and the ramp
+    // charges `adjustedAmount` plus that fee. The relay leg is funded in full
+    // as a result; nothing here reads `amountOut`, but consumers of
+    // `fiatPayment.rampsQuote` see the pre-fee number.
     const fiatQuote = await getRampsQuote({
       adjustedAmount,
       fiatAsset,

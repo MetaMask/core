@@ -112,10 +112,11 @@ export async function getRampsQuote({
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
-    // The user entered `adjustedAmount` and expects to receive that much
-    // crypto, with the ramp's fee charged on top. A fee-inclusive quote reports
-    // `amountOut` as what is left after fees, so the confirmation would promise
-    // less than the user asked for while the widget charged the full amount.
+    // Both callers need `adjustedAmount` to arrive in full, with the ramp's fee
+    // charged on top: the direct mUSD path because it is the amount the user
+    // entered, the Relay path because it is the user's amount plus the relay
+    // fees the crypto leg has to fund. A fee-inclusive quote reports
+    // `amountOut` as what is left after the ramp's fee, which is short on both.
     isFeeExcludedFromFiat: true,
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,

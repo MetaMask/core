@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Request fee-on-top quotes for the direct mUSD fiat path so the quoted output matches the amount the user entered. The ramps quote previously reported the amount left after fees, so the confirmation promised more mUSD than the order delivered. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Request fee-on-top ramps quotes for both fiat pay paths, direct mUSD and Relay, so the quoted output matches the amount the path asked the ramp for. The ramps quote previously reported the amount left after the ramp's fee, so on direct mUSD the confirmation promised more mUSD than the order delivered, and on Relay the crypto leg was underfunded by the ramp's fee. Two consequences on the Relay path: the amount charged rises by the ramp's fee, and `fiatPayment.rampsQuote.quote.amountOut` is now the pre-fee amount, which consumers reporting it (for example client analytics) will see change. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Clamp missing, non-numeric and negative ramps fee fields to zero so a single malformed field cannot produce a negative or `NaN` transaction fee. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ## [27.1.0]
