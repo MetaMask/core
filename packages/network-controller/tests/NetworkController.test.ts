@@ -421,7 +421,10 @@ describe('NetworkController', () => {
       );
     });
 
-    it('corrects RPC endpoint types based on their URLs', async () => {
+    it.each([
+      'https://mainnet.infura.io/v3/{infuraProjectId}',
+      'https://mainnet.infura.io/v3/infura-project-id',
+    ])('corrects RPC endpoint types based on their URLs', async (url) => {
       await withController(
         {
           state: {
@@ -429,7 +432,7 @@ describe('NetworkController', () => {
               '0x1337': buildCustomNetworkConfiguration({
                 rpcEndpoints: [
                   buildCustomRpcEndpoint({
-                    url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                    url,
                   }),
                 ],
               }),
@@ -4315,6 +4318,27 @@ describe('NetworkController', () => {
         expect(result.rpcEndpoints[0]).toMatchObject({
           type: RpcEndpointType.Custom,
           url: 'https://custom.endpoint',
+        });
+      });
+    });
+
+    it('infers an Infura RPC endpoint when adding a network', async () => {
+      const rpcEndpoint = {
+        networkClientId: 'some-network',
+        url: 'https://some-network.infura.io/v3/{infuraProjectId}',
+      };
+
+      await withController(({ controller }) => {
+        const result = controller.addNetwork(
+          buildAddNetworkFields({
+            rpcEndpoints: [rpcEndpoint],
+          }),
+        );
+
+        expect(result.rpcEndpoints[0]).toStrictEqual({
+          networkClientId: 'some-network',
+          type: RpcEndpointType.Infura,
+          url: 'https://some-network.infura.io/v3/{infuraProjectId}',
         });
       });
     });
