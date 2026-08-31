@@ -102,6 +102,15 @@ type AddTransactionBatchRequest = {
   ) => void;
 };
 
+type AddTransactionBatchRequestWithBatchId = Omit<
+  AddTransactionBatchRequest,
+  'request'
+> & {
+  request: Omit<TransactionBatchRequest, 'batchId'> & {
+    batchId: Hex;
+  };
+};
+
 type IsAtomicBatchSupportedRequestInternal = {
   address: Hex;
   chainIds?: Hex[];
@@ -153,7 +162,7 @@ export async function addTransactionBatch(
   }
 
   const batchId = transactionBatchRequest.batchId ?? generateBatchId();
-  const requestWithBatchId = {
+  const requestWithBatchId: AddTransactionBatchRequestWithBatchId = {
     ...request,
     request: {
       ...transactionBatchRequest,
@@ -355,7 +364,7 @@ function buildBatchAuthorizationList({
  * @returns The batch result object including the batch ID.
  */
 async function addTransactionBatchWith7702(
-  request: AddTransactionBatchRequest,
+  request: AddTransactionBatchRequestWithBatchId,
 ): Promise<TransactionBatchResult> {
   const {
     addTransaction,
@@ -367,7 +376,7 @@ async function addTransactionBatchWith7702(
   const {
     atomic,
     authorizationList: providedAuthorizationList,
-    batchId: batchIdOverride,
+    batchId,
     disableUpgrade,
     from,
     gasFeeToken,
@@ -490,7 +499,6 @@ async function addTransactionBatchWith7702(
 
   log('Adding batch transaction', txParams, networkClientId);
 
-  const batchId = batchIdOverride ?? generateBatchId();
   setBatchTransactionCount(request.update, batchId, 1);
 
   const securityAlertResponse = securityAlertId
@@ -613,7 +621,7 @@ function waitForTransactionStatus(
  * @returns The batch result object including the batch ID.
  */
 async function addTransactionBatchWithHook(
-  request: AddTransactionBatchRequest,
+  request: AddTransactionBatchRequestWithBatchId,
 ): Promise<TransactionBatchResult> {
   const {
     messenger,
@@ -623,7 +631,7 @@ async function addTransactionBatchWithHook(
   } = request;
 
   const {
-    batchId: batchIdOverride,
+    batchId,
     from,
     networkClientId,
     origin,
@@ -670,8 +678,6 @@ async function addTransactionBatchWithHook(
   }
 
   let txBatchMeta: TransactionBatchMeta | undefined;
-  const batchId = batchIdOverride ?? generateBatchId();
-
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
     origin,

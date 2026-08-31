@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^20.0.0` to `^20.1.0` ([#10004](https://github.com/MetaMask/core/pull/10004))
 - Bump `@metamask/ramps-controller` from `^20.1.0` to `^20.2.0` ([#10005](https://github.com/MetaMask/core/pull/10005))
 
+### Fixed
+
+- Prevent Relay quotes from offering EIP-7702 gas fee token sponsorship when the source account does not support EIP-7702 ([#9897](https://github.com/MetaMask/core/pull/9897))
+
 ## [27.0.0]
 
 ### Changed
@@ -55,7 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent Relay quotes from offering EIP-7702 gas fee token sponsorship when the source account does not support EIP-7702 ([#9897](https://github.com/MetaMask/core/pull/9897))
 - Read the `stableTokens` remote feature flag in `getStablecoins` instead of `stable-tokens` ([#9885](https://github.com/MetaMask/core/pull/9885))
 
 ## [26.3.0]
