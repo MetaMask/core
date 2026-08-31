@@ -428,6 +428,7 @@ async function normalizeQuote(
       sourceNetwork,
       targetNetwork,
     },
+    isInputBased: original.request.tradeType === 'exactInput',
     original: {
       ...original,
       metamask,

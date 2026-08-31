@@ -712,6 +712,27 @@ describe('PerpsController', () => {
         },
       );
     });
+
+    it('forwards an explicit provider route for max leverage', async () => {
+      const asset = 'BTC';
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      jest
+        .spyOn(mockMarketDataServiceInstance, 'getMaxLeverage')
+        .mockResolvedValue(17);
+
+      const result = await controller.getMaxLeverage(asset, 'myx');
+
+      expect(result).toBe(17);
+      expect(mockMarketDataServiceInstance.getMaxLeverage).toHaveBeenCalledWith(
+        {
+          provider: mockProvider,
+          asset,
+          providerId: 'myx',
+          context: expect.any(Object),
+        },
+      );
+    });
   });
 
   describe('getWithdrawalRoutes', () => {

@@ -124,7 +124,12 @@ async function getQuotesForRequest(
 
     const normalized = await Promise.all(
       fulfilledResults.map((result) =>
-        normalizeQuote(result, quoteRequest, messenger),
+        normalizeQuote(
+          result,
+          quoteRequest,
+          messenger,
+          body.tradeType === ServerTradeType.ExactInput,
+        ),
       ),
     );
 
@@ -322,6 +327,7 @@ async function normalizeQuote(
   result: FulfilledServerQuoteResult,
   quoteRequest: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
+  isInputBased: boolean,
 ): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
   const { gasless } = quote;
@@ -369,6 +375,7 @@ async function normalizeQuote(
       },
       targetNetwork: ZERO_FIAT_VALUE,
     },
+    isInputBased,
     original: {
       client: {
         gasLimits: sourceNetwork.gasLimits,
