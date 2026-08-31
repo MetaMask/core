@@ -106,8 +106,9 @@ export const toQuoteMetadataV1 = (
     }),
     ...includeIfTruthy(priceData?.priceImpact, {
       priceImpact: toTokenAmountValues(priceData?.priceImpact),
-      // Use priceImpact as cost
-      cost: toTokenAmountValues(priceData?.priceImpact),
+    }),
+    ...includeIfTruthy(priceData?.cost, {
+      cost: toTokenAmountValues(priceData?.cost),
     }),
     ...includeIfTruthy(relayer?.[0], {
       relayerFee: toTokenAmountValues(relayer?.[0]),

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Read `priceData.cost` from backend-provided quote metadata and use it to sort quotes ([#10012](https://github.com/MetaMask/core/pull/10012))
+
 ## [80.1.0]
 
 ### Added
