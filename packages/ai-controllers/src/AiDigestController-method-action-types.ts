@@ -7,11 +7,10 @@ import type { AiDigestController } from './AiDigestController.js';
 
 /**
  * Fetches market insights for a given asset identifier.
- * Passthrough to the digest service; clients own freshness.
  *
  * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
  * market symbol (e.g. `ETH`). The service handles choosing the correct API
- * query parameter automatically.
+ * query parameter automatically. Clients own freshness/caching.
  *
  * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
  * @returns The market insights report, or `null` if none exists.
@@ -23,7 +22,8 @@ export type AiDigestControllerFetchMarketInsightsAction = {
 
 /**
  * Fetches the market overview report.
- * Passthrough to the digest service; clients own freshness.
+ *
+ * Clients own freshness/caching.
  *
  * @returns The market overview report, or `null` if none exists.
  */
