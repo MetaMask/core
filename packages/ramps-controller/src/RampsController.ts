@@ -217,15 +217,17 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
 )[];
 
 /**
- * Other controller actions RampsController calls via the messenger.
- * Hosts that enable autoramp creation must delegate these from the root
- * messenger so the controller can resolve the vendor customer identity from
- * Profile Sync. `KeyringController:signPersonalMessage` is required for Money
- * Account self-hosted wallet registration (EIP-191 ownership proof).
+ * Every external controller action RampsController calls via the messenger,
+ * which hosts must delegate from the root messenger.
+ * `AuthenticationController:getSessionProfile` resolves the vendor customer
+ * identity from Profile Sync, and `KeyringController:signPersonalMessage` signs
+ * the EIP-191 ownership proof for Money Account self-hosted wallet
+ * registration; both are only exercised by the autoramp paths.
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'KeyringController:signPersonalMessage',
+  'RemoteFeatureFlagController:getState',
 ] as const;
 
 /**
@@ -811,6 +813,8 @@ export type RampsControllerOrderStatusChangedEvent = {
 
 /**
  * Published when an autoramp's last-seen status changes after refresh or push.
+ * Every transition is published so analytics can observe the full lifecycle;
+ * `shouldNotify` distinguishes the subset the UI should surface to the user.
  */
 export type RampsControllerAutorampStatusChangedEvent = {
   type: `${typeof controllerName}:autorampStatusChanged`;

@@ -101,6 +101,30 @@ describe('RampsController', () => {
     });
   });
 
+  describe('RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS', () => {
+    it('includes every external controller action that RampsController calls', async () => {
+      expect.hasAssertions();
+      const controllerPath = path.join(__dirname, 'RampsController.ts');
+      const source = await fs.promises.readFile(controllerPath, 'utf-8');
+      const callPattern =
+        /messenger\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
+      const calledActions = new Set<string>();
+      let match: RegExpExecArray | null;
+      while ((match = callPattern.exec(source)) !== null) {
+        if (!match[1].startsWith('RampsController:')) {
+          calledActions.add(match[1]);
+        }
+      }
+      const requiredSet = new Set(
+        RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS as readonly string[],
+      );
+      const missing = [...calledActions].filter((a) => !requiredSet.has(a));
+      const extra = [...requiredSet].filter((a) => !calledActions.has(a));
+      expect(missing).toHaveLength(0);
+      expect(extra).toHaveLength(0);
+    });
+  });
+
   describe('constructor', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
@@ -12980,7 +13004,6 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
     actions: [
       ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
       ...RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
-      'RemoteFeatureFlagController:getState',
     ],
   });
   return messenger;
