@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stop incorrectly prefixing the session client public key onto wrapped `encryptionDataKey` and `ukycCapabilityToken` values from `wrapEncryptionKey`. `data` is now ciphertext+tag only; the server already has the client public key from session creation. ([#10036](https://github.com/MetaMask/core/pull/10036))
 - Clear leftover MoonPay `sessionToken`, `accessToken`, and Check/Auth frame credentials when `initialize` or `createVendorCustomer` switches to another vendor, so `buildCheckFrameUrl` cannot return a MoonPay URL for a consents-path session. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Rewind the consents path when SumSub fails before completion (thrown step or SDK close without `Completed`), instead of refreshing user status and forcing `phase` to `done`. A terminal UKYC rejection after the SDK completed still finishes as `done` so the decision can be reflected in user status. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Make `createVendorCustomer` a no-op during in-progress phases (matching `initialize`), so a vendor switch cannot leave Check/Auth frames attached to the wrong vendor. ([#9908](https://github.com/MetaMask/core/pull/9908))
