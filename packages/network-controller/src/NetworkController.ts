@@ -1211,6 +1211,33 @@ type InferredRpcEndpoint =
       type: RpcEndpointType.Custom;
     });
 
+function isInfuraRpcEndpoint(
+  rpcEndpointFields: RpcEndpointFields,
+): rpcEndpointFields is Extract<
+  InferredRpcEndpoint,
+  { type: RpcEndpointType.Infura }
+> {
+  return (
+    rpcEndpointFields.type === RpcEndpointType.Infura &&
+    rpcEndpointFields.networkClientId !== undefined
+  );
+}
+
+function isCustomRpcEndpoint(
+  rpcEndpointFields: RpcEndpointFields,
+): rpcEndpointFields is Extract<
+  InferredRpcEndpoint,
+  { type: RpcEndpointType.Custom }
+> {
+  return rpcEndpointFields.type === RpcEndpointType.Custom;
+}
+
+function hasNetworkClientId(
+  rpcEndpoint: InferredRpcEndpoint,
+): rpcEndpoint is RpcEndpoint {
+  return rpcEndpoint.networkClientId !== undefined;
+}
+
 /**
  * Checks whether an RPC URL is a MetaMask Infura endpoint. The URL may contain
  * either the placeholder persisted in built-in network configurations or the
@@ -1237,10 +1264,7 @@ function inferRpcEndpointType(
   infuraProjectId: string,
 ): InferredRpcEndpoint {
   if (isInfuraEndpointUrl(rpcEndpointFields.url, infuraProjectId)) {
-    if (
-      rpcEndpointFields.type === RpcEndpointType.Infura &&
-      rpcEndpointFields.networkClientId !== undefined
-    ) {
+    if (isInfuraRpcEndpoint(rpcEndpointFields)) {
       return rpcEndpointFields;
     }
 
@@ -1253,7 +1277,7 @@ function inferRpcEndpointType(
     };
   }
 
-  if (rpcEndpointFields.type === RpcEndpointType.Custom) {
+  if (isCustomRpcEndpoint(rpcEndpointFields)) {
     return rpcEndpointFields;
   }
 
@@ -1281,7 +1305,7 @@ function normalizeNetworkConfiguration(
       infuraProjectId,
     );
 
-    if (inferredRpcEndpoint.networkClientId === undefined) {
+    if (!hasNetworkClientId(inferredRpcEndpoint)) {
       throw new Error(
         `Network configuration '${networkConfiguration.name}' has an RPC endpoint without a network client ID`,
       );
@@ -1318,7 +1342,6 @@ function getInitialState(
     state?.networkConfigurationsByChainId ??
     defaultState.networkConfigurationsByChainId;
 
-  let hasChanges = false;
   const normalizedNetworkConfigurationsByChainId = Object.entries(
     networkConfigurationsByChainId,
   ).reduce<Record<Hex, NetworkConfiguration>>(
@@ -1327,7 +1350,6 @@ function getInitialState(
         networkConfiguration,
         infuraProjectId,
       );
-      hasChanges ||= normalizedNetworkConfiguration !== networkConfiguration;
       normalizedConfigurations[chainId as Hex] = normalizedNetworkConfiguration;
       return normalizedConfigurations;
     },
@@ -1337,9 +1359,7 @@ function getInitialState(
   return {
     ...defaultState,
     ...state,
-    networkConfigurationsByChainId: hasChanges
-      ? normalizedNetworkConfigurationsByChainId
-      : networkConfigurationsByChainId,
+    networkConfigurationsByChainId: normalizedNetworkConfigurationsByChainId,
   };
 }
 
