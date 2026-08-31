@@ -1,3 +1,5 @@
+import { HyperliquidError } from '@nktkas/hyperliquid';
+
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
   CHASE_ORDER_CONFIG,
@@ -39,7 +41,9 @@ import {
 
 // The HyperLiquid SDK is never exercised directly: every exchange and info call
 // goes through the mocked client service below.
-jest.mock('@nktkas/hyperliquid', () => ({}));
+jest.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class MockHyperliquidError extends Error {},
+}));
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
@@ -91,6 +95,16 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
 // Mock TradingReadinessCache - global singleton for signing operation caching
 // Use jest.createMockFromModule for proper mock creation
 jest.mock('../../../src/services/TradingReadinessCache');
+
+class TestApiRequestError extends HyperliquidError {
+  readonly response: unknown;
+
+  constructor(response: unknown, message?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.response = response;
+  }
+}
 
 const MockedHyperLiquidClientService =
   HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
@@ -334,6 +348,16 @@ const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
     status: 'ok',
     response: { data: { statuses: ['success'] } },
   }),
+  cancelByCloid: jest
+    .fn()
+    .mockImplementation((request: { cancels: unknown[] }) =>
+      Promise.resolve({
+        status: 'ok',
+        response: {
+          data: { statuses: request.cancels.map(() => 'success') },
+        },
+      }),
+    ),
   withdraw3: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
@@ -3130,16 +3154,31 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result.success).toBe(true);
       expect(result.childOrderIds).toStrictEqual(['11', '22', '33']);
+      expect(result.acceptedChildren).toStrictEqual([
+        { orderId: '11', state: 'resting' },
+        { orderId: '22', state: 'resting' },
+        { orderId: '33', state: 'resting' },
+      ]);
+      expect(result.submittedSize).toBe('1');
+      expect(result.acceptedSize).toBe('1');
+      expect(result.weightedAverageLimitPrice).toBe('2499.95');
+      expect(result.averagePrice).toBeUndefined();
       expect(result.orderId).toMatch(/^scale:/u);
     });
 
-    it('fails when the ladder rested nothing', async () => {
+    it('fails when every rung is rejected', async () => {
       useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
             status: 'ok',
             response: {
-              data: { statuses: [{ error: 'Insufficient margin' }] },
+              data: {
+                statuses: [
+                  { error: 'Insufficient margin' },
+                  { error: 'Insufficient margin' },
+                  { error: 'Insufficient margin' },
+                ],
+              },
             },
           }),
         },
@@ -3157,7 +3196,34 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_REJECTED);
     });
 
-    it('reports filled rungs but keeps only resting rungs in a recovery group', async () => {
+    it.each([
+      ['missing', undefined],
+      ['non-array', { resting: { oid: 11 } }],
+    ])('rejects %s placement statuses', async (_label, statuses) => {
+      useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses } },
+          }),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+      });
+    });
+
+    it('reports accepted IDs after a non-ok response but keeps only resting rungs recoverable', async () => {
       const cancel = jest
         .fn()
         .mockResolvedValueOnce({
@@ -3173,11 +3239,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
-            status: 'ok',
+            status: 'err',
             response: {
               data: {
                 statuses: [
-                  { filled: { oid: 11 } },
+                  {
+                    filled: { oid: 11, avgPx: '2050', totalSz: '0.2' },
+                  },
                   { resting: { oid: 22 } },
                   { error: 'Insufficient margin' },
                 ],
@@ -3199,8 +3267,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
-        childOrderIds: ['11', '22'],
+        childOrderIds: ['22'],
         submittedSize: '1',
+        acceptedSize: '0.6667',
+        filledSize: '0.2',
+        averagePrice: '2050',
       });
       expect(placed.orderId).toMatch(/^scale:/u);
       if (!placed.orderId) {
@@ -3373,6 +3444,42 @@ describe('HyperLiquidProvider - strategy order types', () => {
           { a: 1, o: 33 },
         ],
       });
+    });
+
+    it('cleans a waiting child instead of registering it for later recovery', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          data: {
+            statuses: [
+              'waitingForFill',
+              { error: 'Insufficient margin' },
+              { error: 'Insufficient margin' },
+            ],
+          },
+        },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+      });
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+      });
+      expect(placed.orderId).toBeUndefined();
+      const submittedOrders = order.mock.calls[0][0].orders;
+      expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+        cancels: [{ asset: 1, cloid: submittedOrders[0].c }],
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
 
     it('adds later Scale rungs to a partially recovered group', async () => {
@@ -4967,6 +5074,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     const partlyRested = {
       status: 'ok',
       response: {
+        type: 'order',
         data: {
           statuses: [
             { resting: { oid: 11 } },
@@ -4977,15 +5085,445 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
     };
 
-    it('retracts every rung when the ladder only partly rests', async () => {
+    const mixedStatuses = [
+      { resting: { oid: 11 } },
+      'waitingForFill',
+      { filled: { oid: 33, avgPx: '2400', totalSz: '0.1' } },
+      'waitingForTrigger',
+      { filled: { oid: 55, avgPx: '2800', totalSz: '0.05' } },
+      { error: 'Insufficient margin' },
+    ];
+
+    it.each(['resolved', 'thrown'] as const)(
+      'rejects and cleans every accepted status in a mixed %s response containing waiting children',
+      async (responseKind) => {
+        const response = {
+          status: 'ok' as const,
+          response: {
+            type: 'order' as const,
+            data: { statuses: mixedStatuses },
+          },
+        };
+        const order =
+          responseKind === 'resolved'
+            ? jest.fn().mockResolvedValue(response)
+            : jest
+                .fn()
+                .mockRejectedValue(
+                  new TestApiRequestError(
+                    response,
+                    'order 5: Insufficient margin',
+                  ),
+                );
+        const { exchangeClient } = useStrategyClients({
+          exchange: { order },
+        });
+
+        const placed = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'scale',
+          scaleMinPrice: '2000',
+          scaleMaxPrice: '3000',
+          scaleNumOrders: 6,
+        } satisfies OrderParams);
+
+        expect(placed).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_REJECTED,
+          childOrderIds: [],
+          acceptedChildren: [
+            { orderId: '11', state: 'resting' },
+            { state: 'waitingForFill' },
+            { orderId: '33', state: 'filled' },
+            { state: 'waitingForTrigger' },
+            { orderId: '55', state: 'filled' },
+          ],
+          submittedSize: '1',
+          acceptedSize: '0.8334',
+          filledSize: '0.15',
+          averagePrice: '2533.33333333333333333333',
+          weightedAverageLimitPrice: '2399.80801535877129829614',
+        });
+        expect(placed.orderId).toBeUndefined();
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 11 }],
+        });
+        const submittedOrders = order.mock.calls[0][0].orders;
+        expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+          cancels: [
+            { asset: 1, cloid: submittedOrders[1].c },
+            { asset: 1, cloid: submittedOrders[2].c },
+            { asset: 1, cloid: submittedOrders[3].c },
+            { asset: 1, cloid: submittedOrders[4].c },
+          ],
+        });
+      },
+    );
+
+    it('treats already-gone waiting-child cleanup as complete', async () => {
+      const response = {
+        status: 'ok' as const,
+        response: {
+          type: 'order' as const,
+          data: {
+            statuses: [
+              'waitingForFill',
+              'waitingForTrigger',
+              { error: 'Insufficient margin' },
+            ],
+          },
+        },
+      };
+      const cancelResponse = {
+        status: 'ok' as const,
+        response: {
+          type: 'cancel' as const,
+          data: {
+            statuses: [
+              {
+                error: 'Order was never placed, already canceled, or filled.',
+              },
+              'success',
+            ],
+          },
+        },
+      };
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(partlyRested),
+          order: jest.fn().mockResolvedValue(response),
+          cancelByCloid: jest
+            .fn()
+            .mockRejectedValue(new TestApiRequestError(cancelResponse)),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        childOrderIds: [],
+      });
+      expect(placed.orderId).toBeUndefined();
+      expect(exchangeClient.cancelByCloid).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects an all-waiting Scale batch and cleans every rung by CLOID', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          data: {
+            statuses: ['waitingForFill', 'waitingForTrigger', 'waitingForFill'],
+          },
+        },
+      });
+      const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        childOrderIds: [],
+      });
+      expect(placed.orderId).toBeUndefined();
+      const submittedOrders = order.mock.calls[0][0].orders;
+      expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+        cancels: submittedOrders.map((submittedOrder) => ({
+          asset: 1,
+          cloid: submittedOrder.c,
+        })),
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        'future status',
+        [
+          { resting: { oid: 11 } },
+          { scheduled: { oid: 22 } },
+          { error: 'Insufficient margin' },
+        ],
+        [1],
+        [11],
+      ],
+      [
+        'malformed status',
+        [
+          { resting: { oid: 11 } },
+          { filled: { oid: '22' } },
+          { error: 'Insufficient margin' },
+        ],
+        [1],
+        [11],
+      ],
+      [
+        'multi-key hybrid status',
+        [
+          { resting: { oid: 11 } },
+          { resting: { oid: 22 }, error: 'Unknown status' },
+          { error: 'Insufficient margin' },
+        ],
+        [1],
+        [11],
+      ],
+      ['truncated status array', [{ resting: { oid: 11 } }], [1, 2], [11]],
+      ['malformed status payload', { resting: { oid: 11 } }, [0, 1, 2], []],
+    ])(
+      'cancels every unclassified rung by CLOID for a %s',
+      async (_label, statuses, unclassifiedIndexes, restingOrderIds) => {
+        const order = jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses } },
+        });
+        const { exchangeClient } = useStrategyClients({
+          exchange: { order },
+        });
+
+        const placed = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'scale',
+          scaleMinPrice: '2000',
+          scaleMaxPrice: '3000',
+          scaleNumOrders: 3,
+        } satisfies OrderParams);
+
+        expect(placed).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        });
+        const submittedOrders = order.mock.calls[0][0].orders;
+        expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+          cancels: unclassifiedIndexes.map((index) => ({
+            asset: 1,
+            cloid: submittedOrders[index].c,
+          })),
+        });
+        expect(exchangeClient.cancel.mock.calls[0]?.[0]).toStrictEqual(
+          restingOrderIds.length > 0
+            ? {
+                cancels: restingOrderIds.map((orderId) => ({
+                  a: 1,
+                  o: orderId,
+                })),
+              }
+            : undefined,
+        );
+      },
+    );
+
+    it('keeps an unclassified rung retryable when CLOID cleanup is refused', async () => {
+      const order = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: {
+          data: {
+            statuses: [
+              { error: 'Insufficient margin' },
+              { scheduled: { oid: 22 } },
+              { error: 'Insufficient margin' },
+            ],
+          },
+        },
+      });
+      const cancelByCloid = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ error: 'Invalid nonce' }] } },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: ['success'] } },
+        });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order, cancelByCloid },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+        childOrderIds: [],
+      });
+      expect(placed.orderId).toMatch(/^scale:/u);
+      const submittedOrders = order.mock.calls[0][0].orders;
+      expect(cancelByCloid).toHaveBeenNthCalledWith(1, {
+        cancels: [{ asset: 1, cloid: submittedOrders[1].c }],
+      });
+
+      const retried = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(retried).toMatchObject({ success: true, orderId: placed.orderId });
+      expect(cancelByCloid).toHaveBeenNthCalledWith(2, {
+        cancels: [{ asset: 1, cloid: submittedOrders[1].c }],
+      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it('recovers a mixed Scale response thrown by the SDK', async () => {
+      const response = {
+        status: 'ok' as const,
+        response: {
+          type: 'order' as const,
+          data: {
+            statuses: [
+              { resting: { oid: 11 } },
+              { filled: { oid: 22, avgPx: '2475', totalSz: '0.2' } },
+              { error: 'Insufficient margin' },
+            ],
+          },
+        },
+      };
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest
+            .fn()
+            .mockRejectedValue(
+              new TestApiRequestError(response, 'order 2: Insufficient margin'),
+            ),
           cancel: jest.fn().mockResolvedValue({
             status: 'ok',
-            response: { data: { statuses: ['success', 'success'] } },
+            response: { data: { statuses: ['success'] } },
           }),
         },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(placed).toMatchObject({
+        success: true,
+        childOrderIds: ['11'],
+        acceptedChildren: [
+          { orderId: '11', state: 'resting' },
+          { orderId: '22', state: 'filled' },
+        ],
+        submittedSize: '1',
+        acceptedSize: '0.6667',
+        filledSize: '0.2',
+        averagePrice: '2475',
+        weightedAverageLimitPrice: '2249.96250187490625468727',
+      });
+
+      expect(
+        await provider.cancelOrder({
+          orderId: placed.orderId,
+          symbol: 'ETH',
+          orderType: 'scale',
+        }),
+      ).toMatchObject({ success: true });
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [{ a: 1, o: 11 }],
+      });
+    });
+
+    it.each([
+      [
+        'unknown status',
+        [
+          { resting: { oid: 11 } },
+          { error: 'Insufficient margin' },
+          'unknownStatus',
+        ],
+      ],
+      [
+        'invalid order ID',
+        [
+          { resting: { oid: 11 } },
+          { error: 'Insufficient margin' },
+          { resting: { oid: -1 } },
+        ],
+      ],
+      [
+        'hybrid accepted and error entry',
+        [
+          { resting: { oid: 11 } },
+          { error: 'Insufficient margin' },
+          { resting: { oid: 33 }, error: 'Invalid status' },
+        ],
+      ],
+    ])(
+      'cleans and rethrows a mixed response with a %s',
+      async (label, statuses) => {
+        const error = new TestApiRequestError(
+          {
+            status: 'ok',
+            response: { type: 'order', data: { statuses } },
+          },
+          `Malformed bulk response: ${label}`,
+        );
+        const order = jest.fn().mockRejectedValue(error);
+        const { exchangeClient } = useStrategyClients({ exchange: { order } });
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'scale',
+          scaleMinPrice: '2000',
+          scaleMaxPrice: '3000',
+          scaleNumOrders: 3,
+        } satisfies OrderParams);
+
+        expect(result).toMatchObject({
+          success: false,
+          error: `Malformed bulk response: ${label}`,
+        });
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 11 }],
+        });
+        const submittedOrders = order.mock.calls[0][0].orders;
+        expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+          cancels: [{ asset: 1, cloid: submittedOrders[2].c }],
+        });
+      },
+    );
+
+    it('preserves an all-rejected SDK error for existing error mapping', async () => {
+      const error = new TestApiRequestError(
+        {
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: {
+              statuses: [
+                { error: 'Multi-sig required' },
+                { error: 'Multi-sig required' },
+                { error: 'Multi-sig required' },
+              ],
+            },
+          },
+        },
+        'order 0: Multi-sig required',
+      );
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockRejectedValue(error) },
       });
 
       const result = await provider.placeOrder({
@@ -4998,17 +5536,78 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result).toMatchObject({
         success: false,
-        error: PERPS_ERROR_CODES.ORDER_REJECTED,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
       });
-      expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [
-          { a: 1, o: 11 },
-          { a: 1, o: 33 },
-        ],
-      });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.cancelByCloid).not.toHaveBeenCalled();
     });
 
-    it('reports submitted exposure when a partial ladder fills a rung', async () => {
+    it.each([
+      [
+        'top-level',
+        new TestApiRequestError(
+          { status: 'err', response: 'Invalid nonce' },
+          'Invalid nonce',
+        ),
+        PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
+      ],
+      [
+        'malformed',
+        new TestApiRequestError(
+          {
+            status: 'ok',
+            response: { type: 'order', data: { statuses: 'invalid' } },
+          },
+          'Malformed bulk response',
+        ),
+        'Malformed bulk response',
+      ],
+      ['unrelated SDK', new HyperliquidError('SDK failure'), 'SDK failure'],
+      ['non-SDK', new Error('Network unavailable'), 'Network unavailable'],
+    ])('does not unwrap a %s SDK error', async (_label, error, message) => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockRejectedValue(error) },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({ success: false, error: message });
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it('keeps accepted rungs when the ladder only partly rests', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          order: jest.fn().mockResolvedValue(partlyRested),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({
+        success: true,
+        childOrderIds: ['11', '33'],
+        submittedSize: '1',
+        acceptedSize: '0.6667',
+        weightedAverageLimitPrice: '2499.92500374981250937453',
+      });
+      expect(result.averagePrice).toBeUndefined();
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+
+    it('returns filled and resting IDs but cancels only resting rungs', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
@@ -5016,7 +5615,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
             response: {
               data: {
                 statuses: [
-                  { filled: { oid: 11 } },
+                  {
+                    filled: { oid: 11, avgPx: '2010', totalSz: '0.25' },
+                  },
                   { error: 'Insufficient margin' },
                   { resting: { oid: 33 } },
                 ],
@@ -5039,11 +5640,26 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       expect(result).toMatchObject({
-        success: false,
-        error: PERPS_ERROR_CODES.ORDER_REJECTED,
-        childOrderIds: ['11'],
+        success: true,
+        childOrderIds: ['33'],
+        acceptedChildren: [
+          { orderId: '11', state: 'filled' },
+          { orderId: '33', state: 'resting' },
+        ],
         submittedSize: '1',
+        acceptedSize: '0.6667',
+        filledSize: '0.25',
+        averagePrice: '2010',
+        weightedAverageLimitPrice: '2499.92500374981250937453',
       });
+
+      const cancelled = await provider.cancelOrder({
+        orderId: result.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(cancelled.success).toBe(true);
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 33 }],
       });
@@ -5064,7 +5680,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(partlyRested),
+          order: jest.fn().mockResolvedValue({
+            ...partlyRested,
+            status: 'err',
+          }),
           cancel,
         },
       });
@@ -5102,7 +5721,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('accepts filled rungs but exposes only resting rungs for cancellation', async () => {
+    it('accepts filled rungs and exposes all accepted IDs in the result', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           order: jest.fn().mockResolvedValue({
@@ -5111,7 +5730,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
               data: {
                 statuses: [
                   { resting: { oid: 11 } },
-                  { filled: { oid: 22 } },
+                  {
+                    filled: { oid: 22, avgPx: '2525', totalSz: '0.3' },
+                  },
                   { resting: { oid: 33 } },
                 ],
               },
@@ -5135,7 +5756,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed).toMatchObject({
         success: true,
         childOrderIds: ['11', '33'],
+        acceptedChildren: [
+          { orderId: '11', state: 'resting' },
+          { orderId: '22', state: 'filled' },
+          { orderId: '33', state: 'resting' },
+        ],
         submittedSize: '1',
+        acceptedSize: '1',
+        filledSize: '0.3',
+        averagePrice: '2525',
+        weightedAverageLimitPrice: '2499.95',
       });
 
       const cancelled = await provider.cancelOrder({
@@ -5159,7 +5789,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ['unsafe', Number.MAX_SAFE_INTEGER + 1],
       ['non-numeric', '22'],
     ])(
-      'rejects a %s scale order ID and retracts valid rungs',
+      'rejects a malformed %s scale order ID instead of treating it as a rejected rung',
       async (_label, oid) => {
         const { exchangeClient } = useStrategyClients({
           exchange: {
@@ -5189,6 +5819,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(placed).toMatchObject({
           success: false,
           error: PERPS_ERROR_CODES.ORDER_REJECTED,
+          childOrderIds: [],
+          submittedSize: '1',
         });
         expect(exchangeClient.cancel).toHaveBeenCalledWith({
           cancels: [{ a: 1, o: 11 }],
@@ -8769,7 +9401,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             data: {
               statuses: [
                 { resting: { oid: 11 } },
-                { filled: { oid: 22 } },
+                { filled: { oid: 22, avgPx: '2500', totalSz: '0.3333' } },
                 { resting: { oid: 33 } },
               ],
             },
@@ -8805,7 +9437,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         submittedSize: '1',
       });
       expect(placed.orderId).toBeUndefined();
-      expect(placed.childOrderIds).toStrictEqual(['22']);
+      expect(placed.childOrderIds).toStrictEqual([]);
+      expect(placed.acceptedChildren).toStrictEqual([
+        { orderId: '11', state: 'resting' },
+        { orderId: '22', state: 'filled' },
+        { orderId: '33', state: 'resting' },
+      ]);
     });
   });
 
