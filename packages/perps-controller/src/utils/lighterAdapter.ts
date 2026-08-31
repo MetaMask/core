@@ -317,6 +317,21 @@ export function adaptFillFromLighterTrade(
   symbol: string,
   accountIndex: number,
 ): OrderFill {
+  const identifiers = [
+    ['trade id', trade.tradeId],
+    ['market id', trade.marketId],
+    ['ask id', trade.askId],
+    ['bid id', trade.bidId],
+    ['ask account id', trade.askAccountId],
+    ['bid account id', trade.bidAccountId],
+  ] as const;
+  for (const [field, value] of identifiers) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${String(trade.tradeId)} has invalid ${field}`,
+      );
+    }
+  }
   const accountIsAsk = trade.askAccountId === accountIndex;
   const accountIsBid = trade.bidAccountId === accountIndex;
   if (accountIsAsk === accountIsBid) {
@@ -341,7 +356,7 @@ export function adaptFillFromLighterTrade(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} has invalid timestamp`,
     );
   }
-  if (trade.isMakerAsk === undefined) {
+  if (typeof trade.isMakerAsk !== 'boolean') {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing maker-role context`,
     );
@@ -357,10 +372,14 @@ export function adaptFillFromLighterTrade(
   // against a Premium account must keep their valid fill.
   const ourFee = accountIsMaker ? trade.makerFee : trade.takerFee;
   let ourFeeNumeric: number | null = 0;
-  if (typeof ourFee === 'number') {
+  if (ourFee === undefined) {
+    ourFeeNumeric = 0;
+  } else if (typeof ourFee === 'number') {
     ourFeeNumeric = ourFee;
   } else if (typeof ourFee === 'string') {
     ourFeeNumeric = parseLighterStrictDecimal(ourFee);
+  } else {
+    ourFeeNumeric = null;
   }
   if (
     ourFeeNumeric === null ||

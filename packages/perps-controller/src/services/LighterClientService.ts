@@ -113,9 +113,13 @@ const NonNegativeFiniteNumberStruct = define<number>(
   'non-negative finite number',
   (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
 );
-const PositiveFiniteNumberStruct = define<number>(
-  'positive finite number',
-  (value) => typeof value === 'number' && Number.isFinite(value) && value > 0,
+const MarginFractionStruct = define<number>(
+  'margin fraction in (0, 10000]',
+  (value) =>
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value > 0 &&
+    value <= 10_000,
 );
 const NonNegativeFinancialNumberStruct = union([
   NonNegativeFiniteNumberStruct,
@@ -168,9 +172,9 @@ const MarketStruct = type({
 const MarketDetailStruct = type({
   ...MarketStruct.schema,
   lastTradePrice: NonNegativeFiniteNumberStruct,
-  defaultInitialMarginFraction: optional(PositiveFiniteNumberStruct),
-  minInitialMarginFraction: optional(PositiveFiniteNumberStruct),
-  maintenanceMarginFraction: optional(PositiveFiniteNumberStruct),
+  defaultInitialMarginFraction: optional(MarginFractionStruct),
+  minInitialMarginFraction: optional(MarginFractionStruct),
+  maintenanceMarginFraction: optional(MarginFractionStruct),
   dailyTradesCount: NonNegativeFiniteNumberStruct,
   dailyBaseTokenVolume: NonNegativeFiniteNumberStruct,
   dailyQuoteTokenVolume: NonNegativeFiniteNumberStruct,

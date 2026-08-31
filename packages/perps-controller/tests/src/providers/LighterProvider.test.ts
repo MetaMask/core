@@ -1089,6 +1089,27 @@ describe('LighterProvider', () => {
       ).rejects.toThrow('Invalid Lighter venue data');
     });
 
+    it('rejects margin fractions that would derive leverage below 1x', async () => {
+      const built = buildProvider();
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 10001,
+            maintenanceMarginFraction: 10001,
+          },
+        ],
+      });
+      await expect(built.provider.getMarkets()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+      await expect(built.provider.getPositions()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
     it('surfaces malformed successful order-book details instead of reporting no market data', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBookDetails.mockRejectedValue(
@@ -4160,6 +4181,34 @@ describe('LighterProvider', () => {
       expect(retry.success).toBe(false);
       expect(retry.error).toContain('10001 rows');
       expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails closed when inactive history advances without returning rows', async () => {
+      const built = buildProvider();
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.setCreateTerminal('filled');
+      venue.failResponseOnce(14);
+      expect(
+        (
+          await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          })
+        ).success,
+      ).toBe(false);
+      venue.setCreateTerminal('none');
+      built.clientInstance.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [],
+        nextCursor: 'advanced',
+      });
+
+      const retry = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(retry.success).toBe(false);
+      expect(retry.error).toContain('advanced without returning rows');
     });
 
     it("exact status matching: 'unfilled' and 'execution-failed' are failures, never executions", async () => {
@@ -9781,6 +9830,12 @@ describe('LighterProvider', () => {
     it.each([
       ['non-finite size', { size: '1e999' }],
       ['nonparticipant account', { ask_account_id: 7, bid_account_id: 8 }],
+      ['wrong maker role type', { is_maker_ask: 1 }],
+      ['null fee', { taker_fee: null }],
+      ['unsafe trade id', { trade_id: Number.MAX_SAFE_INTEGER + 1 }],
+      ['negative market id', { market_id: -1 }],
+      ['negative ask id', { ask_id: -1 }],
+      ['unsafe bid id', { bid_id: Number.MAX_SAFE_INTEGER + 1 }],
     ])('drops a WebSocket fill with %s', async (_scenario, overrides) => {
       const { provider, clientInstance } = buildProvider({
         webSocketCtor: fakeStreamCtor,
