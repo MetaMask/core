@@ -4324,7 +4324,6 @@ describe('NetworkController', () => {
 
     it('infers an Infura RPC endpoint when adding a network', async () => {
       const rpcEndpoint = {
-        networkClientId: 'some-network',
         url: 'https://some-network.infura.io/v3/{infuraProjectId}',
       };
 
