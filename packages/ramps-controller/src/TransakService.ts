@@ -1153,6 +1153,12 @@ export class TransakService {
       redirectURL:
         'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
       hideMenu: 'true',
+      // The widget must charge in the same fee mode as the quote the flow was
+      // priced from. `getBuyQuote` already asks for fee-on-top, so without this
+      // the widget would take the fee out of `fiatAmount` and deliver less
+      // crypto than the quote promised. This is the URL query-parameter surface;
+      // `createWidgetUrl` sends the same key in a JSON body instead.
+      isFeeExcludedFromFiat: 'true',
     };
 
     const params = new URLSearchParams({
@@ -1208,6 +1214,12 @@ export class TransakService {
       hideExchangeScreen: 'true',
       disableWalletAddressEdit: 'true',
       hideMenu: 'true',
+      // The widget must charge in the same fee mode as the quote the flow was
+      // priced from. `getBuyQuote` already asks for fee-on-top, so without this
+      // the widget would take the fee out of `fiatAmount` and deliver less
+      // crypto than the quote promised. Placed before the `extraParams` spread
+      // so a caller can still override it.
+      isFeeExcludedFromFiat: 'true',
       redirectURL:
         'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
       ...extraParams,

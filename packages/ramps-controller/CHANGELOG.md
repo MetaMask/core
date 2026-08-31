@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add the `extraFee` field to the `Quote` type so consumers can read the partner (MetaMask) fee the ramps API already returns alongside `providerFee` and `networkFee`. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
+### Fixed
+
+- Request fee-on-top Transak widget sessions so the amount charged matches the quote the flow was priced from. The widget previously ran in Transak's default fee-inclusive mode while `getBuyQuote` already asked for fee-on-top, so the user was charged the requested amount and received less crypto than the quote promised. Requires the ramps API widget-url proxy to allowlist the parameter. ([#9317](https://github.com/MetaMask/core/pull/9317))
+
 ## [20.2.0]
 
 ### Added
