@@ -1,5 +1,3 @@
-export const API_BASE_URL = 'https://transaction.api.cx.metamask.io';
-
 type SentinelApiBaseUrlMap = {
   [key: number]: string;
 };

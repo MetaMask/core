@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Changed
 
+- **BREAKING:** `AiDigestController` no longer caches `fetchMarketInsights` or `fetchMarketOverview` results (no TTL, eviction, or persisted `marketInsights` / `marketOverview` state). Each call is a passthrough to `AiDigestService`. Clients must own freshness. ([#10020](https://github.com/MetaMask/core/pull/10020))
+  - `AiDigestControllerState` is now an empty object (`Record<string, never>`).
+  - The constructor no longer accepts a `state` option.
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+### Removed
+
+- **BREAKING:** Remove `MarketInsightsEntry`, `MarketOverviewEntry`, `CACHE_DURATION_MS`, and `MAX_CACHE_ENTRIES`. Cache policy belongs to clients. ([#10020](https://github.com/MetaMask/core/pull/10020))
 
 ## [0.8.0]
 
@@ -123,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.8.0...@metamask/ai-controllers@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.7.0...@metamask/ai-controllers@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.3...@metamask/ai-controllers@0.7.0
 [0.6.3]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.2...@metamask/ai-controllers@0.6.3

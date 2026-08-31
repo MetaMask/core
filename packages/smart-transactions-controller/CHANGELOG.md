@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
 
+### Removed
+
+- **BREAKING:** Remove `API_BASE_URL` export and STX migration feature flags (`stxMigrationGetFees`, `stxMigrationSubmitTransactions`, `stxMigrationCancel`, `stxMigrationBatchStatus`) — all API calls now always route to the sentinel API ([#9996](https://github.com/MetaMask/core/pull/9996))
+
 ## [25.1.1]
 
 ### Changed

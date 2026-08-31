@@ -231,3 +231,42 @@ export type {
   TransakServiceGeneratePaymentWidgetUrlAction,
   TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';
+export type {
+  AutorampDepositRailsSummary,
+  AutorampRemoteSnapshot,
+} from './autoramp-types.js';
+export type {
+  NeoBankServiceActions,
+  NeoBankServiceEvents,
+  NeoBankServiceMessenger,
+  NeoBankAutorampResponse,
+  NeoBankRequestOptions,
+  NeoBankQueryParams,
+  GetWalletRegistrationStatusParams,
+  RegisterSelfHostedWalletParams,
+} from './NeoBankService.js';
+export type {
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceRegisterPixAddressAction,
+  NeoBankServiceGetAutorampQuoteAction,
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampQuoteForAutorampAction,
+  NeoBankServiceAttachAutorampQuoteAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetMoonpayCustomerIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
+} from './NeoBankService-method-action-types.js';
+export {
+  NeoBankService,
+  serviceName as neoBankServiceName,
+  mapNeoBankAutorampToRemoteSnapshot,
+} from './NeoBankService.js';
+export type {
+  Blockchain,
+  RegistrationOutcome,
+  RegistrationStatus,
+  SelfHostedRegistration,
+  WalletRegistrationErrorKind,
+} from './wallet-registration-service.js';
+export { WalletRegistrationError } from './wallet-registration-service.js';
