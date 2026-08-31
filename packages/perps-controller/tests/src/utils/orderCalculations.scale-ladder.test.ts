@@ -3,6 +3,7 @@ import {
   computeChaseQuotePrice,
   computeScalePriceLadder,
   getPriceTick,
+  normalizeHyperLiquidScalePriceLadder,
   splitScaleSizes,
 } from '../../../src/utils/orderCalculations.js';
 
@@ -51,6 +52,59 @@ describe('orderCalculations - scale ladder', () => {
       expect(() =>
         computeScalePriceLadder({ minPrice, maxPrice, count: 3 }),
       ).toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    });
+  });
+
+  describe('normalizeHyperLiquidScalePriceLadder', () => {
+    it('formats every rung for HyperLiquid', () => {
+      expect(
+        normalizeHyperLiquidScalePriceLadder({
+          minPrice: 100,
+          maxPrice: 200,
+          count: 3,
+          szDecimals: 3,
+        }),
+      ).toStrictEqual(['100', '150', '200']);
+    });
+
+    it('applies the asset precision and significant-figure limits', () => {
+      expect(
+        normalizeHyperLiquidScalePriceLadder({
+          minPrice: 1234.567,
+          maxPrice: 1234.767,
+          count: 3,
+          szDecimals: 3,
+        }),
+      ).toStrictEqual(['1234.6', '1234.7', '1234.8']);
+    });
+
+    it('preserves duplicate formatted rungs for callers to reject', () => {
+      const prices = normalizeHyperLiquidScalePriceLadder({
+        minPrice: 100.123456,
+        maxPrice: 100.123457,
+        count: 3,
+        szDecimals: 3,
+      });
+
+      expect(prices).toStrictEqual(['100.12', '100.12', '100.12']);
+      expect(new Set(prices).size).toBe(1);
+    });
+
+    it.each([
+      [
+        'an invalid count',
+        { minPrice: 100, maxPrice: 200, count: 1, szDecimals: 3 },
+        PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID,
+      ],
+      [
+        'an invalid range',
+        { minPrice: 200, maxPrice: 100, count: 3, szDecimals: 3 },
+        PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
+      ],
+    ])('propagates %s', (_label, params, errorCode) => {
+      expect(() => normalizeHyperLiquidScalePriceLadder(params)).toThrow(
+        errorCode,
+      );
     });
   });
 

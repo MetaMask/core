@@ -586,6 +586,7 @@ export {
   buildTriggerOrderType,
   buildPositionTriggerOrderFromOrder,
   computeScalePriceLadder,
+  normalizeHyperLiquidScalePriceLadder,
   computeChaseQuotePrice,
   getPriceTick,
   splitScaleSizes,

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `normalizeHyperLiquidScalePriceLadder` for shared Scale price normalization ([#10021](https://github.com/MetaMask/core/pull/10021))
+
 ## [15.0.0]
 
 ### Added

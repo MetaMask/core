@@ -210,10 +210,10 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   computeChaseQuotePrice,
-  computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
   getPriceTick,
+  normalizeHyperLiquidScalePriceLadder,
   splitScaleSizes,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
@@ -5826,11 +5826,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
     }
 
-    const prices = computeScalePriceLadder({
+    const prices = normalizeHyperLiquidScalePriceLadder({
       minPrice: parseFloat(scaleMinPrice),
       maxPrice: parseFloat(scaleMaxPrice),
       count: scaleNumOrders,
-    }).map((price) => formatHyperLiquidPrice({ price, szDecimals }));
+      szDecimals,
+    });
 
     if (new Set(prices).size !== prices.length) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
