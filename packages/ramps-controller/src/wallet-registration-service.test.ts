@@ -126,6 +126,8 @@ describe('createIdempotencyKey', () => {
     } finally {
       if (originalDescriptor) {
         Object.defineProperty(globalThis, 'crypto', originalDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, 'crypto');
       }
     }
   });
@@ -384,7 +386,31 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
     ).rejects.toMatchObject({ kind: 'lookupUnavailable', body: 'boom' });
   });
 
-  it('throws a lookupUnavailable error when the list body is malformed', async () => {
+  it('throws a lookupUnavailable error when the error body cannot be read', async () => {
+    const fetchMock = jest.fn(
+      async (): Promise<HttpResponse> => ({
+        ...textResponse(500, ''),
+        text: async (): Promise<string> => {
+          throw new Error('stream failed');
+        },
+      }),
+    );
+    const service = buildService(fetchMock);
+
+    await expect(
+      service.getRegistrationStatus({
+        customerId: CUSTOMER_ID,
+        address: EVM_ADDRESS,
+        blockchain: 'Monad',
+      }),
+    ).rejects.toMatchObject({
+      kind: 'lookupUnavailable',
+      httpStatus: 500,
+      body: 'stream failed',
+    });
+  });
+
+  it('throws a malformedResponse error when the list body is malformed', async () => {
     const fetchMock = jest.fn(
       async (): Promise<HttpResponse> => jsonResponse(200, { nope: true }),
     );
@@ -396,7 +422,7 @@ describe('WalletRegistrationService.getRegistrationStatus', () => {
         address: EVM_ADDRESS,
         blockchain: 'Monad',
       }),
-    ).rejects.toBeInstanceOf(WalletRegistrationError);
+    ).rejects.toMatchObject({ kind: 'malformedResponse' });
   });
 
   it('never converts a network failure during lookup into "absent"', async () => {

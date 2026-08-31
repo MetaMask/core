@@ -270,8 +270,9 @@ export class WalletRegistrationService {
    * Reconciles a wallet against the customer's registered self-hosted addresses
    * via `GET /neobank/addresses/crypto/{customer_id}?filter=SelfHosted`.
    * Upstream returns all self-hosted chains; Monad filtering stays client-side
-   * for the POC. A failed or malformed lookup is reported as
-   * `lookupUnavailable` and never downgraded to `absent`.
+   * for the POC. Transport failures are reported as `lookupUnavailable`;
+   * malformed successful responses are reported as `malformedResponse`.
+   * Neither is downgraded to `absent`.
    *
    * @param request - Customer id and Monad address to reconcile.
    * @returns The active / disabled / absent status for the address.
@@ -303,10 +304,15 @@ export class WalletRegistrationService {
     }
 
     if (!response.ok) {
-      const body = await response.text();
+      let body: string;
+      try {
+        body = extractErrorBody(await response.text());
+      } catch (error) {
+        body = error instanceof Error ? error.message : '';
+      }
       throw new WalletRegistrationError('lookupUnavailable', {
         httpStatus: response.status,
-        body: extractErrorBody(body),
+        body,
       });
     }
 
