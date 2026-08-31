@@ -2853,6 +2853,61 @@ describe('AssetsController', () => {
       });
     });
 
+    it('force refreshes assets when unapproved transaction is added', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('TransactionController:unapprovedTransactionAdded', {
+          chainId: '0xa4b1',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            chainIds: ['eip155:42161'],
+            forceUpdate: true,
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('does not force refresh assets on transaction events for AccountActivity-active chains', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['eip155:42161'],
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        messenger.publish('TransactionController:unapprovedTransactionAdded', {
+          chainId: '0xa4b1',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0xa4b1',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
         const balanceChangedHandler = jest.fn();
