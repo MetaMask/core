@@ -13,6 +13,7 @@ import type {
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTypedMessageAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -38,6 +39,7 @@ export type PerpsControllerAllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
+  | KeyringControllerSignPersonalMessageAction
   | TransactionControllerAddTransactionAction
   | RemoteFeatureFlagControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction

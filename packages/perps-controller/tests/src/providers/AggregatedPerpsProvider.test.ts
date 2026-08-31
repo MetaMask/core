@@ -204,6 +204,88 @@ describe('AggregatedPerpsProvider', () => {
     routedProvider = aggregatedProvider;
   });
 
+  describe('durable-settlement surfacing', () => {
+    const pending = {
+      symbol: 'BTC',
+      settlementKey: '0xabc:28:7:BTC',
+      recordedAt: 5,
+      reason: 'why',
+      priorIntent: 'replace' as const,
+      survivingOrderIds: ['9'],
+      actionNeeded: 'set a new TP/SL',
+    };
+    const outcome = {
+      recoveryId: '42:abcd',
+      kind: 13,
+      intent: 'withdraw:25',
+      txHash: 'abcd',
+      outcome: 'succeeded' as const,
+      evidence: 'tx-status:3',
+    };
+
+    it('aggregates recoveries and outcomes from providers implementing the contract', async () => {
+      const durable = {
+        ...mockMYXProvider,
+        getPendingManualRecoveries: jest.fn().mockResolvedValue([pending]),
+        getRecoveredDispatches: jest.fn().mockResolvedValue([outcome]),
+        acknowledgeRecoveredDispatch: jest.fn().mockResolvedValue(undefined),
+      } as unknown as PerpsProvider;
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          ['lighter', durable],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      // The non-durable provider contributes empty lists, never an error.
+      expect(await aggregated.getPendingManualRecoveries()).toStrictEqual([
+        pending,
+      ]);
+      expect(await aggregated.getRecoveredDispatches()).toStrictEqual([
+        outcome,
+      ]);
+      await aggregated.acknowledgeRecoveredDispatch('42:abcd');
+      expect(
+        (durable as unknown as { acknowledgeRecoveredDispatch: jest.Mock })
+          .acknowledgeRecoveredDispatch,
+      ).toHaveBeenCalledWith('42:abcd');
+    });
+
+    it('propagates storage errors and unknown-id refusals instead of hiding them', async () => {
+      const durable = {
+        ...mockMYXProvider,
+        getPendingManualRecoveries: jest
+          .fn()
+          .mockRejectedValue(new Error('manual-recovery index is corrupt')),
+        getRecoveredDispatches: jest.fn().mockResolvedValue([]),
+        acknowledgeRecoveredDispatch: jest
+          .fn()
+          .mockRejectedValue(new Error('No pending recovered')),
+      } as unknown as PerpsProvider;
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          ['lighter', durable],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      await expect(aggregated.getPendingManualRecoveries()).rejects.toThrow(
+        'corrupt',
+      );
+      await expect(
+        aggregated.acknowledgeRecoveredDispatch('42:zzzz'),
+      ).rejects.toThrow('No pending recovered');
+    });
+
+    it('acknowledgment throws when no provider implements the contract', async () => {
+      await expect(
+        aggregatedProvider.acknowledgeRecoveredDispatch('42:abcd'),
+      ).rejects.toThrow('No perps provider has recovered dispatches');
+    });
+  });
+
   describe('constructor', () => {
     it('initializes with provided providers', () => {
       expect(aggregatedProvider.getProviderIds()).toContain('hyperliquid');
@@ -1076,10 +1158,37 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateLiquidationPrice).toHaveBeenCalled();
     });
 
+    it('routes calculateLiquidationPrice to the selected position provider', async () => {
+      mockMYXProvider.calculateLiquidationPrice.mockResolvedValue('12345');
+
+      const result = await aggregatedProvider.calculateLiquidationPrice({
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        providerId: 'myx',
+      });
+
+      expect(result).toBe('12345');
+      expect(mockMYXProvider.calculateLiquidationPrice).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'myx' }),
+      );
+      expect(mockHLProvider.calculateLiquidationPrice).not.toHaveBeenCalled();
+    });
+
     it('delegates getMaxLeverage to default provider', async () => {
       await aggregatedProvider.getMaxLeverage('BTC');
 
       expect(mockHLProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
+    });
+
+    it('routes getMaxLeverage to the selected market provider', async () => {
+      mockMYXProvider.getMaxLeverage.mockResolvedValue(17);
+
+      const result = await aggregatedProvider.getMaxLeverage('BTC', 'myx');
+
+      expect(result).toBe(17);
+      expect(mockMYXProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
+      expect(mockHLProvider.getMaxLeverage).not.toHaveBeenCalled();
     });
 
     it('delegates calculateMaintenanceMargin to default provider', async () => {
@@ -1092,6 +1201,22 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toBe(0.05);
       expect(mockHLProvider.calculateMaintenanceMargin).toHaveBeenCalled();
+    });
+
+    it('routes calculateMaintenanceMargin to the selected position provider', async () => {
+      mockMYXProvider.calculateMaintenanceMargin.mockResolvedValue(0.012);
+
+      const result = await aggregatedProvider.calculateMaintenanceMargin({
+        asset: 'BTC',
+        positionSize: 1,
+        providerId: 'myx',
+      });
+
+      expect(result).toBe(0.012);
+      expect(mockMYXProvider.calculateMaintenanceMargin).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'myx' }),
+      );
+      expect(mockHLProvider.calculateMaintenanceMargin).not.toHaveBeenCalled();
     });
 
     it('delegates calculateFees to default provider', async () => {
