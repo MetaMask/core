@@ -1952,7 +1952,7 @@ describe('Batch Utils', () => {
         });
       });
 
-      it('adds batch ID to existing transaction', async () => {
+      it('adds batch ID to existing transaction without nonce', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
         const onPublish = jest.fn();
         const existingTransactionMock = {};
@@ -1994,9 +1994,7 @@ describe('Batch Utils', () => {
         });
 
         getTransactionMock.mockReturnValueOnce({
-          txParams: {
-            nonce: NONCE_MOCK,
-          },
+          txParams: {},
         } as TransactionMeta);
 
         addTransactionBatch({
