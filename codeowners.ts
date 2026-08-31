@@ -203,6 +203,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'message-manager': {
     teams: ['@MetaMask/confirmations'],
   },
+  'mfa-recovery-controller': {
+    teams: ['@MetaMask/web3auth'],
+  },
   messenger: {
     teams: ['@MetaMask/core-platform'],
   },
@@ -570,6 +573,7 @@ function buildTeamSections(): CodeownersSection[] {
       rules: [
         buildRuleForPackage('seedless-onboarding-controller'),
         buildRuleForPackage('passkey-controller'),
+        buildRuleForPackage('mfa-recovery-controller'),
         buildRuleForPackage('shield-controller'),
         buildRuleForPackage('subscription-controller'),
         buildRuleForPackage('claims-controller'),
@@ -672,6 +676,7 @@ function buildPackageReleaseSection(): CodeownersSection {
     'geolocation-controller',
     'keyring-controller',
     'passkey-controller',
+    'mfa-recovery-controller',
     'logging-controller',
     'message-manager',
     'multichain-account-service',
