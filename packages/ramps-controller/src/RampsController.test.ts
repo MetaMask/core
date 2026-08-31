@@ -1434,44 +1434,6 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not request fee-on-top quotes when providers are widened for comparison', async () => {
-      const response: QuotesResponse = {
-        success: [appBrowserQuote(MOONPAY, 90)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
-        error: [],
-        customActions: [],
-      };
-
-      await withController(
-        {
-          options: {
-            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          registerFeatureFlagState(rootMessenger);
-          spyOnDefaultRedirectCallbackUrl(rootMessenger);
-          let forwarded: boolean | undefined;
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async (params: { isFeeExcludedFromFiat?: boolean }) => {
-              forwarded = params.isFeeExcludedFromFiat;
-              return response;
-            },
-          );
-
-          await callScopedGetQuotes(messenger, {
-            isFeeExcludedFromFiat: true,
-          });
-
-          // A fee-on-top amountOut is reported before fees while every other
-          // provider reports it after fees, so ranking them together would put
-          // the fee-on-top quote on top no matter what it costs.
-          expect(forwarded).toBe(false);
-        },
-      );
-    });
-
     it('rejects the entire getQuotes call when the default-redirect service action is not delegated', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],

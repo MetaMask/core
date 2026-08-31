@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add an `isFeeExcludedFromFiat` option to `getQuotes` so callers can request quotes whose fees are charged on top of the requested fiat amount rather than taken out of it. Ignored when quotes are widened across providers, because fee-on-top and fee-inclusive amounts are not comparable. Defaults to the existing fee-inclusive behaviour. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add an `isFeeExcludedFromFiat` option to `getQuotes` so callers can request quotes whose fees are charged on top of the requested fiat amount rather than taken out of it. Defaults to the existing fee-inclusive behaviour. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Document `isFeeExcludedFromFiat` as a supported `extraParams` key on `createWidgetUrl` and `generatePaymentWidgetUrl`, so a flow priced fee-on-top can make the Transak widget charge in the same fee mode as the quote the user was shown. Neither method sends it by default: a flow priced fee-inclusive that set it would charge the user more than the amount on screen. Requires the ramps API widget-url proxy to allowlist the parameter, otherwise the proxy rejects the session request. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ## [20.2.0]

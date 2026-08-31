@@ -2141,10 +2141,10 @@ export class RampsController extends BaseController<
    * @param options.ttl - Custom TTL for this request.
    * @param options.isFeeExcludedFromFiat - When true, requests quotes whose
    *   fees are charged on top of `amount` rather than taken out of it, so
-   *   `amountOut` is what `amount` buys before fees. Ignored when quotes are
-   *   widened across providers, because a fee-on-top `amountOut` cannot be
-   *   ranked against fee-inclusive ones. Defaults to the existing
-   *   fee-inclusive behaviour.
+   *   `amountOut` is what `amount` buys before fees. The ramps API honours it
+   *   only when the request names exactly one provider, because a fee-on-top
+   *   `amountOut` cannot be ranked against fee-inclusive ones. Defaults to the
+   *   existing fee-inclusive behaviour.
    * @returns The quotes response containing success, sorted, error, and customActions.
    */
   async getQuotes(options: {
@@ -2291,15 +2291,7 @@ export class RampsController extends BaseController<
         ? this.messenger.call('RampsService:getDefaultRedirectCallbackUrl')
         : undefined);
 
-    // A fee-on-top quote reports `amountOut` before fees while a fee-inclusive
-    // one reports it after, so the two are not comparable. Price ranking sorts
-    // on `amountOut` descending and `#pickWidenedQuote` reads that ranking, so
-    // suppress the request whenever quotes are widened across providers. There
-    // is no money cost to suppressing it: the amount charged is fixed by the
-    // widget flag independently, so only the displayed source amount
-    // understates, which beats a mis-ranked quote.
-    const isFeeExcludedFromFiat =
-      options.isFeeExcludedFromFiat === true && !widenToAllProviders;
+    const isFeeExcludedFromFiat = options.isFeeExcludedFromFiat === true;
 
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
