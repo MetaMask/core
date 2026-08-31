@@ -577,10 +577,10 @@ describe('BaseDataService', () => {
     });
 
     it('skips rehydrating cache if persistConfig is not set', async () => {
-      const setItem = jest.fn();
+      const getItem = jest.fn();
       const rootMessenger = createRootMessenger({
         actionHandlers: {
-          'StorageService:setItem': setItem,
+          'StorageService:getItem': getItem,
         },
       });
       const messenger = createServiceMessenger(rootMessenger);
@@ -588,7 +588,7 @@ describe('BaseDataService', () => {
 
       service.init();
 
-      expect(setItem).not.toHaveBeenCalled();
+      expect(getItem).not.toHaveBeenCalled();
     });
 
     it('ignores rehydration if the StorageService fails', async () => {
