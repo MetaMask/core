@@ -3260,17 +3260,19 @@ export class RampsController extends BaseController<
 
   /**
    * Fetches one autoramp from the neo-bank proxy and applies it to the
-   * last-seen cursor.
+   * last-seen cursor. Does not recreate a cursor that was removed while the
+   * request was in flight.
    *
    * @param autorampId - MoonPay autoramp id.
-   * @returns The updated local account.
+   * @returns The updated local account, or an unpersisted snapshot if the
+   * cursor was removed during the fetch.
    */
   async refreshAutoramp(autorampId: string): Promise<AutorampAccount> {
     const remote = await this.messenger.call(
       'NeoBankService:getAutoramp',
       autorampId,
     );
-    return this.#applyAutorampRemoteSnapshot(remote);
+    return this.#applyAutorampRemoteSnapshot(remote, { allowInsert: false });
   }
 
   /**
@@ -3285,7 +3287,12 @@ export class RampsController extends BaseController<
 
     for (const id of ids) {
       try {
-        updated.push(await this.refreshAutoramp(id));
+        const account = await this.refreshAutoramp(id);
+        if (
+          this.state.autoramps.some((autoramp) => autoramp.id === account.id)
+        ) {
+          updated.push(account);
+        }
       } catch {
         // Keep local cursor for this id; continue remaining refreshes.
       }
@@ -3294,12 +3301,26 @@ export class RampsController extends BaseController<
     return updated;
   }
 
+  /**
+   * Applies a remote snapshot to the last-seen cursor.
+   *
+   * @param remote - MoonPay snapshot.
+   * @param options - Apply options.
+   * @param options.allowInsert - When false, a missing local cursor is not
+   * recreated (used by refresh so a concurrent `removeAutoramp` wins).
+   * @returns The applied account. When `allowInsert` is false and no local
+   * cursor exists, the snapshot is returned without writing state.
+   */
   #applyAutorampRemoteSnapshot(
     remote: AutorampRemoteSnapshot,
+    { allowInsert = true }: { allowInsert?: boolean } = {},
   ): AutorampAccount {
     const local =
       this.state.autoramps.find((autoramp) => autoramp.id === remote.id) ??
       null;
+    if (local === null && !allowInsert) {
+      return applyAutorampRemoteStatus(null, remote).account;
+    }
     const result = applyAutorampRemoteStatus(local, remote);
 
     this.update((state) => {

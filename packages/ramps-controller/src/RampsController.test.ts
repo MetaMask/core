@@ -13,7 +13,6 @@ import * as path from 'path';
 
 import { AutorampStatus } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
-import { WalletRegistrationError } from './wallet-registration-service.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
@@ -66,6 +65,7 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 /**
  * The default redirect ("fake callback") URL a staging `RampsService` returns.
@@ -9698,6 +9698,46 @@ describe('RampsController', () => {
         expect(
           controller.state.autoramps.find((a) => a.id === 'ar-bad')?.status,
         ).toBe(AutorampStatus.Authorized);
+      });
+    });
+
+    it('does not restore an autoramp removed while refresh is in flight', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let releaseFetch: ((value: unknown) => void) | undefined;
+        let markFetchStarted: (() => void) | undefined;
+        const fetchStarted = new Promise<void>((resolve) => {
+          markFetchStarted = resolve;
+        });
+        const remoteSnapshot = new Promise((resolve) => {
+          releaseFetch = resolve;
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          async () => {
+            markFetchStarted?.();
+            return await remoteSnapshot;
+          },
+        );
+
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const refreshPromise = controller.refreshAutoramps();
+        await fetchStarted;
+        controller.removeAutoramp('ar-1');
+        releaseFetch?.({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(await refreshPromise).toStrictEqual([]);
+        expect(controller.state.autoramps).toStrictEqual([]);
       });
     });
 
