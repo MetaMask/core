@@ -7914,6 +7914,12 @@ __metadata:
   resolution: "@metamask/money-account-subscription-controller@workspace:packages/money-account-subscription-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/messenger": "npm:^2.0.0"
+    "@metamask/polling-controller": "npm:^16.0.9"
+    "@metamask/profile-sync-controller": "npm:^29.0.0"
+    "@metamask/subscription-controller": "npm:^8.0.1"
+    "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"

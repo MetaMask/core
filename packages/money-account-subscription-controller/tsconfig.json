@@ -3,6 +3,22 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../polling-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../subscription-controller"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
