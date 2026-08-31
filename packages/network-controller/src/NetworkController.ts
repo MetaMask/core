@@ -3441,8 +3441,7 @@ export class NetworkController extends BaseController<
                 type: RpcEndpointType.Infura,
                 networkClientId:
                   registryNetworkConfig.rpcProviders.default.networkClientId,
-                url: registryNetworkConfig.rpcProviders.default
-                  .url as InfuraRpcEndpoint['url'],
+                url: registryNetworkConfig.rpcProviders.default.url,
               }
             : {
                 type: RpcEndpointType.Custom,
