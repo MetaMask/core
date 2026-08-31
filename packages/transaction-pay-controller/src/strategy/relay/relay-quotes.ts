@@ -2,6 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -373,12 +374,15 @@ async function getSingleQuote(
     }
 
     const hasTransactions = Boolean(body.txs?.length);
+    const requiresExactOutput =
+      hasTransactions ||
+      transaction.type === TransactionType.perpsDepositAndOrder;
     const finalBody: RelayQuoteRequest = {
       ...body,
       amount:
         transactionAmount ??
-        (hasTransactions ? targetAmountMinimum : sourceTokenAmount),
-      tradeType: hasTransactions ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
+        (requiresExactOutput ? targetAmountMinimum : sourceTokenAmount),
+      tradeType: requiresExactOutput ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
     };
 
     log('Request body', finalBody);

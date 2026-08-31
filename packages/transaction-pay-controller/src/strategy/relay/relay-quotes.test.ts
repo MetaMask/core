@@ -3986,7 +3986,7 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('requests exact input for Hyperliquid deposit-and-order flows without embedded transactions', async () => {
+    it('requests exact output for Hyperliquid deposit-and-order flows', async () => {
       const arbitrumToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
         targetChainId: CHAIN_ID_ARBITRUM,
@@ -4014,8 +4014,8 @@ describe('Relay Quotes Utils', () => {
 
       expect(body).toStrictEqual(
         expect.objectContaining({
-          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
-          tradeType: 'EXACT_INPUT',
+          amount: '12300',
+          tradeType: 'EXACT_OUTPUT',
         }),
       );
     });
