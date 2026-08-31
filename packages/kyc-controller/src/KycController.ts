@@ -185,9 +185,9 @@ export type KycControllerState = {
   /** Error encountered while loading disclaimers, or `null`. */
   disclaimersError: string | null;
   /**
-   * Session-scoped idOS / KYC-provider disclaimer catalog from
-   * `GET /sessions/{sessionId}/disclaimers`. `null` until a UKYC session
-   * exists and the catalog has been fetched.
+   * idOS / KYC-provider disclaimer catalog from `GET /disclaimers` or
+   * `GET /sessions/{sessionId}/disclaimers`. `null` until the catalog has
+   * been fetched (typically after a UKYC session exists).
    */
   sessionDisclaimers: KycSessionDisclaimers | null;
 
@@ -986,7 +986,7 @@ export class KycController extends BaseController<
         });
       }
       const disclaimers = await this.messenger.call(
-        'KycService:fetchDisclaimers',
+        'KycService:fetchVendorDisclaimers',
         {
           vendor: this.state.activeVendor,
           country,

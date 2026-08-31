@@ -29,6 +29,7 @@ import type { KycServiceMethodActions } from './KycService-method-action-types.j
 import type {
   KycConsentRecord,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycUserStatusResponse,
@@ -48,11 +49,12 @@ export const serviceName = 'KycService';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
-  'fetchDisclaimers',
+  'fetchVendorDisclaimers',
   'createSession',
   'checkKycRequired',
   'createVendorCustomer',
   'submitVendorDisclaimers',
+  'fetchDisclaimersCatalog',
   'fetchSessionDisclaimers',
   'submitSessionDisclaimers',
   'fetchKycStatus',
@@ -261,9 +263,17 @@ const ConsentDocumentStruct = type({
   consented: boolean(),
 });
 
-const SessionDisclaimersResponseStruct = type({
+const DisclaimersCatalogFields = {
   idOS: array(ConsentDocumentStruct),
   kycProvider: array(ConsentDocumentStruct),
+} as const;
+
+/** Global catalog from `GET /disclaimers` (no credential-reuse flag). */
+const GlobalDisclaimersResponseStruct = type(DisclaimersCatalogFields);
+
+/** Session catalog from `GET`/`POST /sessions/{id}/disclaimers`. */
+const SessionDisclaimersResponseStruct = type({
+  ...DisclaimersCatalogFields,
   credentialReusabilityConsentGiven: boolean(),
 });
 
@@ -300,8 +310,13 @@ export type CreateVendorCustomerParams = {
 export type SubmitVendorDisclaimersParams = {
   /** Identity vendor whose T&Cs were accepted (currently `iron`). */
   vendor: KycVendor;
-  /** Disclaimer ids from {@link KycService.fetchDisclaimers}. */
+  /** Disclaimer ids from {@link KycService.fetchVendorDisclaimers}. */
   disclaimerIds: string[];
+};
+
+export type FetchDisclaimersCatalogParams = {
+  /** ISO 3166-1 alpha-3 country code for `GET /disclaimers?country=`. */
+  country: string;
 };
 
 export type FetchSessionDisclaimersParams = {
@@ -381,7 +396,7 @@ export type GetSessionStatusParams = {
  * It extends {@link BaseDataService}, so every request is routed through
  * `fetchQuery`: it is wrapped in the shared service policy (retries, circuit
  * breaker) and its result is exposed via the service's `QueryClient`. Read-only
- * endpoints (`fetchDisclaimers`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`) are cached
+ * endpoints (`fetchVendorDisclaimers`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`) are cached
  * with a `staleTime`; vendor-disclaimer, session-scoped disclaimer,
  * session-creating, and status-polling endpoints opt out of caching
  * (`staleTime`/`gcTime` of `0`) so they never serve a stale result.
@@ -497,7 +512,7 @@ export class KycService extends BaseDataService<
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The disclaimers.
    */
-  async fetchDisclaimers({
+  async fetchVendorDisclaimers({
     vendor = 'moonpay',
     country,
   }: {
@@ -507,7 +522,7 @@ export class KycService extends BaseDataService<
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
     url.searchParams.set('country', country);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchDisclaimers`, vendor, country],
+      queryKey: [`${this.name}:fetchVendorDisclaimers`, vendor, country],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       staleTime: inMilliseconds(5, Duration.Minute),
     });
@@ -690,23 +705,60 @@ export class KycService extends BaseDataService<
   }
 
   /**
+   * Fetches the global idOS + KYC-provider disclaimer catalog
+   * (`GET /disclaimers?country=`). Does not include
+   * `credentialReusabilityConsentGiven` — that is session-scoped via
+   * {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
+   * {@link fetchVendorDisclaimers}.
+   *
+   * @param params - The parameters.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The catalog documents.
+   */
+  async fetchDisclaimersCatalog({
+    country,
+  }: FetchDisclaimersCatalogParams): Promise<KycDisclaimersCatalog> {
+    if (country.length !== 3) {
+      throw new Error(
+        `KycService.fetchDisclaimersCatalog: country must be an ISO 3166-1 alpha-3 code (received "${country}").`,
+      );
+    }
+
+    const url = new URL('/disclaimers', this.#baseUrl);
+    url.searchParams.set('country', country);
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchDisclaimersCatalog`, country],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      staleTime: 0,
+      gcTime: 0,
+    });
+    return this.#validateResponse(
+      data,
+      GlobalDisclaimersResponseStruct,
+      'disclaimers',
+    );
+  }
+
+  /**
    * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
-   * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
-   * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+   * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+   * `consented` flags and `credentialReusabilityConsentGiven`. For the
+   * pre-session global catalog use {@link fetchDisclaimersCatalog}. Vendor
+   * T&Cs continue to come from {@link fetchVendorDisclaimers}.
    *
    * @param params - The parameters.
    * @param params.sessionId - The UKYC session id.
    * @returns The catalog, including which documents are already consented.
    */
-  async fetchSessionDisclaimers(
-    params: FetchSessionDisclaimersParams,
-  ): Promise<KycSessionDisclaimers> {
+  async fetchSessionDisclaimers({
+    sessionId,
+  }: FetchSessionDisclaimersParams): Promise<KycSessionDisclaimers> {
     const url = new URL(
-      `/sessions/${encodeURIComponent(params.sessionId)}/disclaimers`,
+      `/sessions/${encodeURIComponent(sessionId)}/disclaimers`,
       this.#baseUrl,
     );
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimers`, params.sessionId],
+      queryKey: [`${this.name}:fetchSessionDisclaimers`, sessionId],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       // Consent state can change after a POST, so always re-fetch.
       staleTime: 0,
