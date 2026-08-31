@@ -341,8 +341,8 @@ const parseScaleBulkOrderStatus = (
 };
 
 /**
- * Recover the bulk order response that the pinned SDK wraps in an
- * `ApiRequestError` when any rung is rejected.
+ * Recover a structurally valid bulk order response that the pinned SDK wraps
+ * in an `ApiRequestError`.
  *
  * @param error - The SDK error thrown by `ExchangeClient.order`.
  * @param expectedStatusCount - Number of Scale rungs submitted.
@@ -377,15 +377,6 @@ const getScaleBulkOrderResponseFromError = (
 
   const { statuses } = data;
   if (!Array.isArray(statuses) || statuses.length !== expectedStatusCount) {
-    return undefined;
-  }
-
-  const parsedStatuses = statuses.map(parseScaleBulkOrderStatus);
-  if (
-    parsedStatuses.some((status) => status === undefined) ||
-    !parsedStatuses.some((status) => status?.kind === 'accepted') ||
-    !parsedStatuses.some((status) => status?.kind === 'error')
-  ) {
     return undefined;
   }
 
@@ -6027,6 +6018,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const exchangeClient = this.#clientService.getExchangeClient();
     let result: ScaleBulkOrderResponse;
+    let thrownBulkOrderError: HyperliquidError | undefined;
     try {
       result = await exchangeClient.order({
         orders,
@@ -6039,6 +6031,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw error;
       }
       result = bulkResponse;
+      thrownBulkOrderError = error as HyperliquidError;
     }
 
     const rawStatuses = result.response?.data?.statuses;
@@ -6048,6 +6041,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
     const acceptedCount = outcomes.filter(
       (outcome) => outcome?.kind === 'accepted',
+    ).length;
+    const everyStatusClassified = outcomes.every(
+      (outcome) => outcome !== undefined,
+    );
+    const rejectedCount = outcomes.filter(
+      (outcome) => outcome?.kind === 'error',
     ).length;
     const acceptedRungs = outcomes.flatMap((outcome, index) =>
       outcome?.kind === 'accepted'
@@ -6153,6 +6152,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     };
 
+    if (thrownBulkOrderError !== undefined) {
+      const isRecoverablePartial =
+        everyStatusClassified && acceptedCount > 0 && rejectedCount > 0;
+      if (!isRecoverablePartial) {
+        if (!everyStatusClassified) {
+          await cancelNonRejectedOrders();
+        }
+        throw thrownBulkOrderError;
+      }
+    }
+
     if (generation !== this.#strategyGeneration) {
       const remaining = await cancelNonRejectedOrders();
       if (
@@ -6191,14 +6201,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         requested: count,
         statuses,
       });
-      const everyStatusClassified =
-        statuses.length === count &&
-        outcomes.every((outcome) => outcome !== undefined);
-      const rejectedCount = outcomes.filter(
-        (outcome) => outcome?.kind === 'error',
-      ).length;
       const isValidPartial =
         result.status === 'ok' &&
+        statuses.length === count &&
         everyStatusClassified &&
         !hasWaitingRungs &&
         acceptedCount > 0 &&

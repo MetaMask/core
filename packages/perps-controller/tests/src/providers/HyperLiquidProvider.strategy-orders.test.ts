@@ -5471,7 +5471,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ],
       ],
     ])(
-      'does not unwrap a mixed response with a %s',
+      'cleans and rethrows a mixed response with a %s',
       async (label, statuses) => {
         const error = new TestApiRequestError(
           {
@@ -5480,9 +5480,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
           `Malformed bulk response: ${label}`,
         );
-        const { exchangeClient } = useStrategyClients({
-          exchange: { order: jest.fn().mockRejectedValue(error) },
-        });
+        const order = jest.fn().mockRejectedValue(error);
+        const { exchangeClient } = useStrategyClients({ exchange: { order } });
 
         const result = await provider.placeOrder({
           ...baseOrder,
@@ -5496,7 +5495,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           success: false,
           error: `Malformed bulk response: ${label}`,
         });
-        expect(exchangeClient.cancel).not.toHaveBeenCalled();
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 11 }],
+        });
+        const submittedOrders = order.mock.calls[0][0].orders;
+        expect(exchangeClient.cancelByCloid).toHaveBeenCalledWith({
+          cancels: [{ asset: 1, cloid: submittedOrders[2].c }],
+        });
       },
     );
 
@@ -5534,6 +5539,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
       });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.cancelByCloid).not.toHaveBeenCalled();
     });
 
     it.each([
