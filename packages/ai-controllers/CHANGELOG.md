@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: add `.js` import extensions to Social AI packages ([#9623](https://github.com/MetaMask/core/pull/9623))
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ### Changed
 
 - **BREAKING:** `AiDigestController` no longer caches `fetchMarketInsights` or `fetchMarketOverview` results (no TTL, eviction, or persisted `marketInsights` / `marketOverview` state). Each call is a passthrough to `AiDigestService`. Clients must own freshness. ([#10020](https://github.com/MetaMask/core/pull/10020))
