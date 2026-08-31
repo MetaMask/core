@@ -14,10 +14,10 @@
       "path": "../polling-controller/tsconfig.build.json"
     },
     {
-      "path": "../profile-sync-controller"
+      "path": "../profile-sync-controller/tsconfig.build.json"
     },
     {
-      "path": "../subscription-controller"
+      "path": "../subscription-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

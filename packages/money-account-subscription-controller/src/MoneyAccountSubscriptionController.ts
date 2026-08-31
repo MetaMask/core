@@ -5,6 +5,16 @@ import type {
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type {
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetStateAction,
+  AuthenticationControllerPerformSignOutAction,
+  AuthenticationControllerState,
+} from '@metamask/profile-sync-controller/auth';
+import type {
+  SubscriptionControllerGetStateAction,
+  SubscriptionControllerState,
+} from '@metamask/subscription-controller';
 
 import type { MoneyAccountSubscriptionControllerMethodActions } from './MoneyAccountSubscriptionController-method-action-types.js';
 import { getMoneyAccountPlusClaimFromBearerToken } from './jwt-claims.js';
@@ -37,30 +47,6 @@ export type MoneyAccountSubscriptionControllerActions =
   | MoneyAccountSubscriptionControllerGetStateAction
   | MoneyAccountSubscriptionControllerMethodActions;
 
-type AuthenticationControllerState = {
-  isSignedIn: boolean;
-};
-
-type AuthenticationControllerGetStateAction = {
-  type: 'AuthenticationController:getState';
-  handler: () => AuthenticationControllerState;
-};
-
-type AuthenticationControllerGetBearerTokenAction = {
-  type: 'AuthenticationController:getBearerToken';
-  handler: (entropySourceId?: string) => Promise<string>;
-};
-
-type AuthenticationControllerPerformSignOutAction = {
-  type: 'AuthenticationController:performSignOut';
-  handler: () => void;
-};
-
-type SubscriptionControllerGetStateAction = {
-  type: 'SubscriptionController:getState';
-  handler: () => unknown;
-};
-
 type AllowedActions =
   | AuthenticationControllerGetStateAction
   | AuthenticationControllerGetBearerTokenAction
@@ -72,10 +58,10 @@ type AuthenticationControllerStateChangedEvent = ControllerStateChangedEvent<
   AuthenticationControllerState
 >;
 
-type SubscriptionControllerStateChangedEvent = {
-  type: 'SubscriptionController:stateChanged';
-  payload: [unknown, unknown[]];
-};
+type SubscriptionControllerStateChangedEvent = ControllerStateChangedEvent<
+  'SubscriptionController',
+  SubscriptionControllerState
+>;
 
 export type MoneyAccountSubscriptionControllerStateChangedEvent =
   ControllerStateChangedEvent<
