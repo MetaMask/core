@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `getNotificationsApiConfigCached` now returns `null` when the Trigger API could not be read, and an empty array only when the API reported that no address is subscribed ([#9985](https://github.com/MetaMask/core/pull/9985))
   - Previously both cases returned an empty array, so callers could not tell "the user has nothing enabled" from "we failed to ask", and acting on the guess re-subscribed or unregistered addresses behind the user.
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ### Fixed
 

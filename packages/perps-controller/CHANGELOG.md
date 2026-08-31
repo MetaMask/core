@@ -7,20 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Added
 
-- **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
-  - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
-  - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.
-
-### Changed
-
-- Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
-- Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
-- Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
+- Add Lighter as a perps venue (initial implementation, disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889), [#10015](https://github.com/MetaMask/core/pull/10015))
+  - **BREAKING:** `PerpsProviderType` gains `'lighter'`. Consumers with exhaustive provider switches must handle the new value. Enablement requires client opt-in: `providerCredentials.lighter.enabled`, or the `perpsLighterProviderEnabled` remote feature flag combined with a client-supplied `providerCredentials.lighter.signerBridge` (without a bridge the provider is read-only). Lighter follows the global network toggle on both testnet and mainnet (reads and writes).
+  - The client-supplied signer bridge owns venue-key creation and persistence; Core never derives or receives the venue-key seed/private key. Lighter deposits are not advertised until the provider can build the required approval plus bridge-deposit call.
+  - New Lighter types/constants exports, `KeyringController:signPersonalMessage` in the allowed messenger actions (type-only), and durable-settlement surfacing on the controller: `getPendingManualRecoveries`, `getRecoveredDispatches`, `acknowledgeRecoveredDispatch` actions with `PerpsPendingManualRecovery` / `PerpsRecoveredDispatch` exported types and `OrderResult.partialState`.
+  - `LiquidationPriceParams` and `MaintenanceMarginParams` gain an optional `providerId`, and `getMaxLeverage` accepts the same optional route, so aggregated calculations use the provider that owns the market or position.
 
 ### Fixed
 
+- Preserve accepted HyperLiquid Scale orders when part of a batch is rejected ([#9989](https://github.com/MetaMask/core/pull/9989))
+
+## [14.0.0]
+
+### Added
+
+- **BREAKING:** Add `PerpsController.previewPositionModify` and `PerpsProvider.previewPositionModify` so clients can read an isolated-margin post-trade projection without placing an order ([#9968](https://github.com/MetaMask/core/pull/9968))
+  - Mobile supplies the live position and proposed order; the HyperLiquid provider fetches the asset's margin table and applies selected leverage to the whole resulting position (matching `updateLeverage` before placement).
+  - The result is a discriminated union (`none` / `unsupported` / `full_close` / `open`) so a non-modifying preview cannot carry a flip kind and a full close cannot report remaining size. Margin and liquidation availability are independent: a missing live liquidation or missing multi-tier table withholds only liquidation.
+  - Isolated increases, leverage changes (up or down), reductions, flips, and full closes are projected for both longs and shorts. `price` is the expected fill or resting limit; the preview does not distinguish order types. Same-direction `reduceOnly` and increases/flips without a positive price return `{ status: 'none' }`. `resulting.leverage` is mark notional / remaining isolated margin. Liquidation uses the projected mark (not average entry) because isolated `marginUsed` is mark-based equity. A missing margin-table identity withholds liquidation rather than inventing a single-tier schedule. Aggregated providers route by `providerId` / `position.providerId`. Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`. MYX returns `{ status: 'unsupported', reason: 'provider' }`.
+  - Consumers that implement `PerpsProvider` must add `previewPositionModify`. Clients should use `resulting.direction` (not the order direction) when validating TP/SL against the projected liquidation.
+
+### Fixed
+
+- Prevent transient HyperLiquid WebSocket disconnects from failing the first TP/SL update by checking builder-fee approval over HTTP ([#9997](https://github.com/MetaMask/core/pull/9997))
+- Stop reporting `TPSL_UPDATE_FAILED` from `updatePositionTPSL` when HyperLiquid accepts a trigger with `waitingForTrigger`; accepted triggers without response order IDs are reconciled before mixed-failure cleanup ([#9995](https://github.com/MetaMask/core/pull/9995))
+
+## [13.1.0]
+
+### Added
+
+- Include `direction` on pending trade configurations so a 30-second draft restores long/short with size ([#9992](https://github.com/MetaMask/core/pull/9992))
+
+### Fixed
+
+- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics. ([#9982](https://github.com/MetaMask/core/pull/9982))
+- Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
+
+## [13.0.0]
+
+### Added
+
+- Add the public Chase lifecycle API (`getChaseOrders` and
+  `suspendChaseOrders`), aggregated-provider routing, retained lifecycle
+  snapshots, directional max-distance stopping, and idempotent termination of
+  stale or already-gone child orders. Clients should map the new
+  `ORDER_CHASE_MAX_DISTANCE_INVALID` validation code when
+  exposing Chase configuration errors. Adds typed analytics interaction values
+  for background conversion and termination. An incomplete termination reports
+  `termination_pending` while its child remains cancellable. Consumers can use
+  the exported `CHASE_ORDER_STATUS` values instead of duplicating lifecycle
+  strings ([#9961](https://github.com/MetaMask/core/pull/9961)).
+- **BREAKING:** Add persisted `selectedOrderType`, `orderBookPreferences`, and `visibleCandleCount` fields to `PerpsControllerState`, with controller methods and selectors for updating and reading each preference ([#9922](https://github.com/MetaMask/core/pull/9922))
+  - `selectedOrderType` is shared across markets, order-book listed-by preferences default to USD totals, and visible candle count defaults to 30 with a supported range of 10–250.
+  - Consumers constructing a full `PerpsControllerState` must include the new fields; default state, getters, and selectors remain backward-compatible with older persisted state.
+- Add per-market strategy capabilities, TWAP lifecycle records, recoverable Scale group IDs, and the Chase max-distance event ([#9948](https://github.com/MetaMask/core/pull/9948))
+- **BREAKING:** Add `ORDER_STRATEGY_ROUTE_UNAVAILABLE`, `PROVIDER_NOT_FOUND`, `PROVIDER_LIFECYCLE_STALE`, and `TPSL_PROTECTION_LOST` to `PerpsErrorCode` ([#9948](https://github.com/MetaMask/core/pull/9948))
+
+### Changed
+
+- **BREAKING:** Support strategy orders on HyperLiquid HIP-3, route an optional `providerId` consistently, return zero MetaMask builder fee for TWAP through a provider-owned fee policy, and use 15-second unbounded Chase defaults ([#9961](https://github.com/MetaMask/core/pull/9961), [#9948](https://github.com/MetaMask/core/pull/9948))
+- Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
+- Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
+- Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+### Fixed
+
+- Keep selectively allowlisted HIP-3 markets aligned with their volume, open-interest, funding, and previous-price contexts ([#9971](https://github.com/MetaMask/core/pull/9971))
+- Display tiny nonzero funding rates as `<0.0001%` or `-<0.0001%` instead of `0.0000%` ([#9971](https://github.com/MetaMask/core/pull/9971))
+- Harden strategy and TP/SL lifecycles across partial failures, suspension, reconnects, provider changes, and teardown; validation and fee quotes now wait for initialization ([#9948](https://github.com/MetaMask/core/pull/9948))
 - Ignore missing optional MYX constructors when a consumer excludes the MYX module from its bundle ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Consume rejected HyperLiquid candle unsubscriptions so cleanup cannot emit an unhandled promise rejection ([#9939](https://github.com/MetaMask/core/pull/9939))
 
@@ -66,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add strategy placement order types to `OrderType`: `twap`, `scale`, and `chase`, placeable through `placeOrder` alongside the existing `market`, `limit`, and trigger types ([#9832](https://github.com/MetaMask/core/pull/9832))
   - `OrderType` is a wider union again, so — exactly as for the trigger types added in 11.0.0 — any consumer signature that narrows it back to a smaller set no longer accepts a value typed `OrderType`. Such signatures must widen to `OrderType` or narrow explicitly at the call site.
   - A strategy placement expands one request into an execution schedule rather than a single resting order, so `OrderResult.orderId` carries a _handle_ — a venue TWAP id, or a client-generated group/session id — rather than an exchange order id. Its documentation says so; the individual exchange ids are in `childOrderIds`.
-  - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally randomizing slice timing with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to 5–1440 minutes.
+  - `twap` slices the size over `OrderParams.twapDuration` whole minutes, optionally varying each suborder's size by up to ±20% with `OrderParams.twapRandomize`. On HyperLiquid it is submitted through the venue's own TWAP action, not the order book, and `HYPERLIQUID_TWAP_LIMITS` bounds the window to the pinned SDK's 5–1440-minute range.
   - `scale` fans out `OrderParams.scaleNumOrders` limit orders on an inclusive price ladder between `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, submitted as a single batch. Sizes are split in whole units of the asset's size grid, so the rungs sum to exactly the submitted size. The batch is not atomic — the venue can rest some rungs and reject others — so `OrderResult.submittedSize` reports only the rungs that actually rested.
   - The venue applies its minimum order value to what it receives, not to the strategy total: a `scale` ladder's notional must leave every submitted rung above the per-order minimum, and a `twap`'s total must clear the venue's own minimum TWAP size (`HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd`). Both are rejected locally rather than by the exchange. The ladder check needs the asset's size grid, so it runs during placement — before anything is signed — rather than in `validateOrder`, which cannot see the grid and could only guess.
   - A `chase` verifies its order is still live whenever its own price stops showing on the book, so an order that fills without the loop noticing ends the session and releases its concurrency slot instead of holding both until the window closes.
@@ -766,7 +828,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...@metamask/perps-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...@metamask/perps-controller@14.0.0
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.0.0...@metamask/perps-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...@metamask/perps-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...@metamask/perps-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...@metamask/perps-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...@metamask/perps-controller@12.0.0

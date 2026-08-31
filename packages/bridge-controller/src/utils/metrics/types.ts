@@ -46,7 +46,7 @@ export type AccountHardwareType =
   | null;
 
 export type RequestMetadata = {
-  slippage_limit?: number; // undefined === auto
+  slippage_limit: number; // 0 === auto when no numeric limit is available
   custom_slippage: boolean;
   usd_amount_source: number; // Use quoteResponse when available
   stx_enabled: boolean;
@@ -221,6 +221,7 @@ type RequiredEventContextFromClientBase = {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_security_type_destination: RequestParams['token_security_type_destination'];
+    custom_slippage?: RequestMetadata['custom_slippage'];
   } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> &
@@ -232,6 +233,8 @@ type RequiredEventContextFromClientBase = {
       usd_balance_source?: number;
       has_sufficient_gas_for_quote?: boolean | null;
       usd_amount_source: number;
+      custom_slippage?: RequestMetadata['custom_slippage'];
+      slippage_limit?: RequestMetadata['slippage_limit'];
     };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
@@ -401,6 +404,7 @@ export type EventPropertiesFromControllerState = {
     QuoteFetchData &
     TradeData & {
       refresh_count: number; // starts from 0
+      has_sufficient_funds: boolean;
     } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesError]: RequestParams &
     RequestMetadata & {

@@ -6,7 +6,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockPosition,
+} from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -106,6 +109,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -655,6 +659,37 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('previewPositionModify', () => {
+    it('delegates to MarketDataService', async () => {
+      const params = {
+        position: createMockPosition({
+          leverage: { type: 'isolated' as const, value: 5 },
+        }),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '50000',
+        leverage: 10,
+      };
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      jest
+        .spyOn(mockMarketDataServiceInstance, 'previewPositionModify')
+        .mockResolvedValue({ status: 'none' });
+
+      const result = await controller.previewPositionModify(params);
+
+      expect(result).toEqual({ status: 'none' });
+      expect(
+        mockMarketDataServiceInstance.previewPositionModify,
+      ).toHaveBeenCalledWith({
+        provider: mockProvider,
+        params,
+        context: expect.any(Object),
+      });
+    });
+  });
+
   describe('getMaxLeverage', () => {
     it('gets max leverage successfully', async () => {
       const asset = 'BTC';
@@ -673,6 +708,27 @@ describe('PerpsController', () => {
         {
           provider: mockProvider,
           asset,
+          context: expect.any(Object),
+        },
+      );
+    });
+
+    it('forwards an explicit provider route for max leverage', async () => {
+      const asset = 'BTC';
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      jest
+        .spyOn(mockMarketDataServiceInstance, 'getMaxLeverage')
+        .mockResolvedValue(17);
+
+      const result = await controller.getMaxLeverage(asset, 'myx');
+
+      expect(result).toBe(17);
+      expect(mockMarketDataServiceInstance.getMaxLeverage).toHaveBeenCalledWith(
+        {
+          provider: mockProvider,
+          asset,
+          providerId: 'myx',
           context: expect.any(Object),
         },
       );

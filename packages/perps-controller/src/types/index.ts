@@ -7,6 +7,8 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
+import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
   OrderType,
@@ -257,7 +259,7 @@ export type OrderParams = {
   // never be silently dropped. Strategy orders carry no `price`, `triggerPrice`,
   // `timeInForce` or attached TP/SL — the strategy owns its own execution.
   twapDuration?: number; // TWAP window in whole minutes; each provider enforces its own venue's bounds
-  twapRandomize?: boolean; // Randomize the timing of the TWAP slices (default false)
+  twapRandomize?: boolean; // Randomize each TWAP suborder's size by up to ±20% (default false)
   scaleMinPrice?: string; // Lowest limit price in the scale ladder
   scaleMaxPrice?: string; // Highest limit price in the scale ladder; must exceed scaleMinPrice
   scaleNumOrders?: number; // How many limit orders to spread across the ladder (2..20)
@@ -270,9 +272,10 @@ export type OrderParams = {
    * `splitScaleSizes` for how the sizes are allocated.
    */
   scaleSkew?: number;
-  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 3000, min 1000)
-  chaseMaxDurationMs?: number; // Hard stop for the chase window (default 60000)
-  chaseMaxRepricings?: number; // Cap on cancel/replace cycles (default 20)
+  chaseIntervalMs?: number; // How often the chase re-reads the touch (default 15000, min 1000)
+  chaseMaxDurationMs?: number; // Optional hard stop for the chase window (unbounded by default)
+  chaseMaxRepricings?: number; // Optional cap on cancel/replace cycles (unbounded by default)
+  chaseMaxDistanceBps?: number; // Optional directional distance from arrival price where chasing stops
 
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
@@ -301,9 +304,19 @@ export type OrderParams = {
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
 
-  // Multi-provider routing (optional: defaults to active/default provider)
-  providerId?: PerpsProviderType; // Optional: override active provider for routing
+  // Multi-provider routing (optional: defaults to active/default provider).
+  providerId?: PerpsProviderType;
 };
+
+export type ScaleOrderChild =
+  | {
+      state: 'resting' | 'filled';
+      orderId: string;
+    }
+  | {
+      state: 'waitingForFill' | 'waitingForTrigger';
+      orderId?: never;
+    };
 
 export type OrderResult = {
   success?: boolean;
@@ -313,32 +326,190 @@ export type OrderResult = {
    * For an ordinary placement this is the exchange's order ID. For a *strategy*
    * placement it is a handle instead — a venue TWAP id, or a client-generated
    * scale-group or chase-session id — which is what `CancelOrderParams` takes
-   * together with the matching `orderType`. The individual exchange ids a
-   * strategy expanded into are in `childOrderIds`.
+   * together with the matching `orderType` and `providerId`. Scale and chase
+   * handles are held in the provider session that created them. Scale handles
+   * are also encoded in each rung's venue client-order ID, so an open-order
+   * read can recover the group after reconnect. Chase handles cannot be
+   * recovered because every replacement receives a new exchange order ID.
+   * The individual exchange IDs a strategy expanded into are in
+   * `childOrderIds`.
    */
   orderId?: string;
   error?: string;
   filledSize?: string; // Amount filled
-  // Final normalized size actually submitted to the exchange (post precision
-  // rounding, USD recalculation, and any $10-minimum retry). Present only when
-  // the provider reached submission; used to classify partial fills against the
-  // real submitted size rather than the caller's pre-normalization params.size.
+  // Full normalized size submitted to the exchange (post precision rounding,
+  // USD recalculation, and any $10-minimum retry). Present only when the
+  // provider reached submission.
   submittedSize?: string;
-  averagePrice?: string; // Average execution price
-  // Exchange IDs of the individual orders a strategy placement expanded into.
-  // `orderId` carries the strategy handle instead, so these are what a caller
-  // needs to cancel the children directly.
+  // Normalized size of the submitted rungs that the exchange accepted. This
+  // differs from `submittedSize` when a non-atomic Scale batch is partly
+  // rejected.
+  acceptedSize?: string;
+  // Size-weighted average execution price. Present only when the result
+  // includes fills.
+  averagePrice?: string;
+  // Size-weighted limit price of accepted Scale rungs. This is a submission
+  // price, not an execution price.
+  weightedAverageLimitPrice?: string;
+  // Every accepted child of a Scale batch and its immediate placement state.
+  // Waiting children do not carry an exchange order ID; cancel the Scale handle
+  // to cancel both resting and waiting children.
+  acceptedChildren?: ScaleOrderChild[];
+  // Exchange IDs tied to a multi-order or recovery result. On a successful
+  // strategy placement, `orderId` carries the strategy handle and these IDs
+  // identify its individual children.
   //
-  // For a `scale` ladder they stay valid: the rungs are placed once and are not
-  // replaced, so they remain cancellable even after the session-scoped handle is
-  // gone. For a `chase` this is only the order resting at placement time — the
+  // For a `scale` ladder these identify only resting, cancellable rungs. Every
+  // accepted rung and its state is reported in `acceptedChildren`. Scale rungs
+  // are never replaced, so a resting ID stays valid after the handle is gone.
+  // For a `chase` this is only the order resting at placement time — the
   // strategy cancels and re-places as the touch moves, and each replacement has
   // a new ID that is held in the session rather than reported here, so the value
   // goes stale on the first re-price. Cancel a live chase by its handle.
   //
-  // Absent for every non-strategy placement.
+  // When TP/SL protection cannot be fully restored, these identify the old
+  // orders that survived, may still be live when reconciliation failed, or were
+  // recreated; an empty array means none are known or potentially live.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
+  /**
+   * Structured record of venue state that was ALREADY committed before the
+   * placement failed — e.g. a leverage change that landed before the order
+   * was rejected. Present only on failure results where such state exists;
+   * callers must not treat the failure as "nothing happened".
+   */
+  partialState?: {
+    /** Leverage (in x) the venue already applied for this symbol. */
+    leverageUpdated?: number;
+  };
+};
+
+/**
+ * A TP/SL protection change that could not be safely completed
+ * automatically and requires an explicit new protection intent from the
+ * user. Surfaced by providers with durable settlement state (Lighter).
+ */
+export type PerpsPendingManualRecovery = {
+  symbol: string;
+  /** Durable identity (address:accountIndex:apiKey:symbol). */
+  settlementKey: string;
+  recordedAt: number;
+  /** Human-readable cause of the parked state. */
+  reason: string;
+  /** Whether the interrupted operation replaced or removed protection. */
+  priorIntent: 'replace' | 'remove';
+  /** Venue order ids still on the books when the state was parked. */
+  survivingOrderIds: string[];
+  /** What the user should do to resolve the state. */
+  actionNeeded: string;
+};
+
+/**
+ * A previously ambiguous dispatch whose outcome was later resolved.
+ * Writes stay blocked until each outcome is explicitly acknowledged via
+ * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
+ * state) — except `failed`, which is retry-safe and non-blocking.
+ */
+export type PerpsRecoveredDispatch = {
+  /** Stable id for selective acknowledgment. */
+  recoveryId: string;
+  /** Venue transaction type of the dispatch. */
+  kind: number;
+  /** Human-readable operation intent. */
+  intent: string;
+  txHash: string | null;
+  outcome: 'succeeded' | 'failed' | 'unknown';
+  /** How the outcome was determined (e.g. `tx-status:2`, `rest-advance`). */
+  evidence: string;
+};
+
+export type ChaseOrderStatus =
+  (typeof CHASE_ORDER_STATUS)[keyof typeof CHASE_ORDER_STATUS];
+
+export type TwapOrderStatus =
+  | 'active'
+  | 'completed'
+  | 'completed_underfilled'
+  | 'canceled'
+  | 'failed';
+
+export type TwapOrderFill = {
+  fillId: string;
+  orderId: string;
+  side: 'buy' | 'sell';
+  price: string;
+  size: string;
+  fee: string;
+  feeToken: string;
+  builderFee?: string;
+  timestamp: number;
+  transactionHash: string;
+};
+
+/** Current and terminal state of one venue-native TWAP schedule. */
+export type TwapOrder = {
+  orderId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  size: string;
+  executedSize: string;
+  remainingSize: string;
+  executedNotional: string;
+  averagePrice?: string;
+  fillProgressBps: number;
+  timeProgressBps: number;
+  elapsedTimeMilliseconds: number;
+  durationMinutes: number;
+  randomize: boolean;
+  reduceOnly: boolean;
+  status: TwapOrderStatus;
+  startedAt: number;
+  lastUpdated: number;
+  error?: string;
+  fills: TwapOrderFill[];
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Client-visible state of one emulated Chase placement.
+ *
+ * The handle remains stable while the exchange child ID and resting price can
+ * change on every reprice. Terminal sessions are retained until provider
+ * teardown so clients can observe why chasing stopped and then reconcile the
+ * surviving child through the ordinary orders stream.
+ */
+export type ChaseOrder = {
+  handle: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  originalSize: string;
+  remainingSize: string;
+  arrivalPrice: string;
+  restingPrice: string;
+  restingOrderId: string | null;
+  /** Adverse distance of the resting child from arrival, rounded to whole bps. */
+  distanceChasedBps: number;
+  /**
+   * Optional adverse-touch stop, strictly between 0 and 10,000 bps.
+   * The resting child may sit just inside this boundary after price-grid rounding.
+   */
+  maxDistanceBps?: number;
+  repricings: number;
+  startedAt: number;
+  status: ChaseOrderStatus;
+  providerId?: PerpsProviderType;
+};
+
+/** Lifecycle signal emitted when a Chase reaches its configured distance. */
+export type ChaseOrderMaxDistanceReached = {
+  handle: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  restingOrderId: string | null;
+  restingPrice: string;
+  maxDistanceBps: number;
+  timestamp: number;
+  providerId: PerpsProviderType;
 };
 
 export type Position = {
@@ -734,7 +905,8 @@ export type CancelOrderParams = {
    * which is what every existing caller does.
    */
   orderType?: OrderType;
-  providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  // Optional provider override. Omission uses active/default routing.
+  providerId?: PerpsProviderType;
   // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
   trackingData?: TrackingData;
 };
@@ -744,7 +916,9 @@ export type CancelOrderResult = {
   /**
    * What was cancelled, named the same way it was placed: an exchange order ID
    * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
-   * chase session — when `CancelOrderParams.orderType` named one.
+   * chase session — when `CancelOrderParams.orderType` named one. Scale and
+   * chase handles can only be cancelled during the provider session that
+   * created them; TWAP IDs are venue-owned.
    */
   orderId?: string;
   error?: string;
@@ -936,9 +1110,33 @@ export type MYXCredentials = {
   brokerAddressMainnet?: string;
 };
 
+export type LighterCredentials = {
+  /** Whether Lighter provider is enabled via local env var. */
+  enabled?: boolean;
+  /** Lighter account index override (testnet tooling). */
+  accountIndexTestnet?: number;
+  accountIndexMainnet?: number;
+  /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
+  apiKeyIndex?: number;
+  /**
+   * Client-owned Lighter signer. The client creates and persists the venue
+   * key behind this bridge; Core receives only signing results and public
+   * registration data, matching the injected-wallet boundary used by
+   * HyperLiquid.
+   *
+   * Mobile uses an off-screen WebView bridge; headless clients may use an
+   * in-process WASM bridge.
+   * Optional — without it the Lighter provider is read-only. Lives on the
+   * Lighter credentials bag, not PerpsPlatformDependencies, so the shared
+   * platform surface stays venue-agnostic.
+   */
+  signerBridge?: LighterSignerBridge;
+};
+
 export type PerpsProviderCredentials = {
   hyperliquid?: HyperLiquidCredentials;
   myx?: MYXCredentials;
+  lighter?: LighterCredentials;
 };
 
 export type PriceUpdate = {
@@ -1233,12 +1431,182 @@ export type LiquidationPriceParams = {
   positionSize?: number; // Optional: for more accurate calculations
   marginType?: 'isolated' | 'cross'; // Optional: defaults to isolated
   asset?: string; // Optional: for asset-specific maintenance margins
+  /** Provider that owns the position when calculations are aggregated. */
+  providerId?: PerpsProviderType;
 };
+
+/**
+ * Live position fields required to project a modify. Clients may pass a full
+ * {@link Position}; extra fields are ignored.
+ */
+export type PositionModifyPreviewSource = Pick<
+  Position,
+  | 'symbol'
+  | 'size'
+  | 'marginUsed'
+  | 'liquidationPrice'
+  | 'entryPrice'
+  | 'leverage'
+  | 'positionValue'
+  | 'maxLeverage'
+  | 'providerId'
+>;
+
+/**
+ * Proposed order plus the live position it would modify.
+ *
+ * Isolated-margin previews apply `leverage` to the *whole* resulting
+ * position, matching `updateLeverage` before placement. Cross-margin
+ * positions are not projected.
+ */
+export type PositionModifyPreviewParams = {
+  position: PositionModifyPreviewSource;
+  /** Proposed order direction. */
+  direction: 'long' | 'short';
+  /** Proposed order size in token units. */
+  size: string;
+  /**
+   * Expected fill price for a marketable order, or the resting limit price.
+   * Increases and flips require a positive price; a reduce does not.
+   * Scale, TWAP, and chase orders should pass the expected fill size and price;
+   * this preview models a single fill.
+   */
+  price: string;
+  /**
+   * Isolated leverage the provider will set on the asset before placing.
+   * Applied to the entire resulting position, not only the added size.
+   */
+  leverage: number;
+  reduceOnly?: boolean;
+  /**
+   * Estimated trading fees in USD. Deducted from isolated margin on
+   * increases and flips. Omit or pass 0 when unknown.
+   */
+  feeAmountUsd?: number;
+  /**
+   * Explicit venue route. Aggregated providers use this, then
+   * `position.providerId`, then the default provider.
+   */
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * Independently available numeric projection. Margin can be known when
+ * liquidation cannot (missing maintenance-tier data, or no liquidation risk).
+ */
+export type PositionPreviewValue =
+  | { available: true; value: number }
+  | { available: false };
+
+export type PositionModifyPreviewKind = 'increase' | 'decrease' | 'flip';
+
+export type PositionModifyPreviewCurrent = {
+  margin: PositionPreviewValue;
+  liquidationPrice: PositionPreviewValue;
+};
+
+export type PositionModifyPreviewOpen = {
+  status: 'open';
+  kind: PositionModifyPreviewKind;
+  current: PositionModifyPreviewCurrent;
+  resulting: {
+    direction: 'long' | 'short';
+    /** Resulting token size; always > 0 for `open`. */
+    size: number;
+    entryPrice: number;
+    /**
+     * Isolated leverage from mark notional / remaining margin, matching
+     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     */
+    leverage: number;
+    margin: PositionPreviewValue;
+    liquidationPrice: PositionPreviewValue;
+  };
+};
+
+export type PositionModifyPreviewFullClose = {
+  status: 'full_close';
+  current: PositionModifyPreviewCurrent;
+  /** Direction of the position being closed. */
+  resultingDirection: 'long' | 'short';
+};
+
+export type PositionModifyPreviewUnsupported = {
+  status: 'unsupported';
+  reason: 'cross_margin' | 'provider';
+};
+
+export type PositionModifyPreviewNone = {
+  status: 'none';
+};
+
+/**
+ * Read-only post-trade position projection.
+ *
+ * Discriminated on `status` so a non-modifying result cannot carry a
+ * flip/full-close kind, and a full close cannot report a remaining size.
+ */
+export type PositionModifyPreviewResult =
+  | PositionModifyPreviewNone
+  | PositionModifyPreviewUnsupported
+  | PositionModifyPreviewFullClose
+  | PositionModifyPreviewOpen;
 
 export type MaintenanceMarginParams = {
   asset: string;
   positionSize?: number; // Optional: for tiered margin systems
+  /** Provider that owns the position when calculations are aggregated. */
+  providerId?: PerpsProviderType;
 };
+
+/**
+ * Context used to resolve the provider that owns order capabilities.
+ * `symbol` allows providers to narrow capabilities per market, while
+ * `providerId` follows the same explicit-over-default routing as placement.
+ */
+export type GetOrderCapabilitiesParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  providerId?: PerpsProviderType;
+};
+
+/** Provider-owned strategy capabilities for the selected market route. */
+export type DirectProviderOrderCapabilitiesUnavailableReason =
+  | 'provider_unavailable'
+  | 'invalid_symbol'
+  | 'market_not_found'
+  | 'strategy_market_unsupported';
+
+export type RoutedOrderCapabilitiesUnavailableReason =
+  | 'provider_not_found'
+  | 'provider_not_routable'
+  | 'not_implemented';
+
+export type OrderCapabilitiesUnavailableReason =
+  | DirectProviderOrderCapabilitiesUnavailableReason
+  | RoutedOrderCapabilitiesUnavailableReason;
+
+type ReadyPerpsOrderCapabilities = Readonly<{
+  status: 'ready';
+  providerId: PerpsProviderType;
+  supportedStrategies: readonly StrategyOrderType[];
+}>;
+
+export type DirectProviderOrderCapabilities =
+  | ReadyPerpsOrderCapabilities
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: DirectProviderOrderCapabilitiesUnavailableReason;
+    }>;
+
+export type PerpsOrderCapabilities =
+  | ReadyPerpsOrderCapabilities
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: OrderCapabilitiesUnavailableReason;
+    }>;
 
 export type FeeCalculationParams = {
   // Trigger placements are charged as their execution kind (a stop_limit pays
@@ -1247,6 +1615,8 @@ export type FeeCalculationParams = {
   isMaker?: boolean;
   amount?: string;
   symbol: string; // Required: Asset identifier for HIP-3 fee calculation (e.g., 'BTC', 'xyz:TSLA')
+  // Optional provider override. Omission uses active/default routing.
+  providerId?: PerpsProviderType;
 };
 
 export type FeeCalculationResult = {
@@ -1430,6 +1800,7 @@ export type Order = {
   parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows
   isSynthetic?: boolean; // Whether this order is synthetic (display-only, cancelable only when linked to a real child order ID)
   triggerPrice?: string; // Trigger condition price for trigger orders (e.g., TP/SL trigger level)
+  strategyGroupId?: string; // Recoverable strategy handle shared by related venue orders
   providerId?: PerpsProviderType; // Multi-provider: which provider this order is on (injected by aggregator)
 };
 
@@ -1444,6 +1815,17 @@ export type Funding = {
 export type PerpsProvider = {
   readonly protocolId: string;
 
+  /** Whether this provider routes individual requests by `providerId`. */
+  readonly routesOrdersByProviderId?: boolean;
+
+  /**
+   * Return strategy capabilities for the provider/market route. Providers may
+   * omit this hook; the controller then reports capabilities as unavailable.
+   */
+  getOrderCapabilities?(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities>;
+
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their withdrawal routes
@@ -1453,10 +1835,19 @@ export type PerpsProvider = {
   editOrder(params: EditOrderParams): Promise<OrderResult>;
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
+  getTwapOrders?(): Promise<TwapOrder[]>;
+  getChaseOrders?(): Promise<ChaseOrder[]>;
+  suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
+  // Durable-settlement surfacing (optional: providers with durable local
+  // settlement state — Lighter). Read-only listings plus selective,
+  // explicit acknowledgment; never destructive read-all.
+  getPendingManualRecoveries?(): Promise<PerpsPendingManualRecovery[]>;
+  getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
+  acknowledgeRecoveredDispatch?(recoveryId: string): Promise<void>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
   getUserDataSnapshot?(
@@ -1568,8 +1959,20 @@ export type PerpsProvider = {
   // Protocol-specific calculations
   calculateLiquidationPrice(params: LiquidationPriceParams): Promise<string>;
   calculateMaintenanceMargin(params: MaintenanceMarginParams): Promise<number>;
-  getMaxLeverage(asset: string): Promise<number>;
+  getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number>;
   calculateFees(params: FeeCalculationParams): Promise<FeeCalculationResult>;
+  /**
+   * Read-only projection of the position that would remain after the proposed
+   * order. Isolated-margin venues apply selected leverage to the whole
+   * resulting position and use the maintenance tier at liquidation notional.
+   * Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`.
+   */
+  previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult>;
 
   // Live data subscriptions → Direct UI (NO Redux, maximum speed)
   subscribeToPrices(params: SubscribePricesParams): () => void;
@@ -1638,7 +2041,7 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx';
+export type PerpsProviderType = 'hyperliquid' | 'myx' | 'lighter';
 
 /**
  * Active provider mode for PerpsController state.

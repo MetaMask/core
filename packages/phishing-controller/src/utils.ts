@@ -231,28 +231,30 @@ export const processDomainList = (list: string[]): string[][] => {
  * @param override.blocklist - the optional blocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
+ * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @returns the default phishing detector configuration.
  */
 export const getDefaultPhishingDetectorConfig = ({
   allowlist = [],
   blocklist = [],
+  c2DomainBlocklist = [],
   fuzzylist = [],
   tolerance = DEFAULT_TOLERANCE,
 }: {
   allowlist?: string[];
   blocklist?: string[];
+  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
-}): PhishingDetectorConfiguration => {
-  return {
-    allowlist: processDomainList(allowlist),
-    // We can assume that blocklist is already separated into hostname-only entries
-    // and hostname+path entries so we do not need to separate it again.
-    blocklist: processDomainList(blocklist),
-    fuzzylist: processDomainList(fuzzylist),
-    tolerance,
-  };
-};
+}): PhishingDetectorConfiguration => ({
+  allowlist: processDomainList(allowlist),
+  // We can assume that blocklist is already separated into hostname-only entries
+  // and hostname+path entries so we do not need to separate it again.
+  blocklist: processDomainList(blocklist),
+  c2DomainBlocklist,
+  fuzzylist: processDomainList(fuzzylist),
+  tolerance,
+});
 
 /**
  * Processes the configurations for the phishing detector, filtering out any invalid configs.
@@ -548,6 +550,39 @@ export const resolveChainName = (
 ): string | null => {
   return mapping[chainId.toLowerCase() as keyof typeof mapping] ?? null;
 };
+
+/**
+ * Resolves a chain ID to a Blockaid address-scan chain name, or `null` if
+ * `scanAddress` would not call the Security Alerts API for this chain.
+ *
+ * @param chainId - Hex chain ID for EVM chains (e.g. `'0x1'`) or a chain
+ * name for non-EVM chains (e.g. `'solana'`).
+ * @returns The address-scan chain name, or `null` if unsupported.
+ */
+export const getAddressScanSupportedChain = (
+  chainId: string,
+): AddressScanSupportedChain | null => {
+  const chain = resolveChainName(chainId);
+  if (!chain || !isAddressScanSupportedChain(chain)) {
+    return null;
+  }
+  return chain;
+};
+
+/**
+ * Determines whether `scanAddress` will call the Security Alerts API for
+ * this chain, rather than immediately returning `ErrorResult`.
+ *
+ * Matches the gate inside `scanAddress`: the chain ID must resolve via
+ * {@link resolveChainName}, and that name must be in
+ * `ADDRESS_SCAN_SUPPORTED_CHAINS`.
+ *
+ * @param chainId - Hex chain ID for EVM chains (e.g. `'0x1'`) or a chain
+ * name for non-EVM chains (e.g. `'solana'`).
+ * @returns `true` if an address scan would hit the API.
+ */
+export const isAddressScanSupportedChainId = (chainId: string): boolean =>
+  getAddressScanSupportedChain(chainId) !== null;
 
 /**
  * Split tokens into cached results and tokens that need to be fetched.

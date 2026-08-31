@@ -47,6 +47,7 @@ export type {
   PerpsControllerMessenger,
   PerpsControllerGetStateAction,
   PerpsControllerActions,
+  PerpsControllerChaseOrderMaxDistanceReachedEvent,
   PerpsControllerEvents,
   ProLayoutPreferences,
   ProOrdersSideFilter,
@@ -61,6 +62,7 @@ export type {
   PerpsControllerCalculateFeesAction,
   PerpsControllerCalculateLiquidationPriceAction,
   PerpsControllerCalculateMaintenanceMarginAction,
+  PerpsControllerPreviewPositionModifyAction,
   PerpsControllerCancelOrderAction,
   PerpsControllerCancelOrdersAction,
   PerpsControllerClearDepositResultAction,
@@ -88,6 +90,8 @@ export type {
   PerpsControllerGetUserDataSnapshotAction,
   PerpsControllerGetCurrentNetworkAction,
   PerpsControllerGetFundingAction,
+  PerpsControllerGetChaseOrdersAction,
+  PerpsControllerGetTwapOrdersAction,
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
@@ -97,11 +101,15 @@ export type {
   PerpsControllerGetOpenOrdersAction,
   PerpsControllerGetOrderBookGroupingAction,
   PerpsControllerGetOrderBookPreferencesAction,
+  PerpsControllerGetOrderCapabilitiesAction,
   PerpsControllerGetOrderFillsAction,
   PerpsControllerGetOrdersAction,
+  PerpsControllerGetPendingManualRecoveriesAction,
   PerpsControllerGetPendingTradeConfigurationAction,
   PerpsControllerGetPositionsAction,
   PerpsControllerGetSelectedOrderTypeAction,
+  PerpsControllerGetRecoveredDispatchesAction,
+  PerpsControllerAcknowledgeRecoveredDispatchAction,
   PerpsControllerGetTradeConfigurationAction,
   PerpsControllerGetRecentlyViewedMarketsAction,
   PerpsControllerGetWatchlistMarketsAction,
@@ -137,6 +145,7 @@ export type {
   PerpsControllerSetVisibleCandleCountAction,
   PerpsControllerStartEligibilityMonitoringAction,
   PerpsControllerStartMarketDataPreloadAction,
+  PerpsControllerSuspendChaseOrdersAction,
   PerpsControllerStopEligibilityMonitoringAction,
   PerpsControllerStopMarketDataPreloadAction,
   PerpsControllerSubscribeToAccountAction,
@@ -163,6 +172,7 @@ export type {
 
 // Provider interfaces and implementations
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+export { ChaseOrderSuspensionError } from './providers/AggregatedPerpsProvider.js';
 
 // Type definitions (explicit named exports)
 export {
@@ -192,6 +202,15 @@ export type {
   TPSLTrackingData,
   OrderParams,
   OrderResult,
+  ScaleOrderChild,
+  ChaseOrder,
+  ChaseOrderMaxDistanceReached,
+  ChaseOrderStatus,
+  TwapOrder,
+  TwapOrderFill,
+  TwapOrderStatus,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
   Position,
   AccountState,
   ClosePositionParams,
@@ -257,8 +276,24 @@ export type {
   SubscribeOrderBookParams,
   LiquidationPriceParams,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
+  PositionModifyPreviewSource,
+  PositionModifyPreviewKind,
+  PositionPreviewValue,
+  PositionModifyPreviewCurrent,
+  PositionModifyPreviewOpen,
+  PositionModifyPreviewFullClose,
+  PositionModifyPreviewUnsupported,
+  PositionModifyPreviewNone,
   FeeCalculationParams,
   FeeCalculationResult,
+  GetOrderCapabilitiesParams,
+  OrderCapabilitiesUnavailableReason,
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  RoutedOrderCapabilitiesUnavailableReason,
+  DirectProviderOrderCapabilities,
+  PerpsOrderCapabilities,
   PerpsSubscriptionBenefits,
   PerpsSubscriptionUsage,
   PerpsSubscriptionFeeWaiverStatus,
@@ -465,11 +500,36 @@ export {
   MYX_EXECUTION_FEE_TOKEN,
 } from './constants/index.js';
 export {
+  LIGHTER_MAINNET_CHAIN_ID,
+  LIGHTER_TESTNET_CHAIN_ID,
+  getLighterChainId,
+  LIGHTER_ENDPOINTS,
+  getLighterHttpEndpoint,
+  LIGHTER_DEFAULT_API_KEY_INDEX,
+  LIGHTER_HTTP_TIMEOUT_MS,
+  LIGHTER_PRICE_POLLING_INTERVAL_MS,
+  LIGHTER_MAX_LEVERAGE,
+  toLighterInteger,
+  fromLighterInteger,
+  computeLighterMinOrderSize,
+} from './constants/index.js';
+export type {
+  LighterNetwork,
+  LighterCreateClientParams,
+  LighterSignerBridge,
+  LighterWebSocketCtor,
+  LighterWebSocketLike,
+  LighterWasmCall,
+  LighterAuthConfig,
+  LighterPersonalSigner,
+} from './types/lighter-types.js';
+export {
   PERPS_CONSTANTS,
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
   CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
   MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
@@ -629,6 +689,14 @@ export {
   parseAssetName,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
 } from './utils/index.js';
+export {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+  buildMaintenanceSchedule,
+  estimateIsolatedLiquidationPrice,
+  estimateIsolatedLiquidationPriceAtTier,
+} from './utils/index.js';
+export type { HyperLiquidMarginTier } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type { FiatRangeConfig } from './utils/index.js';
 export {

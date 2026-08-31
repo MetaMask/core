@@ -212,3 +212,18 @@ export const validateQuoteResponse = (
   );
   return true;
 };
+
+/**
+ * Shallow check for the presence of the `src` property
+ *
+ * @param quote - The quote to check
+ * @returns True if the quote is a V2 quote, false otherwise
+ */
+export const isQuoteResponseV2 = (
+  quote: { quote?: object } | null | undefined,
+): quote is QuoteResponse => {
+  if (!quote?.quote) {
+    return false;
+  }
+  return Object.prototype.hasOwnProperty.call(quote.quote, 'src');
+};

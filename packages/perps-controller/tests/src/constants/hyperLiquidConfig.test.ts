@@ -24,6 +24,8 @@ describe('HIP3_ASSET_MARKET_TYPES', () => {
     expect(HIP3_ASSET_MARKET_TYPES['xyz:ARM']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:BX']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:LITE']).toBe('stock');
+    expect(HIP3_ASSET_MARKET_TYPES['xyz:CBRS']).toBe('stock');
+    expect(HIP3_ASSET_MARKET_TYPES['xyz:SPCX']).toBe('stock');
   });
 
   it('classifies USAR as stock (USA Rare Earth)', () => {
@@ -37,8 +39,6 @@ describe('HIP3_ASSET_MARKET_TYPES', () => {
   });
 
   it('classifies pre-IPO markets correctly', () => {
-    expect(HIP3_ASSET_MARKET_TYPES['xyz:CBRS']).toBe('pre-ipo');
-    expect(HIP3_ASSET_MARKET_TYPES['xyz:SPCX']).toBe('pre-ipo');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:IPOP']).toBe('pre-ipo');
   });
 

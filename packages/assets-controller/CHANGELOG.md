@@ -9,7 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+### Fixed
+
+- Clean up spam assets on keyring unlock, gated behind the `assetsUnifyState` remote feature flag's `useUnlockCleanup` property (disabled unless the flag explicitly enables it) ([#9973](https://github.com/MetaMask/core/pull/9973))
+
+## [14.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/assets-controllers` from `^111.1.2` to `^111.1.3` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-enablement-controller` from `^6.0.4` to `^6.0.5` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.6.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [14.0.1]
+
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^17.3.1` to `^17.4.0` ([#9957](https://github.com/MetaMask/core/pull/9957))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/assets-controllers` from `^111.1.1` to `^111.1.2` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/core-backend` from `^8.1.2` to `^9.0.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
 
 ### Fixed
 
@@ -935,7 +960,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.2...HEAD
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.1...@metamask/assets-controller@14.0.2
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.0...@metamask/assets-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.4...@metamask/assets-controller@14.0.0
 [13.1.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.3...@metamask/assets-controller@13.1.4
 [13.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@13.1.2...@metamask/assets-controller@13.1.3
