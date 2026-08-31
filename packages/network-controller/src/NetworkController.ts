@@ -1191,6 +1191,7 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
     return match.groups.networkName;
   }
 
+  /* istanbul ignore next -- The URL is matched before this function is called. */
   throw new Error('Could not derive Infura network from RPC endpoint URL');
 }
 
@@ -1305,6 +1306,7 @@ function normalizeNetworkConfiguration(
       infuraProjectId,
     );
 
+    /* istanbul ignore if -- State endpoint IDs are required by the public state type. */
     if (!hasNetworkClientId(inferredRpcEndpoint)) {
       throw new Error(
         `Network configuration '${networkConfiguration.name}' has an RPC endpoint without a network client ID`,
