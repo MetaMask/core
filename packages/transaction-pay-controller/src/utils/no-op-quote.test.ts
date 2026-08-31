@@ -20,6 +20,7 @@ describe('No-Op Quote Utils', () => {
       const quote = buildNoOpQuote(FROM_MOCK, PAYMENT_TOKEN_MOCK);
 
       expect(quote.strategy).toBe(TransactionPayStrategy.None);
+      expect(quote.isInputBased).toBe(false);
     });
 
     it('builds quote with zero fees and amounts', () => {
