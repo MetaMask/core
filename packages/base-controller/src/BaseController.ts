@@ -5,7 +5,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type { Json, PublicInterface } from '@metamask/utils';
+import { Struct, validate } from '@metamask/superstruct';
+import { assert, type Json, type PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
@@ -229,6 +230,8 @@ export class BaseController<
 
   public readonly metadata: StateMetadata<ControllerState>;
 
+  public readonly struct?: Struct<ControllerState>;
+
   /**
    * Creates a BaseController instance.
    *
@@ -244,6 +247,7 @@ export class BaseController<
     metadata,
     name,
     state,
+    struct,
   }: {
     messenger: ControllerActions<
       ControllerName,
@@ -264,6 +268,7 @@ export class BaseController<
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
     state: ControllerState;
+    struct?: Struct<ControllerState>;
   }) {
     // The parameter type validates that the expected actions/events are present
     // We don't have a way to validate the type property because the type is invariant
@@ -281,6 +286,7 @@ export class BaseController<
     // `Immutable` does not handle recursive types such as our `Json` type.
     this.#internalState = freeze(state, true);
     this.metadata = metadata;
+    this.struct = struct;
 
     this.#messenger.registerActionHandler(`${name}:getState`, () => this.state);
 
@@ -445,4 +451,44 @@ export function deriveStateFromMetadata<
       return derivedState;
     }
   }, {} as never);
+}
+
+/**
+ * Validate the state of a controller against its struct. Returning the optionally coerced state if valid and otherwise throwing.
+ *
+ * Note that if the `mode` is lenient, validation errors are logged and not thrown.
+ *
+ * @param name - The name of the controller.
+ * @param state - The state of the controller.
+ * @param struct - The struct used to validate the controller.
+ * @param mode - The validation mode.
+ * @param captureException - A utility function for reporting an error to Sentry.
+ * @returns The validated controller state.
+ */
+export function validateControllerState<
+  ControllerState extends StateConstraint,
+>(
+  name: string,
+  state: unknown,
+  struct: Struct<ControllerState>,
+  mode: 'strict' | 'lenient',
+  captureException?: (error: Error) => void,
+): ControllerState {
+  const [validationError, result] = validate(state, struct);
+
+  if (mode === 'strict' && validationError) {
+    throw validationError;
+  } else if (mode === 'lenient' && validationError) {
+    const error = new Error(
+      `Validation of "${name}" state failed, but did not block: ${validationError.message}`,
+    );
+    // @ts-expect-error Current target does not support causes.
+    error.cause = validationError;
+
+    captureException?.(error);
+    console.warn(error);
+    return state as ControllerState;
+  }
+
+  return result as ControllerState;
 }
