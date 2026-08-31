@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- docs: Improve `ExampleDataService` types ([#10001](https://github.com/MetaMask/core/pull/10001))
+
 ## [1.0.0]
 
 ### Added

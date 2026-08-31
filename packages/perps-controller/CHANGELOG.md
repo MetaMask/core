@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(perps-controller): tighten Lighter data validation ([#10015](https://github.com/MetaMask/core/pull/10015))
+
 ### Added
 
 - Add Lighter as a perps venue (initial implementation, disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889))
