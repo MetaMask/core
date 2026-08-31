@@ -11,6 +11,7 @@ import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { AutorampStatus } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
@@ -22,6 +23,7 @@ import {
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
 } from './RampsController.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
@@ -63,6 +65,7 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 /**
  * The default redirect ("fake callback") URL a staging `RampsService` returns.
@@ -77,12 +80,12 @@ describe('RampsController', () => {
     'Execution prevented because the circuit breaker is open';
 
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
-    it('includes every RampsService action that RampsController calls', async () => {
+    it('includes every RampsService, TransakService, and NeoBankService action that RampsController calls', async () => {
       expect.hasAssertions();
       const controllerPath = path.join(__dirname, 'RampsController.ts');
       const source = await fs.promises.readFile(controllerPath, 'utf-8');
       const callPattern =
-        /messenger\.call\s*\(\s*['"]((RampsService|TransakService):[^'"]+)['"]/gu;
+        /messenger\.call\s*\(\s*['"]((RampsService|TransakService|NeoBankService):[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
       let match: RegExpExecArray | null;
       while ((match = callPattern.exec(source)) !== null) {
@@ -98,11 +101,36 @@ describe('RampsController', () => {
     });
   });
 
+  describe('RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS', () => {
+    it('includes every external controller action that RampsController calls', async () => {
+      expect.hasAssertions();
+      const controllerPath = path.join(__dirname, 'RampsController.ts');
+      const source = await fs.promises.readFile(controllerPath, 'utf-8');
+      const callPattern =
+        /messenger\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
+      const calledActions = new Set<string>();
+      let match: RegExpExecArray | null;
+      while ((match = callPattern.exec(source)) !== null) {
+        if (!match[1].startsWith('RampsController:')) {
+          calledActions.add(match[1]);
+        }
+      }
+      const requiredSet = new Set(
+        RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS as readonly string[],
+      );
+      const missing = [...calledActions].filter((a) => !requiredSet.has(a));
+      const extra = [...requiredSet].filter((a) => !calledActions.has(a));
+      expect(missing).toHaveLength(0);
+      expect(extra).toHaveLength(0);
+    });
+  });
+
   describe('constructor', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -179,6 +207,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -2211,6 +2240,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -2277,6 +2307,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -2319,6 +2350,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
@@ -2337,6 +2369,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autoramps": [],
             "countries": {
               "data": [],
               "error": null,
@@ -9368,6 +9401,748 @@ describe('RampsController', () => {
     });
   });
 
+  describe('autoramps', () => {
+    it('adds and removes autoramp accounts', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        expect(controller.state.autoramps).toHaveLength(1);
+        expect(controller.state.autoramps[0]?.id).toBe('ar-1');
+        expect(controller.state.autoramps[0]?.status).toBe(
+          AutorampStatus.Authorized,
+        );
+
+        controller.removeAutoramp('ar-1');
+        expect(controller.state.autoramps).toHaveLength(0);
+      });
+    });
+
+    it('applies push snapshots and publishes notable transitions', async () => {
+      await withController(async ({ controller, messenger }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const events: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:autorampStatusChanged',
+          (payload) => {
+            events.push(payload);
+          },
+        );
+
+        const updated = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+          depositRailsSummary: { ready: true, currency: 'EUR' },
+        });
+
+        expect(updated.status).toBe(AutorampStatus.Approved);
+        expect(updated.depositRailsSummary).toStrictEqual({
+          ready: true,
+          currency: 'EUR',
+        });
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({
+          previousStatus: AutorampStatus.Authorized,
+          shouldNotify: true,
+        });
+      });
+    });
+
+    it('refreshes autoramps via NeoBankService', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const getAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+          depositRailsSummary: { ready: true },
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          getAutoramp,
+        );
+
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = await controller.refreshAutoramp('ar-1');
+        expect(getAutoramp).toHaveBeenCalledWith('ar-1');
+        expect(updated.status).toBe(AutorampStatus.Approved);
+
+        await controller.refreshAutoramps();
+        expect(getAutoramp).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('injects the Profile Sync customer id and applies the created autoramp', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => ({ id: 'cust-99' }),
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-99',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        const created = await controller.createAutoramp(
+          { customer_id: 'attacker-supplied', foo: 'bar' },
+          { idempotencyKey: 'idem-1' },
+        );
+
+        expect(createAutoramp).toHaveBeenCalledWith(
+          { foo: 'bar', customer_id: 'cust-99' },
+          { idempotencyKey: 'idem-1' },
+        );
+        expect(created.id).toBe('ar-new');
+        expect(
+          controller.state.autoramps.find((a) => a.id === 'ar-new')?.customerId,
+        ).toBe('cust-99');
+      });
+    });
+
+    it('prefers canonicalProfileId when resolving the external customer id', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: 'canonical-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-canonical' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-canonical',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('canonical-1');
+      });
+    });
+
+    it('throws when no mapped external customer is available', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => null,
+        );
+        const createAutoramp = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await expect(controller.createAutoramp({})).rejects.toThrow(
+          /no MoonPay customer is mapped to external id "profile-1"/u,
+        );
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when the wallet is not signed in to Profile Sync', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: '',
+              canonicalProfileId: '',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        const createAutoramp = jest.fn();
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+
+        await expect(controller.createAutoramp({})).rejects.toThrow(
+          /wallet is not signed in to Profile Sync/u,
+        );
+        expect(getCustomerByExternalId).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('falls back to profileId when canonicalProfileId is empty', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () =>
+            ({
+              identifierId: 'id-1',
+              profileId: 'profile-1',
+              canonicalProfileId: '',
+              metaMetricsId: 'mm-1',
+            }) as never,
+        );
+        const getCustomerByExternalId = jest
+          .fn()
+          .mockResolvedValue({ id: 'cust-profile' });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          getCustomerByExternalId,
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          async () => ({
+            id: 'ar-new',
+            customerId: 'cust-profile',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Created,
+          }),
+        );
+
+        await controller.createAutoramp({});
+
+        expect(getCustomerByExternalId).toHaveBeenCalledWith('profile-1');
+      });
+    });
+
+    it('skips failed refreshes when refreshing all autoramps', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          async (id: string) => {
+            if (id === 'ar-bad') {
+              throw new Error('network');
+            }
+            return {
+              id,
+              customerId: 'cust-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Approved,
+            };
+          },
+        );
+
+        controller.addAutoramp({
+          id: 'ar-bad',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+        controller.addAutoramp({
+          id: 'ar-good',
+          customerId: 'cust-1',
+          walletAddress: '0xdef',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = await controller.refreshAutoramps();
+        expect(updated).toHaveLength(1);
+        expect(updated[0]?.id).toBe('ar-good');
+        expect(
+          controller.state.autoramps.find((a) => a.id === 'ar-bad')?.status,
+        ).toBe(AutorampStatus.Authorized);
+      });
+    });
+
+    it('does not restore an autoramp removed while refresh is in flight', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let releaseFetch: ((value: unknown) => void) | undefined;
+        let markFetchStarted: (() => void) | undefined;
+        const fetchStarted = new Promise<void>((resolve) => {
+          markFetchStarted = resolve;
+        });
+        const remoteSnapshot = new Promise((resolve) => {
+          releaseFetch = resolve;
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutoramp',
+          async () => {
+            markFetchStarted?.();
+            return await remoteSnapshot;
+          },
+        );
+
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const refreshPromise = controller.refreshAutoramps();
+        await fetchStarted;
+        controller.removeAutoramp('ar-1');
+        releaseFetch?.({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(await refreshPromise).toStrictEqual([]);
+        expect(controller.state.autoramps).toStrictEqual([]);
+      });
+    });
+
+    it('marks autoramp as notified', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+        controller.markAutorampAsNotified('ar-1');
+        expect(controller.state.autoramps[0]?.notifiedForStatus).toBe(
+          AutorampStatus.Approved,
+        );
+      });
+    });
+    it('updates an existing autoramp when the id is already known', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const updated = controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xdef',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(controller.state.autoramps).toHaveLength(1);
+        expect(updated.walletAddress).toBe('0xdef');
+        expect(updated.status).toBe(AutorampStatus.Approved);
+      });
+    });
+
+    it('ignores removal and notification for unknown autoramp ids', async () => {
+      await withController(({ controller }) => {
+        controller.removeAutoramp('missing');
+        controller.markAutorampAsNotified('missing');
+
+        expect(controller.state.autoramps).toStrictEqual([]);
+      });
+    });
+    it('creates an autoramp from a push that carries no wallet address', async () => {
+      await withController(({ controller }) => {
+        const created = controller.applyAutorampStatusFromPush({
+          id: 'ar-new',
+          customerId: 'cust-1',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(created.walletAddress).toBe('');
+        expect(controller.state.autoramps).toHaveLength(1);
+      });
+    });
+
+    it('keeps local identity fields when a remote push omits or blanks them', async () => {
+      await withController(({ controller }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+
+        const afterOmitted = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: '',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(afterOmitted.customerId).toBe('cust-1');
+        expect(afterOmitted.walletAddress).toBe('0xabc');
+
+        const afterBlank = controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: '',
+          walletAddress: '',
+          status: AutorampStatus.Approved,
+        });
+
+        expect(afterBlank.customerId).toBe('cust-1');
+        expect(afterBlank.walletAddress).toBe('0xabc');
+      });
+    });
+  });
+
+  describe('registerMoneyAccountWallet', () => {
+    const registration = {
+      id: 'wallet-1',
+      address: '0xabc',
+      blockchain: 'Monad' as const,
+      disabled: false,
+      isSelf: true,
+    };
+
+    type WalletRegistrationHandlers = {
+      getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
+      getWalletRegistrationStatus: jest.Mock;
+      registerSelfHostedWallet: jest.Mock;
+      signPersonalMessage: jest.Mock;
+    };
+
+    /**
+     * Registers default handlers for every messenger action the wallet
+     * registration flow calls, returning the mocks for per-test overrides.
+     *
+     * @param rootMessenger - The root messenger of the controller under test.
+     * @returns The registered handler mocks.
+     */
+    function registerWalletRegistrationHandlers(
+      rootMessenger: RootMessenger,
+    ): WalletRegistrationHandlers {
+      const handlers: WalletRegistrationHandlers = {
+        getSessionProfile: jest.fn().mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          metaMetricsId: 'mm-1',
+        }),
+        getCustomerByExternalId: jest
+          .fn()
+          .mockResolvedValue({ id: 'iron-customer-1' }),
+        getWalletRegistrationStatus: jest
+          .fn()
+          .mockResolvedValue({ type: 'absent' }),
+        registerSelfHostedWallet: jest.fn().mockResolvedValue({
+          type: 'registered',
+          registration,
+        }),
+        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
+      };
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile',
+        handlers.getSessionProfile,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId',
+        handlers.getCustomerByExternalId,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getWalletRegistrationStatus',
+        handlers.getWalletRegistrationStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:registerSelfHostedWallet',
+        handlers.registerSelfHostedWallet,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signPersonalMessage',
+        handlers.signPersonalMessage,
+      );
+      return handlers;
+    }
+
+    it('returns an existing active registration without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'active',
+          registration,
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns an existing disabled registration without signing', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockResolvedValue({
+          type: 'disabled',
+          registration: { ...registration, disabled: true },
+        });
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registeredDisabled' });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('signs and submits an ownership proof for an absent registration', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toMatchObject({ type: 'registered' });
+
+        expect(handlers.signPersonalMessage).toHaveBeenCalledWith({
+          data: expect.stringContaining('as customer iron-customer-1.'),
+          from: '0xabc',
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address: '0xabc',
+            customerId: 'iron-customer-1',
+            signature: '0xsig',
+            idempotencyKey: expect.any(String),
+          }),
+        );
+      });
+    });
+
+    it('resolves the customer id via Profile Sync external-id lookup', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getSessionProfile.mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          canonicalProfileId: 'canonical-1',
+          metaMetricsId: 'mm-1',
+        });
+        handlers.getCustomerByExternalId.mockResolvedValue({
+          id: 'iron-customer-fallback',
+        });
+
+        await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+        expect(handlers.getCustomerByExternalId).toHaveBeenCalledWith(
+          'canonical-1',
+        );
+      });
+    });
+
+    it('reconciles an ambiguous conflict as already registered', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockResolvedValueOnce({ type: 'active', registration });
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'alreadyRegistered',
+          registration,
+        });
+      });
+    });
+
+    it('rethrows a transient failure when reconciliation remains absent', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new WalletRegistrationError('transient', {
+          httpStatus: 502,
+        });
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(4);
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    it('rebuilds and re-signs after a UTC date rollover', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-08-12T23:59:59.999Z'));
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerWalletRegistrationHandlers(rootMessenger);
+          handlers.registerSelfHostedWallet
+            .mockImplementationOnce(async () => {
+              jest.setSystemTime(new Date('2026-08-13T00:00:00.000Z'));
+              throw new WalletRegistrationError('validation', {
+                httpStatus: 400,
+              });
+            })
+            .mockResolvedValueOnce({
+              type: 'registered',
+              registration,
+            });
+
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+
+          expect(handlers.signPersonalMessage).toHaveBeenCalledTimes(2);
+          expect(handlers.signPersonalMessage.mock.calls[0][0].data).toContain(
+            'signed on 12/08/2026',
+          );
+          expect(handlers.signPersonalMessage.mock.calls[1][0].data).toContain(
+            'signed on 13/08/2026',
+          );
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it.each([
+      new WalletRegistrationError('validation', { httpStatus: 400 }),
+      new WalletRegistrationError('rateLimited', { httpStatus: 429 }),
+      new WalletRegistrationError('unauthorized', { httpStatus: 401 }),
+      new Error('unexpected'),
+    ])('rethrows terminal registration failure %#', async (error) => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.registerSelfHostedWallet.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('returns lookupUnavailable when the initial status lookup fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new WalletRegistrationError('lookupUnavailable', {
+          httpStatus: 500,
+          body: 'boom',
+        });
+        handlers.getWalletRegistrationStatus.mockRejectedValue(error);
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'lookupUnavailable',
+          error,
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('wraps a non-typed initial lookup failure as lookupUnavailable', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        handlers.getWalletRegistrationStatus.mockRejectedValue(
+          new Error('lookup failed'),
+        );
+
+        const result = await controller.registerMoneyAccountWallet({
+          address: '0xabc',
+        });
+
+        expect(result).toMatchObject({
+          type: 'lookupUnavailable',
+          error: expect.objectContaining({
+            name: 'WalletRegistrationError',
+            kind: 'lookupUnavailable',
+            body: 'lookup failed',
+          }),
+        });
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns lookupUnavailable when conflict reconciliation cannot list addresses', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const lookupError = new WalletRegistrationError('lookupUnavailable', {
+          httpStatus: 503,
+        });
+        handlers.getWalletRegistrationStatus
+          .mockResolvedValueOnce({ type: 'absent' })
+          .mockRejectedValueOnce(lookupError);
+        handlers.registerSelfHostedWallet.mockRejectedValue(
+          new WalletRegistrationError('conflict', { httpStatus: 409 }),
+        );
+
+        expect(
+          await controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).toStrictEqual({
+          type: 'lookupUnavailable',
+          error: lookupError,
+        });
+        expect(handlers.registerSelfHostedWallet).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('rethrows a signing failure without submitting', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerWalletRegistrationHandlers(rootMessenger);
+        const error = new Error('signing failed');
+        handlers.signPersonalMessage.mockRejectedValue(error);
+
+        await expect(
+          controller.registerMoneyAccountWallet({ address: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('addOrder', () => {
     const mockOrder = {
       id: '/providers/transak-staging/orders/abc-123',
@@ -12268,7 +13043,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
     messenger,
     actions: [
       ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-      'RemoteFeatureFlagController:getState',
+      ...RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
     ],
   });
   return messenger;

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `NeoBankService` for MetaMask Ramp API neo-bank-proxy endpoints under the `/neobank` prefix on the Ramp API host, including messenger actions for `getAutoramp`, `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, `getCustomerByExternalId`, `getMoonpayCustomerId`, `getWalletRegistrationStatus`, and `registerSelfHostedWallet`. Mutating POSTs do not retry (to avoid duplicate Pix/autoramp creates without a stable `Idempotency-Key`); GETs still retry 429/5xx/network errors. Optional `Idempotency-Key` is forwarded when callers supply one. Also exports `mapNeoBankAutorampToRemoteSnapshot`, `AutorampRemoteSnapshot`, and wallet-registration HTTP types (`WalletRegistrationError`, `RegistrationStatus`, `RegistrationOutcome`). ([#10031](https://github.com/MetaMask/core/pull/10031))
 
+- Add `RampsController` autoramp last-seen cursor and Money Account wallet registration: persisted `autoramps` state, `createAutoramp` / `refreshAutoramp(s)` / `applyAutorampStatusFromPush`, `registerMoneyAccountWallet`, and `RampsController:autorampStatusChanged`. MoonPay remains the source of truth; hosts should call `refreshAutoramps` on resume to catch webhooks missed while the app was closed. Hosts must delegate `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS` (`AuthenticationController:getSessionProfile`, `KeyringController:signPersonalMessage`, `RemoteFeatureFlagController:getState`) plus the NeoBank actions listed in `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS`. ([#10032](https://github.com/MetaMask/core/pull/10032))
+
 ## [20.2.0]
 
 ### Added
