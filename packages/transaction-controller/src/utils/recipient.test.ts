@@ -240,4 +240,77 @@ describe('getSendRecipients', () => {
       getSendRecipients({ ...transactionMeta, type: undefined }),
     ).toStrictEqual([TOKEN_RECIPIENT]);
   });
+
+  it('classifies a sped-up simple send using originalType', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.retry,
+        undefined,
+        TOKEN_RECIPIENT,
+      ),
+      originalType: TransactionType.simpleSend,
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('decodes the payee for a sped-up token transfer using originalType', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.retry, TRANSFER_DATA),
+      originalType: TransactionType.tokenMethodTransfer,
+    };
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns no recipients for a cancellation even with a simpleSend originalType', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.cancel, undefined, FROM_ADDRESS),
+      originalType: TransactionType.simpleSend,
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('treats a native transfer to a contract address as a native send', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      undefined,
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns no recipients for a contract interaction that has calldata', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      '0xdeadbeef',
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('treats a nested native transfer to a contract address as a native send', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.batch,
+        '0xdeadbeef',
+        TOKEN_CONTRACT,
+      ),
+      nestedTransactions: [
+        {
+          to: TOKEN_RECIPIENT,
+          type: TransactionType.contractInteraction,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
 });

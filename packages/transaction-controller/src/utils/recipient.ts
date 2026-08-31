@@ -57,6 +57,14 @@ export function getEffectiveRecipient(
  * - `swapAndSendRecipient` whenever set (only ever a user-entered payee)
  * - Nested batch calls that themselves are sends or token transfers
  * - Untyped transactions with no calldata, treated as legacy native sends
+ * - Speed-up transactions (`type: retry`), classified using `originalType`,
+ *   since `txParams` are otherwise unchanged from the transaction being sped
+ *   up. Cancellations (`type: cancel`) are not resolved this way: `to` and
+ *   `data` are overwritten into a self-send with no real payee to track.
+ * - A native transfer with no calldata to an address that happens to be a
+ *   contract. `determineTransactionType` only returns `simpleSend` when `to`
+ *   is not a contract, so these are typed `contractInteraction` even though
+ *   the user chose that address as a plain payee.
  *
  * @param transactionMeta - Transaction meta with txParams and type.
  * @returns Deduplicated send recipient addresses, possibly empty.
@@ -84,7 +92,10 @@ export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
     getSendRecipientFromSource({
       data: params?.data,
       to: params?.to,
-      type: transactionMeta.type,
+      type: getEffectiveType(
+        transactionMeta.type,
+        transactionMeta.originalType,
+      ),
     }),
   );
   addRecipient(transactionMeta.swapAndSendRecipient);
@@ -116,10 +127,37 @@ function isNativeSendType(
   type: TransactionType | undefined,
   data?: string,
 ): boolean {
+  if (type === TransactionType.simpleSend) {
+    return true;
+  }
+
   return (
-    type === TransactionType.simpleSend ||
-    (type === undefined && !hasCalldata(data))
+    !hasCalldata(data) &&
+    (type === undefined || type === TransactionType.contractInteraction)
   );
+}
+
+/**
+ * Resolves the type used to classify a transaction as a send.
+ *
+ * Speed-up transactions keep the original `txParams`, so they should be
+ * classified by what they originally were, not by `retry`. Cancellations
+ * overwrite `to`/`data` into a self-send, so `originalType` would misclassify
+ * them; `type` is returned unchanged instead.
+ *
+ * @param type - The transaction's own type.
+ * @param originalType - The type before a speed-up replaced it, if any.
+ * @returns The type to use when classifying the transaction as a send.
+ */
+function getEffectiveType(
+  type: TransactionType | undefined,
+  originalType: TransactionType | undefined,
+): TransactionType | undefined {
+  if (type === TransactionType.retry && originalType) {
+    return originalType;
+  }
+
+  return type;
 }
 
 function hasCalldata(data?: string): data is string {
