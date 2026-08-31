@@ -88,18 +88,31 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 };
 
 /**
- * Fetches the idOS + KYC-provider disclaimer catalog.
+ * Fetches the global idOS + KYC-provider disclaimer catalog
+ * (`GET /disclaimers?country=`). Does not include
+ * `credentialReusabilityConsentGiven` — that is session-scoped via
+ * {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
+ * {@link fetchVendorDisclaimers}.
  *
- * - With `sessionId`: `GET /sessions/{sessionId}/disclaimers` (includes
- *   `credentialReusabilityConsentGiven`). Do not pass `country`.
- * - With `country` (ISO 3166-1 alpha-3): `GET /disclaimers?country=` (catalog
- *   only). Do not pass `sessionId`.
+ * @param params - The parameters.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog documents.
+ */
+export type KycServiceFetchDisclaimersCatalogAction = {
+  type: `KycService:fetchDisclaimersCatalog`;
+  handler: KycService['fetchDisclaimersCatalog'];
+};
+
+/**
+ * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
+ * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+ * `consented` flags and `credentialReusabilityConsentGiven`. For the
+ * pre-session global catalog use {@link fetchDisclaimersCatalog}. Vendor
+ * T&Cs continue to come from {@link fetchVendorDisclaimers}.
  *
- * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
- *
- * @param params - Either `{ sessionId }` or `{ country }`.
- * @returns The catalog. Session fetches include
- * `credentialReusabilityConsentGiven`; global fetches do not.
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The catalog, including which documents are already consented.
  */
 export type KycServiceFetchSessionDisclaimersAction = {
   type: `KycService:fetchSessionDisclaimers`;
@@ -228,6 +241,7 @@ export type KycServiceMethodActions =
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchDisclaimersCatalogAction
   | KycServiceFetchSessionDisclaimersAction
   | KycServiceSubmitSessionDisclaimersAction
   | KycServiceFetchKycStatusAction
