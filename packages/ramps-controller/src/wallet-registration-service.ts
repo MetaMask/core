@@ -456,14 +456,9 @@ export class WalletRegistrationService {
         message: 'registered address missing id',
       });
     }
-    if (typeof record.wallet_address !== 'string') {
-      throw new WalletRegistrationError('malformedResponse', {
-        message: 'registered address missing wallet_address',
-      });
-    }
     return {
       id: record.id,
-      address: record.wallet_address,
+      address: record.wallet_address as string,
       blockchain: 'Monad',
       disabled: Boolean(record.disabled),
       isSelf: Boolean(record.is_self),

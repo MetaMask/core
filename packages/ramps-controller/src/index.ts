@@ -6,12 +6,15 @@ export type {
   RampsControllerState,
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
+  RampsControllerAutorampStatusChangedEvent,
   RampsControllerOptions,
   PaymentMethodsForContextResponse,
   UserRegion,
   ResourceState,
   TransakState,
   NativeProvidersState,
+  MoneyAccountWalletRegistrationResult,
+  KeyringControllerSignPersonalMessageAction,
 } from './RampsController.js';
 export type {
   RampsControllerExecuteRequestAction,
@@ -31,6 +34,14 @@ export type {
   RampsControllerGetQuotesAction,
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
+  RampsControllerAddAutorampAction,
+  RampsControllerCreateAutorampAction,
+  RampsControllerRemoveAutorampAction,
+  RampsControllerRegisterMoneyAccountWalletAction,
+  RampsControllerMarkAutorampAsNotifiedAction,
+  RampsControllerApplyAutorampStatusFromPushAction,
+  RampsControllerRefreshAutorampAction,
+  RampsControllerRefreshAutorampsAction,
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
@@ -69,6 +80,7 @@ export {
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
 } from './RampsController.js';
 export type {
   RampsServiceActions,
@@ -231,6 +243,22 @@ export type {
   TransakServiceGeneratePaymentWidgetUrlAction,
   TransakServiceCreateWidgetUrlAction,
 } from './TransakService-method-action-types.js';
+export type {
+  AutorampAccount,
+  ApplyAutorampRemoteStatusResult,
+  CreateAutorampRequest,
+} from './autorampAccount.js';
+export {
+  AutorampStatus,
+  TERMINAL_AUTORAMP_STATUSES,
+  NOTABLE_AUTORAMP_STATUSES,
+  isTerminalAutorampStatus,
+  normalizeAutorampStatus,
+  createAutorampAccount,
+  applyAutorampRemoteStatus,
+  markAutorampNotified,
+} from './autorampAccount.js';
+export { buildOwnershipMessage } from './ownership-message.js';
 export type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
