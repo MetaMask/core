@@ -65,7 +65,6 @@ import {
 } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
-import { getRelayTransactionStepData } from './relay-submit.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -677,50 +676,6 @@ function normalizeRequest(
 }
 
 /**
- * Gets the number of TransactionController child transactions created by a
- * Relay quote.
- *
- * @param options - Count options.
- * @param options.is7702 - Whether the local transactions use a 7702 batch.
- * @param options.quote - Raw Relay quote.
- * @param options.request - Associated quote request.
- * @returns The expected child transaction count, or `undefined` when unknown.
- */
-export function getRequiredTransactionCount({
-  is7702,
-  quote,
-  request,
-}: {
-  is7702: boolean;
-  quote: RelayQuote;
-  request: QuoteRequest;
-}): number | undefined {
-  if (
-    quote.metamask?.isExecute ||
-    request.isPostQuote ||
-    request.paymentOverride ||
-    request.isHyperliquidSource ||
-    request.isPolymarketDepositWallet
-  ) {
-    return undefined;
-  }
-
-  let transactionCount: number;
-
-  try {
-    transactionCount = getRelayTransactionStepData(quote).length;
-  } catch {
-    return undefined;
-  }
-
-  if (!transactionCount) {
-    return undefined;
-  }
-
-  return is7702 ? 1 : transactionCount;
-}
-
-/**
  * Normalizes a Relay quote into a TransactionPayQuote.
  *
  * @param quote - Relay quote.
@@ -803,12 +758,6 @@ async function normalizeQuote(
     is7702,
   };
 
-  const requiredTransactionCount = getRequiredTransactionCount({
-    is7702,
-    quote,
-    request,
-  });
-
   return {
     dust,
     estimatedDuration: details.timeEstimate,
@@ -825,9 +774,6 @@ async function normalizeQuote(
       metamask,
     },
     request,
-    ...(requiredTransactionCount === undefined
-      ? {}
-      : { requiredTransactionCount }),
     sourceAmount,
     targetAmount,
     strategy: TransactionPayStrategy.Relay,

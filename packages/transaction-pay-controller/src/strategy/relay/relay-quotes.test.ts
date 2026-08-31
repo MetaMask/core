@@ -37,7 +37,7 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token.js';
-import { getRelayQuotes, getRequiredTransactionCount } from './relay-quotes.js';
+import { getRelayQuotes } from './relay-quotes.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 jest.mock('../../utils/token', () => ({
@@ -245,138 +245,6 @@ describe('Relay Quotes Utils', () => {
     successfulFetchMock.mockRestore();
   });
 
-  describe('getRequiredTransactionCount', () => {
-    it('returns one for a sequential quote with one local transaction', () => {
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote: QUOTE_MOCK,
-          request: QUOTE_REQUEST_MOCK,
-        }),
-      ).toBe(1);
-    });
-
-    it('counts each local transaction in a sequential quote', () => {
-      const quote = cloneDeep(QUOTE_MOCK);
-      quote.steps[0].items.push(cloneDeep(quote.steps[0].items[0]));
-
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote,
-          request: QUOTE_REQUEST_MOCK,
-        }),
-      ).toBe(2);
-    });
-
-    it('returns one for a 7702 batch with multiple local transactions', () => {
-      const quote = cloneDeep(QUOTE_MOCK);
-      quote.steps[0].items.push(cloneDeep(quote.steps[0].items[0]));
-
-      expect(
-        getRequiredTransactionCount({
-          is7702: true,
-          quote,
-          request: QUOTE_REQUEST_MOCK,
-        }),
-      ).toBe(1);
-    });
-
-    it('returns undefined for Relay execute quotes', () => {
-      const quote = cloneDeep(QUOTE_MOCK);
-      quote.metamask.isExecute = true;
-
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote,
-          request: QUOTE_REQUEST_MOCK,
-        }),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined for post-quote requests', () => {
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote: QUOTE_MOCK,
-          request: { ...QUOTE_REQUEST_MOCK, isPostQuote: true },
-        }),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined for payment override requests', () => {
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote: QUOTE_MOCK,
-          request: {
-            ...QUOTE_REQUEST_MOCK,
-            paymentOverride: PaymentOverride.MoneyAccount,
-          },
-        }),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined for HyperLiquid source requests', () => {
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote: QUOTE_MOCK,
-          request: { ...QUOTE_REQUEST_MOCK, isHyperliquidSource: true },
-        }),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined for Polymarket deposit wallet requests', () => {
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote: QUOTE_MOCK,
-          request: {
-            ...QUOTE_REQUEST_MOCK,
-            isPolymarketDepositWallet: true,
-          },
-        }),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined when the quote has no local transactions', () => {
-      const quote = cloneDeep(QUOTE_MOCK);
-      quote.steps = [];
-
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote,
-          request: QUOTE_REQUEST_MOCK,
-        }),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined when local transaction data is malformed', () => {
-      const quote = {
-        ...QUOTE_MOCK,
-        steps: [
-          {
-            id: 'deposit',
-            items: [{ status: 'incomplete' }],
-            kind: 'transaction',
-            requestId: '0x2',
-          },
-        ],
-      } as unknown as RelayQuote;
-
-      expect(
-        getRequiredTransactionCount({
-          is7702: false,
-          quote,
-          request: QUOTE_REQUEST_MOCK,
-        }),
-      ).toBeUndefined();
-    });
-  });
-
   describe('getRelayQuotes', () => {
     it('returns quotes from Relay', async () => {
       successfulFetchMock.mockResolvedValue({
@@ -394,7 +262,6 @@ describe('Relay Quotes Utils', () => {
       expect(result).toStrictEqual([
         expect.objectContaining({
           original: QUOTE_MOCK,
-          requiredTransactionCount: 1,
         }),
       ]);
     });

@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add optional `requiredTransactionCount` to Relay-backed `TransactionPayQuote` values so clients can predict how many TransactionController child transactions a quote will create ([#9897](https://github.com/MetaMask/core/pull/9897))
-
 ### Changed
 
 - Use `EXACT_INPUT` Relay quotes when no transaction is embedded, except for `perpsDepositAndOrder` flows that require a guaranteed target amount; expose optional `TransactionPayQuote.isInputBased` and `TransactionPayTotals.isInputBased` flags; and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))

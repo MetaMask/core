@@ -493,6 +493,79 @@ describe('Batch Utils', () => {
       expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
     });
 
+    it('tracks one transaction for an EIP-7702 batch', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      const result = await addTransactionBatch(request);
+      const state = {
+        batchTransactionCounts: {},
+        transactionBatches: [],
+      } as unknown as TransactionControllerState;
+
+      updateMock.mock.calls[0][0](state);
+
+      expect(state.batchTransactionCounts[result.batchId]).toBe(1);
+
+      updateMock.mock.calls.at(-1)?.[0](state);
+
+      expect(state.batchTransactionCounts[result.batchId]).toBeUndefined();
+    });
+
+    it('tracks every transaction for a sequential batch', async () => {
+      const publishBatchHook = jest.fn().mockResolvedValue({
+        results: [
+          { transactionHash: TRANSACTION_HASH_MOCK },
+          { transactionHash: TRANSACTION_HASH_2_MOCK },
+        ],
+      });
+      mockAddTransactionWithAutoSign(
+        {
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_MOCK,
+          },
+          result: Promise.resolve(''),
+        },
+        {
+          transactionMeta: {
+            ...TRANSACTION_META_MOCK,
+            id: TRANSACTION_ID_2_MOCK,
+          },
+          result: Promise.resolve(''),
+        },
+      );
+
+      const result = await addTransactionBatch({
+        ...request,
+        publishBatchHook,
+        request: {
+          ...request.request,
+          disable7702: true,
+          requireApproval: false,
+        },
+      });
+      const state = {
+        batchTransactionCounts: {},
+        transactionBatches: [],
+      } as unknown as TransactionControllerState;
+
+      updateMock.mock.calls[0][0](state);
+
+      expect(state.batchTransactionCounts[result.batchId]).toBe(2);
+
+      updateMock.mock.calls.at(-1)?.[0](state);
+
+      expect(state.batchTransactionCounts[result.batchId]).toBeUndefined();
+    });
+
     it('passes requiredAssets from batch request to addTransaction for 7702 flow', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -2537,7 +2610,7 @@ describe('Batch Utils', () => {
           true,
         );
 
-        expect(updateMock).toHaveBeenCalledTimes(2);
+        expect(updateMock).toHaveBeenCalledTimes(4);
         expect(updateMock).toHaveBeenCalledWith(expect.any(Function));
 
         const BATCH_TRANSACTION_MOCK = {
@@ -2547,11 +2620,12 @@ describe('Batch Utils', () => {
         };
         // Simulate the state update for adding the batch
         const state = {
+          batchTransactionCounts: {},
           transactionBatches: [BATCH_TRANSACTION_MOCK],
         } as unknown as TransactionControllerState;
 
         // Simulate adding the batch
-        updateMock.mock.calls[0][0](state);
+        updateMock.mock.calls[1][0](state);
 
         expect(state.transactionBatches).toStrictEqual([
           BATCH_TRANSACTION_MOCK,
@@ -2569,7 +2643,7 @@ describe('Batch Utils', () => {
         await resultPromise;
 
         // Simulate cleaning the specific batch by ID
-        updateMock.mock.calls[1][0](state);
+        updateMock.mock.calls[2][0](state);
 
         expect(state.transactionBatches).toStrictEqual([
           BATCH_TRANSACTION_MOCK,
