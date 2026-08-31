@@ -74,7 +74,6 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
 - [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
-- [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
 - [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
@@ -181,7 +180,6 @@ linkStyle default opacity:0.5
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
   eip_7702_internal_rpc_middleware(["@metamask/eip-7702-internal-rpc-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
-  ens_controller(["@metamask/ens-controller"]);
   eth_block_tracker(["@metamask/eth-block-tracker"]);
   eth_json_rpc_middleware(["@metamask/eth-json-rpc-middleware"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
@@ -369,7 +367,6 @@ linkStyle default opacity:0.5
   config_registry_controller --> keyring_controller;
   config_registry_controller --> messenger;
   config_registry_controller --> polling_controller;
-  config_registry_controller --> profile_sync_controller;
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
@@ -397,10 +394,6 @@ linkStyle default opacity:0.5
   eip1193_permission_middleware --> controller_utils;
   eip1193_permission_middleware --> json_rpc_engine;
   eip1193_permission_middleware --> permission_controller;
-  ens_controller --> base_controller;
-  ens_controller --> controller_utils;
-  ens_controller --> messenger;
-  ens_controller --> network_controller;
   eth_block_tracker --> eth_json_rpc_provider;
   eth_block_tracker --> json_rpc_engine;
   eth_json_rpc_middleware --> eth_block_tracker;
@@ -426,6 +419,12 @@ linkStyle default opacity:0.5
   keyring_controller --> base_controller;
   keyring_controller --> controller_utils;
   keyring_controller --> messenger;
+  kyc_controller --> base_controller;
+  kyc_controller --> base_data_service;
+  kyc_controller --> controller_utils;
+  kyc_controller --> geolocation_controller;
+  kyc_controller --> messenger;
+  kyc_controller --> profile_sync_controller;
   logging_controller --> base_controller;
   logging_controller --> messenger;
   message_manager --> base_controller;
@@ -488,6 +487,7 @@ linkStyle default opacity:0.5
   network_connection_banner_controller --> network_enablement_controller;
   network_controller --> analytics_controller;
   network_controller --> base_controller;
+  network_controller --> config_registry_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
   network_controller --> eth_block_tracker;
@@ -537,7 +537,6 @@ linkStyle default opacity:0.5
   phishing_controller --> messenger;
   phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
-  polling_controller --> network_controller;
   polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
@@ -663,6 +662,7 @@ linkStyle default opacity:0.5
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> claims_controller;
+  wallet --> config_registry_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> gas_fee_controller;
@@ -678,6 +678,7 @@ linkStyle default opacity:0.5
   wallet --> transaction_controller;
   wallet_cli --> analytics_controller;
   wallet_cli --> base_controller;
+  wallet_cli --> config_registry_controller;
   wallet_cli --> messenger;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;

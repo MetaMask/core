@@ -160,11 +160,6 @@
       "count": 3
     }
   },
-  "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
-    "no-restricted-syntax": {
-      "count": 6
-    }
-  },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -958,22 +953,6 @@
       "count": 1
     }
   },
-  "packages/ens-controller/src/EnsController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 11
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "no-param-reassign": {
-      "count": 1
-    }
-  },
-  "packages/ens-controller/src/EnsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    }
-  },
   "packages/eth-block-tracker/tests/withBlockTracker.ts": {
     "no-restricted-syntax": {
       "count": 3
@@ -1519,12 +1498,7 @@
   },
   "packages/perps-controller/src/PerpsController.ts": {
     "no-restricted-syntax": {
-      "count": 3
-    }
-  },
-  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
@@ -1618,14 +1592,6 @@
       "count": 4
     },
     "@typescript-eslint/naming-convention": {
-      "count": 1
-    }
-  },
-  "packages/polling-controller/src/BlockTrackerPollingController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -2216,6 +2182,11 @@
   "packages/transaction-pay-controller/src/utils/transaction.ts": {
     "no-restricted-syntax": {
       "count": 6
+    }
+  },
+  "packages/user-operation-controller/src/BlockTrackerPollingController.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 1
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {

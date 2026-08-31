@@ -18,9 +18,15 @@ export const PERPS_EVENT_PROPERTY = {
   // Trade properties
   LEVERAGE: 'leverage',
   LEVERAGE_USED: 'leverage_used',
+  // Perp UI Interaction `leverage_changed`: prior leverage before the user change
+  PREVIOUS_LEVERAGE: 'previous_leverage',
   ORDER_SIZE: 'order_size',
   MARGIN_USED: 'margin_used',
   ORDER_TYPE: 'order_type', // lowercase per dashboard
+  SCALE_ORDER_COUNT: 'scale_order_count',
+  SCALE_RANGE_PCT: 'scale_range_pct',
+  SCALE_SKEW: 'scale_skew',
+  REDUCE_ONLY: 'reduce_only',
   ORDER_TIMESTAMP: 'order_timestamp',
   LIMIT_PRICE: 'limit_price',
   FEES: 'fees',
@@ -231,8 +237,12 @@ export const PERPS_EVENT_PROPERTY = {
   SEARCH_QUERY: 'search_query',
   RESULTS_COUNT: 'results_count',
   RESULT_RANK: 'result_rank',
+  // Search intent (`discovery` / `intent` / `browse`) — not Lite/Pro UI mode
   MODE: 'mode',
   CURRENT_TOKEN: 'current_token',
+
+  // Lite/Pro interface mode (`'lite' | 'pro'`)
+  PERPS_MODE: 'perps_mode',
 
   // Sort / filter properties
   SORT_FIELD: 'sort_field',
@@ -438,6 +448,10 @@ export const PERPS_EVENT_VALUE = {
     ORDER_TYPE_SELECTED: 'order_type_selected',
     /** @deprecated Use LEVERAGE_CHANGED instead for clarity */
     SETTING_CHANGED: 'setting_changed',
+    /**
+     * Perp UI Interaction `leverage_changed`. Properties include `leverage`
+     * and `previous_leverage`.
+     */
     LEVERAGE_CHANGED: 'leverage_changed',
     TUTORIAL_STARTED: 'tutorial_started',
     TUTORIAL_COMPLETED: 'tutorial_completed',
@@ -468,6 +482,8 @@ export const PERPS_EVENT_VALUE = {
     SLIPPAGE_CONFIG_OPENED: 'slippage_config_opened',
     SLIPPAGE_CONFIG_CHANGED: 'slippage_config_changed',
     SLIPPAGE_LIMIT_BLOCKED_ORDER: 'slippage_limit_blocked_order',
+    SCALE_CONFIG_CHANGED: 'scale_config_changed',
+    SCALE_VALIDATION_ERROR_SHOWN: 'scale_validation_error_shown',
     // Auto Close TP/SL RoE sign toggle
     TPSL_ROE_SIGN_TOGGLED: 'tpsl_roe_sign_toggled',
     // Discovery analytics
@@ -475,6 +491,9 @@ export const PERPS_EVENT_VALUE = {
     // Sort / filter interactions
     SORT_APPLIED: 'sort_applied',
     FILTER_APPLIED: 'filter_applied',
+    // Chase interactions
+    CHASE_BACKGROUNDED_CONVERTED: 'chase_backgrounded_converted',
+    CHASE_TERMINATED: 'chase_terminated',
     // Search interactions
     SEARCH_RESULT_TAPPED: 'search_result_tapped',
     SEARCH_CHIP_TAPPED: 'search_chip_tapped',
@@ -501,6 +520,8 @@ export const PERPS_EVENT_VALUE = {
     TP_EXECUTED: 'tp_executed',
     SL_EXECUTED: 'sl_executed',
     LIMIT_ORDER_EXECUTED: 'limit_order_executed',
+    // Analytics schema value for the app-background conversion notification.
+    CHASE_BACKGROUNDED: 'chase_backgrounded',
   },
   CLOSE_TYPE: {
     FULL: 'full',
@@ -572,6 +593,10 @@ export const PERPS_EVENT_VALUE = {
   SETTING_TYPE: {
     LEVERAGE: 'leverage',
     SLIPPAGE: 'slippage',
+    SCALE_START_PRICE: 'start_price',
+    SCALE_END_PRICE: 'end_price',
+    SCALE_TOTAL_ORDERS: 'total_orders',
+    SCALE_SIZE_SKEW: 'size_skew',
   },
   SCREEN_NAME: {
     CONNECTION_ERROR: 'connection_error',

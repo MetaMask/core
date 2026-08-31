@@ -3,6 +3,8 @@ export { addressBookController } from './address-book-controller/address-book-co
 export { approvalController } from './approval-controller/approval-controller.js';
 export { claimsController } from './claims-controller/claims-controller.js';
 export { claimsService } from './claims-service/claims-service.js';
+export { configRegistryApiService } from './config-registry-api-service/config-registry-api-service.js';
+export { configRegistryController } from './config-registry-controller/config-registry-controller.js';
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
 export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';

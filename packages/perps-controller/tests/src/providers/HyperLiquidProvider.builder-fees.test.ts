@@ -341,6 +341,8 @@ const createTestProvider = (
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
     initialAssetMapping?: [string, number][];
+    subscriptionBuilderAddressTestnet?: string;
+    subscriptionBuilderAddressMainnet?: string;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -530,10 +532,18 @@ describe('HyperLiquidProvider', () => {
       );
 
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({
-        order: jest.fn().mockResolvedValue({
-          status: 'ok',
-          response: { data: { statuses: [{ resting: { oid: '123' } }] } },
-        }),
+        order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+          Promise.resolve({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: request.orders.map((_order, index) => ({
+                  resting: { oid: 123 + index },
+                })),
+              },
+            },
+          }),
+        ),
         modify: jest.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -660,8 +670,8 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
       ).toHaveBeenCalledWith({
-        builder: expect.any(String),
-        maxFeeRate: expect.stringContaining('%'),
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+        maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
       });
 
       // Note: Referral setup is fire-and-forget (non-blocking), so we can't reliably
@@ -687,6 +697,274 @@ describe('HyperLiquidProvider', () => {
           },
         }),
       );
+    });
+
+    it('routes an approved subscription waiver through the dedicated builder', async () => {
+      // Builder fee already approved: this test is about the fee value on the
+      // signed payload, not the approval flow.
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      };
+      const exchangeClient = mockClientService.getExchangeClient();
+
+      // Control: with no source undercutting it, the default builder fee is charged.
+      const baseline = await provider.placeOrder(orderParams);
+
+      expect(baseline.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: expect.any(String),
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+
+      (exchangeClient.order as jest.Mock).mockClear();
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      });
+
+      const waived = await provider.placeOrder(orderParams);
+
+      expect(waived.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: { b: subscriptionBuilder, f: 0 },
+        }),
+      );
+    });
+
+    it('initializes clients before approving the subscription builder', async () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+
+      expect(mockClientService.initialize).toHaveBeenCalledTimes(1);
+      expect(mockClientService.getInfoClient).toHaveBeenCalled();
+    });
+
+    it('does not reuse subscription builder approval after an account switch', async () => {
+      const accountA = '0x1234567890123456789012345678901234567890';
+      const accountB = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      const exchangeClient = mockClientService.getExchangeClient();
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+        true,
+      );
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountB);
+      (exchangeClient.order as jest.Mock).mockClear();
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+    });
+
+    it('keeps subscription approval reads scoped to the initiating account', async () => {
+      const accountA = '0x1234567890123456789012345678901234567890';
+      const accountB = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      let releaseInitialRead: (value: number) => void = () => undefined;
+      const initialRead = new Promise<number>((resolve) => {
+        releaseInitialRead = resolve;
+      });
+      let markInitialReadStarted: () => void = () => undefined;
+      const initialReadStarted = new Promise<void>((resolve) => {
+        markInitialReadStarted = resolve;
+      });
+      const maxBuilderFee = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          markInitialReadStarted();
+          return initialRead;
+        })
+        .mockResolvedValueOnce(0.001);
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      const approval = provider.approveSubscriptionBuilderFee();
+      await initialReadStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountB);
+      releaseInitialRead(0);
+
+      await expect(approval).resolves.toBe(true);
+      expect(maxBuilderFee).toHaveBeenNthCalledWith(1, {
+        user: accountA,
+        builder: subscriptionBuilder,
+      });
+      expect(maxBuilderFee).toHaveBeenNthCalledWith(2, {
+        user: accountA,
+        builder: subscriptionBuilder,
+      });
+    });
+
+    it('fences subscription approval across disconnect and preserves reconnect dedupe', async () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      let releaseOldRead: (value: number) => void = () => undefined;
+      const oldRead = new Promise<number>((resolve) => {
+        releaseOldRead = resolve;
+      });
+      let markOldReadStarted: () => void = () => undefined;
+      const oldReadStarted = new Promise<void>((resolve) => {
+        markOldReadStarted = resolve;
+      });
+      let releaseNewRead: (value: number) => void = () => undefined;
+      const newRead = new Promise<number>((resolve) => {
+        releaseNewRead = resolve;
+      });
+      let markNewReadStarted: () => void = () => undefined;
+      const newReadStarted = new Promise<void>((resolve) => {
+        markNewReadStarted = resolve;
+      });
+      const maxBuilderFee = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          markOldReadStarted();
+          return oldRead;
+        })
+        .mockImplementationOnce(() => {
+          markNewReadStarted();
+          return newRead;
+        })
+        .mockResolvedValue(0.001);
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+
+      const oldApproval = provider.approveSubscriptionBuilderFee();
+      await oldReadStarted;
+      await provider.disconnect();
+
+      const newApproval = provider.approveSubscriptionBuilderFee();
+      await newReadStarted;
+      releaseOldRead(0);
+
+      await expect(oldApproval).resolves.toBe(false);
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
+      expect(maxBuilderFee).toHaveBeenCalledTimes(2);
+
+      const dedupedApproval = provider.approveSubscriptionBuilderFee();
+      await Promise.resolve();
+      expect(maxBuilderFee).toHaveBeenCalledTimes(2);
+
+      releaseNewRead(0.001);
+      await expect(
+        Promise.all([newApproval, dedupedApproval]),
+      ).resolves.toStrictEqual([true, true]);
+    });
+
+    it('falls back to the standard fee when the subscription builder is not approved', async () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+      const defaultBuilder = BUILDER_FEE_CONFIG.MainnetBuilder;
+      const exchangeClient = mockClientService.getExchangeClient();
+      const maxBuilderFee = jest.fn().mockResolvedValue(0.001);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee,
+        }),
+      );
+      provider = createTestProvider({
+        subscriptionBuilderAddressMainnet: subscriptionBuilder,
+      });
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: defaultBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+      expect(maxBuilderFee).not.toHaveBeenCalledWith(
+        expect.objectContaining({ builder: subscriptionBuilder }),
+      );
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
     it('includes builder fee and referral setup in TP/SL updates', async () => {
@@ -783,8 +1061,6 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.updatePositionTPSL(updateParams);
 
-      expect(result.success).toBe(true);
-
       // Verify builder fee approval was called
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
@@ -806,11 +1082,85 @@ describe('HyperLiquidProvider', () => {
           orders: expect.any(Array),
           grouping: 'positionTpsl',
           builder: {
-            b: expect.any(String),
-            f: expect.any(Number),
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
           },
         }),
       );
+      expect(result.success).toBe(true);
+    });
+
+    it('uses HTTP for builder fee reads during a cold-start TP/SL update', async () => {
+      const webSocketMaxBuilderFee = jest
+        .fn()
+        .mockRejectedValue(
+          Object.assign(
+            new Error(
+              'WebSocket connection closed before the request was sent',
+            ),
+            { name: 'WebSocketRequestError' },
+          ),
+        );
+      const httpMaxBuilderFee = jest
+        .fn()
+        .mockResolvedValue(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      const webSocketInfoClient = createMockInfoClient({
+        maxBuilderFee: webSocketMaxBuilderFee,
+      });
+      const httpInfoClient = createMockInfoClient({
+        maxBuilderFee: httpMaxBuilderFee,
+      });
+      mockClientService.getInfoClient.mockImplementation((options) =>
+        options?.useHttp ? httpInfoClient : webSocketInfoClient,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+      expect(httpMaxBuilderFee).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+      });
+      expect(webSocketMaxBuilderFee).not.toHaveBeenCalled();
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({ grouping: 'positionTpsl' }),
+      );
+    });
+
+    it('uses a builder approval completed while acquiring the global lock', async () => {
+      const mockedCache = PerpsSigningCache as jest.Mocked<
+        typeof PerpsSigningCache
+      >;
+      mockedCache.getBuilderFee
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({ attempted: true, success: true });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockedCache.getBuilderFee).toHaveBeenCalledTimes(2);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
     });
 
     it('skips referral setup when user is the builder', async () => {

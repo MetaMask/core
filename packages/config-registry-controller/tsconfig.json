@@ -9,7 +9,6 @@
     { "path": "../keyring-controller" },
     { "path": "../messenger" },
     { "path": "../polling-controller" },
-    { "path": "../profile-sync-controller" },
     { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]

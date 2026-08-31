@@ -139,6 +139,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -633,13 +634,9 @@ describe('PerpsController', () => {
       await controller.init();
       const initialTestnetState = controller.state.isTestnet;
 
-      // Make init set state to Failed (mimics performInitialization catching an error)
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
-        controller.testUpdate((state) => {
-          state.initializationState = InitializationState.Failed;
-          state.initializationError = 'Network toggle init failed';
-        });
-      });
+      mockProvider.disconnect.mockRejectedValue(
+        new Error('Network toggle init failed'),
+      );
 
       const result = await controller.toggleTestnet();
 
@@ -648,24 +645,16 @@ describe('PerpsController', () => {
       // isTestnet should be rolled back to its original value
       expect(result.isTestnet).toBe(initialTestnetState);
       expect(controller.state.isTestnet).toBe(initialTestnetState);
-
-      jest.restoreAllMocks();
     });
 
     it('clears isReinitializing flag after init failure', async () => {
       await controller.init();
 
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
-        controller.testUpdate((state) => {
-          state.initializationState = InitializationState.Failed;
-        });
-      });
+      mockProvider.disconnect.mockRejectedValue(new Error('Init failed'));
 
       await controller.toggleTestnet();
 
       expect(controller.isCurrentlyReinitializing()).toBe(false);
-
-      jest.restoreAllMocks();
     });
   });
 
@@ -694,12 +683,18 @@ describe('PerpsController', () => {
   });
 
   describe('pro layout preferences', () => {
-    it('defaults to collapsed order book, collapsed chart, and reserved positions', () => {
+    it('defaults to collapsed order book, expanded chart, reserved positions, and positions/orders sort/filter defaults', () => {
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: false,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
       });
     });
 
@@ -708,9 +703,15 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
       });
     });
 
@@ -718,19 +719,99 @@ describe('PerpsController', () => {
       controller.setProLayoutPreferences({ orderBookExpanded: true });
       controller.setProLayoutPreferences({ orderBookPosition: 'right' });
       controller.setProLayoutPreferences({ orderFormPosition: 'left' });
+      controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
+      controller.setProLayoutPreferences({
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        ordersSideFilter: 'short',
+        ordersSortField: 'orderValue',
+        ordersSortDirection: 'asc',
+      });
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'right',
         orderFormPosition: 'left',
+        positionsSideFilter: 'long',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+        ordersSideFilter: 'short',
+        ordersSortField: 'orderValue',
+        ordersSortDirection: 'asc',
+      });
+    });
+
+    it('updates sort field without clobbering sort direction', () => {
+      controller.setProLayoutPreferences({
+        positionsSortField: 'fundingRate',
+        positionsSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        positionsSortField: 'unrealizedPnl',
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: true,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'unrealizedPnl',
+        positionsSortDirection: 'asc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
+      });
+    });
+
+    it('updates orders sort field without clobbering orders sort direction or positions sort', () => {
+      controller.setProLayoutPreferences({
+        ordersSortField: 'size',
+        ordersSortDirection: 'asc',
+      });
+      controller.setProLayoutPreferences({
+        ordersSortField: 'price',
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: true,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'price',
+        ordersSortDirection: 'asc',
+      });
+    });
+
+    it('updates orders side filter without clobbering positions side filter', () => {
+      controller.setProLayoutPreferences({ positionsSideFilter: 'long' });
+      controller.setProLayoutPreferences({ ordersSideFilter: 'short' });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: true,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+        positionsSideFilter: 'long',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'short',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
       });
     });
 
     it('persists the update to controller state', () => {
-      controller.setProLayoutPreferences({ chartExpanded: true });
+      controller.setProLayoutPreferences({ chartExpanded: false });
 
-      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(true);
+      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(false);
     });
 
     it('fills in defaults for fields missing from persisted state', () => {
@@ -743,10 +824,91 @@ describe('PerpsController', () => {
 
       expect(controller.getProLayoutPreferences()).toEqual({
         orderBookExpanded: true,
-        chartExpanded: false,
+        chartExpanded: true,
         orderBookPosition: 'left',
         orderFormPosition: 'right',
+        positionsSideFilter: 'all',
+        positionsSortField: 'positionValue',
+        positionsSortDirection: 'desc',
+        ordersSideFilter: 'all',
+        ordersSortField: 'time',
+        ordersSortDirection: 'desc',
       });
+    });
+  });
+
+  describe('order book preferences', () => {
+    it('defaults to USD totals', () => {
+      expect(controller.getOrderBookPreferences()).toEqual({
+        currency: 'usd',
+        metric: 'total',
+      });
+    });
+
+    it('updates a single preference without clobbering the other', () => {
+      controller.setOrderBookPreferences({ currency: 'base' });
+
+      expect(controller.getOrderBookPreferences()).toEqual({
+        currency: 'base',
+        metric: 'total',
+      });
+    });
+
+    it('fills in defaults for fields missing from persisted state', () => {
+      controller.testUpdate((state) => {
+        state.orderBookPreferences = {
+          metric: 'size',
+        } as PerpsControllerState['orderBookPreferences'];
+      });
+
+      expect(controller.getOrderBookPreferences()).toEqual({
+        currency: 'usd',
+        metric: 'size',
+      });
+    });
+  });
+
+  describe('selected order type', () => {
+    it('defaults to market and persists independently of market', () => {
+      expect(controller.getSelectedOrderType()).toBe('market');
+
+      controller.setSelectedOrderType('limit');
+
+      expect(controller.getSelectedOrderType()).toBe('limit');
+      controller.saveTradeConfiguration('ETH', 5);
+      expect(controller.getSelectedOrderType()).toBe('limit');
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+      });
+      expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+  });
+
+  describe('visible candle count', () => {
+    it('defaults to 30 and persists a valid count', () => {
+      expect(controller.getVisibleCandleCount()).toBe(30);
+
+      controller.setVisibleCandleCount(45);
+
+      expect(controller.getVisibleCandleCount()).toBe(45);
+    });
+
+    it('clamps to the supported range and rounds to a whole candle', () => {
+      controller.setVisibleCandleCount(9);
+      expect(controller.getVisibleCandleCount()).toBe(10);
+
+      controller.setVisibleCandleCount(251);
+      expect(controller.getVisibleCandleCount()).toBe(250);
+
+      controller.setVisibleCandleCount(42.6);
+      expect(controller.getVisibleCandleCount()).toBe(43);
+    });
+
+    it('ignores non-finite values', () => {
+      controller.setVisibleCandleCount(45);
+      controller.setVisibleCandleCount(Number.NaN);
+
+      expect(controller.getVisibleCandleCount()).toBe(45);
     });
   });
 
@@ -956,12 +1118,29 @@ describe('PerpsController', () => {
         stopLossPrice: '40000',
         limitPrice: '45000',
         orderType: 'limit' as const,
+        reduceOnly: true,
+        direction: 'short' as const,
       };
 
       controller.savePendingTradeConfiguration('BTC', config);
 
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toEqual(config);
+      expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+
+    it('restores a short direction from a pending trade configuration', () => {
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        direction: 'short',
+      });
+
+      const result = controller.getPendingTradeConfiguration('BTC');
+
+      expect(result).toEqual({
+        amount: '100',
+        direction: 'short',
+      });
     });
 
     it('returns undefined for non-existent pending configuration', () => {
@@ -970,7 +1149,7 @@ describe('PerpsController', () => {
       expect(result).toBeUndefined();
     });
 
-    it('returns undefined for expired pending configuration (more than 5 minutes)', () => {
+    it('returns undefined for expired pending configuration (more than 30 seconds)', () => {
       const config = {
         amount: '100',
         leverage: 5,
@@ -978,15 +1157,14 @@ describe('PerpsController', () => {
 
       controller.savePendingTradeConfiguration('BTC', config);
 
-      // Fast-forward 6 minutes (more than 5 minutes)
-      jest.advanceTimersByTime(6 * 60 * 1000);
+      jest.advanceTimersByTime(30_001);
 
       const result = controller.getPendingTradeConfiguration('BTC');
 
       expect(result).toBeUndefined();
     });
 
-    it('returns configuration for valid pending configuration (less than 5 minutes)', () => {
+    it('returns configuration for valid pending configuration (less than 30 seconds)', () => {
       const config = {
         amount: '100',
         leverage: 5,
@@ -996,8 +1174,7 @@ describe('PerpsController', () => {
 
       controller.savePendingTradeConfiguration('BTC', config);
 
-      // Fast-forward 4 minutes (less than 5 minutes)
-      jest.advanceTimersByTime(4 * 60 * 1000);
+      jest.advanceTimersByTime(29_999);
 
       const result = controller.getPendingTradeConfiguration('BTC');
 
@@ -1012,8 +1189,7 @@ describe('PerpsController', () => {
 
       controller.savePendingTradeConfiguration('BTC', config);
 
-      // Fast-forward 6 minutes
-      jest.advanceTimersByTime(6 * 60 * 1000);
+      jest.advanceTimersByTime(30_001);
 
       // First call should clear expired config
       controller.getPendingTradeConfiguration('BTC');
@@ -1042,6 +1218,70 @@ describe('PerpsController', () => {
 
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toBeUndefined();
+    });
+
+    it('clears only the draft while retaining leverage and selected order type', () => {
+      controller.saveTradeConfiguration('BTC', 10);
+      controller.setSelectedOrderType('limit');
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        leverage: 5,
+        orderType: 'limit',
+        reduceOnly: true,
+      });
+
+      controller.clearPendingTradeConfiguration('BTC');
+
+      expect(controller.getPendingTradeConfiguration('BTC')).toBeUndefined();
+      expect(controller.getTradeConfiguration('BTC')).toEqual({
+        leverage: 10,
+      });
+      expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+
+    it('clears the draft after a successful order', async () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockTradingServiceInstance.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-1',
+      });
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        reduceOnly: true,
+      });
+
+      await controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(controller.getPendingTradeConfiguration('BTC')).toBeUndefined();
+    });
+
+    it('retains the draft after an unsuccessful order', async () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockTradingServiceInstance.placeOrder.mockResolvedValue({
+        success: false,
+        error: 'Order failed',
+      });
+      const config = {
+        amount: '100',
+        reduceOnly: true,
+      };
+      controller.savePendingTradeConfiguration('BTC', config);
+
+      await controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(controller.getPendingTradeConfiguration('BTC')).toEqual(config);
     });
 
     it('saves pending config per network (testnet vs mainnet)', () => {

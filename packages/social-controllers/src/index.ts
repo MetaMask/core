@@ -68,6 +68,7 @@ export type {
   SocialControllerState,
   SocialHandles,
   Trade,
+  TradeAction,
   TraderProfile,
   TraderProfileResponse,
   TraderStats,

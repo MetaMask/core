@@ -1411,6 +1411,74 @@ describe('HyperLiquidClientService', () => {
       // Assert - WebSocket should be cleaned up immediately after establishing
       expect(mockWsUnsubscribe).toHaveBeenCalled();
     });
+
+    it('consumes a rejected unsubscribe after the subscription resolves', async () => {
+      mockInfoClientHttp.candleSnapshot = jest.fn().mockResolvedValue([]);
+      const unsubscribeError = new Error('Unsubscribe request failed');
+      const mockWsUnsubscribe = jest.fn().mockRejectedValue(unsubscribeError);
+      const unhandledRejectionListener = jest.fn();
+      process.on('unhandledRejection', unhandledRejectionListener);
+      (mockSubscriptionClient as any).candle = jest
+        .fn()
+        .mockResolvedValue({ unsubscribe: mockWsUnsubscribe });
+
+      const unsubscribe = service.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h' as ValidCandleInterval,
+        callback: jest.fn(),
+      });
+      await jest.advanceTimersByTimeAsync(100);
+      mockDeps.logger.error.mockClear();
+
+      unsubscribe();
+      await jest.advanceTimersByTimeAsync(100);
+      process.off('unhandledRejection', unhandledRejectionListener);
+
+      expect(unhandledRejectionListener).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        unsubscribeError,
+        expect.objectContaining({
+          context: expect.objectContaining({
+            name: 'websocket_unsubscription',
+          }),
+        }),
+      );
+    });
+
+    it('treats an Already unsubscribed rejection as idempotent during late cleanup', async () => {
+      mockInfoClientHttp.candleSnapshot = jest.fn().mockResolvedValue([]);
+      let resolveWsSubscription: (value: any) => void = () => {
+        // Intentionally empty until the test captures the resolver.
+      };
+      const delayedWsPromise = new Promise((resolve) => {
+        resolveWsSubscription = resolve;
+      });
+      const mockWsUnsubscribe = jest
+        .fn()
+        .mockRejectedValue(new Error('Already unsubscribed from candle feed'));
+      const unhandledRejectionListener = jest.fn();
+      process.on('unhandledRejection', unhandledRejectionListener);
+      (mockSubscriptionClient as any).candle = jest
+        .fn()
+        .mockReturnValue(delayedWsPromise);
+
+      const unsubscribe = service.subscribeToCandles({
+        symbol: 'BTC',
+        interval: '1h' as ValidCandleInterval,
+        callback: jest.fn(),
+      });
+      await jest.advanceTimersByTimeAsync(50);
+      unsubscribe();
+      mockDeps.logger.error.mockClear();
+
+      resolveWsSubscription({ unsubscribe: mockWsUnsubscribe });
+      await jest.advanceTimersByTimeAsync(100);
+      process.off('unhandledRejection', unhandledRejectionListener);
+
+      expect(mockWsUnsubscribe).toHaveBeenCalledTimes(1);
+      expect(unhandledRejectionListener).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
   });
 
   describe('Reconnection and Terminate Event', () => {
@@ -1637,6 +1705,91 @@ describe('HyperLiquidClientService', () => {
       expect(
         (SubscriptionClient as jest.Mock).mock.calls.length,
       ).toBeGreaterThan(subscriptionClientCallsBefore);
+    });
+
+    it('reconnect() recreates exchangeClient and isInitialized() returns true', async () => {
+      const { ExchangeClient, InfoClient } = require('@nktkas/hyperliquid');
+      await service.initialize(mockWallet);
+
+      expect(service.isInitialized()).toBe(true);
+
+      const exchangeCallsBefore = (ExchangeClient as jest.Mock).mock.calls
+        .length;
+      const infoCallsBefore = (InfoClient as jest.Mock).mock.calls.length;
+
+      await service.reconnect();
+
+      // ExchangeClient should have been recreated with HTTP transport
+      expect((ExchangeClient as jest.Mock).mock.calls.length).toBeGreaterThan(
+        exchangeCallsBefore,
+      );
+      // InfoClient should have additional calls (WS + HTTP fallback)
+      expect((InfoClient as jest.Mock).mock.calls.length).toBeGreaterThan(
+        infoCallsBefore,
+      );
+      // isInitialized() must return true after reconnection
+      expect(service.isInitialized()).toBe(true);
+    });
+
+    it('reconnect() skips exchangeClient when wallet was never provided', async () => {
+      const { ExchangeClient } = require('@nktkas/hyperliquid');
+
+      // Create a fresh service without calling initialize() — no wallet stored
+      const freshService = new HyperLiquidClientService(mockDeps);
+      const exchangeCallsBefore = (ExchangeClient as jest.Mock).mock.calls
+        .length;
+
+      await freshService.reconnect();
+
+      // ExchangeClient should NOT be created since no wallet params exist
+      expect((ExchangeClient as jest.Mock).mock.calls.length).toBe(
+        exchangeCallsBefore,
+      );
+      // isInitialized() must be false — exchangeClient was never created
+      expect(freshService.isInitialized()).toBe(false);
+    });
+
+    it('reports uninitialized when reconnect readiness fails', async () => {
+      await service.initialize(mockWallet);
+      expect(service.isInitialized()).toBe(true);
+
+      // Clients are constructed before the transport reports ready, so a
+      // rejected ready() must not leave a session that looks usable.
+      mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
+      await service.reconnect();
+
+      expect(service.isInitialized()).toBe(false);
+      expect(service.getSubscriptionClient()).toBeUndefined();
+      expect(() => service.getInfoClient()).toThrow('CLIENT_NOT_INITIALIZED');
+      expect(service.getInfoClient({ useHttp: true })).toBe(mockInfoClientHttp);
+      expect(service.getExchangeClient()).toBe(mockExchangeClient);
+    });
+
+    it('reports uninitialized when reconnect readiness fails after a disconnect', async () => {
+      await service.initialize(mockWallet);
+      await service.disconnect();
+
+      mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
+      await service.reconnect();
+
+      expect(service.isInitialized()).toBe(false);
+    });
+
+    it('does not initialize a competing subscription client during retry backoff', async () => {
+      const { WebSocketTransport } = require('@nktkas/hyperliquid');
+      await service.initialize(mockWallet);
+
+      mockWsTransportReady.mockRejectedValueOnce(new Error('ws never opened'));
+      await service.reconnect();
+      const transportCalls = (WebSocketTransport as jest.Mock).mock.calls
+        .length;
+
+      await service.ensureSubscriptionClient(mockWallet);
+
+      expect((WebSocketTransport as jest.Mock).mock.calls).toHaveLength(
+        transportCalls,
+      );
+      expect(service.getSubscriptionClient()).toBeUndefined();
     });
 
     it('performDisconnection resets isReconnecting flag', async () => {
