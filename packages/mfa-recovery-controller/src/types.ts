@@ -129,8 +129,12 @@ export type PendingOperation =
 export type RecoveryPhase = 'idle' | PendingOperation['phase'];
 
 /**
- * Ciphertext of {@link PendingOperation}. Wallet secure storage encrypts this
- * value; a raw recovery secret is never persisted in the clear.
+ * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage
+ * encrypts this value; a raw recovery secret is never persisted in the clear.
+ *
+ * The recovery spec's pseudocode represents this as `Uint8Array`, but the
+ * controller stores the encoded ciphertext as a string so BaseController state
+ * persistence and serialization preserve it without binary coercion.
  */
 export type EncryptedPendingOperation = string;
 
@@ -174,7 +178,7 @@ export type RecoveryIdentifierAuthProvider = {
 export type RecoveryEscrowProvider = {
   readonly id: string;
   isAvailable: () => Promise<boolean>;
-  generateChallenge: () => Promise<PoPChallenge>;
+  generateChallenge: (publicKey: string) => Promise<PoPChallenge>;
   beginIdentifierAuthentication: (params: {
     identifier: Identifier;
     requestHash: string;
@@ -196,7 +200,19 @@ export type RecoveryEscrowProvider = {
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
   ) => Promise<MutationReceipt>;
-  verifyReceipt: (receipt: MutationReceipt, mutation: Mutation) => boolean;
+  /**
+   * Verifies a receipt cryptographically using the build-pinned key for the
+   * expected escrow and confirms it targets that escrow.
+   *
+   * @param receipt - Receipt returned by an escrow.
+   * @param mutation - Mutation acknowledged by the receipt.
+   * @param expectedEscrowId - Escrow identity expected by the caller.
+   */
+  verifyReceipt: (
+    receipt: MutationReceipt,
+    mutation: Mutation,
+    expectedEscrowId: string,
+  ) => boolean;
 };
 
 /**

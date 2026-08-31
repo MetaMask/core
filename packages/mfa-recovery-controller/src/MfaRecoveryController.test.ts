@@ -13,14 +13,18 @@ import {
   StubIdentifierAuthProvider,
   passthroughEncryptor,
 } from '../tests/stubs.js';
-import { hash } from './crypto.js';
+import { canonicalizeIdentifiers, hash } from './crypto.js';
 import { MutationRepairPendingError } from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
 } from './MfaRecoveryController.js';
 import { MfaRecoveryController } from './MfaRecoveryController.js';
-import type { Identifier } from './types.js';
+import type {
+  Identifier,
+  MutationReceipt,
+  WritingPendingOperation,
+} from './types.js';
 
 const PASSKEY: Identifier = {
   type: 'passkey',
@@ -145,13 +149,30 @@ describe('MfaRecoveryController', () => {
 
   describe('register', () => {
     it('replicates the recovery secret to every escrow', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, escrowA }) => {
+        const verifyReceipt = jest.spyOn(escrowA, 'verifyReceipt');
         await controller.register(SECRET, [PASSKEY]);
         expect(controller.state.pendingOperation).toBeNull();
         expect(await controller.getPhase()).toBe('idle');
+        expect(verifyReceipt.mock.calls[0][2]).toBe('escrow-a');
 
         const recovered = await controller.getRecoverySecret(PASSKEY);
         expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+      });
+    });
+
+    it('publishes state changes through the stateChanged event', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const listener = jest.fn();
+        rootMessenger.subscribe('MfaRecoveryController:stateChanged', listener);
+
+        await controller.register(SECRET, [PASSKEY]);
+
+        expect(listener).toHaveBeenCalled();
+        expect(listener).toHaveBeenLastCalledWith(
+          { pendingOperation: null },
+          expect.any(Array),
+        );
       });
     });
 
@@ -214,6 +235,27 @@ describe('MfaRecoveryController', () => {
           'No escrow returned a recovery secret',
         );
       });
+    });
+  });
+
+  describe('configured escrows', () => {
+    it('uses a snapshot of the configured escrow array', async () => {
+      await withController(
+        async ({ controller, escrowA, escrowB, options }) => {
+          options.escrows.splice(0, options.escrows.length);
+
+          await controller.register(SECRET, [PASSKEY]);
+
+          expect(await escrowA.getRecoveryMetadata('profile-1')).toStrictEqual({
+            version: 1,
+            lastMutationId: expect.any(String),
+          });
+          expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
+            version: 1,
+            lastMutationId: expect.any(String),
+          });
+        },
+      );
     });
   });
 
@@ -295,25 +337,68 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('repairs only the missing replica when an acknowledged replica is offline', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2),
+        ).rejects.toBeInstanceOf(MutationRepairPendingError);
+
+        escrowB.available = false;
+
+        await controller.resume();
+
+        expect(await controller.getPhase()).toBe('idle');
+        expect(bytesToHex(await controller.getRecoverySecret(PASSKEY))).toBe(
+          bytesToHex(SECRET_2),
+        );
+      });
+    });
+
+    it('clears a fully acknowledged mutation without checking escrow availability', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        const pending = await getValidWritingPending();
+        pending.receipts = ['escrow-a', 'escrow-b'].map(
+          (escrowId): MutationReceipt => ({
+            mutationId: pending.mutation.id,
+            requestHash: pending.mutation.requestHash,
+            escrowId,
+            version: pending.mutation.newVersion,
+            signature: '0xsignature',
+          }),
+        );
+        const encrypted = await passthroughEncryptor.encrypt(pending);
+        const availabilityA = jest.spyOn(escrowA, 'isAvailable');
+        const availabilityB = jest.spyOn(escrowB, 'isAvailable');
+        availabilityA.mockClear();
+        availabilityB.mockClear();
+        escrowA.available = false;
+        escrowB.available = false;
+
+        const resumed = new MfaRecoveryController({
+          ...getOptions(escrowA, escrowB),
+          messenger: getMessenger(getRootMessenger()),
+          state: { pendingOperation: encrypted },
+        });
+
+        await resumed.resume();
+
+        expect(await resumed.getPhase()).toBe('idle');
+        expect(availabilityA).not.toHaveBeenCalled();
+        expect(availabilityB).not.toHaveBeenCalled();
+      });
+    });
+
     it('aborts an authorizing mutation and refuses to abort writing', async () => {
       await withController(async ({ options }) => {
+        const validPending = await getValidWritingPending();
         const authorizing = await passthroughEncryptor.encrypt({
           phase: 'authorizing',
-          mutation: {
-            id: '0xmut',
-            profileId: 'profile-1',
-            operation: 'register',
-            expectedVersion: 0,
-            newVersion: 1,
-            payloadHash: '0x',
-            audiences: ['escrow-a', 'escrow-b'],
-            requestHash: '0x',
-          },
-          payload: {
-            recoverySecret: bytesToHex(SECRET),
-            identifiers: [PASSKEY],
-          },
-          identifier: null,
+          mutation: validPending.mutation,
+          payload: validPending.payload,
+          identifier: validPending.identifier,
         });
         const authorizingMessenger = getMessenger(getRootMessenger());
         const idleController = new MfaRecoveryController({
@@ -325,32 +410,7 @@ describe('MfaRecoveryController', () => {
         await idleController.abort();
         expect(await idleController.getPhase()).toBe('idle');
 
-        const writing = await passthroughEncryptor.encrypt({
-          phase: 'writing',
-          mutation: {
-            id: '0xmut',
-            profileId: 'profile-1',
-            operation: 'register',
-            expectedVersion: 0,
-            newVersion: 1,
-            payloadHash: '0x',
-            audiences: ['escrow-a', 'escrow-b'],
-            requestHash: '0x',
-          },
-          authControllerToken: {
-            profileId: 'profile-1',
-            requestHash: '0x',
-            issuer: 'stub-auth',
-            expiresAt: Date.now() + 60_000,
-            signature: 'stub-auth-signature',
-          },
-          payload: {
-            recoverySecret: bytesToHex(SECRET),
-            identifiers: [PASSKEY],
-          },
-          identifier: null,
-          receipts: [],
-        });
+        const writing = await passthroughEncryptor.encrypt(validPending);
         const writingMessenger = getMessenger(getRootMessenger());
         const writingController = new MfaRecoveryController({
           ...options,
@@ -398,6 +458,47 @@ describe('MfaRecoveryController', () => {
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
         expect(bytesToHex(await controller.getRecoverySecret(PASSKEY))).toBe(
+          bytesToHex(SECRET),
+        );
+      });
+    });
+
+    it('resumes a persisted authorizing updateIdentifiers mutation', async () => {
+      await withController(async ({ controller, options }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        const payload = { identifiers: [EMAIL] };
+        const payloadHash = await hash(payload);
+        const mutationFields = {
+          id: '0xmutidentifiers',
+          profileId: 'profile-1',
+          operation: 'updateIdentifiers' as const,
+          expectedVersion: 1,
+          newVersion: 2,
+          payloadHash,
+          audiences: ['escrow-a', 'escrow-b'],
+        };
+        const mutation = {
+          ...mutationFields,
+          requestHash: await hash(mutationFields),
+        };
+        const authorizing = {
+          phase: 'authorizing' as const,
+          mutation,
+          payload,
+          identifier: PASSKEY,
+        };
+        const resumed = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          state: {
+            pendingOperation: await passthroughEncryptor.encrypt(authorizing),
+          },
+        });
+
+        await resumed.resume();
+
+        expect(await resumed.getPhase()).toBe('idle');
+        expect(bytesToHex(await resumed.getRecoverySecret(EMAIL))).toBe(
           bytesToHex(SECRET),
         );
       });
@@ -553,21 +654,35 @@ describe('MfaRecoveryController', () => {
           identifiers: [PASSKEY],
         };
         const payloadHash = await hash(payload);
+        const mutation = {
+          id: '0xmut',
+          profileId: 'profile-1',
+          operation: 'register' as const,
+          expectedVersion: 0,
+          newVersion: 1,
+          payloadHash,
+          audiences: ['escrow-a', 'escrow-b'],
+          requestHash: '',
+        };
+        mutation.requestHash = await hash({
+          id: mutation.id,
+          profileId: mutation.profileId,
+          operation: mutation.operation,
+          expectedVersion: mutation.expectedVersion,
+          newVersion: mutation.newVersion,
+          payloadHash: mutation.payloadHash,
+          audiences: mutation.audiences,
+        });
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
-          mutation: {
-            id: '0xmut',
-            profileId: 'profile-1',
-            operation: 'register',
-            expectedVersion: 0,
-            newVersion: 1,
-            payloadHash,
-            audiences: ['escrow-a', 'escrow-b'],
-            requestHash: '0x',
-          },
+          mutation,
           authControllerToken: {
             profileId: 'profile-1',
-            requestHash: '0x',
+            requestHash: mutation.requestHash,
+            identifiersHash: await hash(
+              canonicalizeIdentifiers(payload.identifiers),
+            ),
+            identifierOwnershipApproved: true,
             issuer: 'stub-auth',
             expiresAt: Date.now() + 60_000,
             signature: 'stub-auth-signature',
@@ -577,7 +692,7 @@ describe('MfaRecoveryController', () => {
           receipts: [
             {
               mutationId: '0xmut',
-              requestHash: '0x',
+              requestHash: mutation.requestHash,
               escrowId: 'escrow-z',
               version: 1,
               signature: '0x',
@@ -603,21 +718,35 @@ describe('MfaRecoveryController', () => {
           identifiers: [PASSKEY],
         };
         const payloadHash = await hash(payload);
+        const mutation = {
+          id: '0xmut',
+          profileId: 'profile-1',
+          operation: 'register' as const,
+          expectedVersion: 0,
+          newVersion: 1,
+          payloadHash,
+          audiences: ['escrow-a', 'escrow-b'],
+          requestHash: '',
+        };
+        mutation.requestHash = await hash({
+          id: mutation.id,
+          profileId: mutation.profileId,
+          operation: mutation.operation,
+          expectedVersion: mutation.expectedVersion,
+          newVersion: mutation.newVersion,
+          payloadHash: mutation.payloadHash,
+          audiences: mutation.audiences,
+        });
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
-          mutation: {
-            id: '0xmut',
-            profileId: 'profile-1',
-            operation: 'register',
-            expectedVersion: 0,
-            newVersion: 1,
-            payloadHash,
-            audiences: ['escrow-a', 'escrow-b'],
-            requestHash: '0x',
-          },
+          mutation,
           authControllerToken: {
             profileId: 'profile-1',
-            requestHash: '0x',
+            requestHash: mutation.requestHash,
+            identifiersHash: await hash(
+              canonicalizeIdentifiers(payload.identifiers),
+            ),
+            identifierOwnershipApproved: true,
             issuer: 'stub-auth',
             expiresAt: Date.now() + 60_000,
             signature: 'stub-auth-signature',
@@ -627,7 +756,7 @@ describe('MfaRecoveryController', () => {
           receipts: [
             {
               mutationId: '0xmut',
-              requestHash: '0x',
+              requestHash: mutation.requestHash,
               escrowId: 'escrow-a',
               version: 1,
               signature: '0x',
@@ -654,6 +783,58 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('persists valid receipts before reporting an invalid receipt', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        escrowA.invalidReceipts = true;
+
+        await expect(controller.register(SECRET, [PASSKEY])).rejects.toThrow(
+          'Invalid mutation receipt',
+        );
+
+        const pending = JSON.parse(
+          controller.state.pendingOperation as string,
+        ) as {
+          receipts: { escrowId: string }[];
+        };
+        expect(pending.receipts).toStrictEqual([
+          expect.objectContaining({ escrowId: 'escrow-b' }),
+        ]);
+        expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
+          version: 1,
+          lastMutationId: expect.any(String),
+        });
+      });
+    });
+
+    it('rejects a receipt whose escrow id does not match its target', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        jest.spyOn(escrowA, 'applyMutation').mockResolvedValue({
+          mutationId: '0xmutation',
+          requestHash: '0xrequest',
+          escrowId: 'escrow-z',
+          version: 1,
+          signature: '0xsignature',
+        });
+        jest.spyOn(escrowA, 'verifyReceipt').mockReturnValue(true);
+
+        await expect(controller.register(SECRET, [PASSKEY])).rejects.toThrow(
+          'Invalid mutation receipt',
+        );
+      });
+    });
+
+    it('treats receipt verification errors as invalid receipts', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        jest.spyOn(escrowA, 'verifyReceipt').mockImplementation(() => {
+          throw new Error('verification failed');
+        });
+
+        await expect(controller.register(SECRET, [PASSKEY])).rejects.toThrow(
+          'Invalid mutation receipt',
+        );
+      });
+    });
+
     it('refreshes an expired AuthController token while resuming', async () => {
       await withController(async ({ controller, escrowA, options }) => {
         await controller.register(SECRET, [PASSKEY]);
@@ -674,6 +855,207 @@ describe('MfaRecoveryController', () => {
         expect(await resumed.getPhase()).toBe('idle');
       });
     });
+
+    it('rejects a null decrypted pending operation before external calls', async () => {
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const auth = jest.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        );
+        const availabilityA = jest.spyOn(escrowA, 'isAvailable');
+        const availabilityB = jest.spyOn(escrowB, 'isAvailable');
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          state: { pendingOperation: 'null' },
+        });
+
+        await expect(controller.resume()).rejects.toThrow(
+          'Invalid pending operation',
+        );
+
+        expect(auth).not.toHaveBeenCalled();
+        expect(availabilityA).not.toHaveBeenCalled();
+        expect(availabilityB).not.toHaveBeenCalled();
+      });
+    });
+
+    it.each([
+      {
+        name: 'an invalid phase',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.phase = 'invalid';
+        },
+      },
+      {
+        name: 'a malformed mutation',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.mutation = null;
+        },
+      },
+      {
+        name: 'an operation and payload mismatch',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.operation = 'updateIdentifiers';
+          pending.payload = { recoverySecret: bytesToHex(SECRET) };
+        },
+      },
+      {
+        name: 'a malformed payload',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.payload = null;
+        },
+      },
+      {
+        name: 'a payload without a recovery secret',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.payload = {};
+        },
+      },
+      {
+        name: 'an identifier payload with invalid entries',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.operation = 'updateIdentifiers';
+          pending.payload = { identifiers: [{}] };
+        },
+      },
+      {
+        name: 'a non-null register identifier',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.operation = 'register';
+          pending.payload = {
+            recoverySecret: bytesToHex(SECRET),
+            identifiers: [PASSKEY],
+          };
+          pending.identifier = PASSKEY;
+        },
+      },
+      {
+        name: 'a null update identifier',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.identifier = null;
+        },
+      },
+      {
+        name: 'an unknown identifier type',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.identifier = {
+            type: 'unknown',
+            namespace: 'example.com',
+            value: 'unknown',
+            verifier: null,
+          };
+        },
+      },
+      {
+        name: 'a non-consecutive version',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.expectedVersion = 4;
+          mutation.newVersion = 6;
+        },
+      },
+      {
+        name: 'a mismatched payload hash',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.payloadHash = '0xwrong-payload-hash';
+        },
+      },
+      {
+        name: 'a mismatched mutation request hash',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.requestHash = '0xwrong-request-hash';
+        },
+      },
+      {
+        name: 'an out-of-order audience list',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.audiences = ['escrow-b', 'escrow-a'];
+        },
+      },
+      {
+        name: 'an invalid AuthController token',
+        mutate: (pending: Record<string, unknown>): void => {
+          const token = pending.authControllerToken as Record<string, unknown>;
+          token.requestHash = '0xwrong-token-request-hash';
+        },
+      },
+      {
+        name: 'a malformed AuthController token',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.authControllerToken = null;
+        },
+      },
+      {
+        name: 'an AuthController token with invalid fields',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.authControllerToken = {};
+        },
+      },
+      {
+        name: 'an invalid receipt array',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.receipts = null;
+        },
+      },
+      {
+        name: 'a receipt with invalid fields',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.receipts = [{}];
+        },
+      },
+      {
+        name: 'duplicate receipts',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          const receipt = {
+            mutationId: mutation.id,
+            requestHash: mutation.requestHash,
+            escrowId: 'escrow-a',
+            version: mutation.newVersion,
+            signature: '0xsignature',
+          };
+          pending.receipts = [receipt, receipt];
+        },
+      },
+    ])(
+      'rejects persisted state with $name before external calls',
+      async ({ mutate }) => {
+        await withController(async ({ escrowA, escrowB, options }) => {
+          const pending = JSON.parse(
+            JSON.stringify(await getValidWritingPending()),
+          ) as Record<string, unknown>;
+          mutate(pending);
+          const auth = jest.spyOn(
+            options.authProvider,
+            'authorizeRecoveryRequest',
+          );
+          const availabilityA = jest.spyOn(escrowA, 'isAvailable');
+          const availabilityB = jest.spyOn(escrowB, 'isAvailable');
+          const applyA = jest.spyOn(escrowA, 'applyMutation');
+          const applyB = jest.spyOn(escrowB, 'applyMutation');
+          const controller = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: { pendingOperation: JSON.stringify(pending) },
+          });
+
+          await expect(controller.resume()).rejects.toThrow(/./u);
+
+          expect(auth).not.toHaveBeenCalled();
+          expect(availabilityA).not.toHaveBeenCalled();
+          expect(availabilityB).not.toHaveBeenCalled();
+          expect(applyA).not.toHaveBeenCalled();
+          expect(applyB).not.toHaveBeenCalled();
+        });
+      },
+    );
   });
 
   describe('identifier registry', () => {
@@ -717,6 +1099,52 @@ function getMessenger(
   });
 }
 
+function getOptions(
+  escrowA: StubEscrowProvider,
+  escrowB: StubEscrowProvider,
+): MfaRecoveryControllerOptions {
+  return {
+    messenger: getMessenger(getRootMessenger()),
+    authProvider: new StubAuthProvider(),
+    identifierAuthProvider: new StubIdentifierAuthProvider(),
+    escrows: [escrowA, escrowB],
+    pendingOperationEncryptor: passthroughEncryptor,
+    collectChallengeResponse: async (): Promise<string> => 'otp',
+  };
+}
+
+async function getValidWritingPending(): Promise<WritingPendingOperation> {
+  const payload = { recoverySecret: bytesToHex(SECRET_2) };
+  const payloadHash = await hash(payload);
+  const fields = {
+    id: '0xvalid-pending',
+    profileId: 'profile-1',
+    operation: 'updateRecoverySecret' as const,
+    expectedVersion: 1,
+    newVersion: 2,
+    payloadHash,
+    audiences: ['escrow-a', 'escrow-b'],
+  };
+  return {
+    phase: 'writing',
+    mutation: {
+      ...fields,
+      requestHash: await hash(fields),
+    },
+    authControllerToken: {
+      profileId: 'profile-1',
+      requestHash: await hash(fields),
+      twoFactor: true,
+      issuer: 'stub-auth',
+      expiresAt: Date.now() + 60_000,
+      signature: 'stub-auth-signature',
+    },
+    payload,
+    identifier: PASSKEY,
+    receipts: [],
+  };
+}
+
 async function withController<ReturnValue>(
   testFunction: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
@@ -724,13 +1152,9 @@ async function withController<ReturnValue>(
   const controllerMessenger = getMessenger(rootMessenger);
   const escrowA = new StubEscrowProvider('escrow-a');
   const escrowB = new StubEscrowProvider('escrow-b');
-  const options: MfaRecoveryControllerOptions = {
+  const options = {
+    ...getOptions(escrowA, escrowB),
     messenger: controllerMessenger,
-    authProvider: new StubAuthProvider(),
-    identifierAuthProvider: new StubIdentifierAuthProvider(),
-    escrows: [escrowA, escrowB],
-    pendingOperationEncryptor: passthroughEncryptor,
-    collectChallengeResponse: async (): Promise<string> => 'otp',
   };
   const controller = new MfaRecoveryController(options);
   return await testFunction({

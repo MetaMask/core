@@ -1,11 +1,10 @@
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { areUint8ArraysEqual } from '@metamask/utils';
 
 import {
   bytesToSecretHex,
@@ -15,13 +14,16 @@ import {
   sign,
 } from './crypto.js';
 import { MfaRecoveryError, MutationRepairPendingError } from './errors.js';
+import {
+  isFulfilledResult,
+  isMutationReceipt,
+  selectHighestConsistentVersion,
+  verifyMutationReceipt,
+} from './escrow-utils.js';
 import { getIdentifierAuthMode } from './identifier-auth.js';
 import type { MfaRecoveryControllerMethodActions } from './MfaRecoveryController-method-action-types.js';
-import {
-  assertAbortAllowed,
-  assertSameAudienceIds,
-  getRecoveryPhase,
-} from './state-machine.js';
+import { assertValidPendingOperation } from './pending-operation-validation.js';
+import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
 import type {
   AuthControllerToken,
   EscrowAuthChallenge,
@@ -103,12 +105,14 @@ export type MfaRecoveryControllerActions =
 
 type AllowedActions = never;
 
-export type MfaRecoveryControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof CONTROLLER_NAME,
-  MfaRecoveryControllerState
->;
+export type MfaRecoveryControllerStateChangedEvent =
+  ControllerStateChangedEvent<
+    typeof CONTROLLER_NAME,
+    MfaRecoveryControllerState
+  >;
 
-export type MfaRecoveryControllerEvents = MfaRecoveryControllerStateChangeEvent;
+export type MfaRecoveryControllerEvents =
+  MfaRecoveryControllerStateChangedEvent;
 
 type AllowedEvents = never;
 
@@ -179,6 +183,8 @@ export class MfaRecoveryController extends BaseController<
 
   readonly #escrows: RecoveryEscrowProvider[];
 
+  readonly #escrowIds: string[];
+
   readonly #encryptor: PendingOperationEncryptor;
 
   readonly #collectChallengeResponse: (
@@ -205,8 +211,8 @@ export class MfaRecoveryController extends BaseController<
         'empty_escrow_set',
       );
     }
-    const ids = escrows.map((escrow) => escrow.id);
-    if (new Set(ids).size !== ids.length) {
+    const escrowIds = escrows.map((escrow) => escrow.id);
+    if (new Set(escrowIds).size !== escrowIds.length) {
       throw new MfaRecoveryError('Duplicate escrow id', 'duplicate_escrow_id');
     }
 
@@ -222,7 +228,8 @@ export class MfaRecoveryController extends BaseController<
 
     this.#authProvider = authProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
-    this.#escrows = escrows;
+    this.#escrows = [...escrows];
+    this.#escrowIds = [...escrowIds];
     this.#encryptor = pendingOperationEncryptor;
     this.#collectChallengeResponse = collectChallengeResponse;
     this.#now = now;
@@ -335,7 +342,7 @@ export class MfaRecoveryController extends BaseController<
           ...(await escrow.getSecret(authorizations[index], requestId)),
         })),
       );
-      return this.#selectHighestConsistentVersion(results).recoverySecret;
+      return selectHighestConsistentVersion(results).recoverySecret;
     });
   }
 
@@ -383,7 +390,7 @@ export class MfaRecoveryController extends BaseController<
       await this.#repairPendingMutation(configured);
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
       const targets = await this.#requireAllEscrows(configured);
-      const audiences = configured.map((escrow) => escrow.id);
+      const audiences = [...this.#escrowIds];
       const currentVersion = await this.#resolveCurrentRecoveryVersion({
         operation,
         profileId,
@@ -464,55 +471,54 @@ export class MfaRecoveryController extends BaseController<
     if (!saved) {
       return;
     }
-    assertSameAudienceIds(
-      saved.mutation.audiences,
-      escrows.map((escrow) => escrow.id),
-    );
-    const authControllerToken =
-      saved.phase === 'authorizing' ||
-      this.#tokenNeedsRefresh(saved.authControllerToken)
-        ? await this.#authorizeMutation(saved.mutation, saved.payload)
-        : saved.authControllerToken;
-    const pending: WritingPendingOperation = {
-      phase: 'writing',
-      mutation: saved.mutation,
-      authControllerToken,
-      payload: saved.payload,
-      identifier: saved.identifier,
-      receipts: saved.phase === 'writing' ? saved.receipts : [],
-    };
-    await this.#persistPending(pending);
-    await this.#replicateMutation({
-      escrows: await this.#requireAllEscrows(escrows),
-      pending,
-    });
+    if (saved.phase === 'authorizing') {
+      const availableEscrows = await this.#requireAllEscrows(escrows);
+      const pending: WritingPendingOperation = {
+        phase: 'writing',
+        mutation: saved.mutation,
+        authControllerToken: await this.#authorizeMutation(
+          saved.mutation,
+          saved.payload,
+        ),
+        payload: saved.payload,
+        identifier: saved.identifier,
+        receipts: [],
+      };
+      await this.#persistPending(pending);
+      await this.#replicateMutation({
+        escrows: availableEscrows,
+        pending,
+        availabilityChecked: true,
+      });
+      return;
+    }
+
+    await this.#replicateMutation({ escrows, pending: saved });
   }
 
   async #replicateMutation({
     escrows,
     pending,
+    availabilityChecked = false,
   }: {
     escrows: RecoveryEscrowProvider[];
     pending: WritingPendingOperation;
+    availabilityChecked?: boolean;
   }): Promise<void> {
     const { mutation, payload, identifier } = pending;
-    const expectedPayloadHash = await hash(payload);
-    if (expectedPayloadHash !== mutation.payloadHash) {
-      throw new MfaRecoveryError(
-        'Pending payload does not match mutation',
-        'payload_mismatch',
-      );
-    }
-    const configuredIds = new Set(escrows.map((escrow) => escrow.id));
+    const entries = escrows.map((escrow) => ({
+      escrow,
+      id: this.#getConfiguredEscrowId(escrow),
+    }));
     pending.receipts.forEach((receipt) => {
-      const escrow = escrows.find((item) => item.id === receipt.escrowId);
-      if (!configuredIds.has(receipt.escrowId) || escrow === undefined) {
+      const entry = entries.find((item) => item.id === receipt.escrowId);
+      if (entry === undefined) {
         throw new MfaRecoveryError(
           'Receipt escrow is not configured',
           'unknown_receipt_escrow',
         );
       }
-      if (!escrow.verifyReceipt(receipt, mutation)) {
+      if (!verifyMutationReceipt(receipt, mutation, entry.escrow, entry.id)) {
         throw new MfaRecoveryError(
           'Invalid mutation receipt',
           'invalid_receipt',
@@ -522,44 +528,69 @@ export class MfaRecoveryController extends BaseController<
     const acknowledged = new Set(
       pending.receipts.map((receipt) => receipt.escrowId),
     );
-    const targets = escrows.filter((escrow) => !acknowledged.has(escrow.id));
+    const targets = entries
+      .filter((entry) => !acknowledged.has(entry.id))
+      .map((entry) => entry.escrow);
     if (targets.length === 0) {
       await this.#clearPending();
       return;
     }
+    const availableTargets = availabilityChecked
+      ? targets
+      : await this.#requireAllEscrows(targets);
+    const refreshedToken = this.#tokenNeedsRefresh(pending.authControllerToken)
+      ? await this.#authorizeMutation(mutation, payload)
+      : pending.authControllerToken;
+    const effectivePending =
+      refreshedToken === pending.authControllerToken
+        ? pending
+        : { ...pending, authControllerToken: refreshedToken };
+    if (effectivePending !== pending) {
+      await this.#persistPending(effectivePending);
+    }
     const authorizations =
       mutation.operation === 'register'
-        ? targets.map(() => null)
+        ? availableTargets.map(() => null)
         : await this.#authorizeIdentifier({
-            escrows: targets,
+            escrows: availableTargets,
             identifier: identifier as Identifier,
             requestHash: mutation.requestHash,
           });
     const results = await Promise.allSettled(
-      targets.map((escrow, index) =>
+      availableTargets.map((escrow, index) =>
         escrow.applyMutation(
           mutation,
-          pending.authControllerToken,
+          effectivePending.authControllerToken,
           authorizations[index],
           payload,
         ),
       ),
     );
 
-    const receipts: MutationReceipt[] = [...pending.receipts];
+    const receipts: MutationReceipt[] = [...effectivePending.receipts];
+    let hasInvalidReceipt = false;
     results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        const escrow = targets[index];
-        if (!escrow.verifyReceipt(result.value, mutation)) {
-          throw new MfaRecoveryError(
-            'Invalid mutation receipt',
-            'invalid_receipt',
-          );
-        }
-        receipts.push(result.value);
+      if (!isFulfilledResult(result)) {
+        return;
       }
+      const entry = {
+        escrow: availableTargets[index],
+        id: this.#getConfiguredEscrowId(availableTargets[index]),
+      };
+      if (
+        !isMutationReceipt(result.value) ||
+        !verifyMutationReceipt(result.value, mutation, entry.escrow, entry.id)
+      ) {
+        hasInvalidReceipt = true;
+        return;
+      }
+      receipts.push(result.value);
     });
-    await this.#persistPending({ ...pending, receipts });
+    await this.#persistPending({ ...effectivePending, receipts });
+
+    if (hasInvalidReceipt) {
+      throw new MfaRecoveryError('Invalid mutation receipt', 'invalid_receipt');
+    }
 
     if (
       new Set(receipts.map((receipt) => receipt.escrowId)).size !==
@@ -589,7 +620,7 @@ export class MfaRecoveryController extends BaseController<
           requestHash,
         });
       const challenges = await Promise.all(
-        escrows.map((escrow) => escrow.generateChallenge()),
+        escrows.map((escrow) => escrow.generateChallenge(proofKey.publicKey)),
       );
       return await Promise.all(
         challenges.map(async (challenge) => {
@@ -675,42 +706,6 @@ export class MfaRecoveryController extends BaseController<
     return selected.version;
   }
 
-  #selectHighestConsistentVersion(
-    results: PromiseSettledResult<{
-      escrowId: string;
-      recoverySecret: Uint8Array;
-      version: number;
-      lastMutationId: string;
-    }>[],
-  ): { recoverySecret: Uint8Array; version: number; lastMutationId: string } {
-    const responses = results
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => result.value);
-    if (responses.length === 0) {
-      throw new MfaRecoveryError(
-        'No escrow returned a recovery secret',
-        'read_failed',
-      );
-    }
-    const highestVersion = Math.max(
-      ...responses.map((response) => response.version),
-    );
-    const highest = responses.filter(
-      (response) => response.version === highestVersion,
-    );
-    const selected = highest[0];
-    if (
-      !highest.every(
-        (response) =>
-          response.lastMutationId === selected.lastMutationId &&
-          areUint8ArraysEqual(response.recoverySecret, selected.recoverySecret),
-      )
-    ) {
-      throw new MfaRecoveryError('Replica corruption', 'replica_corruption');
-    }
-    return selected;
-  }
-
   async #getAvailableEscrows(): Promise<RecoveryEscrowProvider[]> {
     const flags = await Promise.all(
       this.#escrows.map(async (escrow) => ({
@@ -754,7 +749,15 @@ export class MfaRecoveryController extends BaseController<
     if (pendingOperation === null) {
       return null;
     }
-    return await this.#encryptor.decrypt(pendingOperation);
+    const pending = (await this.#encryptor.decrypt(
+      pendingOperation,
+    )) as unknown;
+    await assertValidPendingOperation(pending, this.#escrowIds);
+    return pending as PendingOperation;
+  }
+
+  #getConfiguredEscrowId(escrow: RecoveryEscrowProvider): string {
+    return this.#escrowIds[this.#escrows.indexOf(escrow)];
   }
 
   async #persistPending(operation: PendingOperation): Promise<void> {

@@ -9,7 +9,7 @@ export type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
   MfaRecoveryControllerState,
-  MfaRecoveryControllerStateChangeEvent,
+  MfaRecoveryControllerStateChangedEvent,
 } from './MfaRecoveryController.js';
 export type {
   MfaRecoveryControllerAbortAction,

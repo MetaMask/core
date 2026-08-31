@@ -379,14 +379,19 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     return await this.#signReceipt(mutation);
   }
 
-  verifyReceipt(receipt: MutationReceipt, mutation: Mutation): boolean {
+  verifyReceipt(
+    receipt: MutationReceipt,
+    mutation: Mutation,
+    expectedEscrowId: string,
+  ): boolean {
     if (this.invalidReceipts) {
       return false;
     }
     return (
       receipt.mutationId === mutation.id &&
       receipt.requestHash === mutation.requestHash &&
-      receipt.escrowId === this.id &&
+      receipt.escrowId === expectedEscrowId &&
+      expectedEscrowId === this.id &&
       receipt.version === mutation.newVersion
     );
   }

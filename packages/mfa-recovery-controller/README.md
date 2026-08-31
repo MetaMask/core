@@ -4,9 +4,10 @@ Manages MFA recovery flows across MetaMask clients. Auth and escrow storage are
 injected so the same controller can run against different identity providers and
 escrow backends.
 
-Pending mutations are persisted as encrypted `authorizing` / `writing` state so
-a crash can `resume()` the same mutation. `abort()` is allowed only before the
-first escrow write.
+Pending mutations are persisted as encoded encrypted `authorizing` / `writing`
+state so a crash can `resume()` the same mutation. `abort()` is allowed only
+before the first escrow write. The encoded ciphertext is stored as a string so
+BaseController state serialization preserves the encrypted value.
 
 ## Installation
 
