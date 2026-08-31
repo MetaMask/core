@@ -181,6 +181,29 @@ const NOOP_UNSUBSCRIBE = (): void => undefined;
 
 const LIGHTER_INACTIVE_HISTORY_ROW_LIMIT = 10_000;
 
+const deriveLighterMaxLeverage = (
+  minInitialMarginFraction: number | undefined,
+  market: string | number,
+): number => {
+  if (
+    typeof minInitialMarginFraction !== 'number' ||
+    !Number.isSafeInteger(minInitialMarginFraction) ||
+    minInitialMarginFraction < 1 ||
+    minInitialMarginFraction > 10_000
+  ) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid initial margin fraction for market ${String(market)}`,
+    );
+  }
+  const maxLeverage = Math.floor(10_000 / minInitialMarginFraction);
+  if (!Number.isSafeInteger(maxLeverage) || maxLeverage < 1) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid max leverage for market ${String(market)}`,
+    );
+  }
+  return maxLeverage;
+};
+
 const adaptLighterTransferDelta = (
   entry: LighterTransferHistoryItem,
 ): RawLedgerUpdate['delta'] => {
@@ -4681,19 +4704,14 @@ export class LighterProvider implements PerpsProvider {
         .filter((market) => market.marketType === 'perp')
         .map((market) => {
           const margins = this.#marginBySymbol.get(market.symbol);
-          if (
-            !margins ||
-            !Number.isFinite(margins.minInitial) ||
-            !margins.minInitial ||
-            margins.minInitial <= 0
-          ) {
+          if (!margins) {
             throw new Error(
               `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${market.symbol}`,
             );
           }
           const adapted = adaptMarketFromLighter(
             market,
-            Math.floor(10_000 / margins.minInitial),
+            deriveLighterMaxLeverage(margins.minInitial, market.symbol),
           );
           // minBaseAmount and minQuoteAmount are maker-only. Market and
           // IOC orders can use one base-size tick, so the public universal
@@ -7309,13 +7327,12 @@ export class LighterProvider implements PerpsProvider {
       [...this.#marginBySymbol.values()].find(
         (entry) => entry.marketId === marketId,
       );
-    const minInitial = metadata?.minInitial;
-    if (!minInitial || !(minInitial > 0)) {
+    if (!metadata) {
       throw new Error(
         `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for market ${marketId}`,
       );
     }
-    return Math.floor(10_000 / minInitial);
+    return deriveLighterMaxLeverage(metadata.minInitial, marketId);
   };
 
   /**
@@ -7334,11 +7351,15 @@ export class LighterProvider implements PerpsProvider {
     } catch {
       return null;
     }
-    const minInitial = this.#marginBySymbol.get(symbol)?.minInitial;
-    if (typeof minInitial !== 'number' || !(minInitial > 0)) {
+    const metadata = this.#marginBySymbol.get(symbol);
+    if (!metadata) {
       return null;
     }
-    return Math.floor(10_000 / minInitial);
+    try {
+      return deriveLighterMaxLeverage(metadata.minInitial, symbol);
+    } catch {
+      return null;
+    }
   };
 
   /** When the margin-metadata cache was last refreshed (0 = never). */
@@ -7375,6 +7396,22 @@ export class LighterProvider implements PerpsProvider {
           // The timestamp only advances on success.
           const fresh = new Map<string, LighterMarginMetadata>();
           for (const detail of details.orderBookDetails) {
+            if (detail.minInitialMarginFraction !== undefined) {
+              deriveLighterMaxLeverage(
+                detail.minInitialMarginFraction,
+                detail.symbol,
+              );
+            }
+            if (
+              detail.maintenanceMarginFraction !== undefined &&
+              (!Number.isSafeInteger(detail.maintenanceMarginFraction) ||
+                detail.maintenanceMarginFraction < 1 ||
+                detail.maintenanceMarginFraction > 10_000)
+            ) {
+              throw new Error(
+                `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid maintenance margin fraction for market ${detail.symbol}`,
+              );
+            }
             fresh.set(detail.symbol, {
               marketId: detail.marketId,
               minInitial: detail.minInitialMarginFraction,
@@ -7400,9 +7437,9 @@ export class LighterProvider implements PerpsProvider {
     // (hundredths of a percent): 400 → 25x. Missing metadata is unavailable,
     // never evidence that the global maximum applies to this market.
     await this.#ensureMarketMargins();
-    const minInitial = this.#marginBySymbol.get(asset)?.minInitial;
-    if (minInitial && minInitial > 0) {
-      return Math.floor(10_000 / minInitial);
+    const metadata = this.#marginBySymbol.get(asset);
+    if (metadata) {
+      return deriveLighterMaxLeverage(metadata.minInitial, asset);
     }
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for ${asset}`,
