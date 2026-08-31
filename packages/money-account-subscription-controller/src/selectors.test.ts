@@ -30,9 +30,9 @@ describe('money account subscription selectors', () => {
       plan: 'premium',
     };
 
-    expect(
-      selectHasEntitlement(state, MoneyAccountFeature.SwapFeeWaiver),
-    ).toBe(true);
+    expect(selectHasEntitlement(state, MoneyAccountFeature.SwapFeeWaiver)).toBe(
+      true,
+    );
     expect(
       selectHasEntitlement(state, MoneyAccountFeature.PerpsFeeWaiver),
     ).toBe(false);
@@ -67,9 +67,9 @@ describe('money account subscription selectors', () => {
       plan: null,
     };
 
-    expect(
-      selectHasEntitlement(state, MoneyAccountFeature.PremiumApy),
-    ).toBe(false);
+    expect(selectHasEntitlement(state, MoneyAccountFeature.PremiumApy)).toBe(
+      false,
+    );
     expect(
       selectIsUsageAvailable(state, MoneyAccountFeature.PredictFreeTx),
     ).toBe(false);

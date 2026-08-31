@@ -16,8 +16,8 @@ import type {
   SubscriptionControllerState,
 } from '@metamask/subscription-controller';
 
-import type { MoneyAccountSubscriptionControllerMethodActions } from './MoneyAccountSubscriptionController-method-action-types.js';
 import { getMoneyAccountPlusClaimFromBearerToken } from './jwt-claims.js';
+import type { MoneyAccountSubscriptionControllerMethodActions } from './MoneyAccountSubscriptionController-method-action-types.js';
 import type {
   Env,
   MoneyAccountPlusJwtClaim,
@@ -127,9 +127,7 @@ const MONEY_ACCOUNT_PLUS_PRODUCT = 'money_account_plus';
 
 type RefreshMode = 'normal' | 'force';
 
-function isPlainObject(
-  value: unknown,
-): value is Record<string, unknown> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -226,11 +224,14 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
       },
     );
 
-    this.messenger.subscribe('SubscriptionController:stateChanged', (stateChange) => {
-      this.#handleSubscriptionStateChange(stateChange).catch((error) => {
-        this.#logRefreshError(error);
-      });
-    });
+    this.messenger.subscribe(
+      'SubscriptionController:stateChanged',
+      (stateChange) => {
+        this.#handleSubscriptionStateChange(stateChange).catch((error) => {
+          this.#logRefreshError(error);
+        });
+      },
+    );
 
     this.clearState();
     this.#bootstrap().catch((error) => {
@@ -299,7 +300,9 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
     await this.#hydrateSignedInAuthenticationState();
   }
 
-  async #handleSubscriptionStateChange(subscriptionState: unknown): Promise<void> {
+  async #handleSubscriptionStateChange(
+    subscriptionState: unknown,
+  ): Promise<void> {
     if (!this.#isSignedIn) {
       return;
     }
@@ -414,7 +417,10 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
   }
 
   #applyClaimFromToken(token: string): void {
-    const claim = getMoneyAccountPlusClaimFromBearerToken(token, this.#claimKey);
+    const claim = getMoneyAccountPlusClaimFromBearerToken(
+      token,
+      this.#claimKey,
+    );
     this.#applyClaim(claim, Date.now());
   }
 
@@ -489,13 +495,13 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
       return this.#isSignedIn && this.#authStateRevision === authStateRevision;
     }
 
-    return (
-      forcedSignInRevision === this.#authStateRevision && this.#isSignedIn
-    );
+    return forcedSignInRevision === this.#authStateRevision && this.#isSignedIn;
   }
 
   #initializeSubscriptionSnapshot(): void {
-    const subscriptionState = this.messenger.call('SubscriptionController:getState');
+    const subscriptionState = this.messenger.call(
+      'SubscriptionController:getState',
+    );
     this.#moneyAccountSubscriptionSnapshot =
       this.#getMoneyAccountSubscriptionSnapshot(subscriptionState);
   }
@@ -535,7 +541,9 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
     this.#entitlementRefreshPollingToken = null;
   }
 
-  #getMoneyAccountSubscriptionSnapshot(state: unknown): string | null | undefined {
+  #getMoneyAccountSubscriptionSnapshot(
+    state: unknown,
+  ): string | null | undefined {
     if (!isPlainObject(state)) {
       return undefined;
     }

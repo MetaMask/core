@@ -65,9 +65,9 @@ describe('jwt claims helpers', () => {
       },
     });
 
-    expect(getMoneyAccountPlusClaimFromBearerToken(token, claimKey)).toStrictEqual(
-      claim,
-    );
+    expect(
+      getMoneyAccountPlusClaimFromBearerToken(token, claimKey),
+    ).toStrictEqual(claim);
   });
 
   it.each([
@@ -116,7 +116,12 @@ describe('jwt claims helpers', () => {
         },
       },
     }),
-  ])('fails closed for malformed or unsupported claim payloads: %p', (token) => {
-    expect(getMoneyAccountPlusClaimFromBearerToken(token, claimKey)).toBeNull();
-  });
+  ])(
+    'fails closed for malformed or unsupported claim payloads: %p',
+    (token) => {
+      expect(
+        getMoneyAccountPlusClaimFromBearerToken(token, claimKey),
+      ).toBeNull();
+    },
+  );
 });

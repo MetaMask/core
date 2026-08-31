@@ -27,8 +27,8 @@ describe('money-account-subscription types', () => {
   });
 
   it('throws for an unsupported environment', () => {
-    expect(() =>
-      getProductEntitlementsClaimKey('invalid' as Env),
-    ).toThrow('invalid environment configuration');
+    expect(() => getProductEntitlementsClaimKey('invalid' as Env)).toThrow(
+      'invalid environment configuration',
+    );
   });
 });

@@ -15,10 +15,7 @@ import type {
   MoneyAccountSubscriptionControllerMessenger,
   MoneyAccountSubscriptionControllerState,
 } from './MoneyAccountSubscriptionController.js';
-import {
-  selectHasEntitlement,
-  selectIsActiveSubscriber,
-} from './selectors.js';
+import { selectHasEntitlement, selectIsActiveSubscriber } from './selectors.js';
 import {
   Env,
   getProductEntitlementsClaimKey,
@@ -46,9 +43,7 @@ function createBearerToken(payload: unknown): string {
   ].join('.');
 }
 
-function createMoneyAccountClaim(
-  overrides = {},
-): {
+function createMoneyAccountClaim(overrides = {}): {
   plan: string;
   entitlements: {
     swapFeeWaiver: boolean;
@@ -69,9 +64,7 @@ function createMoneyAccountClaim(
   };
 }
 
-function createSubscriptionState(
-  status = ACTIVE_SUBSCRIPTION_STATUS,
-): {
+function createSubscriptionState(status = ACTIVE_SUBSCRIPTION_STATUS): {
   customerId: string;
   lastSubscription: undefined;
   pricing: undefined;
@@ -220,10 +213,12 @@ function createController(options?: {
     return options?.authenticationState ?? { isSignedIn: false };
   });
   const getSubscriptionState = jest.fn(() => {
-    return options?.subscriptionState ?? {
-      subscriptions: [],
-      trialedProducts: [],
-    };
+    return (
+      options?.subscriptionState ?? {
+        subscriptions: [],
+        trialedProducts: [],
+      }
+    );
   });
   const getBearerToken = jest.fn<Promise<string>, []>();
   const performSignOut = jest.fn<void, []>();
@@ -380,10 +375,7 @@ describe('MoneyAccountSubscriptionController', () => {
     );
     expect(selectIsActiveSubscriber(controller.state)).toBe(false);
     expect(
-      selectHasEntitlement(
-        controller.state,
-        MoneyAccountFeature.SwapFeeWaiver,
-      ),
+      selectHasEntitlement(controller.state, MoneyAccountFeature.SwapFeeWaiver),
     ).toBe(false);
 
     await Promise.resolve();
@@ -1509,7 +1501,8 @@ describe('MoneyAccountSubscriptionController', () => {
   });
 
   it('treats irrelevant subscription lifecycle payloads as unchanged when baseline is already empty', async () => {
-    const { getBearerToken, performSignOut, rootMessenger } = createController();
+    const { getBearerToken, performSignOut, rootMessenger } =
+      createController();
 
     getBearerToken.mockResolvedValueOnce(
       createBearerToken({
@@ -1541,7 +1534,8 @@ describe('MoneyAccountSubscriptionController', () => {
   });
 
   it('normalizes Money Account subscription snapshots with missing optional fields', async () => {
-    const { getBearerToken, performSignOut, rootMessenger } = createController();
+    const { getBearerToken, performSignOut, rootMessenger } =
+      createController();
 
     getBearerToken.mockResolvedValueOnce(
       createBearerToken({

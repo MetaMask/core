@@ -1,8 +1,4 @@
-import {
-  base64ToBytes,
-  bytesToString,
-  isPlainObject,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToString, isPlainObject } from '@metamask/utils';
 
 import type {
   MoneyAccountEntitlements,
@@ -61,7 +57,9 @@ function isMoneyAccountProductEntitlementsJwtClaim(
   );
 }
 
-export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+export function decodeJwtPayload(
+  token: string,
+): Record<string, unknown> | null {
   const parts = token.split('.');
   if (parts.length !== 3) {
     return null;
