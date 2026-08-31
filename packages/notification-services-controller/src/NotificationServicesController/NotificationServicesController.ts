@@ -1113,7 +1113,10 @@ export class NotificationServicesController extends BaseController<
       if (isFirstTimeSetup) {
         await this.messenger.call(
           'AuthenticatedUserStorageService:putNotificationPreferences',
-          buildFreshPreferences(hasMarketingConsent, productAnnouncementEnabled),
+          buildFreshPreferences(
+            hasMarketingConsent,
+            productAnnouncementEnabled,
+          ),
           this.#featureAnnouncementEnv.platform,
         );
       }

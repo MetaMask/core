@@ -152,9 +152,7 @@ describe('On Chain Notifications - updateOnChainNotifications()', () => {
     ]);
 
     expect(mockEndpoint.isDone()).toBe(true);
-    expect(requestBody).toStrictEqual([
-      { address: '0xabcdef', enabled: true },
-    ]);
+    expect(requestBody).toStrictEqual([{ address: '0xabcdef', enabled: true }]);
   });
 });
 

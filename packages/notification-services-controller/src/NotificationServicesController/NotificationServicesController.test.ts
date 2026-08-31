@@ -1033,7 +1033,8 @@ describe('NotificationServicesController', () => {
           mockGetConfig,
           mockUpdateNotifications,
         } = arrangeMocks({
-          configurePrefs: (mock) => mock.mockResolvedValueOnce(mockPreferences()),
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
         });
         mockGetOnChainNotificationsConfig();
         const mockTriggerUpdate = mockUpdateOnChainNotifications();
@@ -1058,7 +1059,8 @@ describe('NotificationServicesController', () => {
           mockEnablePushNotifications,
           mockKeyringControllerGetState,
         } = arrangeMocks({
-          configurePrefs: (mock) => mock.mockResolvedValueOnce(mockPreferences()),
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
         });
 
         mockKeyringControllerGetState.mockReturnValue({
@@ -1135,7 +1137,8 @@ describe('NotificationServicesController', () => {
           mockGetConfig,
           mockUpdateNotifications,
         } = arrangeMocks({
-          configurePrefs: (mock) => mock.mockResolvedValueOnce(mockPreferences()),
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
         });
         mockGetOnChainNotificationsConfig();
 
@@ -2085,9 +2088,7 @@ describe('NotificationServicesController', () => {
 
     it('handles errors gracefully when fetching the bearer token fails', async () => {
       const mocks = arrangeMocks();
-      mocks.mockGetBearerToken.mockRejectedValue(
-        new Error('mock api failure'),
-      );
+      mocks.mockGetBearerToken.mockRejectedValue(new Error('mock api failure'));
       mockErrorLog();
 
       const controller = new NotificationServicesController({
