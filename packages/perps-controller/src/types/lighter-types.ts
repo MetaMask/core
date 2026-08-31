@@ -859,6 +859,8 @@ export type LighterWithdrawHistoryResponse = {
   cursor?: string;
 };
 
+export type LighterTransferType = 'L2TransferInflow' | 'L2TransferOutflow';
+
 /**
  * One entry of `GET /api/v1/transfer/history` (camelized).
  */
@@ -868,7 +870,7 @@ export type LighterTransferHistoryItem = {
   amount: string;
   fee: string;
   timestamp: number;
-  type: string;
+  type: LighterTransferType;
   fromL1Address: string;
   toL1Address: string;
   fromAccountIndex: number;

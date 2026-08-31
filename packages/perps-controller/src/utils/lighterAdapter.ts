@@ -91,15 +91,22 @@ function formatChange(
  * Transform a Lighter order book meta entry into canonical MarketInfo.
  *
  * @param market - Market metadata from `GET /api/v1/orderBooks`.
+ * @param maxLeverage - Verified per-market leverage from margin metadata.
  * @returns MetaMask Perps API market info object.
  */
 export function adaptMarketFromLighter(
   market: LighterOrderBookMeta,
+  maxLeverage: number,
 ): MarketInfo {
+  if (!Number.isSafeInteger(maxLeverage) || maxLeverage <= 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${market.symbol}`,
+    );
+  }
   return {
     name: market.symbol,
     szDecimals: market.supportedSizeDecimals,
-    maxLeverage: LIGHTER_MAX_LEVERAGE,
+    maxLeverage,
     marginTableId: 0, // Lighter does not use margin tables
     minimumOrderSize: parseFloat(market.minQuoteAmount),
     providerId: 'lighter',
@@ -118,16 +125,28 @@ export function adaptMarketDataFromLighter(
   detail: LighterOrderBookDetail,
   formatters: MarketDataFormatters,
 ): PerpsMarketData {
+  const { minInitialMarginFraction } = detail;
+  if (
+    !Number.isFinite(minInitialMarginFraction) ||
+    minInitialMarginFraction === undefined ||
+    minInitialMarginFraction <= 0
+  ) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${detail.symbol}`,
+    );
+  }
   const price = detail.lastTradePrice ?? 0;
   const changePercent = detail.dailyPriceChange ?? 0;
   // dailyPriceChange is a percentage; recover the absolute change.
   const changeAbs =
     changePercent === 0 ? 0 : (price * changePercent) / (100 + changePercent);
 
-  const maxLeverage =
-    detail.minInitialMarginFraction && detail.minInitialMarginFraction > 0
-      ? Math.floor(10_000 / detail.minInitialMarginFraction)
-      : LIGHTER_MAX_LEVERAGE;
+  const maxLeverage = Math.floor(10_000 / minInitialMarginFraction);
+  if (!Number.isSafeInteger(maxLeverage) || maxLeverage <= 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid authoritative leverage for ${detail.symbol}`,
+    );
+  }
   return {
     symbol: detail.symbol,
     name: detail.symbol,
@@ -299,6 +318,29 @@ export function adaptFillFromLighterTrade(
   accountIndex: number,
 ): OrderFill {
   const accountIsAsk = trade.askAccountId === accountIndex;
+  const accountIsBid = trade.bidAccountId === accountIndex;
+  if (accountIsAsk === accountIsBid) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} account ${accountIndex} is not an unambiguous participant in trade ${trade.tradeId}`,
+    );
+  }
+  const size = parseLighterStrictDecimal(trade.size);
+  const price = parseLighterStrictDecimal(trade.price);
+  if (size === null || !Number.isFinite(size) || size <= 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} has invalid size`,
+    );
+  }
+  if (price === null || !Number.isFinite(price) || price <= 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} has invalid price`,
+    );
+  }
+  if (!Number.isSafeInteger(trade.timestamp) || trade.timestamp < 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} has invalid timestamp`,
+    );
+  }
   if (trade.isMakerAsk === undefined) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing maker-role context`,
@@ -314,9 +356,22 @@ export function adaptFillFromLighterTrade(
   // to $0. The counterparty's fee is irrelevant — a Standard user trading
   // against a Premium account must keep their valid fill.
   const ourFee = accountIsMaker ? trade.makerFee : trade.takerFee;
-  const ourFeeNumeric =
-    typeof ourFee === 'number' ? ourFee : parseFloat(ourFee ?? '0');
-  if (Number.isFinite(ourFeeNumeric) && ourFeeNumeric !== 0) {
+  let ourFeeNumeric: number | null = 0;
+  if (typeof ourFee === 'number') {
+    ourFeeNumeric = ourFee;
+  } else if (typeof ourFee === 'string') {
+    ourFeeNumeric = parseLighterStrictDecimal(ourFee);
+  }
+  if (
+    ourFeeNumeric === null ||
+    !Number.isFinite(ourFeeNumeric) ||
+    ourFeeNumeric < 0
+  ) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} has invalid account fee`,
+    );
+  }
+  if (ourFeeNumeric !== 0) {
     throw new Error(
       `${LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX} nonzero fee in trade ${trade.tradeId}: fee unit is unverified`,
     );
@@ -324,7 +379,11 @@ export function adaptFillFromLighterTrade(
   const fee = '0';
   const pnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
   const parsedPnl = parseLighterStrictDecimal(pnl);
-  if (typeof pnl !== 'string' || parsedPnl === null) {
+  if (
+    typeof pnl !== 'string' ||
+    parsedPnl === null ||
+    !Number.isFinite(parsedPnl)
+  ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid account pnl`,
     );
@@ -342,6 +401,7 @@ export function adaptFillFromLighterTrade(
     : trade.takerPositionSignChanged;
   if (
     positionBefore === null ||
+    !Number.isFinite(positionBefore) ||
     positionBefore < 0 ||
     typeof signChanged !== 'boolean'
   ) {
@@ -351,7 +411,7 @@ export function adaptFillFromLighterTrade(
   }
   const direction = deriveLighterFillDirection({
     isBuy,
-    size: parseFloat(trade.size),
+    size,
     positionBefore,
     signChanged,
     pnl: parsedPnl,

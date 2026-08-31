@@ -54,6 +54,7 @@ import type {
   LighterSendTxResponse,
   LighterTradesResponse,
   LighterTradesQuery,
+  LighterTransferType,
   LighterTransferHistoryResponse,
   LighterWithdrawHistoryResponse,
 } from '../types/lighter-types.js';
@@ -96,6 +97,10 @@ const NonNegativeDecimalStringStruct = define<string>(
     const parsed = parseStrictDecimalString(value);
     return parsed !== null && parsed >= 0;
   },
+);
+const TransferTypeStruct = define<LighterTransferType>(
+  'Lighter transfer type',
+  (value) => value === 'L2TransferInflow' || value === 'L2TransferOutflow',
 );
 const PositiveDecimalStringStruct = define<string>(
   'positive finite decimal string',
@@ -314,7 +319,7 @@ const ResponseStructs = {
         amount: PositiveDecimalStringStruct,
         fee: NonNegativeDecimalStringStruct,
         timestamp: NonNegativeIntegerStruct,
-        type: string(),
+        type: TransferTypeStruct,
         fromL1Address: string(),
         toL1Address: string(),
         fromAccountIndex: NonNegativeIntegerStruct,

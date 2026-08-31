@@ -1063,6 +1063,32 @@ describe('LighterProvider', () => {
       expect(data[0].symbol).toBe('BTC');
     });
 
+    it('does not publish market metadata without verified per-market leverage', async () => {
+      const markets = buildProvider();
+      markets.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [{ symbol: 'BTC', lastTradePrice: 100000 }],
+      });
+      await expect(markets.provider.getMarkets()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+
+      const marketData = buildProvider();
+      marketData.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            dailyPriceChange: 1,
+          },
+        ],
+      });
+      await expect(
+        marketData.provider.getMarketDataWithPrices(),
+      ).rejects.toThrow('Invalid Lighter venue data');
+    });
+
     it('surfaces malformed successful order-book details instead of reporting no market data', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBookDetails.mockRejectedValue(
@@ -1084,6 +1110,17 @@ describe('LighterProvider', () => {
         size: '0.1',
         providerId: 'lighter',
       });
+    });
+
+    it('surfaces margin metadata transport failures from position reads', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBookDetails.mockRejectedValue(
+        new Error('margin metadata unavailable'),
+      );
+      await expect(provider.getPositions()).rejects.toThrow(
+        'margin metadata unavailable',
+      );
+      expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
     });
 
     it('returns adapted account state', async () => {
@@ -4043,6 +4080,86 @@ describe('LighterProvider', () => {
       expect(inactiveCalls).toBeLessThanOrEqual(15);
       expect(deepVenue.rawTriggers).toHaveLength(1);
       expect(deepVenue.rawTriggers[0].triggerPrice).toBe('86000');
+    });
+
+    it('fails closed when inactive-history pagination repeats a cursor', async () => {
+      const built = buildProvider();
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.setCreateTerminal('filled');
+      venue.failResponseOnce(14);
+      expect(
+        (
+          await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          })
+        ).success,
+      ).toBe(false);
+      venue.setCreateTerminal('none');
+      built.clientInstance.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [
+          {
+            ...venue.rawInactive[0],
+            orderIndex: 999999,
+            clientOrderIndex: 999999,
+          },
+        ],
+        nextCursor: 'repeated',
+      });
+
+      const retry = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(retry.success).toBe(false);
+      expect(retry.error).toContain('repeated cursor');
+      expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledTimes(2);
+    });
+
+    it('enforces the inactive-history bound from actual returned rows', async () => {
+      const built = buildProvider();
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      venue.setCreateTerminal('filled');
+      venue.failResponseOnce(14);
+      expect(
+        (
+          await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          })
+        ).success,
+      ).toBe(false);
+      venue.setCreateTerminal('none');
+      const fillerOrder = {
+        ...venue.rawInactive[0],
+        status: 'canceled',
+      };
+      const rows = (count: number, offset: number): RawTriggerOrder[] =>
+        Array.from({ length: count }, (_entry, index) => ({
+          ...fillerOrder,
+          orderIndex: offset + index,
+          clientOrderIndex: offset + index,
+        }));
+      built.clientInstance.getInactiveOrders
+        .mockResolvedValueOnce({
+          code: 200,
+          orders: rows(6000, 100000),
+          nextCursor: 'second',
+        })
+        .mockResolvedValueOnce({
+          code: 200,
+          orders: rows(4001, 200000),
+          nextCursor: 'third',
+        });
+
+      const retry = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '86000',
+      });
+      expect(retry.success).toBe(false);
+      expect(retry.error).toContain('10001 rows');
+      expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledTimes(2);
     });
 
     it("exact status matching: 'unfilled' and 'execution-failed' are failures, never executions", async () => {
@@ -9661,6 +9778,64 @@ describe('LighterProvider', () => {
       unsubscribe();
     });
 
+    it.each([
+      ['non-finite size', { size: '1e999' }],
+      ['nonparticipant account', { ask_account_id: 7, bid_account_id: 8 }],
+    ])('drops a WebSocket fill with %s', async (_scenario, overrides) => {
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [ACCOUNT],
+      });
+      StreamFakeWebSocket.instances = [];
+      const callback = jest.fn();
+      const unsubscribe = provider.subscribeToOrderFills({ callback });
+      await provider.getAccountState();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const socket =
+        StreamFakeWebSocket.instances[StreamFakeWebSocket.instances.length - 1];
+      socket.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      callback.mockClear();
+
+      socket.onmessage?.({
+        data: JSON.stringify({
+          type: 'update/account_all_trades',
+          channel: 'account_all_trades:28',
+          trades: {
+            '1': [
+              {
+                trade_id: 1,
+                market_id: 1,
+                size: '0.001',
+                price: '90000',
+                ask_id: 1,
+                bid_id: 2,
+                ask_account_id: 28,
+                bid_account_id: 7,
+                is_maker_ask: false,
+                timestamp: 1700000000000,
+                ask_account_pnl: '0',
+                bid_account_pnl: '0',
+                taker_position_size_before: '0.001',
+                taker_position_sign_changed: true,
+                maker_position_size_before: '0',
+                maker_position_sign_changed: true,
+                ...overrides,
+              },
+            ],
+          },
+        }),
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
     it('validateClosePosition rejects a close with no open position', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue({
@@ -10230,6 +10405,32 @@ describe('LighterProvider', () => {
       expect(updates[0].delta.usdc).toBe('-100.000000');
       expect(updates[1].delta.usdc).toBe('-1.000000');
       expect(updates[2].delta.usdc).toBe('10000.000000');
+    });
+
+    it('rejects unknown transfer types through the public ledger path', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getTransferHistory.mockResolvedValue({
+        code: 200,
+        transfers: [
+          {
+            id: 'bad-transfer',
+            assetId: 3,
+            amount: '100.000000',
+            fee: '0.000000',
+            timestamp: 1700000004000,
+            type: 'L2TransferRebate',
+            fromL1Address: ACCOUNT.l1Address,
+            toL1Address: ACCOUNT.l1Address,
+            fromAccountIndex: 28,
+            toAccountIndex: 999,
+            txHash: '0xbad',
+          },
+        ],
+      });
+
+      await expect(provider.getUserNonFundingLedgerUpdates()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
     });
 
     it('rethrows venue integrity failures from every financial-history API', async () => {

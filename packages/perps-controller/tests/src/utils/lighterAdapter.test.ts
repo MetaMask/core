@@ -42,11 +42,11 @@ const btcMarket: LighterOrderBookMeta = {
 describe('lighterAdapter', () => {
   describe('adaptMarketFromLighter', () => {
     it('maps market metadata onto MarketInfo', () => {
-      const market = adaptMarketFromLighter(btcMarket);
+      const market = adaptMarketFromLighter(btcMarket, 25);
       expect(market).toStrictEqual({
         name: 'BTC',
         szDecimals: 5,
-        maxLeverage: expect.any(Number),
+        maxLeverage: 25,
         marginTableId: 0,
         minimumOrderSize: 10,
         providerId: 'lighter',
@@ -54,10 +54,13 @@ describe('lighterAdapter', () => {
     });
 
     it('flags inactive markets as delisted', () => {
-      const market = adaptMarketFromLighter({
-        ...btcMarket,
-        status: 'inactive',
-      });
+      const market = adaptMarketFromLighter(
+        {
+          ...btcMarket,
+          status: 'inactive',
+        },
+        25,
+      );
       expect(market.isDelisted).toBe(true);
     });
   });
@@ -74,6 +77,7 @@ describe('lighterAdapter', () => {
       dailyPriceChange: 2.5,
       openInterest: 12345678,
       dailyChart: {},
+      minInitialMarginFraction: 400,
     };
 
     it('maps market stats onto PerpsMarketData', () => {
@@ -101,6 +105,15 @@ describe('lighterAdapter', () => {
         buildFormatters(),
       );
       expect(data.change24h).toBe('$0.00');
+    });
+
+    it('rejects market data without authoritative leverage metadata', () => {
+      expect(() =>
+        adaptMarketDataFromLighter(
+          { ...detail, minInitialMarginFraction: undefined },
+          buildFormatters(),
+        ),
+      ).toThrow('Invalid Lighter venue data');
     });
   });
 
@@ -532,6 +545,24 @@ describe('lighterAdapter', () => {
       const fill = adaptFillFromLighterTrade(counterpartyFee, 'SOL', 28);
       expect(fill.fee).toBe('0');
       expect(fill.direction).toBe('Close Long');
+    });
+
+    it.each([
+      ['size', { size: '1e999' }],
+      ['price', { price: '75oops' }],
+      ['pnl', { askAccountPnl: '1e999' }],
+      ['position context', { takerPositionSizeBefore: '1e999' }],
+      ['fee', { takerFee: 'fee-free' }],
+    ])('rejects malformed or non-finite %s', (_field, overrides) => {
+      expect(() =>
+        adaptFillFromLighterTrade({ ...REAL_TRADE, ...overrides }, 'SOL', 28),
+      ).toThrow('Invalid Lighter venue data');
+    });
+
+    it('rejects an account that did not participate in the trade', () => {
+      expect(() => adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 999)).toThrow(
+        'Invalid Lighter venue data',
+      );
     });
   });
 

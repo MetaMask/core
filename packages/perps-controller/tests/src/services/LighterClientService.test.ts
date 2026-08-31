@@ -343,6 +343,30 @@ describe('LighterClientService', () => {
       await expect(
         service.getTransferHistory(28, 'auth-token'),
       ).rejects.toThrow('Invalid Lighter venue data');
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          transfers: [
+            {
+              id: '4',
+              asset_id: 3,
+              amount: '1',
+              fee: '0',
+              timestamp: 1,
+              type: 'L2TransferRebate',
+              from_l1_address: '0xabc',
+              to_l1_address: '0xdef',
+              from_account_index: 28,
+              to_account_index: 29,
+              tx_hash: '0xunknown',
+            },
+          ],
+        }),
+      );
+      await expect(
+        service.getTransferHistory(28, 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
     });
   });
 

@@ -126,6 +126,7 @@ import type {
   LighterApiOrder,
   LighterAuthConfig,
   LighterTxLookupResponse,
+  LighterTransferHistoryItem,
   LighterCreateClientResult,
   LighterCreateOrderWireParams,
   LighterGroupedOrderWireParams,
@@ -177,6 +178,22 @@ type LighterOrderBookState = {
 };
 
 const NOOP_UNSUBSCRIBE = (): void => undefined;
+
+const LIGHTER_INACTIVE_HISTORY_ROW_LIMIT = 10_000;
+
+const adaptLighterTransferDelta = (
+  entry: LighterTransferHistoryItem,
+): RawLedgerUpdate['delta'] => {
+  if (entry.type === 'L2TransferOutflow') {
+    return { type: 'transferOut', usdc: `-${entry.amount}` };
+  }
+  if (entry.type === 'L2TransferInflow') {
+    return { type: 'transferIn', usdc: entry.amount };
+  }
+  throw new Error(
+    `${LIGHTER_DATA_INTEGRITY_PREFIX} unknown transfer type ${String(entry.type)}`,
+  );
+};
 
 // ============================================================================
 // Constants
@@ -3022,15 +3039,21 @@ export class LighterProvider implements PerpsProvider {
         marketId,
       );
       this.#assertSession(generation);
+      let rowsRead = firstPage.orders.length;
+      if (rowsRead > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history exceeded ${LIGHTER_INACTIVE_HISTORY_ROW_LIMIT} rows; TP/SL recovery is still pending`,
+        );
+      }
       ingest(firstPage.orders);
       if (missing() && !deepTraversalDone) {
         let cursor = firstPage.nextCursor;
         const seenCursors = new Set<string>();
-        let page = 1;
+        let pagesRead = 1;
         while (cursor && missing()) {
-          if (seenCursors.has(cursor) || page >= 100) {
+          if (seenCursors.has(cursor)) {
             throw new Error(
-              `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history remained incomplete after ${page * 100} rows; TP/SL recovery is still pending`,
+              `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history repeated cursor ${cursor} after ${rowsRead} rows; TP/SL recovery is still pending`,
             );
           }
           seenCursors.add(cursor);
@@ -3042,9 +3065,28 @@ export class LighterProvider implements PerpsProvider {
             marketId,
           );
           this.#assertSession(generation);
+          pagesRead += 1;
+          if (
+            response.orders.length === 0 &&
+            response.nextCursor !== undefined
+          ) {
+            throw new Error(
+              `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history advanced without returning rows; TP/SL recovery is still pending`,
+            );
+          }
+          if (pagesRead > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT) {
+            throw new Error(
+              `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history exceeded ${LIGHTER_INACTIVE_HISTORY_ROW_LIMIT} pages; TP/SL recovery is still pending`,
+            );
+          }
+          rowsRead += response.orders.length;
+          if (rowsRead > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT) {
+            throw new Error(
+              `${LIGHTER_DATA_INTEGRITY_PREFIX} inactive-order history exceeded ${LIGHTER_INACTIVE_HISTORY_ROW_LIMIT} rows (${rowsRead} rows returned); TP/SL recovery is still pending`,
+            );
+          }
           ingest(response.orders);
           cursor = response.nextCursor;
-          page += 1;
         }
         deepTraversalDone = !cursor || !missing();
       }
@@ -4634,17 +4676,25 @@ export class LighterProvider implements PerpsProvider {
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
     try {
       const markets = await this.#clientService.getOrderBooks();
-      // Best effort: per-market max leverage from the venue's margin
-      // fractions; the adapter's constant only stands in when unknown.
-      await this.#ensureMarketMargins().catch(() => undefined);
+      await this.#ensureMarketMargins();
       return markets
         .filter((market) => market.marketType === 'perp')
         .map((market) => {
-          const adapted = adaptMarketFromLighter(market);
           const margins = this.#marginBySymbol.get(market.symbol);
-          if (margins?.minInitial && margins.minInitial > 0) {
-            adapted.maxLeverage = Math.floor(10_000 / margins.minInitial);
+          if (
+            !margins ||
+            !Number.isFinite(margins.minInitial) ||
+            !margins.minInitial ||
+            margins.minInitial <= 0
+          ) {
+            throw new Error(
+              `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${market.symbol}`,
+            );
           }
+          const adapted = adaptMarketFromLighter(
+            market,
+            Math.floor(10_000 / margins.minInitial),
+          );
           // minBaseAmount and minQuoteAmount are maker-only. Market and
           // IOC orders can use one base-size tick, so the public universal
           // minimum must report that tick rather than the maker floor.
@@ -4712,12 +4762,13 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    // Risk metadata is required for every returned position. A transport
+    // failure must reject instead of looking like an authoritative empty
+    // account.
+    await this.#ensureMarketMargins();
     try {
-      this.#ensureSessionBinding();
-      const generation = this.#sessionGeneration;
-      // Per-market max leverage is authoritative venue data. If it cannot be
-      // established, the position read must fail instead of inventing 50x.
-      await this.#ensureMarketMargins();
       const accountIndex = await this.#ensureAccountIndex();
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
@@ -6648,13 +6699,7 @@ export class LighterProvider implements PerpsProvider {
         ...(transfers.transfers ?? []).map((entry) => ({
           hash: entry.txHash,
           time: entry.timestamp,
-          delta: {
-            // Venue types are L2TransferInflow / L2TransferOutflow.
-            type: entry.type.includes('Outflow') ? 'transferOut' : 'transferIn',
-            usdc: entry.type.includes('Outflow')
-              ? `-${entry.amount}`
-              : entry.amount,
-          },
+          delta: adaptLighterTransferDelta(entry),
         })),
       ].sort((first, second) => second.time - first.time);
       const { startTime, endTime } = params ?? {};
