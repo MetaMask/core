@@ -285,6 +285,30 @@ describe('Bridge Selectors', () => {
         ),
       ).toStrictEqual({});
     });
+
+    it('should treat missing conversionRate and usdConversionRate as 0 for EVM tokens', () => {
+      const result = selectExchangeRateByAssetId(
+        {
+          ...mockExchangeRateSources,
+          currencyRates: {
+            ETH: {},
+          },
+          marketData: {
+            '0x1': {
+              [MOCK_MUSD_ADDRESS]: {
+                price: 2,
+                currency: 'ETH',
+              },
+            },
+          },
+        } as unknown as BridgeAppState,
+        formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
+      );
+      expect(result).toStrictEqual({
+        exchangeRate: '0',
+        usdExchangeRate: '0',
+      });
+    });
   });
 
   describe('selectIsAssetExchangeRateInState', () => {
@@ -1050,6 +1074,106 @@ describe('Bridge Selectors', () => {
       expect(
         result.recommendedQuote?.quote.priceData?.priceImpact?.amount,
       ).toBe('-0.02');
+    });
+
+    it('should use priceImpact.valueInCurrency to sort quotes if cost and amount are unavailable (Phase 1.5)', () => {
+      const mockState = getMockState(1);
+      const quotes = [
+        {
+          ...mockState.quotes[0],
+          quote: {
+            ...mockState.quotes[0].quote,
+            priceData: { priceImpact: { usd: '10' } },
+          },
+        },
+        {
+          ...mockState.quotes[1],
+          quote: {
+            ...mockState.quotes[1].quote,
+            priceData: { priceImpact: { usd: '1' } },
+          },
+        },
+      ];
+      const { recommendedQuote, sortedQuotes } = selectBridgeQuotes(
+        {
+          ...mockState,
+          assetExchangeRates: {},
+          marketData: {},
+          quotes,
+          currencyRates: {
+            ETH: {
+              conversionRate: 1980,
+              usdConversionRate: 10,
+            },
+          },
+        },
+        {
+          ...mockClientParams,
+          migrationPhase: QuoteMetadataMigrationPhase.V2WithV1Fallback,
+        },
+      );
+
+      expect(
+        sortedQuotes.every(
+          (quote) =>
+            !quote.cost?.valueInCurrency &&
+            !quote.quote.priceData?.priceImpact?.amount,
+        ),
+      ).toBe(true);
+      expect(
+        sortedQuotes.map(({ quote }) => [
+          quote.requestId,
+          quote.priceData?.priceImpact?.usd,
+          quote.priceData?.priceImpact?.valueInCurrency,
+        ]),
+      ).toStrictEqual([
+        ['456', '1', '198'],
+        ['123', '10', '1980'],
+      ]);
+      expect(recommendedQuote?.quote.requestId).toBe('456');
+    });
+
+    it('does not derive fiat from usd when the src native rate pair is missing (Phase 1.5)', () => {
+      const mockState = getMockState(1);
+      const quotes = mockState.quotes.map((quote) => ({
+        ...quote,
+        quote: {
+          ...quote.quote,
+          priceData: { priceImpact: { usd: '10' } },
+        },
+      }));
+      const { sortedQuotes } = selectBridgeQuotes(
+        {
+          ...mockState,
+          quotes,
+          assetExchangeRates: {},
+          marketData: {},
+          currencyRates: {},
+        },
+        {
+          ...mockClientParams,
+          migrationPhase: QuoteMetadataMigrationPhase.V2WithV1Fallback,
+        },
+      );
+
+      expect(
+        sortedQuotes.map(
+          (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
+        ),
+      ).toStrictEqual([undefined, undefined]);
+    });
+
+    it('calculates metadata when quoteRequest is empty', () => {
+      const mockState = getMockState(1);
+      const { sortedQuotes } = selectBridgeQuotes(
+        {
+          ...mockState,
+          quoteRequest: [],
+        },
+        mockClientParams,
+      );
+
+      expect(sortedQuotes).toHaveLength(mockState.quotes.length);
     });
 
     describe('returns swap metadata', () => {
@@ -2083,7 +2207,7 @@ describe('Bridge Selectors', () => {
 
       expect(totalReceived).toMatchInlineSnapshot(`
         {
-          "amount": "38240503",
+          "amount": "38423182",
           "asset": {
             "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
             "decimals": 6,
@@ -2091,18 +2215,18 @@ describe('Bridge Selectors', () => {
             "name": "Native USD Coin (POS)",
             "symbol": "USDC",
           },
-          "minAmount": "37460000",
-          "minAmountNormalized": "37.46",
-          "minAmountUsd": "37.46",
-          "minAmountValueInCurrency": "7492",
-          "normalizedAmount": "38.240503",
-          "usd": "38.240503",
-          "valueInCurrency": "7648.1006",
+          "minAmount": "37600000",
+          "minAmountNormalized": "37.6",
+          "minAmountUsd": "37.6",
+          "minAmountValueInCurrency": "7520",
+          "normalizedAmount": "38.423182",
+          "usd": "38.423182",
+          "valueInCurrency": "7684.6364",
         }
       `);
       expect(minimumReceived).toMatchInlineSnapshot(`
         {
-          "amount": "37460000",
+          "amount": "37600000",
           "asset": {
             "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
             "decimals": 6,
@@ -2110,9 +2234,9 @@ describe('Bridge Selectors', () => {
             "name": "Native USD Coin (POS)",
             "symbol": "USDC",
           },
-          "normalizedAmount": "37.46",
-          "usd": "37.46",
-          "valueInCurrency": "7492",
+          "normalizedAmount": "37.6",
+          "usd": "37.6",
+          "valueInCurrency": "7520",
         }
       `);
       expect(rest).toMatchInlineSnapshot(`
@@ -2123,10 +2247,18 @@ describe('Bridge Selectors', () => {
           "quotesRefreshCount": 0,
         }
       `);
+      expect(recommendedQuotes.map((quote) => quote?.cost?.valueInCurrency))
+        .toMatchInlineSnapshot(`
+        [
+          "-4867.87052548",
+          "24925.00683656",
+        ]
+      `);
+
       expect(recommendedQuotes.map((quote) => quote?.quote.requestId))
         .toMatchInlineSnapshot(`
         [
-          "4277a368-40d7-4e82-aa67-74f29dc5f98a",
+          "381c23bc-e3e4-48fe-bc53-257471e388ad",
           "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
         ]
       `);

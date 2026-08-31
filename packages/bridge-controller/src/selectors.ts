@@ -458,6 +458,13 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
+        if (quotesWithMetadata.every((quote) => quote.cost?.valueInCurrency)) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ cost }) => Number(cost?.valueInCurrency),
+            'asc',
+          );
+        }
         if (
           quotesWithMetadata.every(
             (quote) => quote.quote.priceData?.priceImpact?.amount,
@@ -469,7 +476,8 @@ const selectSortedBridgeQuotes = createBridgeSelector(
               Number(priceData?.priceImpact?.amount),
             'asc',
           );
-        } else if (
+        }
+        if (
           quotesWithMetadata.every(
             (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
           )
@@ -585,7 +593,7 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<QuoteResponse | null>(requestCount).fill(null)),
+    }, Array<(QuoteResponse & QuoteMetadata) | null>(requestCount).fill(null)),
 );
 
 const selectDestAmountSum = createBridgeSelector(
