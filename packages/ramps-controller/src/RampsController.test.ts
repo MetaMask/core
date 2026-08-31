@@ -1434,6 +1434,44 @@ describe('RampsController', () => {
       );
     });
 
+    it('does not request fee-on-top quotes when providers are widened for comparison', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          spyOnDefaultRedirectCallbackUrl(rootMessenger);
+          let forwarded: boolean | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { isFeeExcludedFromFiat?: boolean }) => {
+              forwarded = params.isFeeExcludedFromFiat;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger, {
+            isFeeExcludedFromFiat: true,
+          });
+
+          // A fee-on-top amountOut is reported before fees while every other
+          // provider reports it after fees, so ranking them together would put
+          // the fee-on-top quote on top no matter what it costs.
+          expect(forwarded).toBe(false);
+        },
+      );
+    });
+
     it('rejects the entire getQuotes call when the default-redirect service action is not delegated', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],
@@ -7589,6 +7627,97 @@ describe('RampsController', () => {
 
           expect(result.success).toHaveLength(1);
           expect(result.success[0]?.provider).toBe('/providers/moonpay');
+        },
+      );
+    });
+
+    it('forwards the fee-on-top request to the service', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          let forwarded: boolean | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { isFeeExcludedFromFiat?: boolean }) => {
+              forwarded = params.isFeeExcludedFromFiat;
+              return mockQuotesResponse;
+            },
+          );
+
+          await rootMessenger.call('RampsController:getQuotes', {
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            isFeeExcludedFromFiat: true,
+          });
+
+          expect(forwarded).toBe(true);
+        },
+      );
+    });
+
+    it('does not serve a fee-inclusive cached quote to a fee-on-top request', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          const getQuotesHandler = jest
+            .fn()
+            .mockResolvedValue(mockQuotesResponse);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            getQuotesHandler,
+          );
+
+          const args = {
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          };
+          await rootMessenger.call('RampsController:getQuotes', args);
+          await rootMessenger.call('RampsController:getQuotes', {
+            ...args,
+            isFeeExcludedFromFiat: true,
+          });
+
+          // The two calls ask for different prices, so the second must not be
+          // served the first one's cached response.
+          expect(getQuotesHandler).toHaveBeenCalledTimes(2);
         },
       );
     });

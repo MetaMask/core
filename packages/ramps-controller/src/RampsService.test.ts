@@ -2069,6 +2069,77 @@ describe('RampsService', () => {
       expect(quotesResponse.error).toHaveLength(0);
     });
 
+    it('sends isFeeExcludedFromFiat when the caller asks for fee-on-top quotes', async () => {
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+          isFeeExcludedFromFiat: 'true',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+        isFeeExcludedFromFiat: true,
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await quotesPromise;
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    // Guard, not a driver: no code emits the param before the change, so this
+    // passes trivially. It stays because it names the default in the place a
+    // reader looks for it.
+    it('omits isFeeExcludedFromFiat when the caller does not ask for it', async () => {
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await quotesPromise;
+
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('normalizes region and fiat case', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/v2/quotes')
