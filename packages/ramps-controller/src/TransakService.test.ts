@@ -1981,18 +1981,27 @@ describe('TransakService', () => {
       expect(parsed.searchParams.get('customParam')).toBe('value');
     });
 
-    it('includes the fee-on-top flag on the deprecated widget URL', () => {
+    it('omits the fee-on-top flag unless the caller asks for it', () => {
       const { service } = getService();
 
-      const url = service.generatePaymentWidgetUrl(
+      const defaultUrl = service.generatePaymentWidgetUrl(
         'ott-token',
         MOCK_BUY_QUOTE,
         '0xWALLET',
       );
-
-      expect(new URL(url).searchParams.get('isFeeExcludedFromFiat')).toBe(
-        'true',
+      const feeOnTopUrl = service.generatePaymentWidgetUrl(
+        'ott-token',
+        MOCK_BUY_QUOTE,
+        '0xWALLET',
+        { isFeeExcludedFromFiat: 'true' },
       );
+
+      expect(
+        new URL(defaultUrl).searchParams.has('isFeeExcludedFromFiat'),
+      ).toBe(false);
+      expect(
+        new URL(feeOnTopUrl).searchParams.get('isFeeExcludedFromFiat'),
+      ).toBe('true');
     });
 
     it('uses the staging widget base URL', () => {
@@ -2119,7 +2128,6 @@ describe('TransakService', () => {
           hideExchangeScreen: 'true',
           disableWalletAddressEdit: 'true',
           hideMenu: 'true',
-          isFeeExcludedFromFiat: 'true',
           redirectURL:
             'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
           themeColor: '037dd6',
