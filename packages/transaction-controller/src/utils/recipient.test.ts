@@ -236,8 +236,8 @@ describe('getSendRecipients', () => {
       TOKEN_RECIPIENT,
     );
 
-    expect(getSendRecipients({ ...transactionMeta, type: undefined })).toStrictEqual([
-      TOKEN_RECIPIENT,
-    ]);
+    expect(
+      getSendRecipients({ ...transactionMeta, type: undefined }),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
   });
 });
