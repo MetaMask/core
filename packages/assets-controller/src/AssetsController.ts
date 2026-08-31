@@ -116,7 +116,11 @@ import {
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
-import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata.js';
+import {
+  cleanSpamAssets,
+  isUnlockCleanupEnabled,
+  tempHealAssetsInfoMetadata,
+} from './migrations/healAssetsInfoMetadata.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -1178,8 +1182,13 @@ export class AssetsController extends BaseController<
       },
       clientControllerSelectors.selectIsUiOpen,
     );
-    this.messenger.subscribe('KeyringController:unlock', () => {
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.messenger.subscribe('KeyringController:unlock', async () => {
       this.#keyringUnlocked = true;
+      await this.#runSpamCleanup().catch(() => {
+        /* Do nothing */
+      });
       this.#updateActive();
     });
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -1272,6 +1281,48 @@ export class AssetsController extends BaseController<
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
+  }
+
+  async #runSpamCleanup(): Promise<void> {
+    try {
+      const shouldRun =
+        this.#keyringUnlocked &&
+        this.#isBasicFunctionality() &&
+        isUnlockCleanupEnabled(
+          this.messenger.call('RemoteFeatureFlagController:getState')
+            ?.remoteFeatureFlags,
+        );
+      if (!shouldRun) {
+        return;
+      }
+    } catch (error) {
+      log('Failed to start spam cleanup', { error });
+      return;
+    }
+
+    try {
+      const originalState = this.state;
+      const result = await cleanSpamAssets({
+        state: originalState,
+        apiClient: this.#queryApiClient,
+        captureException: this.#captureException,
+      });
+
+      if (!result) {
+        return;
+      }
+
+      this.update((state) => {
+        result.applyPatch(
+          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          {
+            spamAssetIds: result.spamAssetIds,
+          },
+        );
+      });
+    } catch (error) {
+      log('Failed to run spam cleanup', { error });
+    }
   }
 
   /**

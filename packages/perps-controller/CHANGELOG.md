@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
+### Added
+
+- Add Lighter as a perps venue (initial implementation, disabled by default) ([#9889](https://github.com/MetaMask/core/pull/9889), [#10015](https://github.com/MetaMask/core/pull/10015))
+  - **BREAKING:** `PerpsProviderType` gains `'lighter'`. Consumers with exhaustive provider switches must handle the new value. Enablement requires client opt-in: `providerCredentials.lighter.enabled`, or the `perpsLighterProviderEnabled` remote feature flag combined with a client-supplied `providerCredentials.lighter.signerBridge` (without a bridge the provider is read-only). Lighter follows the global network toggle on both testnet and mainnet (reads and writes).
+  - The client-supplied signer bridge owns venue-key creation and persistence; Core never derives or receives the venue-key seed/private key. Lighter deposits are not advertised until the provider can build the required approval plus bridge-deposit call.
+  - New Lighter types/constants exports, `KeyringController:signPersonalMessage` in the allowed messenger actions (type-only), and durable-settlement surfacing on the controller: `getPendingManualRecoveries`, `getRecoveredDispatches`, `acknowledgeRecoveredDispatch` actions with `PerpsPendingManualRecovery` / `PerpsRecoveredDispatch` exported types and `OrderResult.partialState`.
+  - `LiquidationPriceParams` and `MaintenanceMarginParams` gain an optional `providerId`, and `getMaxLeverage` accepts the same optional route, so aggregated calculations use the provider that owns the market or position.
+
+### Fixed
+
+- Preserve accepted HyperLiquid Scale orders when part of a batch is rejected ([#9989](https://github.com/MetaMask/core/pull/9989))
+
+## [14.0.0]
+
+### Added
+
+- **BREAKING:** Add `PerpsController.previewPositionModify` and `PerpsProvider.previewPositionModify` so clients can read an isolated-margin post-trade projection without placing an order ([#9968](https://github.com/MetaMask/core/pull/9968))
+  - Mobile supplies the live position and proposed order; the HyperLiquid provider fetches the asset's margin table and applies selected leverage to the whole resulting position (matching `updateLeverage` before placement).
+  - The result is a discriminated union (`none` / `unsupported` / `full_close` / `open`) so a non-modifying preview cannot carry a flip kind and a full close cannot report remaining size. Margin and liquidation availability are independent: a missing live liquidation or missing multi-tier table withholds only liquidation.
+  - Isolated increases, leverage changes (up or down), reductions, flips, and full closes are projected for both longs and shorts. `price` is the expected fill or resting limit; the preview does not distinguish order types. Same-direction `reduceOnly` and increases/flips without a positive price return `{ status: 'none' }`. `resulting.leverage` is mark notional / remaining isolated margin. Liquidation uses the projected mark (not average entry) because isolated `marginUsed` is mark-based equity. A missing margin-table identity withholds liquidation rather than inventing a single-tier schedule. Aggregated providers route by `providerId` / `position.providerId`. Cross-margin returns `{ status: 'unsupported', reason: 'cross_margin' }`. MYX returns `{ status: 'unsupported', reason: 'provider' }`.
+  - Consumers that implement `PerpsProvider` must add `previewPositionModify`. Clients should use `resulting.direction` (not the order direction) when validating TP/SL against the projected liquidation.
+
+### Fixed
+
+- Prevent transient HyperLiquid WebSocket disconnects from failing the first TP/SL update by checking builder-fee approval over HTTP ([#9997](https://github.com/MetaMask/core/pull/9997))
+- Stop reporting `TPSL_UPDATE_FAILED` from `updatePositionTPSL` when HyperLiquid accepts a trigger with `waitingForTrigger`; accepted triggers without response order IDs are reconciled before mixed-failure cleanup ([#9995](https://github.com/MetaMask/core/pull/9995))
+
+## [13.1.0]
+
+### Added
+
+- Include `direction` on pending trade configurations so a 30-second draft restores long/short with size ([#9992](https://github.com/MetaMask/core/pull/9992))
+
+### Fixed
+
+- Preserve trigger prices and normalized trigger order types in HyperLiquid historical orders while retaining their lifecycle and execution semantics. ([#9982](https://github.com/MetaMask/core/pull/9982))
+- Classify `xyz:CBRS` and `xyz:SPCX` as stocks in the Hyperliquid fallback market map ([#9988](https://github.com/MetaMask/core/pull/9988))
+
+## [13.0.0]
+
 ### Added
 
 - Add the public Chase lifecycle API (`getChaseOrders` and
@@ -31,7 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bound HyperLiquid combined-price debug payloads so large spot-market maps do not stall React Native DevTools and other CDP clients ([#9942](https://github.com/MetaMask/core/pull/9942))
 - Default `DEFAULT_PRO_LAYOUT_PREFERENCES.chartExpanded` to `true` so the chart is visible when a user first enters Pro mode; a persisted `chartExpanded` value still wins, so users who hid the chart keep it hidden ([#9920](https://github.com/MetaMask/core/pull/9920))
 - Restore pending trade configurations for 30 seconds instead of five minutes, include the `reduceOnly` setting, and clear the draft after a successful order while retaining leverage and the selected order type ([#9922](https://github.com/MetaMask/core/pull/9922))
-- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ### Fixed
 
@@ -783,7 +828,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...@metamask/perps-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...@metamask/perps-controller@14.0.0
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.0.0...@metamask/perps-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.2.0...@metamask/perps-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.1.0...@metamask/perps-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@12.0.0...@metamask/perps-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@11.0.0...@metamask/perps-controller@12.0.0

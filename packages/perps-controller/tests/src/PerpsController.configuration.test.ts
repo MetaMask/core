@@ -139,6 +139,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -1118,6 +1119,7 @@ describe('PerpsController', () => {
         limitPrice: '45000',
         orderType: 'limit' as const,
         reduceOnly: true,
+        direction: 'short' as const,
       };
 
       controller.savePendingTradeConfiguration('BTC', config);
@@ -1125,6 +1127,20 @@ describe('PerpsController', () => {
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toEqual(config);
       expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+
+    it('restores a short direction from a pending trade configuration', () => {
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        direction: 'short',
+      });
+
+      const result = controller.getPendingTradeConfiguration('BTC');
+
+      expect(result).toEqual({
+        amount: '100',
+        direction: 'short',
+      });
     });
 
     it('returns undefined for non-existent pending configuration', () => {

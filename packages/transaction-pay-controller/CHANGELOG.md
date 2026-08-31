@@ -13,7 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use `EXACT_INPUT` Relay quotes when no transaction is embedded, except for `perpsDepositAndOrder` flows that require a guaranteed target amount; expose optional `TransactionPayQuote.isInputBased` and `TransactionPayTotals.isInputBased` flags; and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))
 - Bump `@metamask/sentinel-api-service` from `^1.0.0` to `^1.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bump `@metamask/ramps-controller` from `^20.0.0` to `^20.1.0` ([#10004](https://github.com/MetaMask/core/pull/10004))
+- Bump `@metamask/ramps-controller` from `^20.1.0` to `^20.2.0` ([#10005](https://github.com/MetaMask/core/pull/10005))
 
 ## [27.0.0]
 

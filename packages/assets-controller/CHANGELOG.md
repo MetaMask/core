@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+### Fixed
+
+- Clean up spam assets on keyring unlock, gated behind the `assetsUnifyState` remote feature flag's `useUnlockCleanup` property (disabled unless the flag explicitly enables it) ([#9973](https://github.com/MetaMask/core/pull/9973))
+
 ## [14.0.2]
 
 ### Changed
