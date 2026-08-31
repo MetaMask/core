@@ -747,9 +747,11 @@ describe('NotificationServicesController', () => {
           { address: ADDRESS_1.toLowerCase(), enabled: true },
           { address: ADDRESS_2.toLowerCase(), enabled: true },
         ]);
+        // The keyring reports checksummed addresses, but push registration
+        // must get the same lower-case form the Trigger API echoes back.
         expect(mockEnablePushNotifications).toHaveBeenCalledWith([
-          ADDRESS_1,
-          ADDRESS_2,
+          ADDRESS_1.toLowerCase(),
+          ADDRESS_2.toLowerCase(),
         ]);
       });
 

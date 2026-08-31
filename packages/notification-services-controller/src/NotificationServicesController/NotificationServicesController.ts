@@ -1102,7 +1102,11 @@ export class NotificationServicesController extends BaseController<
           accounts.map((address) => ({ address, enabled: true })),
           this.#env,
         );
-        accountsWithNotifications = accounts;
+        // Match the lower-case form the Trigger API echoes back, which is what
+        // every other path feeding the push API uses.
+        accountsWithNotifications = accounts.map((address) =>
+          address.toLowerCase(),
+        );
       }
 
       // 3. Initialize the preferences blob, only once the subscriptions above
