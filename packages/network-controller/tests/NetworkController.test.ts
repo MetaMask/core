@@ -421,6 +421,57 @@ describe('NetworkController', () => {
       );
     });
 
+    it('corrects RPC endpoint types based on their URLs', async () => {
+      await withController(
+        {
+          state: {
+            networkConfigurationsByChainId: {
+              '0x1337': buildCustomNetworkConfiguration({
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(
+            controller.state.networkConfigurationsByChainId['0x1337']
+              .rpcEndpoints[0].type,
+          ).toBe(RpcEndpointType.Infura);
+        },
+      );
+    });
+
+    it('infers the type of RPC endpoints missing a type in the initial state', async () => {
+      const { type: _, ...rpcEndpoint } = buildCustomRpcEndpoint({
+        url: 'https://custom.endpoint',
+      });
+
+      await withController(
+        {
+          state: {
+            networkConfigurationsByChainId: {
+              '0x1337': buildCustomNetworkConfiguration({
+                rpcEndpoints: [rpcEndpoint],
+              }),
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(
+            controller.state.networkConfigurationsByChainId['0x1337']
+              .rpcEndpoints[0],
+          ).toMatchObject({
+            type: RpcEndpointType.Custom,
+            url: 'https://custom.endpoint',
+          });
+        },
+      );
+    });
+
     it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
       const messenger = buildRootMessenger();
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
@@ -4248,6 +4299,26 @@ describe('NetworkController', () => {
       });
     });
 
+    it('infers the type of an RPC endpoint when adding a network', async () => {
+      const { type: _, ...rpcEndpoint } =
+        buildAddNetworkCustomRpcEndpointFields({
+          url: 'https://custom.endpoint',
+        });
+
+      await withController(({ controller }) => {
+        const result = controller.addNetwork(
+          buildAddNetworkFields({
+            rpcEndpoints: [rpcEndpoint],
+          }),
+        );
+
+        expect(result.rpcEndpoints[0]).toMatchObject({
+          type: RpcEndpointType.Custom,
+          url: 'https://custom.endpoint',
+        });
+      });
+    });
+
     it('throws if the rpcEndpoints field is an empty array', async () => {
       await withController(({ controller }) => {
         expect(() =>
@@ -5449,6 +5520,41 @@ describe('NetworkController', () => {
               'Could not update network: `rpcEndpoints` must be a non-empty array',
             ),
           );
+        },
+      );
+    });
+
+    it('infers the type of an RPC endpoint when updating a network', async () => {
+      const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+      });
+      const { type: _, ...rpcEndpoint } =
+        buildUpdateNetworkCustomRpcEndpointFields({
+          url: 'https://custom.endpoint',
+        });
+
+      await withController(
+        {
+          state: {
+            networkConfigurationsByChainId: {
+              '0x1337': networkConfigurationToUpdate,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.updateNetwork(
+            '0x1337',
+            {
+              ...networkConfigurationToUpdate,
+              rpcEndpoints: [rpcEndpoint],
+            },
+            { replacementSelectedRpcEndpointIndex: 0 },
+          );
+
+          expect(result.rpcEndpoints[0]).toMatchObject({
+            type: RpcEndpointType.Custom,
+            url: 'https://custom.endpoint',
+          });
         },
       );
     });
