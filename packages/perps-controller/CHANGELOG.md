@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New Lighter types/constants exports, `KeyringController:signPersonalMessage` in the allowed messenger actions (type-only), and durable-settlement surfacing on the controller: `getPendingManualRecoveries`, `getRecoveredDispatches`, `acknowledgeRecoveredDispatch` actions with `PerpsPendingManualRecovery` / `PerpsRecoveredDispatch` exported types and `OrderResult.partialState`.
   - `LiquidationPriceParams` and `MaintenanceMarginParams` gain an optional `providerId`, and `getMaxLeverage` accepts the same optional route, so aggregated calculations use the provider that owns the market or position.
 
+### Fixed
+
+- Preserve accepted HyperLiquid Scale orders when part of a batch is rejected ([#9989](https://github.com/MetaMask/core/pull/9989))
+
 ## [14.0.0]
 
 ### Added

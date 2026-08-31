@@ -308,6 +308,16 @@ export type OrderParams = {
   providerId?: PerpsProviderType;
 };
 
+export type ScaleOrderChild =
+  | {
+      state: 'resting' | 'filled';
+      orderId: string;
+    }
+  | {
+      state: 'waitingForFill' | 'waitingForTrigger';
+      orderId?: never;
+    };
+
 export type OrderResult = {
   success?: boolean;
   /**
@@ -327,28 +337,39 @@ export type OrderResult = {
   orderId?: string;
   error?: string;
   filledSize?: string; // Amount filled
-  // Final normalized size actually submitted to the exchange (post precision
-  // rounding, USD recalculation, and any $10-minimum retry). Present only when
-  // the provider reached submission; used to classify partial fills against the
-  // real submitted size rather than the caller's pre-normalization params.size.
+  // Full normalized size submitted to the exchange (post precision rounding,
+  // USD recalculation, and any $10-minimum retry). Present only when the
+  // provider reached submission.
   submittedSize?: string;
-  averagePrice?: string; // Average execution price
+  // Normalized size of the submitted rungs that the exchange accepted. This
+  // differs from `submittedSize` when a non-atomic Scale batch is partly
+  // rejected.
+  acceptedSize?: string;
+  // Size-weighted average execution price. Present only when the result
+  // includes fills.
+  averagePrice?: string;
+  // Size-weighted limit price of accepted Scale rungs. This is a submission
+  // price, not an execution price.
+  weightedAverageLimitPrice?: string;
+  // Every accepted child of a Scale batch and its immediate placement state.
+  // Waiting children do not carry an exchange order ID; cancel the Scale handle
+  // to cancel both resting and waiting children.
+  acceptedChildren?: ScaleOrderChild[];
   // Exchange IDs tied to a multi-order or recovery result. On a successful
   // strategy placement, `orderId` carries the strategy handle and these IDs
   // identify its individual children.
   //
-  // For a `scale` ladder they stay valid: the rungs are placed once and are not
-  // replaced, so they remain cancellable even after the session-scoped handle is
-  // gone. For a `chase` this is only the order resting at placement time — the
+  // For a `scale` ladder these identify only resting, cancellable rungs. Every
+  // accepted rung and its state is reported in `acceptedChildren`. Scale rungs
+  // are never replaced, so a resting ID stays valid after the handle is gone.
+  // For a `chase` this is only the order resting at placement time — the
   // strategy cancels and re-places as the touch moves, and each replacement has
   // a new ID that is held in the session rather than reported here, so the value
   // goes stale on the first re-price. Cancel a live chase by its handle.
   //
-  // Failure results can mix filled IDs with orders that may still rest, so a
-  // caller must not blindly cancel every ID. When TP/SL protection cannot be
-  // fully restored, these identify the old orders that survived, may still be
-  // live when reconciliation failed, or were recreated; an empty array means
-  // none are known or potentially live.
+  // When TP/SL protection cannot be fully restored, these identify the old
+  // orders that survived, may still be live when reconciliation failed, or were
+  // recreated; an empty array means none are known or potentially live.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
   /**
