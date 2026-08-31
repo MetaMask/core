@@ -137,6 +137,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -379,6 +380,16 @@ class TestablePerpsController extends PerpsController {
 
   public testHandleMYXImportError(error: unknown) {
     this.handleMYXImportError(error);
+  }
+
+  public testRegisterLighterProvider(
+    LighterProvider: new (opts: Record<string, unknown>) => PerpsProvider,
+  ) {
+    this.registerLighterProvider(LighterProvider as never);
+  }
+
+  public testHandleLighterImportError(error: unknown) {
+    this.handleLighterImportError(error);
   }
 }
 
@@ -844,6 +855,58 @@ describe('PerpsController', () => {
       controller.testRegisterMYXProvider(undefined);
 
       expect(controller.testGetProviders().has('myx')).toBe(false);
+    });
+
+    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
+      // Arrange — the client (mobile WebView / headless WASM) supplies the
+      // bridge through the Lighter credentials bag; the controller must
+      // forward it (the shared platform surface stays venue-agnostic).
+      const mockBridge = {
+        createClient: jest.fn(),
+        execute: jest.fn(),
+      };
+      const mockLighterInstance = createMockHyperLiquidProvider();
+      const MockLighterConstructor = jest.fn(() => mockLighterInstance);
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { lighter: { signerBridge: mockBridge } },
+        },
+        infrastructure: mockInfrastructure,
+      });
+
+      // Act
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
+          opts: Record<string, unknown>,
+        ) => PerpsProvider,
+      );
+
+      // Assert
+      const providers = controller.testGetProviders();
+      expect(providers.get('lighter')).toBe(mockLighterInstance);
+      expect(MockLighterConstructor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // Lighter follows the controller's global network (mainnet default);
+          // mainnet writes are blocked inside LighterProvider instead.
+          isTestnet: false,
+          signerBridge: mockBridge,
+        }),
+      );
+    });
+
+    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
+      const moduleError = Object.assign(
+        new Error('Cannot find module ./providers/LighterProvider'),
+        { code: 'MODULE_NOT_FOUND' },
+      );
+
+      controller.testHandleLighterImportError(moduleError);
+
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        'PerpsController: Lighter provider module not available, skipping registration',
+      );
     });
 
     it('handleMYXImportError logs debug for MODULE_NOT_FOUND errors', () => {

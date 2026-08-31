@@ -48,7 +48,8 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
       usd: '6.66',
     },
   },
-  original: undefined,
+  isInputBased: false,
+  original: {},
   request: {} as QuoteRequest,
   sourceAmount: {
     human: '7.77',
@@ -108,7 +109,8 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
       usd: '12.12',
     },
   },
-  original: undefined,
+  isInputBased: false,
+  original: {},
   request: {} as QuoteRequest,
   sourceAmount: {
     human: '13.13',
@@ -124,6 +126,13 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
 };
 
 const TRANSACTION_META_MOCK = {} as TransactionMeta;
+
+function getQuote(
+  isInputBased: boolean,
+  quote: TransactionPayQuote<unknown> = QUOTE_1_MOCK,
+): TransactionPayQuote<unknown> {
+  return { ...quote, isInputBased };
+}
 
 describe('Totals Utils', () => {
   const calculateTransactionGasCostMock = jest.mocked(
@@ -166,10 +175,9 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('52.08');
     });
 
-    it('returns adjusted total when isMaxAmount is true', () => {
+    it('returns adjusted total when all quotes are input-based', () => {
       const result = calculateTotals({
-        isMaxAmount: true,
-        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        quotes: [getQuote(true), getQuote(true, QUOTE_2_MOCK)],
         tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
         messenger: MESSENGER_MOCK,
         transaction: TRANSACTION_META_MOCK,
@@ -177,6 +185,141 @@ describe('Totals Utils', () => {
 
       expect(result.total.fiat).toBe('65.5');
       expect(result.total.usd).toBe('71.68');
+    });
+
+    it('returns isInputBased true for an input-based quote', () => {
+      const result = calculateTotals({
+        quotes: [getQuote(true)],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(true);
+    });
+
+    it('returns isInputBased false for an output-based quote', () => {
+      const result = calculateTotals({
+        quotes: [getQuote(false)],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased true regardless of the strategy', () => {
+      const result = calculateTotals({
+        quotes: [
+          {
+            ...getQuote(true),
+            strategy: TransactionPayStrategy.Server,
+          },
+        ],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(true);
+    });
+
+    it('returns isInputBased false when the property is omitted', () => {
+      const quoteWithoutInputBased = { ...QUOTE_1_MOCK };
+      delete quoteWithoutInputBased.isInputBased;
+
+      const result = calculateTotals({
+        quotes: [quoteWithoutInputBased],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased false when there are no quotes', () => {
+      const result = calculateTotals({
+        quotes: [],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased false for mixed input- and output-based quotes', () => {
+      const result = calculateTotals({
+        quotes: [getQuote(true), QUOTE_2_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(false);
+    });
+
+    it('returns isInputBased true when all aggregate quotes are input-based', () => {
+      const result = calculateTotals({
+        quotes: [getQuote(true), getQuote(true, QUOTE_2_MOCK)],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.isInputBased).toBe(true);
+    });
+
+    it('does not add fees twice for input-based quotes', () => {
+      const quote = {
+        ...getQuote(true),
+        fees: {
+          ...QUOTE_1_MOCK.fees,
+          metaMask: { fiat: '0', usd: '0' },
+          provider: { fiat: '1', usd: '1' },
+          sourceNetwork: {
+            estimate: {
+              fiat: '0.5',
+              human: '0.5',
+              raw: '500000000000000000',
+              usd: '0.5',
+            },
+            max: {
+              fiat: '0.6',
+              human: '0.6',
+              raw: '600000000000000000',
+              usd: '0.6',
+            },
+          },
+          targetNetwork: { fiat: '0', usd: '0' },
+        },
+        sourceAmount: {
+          fiat: '100',
+          human: '100',
+          raw: '100000000',
+          usd: '100',
+        },
+        targetAmount: { fiat: '99', usd: '99' },
+      };
+      const token = {
+        ...TOKEN_1_MOCK,
+        amountFiat: '100',
+        amountUsd: '100',
+      };
+
+      const result = calculateTotals({
+        quotes: [quote],
+        tokens: [token],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.total).toStrictEqual({
+        fiat: '100.5',
+        usd: '100.5',
+      });
     });
 
     it('returns total using fiatPaymentAmount when fiat strategy is present', () => {

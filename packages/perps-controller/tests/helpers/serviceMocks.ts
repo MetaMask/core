@@ -121,12 +121,28 @@ export const createMockInfrastructure =
       },
 
       // === Disk Cache (cold-start persistence) ===
-      diskCache: {
-        getItem: jest.fn().mockResolvedValue(null),
-        getItemSync: jest.fn().mockReturnValue(null),
-        setItem: jest.fn().mockResolvedValue(undefined),
-        removeItem: jest.fn().mockResolvedValue(undefined),
-      },
+      // FUNCTIONAL in-memory disk cache: durable-state code treats disk
+      // absence as authoritative, so the default mock must actually
+      // store — a null-only stub would silently erase obligations.
+      diskCache: (() => {
+        const store = new Map<string, string>();
+        return {
+          getItem: jest
+            .fn()
+            .mockImplementation(async (key: string) => store.get(key) ?? null),
+          getItemSync: jest
+            .fn()
+            .mockImplementation((key: string) => store.get(key) ?? null),
+          setItem: jest
+            .fn()
+            .mockImplementation(async (key: string, value: string) => {
+              store.set(key, value);
+            }),
+          removeItem: jest.fn().mockImplementation(async (key: string) => {
+            store.delete(key);
+          }),
+        };
+      })(),
     }) as unknown as jest.Mocked<PerpsPlatformDependencies>;
 
 /**

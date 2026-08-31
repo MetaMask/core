@@ -11,7 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use the ramps quote's `extraFee` as the MetaMask fee for fiat quotes instead of deriving it from a hardcoded percentage ([#9317](https://github.com/MetaMask/core/pull/9317))
   - `fees.metaMask` now reflects the partner fee reported by the quote, including the zero-fee mUSD discount.
+
+## [27.1.0]
+
+### Changed
+
+- Use `EXACT_INPUT` Relay quotes when no transaction is embedded, except for `perpsDepositAndOrder` flows that require a guaranteed target amount; expose optional `TransactionPayQuote.isInputBased` and `TransactionPayTotals.isInputBased` flags; and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))
 - Bump `@metamask/sentinel-api-service` from `^1.0.0` to `^1.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bump `@metamask/ramps-controller` from `^20.0.0` to `^20.2.0` ([#10004](https://github.com/MetaMask/core/pull/10004), [#10005](https://github.com/MetaMask/core/pull/10005))
 
 ## [27.0.0]
 
@@ -1476,7 +1484,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...@metamask/transaction-pay-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.1...@metamask/transaction-pay-controller@27.0.0
 [26.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.0...@metamask/transaction-pay-controller@26.4.1
 [26.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.1...@metamask/transaction-pay-controller@26.4.0

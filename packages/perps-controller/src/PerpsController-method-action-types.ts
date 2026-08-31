@@ -377,6 +377,43 @@ export type PerpsControllerGetOrderFillsAction = {
 };
 
 /**
+ * List TP/SL protection changes the active provider parked for
+ * explicit manual re-establishment. Providers without durable
+ * settlement state return an empty list.
+ *
+ * @returns Pending manual-recovery entries.
+ */
+export type PerpsControllerGetPendingManualRecoveriesAction = {
+  type: `PerpsController:getPendingManualRecoveries`;
+  handler: PerpsController['getPendingManualRecoveries'];
+};
+
+/**
+ * READ-ONLY list of the active provider's recovered-dispatch outcomes
+ * (previously ambiguous submissions later resolved). Providers without
+ * durable dispatch state return an empty list.
+ *
+ * @returns Pending recovered-dispatch outcomes.
+ */
+export type PerpsControllerGetRecoveredDispatchesAction = {
+  type: `PerpsController:getRecoveredDispatches`;
+  handler: PerpsController['getRecoveredDispatches'];
+};
+
+/**
+ * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+ * refreshing venue state. Throws when the active provider has no
+ * durable dispatch state or the id no longer matches.
+ *
+ * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+ * @returns Resolves when the outcome is acknowledged.
+ */
+export type PerpsControllerAcknowledgeRecoveredDispatchAction = {
+  type: `PerpsController:acknowledgeRecoveredDispatch`;
+  handler: PerpsController['acknowledgeRecoveredDispatch'];
+};
+
+/**
  * Get historical user orders (order lifecycle)
  * Thin delegation to MarketDataService
  *
@@ -541,6 +578,19 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
+ * Project the isolated position that would remain after a proposed order.
+ * Margin and liquidation availability are independent: a missing liquidation
+ * does not hide a valid margin projection. Cross-margin returns unsupported.
+ *
+ * @param params - Live position plus the proposed order.
+ * @returns Discriminated preview of the resulting position.
+ */
+export type PerpsControllerPreviewPositionModifyAction = {
+  type: `PerpsController:previewPositionModify`;
+  handler: PerpsController['previewPositionModify'];
+};
+
+/**
  * Calculate maintenance margin for a specific asset
  * Returns a percentage (e.g., 0.0125 for 1.25%)
  *
@@ -556,6 +606,7 @@ export type PerpsControllerCalculateMaintenanceMarginAction = {
  * Get maximum leverage allowed for an asset
  *
  * @param asset - The asset identifier.
+ * @param providerId - Optional provider route for aggregated markets.
  * @returns A promise that resolves to the numeric result.
  */
 export type PerpsControllerGetMaxLeverageAction = {
@@ -978,6 +1029,7 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.limitPrice - The limit price.
  * @param config.orderType - The order type.
  * @param config.reduceOnly - Whether the order may only reduce a position.
+ * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
@@ -1299,6 +1351,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerWithdrawAction
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
+  | PerpsControllerGetPendingManualRecoveriesAction
+  | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction
   | PerpsControllerGetOpenOrdersAction
   | PerpsControllerGetFundingAction
@@ -1311,6 +1366,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAvailableDexsAction
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
+  | PerpsControllerPreviewPositionModifyAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction

@@ -1332,6 +1332,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       activeAbTests?: { key: string; value: string }[];
       tokenSecurityTypeDestination?: string | null;
       inputPrimaryDenomination?: InputPrimaryDenomination;
+      customSlippage?: boolean;
+      slippagePercentage?: number;
     },
   ): Promise<TransactionMeta> => {
     let tradeTxMeta!: TransactionMeta;
@@ -1378,7 +1380,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse: payload.quoteResponse,
               accountAddress: params.selectedAccount.address,
               isStxEnabled: params.isStxEnabled,
-              slippagePercentage: payload.quoteResponse.quote.slippage ?? 0,
+              slippagePercentage:
+                sharedHistoryItemProperties.slippagePercentage ??
+                payload.quoteResponse.quote.slippage ??
+                0,
             });
             this.#reportSubmittedForNonEvmTx(
               payload.historyKey,
@@ -1523,6 +1528,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       tokenSecurityTypeDestination,
       batchSellTrades,
       batchId,
+      quotesReceivedContext,
     );
 
     try {
@@ -1578,6 +1584,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             activeAbTests,
             tokenSecurityTypeDestination,
             inputPrimaryDenomination,
+            customSlippage: quotesReceivedContext?.custom_slippage,
+            slippagePercentage: quotesReceivedContext?.slippage_limit,
           }),
       );
     } catch (error) {
@@ -1636,7 +1644,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quotesReceivedContext,
     } = params;
 
-    // TODO add metrics context
     return await this.submitTx(
       accountAddress,
       quoteResponse,

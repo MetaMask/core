@@ -56,7 +56,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchSessionDisclaimers',
   'submitSessionDisclaimers',
   'fetchKycStatus',
-  'fetchJwks',
+  'fetchIdosEnclaveJwks',
+  'fetchIdosRelayJwks',
   'createUkycSession',
   'setAuthorizations',
   'createJourney',
@@ -134,10 +135,15 @@ export type KycServiceOptions = {
    */
   baseUrl: string;
   /**
-   * Base URL of the Fractal encryption service, from which the JWKS used to
-   * verify encryption-schema `jwtChain`s is fetched.
+   * Base URL of the idOS enclave, from which the JWKS used to
+   * verify the `encryptionDataKey` schema's `jwtChain` is fetched.
    */
-  fractalEncryptionBaseUrl?: string;
+  idosEnclaveBaseUrl?: string;
+  /**
+   * Base URL of the idOS relay, from which the JWKS used to verify the
+   * `ukycCapabilityToken` schema's `jwtChain` is fetched.
+   */
+  idosRelayBaseUrl?: string;
   /**
    * Shared configuration applied to all queries exposed by the service (e.g. a
    * default `staleTime`/`gcTime`). Each data service gets its own
@@ -320,6 +326,16 @@ export type SubmitSessionDisclaimersParams = {
 export type CreateUkycSessionParams = {
   jwtToken: string;
   /**
+   * The client's per-session X25519 public key (unpadded base64url). Generated
+   * with the matching private key used later to wrap authorizations, so the
+   * session server can open those boxes.
+   */
+  sessionClientPublicKey: string;
+  /**
+   * Country of residence in ISO 3166-1 alpha-3 format (e.g. `USA`, `GBR`).
+   */
+  residenceCountry: string;
+  /**
    * Identity vendor for the UKYC session. Defaults to `moonpay` for the
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
@@ -365,10 +381,10 @@ export type GetSessionStatusParams = {
  * It extends {@link BaseDataService}, so every request is routed through
  * `fetchQuery`: it is wrapped in the shared service policy (retries, circuit
  * breaker) and its result is exposed via the service's `QueryClient`. Read-only
- * endpoints (`fetchDisclaimers`, `fetchJwks`) are cached with a `staleTime`;
- * vendor-disclaimer, session-scoped disclaimer, session-creating, and
- * status-polling endpoints opt out of caching (`staleTime`/`gcTime` of `0`)
- * so they never serve a stale result.
+ * endpoints (`fetchDisclaimers`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`) are cached
+ * with a `staleTime`; vendor-disclaimer, session-scoped disclaimer,
+ * session-creating, and status-polling endpoints opt out of caching
+ * (`staleTime`/`gcTime` of `0`) so they never serve a stale result.
  */
 export class KycService extends BaseDataService<
   typeof serviceName,
@@ -378,7 +394,9 @@ export class KycService extends BaseDataService<
 
   readonly #baseUrl: string;
 
-  readonly #fractalEncryptionBaseUrl: string;
+  readonly #idosEnclaveBaseUrl: string;
+
+  readonly #idosRelayBaseUrl: string;
 
   /**
    * Constructs a new KycService.
@@ -388,9 +406,12 @@ export class KycService extends BaseDataService<
    * @param options.fetch - A function used to make HTTP requests. Defaults to
    * the runtime's native `fetch`.
    * @param options.baseUrl - Base URL of the KYC API
-   * @param options.fractalEncryptionBaseUrl - Base URL of the Fractal
-   * encryption service, from which the JWKS used to verify encryption-schema
-   * `jwtChain`s is fetched.
+   * @param options.idosEnclaveBaseUrl - Base URL of the idOS enclave, from
+   * which the JWKS used to verify the `encryptionDataKey` schema's `jwtChain`
+   * is fetched.
+   * @param options.idosRelayBaseUrl - Base URL of the idOS relay, from which
+   * the JWKS used to verify the `ukycCapabilityToken` schema's `jwtChain` is
+   * fetched.
    * @param options.queryClientConfig - Shared configuration for all queries
    * exposed by the service.
    * @param options.policyOptions - Options for the request service policy.
@@ -399,7 +420,8 @@ export class KycService extends BaseDataService<
     messenger,
     fetch: fetchFunction,
     baseUrl,
-    fractalEncryptionBaseUrl,
+    idosEnclaveBaseUrl,
+    idosRelayBaseUrl,
     queryClientConfig = {},
     policyOptions = {},
   }: KycServiceOptions) {
@@ -425,7 +447,8 @@ export class KycService extends BaseDataService<
       throw new Error('KycService: baseUrl is required');
     }
     this.#baseUrl = baseUrl;
-    this.#fractalEncryptionBaseUrl = fractalEncryptionBaseUrl ?? '';
+    this.#idosEnclaveBaseUrl = idosEnclaveBaseUrl ?? '';
+    this.#idosRelayBaseUrl = idosRelayBaseUrl ?? '';
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -763,34 +786,77 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`s
-   * returned inside encryption schemas from {@link KycService.createUkycSession}.
+   * Fetches a well-known JWKS from `baseUrl`, caching the result for an hour.
    *
-   * This is an unauthenticated request to a well-known path on the Fractal
-   * host, distinct from the UKYC base URL.
-   *
+   * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
+   * @param queryName - Cache query-key segment.
+   * @param responseLabel - Label used in malformed-response errors.
+   * @param missingConfigMessage - Error thrown when `baseUrl` is empty.
    * @returns The JWKS keys.
    */
-  async fetchJwks(): Promise<JwksResponse> {
-    if (!this.#fractalEncryptionBaseUrl) {
-      throw new Error(
-        'KycService: fractalEncryptionBaseUrl is not configured; cannot fetch JWKS to verify encryption schemas.',
-      );
+  async #fetchWellKnownJwks(
+    baseUrl: string,
+    queryName: string,
+    responseLabel: string,
+    missingConfigMessage: string,
+  ): Promise<JwksResponse> {
+    if (!baseUrl) {
+      throw new Error(missingConfigMessage);
     }
-    const url = new URL(UKYC_JWKS_PATH, this.#fractalEncryptionBaseUrl);
+    const url = new URL(UKYC_JWKS_PATH, baseUrl);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchJwks`, this.#fractalEncryptionBaseUrl],
+      queryKey: [`${this.name}:${queryName}`, baseUrl],
       queryFn: async () =>
         this.#requestJson(url, { method: 'GET' }, { authenticated: false }),
       staleTime: inMilliseconds(1, Duration.Hour),
     });
-    return this.#validateResponse(data, JwksResponseStruct, 'JWKS');
+    return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+  }
+
+  /**
+   * Fetches the idOS enclave JWKS used to verify the
+   * `encryptionDataKey` schema's `jwtChain` from
+   * {@link KycService.createUkycSession}.
+   *
+   * This is an unauthenticated request to a well-known path on the idOS enclave
+   * host, distinct from the UKYC base URL.
+   *
+   * @returns The JWKS keys.
+   */
+  async fetchIdosEnclaveJwks(): Promise<JwksResponse> {
+    return this.#fetchWellKnownJwks(
+      this.#idosEnclaveBaseUrl,
+      'fetchIdosEnclaveJwks',
+      'idOS enclave JWKS',
+      'KycService: idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema.',
+    );
+  }
+
+  /**
+   * Fetches the idOS relay JWKS used to verify the `ukycCapabilityToken`
+   * schema's `jwtChain` from {@link KycService.createUkycSession}.
+   *
+   * This is an unauthenticated request to a well-known path on the idOS relay
+   * host, distinct from both the UKYC base URL and the idOS enclave.
+   *
+   * @returns The JWKS keys.
+   */
+  async fetchIdosRelayJwks(): Promise<JwksResponse> {
+    return this.#fetchWellKnownJwks(
+      this.#idosRelayBaseUrl,
+      'fetchIdosRelayJwks',
+      'idOS relay JWKS',
+      'KycService: idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema.',
+    );
   }
 
   /**
    * Creates a UKYC session for the SumSub document-verification sub-flow.
    *
-   * The response carries per-secret encryption schemas (`encryptionDataKey` and
+   * The client registers its per-session X25519 public key so the server can
+   * later open boxes sealed with the matching private key, and supplies the
+   * customer's ISO 3166-1 alpha-3 country of residence. The response
+   * carries per-secret encryption schemas (`encryptionDataKey` and
    * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
    * the read-only `ukyc_capability_token` and submit them via
    * {@link KycService.setAuthorizations}.
@@ -811,6 +877,8 @@ export class KycService extends BaseDataService<
             vendorId: params.vendor ?? 'moonpay',
             vendorUserId: 'mockedId',
             jwtToken: params.jwtToken,
+            sessionClientPublicKey: params.sessionClientPublicKey,
+            residenceCountry: params.residenceCountry,
             vendorMetadata: params.vendorMetadata ?? {},
           }),
         }),
@@ -961,7 +1029,7 @@ export class KycService extends BaseDataService<
    * wraps it in the shared service policy (retries, circuit breaker). Requests
    * are authenticated with the wallet bearer token by default; pass
    * `{ authenticated: false }` for calls to services that do not expect it
-   * (e.g. the Fractal JWKS endpoint).
+   * (e.g. the idOS enclave or idOS relay JWKS endpoints).
    *
    * @param url - The request URL.
    * @param init - The request init (method, body).

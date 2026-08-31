@@ -15,6 +15,7 @@ import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
+import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
@@ -1863,9 +1864,27 @@ export class KycController extends BaseController<
     const jwtToken = MOCK_JWT_TOKEN;
 
     // Establish a per-session X25519 keypair used to seal both secrets. The
-    // private half stays on the device; each encryption schema from session
-    // creation supplies the matching server public key.
+    // private half stays on the device; the public half is registered on the
+    // session so the server can open later authorizations. Each encryption
+    // schema from session creation supplies the matching server public key.
     const sessionClientPrivateKey = x25519.utils.randomSecretKey();
+    const sessionClientPublicKey = toBase64Url(
+      x25519.getPublicKey(sessionClientPrivateKey),
+    );
+    // Residence is the ISO 3166-1 alpha-3 country already resolved for
+    // disclaimers / KYC-required; fetch it if this sub-flow started without
+    // that earlier step.
+    const residenceCountry =
+      this.state.geoCountry ??
+      (await this.messenger.call('KycService:getGeoCountry'));
+    if (this.#generation !== generation) {
+      return null;
+    }
+    if (residenceCountry !== this.state.geoCountry) {
+      this.#updateIfCurrent(generation, (state) => {
+        state.geoCountry = residenceCountry;
+      });
+    }
 
     const {
       sessionId,
@@ -1873,18 +1892,26 @@ export class KycController extends BaseController<
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
       jwtToken,
+      sessionClientPublicKey,
+      residenceCountry,
       ...this.#buildUkycSessionVendorFields(),
     });
     if (this.#generation !== generation) {
       return null;
     }
 
-    // Verify each jwtChain against Fractal's JWKS, then confirm the returned
-    // server public key matches the value attested inside the verified JWT
-    // payload before trusting it for wrapping.
-    const { keys } = await this.messenger.call('KycService:fetchJwks');
-    this.#assertAttestedServerPublicKey(keys, encryptionDataKey);
-    this.#assertAttestedServerPublicKey(keys, capabilityTokenSchema);
+    // Verify each schema's jwtChain against the matching issuer JWKS, then
+    // confirm the returned server public key matches the value attested inside
+    // the verified JWT payload before trusting it for wrapping.
+    // `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken` by the
+    // idOS relay.
+    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
+      await Promise.all([
+        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+        this.messenger.call('KycService:fetchIdosRelayJwks'),
+      ]);
+    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+    this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
 
     // Derive the data_encryption_key from the local_user_secret, mint a
     // read-only capability token, and wrap both for the session server. Only
@@ -1946,8 +1973,10 @@ export class KycController extends BaseController<
    * Runs the SumSub document-verification sub-flow end to end:
    *
    *  1. creates a UKYC session, receiving per-secret encryption schemas;
-   *  2. verifies each schema's `jwtChain` against the Fractal JWKS and confirms
-   *     the attested session server public key;
+   *  2. verifies the `encryptionDataKey` schema's `jwtChain` against the
+   *     idOS enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
+   *     the idOS relay JWKS, then confirms each attested session server public
+   *     key;
    *  3. derives the `data_encryption_key` from the wallet's UKYC
    *     `local_user_secret` and wraps it for the session server;
    *  4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the
@@ -2506,7 +2535,8 @@ export class KycController extends BaseController<
    * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
    * a key that was swapped out-of-band after the chain was signed.
    *
-   * @param keys - The Fractal JWKS used to verify the chain.
+   * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
+   * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
    * @param schema - The encryption schema returned by session creation.
    */
   #assertAttestedServerPublicKey(keys: Jwk[], schema: EncryptionSchema): void {

@@ -51,6 +51,7 @@ export const createMockHyperLiquidProvider =
       calculateMaintenanceMargin: jest.fn(),
       getMaxLeverage: jest.fn(),
       calculateFees: jest.fn(),
+      previewPositionModify: jest.fn(),
       getMarketDataWithPrices: jest.fn(),
       getBlockExplorerUrl: jest.fn(),
       getOrderFills: jest.fn(),

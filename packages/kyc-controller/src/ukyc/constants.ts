@@ -76,7 +76,7 @@ export const UKYC_STORAGE_ACCESS_TOKEN_AUDIENCES = [
 export const UKYC_CAPABILITY_AUTH_SCHEME = 'AccessToken' as const;
 
 /**
- * Standard well-known path where the Fractal encryption service publishes its
- * JWKS (the Ed25519 public keys used to sign the `jwtChain`).
+ * Standard well-known path where the idOS enclave and the idOS relay publish their JWKS
+ * (the Ed25519 public keys used to sign encryption-schema `jwtChain`s).
  */
 export const UKYC_JWKS_PATH = '/.well-known/jwks.json';
