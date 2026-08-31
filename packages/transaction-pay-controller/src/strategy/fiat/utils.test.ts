@@ -1,4 +1,7 @@
-import type { RampsOrder } from '@metamask/ramps-controller';
+import type {
+  Quote as RampsQuote,
+  RampsOrder,
+} from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -6,6 +9,7 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayControllerMessenger } from '../../types.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
@@ -13,6 +17,7 @@ import {
 import type { TransactionPayFiatAsset } from './constants.js';
 import {
   deriveFiatAssetForFiatPayment,
+  getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
@@ -491,6 +496,61 @@ describe('Fiat Utils', () => {
       } as unknown as TransactionMeta;
 
       expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
+    });
+  });
+
+  describe('getRampsQuote', () => {
+    const RAMPS_QUOTE_MOCK = {
+      provider: '/providers/transak-native-staging',
+      quote: {
+        amountIn: 15,
+        amountOut: 15,
+        networkFee: 0.05,
+        paymentMethod: '/payments/debit-credit-card',
+        providerFee: 0.25,
+      },
+    } as unknown as RampsQuote;
+
+    /**
+     * Builds a messenger whose `RampsController:getQuotes` handler records the
+     * options it was called with.
+     *
+     * @returns The messenger and the recording mock.
+     */
+    function getQuotesMessenger(): {
+      callMock: jest.Mock;
+      quotesMessenger: TransactionPayControllerMessenger;
+    } {
+      const callMock = jest.fn(() => ({
+        customActions: [],
+        error: [],
+        sorted: [],
+        success: [RAMPS_QUOTE_MOCK],
+      }));
+
+      return {
+        callMock,
+        quotesMessenger: {
+          call: callMock,
+        } as unknown as TransactionPayControllerMessenger,
+      };
+    }
+
+    it('requests fee-on-top quotes so the ramps fee is charged on top of the entered amount', async () => {
+      const { callMock, quotesMessenger } = getQuotesMessenger();
+
+      await getRampsQuote({
+        adjustedAmount: 15,
+        fiatAsset: ERC20_FIAT_ASSET_MOCK,
+        fiatPaymentMethod: '/payments/debit-credit-card',
+        messenger: quotesMessenger,
+        walletAddress: WALLET_ADDRESS_MOCK,
+      });
+
+      expect(callMock).toHaveBeenCalledWith(
+        'RampsController:getQuotes',
+        expect.objectContaining({ isFeeExcludedFromFiat: true }),
+      );
     });
   });
 });

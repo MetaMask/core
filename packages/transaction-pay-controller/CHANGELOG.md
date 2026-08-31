@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Fixed
 
-- Use the ramps quote's `extraFee` as the MetaMask fee for fiat quotes instead of deriving it from a hardcoded percentage ([#9317](https://github.com/MetaMask/core/pull/9317))
-  - `fees.metaMask` now reflects the partner fee reported by the quote, including the zero-fee mUSD discount.
+- Request fee-on-top quotes for the direct mUSD fiat path so the quoted output matches the amount the user entered. The ramps quote previously reported the amount left after fees, so the confirmation promised more mUSD than the order delivered. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Clamp missing, non-numeric and negative ramps fee fields to zero so a single malformed field cannot produce a negative or `NaN` transaction fee. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ## [27.1.0]
 

@@ -1,4 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
 
 import { TransactionPayStrategy } from '../index.js';
 import type { TransactionPayControllerMessenger } from '../index.js';
@@ -338,6 +339,44 @@ describe('Totals Utils', () => {
 
       expect(result.total.fiat).toBe('60.36');
       expect(result.total.usd).toBe('65.42');
+    });
+
+    // Guard, not a driver: `calculateTotals` already produces these values,
+    // because `providerFiat` is deliberately not an addend of `total`. It earns
+    // its place by pinning the identity the mobile client relies on. The client
+    // submits `total - providerFiat` as the amount to buy, so if anyone makes
+    // `providerFiat` an addend, or moves the on-ramp fee into `metaMask`, this
+    // goes red in core before the client silently mis-charges.
+    it('keeps the fiat total at amount plus on-ramp fee so the client submits the entered amount', () => {
+      const directMusdQuote: TransactionPayQuote<unknown> = {
+        ...QUOTE_1_MOCK,
+        fees: {
+          metaMask: { fiat: '0', usd: '0' },
+          provider: { fiat: '0.3', usd: '0.3' },
+          providerFiat: { fiat: '0.3', usd: '0.3' },
+          sourceNetwork: {
+            estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
+            max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+          },
+          targetNetwork: { fiat: '0', usd: '0' },
+        },
+        strategy: TransactionPayStrategy.Fiat,
+      };
+
+      const result = calculateTotals({
+        fiatPaymentAmount: '15',
+        quotes: [directMusdQuote],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.total.usd).toBe('15.3');
+      expect(
+        new BigNumber(result.total.usd)
+          .minus(result.fees.providerFiat.usd)
+          .toString(10),
+      ).toBe('15');
     });
 
     it('returns total with zero payment when fiat strategy is present but fiatPaymentAmount is undefined', () => {

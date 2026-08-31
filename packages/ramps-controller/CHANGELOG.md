@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add the `extraFee` field to the `Quote` type so consumers can read the partner (MetaMask) fee the ramps API already returns alongside `providerFee` and `networkFee`. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Add an `isFeeExcludedFromFiat` option to `getQuotes` so callers can request quotes whose fees are charged on top of the requested fiat amount rather than taken out of it. Ignored when quotes are widened across providers, because fee-on-top and fee-inclusive amounts are not comparable. Defaults to the existing fee-inclusive behaviour. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ### Fixed

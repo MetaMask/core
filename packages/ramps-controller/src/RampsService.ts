@@ -291,10 +291,6 @@ export type Quote = {
      */
     providerFee?: number | string;
     /**
-     * MetaMask fee charged separately from the requested fiat amount.
-     */
-    extraFee?: number | string;
-    /**
      * Buy URL endpoint that returns the actual provider widget URL.
      *
      * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.

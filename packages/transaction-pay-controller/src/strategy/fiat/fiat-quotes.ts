@@ -29,8 +29,6 @@ import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
 import type { FiatQuote } from './types.js';
 import {
   deriveFiatAssetForFiatPayment,
-  getRampsMetaMaskFee,
-  getRampsProviderFiatFee,
   getRampsQuote,
   isMoneyAccountDepositTransaction,
 } from './utils.js';
@@ -203,6 +201,8 @@ async function executeFiatQuotePipeline(
 
     return [
       combineQuotes({
+        adjustedAmountFiat: adjustedAmountFiat.toString(10),
+        amountFiat,
         fiatQuote,
         relayQuote,
       }),
@@ -287,6 +287,8 @@ function buildRelayRequestFromAmountFiat({
  * Combines fiat and relay legs into a single MM Pay fiat strategy quote.
  *
  * @param params - Combined quote inputs.
+ * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding relay fee estimate.
+ * @param params.amountFiat - User-entered fiat amount.
  * @param params.fiatQuote - Selected ramps quote.
  * @param params.relayQuote - Estimated relay quote.
  * @returns A single fiat strategy quote with split fee buckets.
@@ -298,23 +300,30 @@ function buildRelayRequestFromAmountFiat({
  *   Optional breakdown; client can derive relay portion via `provider - providerFiat`.
  * - `fees.sourceNetwork` / `fees.targetNetwork`: Relay settlement network fees.
  *   Consumed by UI transaction fee row and tooltip network fee.
- * - `fees.metaMask`: MetaMask fee reported by the ramps quote as `extraFee`.
+ * - `fees.metaMask`: MM Pay fee (currently 100 bps over `amountFiat + adjustedAmountFiat`).
  *   Consumed by UI transaction fee row and tooltip MetaMask fee.
  * - `totals.total` should represent Amount + Transaction Fee using the totals pipeline.
  */
 function combineQuotes({
+  adjustedAmountFiat,
+  amountFiat,
   fiatQuote,
   relayQuote,
 }: {
+  adjustedAmountFiat: string;
+  amountFiat: string;
   fiatQuote: RampsQuote;
   relayQuote: TransactionPayQuote<RelayQuote>;
 }): TransactionPayQuote<FiatQuote> {
-  const rampsProviderFee = getRampsProviderFiatFee(fiatQuote);
+  const rampsProviderFee = getRampsProviderFee(fiatQuote);
   const totalProviderFee = new BigNumber(relayQuote.fees.provider.usd)
     .plus(rampsProviderFee)
     .toString(10);
   const rampsProviderFeeStr = rampsProviderFee.toString(10);
-  const metaMaskFee = getRampsMetaMaskFee(fiatQuote).toString(10);
+  const metaMaskFee = getMetaMaskFee({
+    adjustedAmountFiat,
+    amountFiat,
+  }).toString(10);
 
   return {
     ...relayQuote,
@@ -341,6 +350,20 @@ function combineQuotes({
   };
 }
 
+/**
+ * Ramps providers handle network gas fees themselves but report them separately
+ * as `networkFee` alongside their `providerFee`. We combine both into a single
+ * ramps provider fee for the `providerFiat` breakdown.
+ *
+ * @param fiatQuote - The ramps quote containing provider and network fees.
+ * @returns Combined ramps provider fee as a BigNumber.
+ */
+function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
+  return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
+    fiatQuote.quote.networkFee ?? 0,
+  );
+}
+
 function getRelayTotalFeeUsd(
   relayQuote: TransactionPayQuote<RelayQuote>,
 ): BigNumber {
@@ -356,4 +379,14 @@ function getNonGasRelayFeeUsd(
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.targetNetwork.usd)
     .plus(relayQuote.fees.metaMask.usd);
+}
+
+function getMetaMaskFee({
+  adjustedAmountFiat,
+  amountFiat,
+}: {
+  adjustedAmountFiat: BigNumber.Value;
+  amountFiat: BigNumber.Value;
+}): BigNumber {
+  return new BigNumber(amountFiat).plus(adjustedAmountFiat).dividedBy(100);
 }
