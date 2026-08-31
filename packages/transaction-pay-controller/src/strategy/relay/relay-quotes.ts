@@ -83,7 +83,8 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 const PAYMENT_OVERRIDE_GAS = 75_000;
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
-type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'>;
+type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'> &
+  Partial<Pick<RelayQuoteRequest, 'amount'>>;
 type RelayStepData = RelayTransactionStep['items'][0]['data'];
 
 type RelayGasResult = {
@@ -352,15 +353,13 @@ async function getSingleQuote(
       messenger,
     );
 
-    let transactionAmount: string | undefined;
-
     if (
       !processedTransactions &&
       isAtomic &&
       effectiveRequest.isPostQuote &&
       effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
     ) {
-      transactionAmount = await processMoneyAccountPostQuote(
+      await processMoneyAccountPostQuote(
         transaction,
         effectiveRequest,
         body,
@@ -380,7 +379,7 @@ async function getSingleQuote(
     const finalBody: RelayQuoteRequest = {
       ...body,
       amount:
-        transactionAmount ??
+        body.amount ??
         (requiresExactOutput ? targetAmountMinimum : sourceTokenAmount),
       tradeType: requiresExactOutput ? 'EXACT_OUTPUT' : 'EXACT_INPUT',
     };
@@ -564,7 +563,7 @@ async function processMoneyAccountPostQuote(
   request: QuoteRequest,
   requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
-): Promise<string | undefined> {
+): Promise<void> {
   const { transactionData: transactionDataList } = messenger.call(
     'TransactionPayController:getState',
   );
@@ -584,13 +583,14 @@ async function processMoneyAccountPostQuote(
 
   if (!overrideCalls.length) {
     log('No payment override calls for money account post-quote');
-    return undefined;
+    return;
   }
 
   const fundingRecipient = recipient ?? request.from;
   const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
+  requestBody.amount = rawAmount;
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
@@ -607,8 +607,6 @@ async function processMoneyAccountPostQuote(
   log('Added money account deposit calls to quote body', {
     callCount: overrideCalls.length,
   });
-
-  return rawAmount;
 }
 
 /**
