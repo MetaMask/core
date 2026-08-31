@@ -6,7 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { Struct, validate } from '@metamask/superstruct';
-import { assert, type Json, type PublicInterface } from '@metamask/utils';
+import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
@@ -230,8 +230,6 @@ export class BaseController<
 
   public readonly metadata: StateMetadata<ControllerState>;
 
-  public readonly struct?: Struct<ControllerState>;
-
   /**
    * Creates a BaseController instance.
    *
@@ -286,7 +284,6 @@ export class BaseController<
     // `Immutable` does not handle recursive types such as our `Json` type.
     this.#internalState = freeze(state, true);
     this.metadata = metadata;
-    this.struct = struct;
 
     this.#messenger.registerActionHandler(`${name}:getState`, () => this.state);
 
@@ -453,14 +450,18 @@ export function deriveStateFromMetadata<
   }, {} as never);
 }
 
+type ValidatableController<ControllerState extends StateConstraint> = {
+  struct: Struct<ControllerState>;
+};
+
 /**
  * Validate the state of a controller against its struct. Returning the optionally coerced state if valid and otherwise throwing.
  *
  * Note that if the `mode` is lenient, validation errors are logged and not thrown.
  *
  * @param name - The name of the controller.
+ * @param controller - The static controller.
  * @param state - The state of the controller.
- * @param struct - The struct used to validate the controller.
  * @param mode - The validation mode.
  * @param captureException - A utility function for reporting an error to Sentry.
  * @returns The validated controller state.
@@ -469,12 +470,12 @@ export function validateControllerState<
   ControllerState extends StateConstraint,
 >(
   name: string,
+  controller: ValidatableController<ControllerState>,
   state: unknown,
-  struct: Struct<ControllerState>,
   mode: 'strict' | 'lenient',
   captureException?: (error: Error) => void,
 ): ControllerState {
-  const [validationError, result] = validate(state, struct);
+  const [validationError, result] = validate(state, controller.struct);
 
   if (mode === 'strict' && validationError) {
     throw validationError;
