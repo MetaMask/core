@@ -9018,9 +9018,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The provider-owned market policy is resolved from the positions below.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Prefer the aggregate plus current per-DEX slices to avoid REST. With no
-      // aggregate, keep the REST fallback intact rather than overwrite its
-      // result with a WebSocket slice of unknown relative recency.
+      // Use a complete current WebSocket snapshot or a strict all-DEX REST
+      // snapshot. Never mix sources whose relative recency is unknown.
       const positions = await this.#getPositionsForOperation();
 
       // Filter positions based on params
@@ -9378,7 +9377,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       const position = currentPositions.find((pos) => pos.symbol === symbol);
 
-      if (livePosition && position && position.size !== livePosition.size) {
+      if (
+        livePosition &&
+        position &&
+        parseFloat(position.size) !== parseFloat(livePosition.size)
+      ) {
         this.#deps.debugLogger.log(
           'Stale TP/SL position snapshot: using current position',
           {
@@ -10113,7 +10116,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (
         params.position &&
         position &&
-        position.size !== params.position.size
+        parseFloat(position.size) !== parseFloat(params.position.size)
       ) {
         this.#deps.debugLogger.log(
           'Stale close position snapshot: using current position',
@@ -10293,9 +10296,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Ensure provider is ready
       await this.#ensureReady();
 
-      // Prefer the target DEX's connection-epoch-aware slice before deriving
-      // the position side. If no usable cache exists, retain getPositions()'s
-      // existing REST fallback rather than add another request.
+      // Use the target DEX's current slice or one targeted HTTP read before
+      // deriving the position side.
       const positions = await this.#getPositionsForOperation(
         parseAssetName(symbol).dex ?? '',
       );
@@ -10718,12 +10720,21 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return { answered: true, positions };
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'HyperLiquidProvider.queryDexPositions',
+      );
+      this.#deps.logger.error(
+        safeError,
+        this.#getErrorContext('queryDexPositions', {
+          dex: dexName ?? 'main',
+        }),
+      );
       this.#deps.debugLogger.log(
         'Target DEX position query failed; its silence proves nothing',
         {
           dex: dexName ?? 'main',
-          error: ensureError(error, 'HyperLiquidProvider.queryDexPositions')
-            .message,
+          error: safeError.message,
         },
       );
 

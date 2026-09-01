@@ -476,6 +476,11 @@ describe('HyperLiquidSubscriptionService', () => {
       mockWalletService,
       mockDeps,
       true, // hip3Enabled - test expects webData3
+      [],
+      [],
+      [],
+      undefined,
+      jest.fn().mockResolvedValue([]),
     );
   });
 
@@ -704,6 +709,32 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await hip3Service.updateFeatureFlags(false, ['xyz'], [], []);
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+
+      unsubscribe();
+    });
+
+    it('does not certify a main-only snapshot after DEX discovery times out', async () => {
+      const discoverEnabledDexs = jest.fn(
+        () => new Promise<string[]>(() => undefined),
+      );
+      const discoveryService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+        [],
+        [],
+        [],
+        undefined,
+        discoverEnabledDexs,
+      );
+
+      const unsubscribe = discoveryService.subscribeToPositions({
+        callback: jest.fn(),
+      });
+      await jest.advanceTimersByTimeAsync(5000);
+
+      expect(discoveryService.getFreshPositionsForAllDexs()).toBeNull();
 
       unsubscribe();
     });

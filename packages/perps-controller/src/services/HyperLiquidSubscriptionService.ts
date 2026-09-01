@@ -652,11 +652,12 @@ export class HyperLiquidSubscriptionService {
    * This allows subscriptions to wait for DEX discovery before creating per-DEX subscriptions.
    *
    * @param timeoutMs - The maximum time in milliseconds to wait for DEX discovery.
+   * @returns Whether discovery completed before the timeout.
    */
-  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<void> {
+  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<boolean> {
     // Already have DEXs, no need to wait
     if (this.#enabledDexs.length > 0) {
-      return;
+      return true;
     }
 
     // Create promise if not exists
@@ -687,10 +688,12 @@ export class HyperLiquidSubscriptionService {
 
     try {
       await Promise.race([discovery, timeoutPromise]);
+      return true;
     } catch {
       this.#deps.debugLogger.log(
         'DEX discovery wait timed out, proceeding with main DEX only',
       );
+      return false;
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -1944,11 +1947,12 @@ export class HyperLiquidSubscriptionService {
 
     // Wait for DEX discovery if HIP-3 is enabled but DEXs haven't been discovered yet
     // This ensures HIP-3 subscriptions are created together with main DEX
+    let dexDiscoveryComplete = true;
     if (this.#hip3Enabled && this.#enabledDexs.length === 0) {
       this.#deps.debugLogger.log(
         'Waiting for DEX discovery before creating subscriptions...',
       );
-      await this.#waitForDexDiscovery();
+      dexDiscoveryComplete = await this.#waitForDexDiscovery();
       this.#deps.debugLogger.log(
         'DEX discovery complete, proceeding with subscriptions',
         {
@@ -1975,7 +1979,9 @@ export class HyperLiquidSubscriptionService {
       // Track expected DEXs for synchronized notifications
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
-      this.#positionSnapshotDexs = new Set(dexsToSubscribe);
+      this.#positionSnapshotDexs = dexDiscoveryComplete
+        ? new Set(dexsToSubscribe)
+        : new Set();
       this.#initializedDexs = new Set();
       // Position freshness needs no reset here, or anywhere else on this path:
       // each slice carries the connection epoch that produced it, so one from a
@@ -2245,7 +2251,7 @@ export class HyperLiquidSubscriptionService {
             // authoritative size or side.
             this.#dexPositionsEpoch.set(
               cacheKey,
-              this.#clientService.getConnectionEpoch?.() ?? 0,
+              this.#clientService.getConnectionEpoch(),
             );
 
             // Trigger aggregation and notify subscribers
@@ -3059,10 +3065,7 @@ export class HyperLiquidSubscriptionService {
       return false;
     }
 
-    // A client without the accessor cannot report a reconnect, so the stamp
-    // stands on its own rather than failing every read closed.
-    const currentEpoch = this.#clientService.getConnectionEpoch?.();
-    return currentEpoch === undefined || stampedEpoch === currentEpoch;
+    return stampedEpoch === this.#clientService.getConnectionEpoch();
   }
 
   /**
