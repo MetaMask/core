@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `PriceDataSource` losing ERC-20 prices for callers that joined an in-flight fetch, caused by the deduper matching the Price API's response (lowercase-cased addresses) against the caller's checksummed request key ([#10061](https://github.com/MetaMask/core/pull/10061))
-- Fix a currency switch racing an in-flight price fetch, which could let a caller join (or receive) a price fetched under the previously-selected currency ([#10061](https://github.com/MetaMask/core/pull/10061))
+- Fix `PriceDataSource` losing ERC-20 prices for callers that joined an in-flight fetch, caused by the deduper matching the Price API's response (lowercase-cased addresses) against the caller's checksummed request key ([#10063](https://github.com/MetaMask/core/pull/10063))
+- Fix a currency switch racing an in-flight price fetch, which could let a caller join (or receive) a price fetched under the previously-selected currency ([#10063](https://github.com/MetaMask/core/pull/10063))
 
 ## [14.0.3]
 
