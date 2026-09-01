@@ -24,10 +24,41 @@ type PackageJson = {
   repository?: { url?: string };
 };
 
+/**
+ * Mirrors `@metamask/auto-changelog`'s (unexported) `PackageRename` type.
+ */
+type PackageRename = {
+  versionBeforeRename: string;
+  tagPrefixBeforeRename: string;
+};
+
+/**
+ * Packages that were renamed at some point, and so need
+ * `--tag-prefix-before-package-rename`/`--version-before-package-rename`
+ * (see their `changelog:update`/`changelog:validate` scripts) to generate
+ * correct release-link URLs for releases before the rename. Keep this in
+ * sync with those scripts.
+ */
+const PACKAGE_RENAMES: Record<string, PackageRename> = {
+  '@metamask/eth-json-rpc-middleware': {
+    tagPrefixBeforeRename: 'eth-json-rpc-middleware@',
+    versionBeforeRename: '6.1.0',
+  },
+  '@metamask/json-rpc-engine': {
+    tagPrefixBeforeRename: 'json-rpc-engine@',
+    versionBeforeRename: '6.1.0',
+  },
+  '@metamask/json-rpc-middleware-stream': {
+    tagPrefixBeforeRename: 'json-rpc-middleware-stream@',
+    versionBeforeRename: '5.0.1',
+  },
+};
+
 type PackageMetadata = {
   name: string;
   repoUrl: string;
   tagPrefix: string;
+  packageRename?: PackageRename;
 };
 
 type ConflictResolution = {
@@ -136,6 +167,7 @@ export async function resolvePackageMetadata(
     name: packageJson.name,
     repoUrl: repositoryUrl.replace(/\.git$/u, ''),
     tagPrefix: `${packageJson.name}@`,
+    packageRename: PACKAGE_RENAMES[packageJson.name],
   };
 }
 
@@ -257,6 +289,10 @@ function mergeReleaseChanges(
  * conflict side.
  * @param options.repoUrl - The GitHub repository URL for the package.
  * @param options.tagPrefix - The changelog tag prefix for the package.
+ * @param options.packageRename - The package's rename properties, if it was
+ * renamed at some point, so that release links before the rename keep using
+ * the old tag prefix. Only affects stringification, so it's only needed for
+ * the "ours" side, which is the one that gets stringified.
  * @returns The merged, re-serialized changelog content and the number of new
  * entries that were merged in.
  */
@@ -265,11 +301,13 @@ export async function mergeChangelogs({
   theirContent,
   repoUrl,
   tagPrefix,
+  packageRename,
 }: {
   ourContent: string;
   theirContent: string;
   repoUrl: string;
   tagPrefix: string;
+  packageRename?: PackageRename;
 }): Promise<{ content: string; mergedEntryCount: number }> {
   // `ourChangelog` is used as the base to mutate and stringify. During a Git
   // merge, `ours` is the current branch (HEAD); during a rebase, it's the
@@ -281,6 +319,7 @@ export async function mergeChangelogs({
     changelogContent: ourContent,
     repoUrl,
     tagPrefix,
+    packageRename,
     formatter: oxfmt,
     shouldExtractPrLinks: true,
   });
@@ -354,18 +393,22 @@ export async function resolveChangelogConflicts(): Promise<ConflictResolutionRes
 
   for (const changelogPath of paths) {
     try {
-      const [oursContent, theirsContent, { repoUrl, tagPrefix }] =
-        await Promise.all([
-          readGitBlob(':2', changelogPath),
-          readGitBlob(':3', changelogPath),
-          resolvePackageMetadata(changelogPath),
-        ]);
+      const [
+        oursContent,
+        theirsContent,
+        { repoUrl, tagPrefix, packageRename },
+      ] = await Promise.all([
+        readGitBlob(':2', changelogPath),
+        readGitBlob(':3', changelogPath),
+        resolvePackageMetadata(changelogPath),
+      ]);
 
       const { content, mergedEntryCount } = await mergeChangelogs({
         ourContent: oursContent,
         theirContent: theirsContent,
         repoUrl,
         tagPrefix,
+        packageRename,
       });
 
       await fs.writeFile(
