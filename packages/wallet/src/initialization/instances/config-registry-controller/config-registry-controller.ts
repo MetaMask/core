@@ -11,6 +11,7 @@ export const configRegistryController: InitializationConfiguration<
   ConfigRegistryControllerMessenger
 > = {
   name: 'ConfigRegistryController',
+  reference: ConfigRegistryController,
   init: ({ state, messenger, options }) =>
     new ConfigRegistryController({
       messenger,
