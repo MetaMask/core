@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Allow `null` values for optional fields in `eth_sendTransaction` / `eth_signTransaction` params ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Fields like `maxFeePerGas`, `maxPriorityFeePerGas`, `gasPrice`, `gas`, `value`, `data`, `to`, `nonce`, `chainId`, `type`, `gasLimit`, `accessList`, and `authorizationList` now accept `null` in addition to `undefined`, which is how some dApps signal an absent value in JSON
+
 ### Changed
 
 - Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
