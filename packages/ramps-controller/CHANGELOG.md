@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.3.0]
+
 ### Added
 
 - Add `NeoBankService` for MetaMask Ramp API neo-bank-proxy endpoints under the `/neobank` prefix on the Ramp API host, including messenger actions for `getAutoramp`, `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, `getCustomerByExternalId`, `getMoonpayCustomerId`, `getWalletRegistrationStatus`, and `registerSelfHostedWallet`. Mutating POSTs do not retry (to avoid duplicate Pix/autoramp creates without a stable `Idempotency-Key`); GETs still retry 429/5xx/network errors. Optional `Idempotency-Key` is forwarded when callers supply one. Also exports `mapNeoBankAutorampToRemoteSnapshot`, `AutorampRemoteSnapshot`, and wallet-registration HTTP types (`WalletRegistrationError`, `RegistrationStatus`, `RegistrationOutcome`). ([#10031](https://github.com/MetaMask/core/pull/10031))
@@ -551,7 +553,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.3.0...HEAD
+[20.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.2.0...@metamask/ramps-controller@20.3.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.1.0...@metamask/ramps-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.0.0...@metamask/ramps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@19.0.0...@metamask/ramps-controller@20.0.0
