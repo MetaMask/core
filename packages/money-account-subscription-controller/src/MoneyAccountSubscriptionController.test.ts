@@ -267,16 +267,22 @@ function createController(options?: {
 function createDeferred<DeferredValue>(): {
   promise: Promise<DeferredValue>;
   resolve: (value: DeferredValue) => void;
+  reject: (error: Error) => void;
 } {
   let resolve: (value: DeferredValue) => void = () => undefined;
+  let reject: (error: Error) => void = () => undefined;
 
-  const promise = new Promise<DeferredValue>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
+  const promise = new Promise<DeferredValue>(
+    (resolvePromise, rejectPromise) => {
+      resolve = resolvePromise;
+      reject = rejectPromise;
+    },
+  );
 
   return {
     promise,
     resolve,
+    reject,
   };
 }
 
@@ -1774,6 +1780,57 @@ describe('MoneyAccountSubscriptionController', () => {
 
     expect(performSignOut).toHaveBeenCalledTimes(2);
     expect(getBearerToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs a queued follow-up force refresh even when the in-flight force refresh fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {
+      return undefined;
+    });
+    const { controller, getBearerToken, performSignOut, rootMessenger } =
+      createController();
+
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'initial' }),
+        },
+      }),
+    );
+    publishAuthenticationState(rootMessenger, {
+      isSignedIn: true,
+      srpSessionData: { primary: {} },
+    });
+    await flushPromises();
+
+    const deferredToken = createDeferred<string>();
+    getBearerToken.mockClear();
+    performSignOut.mockImplementation(() => undefined);
+    getBearerToken.mockReturnValueOnce(deferredToken.promise);
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'recovered' }),
+        },
+      }),
+    );
+
+    const firstRefresh = controller.forceRefresh();
+    await Promise.resolve();
+
+    expect(performSignOut).toHaveBeenCalledTimes(1);
+
+    publishSubscriptionState(rootMessenger, 'canceled');
+
+    deferredToken.reject(new Error('force refresh failed'));
+
+    await expect(firstRefresh).rejects.toThrow('force refresh failed');
+    await flushPromises();
+
+    expect(performSignOut).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
+    expect(controller.state.plan).toBe('recovered');
+
+    errorSpy.mockRestore();
   });
 
   it('does not throttle a new signed-in session after an external sign-out', async () => {

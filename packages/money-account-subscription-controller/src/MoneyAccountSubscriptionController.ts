@@ -171,6 +171,21 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
 
   #authStateRevision = 0;
 
+  // Refresh queue: refreshes run one at a time through `#drainRefreshQueue`,
+  // because a 'force' refresh signs out and back in and must not overlap
+  // with another refresh.
+  //
+  // - `#refreshPromise` is the running drain loop (null when idle); every
+  //   enqueuer awaits the same promise.
+  // - The two `#pending*` slots hold at most one request per mode, tagged
+  //   with the auth revision at enqueue time. Re-enqueueing overwrites the
+  //   slot, so bursts collapse into the latest request. The loop skips
+  //   requests whose auth revision is stale and runs 'force' before 'normal'.
+  // - A force request arriving during a running force refresh is normally
+  //   absorbed by it; `queueFollowUpForce` queues another run instead
+  //   (subscription changes need this, having already committed their
+  //   snapshot).
+  // - If a request fails, the loop still drains the rest, then rethrows.
   #refreshPromise: Promise<void> | null = null;
 
   #activeRefreshMode: RefreshMode | null = null;
@@ -342,6 +357,9 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
   }
 
   async #drainRefreshQueue(): Promise<void> {
+    let queueError: unknown;
+    let hasQueueError = false;
+
     try {
       while (
         this.#pendingForceRefreshAuthStateRevision !== null ||
@@ -357,11 +375,23 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
           continue;
         }
 
-        await this.#refreshBearerToken(mode, authStateRevision);
+        try {
+          await this.#refreshBearerToken(mode, authStateRevision);
+        } catch (error) {
+          // Keep draining so queued work (e.g. a follow-up force refresh
+          // queued by a subscription change whose snapshot is already
+          // committed) is not stranded by a transient failure.
+          queueError = error;
+          hasQueueError = true;
+        }
       }
     } finally {
       this.#activeRefreshMode = null;
       this.#refreshPromise = null;
+    }
+
+    if (hasQueueError) {
+      throw queueError;
     }
   }
 
