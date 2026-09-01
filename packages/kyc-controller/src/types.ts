@@ -211,6 +211,14 @@ export type KycIronVendorDisclaimersAccepted = {
 };
 
 /**
+ * Persisted KYC-provider disclaimer acceptance (T&C2) with a fixed `sumsub`
+ * key.
+ */
+export type KycProviderDisclaimersAccepted = {
+  sumsub: KycConsentRecord[] | null;
+};
+
+/**
  * Persisted vendor-disclaimer acceptance with fixed `moonpay` and `iron` keys.
  */
 export type KycVendorDisclaimersAccepted = {

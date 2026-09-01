@@ -1,6 +1,7 @@
 export {
   KycController,
   getDefaultKycControllerState,
+  getDefaultKycProviderDisclaimersAccepted,
   getDefaultKycVendorDisclaimersAccepted,
   controllerName,
 } from './KycController.js';
@@ -102,6 +103,7 @@ export type {
   KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,

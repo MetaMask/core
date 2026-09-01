@@ -29,6 +29,7 @@ import type {
   KycDisclaimer,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLauncher,
@@ -157,12 +158,13 @@ export type KycControllerState = {
    */
   vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
   /**
-   * Sumsub disclaimer documents the customer accepted during the last terms
-   * acceptance (persisted `{ key, version }` records). Consents-path vendors
-   * require this when resuming a session. `null` for acceptance recorded
-   * before this field existed (treated as requiring reacceptance).
+   * KYC-provider disclaimer documents the customer accepted during the last
+   * terms acceptance (persisted `{ key, version }` records under `sumsub`).
+   * Consents-path vendors require this when resuming a session. `null` for
+   * acceptance recorded before this field existed (treated as requiring
+   * reacceptance).
    */
-  sumsubDisclaimersAccepted: KycConsentRecord[] | null;
+  providerDisclaimersAccepted: KycProviderDisclaimersAccepted;
   /**
    * idOS disclaimer documents the customer accepted during the last terms
    * acceptance (persisted `{ key, version }` records). Consents-path vendors
@@ -276,7 +278,7 @@ const kycControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
-  sumsubDisclaimersAccepted: {
+  providerDisclaimersAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -395,6 +397,10 @@ export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAc
   return { moonpay: null, iron: null };
 }
 
+export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaimersAccepted {
+  return { sumsub: null };
+}
+
 /**
  * Constructs the default {@link KycController} state.
  *
@@ -407,7 +413,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     error: null,
     email: null,
     vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
-    sumsubDisclaimersAccepted: null,
+    providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
     disclaimers: [],
@@ -933,9 +939,12 @@ export class KycController extends BaseController<
       if (usesConsentsFlow(vendor)) {
         // Consents-path vendors require T&C2 flags; if they weren't persisted
         // (i.e. null from pre-migration state), require reacceptance.
-        const { sumsubDisclaimersAccepted, idosDisclaimersAccepted } =
+        const { providerDisclaimersAccepted, idosDisclaimersAccepted } =
           this.state;
-        if (sumsubDisclaimersAccepted === null || idosDisclaimersAccepted === null) {
+        if (
+          providerDisclaimersAccepted.sumsub === null ||
+          idosDisclaimersAccepted === null
+        ) {
           this.#applyUpdate((state) => {
             this.#clearAcceptedTerms(state);
             state.phase = 'terms';
@@ -944,7 +953,7 @@ export class KycController extends BaseController<
           return;
         }
         await this.#startConsentsSession({
-          sumsubDisclaimersAccepted,
+          providerDisclaimersAccepted: providerDisclaimersAccepted.sumsub,
           idosDisclaimersAccepted,
           credentialReusabilityConsentGiven:
             this.state.credentialReusabilityConsentGiven ?? false,
@@ -1067,7 +1076,7 @@ export class KycController extends BaseController<
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
-   * @param params.sumsubDisclaimersAccepted - Sumsub disclaimer documents the
+   * @param params.providerDisclaimersAccepted - Sumsub disclaimer documents the
    * customer accepted (`{ key, version }` records). Required for every vendor
    * so callers explicitly declare acceptance.
    * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
@@ -1080,14 +1089,14 @@ export class KycController extends BaseController<
   async acceptTermsAndStartSession(params?: {
     email?: string;
     product?: KycProduct;
-    sumsubDisclaimersAccepted: KycConsentRecord[];
+    providerDisclaimersAccepted: KycConsentRecord[];
     idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven?: boolean;
   }): Promise<void> {
-    const sumsubDisclaimersAccepted = params?.sumsubDisclaimersAccepted;
+    const providerDisclaimersAccepted = params?.providerDisclaimersAccepted;
     const idosDisclaimersAccepted = params?.idosDisclaimersAccepted;
     if (
-      !isValidConsentRecordList(sumsubDisclaimersAccepted) ||
+      !isValidConsentRecordList(providerDisclaimersAccepted) ||
       !isValidConsentRecordList(idosDisclaimersAccepted)
     ) {
       this.#fail('Missing T&C2 acceptance flags.');
@@ -1118,14 +1127,17 @@ export class KycController extends BaseController<
           iron: { disclaimerIds },
         };
       }
-      state.sumsubDisclaimersAccepted = sumsubDisclaimersAccepted;
+      state.providerDisclaimersAccepted = {
+        ...state.providerDisclaimersAccepted,
+        sumsub: providerDisclaimersAccepted,
+      };
       state.idosDisclaimersAccepted = idosDisclaimersAccepted;
       state.credentialReusabilityConsentGiven =
         credentialReusabilityConsentGiven;
     });
     if (usesConsentsFlow(this.state.activeVendor)) {
       await this.#startConsentsSession({
-        sumsubDisclaimersAccepted,
+        providerDisclaimersAccepted,
         idosDisclaimersAccepted,
         credentialReusabilityConsentGiven,
       });
@@ -1140,13 +1152,13 @@ export class KycController extends BaseController<
    * SumSub — skipping MoonPay Check/Auth frames.
    *
    * @param consents - T&C2 flags mapped onto the session disclaimer catalog.
-   * @param consents.sumsubDisclaimersAccepted - Accepted Sumsub disclaimer records.
+   * @param consents.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
    * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
    */
   async #startConsentsSession(consents: {
-    sumsubDisclaimersAccepted: KycConsentRecord[];
+    providerDisclaimersAccepted: KycConsentRecord[];
     idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven: boolean;
   }): Promise<void> {
@@ -1300,7 +1312,7 @@ export class KycController extends BaseController<
    *
    * @param sessionId - The UKYC session id.
    * @param consents - T&C2 flags mapped onto catalog documents.
-   * @param consents.sumsubDisclaimersAccepted - Accepted Sumsub disclaimer records.
+   * @param consents.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
    * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
@@ -1309,7 +1321,7 @@ export class KycController extends BaseController<
   async #recordSessionDisclaimers(
     sessionId: string,
     consents: {
-      sumsubDisclaimersAccepted: KycConsentRecord[];
+      providerDisclaimersAccepted: KycConsentRecord[];
       idosDisclaimersAccepted: KycConsentRecord[];
       credentialReusabilityConsentGiven: boolean;
     },
@@ -1334,7 +1346,7 @@ export class KycController extends BaseController<
       ) ||
       isAcceptedCategoryEmpty(
         catalog.kycProvider,
-        consents.sumsubDisclaimersAccepted,
+        consents.providerDisclaimersAccepted,
       )
     ) {
       throw new Error(
@@ -1348,7 +1360,7 @@ export class KycController extends BaseController<
     );
     const kycProvider = consentRecordsFromAcceptedList(
       catalog.kycProvider,
-      consents.sumsubDisclaimersAccepted,
+      consents.providerDisclaimersAccepted,
     );
     const reuseUnchanged =
       catalog.credentialReusabilityConsentGiven ===
@@ -1394,7 +1406,7 @@ export class KycController extends BaseController<
       );
       const stillMissingProvider = acceptedCategoryStillMissing(
         latest.kycProvider,
-        consents.sumsubDisclaimersAccepted,
+        consents.providerDisclaimersAccepted,
       );
       const stillMissingReuse =
         consents.credentialReusabilityConsentGiven &&
@@ -1486,7 +1498,8 @@ export class KycController extends BaseController<
   clearSavedTerms(): void {
     this.#applyUpdate((state) => {
       state.vendorDisclaimersAccepted = getDefaultKycVendorDisclaimersAccepted();
-      state.sumsubDisclaimersAccepted = null;
+      state.providerDisclaimersAccepted =
+        getDefaultKycProviderDisclaimersAccepted();
       state.idosDisclaimersAccepted = null;
       state.credentialReusabilityConsentGiven = null;
     });
@@ -1516,7 +1529,8 @@ export class KycController extends BaseController<
         iron: null,
       };
     }
-    state.sumsubDisclaimersAccepted = null;
+    state.providerDisclaimersAccepted =
+      getDefaultKycProviderDisclaimersAccepted();
     state.idosDisclaimersAccepted = null;
     state.credentialReusabilityConsentGiven = null;
   }
