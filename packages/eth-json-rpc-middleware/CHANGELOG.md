@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.2]
+
 ### Changed
 
 - Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
@@ -127,7 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...HEAD
+[24.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...@metamask/eth-json-rpc-middleware@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...@metamask/eth-json-rpc-middleware@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...@metamask/eth-json-rpc-middleware@24.0.0
 [23.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.2...@metamask/eth-json-rpc-middleware@23.1.3
