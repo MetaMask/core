@@ -1327,6 +1327,46 @@ describe('HyperLiquidProvider', () => {
         response: { data: { statuses: [{ resting: { oid: 123 } }] } },
       });
       const mockInfoClient = createMockInfoClient({
+        clearinghouseState: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            Promise.resolve({
+              marginSummary: {
+                totalMarginUsed: '100',
+                accountValue: '10100',
+              },
+              withdrawable: '10000',
+              assetPositions:
+                params?.dex === 'xyz'
+                  ? [
+                      {
+                        position: {
+                          coin: 'xyz:STOCK1',
+                          szi: '10',
+                          entryPx: '95',
+                          positionValue: '1000',
+                          unrealizedPnl: '50',
+                          marginUsed: '100',
+                          leverage: { type: 'isolated', value: 5 },
+                          liquidationPx: '70',
+                          maxLeverage: 20,
+                          returnOnEquity: '10',
+                          cumFunding: {
+                            allTime: '0',
+                            sinceOpen: '0',
+                            sinceChange: '0',
+                          },
+                        },
+                        type: 'oneWay',
+                      },
+                    ]
+                  : [],
+              crossMarginSummary: {
+                accountValue: '10100',
+                totalMarginUsed: '100',
+              },
+            }),
+          ),
         perpDexs: jest
           .fn()
           .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
@@ -2454,9 +2494,30 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.03', r: true });
     });
 
-    it('uses the caller snapshot verbatim when the WebSocket cache is not initialized', async () => {
-      // The 429-avoiding shortcut: no cache, no REST call, snapshot is authoritative
-      const getPositionsSpy = jest.spyOn(provider, 'getPositions');
+    it('uses the target-DEX REST position when the WebSocket slice is unavailable', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+            withdrawable: '10000',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.04',
+                  entryPx: '50000',
+                  positionValue: '2000',
+                  unrealizedPnl: '20',
+                  marginUsed: '200',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+        }),
+      );
 
       const result = await provider.closePosition({
         symbol: 'BTC',
@@ -2465,8 +2526,10 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
-      expect(getPositionsSpy).not.toHaveBeenCalled();
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.04', r: true });
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
     });
 
     it('fetches live positions for a symbol whose DEX the cache does not cover', async () => {
@@ -2705,9 +2768,7 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('keeps the caller snapshot when the target DEX query fails', async () => {
-      // A rate-limited or erroring clearinghouseState proves nothing about the
-      // symbol, so the snapshot must stand rather than block a closable position
+    it('reports provider unavailable when the target DEX query fails', async () => {
       primePositionsCache([], []);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -2724,14 +2785,16 @@ describe('HyperLiquidProvider', () => {
         position: createPositionSnapshot({ size: '0.07' }),
       });
 
-      expect(result.success).toBe(true);
-      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
-    it('keeps the snapshot when the HIP-3 target DEX query fails', async () => {
-      // The target DEX is queried directly now, so a failing xyz request is
-      // reported as unanswered no matter what the main DEX holds — blocking the
-      // close on that would strand the position.
+    it('reports provider unavailable when the HIP-3 target DEX query fails', async () => {
       primePositionsCache([], []);
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
@@ -2847,12 +2910,11 @@ describe('HyperLiquidProvider', () => {
         }),
       });
 
-      expect(result.success).toBe(true);
-      expect(mockOrder).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orders: [expect.objectContaining({ s: '10', r: true })],
-        }),
-      );
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(mockOrder).not.toHaveBeenCalled();
     });
 
     it('keeps the clamp when a partial close also carries usdAmount', async () => {

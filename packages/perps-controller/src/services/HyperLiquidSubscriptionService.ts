@@ -725,6 +725,15 @@ export class HyperLiquidSubscriptionService {
     this.#blocklistMarkets = blocklistMarkets;
     this.#discoveredDexNames = enabledDexs; // Store DEX order for webData3 index mapping
 
+    // A complete position snapshot must follow the current configuration, not
+    // the DEX set that happened to exist when subscriptions first started. Add
+    // new DEXs before creating their subscriptions so all-DEX reads fail closed
+    // until each one publishes on the current connection. Removing or disabling
+    // a DEX removes it from the required set immediately.
+    this.#positionSnapshotDexs = new Set(
+      hip3Enabled ? ['', ...enabledDexs] : [''],
+    );
+
     // Resolve any pending DEX discovery wait now that DEXs are available
     if (this.#dexDiscoveryResolver && enabledDexs.length > 0) {
       this.#dexDiscoveryResolver();
@@ -2226,10 +2235,14 @@ export class HyperLiquidSubscriptionService {
             // Mark this DEX as initialized (has sent first data)
             this.#initializedDexs.add(cacheKey);
 
-            // Stamp the slice with the connection that produced it. Only a
-            // clearinghouseState payload carries authoritative positions, so
-            // only this path stamps; the openOrders handler deliberately does
-            // not, because it never delivers a size or side.
+            // Stamp at delivery, not subscription creation. The SDK keeps this
+            // listener across automatic reconnects, so a captured creation
+            // epoch would reject every legitimate payload after the first
+            // reconnect. Delivery is synchronous from the raw socket `message`
+            // event through the SDK listener; the raw `close` event that retires
+            // the epoch cannot interleave with this callback. Only this
+            // clearinghouseState path stamps because openOrders carries no
+            // authoritative size or side.
             this.#dexPositionsEpoch.set(
               cacheKey,
               this.#clientService.getConnectionEpoch?.() ?? 0,

@@ -643,6 +643,65 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('requires a newly enabled DEX before certifying a complete position snapshot', async () => {
+      const callbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          callbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: jest.fn(),
+      });
+      await jest.runAllTimersAsync();
+
+      for (const dex of ['', 'xyz']) {
+        callbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+            withdrawable: '0',
+          },
+        });
+      }
+      await jest.runAllTimersAsync();
+      expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+
+      await hip3Service.updateFeatureFlags(true, ['xyz', 'flx'], [], []);
+      await jest.runAllTimersAsync();
+
+      // The old main + xyz set is no longer complete once flx is enabled.
+      expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
+
+      callbacks.get('flx')?.({
+        dex: 'flx',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '1' }, coin: 'flx:ABC' }],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      expect(hip3Service.getFreshPositionsForAllDexs()).toMatchObject([
+        { size: '1' },
+      ]);
+
+      unsubscribe();
+    });
+
     it('stops treating a DEX slice as live after a reconnect until it republishes', async () => {
       // #dexPositionsCache is NOT cleared on resubscribe, so a slice cached
       // before a reconnect survives with pre-reconnect sizes. Serving it would

@@ -9369,76 +9369,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       // behind.
       await this.#ensureReady();
 
-      // Use live position (from WebSocket) if available, otherwise fetch via REST
-      // Preferring WebSocket data avoids rate limiting issues with the REST API
-      let fetchedPosition: Position | undefined;
+      // A caller snapshot is only a hint. Use the current-connection DEX slice
+      // when available, otherwise query that DEX over HTTP. If neither source
+      // answers, fail closed: trusting the snapshot would recreate the stale
+      // side/size reduce-only rejection this method is meant to prevent.
+      const currentPositions = await this.#getPositionsForOperation(
+        parseAssetName(symbol).dex ?? '',
+      );
+      const position = currentPositions.find((pos) => pos.symbol === symbol);
 
-      if (livePosition) {
-        this.#deps.debugLogger.log('Using live position from WebSocket', {
-          symbol: livePosition.symbol,
-          size: livePosition.size,
-        });
-      } else {
-        // Fallback: fetch positions via REST API (legacy behavior)
+      if (livePosition && position && position.size !== livePosition.size) {
         this.#deps.debugLogger.log(
-          'No live position passed, falling back to REST API fetch',
+          'Stale TP/SL position snapshot: using current position',
+          {
+            symbol,
+            snapshotSize: livePosition.size,
+            liveSize: position.size,
+          },
         );
-        let positions: Position[];
-        try {
-          positions = await this.getPositions({ skipCache: true });
-        } catch (error) {
-          this.#deps.logger.error(
-            ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
-            this.#getErrorContext('updatePositionTPSL > getPositions', {
-              symbol,
-            }),
-          );
-          throw error;
-        }
-        fetchedPosition = positions.find((pos) => pos.symbol === symbol);
-      }
-
-      let position = livePosition ?? fetchedPosition;
-
-      // Re-validate a caller-supplied snapshot against the freshest WebSocket
-      // position cache, as closePosition does. Clients pass a throttled
-      // snapshot (~1s old on mobile), so a concurrent fill, a liquidation, or a
-      // partial close leaves its size larger than — or its side opposite to —
-      // the real position. Both feed this order: the size becomes a reduce-only
-      // trigger size, and the side is inverted into the trigger's direction, so
-      // a stale snapshot yields an order HyperLiquid rejects with "Reduce only
-      // order would increase position". Reading the cache issues no REST
-      // request, so this does not reintroduce 429 rate limiting.
-      //
-      // Only a size the cache actually holds is adopted. A symbol missing from
-      // a published DEX slice is left alone rather than treated as closed: the
-      // pre-cancel sweep below and the exchange itself are the authorities on
-      // that, and failing here would refuse TP/SL updates this method
-      // previously served.
-      // No aggregate-initialized guard: that flag is only set once EVERY
-      // expected DEX has published, so it stays false while this symbol's own
-      // slice is already live — exactly when revalidation matters most. The
-      // per-DEX getter owns freshness and returns null unless its slice was
-      // published on the current connection, which is a strictly better answer.
-      if (livePosition) {
-        const cachedPosition = this.#subscriptionService
-          .getCachedPositionsForDex?.(parseAssetName(symbol).dex ?? '')
-          ?.find((pos) => pos.symbol === symbol);
-
-        if (cachedPosition) {
-          if (cachedPosition.size !== livePosition.size) {
-            this.#deps.debugLogger.log(
-              'Stale TP/SL position snapshot: using live WebSocket position',
-              {
-                symbol,
-                snapshotSize: livePosition.size,
-                liveSize: cachedPosition.size,
-              },
-            );
-          }
-
-          position = cachedPosition;
-        }
       }
 
       if (!position) {
@@ -10151,114 +10099,30 @@ export class HyperLiquidProvider implements PerpsProvider {
       // concrete close order after validation.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Use provided position (from WebSocket) or fetch from cache
-      // This avoids unnecessary API calls and prevents 429 rate limiting
-      let { position } = params;
+      // A caller snapshot is never authoritative for a reduce-only close. Use
+      // the current DEX slice or its HTTP fallback, and fail closed if neither
+      // answers. This keeps the size and side on one freshness contract across
+      // snapshot and snapshot-less callers.
+      const currentPositions = await this.#getPositionsForOperation(
+        parseAssetName(params.symbol).dex ?? '',
+      );
+      const position = currentPositions.find(
+        (pos) => pos.symbol === params.symbol,
+      );
 
-      // Re-validate the caller-supplied snapshot against the freshest WebSocket
-      // position cache. Clients pass a throttled snapshot (~1s old on mobile),
-      // so a concurrent TP/SL fill, a liquidation, or a double-tapped close
-      // leaves the snapshot's side/size larger than (or opposite to) the real
-      // position and HyperLiquid rejects the reduce-only order with "Reduce
-      // only order would increase position". Reading the cache never issues a
-      // REST request, so this does not reintroduce 429 rate limiting.
-      //
-      // No aggregate-initialized guard: that flag is only set once EVERY
-      // expected DEX has published, so it stays false while this symbol's own
-      // slice is already live — precisely the staggered-startup and reconnect
-      // windows this revalidation exists for. The per-DEX getter owns freshness
-      // and answers null unless its slice was published on the current
-      // connection, so gating on the aggregate flag could only suppress a
-      // fresher answer.
-      if (position) {
-        // Read the symbol's own DEX slice, not the aggregate. The aggregate is
-        // only rebuilt once every expected DEX has published, so after a
-        // WebSocket reconnect — which resets the initialized-DEX set without
-        // clearing these caches — it can sit frozen at pre-reconnect contents
-        // while the per-DEX slices keep updating. Deciding "this DEX is covered"
-        // from the per-DEX map and then reading the position from the aggregate
-        // mixed a fresh answer with stale data: a close could reuse a stale size,
-        // or throw for a position that is open.
-        const dexPositions =
-          this.#subscriptionService.getCachedPositionsForDex?.(
-            parseAssetName(params.symbol).dex ?? '',
-          );
-        const livePosition = dexPositions?.find(
-          (pos) => pos.symbol === params.symbol,
+      if (
+        params.position &&
+        position &&
+        position.size !== params.position.size
+      ) {
+        this.#deps.debugLogger.log(
+          'Stale close position snapshot: using current position',
+          {
+            coin: params.symbol,
+            snapshotSize: params.position.size,
+            liveSize: position.size,
+          },
         );
-
-        if (livePosition) {
-          if (livePosition.size !== position.size) {
-            this.#deps.debugLogger.log(
-              'Stale close position snapshot: using live WebSocket position',
-              {
-                coin: params.symbol,
-                snapshotSize: position.size,
-                liveSize: livePosition.size,
-              },
-            );
-          }
-
-          position = livePosition;
-        } else if (dexPositions) {
-          // That DEX has published and does not hold this symbol, so the position
-          // is already closed (e.g. a double-tapped close). This is the same read
-          // the lookup above used, so the two can never disagree. Fail here rather
-          // than falling back to REST: the cache is the freshest source, so a REST
-          // lookup can only burn a request that risks 429s and, if it lags, hand
-          // back a position that no longer exists.
-          throw new Error(`No position found for ${params.symbol}`);
-        } else if (this.#subscriptionService.isPositionsCacheInitialized()) {
-          // The cache is live but holds nothing for this symbol's DEX — a HIP-3
-          // DEX whose subscription has not published this session — so the
-          // symbol's absence proves nothing. Spend one REST request to get live
-          // data rather than trusting a snapshot the exchange may have moved
-          // past.
-          //
-          // This one REST fallback stays gated on the aggregate flag, unlike the
-          // revalidation above. A completely cold cache means the WebSocket has
-          // delivered nothing at all, and the snapshot shortcut exists precisely
-          // so a close in that state costs no request; firing REST here would
-          // reintroduce the 429 pressure it was added to avoid.
-          this.#deps.debugLogger.log(
-            'Position cache does not cover this DEX: fetching live positions',
-            { coin: params.symbol },
-          );
-
-          // Query the symbol's own DEX so the outcome carries provenance.
-          // getPositions() fans out across every enabled DEX, flattens the subset
-          // that answered and turns any failure into [], so it cannot distinguish
-          // "this DEX answered and holds nothing" from "this DEX failed or was
-          // never queried" — and those two need opposite decisions.
-          const { answered, positions } = await this.#queryDexPositions(
-            parseAssetName(params.symbol).dex,
-          );
-          const livePositionFromApi = positions.find(
-            (pos) => pos.symbol === params.symbol,
-          );
-
-          if (livePositionFromApi) {
-            position = livePositionFromApi;
-          } else if (answered) {
-            // The DEX answered without this symbol — even with no positions at
-            // all — so it is genuinely closed.
-            throw new Error(`No position found for ${params.symbol}`);
-          }
-          // Otherwise the query failed, so the absence proves nothing: keep the
-          // caller's snapshot rather than block a position that may be closable.
-          // Snapshot-less callers cannot make that fallback and fail with
-          // PROVIDER_NOT_AVAILABLE in #getPositionsForOperation instead.
-        }
-      }
-
-      if (!position) {
-        // Prefer the symbol's current per-DEX slice over the aggregate, which
-        // can stay frozen until every expected DEX republishes. With no usable
-        // cache source, retain the existing REST fallback (TAT-3873).
-        const positions = await this.#getPositionsForOperation(
-          parseAssetName(params.symbol).dex ?? '',
-        );
-        position = positions.find((pos) => pos.symbol === params.symbol);
       }
 
       if (!position) {
@@ -10749,7 +10613,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
     if (targetDex !== undefined) {
       const targetPositions =
-        this.#subscriptionService.getCachedPositionsForDex(targetDex);
+        this.#subscriptionService.getCachedPositionsForDex?.(targetDex) ?? null;
       if (targetPositions !== null) {
         return [...targetPositions];
       }

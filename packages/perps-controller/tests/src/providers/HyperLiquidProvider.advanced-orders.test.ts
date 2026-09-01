@@ -446,6 +446,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -1940,6 +1942,9 @@ describe('HyperLiquidProvider', () => {
       it('floors a partial size onto the size grid instead of rounding it up', async () => {
         // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
         // more than the 0.1155 the caller asked to cover.
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...position, size: '0.1155' },
+        ]);
         await provider.updatePositionTPSL({
           symbol: 'BTC',
           takeProfitPrice: '60000',
@@ -1958,6 +1963,9 @@ describe('HyperLiquidProvider', () => {
       it('floors a whole-position TP/SL size onto the size grid', async () => {
         // Position-bound TP/SL sends size '0', so the formatted whole-position
         // size is only reachable alongside a partial trigger.
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...position, size: '0.1155' },
+        ]);
         await provider.updatePositionTPSL({
           symbol: 'BTC',
           takeProfitPrice: '60000',
@@ -2052,9 +2060,30 @@ describe('HyperLiquidProvider', () => {
         expect(request.orders[0].b).toBe(true);
       });
 
-      it('keeps the caller snapshot when the position cache is not initialized', async () => {
-        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
-          false,
+      it('uses the target-DEX REST position when the WebSocket slice is unavailable', async () => {
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue(null);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
         );
 
         await provider.updatePositionTPSL({
@@ -2068,16 +2097,13 @@ describe('HyperLiquidProvider', () => {
         const request = (
           mockClientService.getExchangeClient().order as jest.Mock
         ).mock.calls[0][0];
-        expect(request.orders[1].s).toBe('0.1');
+        expect(request.orders[1].s).toBe('0.04');
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
       });
 
-      it('keeps the caller snapshot when the cache does not hold the symbol', async () => {
-        // A DEX slice that has published without this symbol proves nothing
-        // here: the exchange and the pre-cancel sweep are the authorities, and
-        // refusing would break TP/SL updates this path previously served.
-        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
-          true,
-        );
+      it('does not submit TP/SL for a position the current DEX slice reports closed', async () => {
         mockSubscriptionService.getCachedPositionsForDex = jest
           .fn()
           .mockReturnValue([]);
@@ -2090,11 +2116,37 @@ describe('HyperLiquidProvider', () => {
           position,
         });
 
-        expect(result.success).toBe(true);
-        const request = (
-          mockClientService.getExchangeClient().order as jest.Mock
-        ).mock.calls[0][0];
-        expect(request.orders[1].s).toBe('0.1');
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('No position found for BTC');
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('reports provider unavailable instead of trusting a snapshot when REST fails', async () => {
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue(null);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest
+              .fn()
+              .mockRejectedValue(new Error('REST unavailable')),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        });
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
       });
     });
 
