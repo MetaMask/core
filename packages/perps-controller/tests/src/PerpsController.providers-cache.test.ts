@@ -821,6 +821,23 @@ describe('PerpsController', () => {
       expect(controller.state.activeProvider).toBe('hyperliquid');
     });
 
+    it('falls back to hyperliquid when activeProvider is a removed provider persisted from an older version', async () => {
+      // `activeProvider` is persisted, so a user who had selected MYX before it
+      // was removed (TAT-3892) still has 'myx' in restored state. Init must
+      // self-heal that value rather than throwing, or perps stays broken on
+      // every launch until the client clears state.
+      controller.testUpdate((state) => {
+        (state as { activeProvider: string }).activeProvider = 'myx';
+      });
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initialized,
+      );
+    });
+
     it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must

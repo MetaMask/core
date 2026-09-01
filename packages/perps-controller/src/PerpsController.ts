@@ -2437,8 +2437,14 @@ export class PerpsController extends BaseController<
       this.#debugLog(
         `PerpsController: Using direct provider (${activeProvider})`,
       );
-    } else if (activeProvider === 'lighter') {
-      const directProvider = this.providers.get(activeProvider);
+    } else {
+      // Any other direct provider, including a value persisted by an older
+      // version whose venue has since been removed (e.g. 'myx', removed in
+      // TAT-3892). `activeProvider` is persisted, so throwing here would fail
+      // initialization on every launch — the stale value must self-heal.
+      const directProvider = this.providers.get(
+        activeProvider as PerpsProviderType,
+      );
       if (directProvider) {
         this.activeProviderInstance = directProvider;
       } else {
@@ -2452,10 +2458,6 @@ export class PerpsController extends BaseController<
       }
       this.#debugLog(
         `PerpsController: Using direct provider (${this.activeProviderInstance === hyperLiquidProvider ? 'hyperliquid' : activeProvider})`,
-      );
-    } else {
-      throw new Error(
-        `Unsupported provider: ${String(activeProvider)}. Currently only 'hyperliquid', 'lighter', and 'aggregated' are supported.`,
       );
     }
   }
