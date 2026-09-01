@@ -345,6 +345,34 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
+      userTwapHistory: jest.fn((_params: any, callback: any) => {
+        setTimeout(() => {
+          callback({
+            user: _params.user,
+            history: [
+              {
+                time: 1_700_000_000,
+                state: {
+                  coin: 'BTC',
+                  executedNtl: '400',
+                  executedSz: '4',
+                  minutes: 30,
+                  randomize: false,
+                  reduceOnly: false,
+                  side: 'B',
+                  sz: '10',
+                  timestamp: 1_700_000_000_000,
+                  user: _params.user,
+                },
+                status: { status: 'activated' },
+                twapId: 77,
+              },
+            ],
+            isSnapshot: true,
+          });
+        }, 0);
+        return Promise.resolve(mockSubscription);
+      }),
       l2Book: jest.fn((_params: any, callback: any) => {
         // Simulate l2Book data
         setTimeout(() => {
@@ -1562,6 +1590,135 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribeOrders();
       unsubscribeAccount();
       unsubscribeOICaps();
+    });
+  });
+
+  describe('subscribeToTwapOrders', () => {
+    const adaptStub = (history: any) =>
+      history.map((entry: any) => ({
+        orderId: String(entry.twapId),
+        symbol: entry.state.coin,
+        side: entry.state.side === 'B' ? 'buy' : 'sell',
+        size: entry.state.sz,
+        executedSize: entry.state.executedSz,
+        remainingSize: '6',
+        executedNotional: entry.state.executedNtl,
+        fillProgressBps: 4000,
+        timeProgressBps: 5000,
+        elapsedTimeMilliseconds: 300_000,
+        durationMinutes: entry.state.minutes,
+        randomize: entry.state.randomize,
+        reduceOnly: entry.state.reduceOnly,
+        status: 'active',
+        startedAt: entry.state.timestamp,
+        lastUpdated: entry.state.timestamp,
+        fills: [],
+      }));
+
+    it('delivers adapted schedules from the venue push channel', async () => {
+      // Arrange
+      const callback = jest.fn();
+
+      // Act
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+
+      // Assert
+      expect(callback).toHaveBeenCalledWith(
+        [expect.objectContaining({ orderId: '77', symbol: 'BTC' })],
+        true,
+      );
+      unsubscribe();
+    });
+
+    it('opens one venue subscription for two subscribers on the same account', async () => {
+      // Arrange
+      const first = jest.fn();
+      const second = jest.fn();
+
+      // Act
+      const unsubscribeFirst = service.subscribeToTwapOrders({
+        callback: first,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+      const unsubscribeSecond = service.subscribeToTwapOrders({
+        callback: second,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+
+      // Assert
+      expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(1);
+      unsubscribeFirst();
+      unsubscribeSecond();
+    });
+
+    it('keeps the venue subscription while another subscriber remains', async () => {
+      // Arrange
+      const first = jest.fn();
+      const second = jest.fn();
+      const unsubscribeFirst = service.subscribeToTwapOrders({
+        callback: first,
+        adapt: adaptStub,
+      });
+      const unsubscribeSecond = service.subscribeToTwapOrders({
+        callback: second,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+
+      const subscription = await mockSubscriptionClient.userTwapHistory.mock
+        .results[0].value;
+      expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(1);
+
+      // Act
+      unsubscribeFirst();
+
+      // Assert
+      expect(subscription.unsubscribe).not.toHaveBeenCalled();
+      unsubscribeSecond();
+    });
+
+    it('closes the venue subscription once the last subscriber leaves', async () => {
+      // Arrange
+      const callback = jest.fn();
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+
+      const subscription = await mockSubscriptionClient.userTwapHistory.mock
+        .results[0].value;
+
+      // Act
+      unsubscribe();
+      await jest.runAllTimersAsync();
+
+      // Assert
+      expect(subscription.unsubscribe).toHaveBeenCalled();
+    });
+
+    it('stops delivering to a callback after it unsubscribes', async () => {
+      // Arrange
+      const callback = jest.fn();
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+      const deliveredWhileSubscribed = callback.mock.calls.length;
+
+      // Act
+      unsubscribe();
+      await jest.runAllTimersAsync();
+
+      // Assert
+      expect(callback).toHaveBeenCalledTimes(deliveredWhileSubscribed);
     });
   });
 });

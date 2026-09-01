@@ -5,6 +5,8 @@ import type {
   AllMidsWsEvent,
   WebData3WsEvent,
   UserFillsWsEvent,
+  UserTwapHistoryWsEvent,
+  TwapHistoryResponse,
   ActiveAssetCtxWsEvent,
   ActiveSpotAssetCtxWsEvent,
   BboWsEvent,
@@ -35,10 +37,12 @@ import type {
   OrderFill,
   Order,
   AccountState,
+  TwapOrder,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeOrderBookParams,
@@ -141,6 +145,12 @@ export class HyperLiquidSubscriptionService {
 
   readonly #orderSubscribers = new Set<(orders: Order[]) => void>();
 
+  // TWAP subscribers keyed by accountId (normalized: undefined -> 'default')
+  readonly #twapOrderSubscribers = new Map<
+    string,
+    Set<(twapOrders: TwapOrder[], isSnapshot?: boolean) => void>
+  >();
+
   readonly #accountSubscribers = new Set<(account: AccountState) => void>();
 
   // Track which subscribers want market data
@@ -196,6 +206,19 @@ export class HyperLiquidSubscriptionService {
 
   // Order fill subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #orderFillSubscriptions = new Map<string, ISubscription>();
+
+  // TWAP subscriptions keyed by accountId (normalized: undefined -> 'default')
+  readonly #twapOrderSubscriptions = new Map<string, ISubscription>();
+
+  // In-flight TWAP subscribe calls, so concurrent subscribers share one socket
+  readonly #pendingTwapOrderSubscriptions = new Map<string, Promise<void>>();
+
+  // Retained per-account adapters so a reconnect can re-open TWAP sockets
+  // without a live caller to supply the venue-shape mapping again.
+  readonly #twapOrderAdapters = new Map<
+    string,
+    (history: TwapHistoryResponse) => TwapOrder[]
+  >();
 
   readonly #spotStateSubscriptions = new Map<string, ISubscription>();
 
@@ -2897,6 +2920,173 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Subscribe to venue-native TWAP lifecycle updates.
+   *
+   * HyperLiquid pushes the same `twapHistory` payload the REST read returns,
+   * so the caller supplies the adapter that turns raw history entries into
+   * `TwapOrder`s. That keeps the venue-shape knowledge in the provider and
+   * leaves this service owning transport, fan-out, and teardown only.
+   *
+   * Slice fills are not part of this channel — the venue streams schedule
+   * state, not individual fills — so adapted orders carry the fills the
+   * caller's adapter resolves for them.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @param params.callback - Receives adapted TWAP schedules, newest first.
+   * @param params.accountId - Optional CAIP account ID; defaults to selected.
+   * @param params.adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A cleanup function to unsubscribe from TWAP updates.
+   */
+  public subscribeToTwapOrders(
+    params: SubscribeTwapOrdersParams & {
+      adapt: (history: TwapHistoryResponse) => TwapOrder[];
+    },
+  ): () => void {
+    const { callback, accountId, adapt } = params;
+    const normalizedAccountId = accountId ?? 'default';
+    const unsubscribe = this.#createSubscription(
+      this.#twapOrderSubscribers,
+      callback,
+      normalizedAccountId,
+    );
+    this.#twapOrderAdapters.set(normalizedAccountId, adapt);
+
+    this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
+      this.#logErrorUnlessClearing(
+        ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToTwapOrders',
+        ),
+        this.#getErrorContext('subscribeToTwapOrders'),
+      );
+    });
+
+    return () => {
+      unsubscribe();
+
+      const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+      if (!subscribers || subscribers.size === 0) {
+        const subscription =
+          this.#twapOrderSubscriptions.get(normalizedAccountId);
+        if (subscription) {
+          subscription.unsubscribe().catch((error: Error) => {
+            this.#logErrorUnlessClearing(
+              ensureError(
+                error,
+                'HyperLiquidSubscriptionService.subscribeToTwapOrders',
+              ),
+              this.#getErrorContext('subscribeToTwapOrders.unsubscribe'),
+            );
+          });
+          this.#twapOrderSubscriptions.delete(normalizedAccountId);
+        }
+        this.#twapOrderAdapters.delete(normalizedAccountId);
+      }
+    };
+  }
+
+  /**
+   * Ensure one TWAP history subscription is active per accountId, shared
+   * across every callback registered for that account.
+   *
+   * @param accountId - Optional CAIP account ID to subscribe for.
+   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A promise that resolves when the subscription is established.
+   */
+  async #ensureTwapOrderSubscription(
+    accountId: CaipAccountId | undefined,
+    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+  ): Promise<void> {
+    const normalizedAccountId = accountId ?? 'default';
+
+    if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+      return;
+    }
+
+    // Another subscriber is already opening this account's socket. Awaiting it
+    // rather than starting a second one is what keeps two near-simultaneous
+    // subscribes on one venue subscription.
+    const pending = this.#pendingTwapOrderSubscriptions.get(normalizedAccountId);
+    if (pending) {
+      await pending;
+      return;
+    }
+
+    const subscriptionPromise = this.#createTwapOrderSubscription(
+      normalizedAccountId,
+      accountId,
+      adapt,
+    );
+    this.#pendingTwapOrderSubscriptions.set(
+      normalizedAccountId,
+      subscriptionPromise,
+    );
+    try {
+      await subscriptionPromise;
+    } finally {
+      this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+    }
+  }
+
+  /**
+   * Open one TWAP history subscription and register it for teardown.
+   *
+   * @param normalizedAccountId - Map key for this account ('default' when unset).
+   * @param accountId - Optional CAIP account ID to resolve the address from.
+   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A promise that resolves once the subscription is registered.
+   */
+  async #createTwapOrderSubscription(
+    normalizedAccountId: string,
+    accountId: CaipAccountId | undefined,
+    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+  ): Promise<void> {
+    const subscriptionClient = this.#clientService.getSubscriptionClient();
+    if (!subscriptionClient) {
+      await this.#clientService.ensureSubscriptionClient(
+        this.#walletService.createWalletAdapter(),
+      );
+      const client = this.#clientService.getSubscriptionClient();
+      if (!client) {
+        throw new Error('SubscriptionClient not available');
+      }
+      await this.#createTwapOrderSubscription(
+        normalizedAccountId,
+        accountId,
+        adapt,
+      );
+      return;
+    }
+
+    const userAddress =
+      await this.#walletService.getUserAddressWithDefault(accountId);
+
+    const subscription = await subscriptionClient.userTwapHistory(
+      { user: userAddress },
+      (data: UserTwapHistoryWsEvent) => {
+        const twapOrders = adapt(data.history);
+
+        const subscribers =
+          this.#twapOrderSubscribers.get(normalizedAccountId);
+        if (subscribers) {
+          subscribers.forEach((subscriberCallback) => {
+            subscriberCallback(twapOrders, data.isSnapshot);
+          });
+        }
+      },
+    );
+
+    // A concurrent caller may have established the subscription while this
+    // one awaited the client or the address; keep the first and drop ours so
+    // the venue is not left with an orphaned socket.
+    if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+      subscription.unsubscribe().catch(() => undefined);
+      return;
+    }
+    this.#twapOrderSubscriptions.set(normalizedAccountId, subscription);
+  }
+
+  /**
    * Subscribe to live order updates
    * Uses the shared per-DEX subscriptions to avoid duplicate connections
    *
@@ -4589,6 +4779,35 @@ export class HyperLiquidSubscriptionService {
       );
     }
 
+    // Re-establish TWAP subscriptions if there are TWAP subscribers
+    if (this.#twapOrderSubscribers.size > 0) {
+      // Existing subscription references are dead after reconnection
+      this.#twapOrderSubscriptions.clear();
+      this.#pendingTwapOrderSubscriptions.clear();
+
+      // Pair each account with its retained adapter first, so the restore map
+      // has no absent-adapter case to represent.
+      const restorable = Array.from(this.#twapOrderSubscribers.keys()).flatMap(
+        (normalizedAccountId) => {
+          const adapt = this.#twapOrderAdapters.get(normalizedAccountId);
+          return adapt ? [{ normalizedAccountId, adapt }] : [];
+        },
+      );
+      await Promise.all(
+        restorable.map(async ({ normalizedAccountId, adapt }) => {
+          const accountId =
+            normalizedAccountId === 'default'
+              ? undefined
+              : (normalizedAccountId as CaipAccountId);
+          await this.#ensureTwapOrderSubscription(accountId, adapt).catch(
+            () => {
+              // Ignore errors during TWAP subscription restoration
+            },
+          );
+        }),
+      );
+    }
+
     // Re-establish user data subscriptions if there are user data subscribers
     if (
       this.#positionSubscribers.size > 0 ||
@@ -4752,6 +4971,8 @@ export class HyperLiquidSubscriptionService {
     this.#priceSubscribers.clear();
     this.#positionSubscribers.clear();
     this.#orderFillSubscribers.clear();
+    this.#twapOrderSubscribers.clear();
+    this.#twapOrderAdapters.clear();
     this.#orderSubscribers.clear();
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
@@ -4764,6 +4985,15 @@ export class HyperLiquidSubscriptionService {
       });
     });
     this.#orderFillSubscriptions.clear();
+
+    // Clear TWAP subscriptions
+    this.#twapOrderSubscriptions.forEach((subscription) => {
+      subscription.unsubscribe().catch(() => {
+        // Ignore errors during cleanup
+      });
+    });
+    this.#twapOrderSubscriptions.clear();
+    this.#pendingTwapOrderSubscriptions.clear();
 
     // Clear spotState subscriptions. Bump generation + drop in-flight
     // promises so any racing #ensureSpotStateSubscription continuation

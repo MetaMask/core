@@ -134,6 +134,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -13563,6 +13564,44 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params - The operation parameters.
    * @returns A cleanup function to remove the subscription.
    */
+  /**
+   * Stream TWAP lifecycle updates from the venue's own push channel.
+   *
+   * The venue streams schedule state without slice fills, so each pushed
+   * schedule carries the fills already known from the last read rather than an
+   * empty list — a subscriber that renders fill history keeps what it has
+   * until the next `getTwapOrders()` refresh supplies newer ones.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function to unsubscribe from TWAP updates.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    return this.#subscriptionService.subscribeToTwapOrders({
+      ...params,
+      adapt: (history) => {
+        const now = Date.now();
+        const ordersById = new Map<string, TwapOrder>();
+        for (const historyEntry of history) {
+          const order = this.#adaptTwapOrder({
+            historyEntry,
+            sliceFills: [],
+            now,
+          });
+          if (!order) {
+            continue;
+          }
+          const existing = ordersById.get(order.orderId);
+          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+            ordersById.set(order.orderId, order);
+          }
+        }
+        return [...ordersById.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+      },
+    });
+  }
+
   subscribeToOrders(params: SubscribeOrdersParams): () => void {
     return this.#subscriptionService.subscribeToOrders(params);
   }

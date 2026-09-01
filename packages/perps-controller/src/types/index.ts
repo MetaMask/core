@@ -1343,6 +1343,16 @@ export type SubscribeOrdersParams = {
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };
 
+export type SubscribeTwapOrdersParams = {
+  /**
+   * Receives the full set of current and terminal TWAP schedules, newest
+   * first — the same shape `getTwapOrders()` returns, so a client can swap a
+   * poll for this subscription without reshaping its state.
+   */
+  callback: (twapOrders: TwapOrder[], isSnapshot?: boolean) => void;
+  accountId?: CaipAccountId; // Optional: defaults to selected account
+};
+
 export type SubscribeAccountParams = {
   callback: (account: AccountState | null) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -1872,6 +1882,11 @@ export type PerpsProvider = {
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
+  /**
+   * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
+   * push channel omit it, and clients fall back to polling `getTwapOrders`.
+   */
+  subscribeToTwapOrders?(params: SubscribeTwapOrdersParams): () => void;
   getChaseOrders?(): Promise<ChaseOrder[]>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
