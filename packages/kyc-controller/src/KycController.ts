@@ -22,6 +22,7 @@ import type {
   CreateUkycSessionParams,
   EncryptionSchema,
 } from './KycService.js';
+import { controllerLog } from './logger.js';
 import type {
   KycConsentDocument,
   KycCustomerIdentity,
@@ -44,7 +45,6 @@ import {
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
-import { controllerLog } from './logger.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 // === GENERAL ===
