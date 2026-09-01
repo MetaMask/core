@@ -440,7 +440,6 @@ describe('HyperLiquidProvider', () => {
       // Per-DEX position slices. Default to "nothing published", so these tests
       // keep the aggregate behaviour they were written against.
       getCachedPositionsForDex: jest.fn().mockReturnValue(null),
-      getPublishedPositionDexs: jest.fn().mockReturnValue([]),
       getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),

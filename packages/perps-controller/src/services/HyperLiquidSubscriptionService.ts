@@ -119,6 +119,10 @@ export class HyperLiquidSubscriptionService {
   // Ensures all DEXs send initial data before notifying subscribers
   #expectedDexs: Set<string> = new Set();
 
+  // DEXs the current configuration requires for a complete position snapshot.
+  // Unlike #expectedDexs, subscription failures do not remove entries here.
+  #positionSnapshotDexs: Set<string> = new Set();
+
   #initializedDexs: Set<string> = new Set();
 
   // Subscriber collections
@@ -1962,6 +1966,7 @@ export class HyperLiquidSubscriptionService {
       // Track expected DEXs for synchronized notifications
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
+      this.#positionSnapshotDexs = new Set(dexsToSubscribe);
       this.#initializedDexs = new Set();
       // Position freshness needs no reset here, or anywhere else on this path:
       // each slice carries the connection epoch that produced it, so one from a
@@ -2580,6 +2585,7 @@ export class HyperLiquidSubscriptionService {
 
       // Clear DEX tracking for synchronized notifications
       this.#expectedDexs.clear();
+      this.#positionSnapshotDexs.clear();
       this.#initializedDexs.clear();
       this.#dexPositionsEpoch.clear();
 
@@ -2976,17 +2982,17 @@ export class HyperLiquidSubscriptionService {
    */
   public getFreshPositionsForAllDexs(): Position[] | null {
     if (
-      this.#expectedDexs.size === 0 ||
-      !Array.from(this.#expectedDexs).every((dexName) =>
+      this.#positionSnapshotDexs.size === 0 ||
+      !Array.from(this.#positionSnapshotDexs).every((dexName) =>
         this.#isPositionDexFresh(dexName),
       )
     ) {
       return null;
     }
 
-    return Array.from(this.#expectedDexs).flatMap((dexName) => [
-      ...(this.#dexPositionsCache.get(dexName) ?? []),
-    ]);
+    return Array.from(this.#positionSnapshotDexs).flatMap(
+      (dexName) => this.#dexPositionsCache.get(dexName) ?? [],
+    );
   }
 
   /**
@@ -3044,30 +3050,6 @@ export class HyperLiquidSubscriptionService {
     // stands on its own rather than failing every read closed.
     const currentEpoch = this.#clientService.getConnectionEpoch?.();
     return currentEpoch === undefined || stampedEpoch === currentEpoch;
-  }
-
-  /**
-   * Get the DEXs whose positions are authoritative for the current connection.
-   *
-   * These are exactly the DEXs `getCachedPositionsForDex` can answer non-null
-   * for, so a caller that needs to sweep every live slice — rather than only
-   * the DEXs some other (possibly stale) list happens to mention — can
-   * enumerate them here without guessing. Reading this issues no request.
-   *
-   * Membership is granted only by a `clearinghouseState` payload and is reset
-   * on resubscribe, so a slice cached before a reconnect is never reported as
-   * live. The openOrders handler deliberately does not grant it: that handler
-   * only re-decorates already cached positions with TP/SL and never delivers a
-   * position's size or side. Membership is also withheld while the socket is
-   * not `Connected`, so the window between a drop and the resubscribe — during
-   * which trading remains HTTP-capable — reports nothing as live.
-   *
-   * @returns DEX identifiers with live positions ('' is the main DEX).
-   */
-  public getPublishedPositionDexs(): string[] {
-    return Array.from(this.#dexPositionsEpoch.keys()).filter((dexName) =>
-      this.#isPositionDexFresh(dexName),
-    );
   }
 
   /**

@@ -587,7 +587,7 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
-    it('reports the full position cache fresh only after every expected DEX publishes', async () => {
+    it('requires every configured position DEX even when an order subscription fails', async () => {
       const callbacks = new Map<string, (payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(
         (params: any, callback: (payload: unknown) => void) => {
@@ -596,6 +596,14 @@ describe('HyperLiquidSubscriptionService', () => {
             unsubscribe: jest.fn().mockResolvedValue(undefined),
           });
         },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: any, _callback: (payload: unknown) => void) =>
+          (params.dex || '') === 'xyz'
+            ? Promise.reject(new Error('xyz orders unavailable'))
+            : Promise.resolve({
+                unsubscribe: jest.fn().mockResolvedValue(undefined),
+              }),
       );
       const hip3Service = new HyperLiquidSubscriptionService(
         mockClientService,
@@ -689,7 +697,6 @@ describe('HyperLiquidSubscriptionService', () => {
       await jest.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
-      expect(service.getPublishedPositionDexs()).toContain('');
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       // The socket closes and reopens: the client service retires the epoch.
@@ -699,7 +706,6 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // The stale slice is still cached, but must not be served as live
       expect(service.getCachedPositionsForDex('')).toBeNull();
-      expect(service.getPublishedPositionDexs()).not.toContain('');
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
 
       // An openOrders payload must NOT restore it: its handler writes the
@@ -707,7 +713,6 @@ describe('HyperLiquidSubscriptionService', () => {
       publishOrdersFor('');
       await jest.runAllTimersAsync();
       expect(service.getCachedPositionsForDex('')).toBeNull();
-      expect(service.getPublishedPositionDexs()).not.toContain('');
 
       // Only clearinghouseState restores it, with the post-reconnect size
       publish?.({
@@ -721,7 +726,6 @@ describe('HyperLiquidSubscriptionService', () => {
       await jest.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
-      expect(service.getPublishedPositionDexs()).toContain('');
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       unsubscribe();
@@ -738,7 +742,6 @@ describe('HyperLiquidSubscriptionService', () => {
       await jest.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
-      expect(service.getPublishedPositionDexs()).toContain('');
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       // The SDK reconnects silently. Connection state never leaves 'connected'
@@ -747,7 +750,6 @@ describe('HyperLiquidSubscriptionService', () => {
       mockClientService.getConnectionEpoch = jest.fn(() => 2);
 
       expect(service.getCachedPositionsForDex('')).toBeNull();
-      expect(service.getPublishedPositionDexs()).not.toContain('');
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
 
       unsubscribe();
@@ -824,7 +826,6 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(clearinghouseCalls).toBe(callsAfterInitialSetup);
       // ...and their freshness must therefore survive the retry
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
-      expect(service.getPublishedPositionDexs()).toContain('');
       expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       retrying();

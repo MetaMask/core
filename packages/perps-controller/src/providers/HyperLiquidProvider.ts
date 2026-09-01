@@ -4700,8 +4700,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { symbol, dexName, positionSize, orderPrice, leverage, isBuy } =
       params;
 
-    // Get existing position to check if we're increasing
-    const positions = await this.getPositions();
+    // Use the same target-DEX freshness policy as position-management actions;
+    // a stale aggregate can over- or under-fund the temporary HIP-3 transfer.
+    const positions = await this.#getPositionsForOperation(dexName);
     const existingPosition = positions.find((pos) => pos.symbol === symbol);
 
     let requiredMarginWithBuffer: number;
@@ -9020,7 +9021,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Prefer the aggregate plus current per-DEX slices to avoid REST. With no
       // aggregate, keep the REST fallback intact rather than overwrite its
       // result with a WebSocket slice of unknown relative recency.
-      const positions = await this.#getPositionsWithDexCacheRefresh();
+      const positions = await this.#getPositionsForOperation();
 
       // Filter positions based on params
       positionsToClose =
@@ -10245,6 +10246,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
           // Otherwise the query failed, so the absence proves nothing: keep the
           // caller's snapshot rather than block a position that may be closable.
+          // Snapshot-less callers cannot make that fallback and fail with
+          // PROVIDER_NOT_AVAILABLE in #getPositionsForOperation instead.
         }
       }
 
@@ -10252,7 +10255,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // Prefer the symbol's current per-DEX slice over the aggregate, which
         // can stay frozen until every expected DEX republishes. With no usable
         // cache source, retain the existing REST fallback (TAT-3873).
-        const positions = await this.#getPositionsWithDexCacheRefresh(
+        const positions = await this.#getPositionsForOperation(
           parseAssetName(params.symbol).dex ?? '',
         );
         position = positions.find((pos) => pos.symbol === params.symbol);
@@ -10429,7 +10432,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Prefer the target DEX's connection-epoch-aware slice before deriving
       // the position side. If no usable cache exists, retain getPositions()'s
       // existing REST fallback rather than add another request.
-      const positions = await this.#getPositionsWithDexCacheRefresh(
+      const positions = await this.#getPositionsForOperation(
         parseAssetName(symbol).dex ?? '',
       );
       const position = positions.find((pos) => pos.symbol === symbol);
@@ -10743,12 +10746,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * position list.
    * @returns Positions from one provenance-safe cache/REST path.
    */
-  async #getPositionsWithDexCacheRefresh(
-    targetDex?: string,
-  ): Promise<Position[]> {
+  async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
     if (targetDex !== undefined) {
       const targetPositions =
-        this.#subscriptionService.getCachedPositionsForDex?.(targetDex) ?? null;
+        this.#subscriptionService.getCachedPositionsForDex(targetDex);
       if (targetPositions !== null) {
         return [...targetPositions];
       }
@@ -10761,6 +10762,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         targetDex || null,
       );
       if (!answered) {
+        // A snapshot-supplied close handles the same failure by retaining its
+        // caller snapshot. These callers have no safe local fallback.
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
       return positions;
@@ -10775,7 +10778,45 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#deps.debugLogger.log(
       'Position caches incomplete: fetching full REST positions',
     );
-    return this.getPositions({ skipCache: true });
+    return this.#queryAllDexPositionsStrict();
+  }
+
+  /**
+   * Query every enabled DEX over HTTP and reject a partial snapshot.
+   *
+   * A batch action cannot treat the successful subset as complete: doing so
+   * could close one DEX and report success while another live position was
+   * never checked.
+   *
+   * @returns A complete position list across all enabled DEXs.
+   * @throws `PROVIDER_NOT_AVAILABLE` when any expected DEX fails.
+   */
+  async #queryAllDexPositionsStrict(): Promise<Position[]> {
+    await this.#ensureClientsInitialized();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
+      { user: userAddress },
+      (userParam) => infoClient.clearinghouseState(userParam),
+    );
+
+    if (failedDexs.length > 0) {
+      this.#deps.debugLogger.log(
+        'Complete REST position snapshot unavailable',
+        {
+          failedDexs: failedDexs.map(
+            ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
+          ),
+        },
+      );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    return results.flatMap(({ data }) =>
+      (data.assetPositions ?? [])
+        .filter((assetPos) => assetPos.position.szi !== '0')
+        .map((assetPos) => adaptPositionFromSDK(assetPos)),
+    );
   }
 
   /**
@@ -10800,9 +10841,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<{ answered: boolean; positions: Position[] }> {
     try {
       await this.#ensureClientsInitialized();
-      this.#clientService.ensureInitialized();
-
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const userAddress = await this.#walletService.getUserAddressWithDefault();
       const state = await infoClient.clearinghouseState(
         dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
