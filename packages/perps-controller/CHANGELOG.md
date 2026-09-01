@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix sub-$1 HyperLiquid price rounding miscounting significant figures, needlessly clipping precision on limit/TP/SL/trigger/chase prices and mispricing post-only order chases ([#10052](https://github.com/MetaMask/core/pull/10052))
+
 ## [15.0.0]
 
 ### Added
