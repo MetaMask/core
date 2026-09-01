@@ -2,7 +2,7 @@ import execa from 'execa';
 import { promises as fs } from 'fs';
 
 import {
-  findConflictedChangelogFiles,
+  findConflictingChangelogFiles,
   mergeChangelogs,
   readGitBlob,
   resolveChangelogConflicts,
@@ -58,8 +58,8 @@ describe('changelog-conflicts', () => {
       );
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -83,8 +83,8 @@ ${sharedEntry}`);
 ${sharedEntry}`);
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -103,8 +103,8 @@ ${sharedEntry}`);
 ${sharedEntry}`);
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -126,8 +126,8 @@ ${sharedEntry}
 ${sharedEntry}`);
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -153,8 +153,8 @@ ${sharedEntry}`);
       );
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -184,8 +184,8 @@ ${sharedEntry}`);
       );
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -226,8 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       const oursContent = buildChangelog('');
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -283,8 +283,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 `;
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -355,8 +355,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 `;
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -392,8 +392,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       );
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl: REPO_URL,
         tagPrefix: TAG_PREFIX,
       });
@@ -417,7 +417,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         ].join('\n'),
       });
 
-      const result = await findConflictedChangelogFiles();
+      const result = await findConflictingChangelogFiles();
 
       expect(result).toStrictEqual(['packages/foo/CHANGELOG.md']);
       expect(execa).toHaveBeenCalledWith(
@@ -430,7 +430,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     it('returns an empty array when there are no unmerged paths', async () => {
       (execa as unknown as jest.Mock).mockResolvedValue({ stdout: '' });
 
-      expect(await findConflictedChangelogFiles()).toStrictEqual([]);
+      expect(await findConflictingChangelogFiles()).toStrictEqual([]);
     });
   });
 

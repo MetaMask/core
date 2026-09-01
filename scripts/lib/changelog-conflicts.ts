@@ -53,7 +53,7 @@ type ConflictResolutionResult = {
  *
  * @returns The repo-relative paths of the conflicted changelog files.
  */
-export async function findConflictedChangelogFiles(): Promise<string[]> {
+export async function findConflictingChangelogFiles(): Promise<string[]> {
   const { stdout } = await execa(
     'git',
     ['diff', '--name-only', '--diff-filter=U'],
@@ -169,15 +169,18 @@ function getChangeKey(change: Change): string {
  * other changes are appended to the end. Relative order within `incoming` is
  * preserved.
  *
- * @param base - The category's changes to merge into.
- * @param incoming - The category's changes to merge from.
+ * @param baseChanges - The category's changes to merge into.
+ * @param incomingChanges - The category's changes to merge from.
  * @returns The number of new entries added to `base`.
  */
-function mergeCategoryEntries(base: Change[], incoming: Change[]): number {
-  const initialLength = base.length;
-  const existingKeys = new Set(base.map(getChangeKey));
+function mergeCategoryEntries(
+  baseChanges: Change[],
+  incomingChanges: Change[],
+): number {
+  const initialLength = baseChanges.length;
+  const existingKeys = new Set(baseChanges.map(getChangeKey));
 
-  for (const change of incoming) {
+  for (const change of incomingChanges) {
     const key = getChangeKey(change);
     if (existingKeys.has(key)) {
       continue;
@@ -186,55 +189,59 @@ function mergeCategoryEntries(base: Change[], incoming: Change[]): number {
     existingKeys.add(key);
 
     if (isBreakingChange(change)) {
-      const firstNonBreakingIndex = base.findIndex(
+      const firstNonBreakingIndex = baseChanges.findIndex(
         (entry) => !isBreakingChange(entry),
       );
 
       const insertIndex =
-        firstNonBreakingIndex === -1 ? base.length : firstNonBreakingIndex;
+        firstNonBreakingIndex === -1
+          ? baseChanges.length
+          : firstNonBreakingIndex;
 
-      base.splice(insertIndex, 0, change);
+      baseChanges.splice(insertIndex, 0, change);
     } else {
-      base.push(change);
+      baseChanges.push(change);
     }
   }
 
-  return base.length - initialLength;
+  return baseChanges.length - initialLength;
 }
 
 /**
  * Merge new entries from `incoming` into `base` across every category
  * present on either side, mutating `base` in place.
  *
- * @param base - The release's changes (by category) to merge into.
- * @param incoming - The release's changes (by category) to merge from.
+ * @param baseReleaseChanges - The release's changes (by category) to merge
+ * into.
+ * @param incomingReleaseChanges - The release's changes (by category) to merge
+ * from.
  * @returns The number of new entries added to `base`.
  */
 function mergeReleaseChanges(
-  base: ReleaseChanges,
-  incoming: ReleaseChanges,
+  baseReleaseChanges: ReleaseChanges,
+  incomingReleaseChanges: ReleaseChanges,
 ): number {
-  let addedCount = 0;
+  let addedEntriesCount = 0;
   const categories = new Set([
-    ...Object.keys(base),
-    ...Object.keys(incoming),
+    ...Object.keys(baseReleaseChanges),
+    ...Object.keys(incomingReleaseChanges),
   ]) as Set<Category>;
 
   for (const category of categories) {
-    const incomingEntries = incoming[category] ?? [];
+    const incomingEntries = incomingReleaseChanges[category] ?? [];
     if (incomingEntries.length === 0) {
       continue;
     }
 
-    base[category] ??= [];
+    baseReleaseChanges[category] ??= [];
 
-    addedCount += mergeCategoryEntries(
-      base[category] as Change[],
+    addedEntriesCount += mergeCategoryEntries(
+      baseReleaseChanges[category] as Change[],
       incomingEntries,
     );
   }
 
-  return addedCount;
+  return addedEntriesCount;
 }
 
 /**
@@ -244,9 +251,9 @@ function mergeReleaseChanges(
  * below existing breaking entries and other new entries appended.
  *
  * @param options - Options.
- * @param options.oursContent - The changelog content on the "ours" conflict
+ * @param options.ourContent - The changelog content on the "ours" conflict
  * side.
- * @param options.theirsContent - The changelog content on the "theirs"
+ * @param options.theirContent - The changelog content on the "theirs"
  * conflict side.
  * @param options.repoUrl - The GitHub repository URL for the package.
  * @param options.tagPrefix - The changelog tag prefix for the package.
@@ -254,53 +261,53 @@ function mergeReleaseChanges(
  * entries that were merged in.
  */
 export async function mergeChangelogs({
-  oursContent,
-  theirsContent,
+  ourContent,
+  theirContent,
   repoUrl,
   tagPrefix,
 }: {
-  oursContent: string;
-  theirsContent: string;
+  ourContent: string;
+  theirContent: string;
   repoUrl: string;
   tagPrefix: string;
 }): Promise<{ content: string; mergedEntryCount: number }> {
-  // `ours` is used as the base to mutate and stringify. During a Git merge,
-  // `ours` is the current branch (HEAD); during a rebase, it's the upstream
-  // branch being rebased onto. In both cases, that's the side more likely to
-  // already contain entries also present in `theirs`, so preserving its
-  // existing order (and only appending genuinely new entries from `theirs`)
+  // `ourChangelog` is used as the base to mutate and stringify. During a Git
+  // merge, `ours` is the current branch (HEAD); during a rebase, it's the
+  // upstream branch being rebased onto. In both cases, that's the side more
+  // likely to already contain entries also present in `theirs`, so preserving
+  // its existing order (and only appending genuinely new entries from `theirs`)
   // produces more intuitive results than the reverse.
-  const ours = parseChangelog({
-    changelogContent: oursContent,
+  const ourChangelog = parseChangelog({
+    changelogContent: ourContent,
     repoUrl,
     tagPrefix,
     formatter: oxfmt,
     shouldExtractPrLinks: true,
   });
 
-  const theirs = parseChangelog({
-    changelogContent: theirsContent,
+  const theirChangelog = parseChangelog({
+    changelogContent: theirContent,
     repoUrl,
     tagPrefix,
     shouldExtractPrLinks: true,
   });
 
   let mergedEntryCount = mergeReleaseChanges(
-    ours.getUnreleasedChanges(),
-    theirs.getUnreleasedChanges(),
+    ourChangelog.getUnreleasedChanges(),
+    theirChangelog.getUnreleasedChanges(),
   );
 
   const oursVersions = new Set(
-    ours.getReleases().map(({ version }) => version),
+    ourChangelog.getReleases().map(({ version }) => version),
   );
 
-  for (const theirsRelease of theirs.getReleases()) {
-    if (!oursVersions.has(theirsRelease.version)) {
+  for (const theirRelease of theirChangelog.getReleases()) {
+    if (!oursVersions.has(theirRelease.version)) {
       // `addRelease` can only add to the very start or end of the release
       // list, so insert at the start and then reposition it into its
       // correct descending-SemVer slot among the existing releases.
-      ours.addRelease(theirsRelease);
-      const releases = ours.getReleases();
+      ourChangelog.addRelease(theirRelease);
+      const releases = ourChangelog.getReleases();
       const [inserted] = releases.splice(0, 1);
 
       const sortedIndex = releases.findIndex(({ version }) =>
@@ -311,18 +318,21 @@ export async function mergeChangelogs({
       releases.splice(insertIndex, 0, inserted);
     }
 
-    const oursReleaseChanges = ours.getReleaseChanges(theirsRelease.version);
-    const theirsReleaseChanges = theirs.getReleaseChanges(
-      theirsRelease.version,
+    const ourReleaseChanges = ourChangelog.getReleaseChanges(
+      theirRelease.version,
     );
+    const theirReleaseChanges = theirChangelog.getReleaseChanges(
+      theirRelease.version,
+    );
+
     mergedEntryCount += mergeReleaseChanges(
-      oursReleaseChanges,
-      theirsReleaseChanges ?? {},
+      ourReleaseChanges,
+      theirReleaseChanges ?? {},
     );
   }
 
   return {
-    content: await ours.toString(),
+    content: await ourChangelog.toString(),
     mergedEntryCount,
   };
 }
@@ -338,7 +348,7 @@ export async function mergeChangelogs({
  * skipped, along with the reason for each skip.
  */
 export async function resolveChangelogConflicts(): Promise<ConflictResolutionResult> {
-  const paths = await findConflictedChangelogFiles();
+  const paths = await findConflictingChangelogFiles();
   const resolved: ConflictResolution[] = [];
   const skipped: ConflictSkip[] = [];
 
@@ -352,8 +362,8 @@ export async function resolveChangelogConflicts(): Promise<ConflictResolutionRes
         ]);
 
       const { content, mergedEntryCount } = await mergeChangelogs({
-        oursContent,
-        theirsContent,
+        ourContent: oursContent,
+        theirContent: theirsContent,
         repoUrl,
         tagPrefix,
       });
