@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
+
 ### Fixed
 
 - Prevent Relay quotes from offering EIP-7702 gas fee token sponsorship when the source account does not support EIP-7702 ([#9897](https://github.com/MetaMask/core/pull/9897))
