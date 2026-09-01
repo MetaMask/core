@@ -279,12 +279,44 @@ describe('orderCalculations - scale ladder', () => {
         }),
       ).toBe('50001');
     });
+
+    // Regression: formatHyperLiquidPrice used to miscount a sub-$1 price's
+    // significant figures and re-round it back down onto a coarser grid than
+    // getPriceTick (used two lines above to compute `improved`) had just
+    // produced. A post-only buy chase meant to rest one tick above the best
+    // bid came back AT the best bid instead — resting behind the whole
+    // queue — and a sell chase came back BELOW the best bid, which the venue
+    // treats as crossing the book and rejects for a post-only (ALO) order.
+    it('rests strictly inside the spread for a sub-$1 book (HMSTR-shaped)', () => {
+      const bestBid = 0.000171;
+      const bestAsk = 0.000175;
+
+      const buyChase = computeChaseQuotePrice({
+        bestBid,
+        bestAsk,
+        isBuy: true,
+        szDecimals: 0,
+      });
+      expect(buyChase).toBe('0.000172');
+      expect(Number(buyChase)).toBeGreaterThan(bestBid);
+
+      const sellChase = computeChaseQuotePrice({
+        bestBid,
+        bestAsk,
+        isBuy: false,
+        szDecimals: 0,
+      });
+      expect(sellChase).toBe('0.000174');
+      expect(Number(sellChase)).toBeLessThan(bestAsk);
+      expect(Number(sellChase)).toBeGreaterThan(bestBid);
+    });
   });
 
   describe('getPriceTick', () => {
     it.each([
       ['decimal-bound at a low price', 12, 4, 0.01],
       ['significant-figure-bound at a high price', 50000, 3, 1],
+      ['significant-figure-bound at a sub-$1 price', 0.000171, 0, 0.000001],
     ])('is %s', (_label, price, szDecimals, expected) => {
       expect(getPriceTick({ price, szDecimals })).toBeCloseTo(expected, 10);
     });

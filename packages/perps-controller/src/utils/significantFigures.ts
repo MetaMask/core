@@ -19,15 +19,21 @@ export const countSignificantFigures = (priceString: string): number => {
   }
 
   const normalized = number.toString();
-  const [integerPart, decimalPart = ''] = normalized.split('.');
-  const trimmedInteger = integerPart.replace(/^-?0*/u, '') || '';
+  // Strip the sign and decimal point so leading zeros are counted across the
+  // *whole* number, not just the integer part — "0.001234" has to lose its
+  // "0" integer part and its two leading fractional zeros to land on the
+  // correct 4 significant figures ("1234"), not 6.
+  const digitsOnly = normalized.replace(/^-/u, '').replace('.', '');
+  const withoutLeadingZeros = digitsOnly.replace(/^0+/u, '') || '0';
 
-  const effectiveIntegerLength = decimalPart
-    ? trimmedInteger.length
-    : trimmedInteger.replace(/0+$/u, '').length ||
-      (trimmedInteger.length > 0 ? 1 : 0);
+  // Trailing zeros are only ambiguous (not significant) for an integer with
+  // no decimal point (e.g. "1000" could be 1-4 sig figs); once there's a
+  // decimal point, every digit already present is significant.
+  if (!normalized.includes('.')) {
+    return withoutLeadingZeros.replace(/0+$/u, '').length || 1;
+  }
 
-  return effectiveIntegerLength + decimalPart.length;
+  return withoutLeadingZeros.length;
 };
 
 /**
@@ -80,26 +86,20 @@ export const roundToSignificantFigures = (
     return priceString;
   }
 
-  const normalized = number.toString();
-  const [integerPart, decimalPart = ''] = normalized.split('.');
-
-  const trimmedInteger = integerPart.replace(/^-?0*/u, '') || '';
-  const integerSigFigs = trimmedInteger.length;
-
-  if (!decimalPart) {
-    return normalized;
+  if (countSignificantFigures(cleaned) <= maxSigFigs) {
+    return number.toString();
   }
 
-  const allowedDecimalDigits = maxSigFigs - integerSigFigs;
+  // Same order-of-magnitude approach as getPriceTick (orderCalculations.ts) —
+  // keep the two significant-figures rules in sync instead of maintaining
+  // two independent implementations of the same HyperLiquid precision rule.
+  const magnitude = Math.floor(Math.log10(Math.abs(number)));
+  const decimalPlaces = maxSigFigs - 1 - magnitude;
 
-  if (allowedDecimalDigits <= 0) {
+  if (decimalPlaces <= 0) {
     return Math.round(number).toString();
   }
 
-  if (decimalPart.length <= allowedDecimalDigits) {
-    return normalized;
-  }
-
-  const rounded = number.toFixed(allowedDecimalDigits);
+  const rounded = number.toFixed(decimalPlaces);
   return Number.parseFloat(rounded).toString();
 };
