@@ -629,7 +629,6 @@ export class KycService extends BaseDataService<
       method: 'POST',
       body: JSON.stringify({ email: params.email }),
     });
-    console.log('============> createVendorCustomer', data);
     return this.#validateResponse(
       data,
       VendorCustomerResponseStruct,
