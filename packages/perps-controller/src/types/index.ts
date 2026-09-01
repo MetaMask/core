@@ -1570,6 +1570,20 @@ export type GetOrderCapabilitiesParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Inputs for a provider-normalized Scale price ladder preview. */
+export type GetScalePriceLadderParams = {
+  /** Market symbol, including its provider route when applicable. */
+  symbol: string;
+  /** Lowest raw price in the ladder. */
+  minPrice: number;
+  /** Highest raw price in the ladder. */
+  maxPrice: number;
+  /** Number of ladder rungs. */
+  count: number;
+  /** Optional explicit route; omitted uses the active/default provider. */
+  providerId?: PerpsProviderType;
+};
+
 /** Provider-owned strategy capabilities for the selected market route. */
 export type DirectProviderOrderCapabilitiesUnavailableReason =
   | 'provider_unavailable'
@@ -1602,6 +1616,19 @@ export type DirectProviderOrderCapabilities =
 
 export type PerpsOrderCapabilities =
   | ReadyPerpsOrderCapabilities
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: OrderCapabilitiesUnavailableReason;
+    }>;
+
+/** Result of provider-routed Scale price normalization. */
+export type PerpsScalePriceLadder =
+  | Readonly<{
+      status: 'ready';
+      providerId: PerpsProviderType;
+      prices: readonly string[];
+    }>
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
@@ -1825,6 +1852,17 @@ export type PerpsProvider = {
   getOrderCapabilities?(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities>;
+
+  /**
+   * Normalize a Scale ladder using the selected provider's venue rules.
+   *
+   * @param params - Market, ladder bounds, count, and optional provider route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the provider cannot normalize the requested ladder.
+   */
+  getScalePriceLadder?(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder>;
 
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes
