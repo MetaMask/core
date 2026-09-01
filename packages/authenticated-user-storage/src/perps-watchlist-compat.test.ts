@@ -16,7 +16,6 @@ const prefs = (): NotificationPreferences => ({
     pushNotificationsEnabled: true,
     watchlistMarkets: {
       hyperliquid: { testnet: ['BTC'], mainnet: ['ETH'] },
-      myx: { testnet: ['SOL'], mainnet: [] },
     },
   },
   socialAI: {
@@ -34,17 +33,21 @@ const prefs = (): NotificationPreferences => ({
   },
 });
 
-// MYX was removed as a perps venue (TAT-3892). The `myx` watchlist key is
-// deprecated but still declared as optional, because preference blobs already
-// stored server-side contain it. These cases pin that both shapes validate.
-describe('PerpsWatchlistMarkets deprecated myx key', () => {
-  it('still accepts a stored blob that contains a myx watchlist', () => {
-    expect(() => assertNotificationPreferences(prefs())).not.toThrow();
+// MYX was removed as a perps venue (TAT-3892), so `PerpsWatchlistMarkets` no
+// longer declares a `myx` key. Preference blobs stored server-side before the
+// removal still carry one, and they must keep validating — that relies on
+// `PerpsWatchlistMarketsSchema` being a superstruct `type()` (unknown keys
+// pass) rather than an `object()` (unknown keys are rejected). This pins that.
+describe('PerpsWatchlistMarkets after the MYX removal', () => {
+  it('accepts a blob stored before the removal, which still carries a myx watchlist', () => {
+    const stored = prefs();
+    Object.assign(stored.perps.watchlistMarkets as object, {
+      myx: { testnet: ['SOL'], mainnet: [] },
+    });
+    expect(() => assertNotificationPreferences(stored)).not.toThrow();
   });
 
-  it('accepts a blob written after the removal, with no myx key', () => {
-    const noMyx = prefs();
-    delete (noMyx.perps.watchlistMarkets as { myx?: unknown }).myx;
-    expect(() => assertNotificationPreferences(noMyx)).not.toThrow();
+  it('accepts a blob written after the removal, with hyperliquid only', () => {
+    expect(() => assertNotificationPreferences(prefs())).not.toThrow();
   });
 });
