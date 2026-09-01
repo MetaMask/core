@@ -198,7 +198,7 @@ function createEventResponseMock(
 function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
-  gasCost: number = 0,
+  gasCost: string = '0',
 ): SimulationResponse {
   return {
     transactions: [
@@ -343,7 +343,7 @@ describe('Balance Change Utils', () => {
 
       it('ignoring gas cost', async () => {
         simulateTransactionsMock.mockResolvedValueOnce(
-          createNativeBalanceResponse('0x3', '0x8', 2),
+          createNativeBalanceResponse('0x3', '0x8', '2'),
         );
 
         const result = await getBalanceChanges(REQUEST_MOCK);

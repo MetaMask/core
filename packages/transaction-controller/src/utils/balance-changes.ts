@@ -699,7 +699,7 @@ function extractRootRevert(
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
-  offset: number = 0,
+  offset: string = '0',
 ): SimulationBalanceChange | undefined {
   const newBalanceBN = hexToBN(newBalance).add(new BN(offset));
   const previousBalanceBN = hexToBN(previousBalance);

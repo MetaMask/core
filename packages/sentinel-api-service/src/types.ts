@@ -449,10 +449,10 @@ export type SentinelSimulationResponseTransaction = {
   fees?: SentinelSimulationFeeLevel[];
 
   /**
-   * Estimated total gas cost of the transaction, in wei as a decimal number.
+   * Estimated total gas cost of the transaction, in wei as a decimal string.
    * Included in the `stateDiff` when `withGas` is true.
    */
-  gasCost?: number;
+  gasCost?: string;
 
   /** Required `gasLimit` for the transaction. */
   gasLimit?: Hex;

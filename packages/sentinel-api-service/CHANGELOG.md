@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct `SentinelSimulationResponseTransaction.gasCost` type from `number` to `string`, matching the value the Sentinel API actually returns on the wire ([#PLACEHOLDER](https://github.com/MetaMask/core/pull/PLACEHOLDER))
+
 ## [1.0.1]
 
 ### Changed
