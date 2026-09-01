@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
+## [80.1.1]
+
+### Fixed
+
+- Read `priceData.cost` from backend-provided quote metadata and use it to sort quotes ([#10012](https://github.com/MetaMask/core/pull/10012))
+
 ## [80.1.0]
 
 ### Added
@@ -1965,7 +1976,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...HEAD
+[80.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.0...@metamask/bridge-controller@80.1.1
 [80.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.0.0...@metamask/bridge-controller@80.1.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.1...@metamask/bridge-controller@80.0.0
 [79.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.0...@metamask/bridge-controller@79.3.1

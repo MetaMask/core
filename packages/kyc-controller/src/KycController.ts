@@ -185,9 +185,9 @@ export type KycControllerState = {
   /** Error encountered while loading disclaimers, or `null`. */
   disclaimersError: string | null;
   /**
-   * Session-scoped idOS / KYC-provider disclaimer catalog from
-   * `GET /sessions/{sessionId}/disclaimers`. `null` until a UKYC session
-   * exists and the catalog has been fetched.
+   * idOS / KYC-provider disclaimer catalog from `GET /disclaimers` or
+   * `GET /sessions/{sessionId}/disclaimers`. `null` until the catalog has
+   * been fetched (typically after a UKYC session exists).
    */
   sessionDisclaimers: KycSessionDisclaimers | null;
 
@@ -986,7 +986,7 @@ export class KycController extends BaseController<
         });
       }
       const disclaimers = await this.messenger.call(
-        'KycService:fetchDisclaimers',
+        'KycService:fetchVendorDisclaimers',
         {
           vendor: this.state.activeVendor,
           country,
@@ -1900,12 +1900,18 @@ export class KycController extends BaseController<
       return null;
     }
 
-    // Verify each jwtChain against Fractal's JWKS, then confirm the returned
-    // server public key matches the value attested inside the verified JWT
-    // payload before trusting it for wrapping.
-    const { keys } = await this.messenger.call('KycService:fetchJwks');
-    this.#assertAttestedServerPublicKey(keys, encryptionDataKey);
-    this.#assertAttestedServerPublicKey(keys, capabilityTokenSchema);
+    // Verify each schema's jwtChain against the matching issuer JWKS, then
+    // confirm the returned server public key matches the value attested inside
+    // the verified JWT payload before trusting it for wrapping.
+    // `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken` by the
+    // idOS relay.
+    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
+      await Promise.all([
+        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+        this.messenger.call('KycService:fetchIdosRelayJwks'),
+      ]);
+    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+    this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
 
     // Derive the data_encryption_key from the local_user_secret, mint a
     // read-only capability token, and wrap both for the session server. Only
@@ -1967,8 +1973,10 @@ export class KycController extends BaseController<
    * Runs the SumSub document-verification sub-flow end to end:
    *
    *  1. creates a UKYC session, receiving per-secret encryption schemas;
-   *  2. verifies each schema's `jwtChain` against the Fractal JWKS and confirms
-   *     the attested session server public key;
+   *  2. verifies the `encryptionDataKey` schema's `jwtChain` against the
+   *     idOS enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
+   *     the idOS relay JWKS, then confirms each attested session server public
+   *     key;
    *  3. derives the `data_encryption_key` from the wallet's UKYC
    *     `local_user_secret` and wraps it for the session server;
    *  4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the
@@ -2527,7 +2535,8 @@ export class KycController extends BaseController<
    * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
    * a key that was swapped out-of-band after the chain was signed.
    *
-   * @param keys - The Fractal JWKS used to verify the chain.
+   * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
+   * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
    * @param schema - The encryption schema returned by session creation.
    */
   #assertAttestedServerPublicKey(keys: Jwk[], schema: EncryptionSchema): void {

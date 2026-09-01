@@ -8,6 +8,7 @@ import type {
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
+import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
   OrderType,
@@ -307,6 +308,16 @@ export type OrderParams = {
   providerId?: PerpsProviderType;
 };
 
+export type ScaleOrderChild =
+  | {
+      state: 'resting' | 'filled';
+      orderId: string;
+    }
+  | {
+      state: 'waitingForFill' | 'waitingForTrigger';
+      orderId?: never;
+    };
+
 export type OrderResult = {
   success?: boolean;
   /**
@@ -326,30 +337,90 @@ export type OrderResult = {
   orderId?: string;
   error?: string;
   filledSize?: string; // Amount filled
-  // Final normalized size actually submitted to the exchange (post precision
-  // rounding, USD recalculation, and any $10-minimum retry). Present only when
-  // the provider reached submission; used to classify partial fills against the
-  // real submitted size rather than the caller's pre-normalization params.size.
+  // Full normalized size submitted to the exchange (post precision rounding,
+  // USD recalculation, and any $10-minimum retry). Present only when the
+  // provider reached submission.
   submittedSize?: string;
-  averagePrice?: string; // Average execution price
+  // Normalized size of the submitted rungs that the exchange accepted. This
+  // differs from `submittedSize` when a non-atomic Scale batch is partly
+  // rejected.
+  acceptedSize?: string;
+  // Size-weighted average execution price. Present only when the result
+  // includes fills.
+  averagePrice?: string;
+  // Size-weighted limit price of accepted Scale rungs. This is a submission
+  // price, not an execution price.
+  weightedAverageLimitPrice?: string;
+  // Every accepted child of a Scale batch and its immediate placement state.
+  // Waiting children do not carry an exchange order ID; cancel the Scale handle
+  // to cancel both resting and waiting children.
+  acceptedChildren?: ScaleOrderChild[];
   // Exchange IDs tied to a multi-order or recovery result. On a successful
   // strategy placement, `orderId` carries the strategy handle and these IDs
   // identify its individual children.
   //
-  // For a `scale` ladder they stay valid: the rungs are placed once and are not
-  // replaced, so they remain cancellable even after the session-scoped handle is
-  // gone. For a `chase` this is only the order resting at placement time — the
+  // For a `scale` ladder these identify only resting, cancellable rungs. Every
+  // accepted rung and its state is reported in `acceptedChildren`. Scale rungs
+  // are never replaced, so a resting ID stays valid after the handle is gone.
+  // For a `chase` this is only the order resting at placement time — the
   // strategy cancels and re-places as the touch moves, and each replacement has
   // a new ID that is held in the session rather than reported here, so the value
   // goes stale on the first re-price. Cancel a live chase by its handle.
   //
-  // Failure results can mix filled IDs with orders that may still rest, so a
-  // caller must not blindly cancel every ID. When TP/SL protection cannot be
-  // fully restored, these identify the old orders that survived, may still be
-  // live when reconciliation failed, or were recreated; an empty array means
-  // none are known or potentially live.
+  // When TP/SL protection cannot be fully restored, these identify the old
+  // orders that survived, may still be live when reconciliation failed, or were
+  // recreated; an empty array means none are known or potentially live.
   childOrderIds?: string[];
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
+  /**
+   * Structured record of venue state that was ALREADY committed before the
+   * placement failed — e.g. a leverage change that landed before the order
+   * was rejected. Present only on failure results where such state exists;
+   * callers must not treat the failure as "nothing happened".
+   */
+  partialState?: {
+    /** Leverage (in x) the venue already applied for this symbol. */
+    leverageUpdated?: number;
+  };
+};
+
+/**
+ * A TP/SL protection change that could not be safely completed
+ * automatically and requires an explicit new protection intent from the
+ * user. Surfaced by providers with durable settlement state (Lighter).
+ */
+export type PerpsPendingManualRecovery = {
+  symbol: string;
+  /** Durable identity (address:accountIndex:apiKey:symbol). */
+  settlementKey: string;
+  recordedAt: number;
+  /** Human-readable cause of the parked state. */
+  reason: string;
+  /** Whether the interrupted operation replaced or removed protection. */
+  priorIntent: 'replace' | 'remove';
+  /** Venue order ids still on the books when the state was parked. */
+  survivingOrderIds: string[];
+  /** What the user should do to resolve the state. */
+  actionNeeded: string;
+};
+
+/**
+ * A previously ambiguous dispatch whose outcome was later resolved.
+ * Writes stay blocked until each outcome is explicitly acknowledged via
+ * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
+ * state) — except `failed`, which is retry-safe and non-blocking.
+ */
+export type PerpsRecoveredDispatch = {
+  /** Stable id for selective acknowledgment. */
+  recoveryId: string;
+  /** Venue transaction type of the dispatch. */
+  kind: number;
+  /** Human-readable operation intent. */
+  intent: string;
+  txHash: string | null;
+  outcome: 'succeeded' | 'failed' | 'unknown';
+  /** How the outcome was determined (e.g. `tx-status:2`, `rest-advance`). */
+  evidence: string;
 };
 
 export type ChaseOrderStatus =
@@ -1039,9 +1110,33 @@ export type MYXCredentials = {
   brokerAddressMainnet?: string;
 };
 
+export type LighterCredentials = {
+  /** Whether Lighter provider is enabled via local env var. */
+  enabled?: boolean;
+  /** Lighter account index override (testnet tooling). */
+  accountIndexTestnet?: number;
+  accountIndexMainnet?: number;
+  /** API key slot to register/use (defaults to LIGHTER_DEFAULT_API_KEY_INDEX). */
+  apiKeyIndex?: number;
+  /**
+   * Client-owned Lighter signer. The client creates and persists the venue
+   * key behind this bridge; Core receives only signing results and public
+   * registration data, matching the injected-wallet boundary used by
+   * HyperLiquid.
+   *
+   * Mobile uses an off-screen WebView bridge; headless clients may use an
+   * in-process WASM bridge.
+   * Optional — without it the Lighter provider is read-only. Lives on the
+   * Lighter credentials bag, not PerpsPlatformDependencies, so the shared
+   * platform surface stays venue-agnostic.
+   */
+  signerBridge?: LighterSignerBridge;
+};
+
 export type PerpsProviderCredentials = {
   hyperliquid?: HyperLiquidCredentials;
   myx?: MYXCredentials;
+  lighter?: LighterCredentials;
 };
 
 export type PriceUpdate = {
@@ -1336,6 +1431,8 @@ export type LiquidationPriceParams = {
   positionSize?: number; // Optional: for more accurate calculations
   marginType?: 'isolated' | 'cross'; // Optional: defaults to isolated
   asset?: string; // Optional: for asset-specific maintenance margins
+  /** Provider that owns the position when calculations are aggregated. */
+  providerId?: PerpsProviderType;
 };
 
 /**
@@ -1458,6 +1555,8 @@ export type PositionModifyPreviewResult =
 export type MaintenanceMarginParams = {
   asset: string;
   positionSize?: number; // Optional: for tiered margin systems
+  /** Provider that owns the position when calculations are aggregated. */
+  providerId?: PerpsProviderType;
 };
 
 /**
@@ -1743,6 +1842,12 @@ export type PerpsProvider = {
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
+  // Durable-settlement surfacing (optional: providers with durable local
+  // settlement state — Lighter). Read-only listings plus selective,
+  // explicit acknowledgment; never destructive read-all.
+  getPendingManualRecoveries?(): Promise<PerpsPendingManualRecovery[]>;
+  getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
+  acknowledgeRecoveredDispatch?(recoveryId: string): Promise<void>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
   getUserDataSnapshot?(
@@ -1854,7 +1959,10 @@ export type PerpsProvider = {
   // Protocol-specific calculations
   calculateLiquidationPrice(params: LiquidationPriceParams): Promise<string>;
   calculateMaintenanceMargin(params: MaintenanceMarginParams): Promise<number>;
-  getMaxLeverage(asset: string): Promise<number>;
+  getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number>;
   calculateFees(params: FeeCalculationParams): Promise<FeeCalculationResult>;
   /**
    * Read-only projection of the position that would remain after the proposed
@@ -1933,7 +2041,7 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx';
+export type PerpsProviderType = 'hyperliquid' | 'myx' | 'lighter';
 
 /**
  * Active provider mode for PerpsController state.

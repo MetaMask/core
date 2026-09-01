@@ -60,7 +60,7 @@
     "@metamask/core-backend": "^9.0.0",
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^69.6.1",
+    "@metamask/transaction-controller": "^69.7.0",
     "@metamask/utils": "^11.11.0",
     "eth-chainlist": "^0.0.795"
   },

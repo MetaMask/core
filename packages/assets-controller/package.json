@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "14.0.2",
+  "version": "14.0.3",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
@@ -80,7 +80,7 @@
     "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^69.6.1",
+    "@metamask/transaction-controller": "^69.7.0",
     "@metamask/utils": "^11.11.0",
     "async-mutex": "^0.5.0",
     "bignumber.js": "^9.1.2",

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-middleware",
-  "version": "24.0.1",
+  "version": "24.0.2",
   "description": "Ethereum-related json-rpc-engine middleware",
   "keywords": [
     "Ethereum",

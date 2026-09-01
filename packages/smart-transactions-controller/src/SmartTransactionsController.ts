@@ -37,7 +37,6 @@ import { BigNumber } from 'bignumber.js';
 import cloneDeep from 'lodash/cloneDeep';
 
 import {
-  API_BASE_URL,
   DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS,
   MetaMetricsEventCategory,
   MetaMetricsEventName,
@@ -288,14 +287,6 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 
   readonly #trace: TraceCallback;
 
-  #isStxMigrationFlagEnabled(flagName: string): boolean {
-    const flag = this.messenger.call('RemoteFeatureFlagController:getState')
-      ?.remoteFeatureFlags?.[flagName];
-    return Boolean(
-      flag && typeof flag === 'object' && 'value' in flag && flag.value,
-    );
-  }
-
   /**
    * Validates the smart transactions feature flags from the remote feature flag controller
    * and reports any validation errors to Sentry via ErrorReportingService.
@@ -332,11 +323,9 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       ...(this.#clientId && { 'X-Client-Id': this.#clientId }),
     };
 
-    const urlMatches =
-      request.startsWith(API_BASE_URL) ||
-      Object.values(SENTINEL_API_BASE_URL_MAP).some((baseUrl) =>
-        request.startsWith(baseUrl),
-      );
+    const urlMatches = Object.values(SENTINEL_API_BASE_URL_MAP).some(
+      (baseUrl) => request.startsWith(baseUrl),
+    );
 
     if (urlMatches) {
       const token = await this.messenger.call(
@@ -826,14 +815,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     });
 
     // Construct the URL and fetch the data
-    const useSentinelForBatchStatus = this.#isStxMigrationFlagEnabled(
-      'stxMigrationBatchStatus',
-    );
-    const url = `${getAPIRequestURL(
-      APIType.BATCH_STATUS,
-      chainId,
-      useSentinelForBatchStatus,
-    )}?${params.toString()}`;
+    const url = `${getAPIRequestURL(APIType.BATCH_STATUS, chainId)}?${params.toString()}`;
     const data = (await this.#fetch(url)) as Record<
       string,
       SmartTransactionsStatus
@@ -924,21 +906,15 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       );
     }
     transactions.push(unsignedTradeTransactionWithNonce);
-    const useSentinelForGetFees = this.#isStxMigrationFlagEnabled(
-      'stxMigrationGetFees',
-    );
     const data = await this.#trace(
       { name: SmartTransactionsTraceName.GetFees },
       async () =>
-        await this.#fetch(
-          getAPIRequestURL(APIType.GET_FEES, chainId, useSentinelForGetFees),
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              txs: transactions,
-            }),
-          },
-        ),
+        await this.#fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
+          method: 'POST',
+          body: JSON.stringify({
+            txs: transactions,
+          }),
+        }),
     );
     let approvalTxFees: IndividualTxFees | null;
     let tradeTxFees: IndividualTxFees | null;
@@ -995,18 +971,11 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     const ethQuery = this.#getEthQuery({
       networkClientId: selectedNetworkClientId,
     });
-    const useSentinelForSubmitTransactions = this.#isStxMigrationFlagEnabled(
-      'stxMigrationSubmitTransactions',
-    );
     const data = await this.#trace(
       { name: SmartTransactionsTraceName.SubmitTransactions },
       async () =>
         await this.#fetch(
-          getAPIRequestURL(
-            APIType.SUBMIT_TRANSACTIONS,
-            chainId,
-            useSentinelForSubmitTransactions,
-          ),
+          getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
           {
             method: 'POST',
             body: JSON.stringify({
@@ -1154,18 +1123,13 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     } = {},
   ): Promise<void> {
     const chainId = this.#getChainId({ networkClientId });
-    const useSentinelForCancel =
-      this.#isStxMigrationFlagEnabled('stxMigrationCancel');
     await this.#trace(
       { name: SmartTransactionsTraceName.CancelTransaction },
       async () =>
-        await this.#fetch(
-          getAPIRequestURL(APIType.CANCEL, chainId, useSentinelForCancel),
-          {
-            method: 'POST',
-            body: JSON.stringify({ uuid }),
-          },
-        ),
+        await this.#fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
+          method: 'POST',
+          body: JSON.stringify({ uuid }),
+        }),
     );
   }
 
